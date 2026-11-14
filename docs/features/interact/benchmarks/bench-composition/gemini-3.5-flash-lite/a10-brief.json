@@ -1,0 +1,212 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a10",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does photosynthesis work?",
+ "ts": "2026-11-14T22:20:55.703Z",
+ "ms": 2742,
+ "raw": "{\n  \"story\": \"Plants capture sunlight in chloroplasts to convert carbon dioxide and water into chemical energy and oxygen.\",\n  \"aha\": {\n    \"stateId\": \"light\",\n    \"observation\": \"Light energy splits water molecules to release oxygen and power ATP formation.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"reason\": \"variant.states.why\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Photosynthesis Stage\",\n      \"options\": [\n        \"Absorption\",\n        \"Light Reaction\",\n        \"Calvin Cycle\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Photosynthesis Overview\",\n        \"regions\": [\n          {\n            \"id\": \"chloroplast\",\n            \"label\": \"Chloroplast\",\n            \"kind\": \"organelle\",\n            \"values\": [\"Thylakoid\", \"Stroma\"]\n          },\n          {\n            \"id\": \"inputs\",\n            \"label\": \"Inputs\",\n            \"kind\": \"material\",\n            \"values\": [\"Light\", \"H2O\", \"CO2\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"absorb\",\n            \"label\": \"Absorption\",\n            \"short\": \"Light capture\",\n            \"sentence\": \"Chlorophyll pigments absorb sunlight inside the thylakoid membrane.\",\n            \"why\": \"Initiates energy capture.\",\n            \"active\": [\"inputs\"],\n            \"calloutRegion\": \"chloroplast\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Photon Energy\",\n                \"value\": \"High\"\n              }\n            ]\n          },\n          {\n            \"id\": \"light\",\n            \"label\": \"Light Reaction\",\n            \"short\": \"Water splitting\",\n            \"sentence\": \"Water splits into oxygen, electrons, and protons using solar energy.\",\n            \"why\": \"Generates ATP and NADPH.\",\n            \"active\": [\"chloroplast\"],\n            \"calloutRegion\": \"chloroplast\",\n            \"readouts\": [\n              {\n                \"id\": \"r2\",\n                \"label\": \"Oxygen Released\",\n                \"value\": \"Yes\"\n              }\n            ]\n          },\n          {\n            \"id\": \"calvin\",\n            \"label\": \"Calvin Cycle\",\n            \"short\": \"Sugar building\",\n            \"sentence\": \"Carbon dioxide is fixed in the stroma to synthesize glucose.\",\n            \"why\": \"Stores energy long term.\",\n            \"active\": [\"chloroplast\"],\n            \"calloutRegion\": \"chloroplast\",\n            \"readouts\": [\n              {\n                \"id\": \"r3\",\n                \"label\": \"Glucose Yield\",\n                \"value\": \"1 Molecule\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Plants capture sunlight in chloroplasts to convert carbon dioxide and water into chemical energy and oxygen.",
+  "aha": {
+   "stateId": "light",
+   "observation": "Light energy splits water molecules to release oxygen and power ATP formation."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "reason": "variant.states.why"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Photosynthesis Stage",
+    "options": [
+     "Absorption",
+     "Light Reaction",
+     "Calvin Cycle"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Photosynthesis Overview",
+     "regions": [
+      {
+       "id": "chloroplast",
+       "label": "Chloroplast",
+       "kind": "organelle",
+       "values": [
+        "Thylakoid",
+        "Stroma"
+       ]
+      },
+      {
+       "id": "inputs",
+       "label": "Inputs",
+       "kind": "material",
+       "values": [
+        "Light",
+        "H2O",
+        "CO2"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "absorb",
+       "label": "Absorption",
+       "short": "Light capture",
+       "sentence": "Chlorophyll pigments absorb sunlight inside the thylakoid membrane.",
+       "why": "Initiates energy capture.",
+       "active": [
+        "inputs"
+       ],
+       "calloutRegion": "chloroplast",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Photon Energy",
+         "value": "High"
+        }
+       ]
+      },
+      {
+       "id": "light",
+       "label": "Light Reaction",
+       "short": "Water splitting",
+       "sentence": "Water splits into oxygen, electrons, and protons using solar energy.",
+       "why": "Generates ATP and NADPH.",
+       "active": [
+        "chloroplast"
+       ],
+       "calloutRegion": "chloroplast",
+       "readouts": [
+        {
+         "id": "r2",
+         "label": "Oxygen Released",
+         "value": "Yes"
+        }
+       ]
+      },
+      {
+       "id": "calvin",
+       "label": "Calvin Cycle",
+       "short": "Sugar building",
+       "sentence": "Carbon dioxide is fixed in the stroma to synthesize glucose.",
+       "why": "Stores energy long term.",
+       "active": [
+        "chloroplast"
+       ],
+       "calloutRegion": "chloroplast",
+       "readouts": [
+        {
+         "id": "r3",
+         "label": "Glucose Yield",
+         "value": "1 Molecule"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1101,
+  "output": 969
+ },
+ "usd": 0.002753,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The fixed picture has only two abstract regions (chloroplast, inputs) with no marks showing water splitting, electron flow or the Calvin cycle, so no single mechanism question is demonstrated."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state 'light' is the middle step of an index stepper with no hold or gating, and the learner can pass through it freely, so nothing emphasizes or holds the decisive moment."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is a step index that selects a state; no input changes an experiment or outcome, and nothing explains why a fixed comparison is appropriate."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The callout always targets 'chloroplast', and 'active' lists only 'inputs' or 'chloroplast' (never the thylakoid or stroma sub-regions). The 'why' text is bound to both the picture and the callout, and there are no arrows or ghosts tied to specific data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The story speaks of CO2, water and oxygen, but the regions are generic. The control is labelled 'Photosynthesis Stage', yet the aha mentions ATP formation while the readout shows only 'Oxygen Released: Yes'. The 'Absorption' step is described as happening in the thylakoid, which the picture does not"
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The depth is 'brief' and there is one changing readout per state, so there is no clutter. However, there is also no comparison, formula or count adding mechanism, and the picture is too thin to carry the explanation."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The values are qualitative ('High', 'Yes', '1 Molecule') and cannot be independently checked. 'Glucose Yield: 1 Molecule' is also misleading, since one glucose needs 6 CO2 and 2 turns of the cycle. The sentence text also repeats the readout and 'why' content."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.013136
+ }
+}

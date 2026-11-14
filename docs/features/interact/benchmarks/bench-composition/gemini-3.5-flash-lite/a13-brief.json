@@ -1,0 +1,250 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a13",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a bill become a law in the United States?",
+ "ts": "2026-11-14T22:21:06.264Z",
+ "ms": 3423,
+ "raw": "{\n  \"story\": \"A bill travels from initial proposal through committee review, floor debate, and presidential approval to finally become federal law.\",\n  \"aha\": {\n    \"stateId\": \"presidential\",\n    \"observation\": \"The President signs the bill, or overrides a veto, successfully enacting the proposal into law.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Legislative Step\",\n      \"options\": [\n        \"Introduction\",\n        \"Committee\",\n        \"Floor Debate\",\n        \"Presidential Action\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"US Legislative Process\",\n        \"regions\": [\n          {\n            \"id\": \"reg_house\",\n            \"label\": \"House of Representatives\",\n            \"values\": [\"Drafting\", \"Introduction\"]\n          },\n          {\n            \"id\": \"reg_committee\",\n            \"label\": \"Congressional Committee\",\n            \"values\": [\"Hearings\", \"Markup\"]\n          },\n          {\n            \"id\": \"reg_floor\",\n            \"label\": \"Chamber Floors\",\n            \"values\": [\"Debate\", \"Roll Call Vote\"]\n          },\n          {\n            \"id\": \"reg_president\",\n            \"label\": \"Executive Branch\",\n            \"values\": [\"Signature\", \"Veto Override\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"intro\",\n            \"label\": \"1. Introduction\",\n            \"short\": \"Draft\",\n            \"sentence\": \"A representative introduces the bill.\",\n            \"why\": \"All legislative ideas must start with a formal proposal.\",\n            \"active\": [\"reg_house\"],\n            \"calloutRegion\": \"reg_house\",\n            \"readouts\": [\n              {\n                \"id\": \"stage\",\n                \"label\": \"Current Stage\",\n                \"value\": \"Introduction\"\n              }\n            ]\n          },\n          {\n            \"id\": \"committee\",\n            \"label\": \"2. Committee\",\n            \"short\": \"Review\",\n            \"sentence\": \"Specialized committees study, amend, and vote on the bill.\",\n            \"why\": \"Committees provide expert vetting before general debate.\",\n            \"active\": [\"reg_committee\"],\n            \"calloutRegion\": \"reg_committee\",\n            \"readouts\": [\n              {\n                \"id\": \"stage\",\n                \"label\": \"Current Stage\",\n                \"value\": \"Committee Review\"\n              }\n            ]\n          },\n          {\n            \"id\": \"floor\",\n            \"label\": \"3. Floor Debate\",\n            \"short\": \"Vote\",\n            \"sentence\": \"Chambers debate the bill and hold a recorded vote.\",\n            \"why\": \"A majority approval sends the measure to the executive.\",\n            \"active\": [\"reg_floor\"],\n            \"calloutRegion\": \"reg_floor\",\n            \"readouts\": [\n              {\n                \"id\": \"stage\",\n                \"label\": \"Current Stage\",\n                \"value\": \"Floor Vote\"\n              }\n            ]\n          },\n          {\n            \"id\": \"presidential\",\n            \"label\": \"4. President\",\n            \"short\": \"Law\",\n            \"sentence\": \"The President signs the bill into official law.\",\n            \"why\": \"Executive signature completes the legislative journey.\",\n            \"active\": [\"reg_president\"],\n            \"calloutRegion\": \"reg_president\",\n            \"readouts\": [\n              {\n                \"id\": \"stage\",\n                \"label\": \"Current Stage\",\n                \"value\": \"Enacted\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "A bill travels from initial proposal through committee review, floor debate, and presidential approval to finally become federal law.",
+  "aha": {
+   "stateId": "presidential",
+   "observation": "The President signs the bill, or overrides a veto, successfully enacting the proposal into law."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Legislative Step",
+    "options": [
+     "Introduction",
+     "Committee",
+     "Floor Debate",
+     "Presidential Action"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "US Legislative Process",
+     "regions": [
+      {
+       "id": "reg_house",
+       "label": "House of Representatives",
+       "values": [
+        "Drafting",
+        "Introduction"
+       ]
+      },
+      {
+       "id": "reg_committee",
+       "label": "Congressional Committee",
+       "values": [
+        "Hearings",
+        "Markup"
+       ]
+      },
+      {
+       "id": "reg_floor",
+       "label": "Chamber Floors",
+       "values": [
+        "Debate",
+        "Roll Call Vote"
+       ]
+      },
+      {
+       "id": "reg_president",
+       "label": "Executive Branch",
+       "values": [
+        "Signature",
+        "Veto Override"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "intro",
+       "label": "1. Introduction",
+       "short": "Draft",
+       "sentence": "A representative introduces the bill.",
+       "why": "All legislative ideas must start with a formal proposal.",
+       "active": [
+        "reg_house"
+       ],
+       "calloutRegion": "reg_house",
+       "readouts": [
+        {
+         "id": "stage",
+         "label": "Current Stage",
+         "value": "Introduction"
+        }
+       ]
+      },
+      {
+       "id": "committee",
+       "label": "2. Committee",
+       "short": "Review",
+       "sentence": "Specialized committees study, amend, and vote on the bill.",
+       "why": "Committees provide expert vetting before general debate.",
+       "active": [
+        "reg_committee"
+       ],
+       "calloutRegion": "reg_committee",
+       "readouts": [
+        {
+         "id": "stage",
+         "label": "Current Stage",
+         "value": "Committee Review"
+        }
+       ]
+      },
+      {
+       "id": "floor",
+       "label": "3. Floor Debate",
+       "short": "Vote",
+       "sentence": "Chambers debate the bill and hold a recorded vote.",
+       "why": "A majority approval sends the measure to the executive.",
+       "active": [
+        "reg_floor"
+       ],
+       "calloutRegion": "reg_floor",
+       "readouts": [
+        {
+         "id": "stage",
+         "label": "Current Stage",
+         "value": "Floor Vote"
+        }
+       ]
+      },
+      {
+       "id": "presidential",
+       "label": "4. President",
+       "short": "Law",
+       "sentence": "The President signs the bill into official law.",
+       "why": "Executive signature completes the legislative journey.",
+       "active": [
+        "reg_president"
+       ],
+       "calloutRegion": "reg_president",
+       "readouts": [
+        {
+         "id": "stage",
+         "label": "Current Stage",
+         "value": "Enacted"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1108,
+  "output": 1218
+ },
+ "usd": 0.003378,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture shows four regions in sequence with the active one highlighted, answering how a bill becomes law, though it shows stages more than a causal mechanism."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'presidential' is the final step, and it is reached only when the learner moves stepIndex; there is no timer."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "stepIndex changes the active region, callout, and readout in each state, and each step has distinct evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout, and readout bind to variant.states, regions, calloutRegion, and sentence; each state's active and calloutRegion ids match declared regions."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "Control options, state labels, sentences, and readouts all name the same four stages, though 'Floor Debate' versus 'Floor Vote' and 'Presidential Action' versus 'President' are minor wording variants."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Brief depth shows one changing active region at a time across four regions, with a single readout and no extra clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The readout 'Enacted' and the stage name duplicate the callout text and step label, so the information is not placed once. The aha also says 'or overrides a veto' while the sentence mentions only a signature, and the region values (Veto Override) are never shown."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011532
+ }
+}

@@ -1,0 +1,539 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "b-merge-sort",
+ "set": "B",
+ "subject": "merge-sort",
+ "depth": "balanced",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T22:36:04.053Z",
+ "ms": 29682,
+ "raw": "{\"story\":\"Merge sort splits a list in half, sorts each half, then merges the two sorted halves. Merging compares only the front item of each half and moves the smaller one to the output, until everything is in order.\",\"aha\":{\"stateId\":\"s10\",\"observation\":\"Because each half is already sorted, merging only compares the two front items. Each comparison places one item, so the whole list is ordered in one pass.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"default\":0,\"items\":\"variant.states\",\"presentation\":\"Previous / Next\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Sort 6, 3, 8, 1, 5, 2\",\"regions\":[{\"id\":\"whole\",\"label\":\"Whole list\",\"kind\":\"array\",\"values\":[\"6\",\"3\",\"8\",\"1\",\"5\",\"2\"]},{\"id\":\"left\",\"label\":\"Left half\",\"kind\":\"array\",\"values\":[\"6\",\"3\",\"8\"]},{\"id\":\"right\",\"label\":\"Right half\",\"kind\":\"array\",\"values\":[\"1\",\"5\",\"2\"]},{\"id\":\"left-sorted\",\"label\":\"Left sorted\",\"kind\":\"array\",\"values\":[\"3\",\"6\",\"8\"]},{\"id\":\"right-sorted\",\"label\":\"Right sorted\",\"kind\":\"array\",\"values\":[\"1\",\"2\",\"5\"]},{\"id\":\"merged\",\"label\":\"Merged output\",\"kind\":\"array\",\"values\":[\"1\",\"2\",\"3\",\"5\",\"6\",\"8\"]}],\"links\":[{\"from\":\"whole\",\"to\":\"left\",\"label\":\"split\"},{\"from\":\"whole\",\"to\":\"right\",\"label\":\"split\"},{\"from\":\"left\",\"to\":\"left-sorted\",\"label\":\"sort\"},{\"from\":\"right\",\"to\":\"right-sorted\",\"label\":\"sort\"},{\"from\":\"left-sorted\",\"to\":\"merged\",\"label\":\"merge\"},{\"from\":\"right-sorted\",\"to\":\"merged\",\"label\":\"merge\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Start\",\"short\":\"Start\",\"sentence\":\"Begin with one unsorted list. Merge sort will break it into smaller lists.\",\"why\":\"The whole list is the problem to solve.\",\"active\":[\"whole\"],\"calloutRegion\":\"whole\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Comparing\",\"value\":\"none yet\"},{\"id\":\"out\",\"label\":\"Output so far\",\"value\":\"empty\"},{\"id\":\"n\",\"label\":\"Comparisons made\",\"value\":\"0\"}]},{\"id\":\"s2\",\"label\":\"Split\",\"short\":\"Split\",\"sentence\":\"Cut the list in the middle into a left half and a right half.\",\"why\":\"Smaller lists are easier to sort.\",\"active\":[\"left\",\"right\"],\"calloutRegion\":\"left\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Comparing\",\"value\":\"none yet\"},{\"id\":\"out\",\"label\":\"Output so far\",\"value\":\"empty\"},{\"id\":\"n\",\"label\":\"Comparisons made\",\"value\":\"0\"}]},{\"id\":\"s3\",\"label\":\"Sort left\",\"short\":\"Sort L\",\"sentence\":\"Sort the left half by applying the same split-and-merge process to it.\",\"why\":\"Recursion reduces the half to sorted order.\",\"active\":[\"left-sorted\"],\"calloutRegion\":\"left-sorted\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Comparing\",\"value\":\"none yet\"},{\"id\":\"out\",\"label\":\"Output so far\",\"value\":\"empty\"},{\"id\":\"n\",\"label\":\"Comparisons made\",\"value\":\"0\"}]},{\"id\":\"s4\",\"label\":\"Sort right\",\"short\":\"Sort R\",\"sentence\":\"Sort the right half the same way. Both halves are now in order.\",\"why\":\"Merging needs two sorted inputs.\",\"active\":[\"right-sorted\"],\"calloutRegion\":\"right-sorted\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Comparing\",\"value\":\"none yet\"},{\"id\":\"out\",\"label\":\"Output so far\",\"value\":\"empty\"},{\"id\":\"n\",\"label\":\"Comparisons made\",\"value\":\"0\"}]},{\"id\":\"s5\",\"label\":\"Merge 1\",\"short\":\"Merge 1\",\"sentence\":\"Compare the front items of both sorted halves. The right front is smaller, so it moves out.\",\"why\":\"The smallest remaining item is always one of the two fronts.\",\"active\":[\"left-sorted\",\"right-sorted\",\"merged\"],\"calloutRegion\":\"right-sorted\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Comparing\",\"value\":\"3 vs 1\"},{\"id\":\"out\",\"label\":\"Output so far\",\"value\":\"1\"},{\"id\":\"n\",\"label\":\"Comparisons made\",\"value\":\"1\"}]},{\"id\":\"s6\",\"label\":\"Merge 2\",\"short\":\"Merge 2\",\"sentence\":\"Compare the new fronts. The right front is smaller again, so it joins the output.\",\"why\":\"Only fronts need checking; the rest are larger.\",\"active\":[\"left-sorted\",\"right-sorted\",\"merged\"],\"calloutRegion\":\"right-sorted\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Comparing\",\"value\":\"3 vs 2\"},{\"id\":\"out\",\"label\":\"Output so far\",\"value\":\"1, 2\"},{\"id\":\"n\",\"label\":\"Comparisons made\",\"value\":\"2\"}]},{\"id\":\"s7\",\"label\":\"Merge 3\",\"short\":\"Merge 3\",\"sentence\":\"Now the left front is smaller, so the left half supplies the next output item.\",\"why\":\"Either half can win; the smaller front always does.\",\"active\":[\"left-sorted\",\"right-sorted\",\"merged\"],\"calloutRegion\":\"left-sorted\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Comparing\",\"value\":\"3 vs 5\"},{\"id\":\"out\",\"label\":\"Output so far\",\"value\":\"1, 2, 3\"},{\"id\":\"n\",\"label\":\"Comparisons made\",\"value\":\"3\"}]},{\"id\":\"s8\",\"label\":\"Merge 4\",\"short\":\"Merge 4\",\"sentence\":\"The right front wins this comparison and moves to the output.\",\"why\":\"Each comparison places exactly one item.\",\"active\":[\"left-sorted\",\"right-sorted\",\"merged\"],\"calloutRegion\":\"right-sorted\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Comparing\",\"value\":\"6 vs 5\"},{\"id\":\"out\",\"label\":\"Output so far\",\"value\":\"1, 2, 3, 5\"},{\"id\":\"n\",\"label\":\"Comparisons made\",\"value\":\"4\"}]},{\"id\":\"s9\",\"label\":\"Merge 5\",\"short\":\"Merge 5\",\"sentence\":\"The right half is now empty after this comparison, which the left front wins.\",\"why\":\"Once one half is empty, no more comparing is needed.\",\"active\":[\"left-sorted\",\"merged\"],\"calloutRegion\":\"left-sorted\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Comparing\",\"value\":\"6 vs 8\"},{\"id\":\"out\",\"label\":\"Output so far\",\"value\":\"1, 2, 3, 5, 6\"},{\"id\":\"n\",\"label\":\"Comparisons made\",\"value\":\"5\"}]},{\"id\":\"s10\",\"label\":\"Sorted\",\"short\":\"Sorted\",\"sentence\":\"Copy the leftover item from the left half. Merging sorted halves finished the whole sort.\",\"why\":\"One pass of front comparisons ordered all items.\",\"active\":[\"merged\"],\"calloutRegion\":\"merged\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Comparing\",\"value\":\"none left\"},{\"id\":\"out\",\"label\":\"Output so far\",\"value\":\"1, 2, 3, 5, 6, 8\"},{\"id\":\"n\",\"label\":\"Comparisons made\",\"value\":\"5\"}]}]}]}}",
+ "composition": {
+  "story": "Merge sort splits a list in half, sorts each half, then merges the two sorted halves. Merging compares only the front item of each half and moves the smaller one to the output, until everything is in order.",
+  "aha": {
+   "stateId": "s10",
+   "observation": "Because each half is already sorted, merging only compares the two front items. Each comparison places one item, so the whole list is ordered in one pass."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "default": 0,
+    "items": "variant.states",
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Sort 6, 3, 8, 1, 5, 2",
+     "regions": [
+      {
+       "id": "whole",
+       "label": "Whole list",
+       "kind": "array",
+       "values": [
+        "6",
+        "3",
+        "8",
+        "1",
+        "5",
+        "2"
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left half",
+       "kind": "array",
+       "values": [
+        "6",
+        "3",
+        "8"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right half",
+       "kind": "array",
+       "values": [
+        "1",
+        "5",
+        "2"
+       ]
+      },
+      {
+       "id": "left-sorted",
+       "label": "Left sorted",
+       "kind": "array",
+       "values": [
+        "3",
+        "6",
+        "8"
+       ]
+      },
+      {
+       "id": "right-sorted",
+       "label": "Right sorted",
+       "kind": "array",
+       "values": [
+        "1",
+        "2",
+        "5"
+       ]
+      },
+      {
+       "id": "merged",
+       "label": "Merged output",
+       "kind": "array",
+       "values": [
+        "1",
+        "2",
+        "3",
+        "5",
+        "6",
+        "8"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "whole",
+       "to": "left",
+       "label": "split"
+      },
+      {
+       "from": "whole",
+       "to": "right",
+       "label": "split"
+      },
+      {
+       "from": "left",
+       "to": "left-sorted",
+       "label": "sort"
+      },
+      {
+       "from": "right",
+       "to": "right-sorted",
+       "label": "sort"
+      },
+      {
+       "from": "left-sorted",
+       "to": "merged",
+       "label": "merge"
+      },
+      {
+       "from": "right-sorted",
+       "to": "merged",
+       "label": "merge"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Start",
+       "short": "Start",
+       "sentence": "Begin with one unsorted list. Merge sort will break it into smaller lists.",
+       "why": "The whole list is the problem to solve.",
+       "active": [
+        "whole"
+       ],
+       "calloutRegion": "whole",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Comparing",
+         "value": "none yet"
+        },
+        {
+         "id": "out",
+         "label": "Output so far",
+         "value": "empty"
+        },
+        {
+         "id": "n",
+         "label": "Comparisons made",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Split",
+       "short": "Split",
+       "sentence": "Cut the list in the middle into a left half and a right half.",
+       "why": "Smaller lists are easier to sort.",
+       "active": [
+        "left",
+        "right"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Comparing",
+         "value": "none yet"
+        },
+        {
+         "id": "out",
+         "label": "Output so far",
+         "value": "empty"
+        },
+        {
+         "id": "n",
+         "label": "Comparisons made",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Sort left",
+       "short": "Sort L",
+       "sentence": "Sort the left half by applying the same split-and-merge process to it.",
+       "why": "Recursion reduces the half to sorted order.",
+       "active": [
+        "left-sorted"
+       ],
+       "calloutRegion": "left-sorted",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Comparing",
+         "value": "none yet"
+        },
+        {
+         "id": "out",
+         "label": "Output so far",
+         "value": "empty"
+        },
+        {
+         "id": "n",
+         "label": "Comparisons made",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Sort right",
+       "short": "Sort R",
+       "sentence": "Sort the right half the same way. Both halves are now in order.",
+       "why": "Merging needs two sorted inputs.",
+       "active": [
+        "right-sorted"
+       ],
+       "calloutRegion": "right-sorted",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Comparing",
+         "value": "none yet"
+        },
+        {
+         "id": "out",
+         "label": "Output so far",
+         "value": "empty"
+        },
+        {
+         "id": "n",
+         "label": "Comparisons made",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Merge 1",
+       "short": "Merge 1",
+       "sentence": "Compare the front items of both sorted halves. The right front is smaller, so it moves out.",
+       "why": "The smallest remaining item is always one of the two fronts.",
+       "active": [
+        "left-sorted",
+        "right-sorted",
+        "merged"
+       ],
+       "calloutRegion": "right-sorted",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Comparing",
+         "value": "3 vs 1"
+        },
+        {
+         "id": "out",
+         "label": "Output so far",
+         "value": "1"
+        },
+        {
+         "id": "n",
+         "label": "Comparisons made",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Merge 2",
+       "short": "Merge 2",
+       "sentence": "Compare the new fronts. The right front is smaller again, so it joins the output.",
+       "why": "Only fronts need checking; the rest are larger.",
+       "active": [
+        "left-sorted",
+        "right-sorted",
+        "merged"
+       ],
+       "calloutRegion": "right-sorted",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Comparing",
+         "value": "3 vs 2"
+        },
+        {
+         "id": "out",
+         "label": "Output so far",
+         "value": "1, 2"
+        },
+        {
+         "id": "n",
+         "label": "Comparisons made",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Merge 3",
+       "short": "Merge 3",
+       "sentence": "Now the left front is smaller, so the left half supplies the next output item.",
+       "why": "Either half can win; the smaller front always does.",
+       "active": [
+        "left-sorted",
+        "right-sorted",
+        "merged"
+       ],
+       "calloutRegion": "left-sorted",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Comparing",
+         "value": "3 vs 5"
+        },
+        {
+         "id": "out",
+         "label": "Output so far",
+         "value": "1, 2, 3"
+        },
+        {
+         "id": "n",
+         "label": "Comparisons made",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "Merge 4",
+       "short": "Merge 4",
+       "sentence": "The right front wins this comparison and moves to the output.",
+       "why": "Each comparison places exactly one item.",
+       "active": [
+        "left-sorted",
+        "right-sorted",
+        "merged"
+       ],
+       "calloutRegion": "right-sorted",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Comparing",
+         "value": "6 vs 5"
+        },
+        {
+         "id": "out",
+         "label": "Output so far",
+         "value": "1, 2, 3, 5"
+        },
+        {
+         "id": "n",
+         "label": "Comparisons made",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "s9",
+       "label": "Merge 5",
+       "short": "Merge 5",
+       "sentence": "The right half is now empty after this comparison, which the left front wins.",
+       "why": "Once one half is empty, no more comparing is needed.",
+       "active": [
+        "left-sorted",
+        "merged"
+       ],
+       "calloutRegion": "left-sorted",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Comparing",
+         "value": "6 vs 8"
+        },
+        {
+         "id": "out",
+         "label": "Output so far",
+         "value": "1, 2, 3, 5, 6"
+        },
+        {
+         "id": "n",
+         "label": "Comparisons made",
+         "value": "5"
+        }
+       ]
+      },
+      {
+       "id": "s10",
+       "label": "Sorted",
+       "short": "Sorted",
+       "sentence": "Copy the leftover item from the left half. Merging sorted halves finished the whole sort.",
+       "why": "One pass of front comparisons ordered all items.",
+       "active": [
+        "merged"
+       ],
+       "calloutRegion": "merged",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Comparing",
+         "value": "none left"
+        },
+        {
+         "id": "out",
+         "label": "Output so far",
+         "value": "1, 2, 3, 5, 6, 8"
+        },
+        {
+         "id": "n",
+         "label": "Comparisons made",
+         "value": "5"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3067,
+  "output": 4534
+ },
+ "usd": 0.051474,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture links whole, halves, sorted halves and merged output, and the merge states show the front comparisons that answer why merging sorted halves is easy."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha is declared at s10, the final Sorted state, and a step-controlled stepper stays on it until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only parameter is Step, and it changes the active regions, callout and readouts in every state; a fixed input list is justified for a walkthrough."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, ghost, callout, readouts and progress all bind to declared state fields, regions and links, and each calloutRegion names a declared region."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The s9 narrative says the right half is empty after this comparison, but the right half was emptied at s8. Its active list also omits right-sorted, so the text contradicts the drawing."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The data is balanced in depth but has 10 states and three readouts per state, and the merge steps stack the callout, readouts and a three-region picture, which is heavier than one changing region."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The comparison pairs, output sequences and counts check out: 5 comparisons for 6 items, with the leftover 8 copied without comparing; each value appears in the readouts, and the callout only locates."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.017026
+ }
+}

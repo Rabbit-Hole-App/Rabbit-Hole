@@ -1,0 +1,519 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a21",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a decision tree split a two-feature dataset into regions?",
+ "ts": "2026-11-14T22:26:58.470Z",
+ "ms": 37171,
+ "raw": "{\"story\":\"A decision tree starts with all twelve points in one region. It tests single-feature thresholds, keeps the cut with the lowest weighted Gini impurity, then repeats inside each child. Nested cuts leave four pure rectangles.\",\"aha\":{\"stateId\":\"s6\",\"observation\":\"Each split cuts one existing region on one feature, so repeated cuts nest into axis-aligned rectangles. Each leaf predicts its majority class.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"inputs.step\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"inputs.step\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"default\":0,\"items\":\"variant.states\",\"presentation\":\"Previous and Next buttons; keyboard arrow keys; bounded 0 to 6; Previous and Next stay visible and disable at the ends\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Restores step 0\"}],\"data\":{\"variants\":[{\"label\":\"12 points, features x1 and x2, classes A and B, Gini criterion\",\"regions\":[{\"id\":\"root\",\"label\":\"Root region: all points\",\"kind\":\"region\",\"values\":[\"6 A, 6 B\",\"Gini 0.500\",\"Gini = 1 − Σ pₖ²\"]},{\"id\":\"cand\",\"label\":\"Candidate cut x2 ≤ 4\",\"kind\":\"split\",\"values\":[\"lower 4 A, 2 B\",\"upper 2 A, 4 B\",\"weighted Gini 0.444\"]},{\"id\":\"split1\",\"label\":\"Chosen cut x1 ≤ 4\",\"kind\":\"split\",\"values\":[\"weighted Gini 0.278\",\"gain 0.222\"]},{\"id\":\"left\",\"label\":\"Left region: x1 ≤ 4\",\"kind\":\"region\",\"values\":[\"5 A, 1 B\",\"Gini 0.278\"]},{\"id\":\"right\",\"label\":\"Right region: x1 > 4\",\"kind\":\"region\",\"values\":[\"1 A, 5 B\",\"Gini 0.278\"]},{\"id\":\"split2L\",\"label\":\"Cut x2 ≤ 6 inside left\",\"kind\":\"split\",\"values\":[\"weighted Gini 0\",\"gain 0.278\"]},{\"id\":\"split2R\",\"label\":\"Cut x2 ≤ 2 inside right\",\"kind\":\"split\",\"values\":[\"weighted Gini 0\",\"gain 0.278\"]},{\"id\":\"leafLL\",\"label\":\"Leaf: x1 ≤ 4, x2 ≤ 6\",\"kind\":\"leaf\",\"values\":[\"5 A, 0 B\",\"predict A\",\"Gini 0\"]},{\"id\":\"leafLH\",\"label\":\"Leaf: x1 ≤ 4, x2 > 6\",\"kind\":\"leaf\",\"values\":[\"0 A, 1 B\",\"predict B\",\"Gini 0\"]},{\"id\":\"leafRL\",\"label\":\"Leaf: x1 > 4, x2 ≤ 2\",\"kind\":\"leaf\",\"values\":[\"1 A, 0 B\",\"predict A\",\"Gini 0\"]},{\"id\":\"leafRH\",\"label\":\"Leaf: x1 > 4, x2 > 2\",\"kind\":\"leaf\",\"values\":[\"0 A, 5 B\",\"predict B\",\"Gini 0\"]}],\"links\":[{\"from\":\"root\",\"to\":\"cand\",\"label\":\"tested\"},{\"from\":\"root\",\"to\":\"split1\",\"label\":\"best\"},{\"from\":\"split1\",\"to\":\"left\",\"label\":\"yes\"},{\"from\":\"split1\",\"to\":\"right\",\"label\":\"no\"},{\"from\":\"left\",\"to\":\"split2L\",\"label\":\"split again\"},{\"from\":\"right\",\"to\":\"split2R\",\"label\":\"split again\"},{\"from\":\"split2L\",\"to\":\"leafLL\",\"label\":\"x2 ≤ 6\"},{\"from\":\"split2L\",\"to\":\"leafLH\",\"label\":\"x2 > 6\"},{\"from\":\"split2R\",\"to\":\"leafRL\",\"label\":\"x2 ≤ 2\"},{\"from\":\"split2R\",\"to\":\"leafRH\",\"label\":\"x2 > 2\"}],\"states\":[{\"id\":\"s0\",\"label\":\"One region\",\"short\":\"Start\",\"sentence\":\"All twelve points share one region: six class A, six class B. A single guess is wrong half the time.\",\"why\":\"Gini 0.500 is the impurity every split tries to reduce.\",\"active\":[\"root\"],\"calloutRegion\":\"root\",\"readouts\":[{\"id\":\"regions\",\"label\":\"Regions\",\"value\":\"1\"},{\"id\":\"counts\",\"label\":\"Class counts (A / B)\",\"value\":\"6 / 6\"},{\"id\":\"gini\",\"label\":\"Gini = 1 − Σ pₖ²\",\"value\":\"0.500\"}]},{\"id\":\"s1\",\"label\":\"Compare candidate cuts\",\"short\":\"Compare\",\"sentence\":\"Cut x2 ≤ 4 gives weighted Gini 0.444. Cut x1 ≤ 4 gives 0.278. Lower means purer children.\",\"why\":\"Weighted Gini averages the two children by their point counts.\",\"active\":[\"root\",\"cand\",\"split1\"],\"calloutRegion\":\"cand\",\"readouts\":[{\"id\":\"c1\",\"label\":\"Weighted Gini, x2 ≤ 4\",\"value\":\"0.444\"},{\"id\":\"c2\",\"label\":\"Weighted Gini, x1 ≤ 4\",\"value\":\"0.278\"},{\"id\":\"g1\",\"label\":\"Parent Gini\",\"value\":\"0.500\"}]},{\"id\":\"s2\",\"label\":\"Keep the best cut\",\"short\":\"Choose\",\"sentence\":\"The tree keeps x1 ≤ 4 because it lowers impurity most, by 0.222. The root becomes two regions.\",\"why\":\"Gain = parent Gini − weighted child Gini = 0.500 − 0.278.\",\"active\":[\"root\",\"split1\"],\"calloutRegion\":\"split1\",\"readouts\":[{\"id\":\"regions\",\"label\":\"Regions\",\"value\":\"2\"},{\"id\":\"gain\",\"label\":\"Gain\",\"value\":\"0.222\"},{\"id\":\"w\",\"label\":\"Weighted child Gini\",\"value\":\"0.278\"}]},{\"id\":\"s3\",\"label\":\"Children still mixed\",\"short\":\"Mixed\",\"sentence\":\"Left holds 5 A and 1 B; right holds 1 A and 5 B. Each is a rectangle with one stray point.\",\"why\":\"Gini (1 − (5/6)² − (1/6)²) = 0.278 in each child, so both split again.\",\"active\":[\"split1\",\"left\",\"right\"],\"calloutRegion\":\"left\",\"readouts\":[{\"id\":\"l\",\"label\":\"Left counts (A / B)\",\"value\":\"5 / 1\"},{\"id\":\"r\",\"label\":\"Right counts (A / B)\",\"value\":\"1 / 5\"},{\"id\":\"gl\",\"label\":\"Gini per child\",\"value\":\"0.278\"}]},{\"id\":\"s4\",\"label\":\"Split the left region\",\"short\":\"Split left\",\"sentence\":\"Inside x1 ≤ 4 only, cut x2 ≤ 6. The lower leaf holds 5 A; the upper leaf holds 1 B.\",\"why\":\"A cut applies only within its own region, so the right side is untouched.\",\"active\":[\"left\",\"split2L\",\"leafLL\",\"leafLH\"],\"calloutRegion\":\"split2L\",\"readouts\":[{\"id\":\"regions\",\"label\":\"Regions\",\"value\":\"3\"},{\"id\":\"gain\",\"label\":\"Gain in left\",\"value\":\"0.278\"},{\"id\":\"gl\",\"label\":\"Left leaves Gini\",\"value\":\"0 and 0\"}]},{\"id\":\"s5\",\"label\":\"Split the right region\",\"short\":\"Split right\",\"sentence\":\"Inside x1 > 4 only, cut x2 ≤ 2. The lower leaf holds 1 A; the upper leaf holds 5 B.\",\"why\":\"The right child picks its own feature and threshold, independent of the left child.\",\"active\":[\"right\",\"split2R\",\"leafRL\",\"leafRH\"],\"calloutRegion\":\"split2R\",\"readouts\":[{\"id\":\"regions\",\"label\":\"Regions\",\"value\":\"4\"},{\"id\":\"gain\",\"label\":\"Gain in right\",\"value\":\"0.278\"},{\"id\":\"gr\",\"label\":\"Right leaves Gini\",\"value\":\"0 and 0\"}]},{\"id\":\"s6\",\"label\":\"Four pure rectangles\",\"short\":\"Done\",\"sentence\":\"Nested one-feature cuts split the plane into four rectangles. Each leaf predicts its majority class, so all twelve points fit.\",\"why\":\"Every leaf has Gini 0, so the tree stops splitting.\",\"active\":[\"leafLL\",\"leafLH\",\"leafRL\",\"leafRH\"],\"calloutRegion\":\"leafLL\",\"readouts\":[{\"id\":\"regions\",\"label\":\"Leaf regions\",\"value\":\"4\"},{\"id\":\"gini\",\"label\":\"Weighted leaf Gini\",\"value\":\"0.000\"},{\"id\":\"acc\",\"label\":\"Training points correct\",\"value\":\"12 of 12\"}]}]}]}}",
+ "composition": {
+  "story": "A decision tree starts with all twelve points in one region. It tests single-feature thresholds, keeps the cut with the lowest weighted Gini impurity, then repeats inside each child. Nested cuts leave four pure rectangles.",
+  "aha": {
+   "stateId": "s6",
+   "observation": "Each split cuts one existing region on one feature, so repeated cuts nest into axis-aligned rectangles. Each leaf predicts its majority class."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "inputs.step"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "inputs.step"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "default": 0,
+    "items": "variant.states",
+    "presentation": "Previous and Next buttons; keyboard arrow keys; bounded 0 to 6; Previous and Next stay visible and disable at the ends"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restores step 0"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "12 points, features x1 and x2, classes A and B, Gini criterion",
+     "regions": [
+      {
+       "id": "root",
+       "label": "Root region: all points",
+       "kind": "region",
+       "values": [
+        "6 A, 6 B",
+        "Gini 0.500",
+        "Gini = 1 − Σ pₖ²"
+       ]
+      },
+      {
+       "id": "cand",
+       "label": "Candidate cut x2 ≤ 4",
+       "kind": "split",
+       "values": [
+        "lower 4 A, 2 B",
+        "upper 2 A, 4 B",
+        "weighted Gini 0.444"
+       ]
+      },
+      {
+       "id": "split1",
+       "label": "Chosen cut x1 ≤ 4",
+       "kind": "split",
+       "values": [
+        "weighted Gini 0.278",
+        "gain 0.222"
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left region: x1 ≤ 4",
+       "kind": "region",
+       "values": [
+        "5 A, 1 B",
+        "Gini 0.278"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right region: x1 > 4",
+       "kind": "region",
+       "values": [
+        "1 A, 5 B",
+        "Gini 0.278"
+       ]
+      },
+      {
+       "id": "split2L",
+       "label": "Cut x2 ≤ 6 inside left",
+       "kind": "split",
+       "values": [
+        "weighted Gini 0",
+        "gain 0.278"
+       ]
+      },
+      {
+       "id": "split2R",
+       "label": "Cut x2 ≤ 2 inside right",
+       "kind": "split",
+       "values": [
+        "weighted Gini 0",
+        "gain 0.278"
+       ]
+      },
+      {
+       "id": "leafLL",
+       "label": "Leaf: x1 ≤ 4, x2 ≤ 6",
+       "kind": "leaf",
+       "values": [
+        "5 A, 0 B",
+        "predict A",
+        "Gini 0"
+       ]
+      },
+      {
+       "id": "leafLH",
+       "label": "Leaf: x1 ≤ 4, x2 > 6",
+       "kind": "leaf",
+       "values": [
+        "0 A, 1 B",
+        "predict B",
+        "Gini 0"
+       ]
+      },
+      {
+       "id": "leafRL",
+       "label": "Leaf: x1 > 4, x2 ≤ 2",
+       "kind": "leaf",
+       "values": [
+        "1 A, 0 B",
+        "predict A",
+        "Gini 0"
+       ]
+      },
+      {
+       "id": "leafRH",
+       "label": "Leaf: x1 > 4, x2 > 2",
+       "kind": "leaf",
+       "values": [
+        "0 A, 5 B",
+        "predict B",
+        "Gini 0"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "root",
+       "to": "cand",
+       "label": "tested"
+      },
+      {
+       "from": "root",
+       "to": "split1",
+       "label": "best"
+      },
+      {
+       "from": "split1",
+       "to": "left",
+       "label": "yes"
+      },
+      {
+       "from": "split1",
+       "to": "right",
+       "label": "no"
+      },
+      {
+       "from": "left",
+       "to": "split2L",
+       "label": "split again"
+      },
+      {
+       "from": "right",
+       "to": "split2R",
+       "label": "split again"
+      },
+      {
+       "from": "split2L",
+       "to": "leafLL",
+       "label": "x2 ≤ 6"
+      },
+      {
+       "from": "split2L",
+       "to": "leafLH",
+       "label": "x2 > 6"
+      },
+      {
+       "from": "split2R",
+       "to": "leafRL",
+       "label": "x2 ≤ 2"
+      },
+      {
+       "from": "split2R",
+       "to": "leafRH",
+       "label": "x2 > 2"
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "One region",
+       "short": "Start",
+       "sentence": "All twelve points share one region: six class A, six class B. A single guess is wrong half the time.",
+       "why": "Gini 0.500 is the impurity every split tries to reduce.",
+       "active": [
+        "root"
+       ],
+       "calloutRegion": "root",
+       "readouts": [
+        {
+         "id": "regions",
+         "label": "Regions",
+         "value": "1"
+        },
+        {
+         "id": "counts",
+         "label": "Class counts (A / B)",
+         "value": "6 / 6"
+        },
+        {
+         "id": "gini",
+         "label": "Gini = 1 − Σ pₖ²",
+         "value": "0.500"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Compare candidate cuts",
+       "short": "Compare",
+       "sentence": "Cut x2 ≤ 4 gives weighted Gini 0.444. Cut x1 ≤ 4 gives 0.278. Lower means purer children.",
+       "why": "Weighted Gini averages the two children by their point counts.",
+       "active": [
+        "root",
+        "cand",
+        "split1"
+       ],
+       "calloutRegion": "cand",
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "Weighted Gini, x2 ≤ 4",
+         "value": "0.444"
+        },
+        {
+         "id": "c2",
+         "label": "Weighted Gini, x1 ≤ 4",
+         "value": "0.278"
+        },
+        {
+         "id": "g1",
+         "label": "Parent Gini",
+         "value": "0.500"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Keep the best cut",
+       "short": "Choose",
+       "sentence": "The tree keeps x1 ≤ 4 because it lowers impurity most, by 0.222. The root becomes two regions.",
+       "why": "Gain = parent Gini − weighted child Gini = 0.500 − 0.278.",
+       "active": [
+        "root",
+        "split1"
+       ],
+       "calloutRegion": "split1",
+       "readouts": [
+        {
+         "id": "regions",
+         "label": "Regions",
+         "value": "2"
+        },
+        {
+         "id": "gain",
+         "label": "Gain",
+         "value": "0.222"
+        },
+        {
+         "id": "w",
+         "label": "Weighted child Gini",
+         "value": "0.278"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Children still mixed",
+       "short": "Mixed",
+       "sentence": "Left holds 5 A and 1 B; right holds 1 A and 5 B. Each is a rectangle with one stray point.",
+       "why": "Gini (1 − (5/6)² − (1/6)²) = 0.278 in each child, so both split again.",
+       "active": [
+        "split1",
+        "left",
+        "right"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "l",
+         "label": "Left counts (A / B)",
+         "value": "5 / 1"
+        },
+        {
+         "id": "r",
+         "label": "Right counts (A / B)",
+         "value": "1 / 5"
+        },
+        {
+         "id": "gl",
+         "label": "Gini per child",
+         "value": "0.278"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Split the left region",
+       "short": "Split left",
+       "sentence": "Inside x1 ≤ 4 only, cut x2 ≤ 6. The lower leaf holds 5 A; the upper leaf holds 1 B.",
+       "why": "A cut applies only within its own region, so the right side is untouched.",
+       "active": [
+        "left",
+        "split2L",
+        "leafLL",
+        "leafLH"
+       ],
+       "calloutRegion": "split2L",
+       "readouts": [
+        {
+         "id": "regions",
+         "label": "Regions",
+         "value": "3"
+        },
+        {
+         "id": "gain",
+         "label": "Gain in left",
+         "value": "0.278"
+        },
+        {
+         "id": "gl",
+         "label": "Left leaves Gini",
+         "value": "0 and 0"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Split the right region",
+       "short": "Split right",
+       "sentence": "Inside x1 > 4 only, cut x2 ≤ 2. The lower leaf holds 1 A; the upper leaf holds 5 B.",
+       "why": "The right child picks its own feature and threshold, independent of the left child.",
+       "active": [
+        "right",
+        "split2R",
+        "leafRL",
+        "leafRH"
+       ],
+       "calloutRegion": "split2R",
+       "readouts": [
+        {
+         "id": "regions",
+         "label": "Regions",
+         "value": "4"
+        },
+        {
+         "id": "gain",
+         "label": "Gain in right",
+         "value": "0.278"
+        },
+        {
+         "id": "gr",
+         "label": "Right leaves Gini",
+         "value": "0 and 0"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Four pure rectangles",
+       "short": "Done",
+       "sentence": "Nested one-feature cuts split the plane into four rectangles. Each leaf predicts its majority class, so all twelve points fit.",
+       "why": "Every leaf has Gini 0, so the tree stops splitting.",
+       "active": [
+        "leafLL",
+        "leafLH",
+        "leafRL",
+        "leafRH"
+       ],
+       "calloutRegion": "leafLL",
+       "readouts": [
+        {
+         "id": "regions",
+         "label": "Leaf regions",
+         "value": "4"
+        },
+        {
+         "id": "gini",
+         "label": "Weighted leaf Gini",
+         "value": "0.000"
+        },
+        {
+         "id": "acc",
+         "label": "Training points correct",
+         "value": "12 of 12"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3079,
+  "output": 5812
+ },
+ "usd": 0.064278,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of regions, cuts and links shows how successive single-feature cuts nest into four pure leaves, answering how a tree partitions the plane."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s6 is the final step, and the stepper holds there until the learner presses Previous or Reset, since nothing advances automatically."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only input is the step index, and each step changes the active regions, callout and readouts. The candidate comparison in s1 is a fixed experiment, which is justified for a stepper."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlights bind to state.active, the callout to state.calloutRegion with state.sentence and state.why, the ghost to previous.active, and the readouts to state.readouts, all of which are declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and the Step control all refer to the same regions, cuts and leaves, in the same order as the active sets."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The detailed depth adds the Gini formula, the weighted comparison and the counts, with at most 3 readouts per state and one active group, so the density stays moderate."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "All the numbers check out (0.500, 0.444, 0.278, gain 0.222 and 0.278), but the same figures are repeated in the callout sentences, region values and readouts, so they are not placed only once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.022224
+ }
+}

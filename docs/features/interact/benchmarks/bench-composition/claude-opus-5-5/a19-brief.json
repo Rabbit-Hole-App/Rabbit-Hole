@@ -1,0 +1,294 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a19",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a volcano erupt?",
+ "ts": "2026-11-14T22:28:50.016Z",
+ "ms": 20088,
+ "raw": "{\"story\":\"Deep rock melts into magma, which is lighter than the rock around it and rises into a chamber. As it rises, pressure drops and dissolved gas forms bubbles. Gas pressure grows until it is stronger than the rock cap. The cap breaks, and the gas-filled magma blasts out of the vent.\",\"aha\":{\"stateId\":\"s4\",\"observation\":\"A volcano erupts when gas pressure in the magma becomes stronger than the rock holding it down.\"},\"layout\":{\"preset\":\"stepper-fixed-picture\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top rail with short step labels; it also shows progress.\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Cross-section of the volcano. The active regions are highlighted.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Pinned to the highlighted region to show where the change happens.\"},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"A single comparison line: gas pressure against rock-cap strength, given in words with no numbers.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Eruption step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons that keep their names when disabled; keyboard arrows also work. Parameter-control budget at brief depth: 0.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step\",\"presentation\":\"Goes back to step 1.\"}],\"data\":{\"variants\":[{\"label\":\"Volcano eruption\",\"regions\":[{\"id\":\"source\",\"label\":\"Melting zone\",\"values\":[\"solid rock\",\"melting\"]},{\"id\":\"chamber\",\"label\":\"Magma chamber\",\"values\":[\"empty\",\"filling\",\"bubbling\",\"overpressured\"]},{\"id\":\"conduit\",\"label\":\"Conduit\",\"values\":[\"closed\",\"magma rising\",\"bursting\"]},{\"id\":\"cap\",\"label\":\"Rock cap\",\"values\":[\"intact\",\"straining\",\"broken\"]},{\"id\":\"vent\",\"label\":\"Vent\",\"values\":[\"quiet\",\"erupting\"]}],\"links\":[{\"from\":\"source\",\"to\":\"chamber\",\"label\":\"magma rises\"},{\"from\":\"chamber\",\"to\":\"conduit\"},{\"from\":\"conduit\",\"to\":\"vent\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Rock melts\",\"short\":\"Melt\",\"sentence\":\"Deep underground, heat melts rock into magma, which is lighter than the solid rock around it.\",\"active\":[\"source\"],\"calloutRegion\":\"source\",\"why\":\"Lighter material gets pushed upward.\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Gas pressure vs. rock cap\",\"value\":\"Gas still dissolved; cap holds easily\"}]},{\"id\":\"s2\",\"label\":\"Magma rises\",\"short\":\"Rise\",\"sentence\":\"Magma rises and collects in a chamber under the volcano.\",\"active\":[\"source\",\"chamber\"],\"calloutRegion\":\"chamber\",\"why\":\"Magma floats up because it is lighter.\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Gas pressure vs. rock cap\",\"value\":\"Pressure low; cap holds\"}]},{\"id\":\"s3\",\"label\":\"Gas bubbles form\",\"short\":\"Bubbles\",\"sentence\":\"Near the surface, pressure drops, so dissolved gas comes out as bubbles, like opening a soda.\",\"active\":[\"chamber\"],\"calloutRegion\":\"chamber\",\"why\":\"Bubbles take up much more space than dissolved gas.\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Gas pressure vs. rock cap\",\"value\":\"Pressure rising; cap straining\"}]},{\"id\":\"s4\",\"label\":\"Pressure beats rock\",\"short\":\"Overpressure\",\"sentence\":\"Gas pressure is now stronger than the rock cap holding it down. The cap cracks.\",\"active\":[\"chamber\",\"cap\"],\"calloutRegion\":\"cap\",\"why\":\"This is the tipping point: push exceeds hold.\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Gas pressure vs. rock cap\",\"value\":\"Pressure exceeds cap strength\"}]},{\"id\":\"s5\",\"label\":\"Eruption\",\"short\":\"Erupt\",\"sentence\":\"Expanding gas pushes magma up the conduit and out of the vent as lava, ash and gas.\",\"active\":[\"conduit\",\"cap\",\"vent\"],\"calloutRegion\":\"vent\",\"why\":\"Released gas expands quickly and carries magma out.\",\"readouts\":[{\"id\":\"cmp\",\"label\":\"Gas pressure vs. rock cap\",\"value\":\"Cap broken; pressure releasing\"}]}]}]}}",
+ "composition": {
+  "story": "Deep rock melts into magma, which is lighter than the rock around it and rises into a chamber. As it rises, pressure drops and dissolved gas forms bubbles. Gas pressure grows until it is stronger than the rock cap. The cap breaks, and the gas-filled magma blasts out of the vent.",
+  "aha": {
+   "stateId": "s4",
+   "observation": "A volcano erupts when gas pressure in the magma becomes stronger than the rock holding it down."
+  },
+  "layout": {
+   "preset": "stepper-fixed-picture",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top rail with short step labels; it also shows progress."
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Cross-section of the volcano. The active regions are highlighted."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Pinned to the highlighted region to show where the change happens."
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "A single comparison line: gas pressure against rock-cap strength, given in words with no numbers."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Eruption step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons that keep their names when disabled; keyboard arrows also work. Parameter-control budget at brief depth: 0."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step",
+    "presentation": "Goes back to step 1."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Volcano eruption",
+     "regions": [
+      {
+       "id": "source",
+       "label": "Melting zone",
+       "values": [
+        "solid rock",
+        "melting"
+       ]
+      },
+      {
+       "id": "chamber",
+       "label": "Magma chamber",
+       "values": [
+        "empty",
+        "filling",
+        "bubbling",
+        "overpressured"
+       ]
+      },
+      {
+       "id": "conduit",
+       "label": "Conduit",
+       "values": [
+        "closed",
+        "magma rising",
+        "bursting"
+       ]
+      },
+      {
+       "id": "cap",
+       "label": "Rock cap",
+       "values": [
+        "intact",
+        "straining",
+        "broken"
+       ]
+      },
+      {
+       "id": "vent",
+       "label": "Vent",
+       "values": [
+        "quiet",
+        "erupting"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "source",
+       "to": "chamber",
+       "label": "magma rises"
+      },
+      {
+       "from": "chamber",
+       "to": "conduit"
+      },
+      {
+       "from": "conduit",
+       "to": "vent"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Rock melts",
+       "short": "Melt",
+       "sentence": "Deep underground, heat melts rock into magma, which is lighter than the solid rock around it.",
+       "active": [
+        "source"
+       ],
+       "calloutRegion": "source",
+       "why": "Lighter material gets pushed upward.",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Gas pressure vs. rock cap",
+         "value": "Gas still dissolved; cap holds easily"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Magma rises",
+       "short": "Rise",
+       "sentence": "Magma rises and collects in a chamber under the volcano.",
+       "active": [
+        "source",
+        "chamber"
+       ],
+       "calloutRegion": "chamber",
+       "why": "Magma floats up because it is lighter.",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Gas pressure vs. rock cap",
+         "value": "Pressure low; cap holds"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Gas bubbles form",
+       "short": "Bubbles",
+       "sentence": "Near the surface, pressure drops, so dissolved gas comes out as bubbles, like opening a soda.",
+       "active": [
+        "chamber"
+       ],
+       "calloutRegion": "chamber",
+       "why": "Bubbles take up much more space than dissolved gas.",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Gas pressure vs. rock cap",
+         "value": "Pressure rising; cap straining"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Pressure beats rock",
+       "short": "Overpressure",
+       "sentence": "Gas pressure is now stronger than the rock cap holding it down. The cap cracks.",
+       "active": [
+        "chamber",
+        "cap"
+       ],
+       "calloutRegion": "cap",
+       "why": "This is the tipping point: push exceeds hold.",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Gas pressure vs. rock cap",
+         "value": "Pressure exceeds cap strength"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Eruption",
+       "short": "Erupt",
+       "sentence": "Expanding gas pushes magma up the conduit and out of the vent as lava, ash and gas.",
+       "active": [
+        "conduit",
+        "cap",
+        "vent"
+       ],
+       "calloutRegion": "vent",
+       "why": "Released gas expands quickly and carries magma out.",
+       "readouts": [
+        {
+         "id": "cmp",
+         "label": "Gas pressure vs. rock cap",
+         "value": "Cap broken; pressure releasing"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 2266
+ },
+ "usd": 0.057592,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The cross-section with chamber, cap, conduit and vent regions and links answers why a volcano erupts, and the highlighted chamber and cap at s4 show gas pressure overcoming the cap."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha is declared at s4, but the stepper has five states and s5 follows it, so the learner can reach the end state; the hold is only partly satisfied because the stepper is user-driven and s4 itself is a stable stop until Next is pressed."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The brief depth allows no parameter controls and the only control is the step index, which changes the active regions, callout and readout in each state, so the fixed comparison is justified."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture highlights, callout target, text and reason, and readout all bind to declared variant and state fields (states, regions, links, active, calloutRegion, sentence, why, readouts)."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "Names are mostly consistent, but the s4 step label is \"Pressure beats rock\" and the s5 callout points at the vent while the s5 active list drops the chamber, and the story says the magma \"blasts out\" while the cap region state \"broken\" is not narrated at s5 as the same object, so the match is imperf"
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Brief depth shows one changing region set per step, one callout and a single comparison readout line, with no extra formulas or clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "There are no numbers to compute, and the readout states the comparison in words per step, consistent with each state (cap holds, straining, exceeded, broken), while the callout locates the change and the readout quantifies it once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.013868
+ }
+}

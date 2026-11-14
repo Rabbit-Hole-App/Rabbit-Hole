@@ -1,0 +1,229 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "b-merge-sort",
+ "set": "B",
+ "subject": "merge-sort",
+ "depth": "brief",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T22:23:57.800Z",
+ "ms": 2782,
+ "raw": "{\n  \"story\": \"Merge sort divides the collection into single items, then repeatedly merges sorted pairs until the entire array is fully ordered.\",\n  \"aha\": {\n    \"stateId\": \"merge\",\n    \"observation\": \"Combining two sorted halves creates a single larger sorted sequence.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states.active\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\"Divide\", \"Subdivide\", \"Merge\", \"Complete\"]\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Merge Sort\",\n        \"regions\": [\n          {\n            \"id\": \"left\",\n            \"label\": \"Left Subarray\",\n            \"values\": [\"3\", \"1\"]\n          },\n          {\n            \"id\": \"right\",\n            \"label\": \"Right Subarray\",\n            \"values\": [\"4\", \"2\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"divide\",\n            \"label\": \"Divide\",\n            \"short\": \"Split\",\n            \"sentence\": \"The array is split in half.\",\n            \"why\": \"Splitting reduces the problem into smaller independent pieces.\",\n            \"active\": [\"3\", \"1\"],\n            \"calloutRegion\": \"left\",\n            \"readouts\": [\n              {\n                \"id\": \"size\",\n                \"label\": \"Chunk Size\",\n                \"value\": \"2\"\n              }\n            ]\n          },\n          {\n            \"id\": \"subdivide\",\n            \"label\": \"Subdivide\",\n            \"short\": \"Base\",\n            \"sentence\": \"Each item becomes a single-element list.\",\n            \"why\": \"Single-element lists are trivially sorted.\",\n            \"active\": [\"3\"],\n            \"calloutRegion\": \"left\",\n            \"readouts\": [\n              {\n                \"id\": \"size\",\n                \"label\": \"Chunk Size\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"merge\",\n            \"label\": \"Merge\",\n            \"short\": \"Combine\",\n            \"sentence\": \"Sorted halves are merged together.\",\n            \"why\": \"Merging maintains sorted order efficiently.\",\n            \"active\": [\"1\", \"3\", \"2\", \"4\"],\n            \"calloutRegion\": \"right\",\n            \"readouts\": [\n              {\n                \"id\": \"size\",\n                \"label\": \"Chunk Size\",\n                \"value\": \"4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"complete\",\n            \"label\": \"Complete\",\n            \"short\": \"Done\",\n            \"sentence\": \"The array is fully sorted.\",\n            \"why\": \"All parts have been combined.\",\n            \"active\": [\"1\", \"2\", \"3\", \"4\"],\n            \"calloutRegion\": \"right\",\n            \"readouts\": [\n              {\n                \"id\": \"size\",\n                \"label\": \"Chunk Size\",\n                \"value\": \"4\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Merge sort divides the collection into single items, then repeatedly merges sorted pairs until the entire array is fully ordered.",
+  "aha": {
+   "stateId": "merge",
+   "observation": "Combining two sorted halves creates a single larger sorted sequence."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "Divide",
+     "Subdivide",
+     "Merge",
+     "Complete"
+    ]
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Merge Sort",
+     "regions": [
+      {
+       "id": "left",
+       "label": "Left Subarray",
+       "values": [
+        "3",
+        "1"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right Subarray",
+       "values": [
+        "4",
+        "2"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "divide",
+       "label": "Divide",
+       "short": "Split",
+       "sentence": "The array is split in half.",
+       "why": "Splitting reduces the problem into smaller independent pieces.",
+       "active": [
+        "3",
+        "1"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "size",
+         "label": "Chunk Size",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "subdivide",
+       "label": "Subdivide",
+       "short": "Base",
+       "sentence": "Each item becomes a single-element list.",
+       "why": "Single-element lists are trivially sorted.",
+       "active": [
+        "3"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "size",
+         "label": "Chunk Size",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "merge",
+       "label": "Merge",
+       "short": "Combine",
+       "sentence": "Sorted halves are merged together.",
+       "why": "Merging maintains sorted order efficiently.",
+       "active": [
+        "1",
+        "3",
+        "2",
+        "4"
+       ],
+       "calloutRegion": "right",
+       "readouts": [
+        {
+         "id": "size",
+         "label": "Chunk Size",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "complete",
+       "label": "Complete",
+       "short": "Done",
+       "sentence": "The array is fully sorted.",
+       "why": "All parts have been combined.",
+       "active": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ],
+       "calloutRegion": "right",
+       "readouts": [
+        {
+         "id": "size",
+         "label": "Chunk Size",
+         "value": "4"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1102,
+  "output": 1009
+ },
+ "usd": 0.002854,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The picture is just two fixed regions with highlighted values, and the merge state never shows the interleaving mechanism or a single combined sorted sequence."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The scene is index-driven with no timer, so the Merge state holds until the learner changes the step."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step index selects the state, and each state changes the active values, callout and chunk-size readout."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The merge callout targets the 'right' region although the merged result spans both, and the active values [1,3,2,4] do not map to any declared region ordering."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The narrative says sorted halves are merged, but the left region [3,1] is unsorted, and the Subdivide state highlights only '3', although the sentence says each item becomes a single-element list."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth there is one callout and one readout over a single picture, so nothing is cluttered."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The merge state's active order [1,3,2,4] is not a sorted merge result, and chunk size 2 for Divide on a 4-element array is arguably inconsistent with the 'split in half' story."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.013404
+ }
+}

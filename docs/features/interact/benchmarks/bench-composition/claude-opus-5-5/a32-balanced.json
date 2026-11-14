@@ -1,0 +1,808 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a32",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "How does successive halving decide which trials get more training?",
+ "ts": "2026-11-14T22:35:56.300Z",
+ "ms": 52481,
+ "raw": "{\"story\":\"Eight trials each train for one epoch. Successive halving ranks them by validation loss. It keeps the best 1/η and multiplies each survivor's epochs by η. A trial is promoted only for its rank at the current rung, not for a fixed score. Each rung spends about the same total epochs.\",\"aha\":{\"stateId\":\"r1-cut\",\"observation\":\"At rung 1, only the lowest-loss half advances. T4 loses at 0.41 because two trials rank higher. Each rung still totals 8 epochs.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step (Previous / Next)\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"eta\",\"kind\":\"select\",\"label\":\"Reduction factor η\",\"options\":[\"η = 2, 8 trials\",\"η = 3, 9 trials\"],\"default\":0,\"presentation\":\"Changes how many trials survive each rung and how fast epochs grow\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step and η = 2\"}],\"data\":{\"variants\":[{\"label\":\"η = 2, 8 trials\",\"regions\":[{\"id\":\"T1\",\"label\":\"T1\",\"values\":[\"rung0 loss 0.62\",\"cut at rung 0\"]},{\"id\":\"T2\",\"label\":\"T2\",\"values\":[\"0.48\",\"0.39\",\"0.33\",\"cut at rung 2\"]},{\"id\":\"T3\",\"label\":\"T3\",\"values\":[\"0.71\",\"cut at rung 0\"]},{\"id\":\"T4\",\"label\":\"T4\",\"values\":[\"0.55\",\"0.41\",\"cut at rung 1\"]},{\"id\":\"T5\",\"label\":\"T5\",\"values\":[\"0.44\",\"0.40\",\"0.29\",\"0.24 winner\"]},{\"id\":\"T6\",\"label\":\"T6\",\"values\":[\"0.80\",\"cut at rung 0\"]},{\"id\":\"T7\",\"label\":\"T7\",\"values\":[\"0.52\",\"0.45\",\"cut at rung 1\"]},{\"id\":\"T8\",\"label\":\"T8\",\"values\":[\"0.66\",\"cut at rung 0\"]}],\"states\":[{\"id\":\"start\",\"label\":\"Start\",\"short\":\"Start\",\"sentence\":\"Eight hyperparameter trials begin with the same small budget: one epoch each.\",\"active\":[\"T1\",\"T2\",\"T3\",\"T4\",\"T5\",\"T6\",\"T7\",\"T8\"],\"calloutRegion\":\"T1\",\"why\":\"Training every trial cheaply first gives an early ranking.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"0\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"8\"},{\"id\":\"epochs\",\"label\":\"Epochs per trial\",\"value\":\"1\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"8 × 1 = 8 epochs\"}]},{\"id\":\"r0-train\",\"label\":\"Rung 0: train\",\"short\":\"Train 1 ep\",\"sentence\":\"All eight train one epoch; validation losses range from 0.44 to 0.80.\",\"active\":[\"T1\",\"T2\",\"T3\",\"T4\",\"T5\",\"T6\",\"T7\",\"T8\"],\"calloutRegion\":\"T5\",\"why\":\"Losses are only compared within this rung.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"0\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"8\"},{\"id\":\"epochs\",\"label\":\"Epochs per trial\",\"value\":\"1\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"8 × 1 = 8 epochs\"}]},{\"id\":\"r0-cut\",\"label\":\"Rung 0: keep top half\",\"short\":\"Keep 4\",\"sentence\":\"Rank by loss and keep the best 8/2 = 4: T5, T2, T7, T4.\",\"active\":[\"T2\",\"T4\",\"T5\",\"T7\"],\"calloutRegion\":\"T4\",\"why\":\"T4 survives at 0.55 only because it ranks fourth.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"0\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"4\"},{\"id\":\"cutoff\",\"label\":\"Worst kept loss\",\"value\":\"0.55 (rank 4 of 8)\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"8 epochs\"}]},{\"id\":\"r1-train\",\"label\":\"Rung 1: train\",\"short\":\"Train 2 ep\",\"sentence\":\"The four survivors now train 2 epochs each, doubling per-trial budget.\",\"active\":[\"T2\",\"T4\",\"T5\",\"T7\"],\"calloutRegion\":\"T5\",\"why\":\"Freed epochs from cut trials go to the promising ones.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"1\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"4\"},{\"id\":\"epochs\",\"label\":\"Epochs per trial\",\"value\":\"2\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"4 × 2 = 8 epochs\"}]},{\"id\":\"r1-cut\",\"label\":\"Rung 1: keep top half\",\"short\":\"Keep 2\",\"sentence\":\"Keep the best 4/2 = 2: T2 at 0.39 and T5 at 0.40.\",\"active\":[\"T2\",\"T5\"],\"calloutRegion\":\"T4\",\"why\":\"T4 improved to 0.41 but is cut: rank decides, not absolute loss.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"1\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"2\"},{\"id\":\"cutoff\",\"label\":\"Worst kept loss\",\"value\":\"0.40 (rank 2 of 4)\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"8 epochs, same as rung 0\"}]},{\"id\":\"r2-train\",\"label\":\"Rung 2: train\",\"short\":\"Train 4 ep\",\"sentence\":\"T2 and T5 train 4 epochs each; T5 pulls ahead at 0.29.\",\"active\":[\"T2\",\"T5\"],\"calloutRegion\":\"T5\",\"why\":\"Longer training separates trials that looked close early.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"2\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"2\"},{\"id\":\"epochs\",\"label\":\"Epochs per trial\",\"value\":\"4\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"2 × 4 = 8 epochs\"}]},{\"id\":\"r2-cut\",\"label\":\"Rung 2: keep top half\",\"short\":\"Keep 1\",\"sentence\":\"Keep the best 2/2 = 1: T5 at 0.29 beats T2 at 0.33.\",\"active\":[\"T5\"],\"calloutRegion\":\"T2\",\"why\":\"T2 led at rung 1 but loses the rung 2 ranking.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"2\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"1\"},{\"id\":\"cutoff\",\"label\":\"Worst kept loss\",\"value\":\"0.29 (rank 1 of 2)\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"8 epochs\"}]},{\"id\":\"final\",\"label\":\"Final: full budget\",\"short\":\"Train 8 ep\",\"sentence\":\"T5 alone gets the full 8 epochs and finishes at loss 0.24.\",\"active\":[\"T5\"],\"calloutRegion\":\"T5\",\"why\":\"Total spend is 32 epochs, versus 64 for training all eight fully.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"3\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"1\"},{\"id\":\"epochs\",\"label\":\"Epochs per trial\",\"value\":\"8\"},{\"id\":\"budget\",\"label\":\"Total spent\",\"value\":\"4 rungs × 8 = 32 epochs\"}]}]},{\"label\":\"η = 3, 9 trials\",\"regions\":[{\"id\":\"T1\",\"label\":\"T1\",\"values\":[\"rung0 loss 0.58\",\"cut at rung 0\"]},{\"id\":\"T2\",\"label\":\"T2\",\"values\":[\"0.47\",\"0.36\",\"cut at rung 1\"]},{\"id\":\"T3\",\"label\":\"T3\",\"values\":[\"0.69\",\"cut at rung 0\"]},{\"id\":\"T4\",\"label\":\"T4\",\"values\":[\"0.51\",\"cut at rung 0\"]},{\"id\":\"T5\",\"label\":\"T5\",\"values\":[\"0.43\",\"0.34\",\"0.25 winner\"]},{\"id\":\"T6\",\"label\":\"T6\",\"values\":[\"0.77\",\"cut at rung 0\"]},{\"id\":\"T7\",\"label\":\"T7\",\"values\":[\"0.49\",\"0.40\",\"cut at rung 1\"]},{\"id\":\"T8\",\"label\":\"T8\",\"values\":[\"0.64\",\"cut at rung 0\"]},{\"id\":\"T9\",\"label\":\"T9\",\"values\":[\"0.55\",\"cut at rung 0\"]}],\"states\":[{\"id\":\"start\",\"label\":\"Start\",\"short\":\"Start\",\"sentence\":\"Nine trials begin with one epoch each; η = 3 keeps one third per rung.\",\"active\":[\"T1\",\"T2\",\"T3\",\"T4\",\"T5\",\"T6\",\"T7\",\"T8\",\"T9\"],\"calloutRegion\":\"T1\",\"why\":\"A larger η cuts harder and grows budgets faster.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"0\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"9\"},{\"id\":\"epochs\",\"label\":\"Epochs per trial\",\"value\":\"1\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"9 × 1 = 9 epochs\"}]},{\"id\":\"r0-train\",\"label\":\"Rung 0: train\",\"short\":\"Train 1 ep\",\"sentence\":\"All nine train one epoch; losses range from 0.43 to 0.77.\",\"active\":[\"T1\",\"T2\",\"T3\",\"T4\",\"T5\",\"T6\",\"T7\",\"T8\",\"T9\"],\"calloutRegion\":\"T5\",\"why\":\"Losses are only compared within this rung.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"0\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"9\"},{\"id\":\"epochs\",\"label\":\"Epochs per trial\",\"value\":\"1\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"9 epochs\"}]},{\"id\":\"r0-cut\",\"label\":\"Rung 0: keep top third\",\"short\":\"Keep 3\",\"sentence\":\"Keep the best 9/3 = 3: T5, T2, T7. T4 at 0.51 is cut.\",\"active\":[\"T2\",\"T5\",\"T7\"],\"calloutRegion\":\"T4\",\"why\":\"With η = 3, fourth place no longer survives.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"0\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"3\"},{\"id\":\"cutoff\",\"label\":\"Worst kept loss\",\"value\":\"0.49 (rank 3 of 9)\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"9 epochs\"}]},{\"id\":\"r1-train\",\"label\":\"Rung 1: train\",\"short\":\"Train 3 ep\",\"sentence\":\"The three survivors train 3 epochs each, tripling per-trial budget.\",\"active\":[\"T2\",\"T5\",\"T7\"],\"calloutRegion\":\"T5\",\"why\":\"Budget per trial grows by η each rung.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"1\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"3\"},{\"id\":\"epochs\",\"label\":\"Epochs per trial\",\"value\":\"3\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"3 × 3 = 9 epochs\"}]},{\"id\":\"r1-cut\",\"label\":\"Rung 1: keep top third\",\"short\":\"Keep 1\",\"sentence\":\"Keep the best 3/3 = 1: T5 at 0.34 beats T2 at 0.36.\",\"active\":[\"T5\"],\"calloutRegion\":\"T2\",\"why\":\"A 0.02 gap decides it: only rank at this rung matters.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"1\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"1\"},{\"id\":\"cutoff\",\"label\":\"Worst kept loss\",\"value\":\"0.34 (rank 1 of 3)\"},{\"id\":\"budget\",\"label\":\"Rung budget\",\"value\":\"9 epochs, same as rung 0\"}]},{\"id\":\"final\",\"label\":\"Final: full budget\",\"short\":\"Train 9 ep\",\"sentence\":\"T5 alone trains the full 9 epochs and finishes at loss 0.25.\",\"active\":[\"T5\"],\"calloutRegion\":\"T5\",\"why\":\"Total spend is 27 epochs, versus 81 for training all nine fully.\",\"readouts\":[{\"id\":\"rung\",\"label\":\"Rung\",\"value\":\"2\"},{\"id\":\"alive\",\"label\":\"Trials alive\",\"value\":\"1\"},{\"id\":\"epochs\",\"label\":\"Epochs per trial\",\"value\":\"9\"},{\"id\":\"budget\",\"label\":\"Total spent\",\"value\":\"3 rungs × 9 = 27 epochs\"}]}]}]}}",
+ "composition": {
+  "story": "Eight trials each train for one epoch. Successive halving ranks them by validation loss. It keeps the best 1/η and multiplies each survivor's epochs by η. A trial is promoted only for its rank at the current rung, not for a fixed score. Each rung spends about the same total epochs.",
+  "aha": {
+   "stateId": "r1-cut",
+   "observation": "At rung 1, only the lowest-loss half advances. T4 loses at 0.41 because two trials rank higher. Each rung still totals 8 epochs."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step (Previous / Next)",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "eta",
+    "kind": "select",
+    "label": "Reduction factor η",
+    "options": [
+     "η = 2, 8 trials",
+     "η = 3, 9 trials"
+    ],
+    "default": 0,
+    "presentation": "Changes how many trials survive each rung and how fast epochs grow"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step and η = 2"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "η = 2, 8 trials",
+     "regions": [
+      {
+       "id": "T1",
+       "label": "T1",
+       "values": [
+        "rung0 loss 0.62",
+        "cut at rung 0"
+       ]
+      },
+      {
+       "id": "T2",
+       "label": "T2",
+       "values": [
+        "0.48",
+        "0.39",
+        "0.33",
+        "cut at rung 2"
+       ]
+      },
+      {
+       "id": "T3",
+       "label": "T3",
+       "values": [
+        "0.71",
+        "cut at rung 0"
+       ]
+      },
+      {
+       "id": "T4",
+       "label": "T4",
+       "values": [
+        "0.55",
+        "0.41",
+        "cut at rung 1"
+       ]
+      },
+      {
+       "id": "T5",
+       "label": "T5",
+       "values": [
+        "0.44",
+        "0.40",
+        "0.29",
+        "0.24 winner"
+       ]
+      },
+      {
+       "id": "T6",
+       "label": "T6",
+       "values": [
+        "0.80",
+        "cut at rung 0"
+       ]
+      },
+      {
+       "id": "T7",
+       "label": "T7",
+       "values": [
+        "0.52",
+        "0.45",
+        "cut at rung 1"
+       ]
+      },
+      {
+       "id": "T8",
+       "label": "T8",
+       "values": [
+        "0.66",
+        "cut at rung 0"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start",
+       "short": "Start",
+       "sentence": "Eight hyperparameter trials begin with the same small budget: one epoch each.",
+       "active": [
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8"
+       ],
+       "calloutRegion": "T1",
+       "why": "Training every trial cheaply first gives an early ranking.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "0"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "8"
+        },
+        {
+         "id": "epochs",
+         "label": "Epochs per trial",
+         "value": "1"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "8 × 1 = 8 epochs"
+        }
+       ]
+      },
+      {
+       "id": "r0-train",
+       "label": "Rung 0: train",
+       "short": "Train 1 ep",
+       "sentence": "All eight train one epoch; validation losses range from 0.44 to 0.80.",
+       "active": [
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8"
+       ],
+       "calloutRegion": "T5",
+       "why": "Losses are only compared within this rung.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "0"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "8"
+        },
+        {
+         "id": "epochs",
+         "label": "Epochs per trial",
+         "value": "1"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "8 × 1 = 8 epochs"
+        }
+       ]
+      },
+      {
+       "id": "r0-cut",
+       "label": "Rung 0: keep top half",
+       "short": "Keep 4",
+       "sentence": "Rank by loss and keep the best 8/2 = 4: T5, T2, T7, T4.",
+       "active": [
+        "T2",
+        "T4",
+        "T5",
+        "T7"
+       ],
+       "calloutRegion": "T4",
+       "why": "T4 survives at 0.55 only because it ranks fourth.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "0"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "4"
+        },
+        {
+         "id": "cutoff",
+         "label": "Worst kept loss",
+         "value": "0.55 (rank 4 of 8)"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "8 epochs"
+        }
+       ]
+      },
+      {
+       "id": "r1-train",
+       "label": "Rung 1: train",
+       "short": "Train 2 ep",
+       "sentence": "The four survivors now train 2 epochs each, doubling per-trial budget.",
+       "active": [
+        "T2",
+        "T4",
+        "T5",
+        "T7"
+       ],
+       "calloutRegion": "T5",
+       "why": "Freed epochs from cut trials go to the promising ones.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "1"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "4"
+        },
+        {
+         "id": "epochs",
+         "label": "Epochs per trial",
+         "value": "2"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "4 × 2 = 8 epochs"
+        }
+       ]
+      },
+      {
+       "id": "r1-cut",
+       "label": "Rung 1: keep top half",
+       "short": "Keep 2",
+       "sentence": "Keep the best 4/2 = 2: T2 at 0.39 and T5 at 0.40.",
+       "active": [
+        "T2",
+        "T5"
+       ],
+       "calloutRegion": "T4",
+       "why": "T4 improved to 0.41 but is cut: rank decides, not absolute loss.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "1"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "2"
+        },
+        {
+         "id": "cutoff",
+         "label": "Worst kept loss",
+         "value": "0.40 (rank 2 of 4)"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "8 epochs, same as rung 0"
+        }
+       ]
+      },
+      {
+       "id": "r2-train",
+       "label": "Rung 2: train",
+       "short": "Train 4 ep",
+       "sentence": "T2 and T5 train 4 epochs each; T5 pulls ahead at 0.29.",
+       "active": [
+        "T2",
+        "T5"
+       ],
+       "calloutRegion": "T5",
+       "why": "Longer training separates trials that looked close early.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "2"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "2"
+        },
+        {
+         "id": "epochs",
+         "label": "Epochs per trial",
+         "value": "4"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "2 × 4 = 8 epochs"
+        }
+       ]
+      },
+      {
+       "id": "r2-cut",
+       "label": "Rung 2: keep top half",
+       "short": "Keep 1",
+       "sentence": "Keep the best 2/2 = 1: T5 at 0.29 beats T2 at 0.33.",
+       "active": [
+        "T5"
+       ],
+       "calloutRegion": "T2",
+       "why": "T2 led at rung 1 but loses the rung 2 ranking.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "2"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "1"
+        },
+        {
+         "id": "cutoff",
+         "label": "Worst kept loss",
+         "value": "0.29 (rank 1 of 2)"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "8 epochs"
+        }
+       ]
+      },
+      {
+       "id": "final",
+       "label": "Final: full budget",
+       "short": "Train 8 ep",
+       "sentence": "T5 alone gets the full 8 epochs and finishes at loss 0.24.",
+       "active": [
+        "T5"
+       ],
+       "calloutRegion": "T5",
+       "why": "Total spend is 32 epochs, versus 64 for training all eight fully.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "3"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "1"
+        },
+        {
+         "id": "epochs",
+         "label": "Epochs per trial",
+         "value": "8"
+        },
+        {
+         "id": "budget",
+         "label": "Total spent",
+         "value": "4 rungs × 8 = 32 epochs"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "η = 3, 9 trials",
+     "regions": [
+      {
+       "id": "T1",
+       "label": "T1",
+       "values": [
+        "rung0 loss 0.58",
+        "cut at rung 0"
+       ]
+      },
+      {
+       "id": "T2",
+       "label": "T2",
+       "values": [
+        "0.47",
+        "0.36",
+        "cut at rung 1"
+       ]
+      },
+      {
+       "id": "T3",
+       "label": "T3",
+       "values": [
+        "0.69",
+        "cut at rung 0"
+       ]
+      },
+      {
+       "id": "T4",
+       "label": "T4",
+       "values": [
+        "0.51",
+        "cut at rung 0"
+       ]
+      },
+      {
+       "id": "T5",
+       "label": "T5",
+       "values": [
+        "0.43",
+        "0.34",
+        "0.25 winner"
+       ]
+      },
+      {
+       "id": "T6",
+       "label": "T6",
+       "values": [
+        "0.77",
+        "cut at rung 0"
+       ]
+      },
+      {
+       "id": "T7",
+       "label": "T7",
+       "values": [
+        "0.49",
+        "0.40",
+        "cut at rung 1"
+       ]
+      },
+      {
+       "id": "T8",
+       "label": "T8",
+       "values": [
+        "0.64",
+        "cut at rung 0"
+       ]
+      },
+      {
+       "id": "T9",
+       "label": "T9",
+       "values": [
+        "0.55",
+        "cut at rung 0"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start",
+       "short": "Start",
+       "sentence": "Nine trials begin with one epoch each; η = 3 keeps one third per rung.",
+       "active": [
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9"
+       ],
+       "calloutRegion": "T1",
+       "why": "A larger η cuts harder and grows budgets faster.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "0"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "9"
+        },
+        {
+         "id": "epochs",
+         "label": "Epochs per trial",
+         "value": "1"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "9 × 1 = 9 epochs"
+        }
+       ]
+      },
+      {
+       "id": "r0-train",
+       "label": "Rung 0: train",
+       "short": "Train 1 ep",
+       "sentence": "All nine train one epoch; losses range from 0.43 to 0.77.",
+       "active": [
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9"
+       ],
+       "calloutRegion": "T5",
+       "why": "Losses are only compared within this rung.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "0"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "9"
+        },
+        {
+         "id": "epochs",
+         "label": "Epochs per trial",
+         "value": "1"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "9 epochs"
+        }
+       ]
+      },
+      {
+       "id": "r0-cut",
+       "label": "Rung 0: keep top third",
+       "short": "Keep 3",
+       "sentence": "Keep the best 9/3 = 3: T5, T2, T7. T4 at 0.51 is cut.",
+       "active": [
+        "T2",
+        "T5",
+        "T7"
+       ],
+       "calloutRegion": "T4",
+       "why": "With η = 3, fourth place no longer survives.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "0"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "3"
+        },
+        {
+         "id": "cutoff",
+         "label": "Worst kept loss",
+         "value": "0.49 (rank 3 of 9)"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "9 epochs"
+        }
+       ]
+      },
+      {
+       "id": "r1-train",
+       "label": "Rung 1: train",
+       "short": "Train 3 ep",
+       "sentence": "The three survivors train 3 epochs each, tripling per-trial budget.",
+       "active": [
+        "T2",
+        "T5",
+        "T7"
+       ],
+       "calloutRegion": "T5",
+       "why": "Budget per trial grows by η each rung.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "1"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "3"
+        },
+        {
+         "id": "epochs",
+         "label": "Epochs per trial",
+         "value": "3"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "3 × 3 = 9 epochs"
+        }
+       ]
+      },
+      {
+       "id": "r1-cut",
+       "label": "Rung 1: keep top third",
+       "short": "Keep 1",
+       "sentence": "Keep the best 3/3 = 1: T5 at 0.34 beats T2 at 0.36.",
+       "active": [
+        "T5"
+       ],
+       "calloutRegion": "T2",
+       "why": "A 0.02 gap decides it: only rank at this rung matters.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "1"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "1"
+        },
+        {
+         "id": "cutoff",
+         "label": "Worst kept loss",
+         "value": "0.34 (rank 1 of 3)"
+        },
+        {
+         "id": "budget",
+         "label": "Rung budget",
+         "value": "9 epochs, same as rung 0"
+        }
+       ]
+      },
+      {
+       "id": "final",
+       "label": "Final: full budget",
+       "short": "Train 9 ep",
+       "sentence": "T5 alone trains the full 9 epochs and finishes at loss 0.25.",
+       "active": [
+        "T5"
+       ],
+       "calloutRegion": "T5",
+       "why": "Total spend is 27 epochs, versus 81 for training all nine fully.",
+       "readouts": [
+        {
+         "id": "rung",
+         "label": "Rung",
+         "value": "2"
+        },
+        {
+         "id": "alive",
+         "label": "Trials alive",
+         "value": "1"
+        },
+        {
+         "id": "epochs",
+         "label": "Epochs per trial",
+         "value": "9"
+        },
+        {
+         "id": "budget",
+         "label": "Total spent",
+         "value": "3 rungs × 9 = 27 epochs"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3074,
+  "output": 6579
+ },
+ "usd": 0.143876,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of the trials with per-rung losses and cut marks shows how rank at each rung, not an absolute score, decides promotion while the budget per rung stays at 8."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state r1-cut is a stepper state that holds, with T4 called out at 0.41 and the readout showing 8 epochs, same as rung 0, until the learner clicks Next."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The η select changes the trial count, the survivors per rung (4 vs 3), the epoch growth and the totals (32 vs 27), and even whether T4 survives rung 0."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The active set, callout region, sentence and why, and the readouts all come from per-state data, and the ghost binds to the previous state's active regions."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, the sentences, the control labels and the trial and rung names (T1 to T9, rung, η) are consistent, and each state's callout names the trial it discusses."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each state changes one active set with four readouts and one callout; the formula (8/2 = 4, 4 × 2 = 8) adds mechanism without extra panels."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "I checked the rankings, the cut sets, the rung budgets (8 or 9 per rung) and the totals (32 vs 64, 27 vs 81) in both variants, and all are correct; the callout locates a trial while the readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.026054
+ }
+}

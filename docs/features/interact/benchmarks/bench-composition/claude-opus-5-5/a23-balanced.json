@@ -1,0 +1,642 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a23",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a decision tree search for the best threshold on one feature?",
+ "ts": "2026-11-14T22:31:26.383Z",
+ "ms": 59762,
+ "raw": "{\"story\":\"Eight samples are sorted by feature x. The tree tries a threshold in each gap between neighbours. It splits samples left (x ≤ t) and right, then scores the split by weighted Gini impurity. As the learner steps through all seven gaps, each score is compared with the best so far. The scores rise and fall, which shows why every gap must be checked.\",\"aha\":{\"stateId\":\"best\",\"observation\":\"Scores don't fall steadily: 0.333 rises to 0.467 before dropping. Only scoring every gap finds the true minimum, x ≤ 5.5 at 0.200.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step through candidate thresholds\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons, names kept when disabled at ends\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to sorted samples\"}],\"data\":{\"variants\":[{\"label\":\"8 samples, Gini impurity, fixed input\",\"regions\":[{\"id\":\"s1\",\"label\":\"x=1\",\"values\":[\"class A\"]},{\"id\":\"s2\",\"label\":\"x=2\",\"values\":[\"class A\"]},{\"id\":\"s3\",\"label\":\"x=3\",\"values\":[\"class B\"]},{\"id\":\"s4\",\"label\":\"x=4\",\"values\":[\"class A\"]},{\"id\":\"s5\",\"label\":\"x=5\",\"values\":[\"class A\"]},{\"id\":\"s6\",\"label\":\"x=6\",\"values\":[\"class B\"]},{\"id\":\"s7\",\"label\":\"x=7\",\"values\":[\"class B\"]},{\"id\":\"s8\",\"label\":\"x=8\",\"values\":[\"class B\"]},{\"id\":\"cut\",\"label\":\"Candidate threshold t\",\"values\":[\"1.5\",\"2.5\",\"3.5\",\"4.5\",\"5.5\",\"6.5\",\"7.5\"]},{\"id\":\"left\",\"label\":\"Left branch x ≤ t\",\"values\":[\"class counts\",\"Gini\"]},{\"id\":\"right\",\"label\":\"Right branch x > t\",\"values\":[\"class counts\",\"Gini\"]},{\"id\":\"best\",\"label\":\"Best so far\",\"values\":[\"lowest weighted Gini\",\"its threshold\"]}],\"links\":[{\"from\":\"cut\",\"to\":\"left\",\"label\":\"x ≤ t\"},{\"from\":\"cut\",\"to\":\"right\",\"label\":\"x > t\"},{\"from\":\"left\",\"to\":\"best\",\"label\":\"weighted score\"},{\"from\":\"right\",\"to\":\"best\",\"label\":\"weighted score\"}],\"states\":[{\"id\":\"sorted\",\"label\":\"Sort\",\"short\":\"Sorted\",\"sentence\":\"Samples are sorted by x. The only thresholds worth trying sit in the seven gaps between neighbouring values.\",\"why\":\"Any t inside one gap gives the same split.\",\"active\":[\"s1\",\"s2\",\"s3\",\"s4\",\"s5\",\"s6\",\"s7\",\"s8\"],\"calloutRegion\":\"s1\",\"readouts\":[{\"id\":\"t\",\"label\":\"Threshold t\",\"value\":\"—\"},{\"id\":\"left\",\"label\":\"Left counts · Gini\",\"value\":\"—\"},{\"id\":\"right\",\"label\":\"Right counts · Gini\",\"value\":\"—\"},{\"id\":\"wg\",\"label\":\"Weighted Gini\",\"value\":\"parent 0.500\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"—\"}]},{\"id\":\"t15\",\"label\":\"t = 1.5\",\"short\":\"1.5\",\"sentence\":\"At 1.5 the left side is pure but tiny, so the large mixed right side dominates the score.\",\"why\":\"Weights are branch sizes over 8.\",\"active\":[\"cut\",\"left\",\"right\",\"s1\"],\"calloutRegion\":\"s1\",\"readouts\":[{\"id\":\"t\",\"label\":\"Threshold t\",\"value\":\"1.5\"},{\"id\":\"left\",\"label\":\"Left counts · Gini\",\"value\":\"1A 0B · 0.000\"},{\"id\":\"right\",\"label\":\"Right counts · Gini\",\"value\":\"3A 4B · 0.490\"},{\"id\":\"wg\",\"label\":\"Weighted Gini\",\"value\":\"0.429\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"0.429 at 1.5\"}]},{\"id\":\"t25\",\"label\":\"t = 2.5\",\"short\":\"2.5\",\"sentence\":\"At 2.5 the left side stays pure and the right gets purer. The score drops to 0.333, a new best.\",\"why\":\"Lower weighted Gini replaces best so far.\",\"active\":[\"cut\",\"left\",\"right\",\"s2\",\"best\"],\"calloutRegion\":\"s2\",\"readouts\":[{\"id\":\"t\",\"label\":\"Threshold t\",\"value\":\"2.5\"},{\"id\":\"left\",\"label\":\"Left counts · Gini\",\"value\":\"2A 0B · 0.000\"},{\"id\":\"right\",\"label\":\"Right counts · Gini\",\"value\":\"2A 4B · 0.444\"},{\"id\":\"wg\",\"label\":\"Weighted Gini\",\"value\":\"0.333\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"0.333 at 2.5\"}]},{\"id\":\"t35\",\"label\":\"t = 3.5\",\"short\":\"3.5\",\"sentence\":\"At 3.5 the B at x=3 moves left, mixing both sides. The score rises to 0.467 and the best stays 2.5.\",\"why\":\"Scores are not monotone across gaps.\",\"active\":[\"cut\",\"left\",\"right\",\"s3\"],\"calloutRegion\":\"s3\",\"readouts\":[{\"id\":\"t\",\"label\":\"Threshold t\",\"value\":\"3.5\"},{\"id\":\"left\",\"label\":\"Left counts · Gini\",\"value\":\"2A 1B · 0.444\"},{\"id\":\"right\",\"label\":\"Right counts · Gini\",\"value\":\"2A 3B · 0.480\"},{\"id\":\"wg\",\"label\":\"Weighted Gini\",\"value\":\"0.467\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"0.333 at 2.5\"}]},{\"id\":\"t45\",\"label\":\"t = 4.5\",\"short\":\"4.5\",\"sentence\":\"At 4.5 both sides split three to one. Its score of 0.375 still loses to 0.333.\",\"why\":\"Best so far only changes on a lower score.\",\"active\":[\"cut\",\"left\",\"right\",\"s4\"],\"calloutRegion\":\"s4\",\"readouts\":[{\"id\":\"t\",\"label\":\"Threshold t\",\"value\":\"4.5\"},{\"id\":\"left\",\"label\":\"Left counts · Gini\",\"value\":\"3A 1B · 0.375\"},{\"id\":\"right\",\"label\":\"Right counts · Gini\",\"value\":\"1A 3B · 0.375\"},{\"id\":\"wg\",\"label\":\"Weighted Gini\",\"value\":\"0.375\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"0.333 at 2.5\"}]},{\"id\":\"t55\",\"label\":\"t = 5.5\",\"short\":\"5.5\",\"sentence\":\"At 5.5 all three right-side samples are B, so the right side is pure. The score falls to 0.200, a new best.\",\"why\":\"A pure larger branch cuts the weighted sum.\",\"active\":[\"cut\",\"left\",\"right\",\"s5\",\"best\"],\"calloutRegion\":\"s5\",\"readouts\":[{\"id\":\"t\",\"label\":\"Threshold t\",\"value\":\"5.5\"},{\"id\":\"left\",\"label\":\"Left counts · Gini\",\"value\":\"4A 1B · 0.320\"},{\"id\":\"right\",\"label\":\"Right counts · Gini\",\"value\":\"0A 3B · 0.000\"},{\"id\":\"wg\",\"label\":\"Weighted Gini\",\"value\":\"0.200\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"0.200 at 5.5\"}]},{\"id\":\"t65\",\"label\":\"t = 6.5\",\"short\":\"6.5\",\"sentence\":\"At 6.5 a B moves left and mixes it again. The score of 0.333 loses, so the best stays 5.5.\",\"why\":\"Purity on the right no longer offsets the left.\",\"active\":[\"cut\",\"left\",\"right\",\"s6\"],\"calloutRegion\":\"s6\",\"readouts\":[{\"id\":\"t\",\"label\":\"Threshold t\",\"value\":\"6.5\"},{\"id\":\"left\",\"label\":\"Left counts · Gini\",\"value\":\"4A 2B · 0.444\"},{\"id\":\"right\",\"label\":\"Right counts · Gini\",\"value\":\"0A 2B · 0.000\"},{\"id\":\"wg\",\"label\":\"Weighted Gini\",\"value\":\"0.333\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"0.200 at 5.5\"}]},{\"id\":\"t75\",\"label\":\"t = 7.5\",\"short\":\"7.5\",\"sentence\":\"At 7.5 the right side holds one sample. The mixed left side pushes the score to 0.429.\",\"why\":\"Last gap; the scan is now exhaustive.\",\"active\":[\"cut\",\"left\",\"right\",\"s7\"],\"calloutRegion\":\"s7\",\"readouts\":[{\"id\":\"t\",\"label\":\"Threshold t\",\"value\":\"7.5\"},{\"id\":\"left\",\"label\":\"Left counts · Gini\",\"value\":\"4A 3B · 0.490\"},{\"id\":\"right\",\"label\":\"Right counts · Gini\",\"value\":\"0A 1B · 0.000\"},{\"id\":\"wg\",\"label\":\"Weighted Gini\",\"value\":\"0.429\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"0.200 at 5.5\"}]},{\"id\":\"best\",\"label\":\"Choose best\",\"short\":\"Best\",\"sentence\":\"The scan is complete. Of all seven gaps, x ≤ 5.5 has the lowest weighted Gini, 0.200, so the tree splits there.\",\"why\":\"Minimum over every gap, not the first dip.\",\"active\":[\"best\",\"cut\",\"left\",\"right\",\"s5\"],\"calloutRegion\":\"best\",\"readouts\":[{\"id\":\"t\",\"label\":\"Threshold t\",\"value\":\"5.5 (chosen)\"},{\"id\":\"left\",\"label\":\"Left counts · Gini\",\"value\":\"4A 1B · 0.320\"},{\"id\":\"right\",\"label\":\"Right counts · Gini\",\"value\":\"0A 3B · 0.000\"},{\"id\":\"wg\",\"label\":\"Weighted Gini\",\"value\":\"0.200 (parent 0.500)\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"0.200 at 5.5\"}]}]}]}}",
+ "composition": {
+  "story": "Eight samples are sorted by feature x. The tree tries a threshold in each gap between neighbours. It splits samples left (x ≤ t) and right, then scores the split by weighted Gini impurity. As the learner steps through all seven gaps, each score is compared with the best so far. The scores rise and fall, which shows why every gap must be checked.",
+  "aha": {
+   "stateId": "best",
+   "observation": "Scores don't fall steadily: 0.333 rises to 0.467 before dropping. Only scoring every gap finds the true minimum, x ≤ 5.5 at 0.200."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step through candidate thresholds",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons, names kept when disabled at ends"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to sorted samples"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "8 samples, Gini impurity, fixed input",
+     "regions": [
+      {
+       "id": "s1",
+       "label": "x=1",
+       "values": [
+        "class A"
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "x=2",
+       "values": [
+        "class A"
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "x=3",
+       "values": [
+        "class B"
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "x=4",
+       "values": [
+        "class A"
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "x=5",
+       "values": [
+        "class A"
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "x=6",
+       "values": [
+        "class B"
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "x=7",
+       "values": [
+        "class B"
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "x=8",
+       "values": [
+        "class B"
+       ]
+      },
+      {
+       "id": "cut",
+       "label": "Candidate threshold t",
+       "values": [
+        "1.5",
+        "2.5",
+        "3.5",
+        "4.5",
+        "5.5",
+        "6.5",
+        "7.5"
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left branch x ≤ t",
+       "values": [
+        "class counts",
+        "Gini"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right branch x > t",
+       "values": [
+        "class counts",
+        "Gini"
+       ]
+      },
+      {
+       "id": "best",
+       "label": "Best so far",
+       "values": [
+        "lowest weighted Gini",
+        "its threshold"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "cut",
+       "to": "left",
+       "label": "x ≤ t"
+      },
+      {
+       "from": "cut",
+       "to": "right",
+       "label": "x > t"
+      },
+      {
+       "from": "left",
+       "to": "best",
+       "label": "weighted score"
+      },
+      {
+       "from": "right",
+       "to": "best",
+       "label": "weighted score"
+      }
+     ],
+     "states": [
+      {
+       "id": "sorted",
+       "label": "Sort",
+       "short": "Sorted",
+       "sentence": "Samples are sorted by x. The only thresholds worth trying sit in the seven gaps between neighbouring values.",
+       "why": "Any t inside one gap gives the same split.",
+       "active": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "s8"
+       ],
+       "calloutRegion": "s1",
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Threshold t",
+         "value": "—"
+        },
+        {
+         "id": "left",
+         "label": "Left counts · Gini",
+         "value": "—"
+        },
+        {
+         "id": "right",
+         "label": "Right counts · Gini",
+         "value": "—"
+        },
+        {
+         "id": "wg",
+         "label": "Weighted Gini",
+         "value": "parent 0.500"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "t15",
+       "label": "t = 1.5",
+       "short": "1.5",
+       "sentence": "At 1.5 the left side is pure but tiny, so the large mixed right side dominates the score.",
+       "why": "Weights are branch sizes over 8.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s1"
+       ],
+       "calloutRegion": "s1",
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Threshold t",
+         "value": "1.5"
+        },
+        {
+         "id": "left",
+         "label": "Left counts · Gini",
+         "value": "1A 0B · 0.000"
+        },
+        {
+         "id": "right",
+         "label": "Right counts · Gini",
+         "value": "3A 4B · 0.490"
+        },
+        {
+         "id": "wg",
+         "label": "Weighted Gini",
+         "value": "0.429"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "0.429 at 1.5"
+        }
+       ]
+      },
+      {
+       "id": "t25",
+       "label": "t = 2.5",
+       "short": "2.5",
+       "sentence": "At 2.5 the left side stays pure and the right gets purer. The score drops to 0.333, a new best.",
+       "why": "Lower weighted Gini replaces best so far.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s2",
+        "best"
+       ],
+       "calloutRegion": "s2",
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Threshold t",
+         "value": "2.5"
+        },
+        {
+         "id": "left",
+         "label": "Left counts · Gini",
+         "value": "2A 0B · 0.000"
+        },
+        {
+         "id": "right",
+         "label": "Right counts · Gini",
+         "value": "2A 4B · 0.444"
+        },
+        {
+         "id": "wg",
+         "label": "Weighted Gini",
+         "value": "0.333"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "0.333 at 2.5"
+        }
+       ]
+      },
+      {
+       "id": "t35",
+       "label": "t = 3.5",
+       "short": "3.5",
+       "sentence": "At 3.5 the B at x=3 moves left, mixing both sides. The score rises to 0.467 and the best stays 2.5.",
+       "why": "Scores are not monotone across gaps.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s3"
+       ],
+       "calloutRegion": "s3",
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Threshold t",
+         "value": "3.5"
+        },
+        {
+         "id": "left",
+         "label": "Left counts · Gini",
+         "value": "2A 1B · 0.444"
+        },
+        {
+         "id": "right",
+         "label": "Right counts · Gini",
+         "value": "2A 3B · 0.480"
+        },
+        {
+         "id": "wg",
+         "label": "Weighted Gini",
+         "value": "0.467"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "0.333 at 2.5"
+        }
+       ]
+      },
+      {
+       "id": "t45",
+       "label": "t = 4.5",
+       "short": "4.5",
+       "sentence": "At 4.5 both sides split three to one. Its score of 0.375 still loses to 0.333.",
+       "why": "Best so far only changes on a lower score.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s4"
+       ],
+       "calloutRegion": "s4",
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Threshold t",
+         "value": "4.5"
+        },
+        {
+         "id": "left",
+         "label": "Left counts · Gini",
+         "value": "3A 1B · 0.375"
+        },
+        {
+         "id": "right",
+         "label": "Right counts · Gini",
+         "value": "1A 3B · 0.375"
+        },
+        {
+         "id": "wg",
+         "label": "Weighted Gini",
+         "value": "0.375"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "0.333 at 2.5"
+        }
+       ]
+      },
+      {
+       "id": "t55",
+       "label": "t = 5.5",
+       "short": "5.5",
+       "sentence": "At 5.5 all three right-side samples are B, so the right side is pure. The score falls to 0.200, a new best.",
+       "why": "A pure larger branch cuts the weighted sum.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s5",
+        "best"
+       ],
+       "calloutRegion": "s5",
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Threshold t",
+         "value": "5.5"
+        },
+        {
+         "id": "left",
+         "label": "Left counts · Gini",
+         "value": "4A 1B · 0.320"
+        },
+        {
+         "id": "right",
+         "label": "Right counts · Gini",
+         "value": "0A 3B · 0.000"
+        },
+        {
+         "id": "wg",
+         "label": "Weighted Gini",
+         "value": "0.200"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "0.200 at 5.5"
+        }
+       ]
+      },
+      {
+       "id": "t65",
+       "label": "t = 6.5",
+       "short": "6.5",
+       "sentence": "At 6.5 a B moves left and mixes it again. The score of 0.333 loses, so the best stays 5.5.",
+       "why": "Purity on the right no longer offsets the left.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s6"
+       ],
+       "calloutRegion": "s6",
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Threshold t",
+         "value": "6.5"
+        },
+        {
+         "id": "left",
+         "label": "Left counts · Gini",
+         "value": "4A 2B · 0.444"
+        },
+        {
+         "id": "right",
+         "label": "Right counts · Gini",
+         "value": "0A 2B · 0.000"
+        },
+        {
+         "id": "wg",
+         "label": "Weighted Gini",
+         "value": "0.333"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "0.200 at 5.5"
+        }
+       ]
+      },
+      {
+       "id": "t75",
+       "label": "t = 7.5",
+       "short": "7.5",
+       "sentence": "At 7.5 the right side holds one sample. The mixed left side pushes the score to 0.429.",
+       "why": "Last gap; the scan is now exhaustive.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s7"
+       ],
+       "calloutRegion": "s7",
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Threshold t",
+         "value": "7.5"
+        },
+        {
+         "id": "left",
+         "label": "Left counts · Gini",
+         "value": "4A 3B · 0.490"
+        },
+        {
+         "id": "right",
+         "label": "Right counts · Gini",
+         "value": "0A 1B · 0.000"
+        },
+        {
+         "id": "wg",
+         "label": "Weighted Gini",
+         "value": "0.429"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "0.200 at 5.5"
+        }
+       ]
+      },
+      {
+       "id": "best",
+       "label": "Choose best",
+       "short": "Best",
+       "sentence": "The scan is complete. Of all seven gaps, x ≤ 5.5 has the lowest weighted Gini, 0.200, so the tree splits there.",
+       "why": "Minimum over every gap, not the first dip.",
+       "active": [
+        "best",
+        "cut",
+        "left",
+        "right",
+        "s5"
+       ],
+       "calloutRegion": "best",
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Threshold t",
+         "value": "5.5 (chosen)"
+        },
+        {
+         "id": "left",
+         "label": "Left counts · Gini",
+         "value": "4A 1B · 0.320"
+        },
+        {
+         "id": "right",
+         "label": "Right counts · Gini",
+         "value": "0A 3B · 0.000"
+        },
+        {
+         "id": "wg",
+         "label": "Weighted Gini",
+         "value": "0.200 (parent 0.500)"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "0.200 at 5.5"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3078,
+  "output": 7113
+ },
+ "usd": 0.154572,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture of sorted samples, the cut, left/right branches and best-so-far answers why every gap must be scanned, shown by scores rising and falling."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'best' is the final step and stays until the learner presses Previous or Reset, with no timer."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step control changes the threshold, which changes the split counts, Gini values, weighted score and best-so-far in every state, and the fixed input is justified."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active region ids, links, callout targets and readouts all trace to declared regions and per-state data, and the previous-state ghost is bound to previous.active."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step names, sentences and the control label all refer to the same thresholds, branches and best-so-far."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At balanced depth, one threshold comparison per state with left/right counts and Gini gives the weighted-score formula inputs without extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": ""
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.02426
+ }
+}

@@ -1,0 +1,985 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a05",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a diffusion model generate an image?",
+ "ts": "2026-11-14T22:22:55.110Z",
+ "ms": 67393,
+ "raw": "{\"story\":\"A diffusion model starts from pure random noise. At each of 50 steps, a U-Net looks at the noisy latent and the prompt, predicts the noise, and the scheduler subtracts part of it. Switch prompts: the same seed and noise schedule end in a different image, because the prompt steers every prediction.\",\"aha\":{\"stateId\":\"s9\",\"observation\":\"Both prompts use the same seed and identical noise readouts, yet the decoded images differ. The prompt steers every noise prediction.\"},\"layout\":{\"preset\":\"pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top rail. Steps already done are shown as trace on the rail. Previous and Next keep their names when disabled at the ends.\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Pipeline left to right: prompt → text encoder → U-Net ⇄ scheduler loop on the latent → decoder → image.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Points to where the change happens. It shows no numbers.\"},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"},\"presentation\":\"Faint outline of the regions that were active in the previous step.\"},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Cosine schedule: noise σ = cos(k/50·π/2), signal = sin(k/50·π/2), rounded to 2 decimals. Both prompts use the same scale.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons, 9 states, moves one state at a time, keyboard arrows\"},{\"id\":\"prompt\",\"kind\":\"select\",\"label\":\"Prompt (same seed 42)\",\"options\":[\"a red fox in snow\",\"a lighthouse at dusk\"],\"default\":0,\"presentation\":\"Swaps the prompt variant. Seed, schedule and readouts stay fixed, so only the image changes.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Goes back to state s1 and the fox prompt\"}],\"data\":{\"variants\":[{\"label\":\"a red fox in snow\",\"regions\":[{\"id\":\"prompt\",\"label\":\"Prompt\",\"values\":[\"a red fox in snow\"]},{\"id\":\"encoder\",\"label\":\"Text encoder\",\"values\":[\"77 tokens → embedding\"]},{\"id\":\"latent\",\"label\":\"Noisy latent\",\"values\":[\"seed 42\",\"64×64×4\"]},{\"id\":\"unet\",\"label\":\"U-Net noise predictor\",\"values\":[\"input: latent + prompt\"]},{\"id\":\"noise\",\"label\":\"Predicted noise\",\"values\":[\"ε estimate\"]},{\"id\":\"scheduler\",\"label\":\"Scheduler\",\"values\":[\"subtract part of ε\",\"50 steps\"]},{\"id\":\"decoder\",\"label\":\"VAE decoder\",\"values\":[\"latent → 512×512 pixels\"]},{\"id\":\"image\",\"label\":\"Image\",\"values\":[\"static\",\"orange smear on white\",\"fox silhouette\",\"fur and eyes\",\"red fox in snow\"]}],\"links\":[{\"from\":\"prompt\",\"to\":\"encoder\"},{\"from\":\"encoder\",\"to\":\"unet\",\"label\":\"conditions\"},{\"from\":\"latent\",\"to\":\"unet\"},{\"from\":\"unet\",\"to\":\"noise\"},{\"from\":\"noise\",\"to\":\"scheduler\"},{\"from\":\"scheduler\",\"to\":\"latent\",\"label\":\"less noise\"},{\"from\":\"latent\",\"to\":\"decoder\"},{\"from\":\"decoder\",\"to\":\"image\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Encode prompt\",\"short\":\"Prompt\",\"active\":[\"prompt\",\"encoder\"],\"calloutRegion\":\"encoder\",\"sentence\":\"The text encoder turns the prompt into an embedding the U-Net can read.\",\"why\":\"This embedding steers every later prediction.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"0 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"1.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.00\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"nothing yet\"}]},{\"id\":\"s2\",\"label\":\"Sample noise\",\"short\":\"Noise\",\"active\":[\"latent\"],\"calloutRegion\":\"latent\",\"sentence\":\"Generation starts from pure random noise drawn from seed 42.\",\"why\":\"No image exists yet. Every pixel is noise.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"0 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"1.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.00\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"static\"}]},{\"id\":\"s3\",\"label\":\"Predict noise\",\"short\":\"Predict\",\"active\":[\"latent\",\"encoder\",\"unet\",\"noise\"],\"calloutRegion\":\"unet\",\"sentence\":\"The U-Net reads the noisy latent and the prompt, then estimates which part is noise.\",\"why\":\"It was trained to predict the noise that had been added to real images.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"0 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"1.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.00\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"static\"}]},{\"id\":\"s4\",\"label\":\"Subtract (step 1)\",\"short\":\"Step 1\",\"active\":[\"noise\",\"scheduler\",\"latent\"],\"calloutRegion\":\"scheduler\",\"sentence\":\"The scheduler subtracts only part of the predicted noise, giving a slightly cleaner latent.\",\"why\":\"Small steps keep the predictions reliable.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"1 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"1.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.03\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"static\"}]},{\"id\":\"s5\",\"label\":\"Step 10\",\"short\":\"10\",\"active\":[\"unet\",\"scheduler\",\"latent\"],\"calloutRegion\":\"latent\",\"sentence\":\"After ten predict-and-subtract loops, a rough layout of colour appears.\",\"why\":\"Large shapes come out first, while the noise is still high.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"10 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"0.95\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.31\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"orange smear on white\"}]},{\"id\":\"s6\",\"label\":\"Step 25\",\"short\":\"25\",\"active\":[\"unet\",\"scheduler\",\"latent\"],\"calloutRegion\":\"latent\",\"sentence\":\"Halfway through, noise and signal are equal, and the subject's outline is clear.\",\"why\":\"Cosine schedule: σ and signal cross at k = 25.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"25 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"0.71\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.71\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"fox silhouette\"}]},{\"id\":\"s7\",\"label\":\"Step 40\",\"short\":\"40\",\"active\":[\"unet\",\"scheduler\",\"latent\"],\"calloutRegion\":\"latent\",\"sentence\":\"At low noise, the later steps refine fine detail.\",\"why\":\"Fine textures only show up once most of the noise is gone.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"40 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"0.31\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.95\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"fur and eyes\"}]},{\"id\":\"s8\",\"label\":\"Step 50\",\"short\":\"50\",\"active\":[\"scheduler\",\"latent\"],\"calloutRegion\":\"latent\",\"sentence\":\"After the last subtraction, the latent contains no noise.\",\"why\":\"The schedule ends at σ = 0.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"50 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"0.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"1.00\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"clean latent\"}]},{\"id\":\"s9\",\"label\":\"Decode\",\"short\":\"Image\",\"active\":[\"decoder\",\"image\"],\"calloutRegion\":\"image\",\"sentence\":\"The decoder turns the clean latent into pixels. Switch prompts to compare with the same seed.\",\"why\":\"Same seed and schedule. Only the prompt-guided predictions differ.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"50 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"0.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"1.00\"},{\"id\":\"img\",\"label\":\"Image shows\",\"value\":\"red fox in snow\"}]}]},{\"label\":\"a lighthouse at dusk\",\"regions\":[{\"id\":\"prompt\",\"label\":\"Prompt\",\"values\":[\"a lighthouse at dusk\"]},{\"id\":\"encoder\",\"label\":\"Text encoder\",\"values\":[\"77 tokens → embedding\"]},{\"id\":\"latent\",\"label\":\"Noisy latent\",\"values\":[\"seed 42\",\"64×64×4\"]},{\"id\":\"unet\",\"label\":\"U-Net noise predictor\",\"values\":[\"input: latent + prompt\"]},{\"id\":\"noise\",\"label\":\"Predicted noise\",\"values\":[\"ε estimate\"]},{\"id\":\"scheduler\",\"label\":\"Scheduler\",\"values\":[\"subtract part of ε\",\"50 steps\"]},{\"id\":\"decoder\",\"label\":\"VAE decoder\",\"values\":[\"latent → 512×512 pixels\"]},{\"id\":\"image\",\"label\":\"Image\",\"values\":[\"static\",\"dark stripe on purple\",\"tower and horizon\",\"windows and waves\",\"lighthouse at dusk\"]}],\"links\":[{\"from\":\"prompt\",\"to\":\"encoder\"},{\"from\":\"encoder\",\"to\":\"unet\",\"label\":\"conditions\"},{\"from\":\"latent\",\"to\":\"unet\"},{\"from\":\"unet\",\"to\":\"noise\"},{\"from\":\"noise\",\"to\":\"scheduler\"},{\"from\":\"scheduler\",\"to\":\"latent\",\"label\":\"less noise\"},{\"from\":\"latent\",\"to\":\"decoder\"},{\"from\":\"decoder\",\"to\":\"image\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Encode prompt\",\"short\":\"Prompt\",\"active\":[\"prompt\",\"encoder\"],\"calloutRegion\":\"encoder\",\"sentence\":\"The text encoder turns the prompt into an embedding the U-Net can read.\",\"why\":\"This embedding steers every later prediction.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"0 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"1.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.00\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"nothing yet\"}]},{\"id\":\"s2\",\"label\":\"Sample noise\",\"short\":\"Noise\",\"active\":[\"latent\"],\"calloutRegion\":\"latent\",\"sentence\":\"Generation starts from the same pure random noise, drawn from seed 42.\",\"why\":\"The starting noise is identical to the fox run.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"0 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"1.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.00\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"static\"}]},{\"id\":\"s3\",\"label\":\"Predict noise\",\"short\":\"Predict\",\"active\":[\"latent\",\"encoder\",\"unet\",\"noise\"],\"calloutRegion\":\"unet\",\"sentence\":\"The U-Net reads the noisy latent and the prompt, then estimates which part is noise.\",\"why\":\"A different prompt leads to a different noise estimate.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"0 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"1.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.00\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"static\"}]},{\"id\":\"s4\",\"label\":\"Subtract (step 1)\",\"short\":\"Step 1\",\"active\":[\"noise\",\"scheduler\",\"latent\"],\"calloutRegion\":\"scheduler\",\"sentence\":\"The scheduler subtracts only part of the predicted noise, giving a slightly cleaner latent.\",\"why\":\"Small steps keep the predictions reliable.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"1 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"1.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.03\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"static\"}]},{\"id\":\"s5\",\"label\":\"Step 10\",\"short\":\"10\",\"active\":[\"unet\",\"scheduler\",\"latent\"],\"calloutRegion\":\"latent\",\"sentence\":\"After ten predict-and-subtract loops, a rough layout of colour appears.\",\"why\":\"Large shapes come out first, while the noise is still high.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"10 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"0.95\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.31\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"dark stripe on purple\"}]},{\"id\":\"s6\",\"label\":\"Step 25\",\"short\":\"25\",\"active\":[\"unet\",\"scheduler\",\"latent\"],\"calloutRegion\":\"latent\",\"sentence\":\"Halfway through, noise and signal are equal, and the subject's outline is clear.\",\"why\":\"Cosine schedule: σ and signal cross at k = 25.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"25 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"0.71\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.71\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"tower and horizon\"}]},{\"id\":\"s7\",\"label\":\"Step 40\",\"short\":\"40\",\"active\":[\"unet\",\"scheduler\",\"latent\"],\"calloutRegion\":\"latent\",\"sentence\":\"At low noise, the later steps refine fine detail.\",\"why\":\"Fine textures only show up once most of the noise is gone.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"40 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"0.31\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"0.95\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"windows and waves\"}]},{\"id\":\"s8\",\"label\":\"Step 50\",\"short\":\"50\",\"active\":[\"scheduler\",\"latent\"],\"calloutRegion\":\"latent\",\"sentence\":\"After the last subtraction, the latent contains no noise.\",\"why\":\"The schedule ends at σ = 0.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"50 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"0.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"1.00\"},{\"id\":\"img\",\"label\":\"Latent shows\",\"value\":\"clean latent\"}]},{\"id\":\"s9\",\"label\":\"Decode\",\"short\":\"Image\",\"active\":[\"decoder\",\"image\"],\"calloutRegion\":\"image\",\"sentence\":\"The decoder turns the clean latent into pixels. Switch prompts to compare with the same seed.\",\"why\":\"Same seed and schedule. Only the prompt-guided predictions differ.\",\"readouts\":[{\"id\":\"k\",\"label\":\"Steps done\",\"value\":\"50 / 50\"},{\"id\":\"sigma\",\"label\":\"Noise σ\",\"value\":\"0.00\"},{\"id\":\"signal\",\"label\":\"Signal\",\"value\":\"1.00\"},{\"id\":\"img\",\"label\":\"Image shows\",\"value\":\"lighthouse at dusk\"}]}]}]}}",
+ "composition": {
+  "story": "A diffusion model starts from pure random noise. At each of 50 steps, a U-Net looks at the noisy latent and the prompt, predicts the noise, and the scheduler subtracts part of it. Switch prompts: the same seed and noise schedule end in a different image, because the prompt steers every prediction.",
+  "aha": {
+   "stateId": "s9",
+   "observation": "Both prompts use the same seed and identical noise readouts, yet the decoded images differ. The prompt steers every noise prediction."
+  },
+  "layout": {
+   "preset": "pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top rail. Steps already done are shown as trace on the rail. Previous and Next keep their names when disabled at the ends."
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Pipeline left to right: prompt → text encoder → U-Net ⇄ scheduler loop on the latent → decoder → image."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Points to where the change happens. It shows no numbers."
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    },
+    "presentation": "Faint outline of the regions that were active in the previous step."
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Cosine schedule: noise σ = cos(k/50·π/2), signal = sin(k/50·π/2), rounded to 2 decimals. Both prompts use the same scale."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons, 9 states, moves one state at a time, keyboard arrows"
+   },
+   {
+    "id": "prompt",
+    "kind": "select",
+    "label": "Prompt (same seed 42)",
+    "options": [
+     "a red fox in snow",
+     "a lighthouse at dusk"
+    ],
+    "default": 0,
+    "presentation": "Swaps the prompt variant. Seed, schedule and readouts stay fixed, so only the image changes."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Goes back to state s1 and the fox prompt"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "a red fox in snow",
+     "regions": [
+      {
+       "id": "prompt",
+       "label": "Prompt",
+       "values": [
+        "a red fox in snow"
+       ]
+      },
+      {
+       "id": "encoder",
+       "label": "Text encoder",
+       "values": [
+        "77 tokens → embedding"
+       ]
+      },
+      {
+       "id": "latent",
+       "label": "Noisy latent",
+       "values": [
+        "seed 42",
+        "64×64×4"
+       ]
+      },
+      {
+       "id": "unet",
+       "label": "U-Net noise predictor",
+       "values": [
+        "input: latent + prompt"
+       ]
+      },
+      {
+       "id": "noise",
+       "label": "Predicted noise",
+       "values": [
+        "ε estimate"
+       ]
+      },
+      {
+       "id": "scheduler",
+       "label": "Scheduler",
+       "values": [
+        "subtract part of ε",
+        "50 steps"
+       ]
+      },
+      {
+       "id": "decoder",
+       "label": "VAE decoder",
+       "values": [
+        "latent → 512×512 pixels"
+       ]
+      },
+      {
+       "id": "image",
+       "label": "Image",
+       "values": [
+        "static",
+        "orange smear on white",
+        "fox silhouette",
+        "fur and eyes",
+        "red fox in snow"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "prompt",
+       "to": "encoder"
+      },
+      {
+       "from": "encoder",
+       "to": "unet",
+       "label": "conditions"
+      },
+      {
+       "from": "latent",
+       "to": "unet"
+      },
+      {
+       "from": "unet",
+       "to": "noise"
+      },
+      {
+       "from": "noise",
+       "to": "scheduler"
+      },
+      {
+       "from": "scheduler",
+       "to": "latent",
+       "label": "less noise"
+      },
+      {
+       "from": "latent",
+       "to": "decoder"
+      },
+      {
+       "from": "decoder",
+       "to": "image"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Encode prompt",
+       "short": "Prompt",
+       "active": [
+        "prompt",
+        "encoder"
+       ],
+       "calloutRegion": "encoder",
+       "sentence": "The text encoder turns the prompt into an embedding the U-Net can read.",
+       "why": "This embedding steers every later prediction.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "0 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "1.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.00"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "nothing yet"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Sample noise",
+       "short": "Noise",
+       "active": [
+        "latent"
+       ],
+       "calloutRegion": "latent",
+       "sentence": "Generation starts from pure random noise drawn from seed 42.",
+       "why": "No image exists yet. Every pixel is noise.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "0 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "1.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.00"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "static"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Predict noise",
+       "short": "Predict",
+       "active": [
+        "latent",
+        "encoder",
+        "unet",
+        "noise"
+       ],
+       "calloutRegion": "unet",
+       "sentence": "The U-Net reads the noisy latent and the prompt, then estimates which part is noise.",
+       "why": "It was trained to predict the noise that had been added to real images.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "0 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "1.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.00"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "static"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Subtract (step 1)",
+       "short": "Step 1",
+       "active": [
+        "noise",
+        "scheduler",
+        "latent"
+       ],
+       "calloutRegion": "scheduler",
+       "sentence": "The scheduler subtracts only part of the predicted noise, giving a slightly cleaner latent.",
+       "why": "Small steps keep the predictions reliable.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "1 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "1.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.03"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "static"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Step 10",
+       "short": "10",
+       "active": [
+        "unet",
+        "scheduler",
+        "latent"
+       ],
+       "calloutRegion": "latent",
+       "sentence": "After ten predict-and-subtract loops, a rough layout of colour appears.",
+       "why": "Large shapes come out first, while the noise is still high.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "10 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "0.95"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.31"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "orange smear on white"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Step 25",
+       "short": "25",
+       "active": [
+        "unet",
+        "scheduler",
+        "latent"
+       ],
+       "calloutRegion": "latent",
+       "sentence": "Halfway through, noise and signal are equal, and the subject's outline is clear.",
+       "why": "Cosine schedule: σ and signal cross at k = 25.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "25 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "0.71"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.71"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "fox silhouette"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Step 40",
+       "short": "40",
+       "active": [
+        "unet",
+        "scheduler",
+        "latent"
+       ],
+       "calloutRegion": "latent",
+       "sentence": "At low noise, the later steps refine fine detail.",
+       "why": "Fine textures only show up once most of the noise is gone.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "40 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "0.31"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.95"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "fur and eyes"
+        }
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "Step 50",
+       "short": "50",
+       "active": [
+        "scheduler",
+        "latent"
+       ],
+       "calloutRegion": "latent",
+       "sentence": "After the last subtraction, the latent contains no noise.",
+       "why": "The schedule ends at σ = 0.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "50 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "0.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "1.00"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "clean latent"
+        }
+       ]
+      },
+      {
+       "id": "s9",
+       "label": "Decode",
+       "short": "Image",
+       "active": [
+        "decoder",
+        "image"
+       ],
+       "calloutRegion": "image",
+       "sentence": "The decoder turns the clean latent into pixels. Switch prompts to compare with the same seed.",
+       "why": "Same seed and schedule. Only the prompt-guided predictions differ.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "50 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "0.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "1.00"
+        },
+        {
+         "id": "img",
+         "label": "Image shows",
+         "value": "red fox in snow"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "a lighthouse at dusk",
+     "regions": [
+      {
+       "id": "prompt",
+       "label": "Prompt",
+       "values": [
+        "a lighthouse at dusk"
+       ]
+      },
+      {
+       "id": "encoder",
+       "label": "Text encoder",
+       "values": [
+        "77 tokens → embedding"
+       ]
+      },
+      {
+       "id": "latent",
+       "label": "Noisy latent",
+       "values": [
+        "seed 42",
+        "64×64×4"
+       ]
+      },
+      {
+       "id": "unet",
+       "label": "U-Net noise predictor",
+       "values": [
+        "input: latent + prompt"
+       ]
+      },
+      {
+       "id": "noise",
+       "label": "Predicted noise",
+       "values": [
+        "ε estimate"
+       ]
+      },
+      {
+       "id": "scheduler",
+       "label": "Scheduler",
+       "values": [
+        "subtract part of ε",
+        "50 steps"
+       ]
+      },
+      {
+       "id": "decoder",
+       "label": "VAE decoder",
+       "values": [
+        "latent → 512×512 pixels"
+       ]
+      },
+      {
+       "id": "image",
+       "label": "Image",
+       "values": [
+        "static",
+        "dark stripe on purple",
+        "tower and horizon",
+        "windows and waves",
+        "lighthouse at dusk"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "prompt",
+       "to": "encoder"
+      },
+      {
+       "from": "encoder",
+       "to": "unet",
+       "label": "conditions"
+      },
+      {
+       "from": "latent",
+       "to": "unet"
+      },
+      {
+       "from": "unet",
+       "to": "noise"
+      },
+      {
+       "from": "noise",
+       "to": "scheduler"
+      },
+      {
+       "from": "scheduler",
+       "to": "latent",
+       "label": "less noise"
+      },
+      {
+       "from": "latent",
+       "to": "decoder"
+      },
+      {
+       "from": "decoder",
+       "to": "image"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Encode prompt",
+       "short": "Prompt",
+       "active": [
+        "prompt",
+        "encoder"
+       ],
+       "calloutRegion": "encoder",
+       "sentence": "The text encoder turns the prompt into an embedding the U-Net can read.",
+       "why": "This embedding steers every later prediction.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "0 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "1.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.00"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "nothing yet"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Sample noise",
+       "short": "Noise",
+       "active": [
+        "latent"
+       ],
+       "calloutRegion": "latent",
+       "sentence": "Generation starts from the same pure random noise, drawn from seed 42.",
+       "why": "The starting noise is identical to the fox run.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "0 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "1.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.00"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "static"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Predict noise",
+       "short": "Predict",
+       "active": [
+        "latent",
+        "encoder",
+        "unet",
+        "noise"
+       ],
+       "calloutRegion": "unet",
+       "sentence": "The U-Net reads the noisy latent and the prompt, then estimates which part is noise.",
+       "why": "A different prompt leads to a different noise estimate.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "0 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "1.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.00"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "static"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Subtract (step 1)",
+       "short": "Step 1",
+       "active": [
+        "noise",
+        "scheduler",
+        "latent"
+       ],
+       "calloutRegion": "scheduler",
+       "sentence": "The scheduler subtracts only part of the predicted noise, giving a slightly cleaner latent.",
+       "why": "Small steps keep the predictions reliable.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "1 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "1.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.03"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "static"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Step 10",
+       "short": "10",
+       "active": [
+        "unet",
+        "scheduler",
+        "latent"
+       ],
+       "calloutRegion": "latent",
+       "sentence": "After ten predict-and-subtract loops, a rough layout of colour appears.",
+       "why": "Large shapes come out first, while the noise is still high.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "10 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "0.95"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.31"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "dark stripe on purple"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Step 25",
+       "short": "25",
+       "active": [
+        "unet",
+        "scheduler",
+        "latent"
+       ],
+       "calloutRegion": "latent",
+       "sentence": "Halfway through, noise and signal are equal, and the subject's outline is clear.",
+       "why": "Cosine schedule: σ and signal cross at k = 25.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "25 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "0.71"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.71"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "tower and horizon"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Step 40",
+       "short": "40",
+       "active": [
+        "unet",
+        "scheduler",
+        "latent"
+       ],
+       "calloutRegion": "latent",
+       "sentence": "At low noise, the later steps refine fine detail.",
+       "why": "Fine textures only show up once most of the noise is gone.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "40 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "0.31"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "0.95"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "windows and waves"
+        }
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "Step 50",
+       "short": "50",
+       "active": [
+        "scheduler",
+        "latent"
+       ],
+       "calloutRegion": "latent",
+       "sentence": "After the last subtraction, the latent contains no noise.",
+       "why": "The schedule ends at σ = 0.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "50 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "0.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "1.00"
+        },
+        {
+         "id": "img",
+         "label": "Latent shows",
+         "value": "clean latent"
+        }
+       ]
+      },
+      {
+       "id": "s9",
+       "label": "Decode",
+       "short": "Image",
+       "active": [
+        "decoder",
+        "image"
+       ],
+       "calloutRegion": "image",
+       "sentence": "The decoder turns the clean latent into pixels. Switch prompts to compare with the same seed.",
+       "why": "Same seed and schedule. Only the prompt-guided predictions differ.",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Steps done",
+         "value": "50 / 50"
+        },
+        {
+         "id": "sigma",
+         "label": "Noise σ",
+         "value": "0.00"
+        },
+        {
+         "id": "signal",
+         "label": "Signal",
+         "value": "1.00"
+        },
+        {
+         "id": "img",
+         "label": "Image shows",
+         "value": "lighthouse at dusk"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3072,
+  "output": 8387
+ },
+ "usd": 0.180028,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The pipeline picture with a U-Net/scheduler loop and the prompt swap answers whether the prompt alone steers the final image from the same seed."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s9 is the last state, reached only via the user-driven Next button, and it holds with identical readouts and a differing image."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step control moves through the states and the prompt select changes the image and latent descriptions while the noise readouts stay fixed, which is the intended comparison."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout, ghost and readouts all bind to state/variant fields, and the callout regions and active lists exist in the declared regions."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, callouts and controls consistently name the prompt, encoder, U-Net, scheduler, latent and decoder, along with seed 42 and the step counts."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "A single pipeline picture with one changing active set, one callout and four readouts per state adds the schedule mechanism without excess clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The cosine values check out at k=1, 10, 25, 40 and 50 (0.03, 0.31/0.95, 0.71/0.71 and 1.00), and the callouts locate while the readouts quantify, with only minor repetition of the latent text."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.027112
+ }
+}

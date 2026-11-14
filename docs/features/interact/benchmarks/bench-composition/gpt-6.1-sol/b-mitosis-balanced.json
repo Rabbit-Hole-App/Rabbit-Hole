@@ -1,0 +1,399 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "b-mitosis",
+ "set": "B",
+ "subject": "mitosis",
+ "depth": "balanced",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T23:11:04.183Z",
+ "ms": 135061,
+ "raw": "{\n  \"story\": \"What happens during mitosis? Start after DNA copying. Follow chromosome copies as they condense, align, and separate. Compare the new nuclei: each receives a matching chromosome set. Use Previous and Next to inspect each stage.\",\n  \"aha\": {\n    \"stateId\": \"telophase\",\n    \"observation\": \"Each new nucleus receives an A copy and a B copy because sister copies separate toward opposite poles.\"\n  },\n  \"layout\": {\n    \"preset\": \"approved-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"stage-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation and above the experiment. Use short rail labels and show the full active stage name. Keep progress on this rail.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"mitosis-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical mitosis composition with a fixed cell boundary. Region phases follow the active rail index in variant.states order. Highlight state.active. Keep chromosome labels visible throughout. Compare the final nuclei side by side at a shared scale. A copies use a solid pattern; B copies use a striped pattern. Assume an idealized animal cell with chromosomes A and B, already replicated. No DNA synthesis, chromosome errors, or cytokinesis occurs here. Copy names identify their eventual pole, not an additional process. Keep all labels readable at native width.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"links\": \"variant.links\"\n      }\n    },\n    {\n      \"id\": \"stage-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the named target without covering chromosomes. Identify the relevant location and mechanism; leave measurements in the readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"copy-counts-and-status\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place counts below the picture, followed by the bound status line. A DNA copy means one chromatid-sized DNA molecule, including joined sisters. Counts are exact integers, not chromosome counts. Left and right groups refer to opposite spindle poles. An em dash means no separated group exists. Balanced parameter-control budget: zero; navigation and Reset are separate.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stage\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Mitosis stage\",\n      \"presentation\": \"Provide Previous and Next buttons with those accessible names. Default to the first state; bounds are the first and last states. Advance one state per action. Retain both button names when disabled at boundaries. Every state persists until learner action; never advance automatically. Reference captures show telophase. Support keyboard operation and visible focus.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide keyboard operation and visible focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Mitosis: matching chromosome sets\",\n        \"regions\": [\n          {\n            \"id\": \"cell-boundary\",\n            \"label\": \"Cell boundary\",\n            \"phases\": [\n              \"Intact outer boundary.\",\n              \"Intact outer boundary.\",\n              \"Intact outer boundary.\",\n              \"Intact outer boundary.\",\n              \"Intact outer boundary.\",\n              \"Intact outer boundary enclosing both new nuclei.\"\n            ]\n          },\n          {\n            \"id\": \"nuclear-envelopes\",\n            \"label\": \"Nuclear envelopes\",\n            \"phases\": [\n              \"Original envelope surrounds diffuse replicated chromosomes.\",\n              \"Original envelope surrounds condensed paired chromosomes.\",\n              \"Original envelope has broken down.\",\n              \"Envelope absent around aligned chromosome pairs.\",\n              \"Envelope absent around separating chromosome groups.\",\n              \"Separate envelopes surround matching chromosome groups at opposite poles.\"\n            ]\n          },\n          {\n            \"id\": \"spindle\",\n            \"label\": \"Spindle\",\n            \"phases\": [\n              \"Absent.\",\n              \"Forms outside the original nuclear envelope.\",\n              \"Fibers from opposite poles attach to opposite sisters of each chromosome.\",\n              \"Opposing attachments hold sister pairs at the cell equator.\",\n              \"Attached fibers separate sister copies toward opposite poles.\",\n              \"Disassembles as the new nuclear envelopes form.\"\n            ]\n          },\n          {\n            \"id\": \"a-left\",\n            \"label\": \"A-left copy\",\n            \"phases\": [\n              \"Diffuse DNA joined to A-right copy inside the original nucleus.\",\n              \"Condensed sister joined to A-right copy.\",\n              \"Joined to A-right copy and attached to the left spindle pole.\",\n              \"At the equator, joined to A-right copy and attached leftward.\",\n              \"Independent chromosome at the left pole.\",\n              \"Decondensing inside the left new nucleus.\"\n            ]\n          },\n          {\n            \"id\": \"a-right\",\n            \"label\": \"A-right copy\",\n            \"phases\": [\n              \"Diffuse DNA joined to A-left copy inside the original nucleus.\",\n              \"Condensed sister joined to A-left copy.\",\n              \"Joined to A-left copy and attached to the right spindle pole.\",\n              \"At the equator, joined to A-left copy and attached rightward.\",\n              \"Independent chromosome at the right pole.\",\n              \"Decondensing inside the right new nucleus.\"\n            ]\n          },\n          {\n            \"id\": \"b-left\",\n            \"label\": \"B-left copy\",\n            \"phases\": [\n              \"Diffuse DNA joined to B-right copy inside the original nucleus.\",\n              \"Condensed sister joined to B-right copy.\",\n              \"Joined to B-right copy and attached to the left spindle pole.\",\n              \"At the equator, joined to B-right copy and attached leftward.\",\n              \"Independent chromosome at the left pole.\",\n              \"Decondensing inside the left new nucleus.\"\n            ]\n          },\n          {\n            \"id\": \"b-right\",\n            \"label\": \"B-right copy\",\n            \"phases\": [\n              \"Diffuse DNA joined to B-left copy inside the original nucleus.\",\n              \"Condensed sister joined to B-left copy.\",\n              \"Joined to B-left copy and attached to the right spindle pole.\",\n              \"At the equator, joined to B-left copy and attached rightward.\",\n              \"Independent chromosome at the right pole.\",\n              \"Decondensing inside the right new nucleus.\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"ready\",\n            \"label\": \"Before mitosis\",\n            \"short\": \"Ready\",\n            \"sentence\": \"Inside the Nuclear envelopes, A-left copy and A-right copy are joined sisters; B-left copy and B-right copy are also joined sisters.\",\n            \"why\": \"DNA copying has already occurred; mitosis will distribute these existing copies.\",\n            \"active\": [\n              \"nuclear-envelopes\"\n            ],\n            \"calloutRegion\": \"nuclear-envelopes\",\n            \"readouts\": [\n              {\n                \"id\": \"total-copies\",\n                \"label\": \"DNA copies: whole cell\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"left-copies\",\n                \"label\": \"DNA copies: left group\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"right-copies\",\n                \"label\": \"DNA copies: right group\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"DNA copied; sister copies remain joined.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"prophase\",\n            \"label\": \"Prophase\",\n            \"short\": \"Condense\",\n            \"sentence\": \"A-left copy, A-right copy, B-left copy, and B-right copy condense into visible chromosome pairs while the Spindle forms.\",\n            \"why\": \"Condensation packages the DNA; sister copies remain joined.\",\n            \"active\": [\n              \"a-left\",\n              \"a-right\",\n              \"b-left\",\n              \"b-right\",\n              \"spindle\"\n            ],\n            \"calloutRegion\": \"a-left\",\n            \"readouts\": [\n              {\n                \"id\": \"total-copies\",\n                \"label\": \"DNA copies: whole cell\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"left-copies\",\n                \"label\": \"DNA copies: left group\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"right-copies\",\n                \"label\": \"DNA copies: right group\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Chromosomes condense; DNA-copy total stays unchanged.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"prometaphase\",\n            \"label\": \"Prometaphase\",\n            \"short\": \"Attach\",\n            \"sentence\": \"The Nuclear envelopes break down, allowing the Spindle to attach opposite sisters to opposite poles.\",\n            \"why\": \"Opposing attachments prepare each sister pair for separation.\",\n            \"active\": [\n              \"nuclear-envelopes\",\n              \"spindle\"\n            ],\n            \"calloutRegion\": \"spindle\",\n            \"readouts\": [\n              {\n                \"id\": \"total-copies\",\n                \"label\": \"DNA copies: whole cell\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"left-copies\",\n                \"label\": \"DNA copies: left group\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"right-copies\",\n                \"label\": \"DNA copies: right group\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Sisters attach toward opposite poles.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"metaphase\",\n            \"label\": \"Metaphase\",\n            \"short\": \"Align\",\n            \"sentence\": \"The Spindle holds the A and B sister pairs at the cell equator, with opposite sisters attached toward opposite poles.\",\n            \"why\": \"Each pole is connected to a copy of every chromosome type.\",\n            \"active\": [\n              \"spindle\",\n              \"a-left\",\n              \"a-right\",\n              \"b-left\",\n              \"b-right\"\n            ],\n            \"calloutRegion\": \"spindle\",\n            \"readouts\": [\n              {\n                \"id\": \"total-copies\",\n                \"label\": \"DNA copies: whole cell\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"left-copies\",\n                \"label\": \"DNA copies: left group\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"right-copies\",\n                \"label\": \"DNA copies: right group\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Sister pairs align; copies remain joined.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"anaphase\",\n            \"label\": \"Anaphase\",\n            \"short\": \"Separate\",\n            \"sentence\": \"The Spindle separates A-left copy and B-left copy from A-right copy and B-right copy toward opposite poles.\",\n            \"why\": \"Released sister copies become independent chromosomes; separation redistributes DNA without making more.\",\n            \"active\": [\n              \"a-left\",\n              \"a-right\",\n              \"b-left\",\n              \"b-right\"\n            ],\n            \"calloutRegion\": \"a-left\",\n            \"readouts\": [\n              {\n                \"id\": \"total-copies\",\n                \"label\": \"DNA copies: whole cell\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"left-copies\",\n                \"label\": \"DNA copies: left group\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"right-copies\",\n                \"label\": \"DNA copies: right group\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Matching chromosome groups reach opposite poles.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"telophase\",\n            \"label\": \"Telophase\",\n            \"short\": \"Re-form\",\n            \"sentence\": \"The Nuclear envelopes re-form around matching A and B sets; chromosome copies decondense and the Spindle disassembles.\",\n            \"why\": \"Compare the new nuclei: each contains the same chromosome types. Cytokinesis divides the cell and is not shown.\",\n            \"active\": [\n              \"nuclear-envelopes\",\n              \"a-left\",\n              \"a-right\",\n              \"b-left\",\n              \"b-right\"\n            ],\n            \"calloutRegion\": \"nuclear-envelopes\",\n            \"readouts\": [\n              {\n                \"id\": \"total-copies\",\n                \"label\": \"DNA copies: whole cell\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"left-copies\",\n                \"label\": \"DNA copies: left group\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"right-copies\",\n                \"label\": \"DNA copies: right group\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Mitosis has produced matching chromosome sets in separate nuclei.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "What happens during mitosis? Start after DNA copying. Follow chromosome copies as they condense, align, and separate. Compare the new nuclei: each receives a matching chromosome set. Use Previous and Next to inspect each stage.",
+  "aha": {
+   "stateId": "telophase",
+   "observation": "Each new nucleus receives an A copy and a B copy because sister copies separate toward opposite poles."
+  },
+  "layout": {
+   "preset": "approved-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "stage-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation and above the experiment. Use short rail labels and show the full active stage name. Keep progress on this rail.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "mitosis-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical mitosis composition with a fixed cell boundary. Region phases follow the active rail index in variant.states order. Highlight state.active. Keep chromosome labels visible throughout. Compare the final nuclei side by side at a shared scale. A copies use a solid pattern; B copies use a striped pattern. Assume an idealized animal cell with chromosomes A and B, already replicated. No DNA synthesis, chromosome errors, or cytokinesis occurs here. Copy names identify their eventual pole, not an additional process. Keep all labels readable at native width.",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "links": "variant.links"
+    }
+   },
+   {
+    "id": "stage-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the named target without covering chromosomes. Identify the relevant location and mechanism; leave measurements in the readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "copy-counts-and-status",
+    "kind": "value-readout",
+    "presentation": "Place counts below the picture, followed by the bound status line. A DNA copy means one chromatid-sized DNA molecule, including joined sisters. Counts are exact integers, not chromosome counts. Left and right groups refer to opposite spindle poles. An em dash means no separated group exists. Balanced parameter-control budget: zero; navigation and Reset are separate.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stage",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Mitosis stage",
+    "presentation": "Provide Previous and Next buttons with those accessible names. Default to the first state; bounds are the first and last states. Advance one state per action. Retain both button names when disabled at boundaries. Every state persists until learner action; never advance automatically. Reference captures show telophase. Support keyboard operation and visible focus."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide keyboard operation and visible focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Mitosis: matching chromosome sets",
+     "regions": [
+      {
+       "id": "cell-boundary",
+       "label": "Cell boundary",
+       "phases": [
+        "Intact outer boundary.",
+        "Intact outer boundary.",
+        "Intact outer boundary.",
+        "Intact outer boundary.",
+        "Intact outer boundary.",
+        "Intact outer boundary enclosing both new nuclei."
+       ]
+      },
+      {
+       "id": "nuclear-envelopes",
+       "label": "Nuclear envelopes",
+       "phases": [
+        "Original envelope surrounds diffuse replicated chromosomes.",
+        "Original envelope surrounds condensed paired chromosomes.",
+        "Original envelope has broken down.",
+        "Envelope absent around aligned chromosome pairs.",
+        "Envelope absent around separating chromosome groups.",
+        "Separate envelopes surround matching chromosome groups at opposite poles."
+       ]
+      },
+      {
+       "id": "spindle",
+       "label": "Spindle",
+       "phases": [
+        "Absent.",
+        "Forms outside the original nuclear envelope.",
+        "Fibers from opposite poles attach to opposite sisters of each chromosome.",
+        "Opposing attachments hold sister pairs at the cell equator.",
+        "Attached fibers separate sister copies toward opposite poles.",
+        "Disassembles as the new nuclear envelopes form."
+       ]
+      },
+      {
+       "id": "a-left",
+       "label": "A-left copy",
+       "phases": [
+        "Diffuse DNA joined to A-right copy inside the original nucleus.",
+        "Condensed sister joined to A-right copy.",
+        "Joined to A-right copy and attached to the left spindle pole.",
+        "At the equator, joined to A-right copy and attached leftward.",
+        "Independent chromosome at the left pole.",
+        "Decondensing inside the left new nucleus."
+       ]
+      },
+      {
+       "id": "a-right",
+       "label": "A-right copy",
+       "phases": [
+        "Diffuse DNA joined to A-left copy inside the original nucleus.",
+        "Condensed sister joined to A-left copy.",
+        "Joined to A-left copy and attached to the right spindle pole.",
+        "At the equator, joined to A-left copy and attached rightward.",
+        "Independent chromosome at the right pole.",
+        "Decondensing inside the right new nucleus."
+       ]
+      },
+      {
+       "id": "b-left",
+       "label": "B-left copy",
+       "phases": [
+        "Diffuse DNA joined to B-right copy inside the original nucleus.",
+        "Condensed sister joined to B-right copy.",
+        "Joined to B-right copy and attached to the left spindle pole.",
+        "At the equator, joined to B-right copy and attached leftward.",
+        "Independent chromosome at the left pole.",
+        "Decondensing inside the left new nucleus."
+       ]
+      },
+      {
+       "id": "b-right",
+       "label": "B-right copy",
+       "phases": [
+        "Diffuse DNA joined to B-left copy inside the original nucleus.",
+        "Condensed sister joined to B-left copy.",
+        "Joined to B-left copy and attached to the right spindle pole.",
+        "At the equator, joined to B-left copy and attached rightward.",
+        "Independent chromosome at the right pole.",
+        "Decondensing inside the right new nucleus."
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Before mitosis",
+       "short": "Ready",
+       "sentence": "Inside the Nuclear envelopes, A-left copy and A-right copy are joined sisters; B-left copy and B-right copy are also joined sisters.",
+       "why": "DNA copying has already occurred; mitosis will distribute these existing copies.",
+       "active": [
+        "nuclear-envelopes"
+       ],
+       "calloutRegion": "nuclear-envelopes",
+       "readouts": [
+        {
+         "id": "total-copies",
+         "label": "DNA copies: whole cell",
+         "value": "4"
+        },
+        {
+         "id": "left-copies",
+         "label": "DNA copies: left group",
+         "value": "—"
+        },
+        {
+         "id": "right-copies",
+         "label": "DNA copies: right group",
+         "value": "—"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "DNA copied; sister copies remain joined."
+        }
+       ]
+      },
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Condense",
+       "sentence": "A-left copy, A-right copy, B-left copy, and B-right copy condense into visible chromosome pairs while the Spindle forms.",
+       "why": "Condensation packages the DNA; sister copies remain joined.",
+       "active": [
+        "a-left",
+        "a-right",
+        "b-left",
+        "b-right",
+        "spindle"
+       ],
+       "calloutRegion": "a-left",
+       "readouts": [
+        {
+         "id": "total-copies",
+         "label": "DNA copies: whole cell",
+         "value": "4"
+        },
+        {
+         "id": "left-copies",
+         "label": "DNA copies: left group",
+         "value": "—"
+        },
+        {
+         "id": "right-copies",
+         "label": "DNA copies: right group",
+         "value": "—"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Chromosomes condense; DNA-copy total stays unchanged."
+        }
+       ]
+      },
+      {
+       "id": "prometaphase",
+       "label": "Prometaphase",
+       "short": "Attach",
+       "sentence": "The Nuclear envelopes break down, allowing the Spindle to attach opposite sisters to opposite poles.",
+       "why": "Opposing attachments prepare each sister pair for separation.",
+       "active": [
+        "nuclear-envelopes",
+        "spindle"
+       ],
+       "calloutRegion": "spindle",
+       "readouts": [
+        {
+         "id": "total-copies",
+         "label": "DNA copies: whole cell",
+         "value": "4"
+        },
+        {
+         "id": "left-copies",
+         "label": "DNA copies: left group",
+         "value": "—"
+        },
+        {
+         "id": "right-copies",
+         "label": "DNA copies: right group",
+         "value": "—"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Sisters attach toward opposite poles."
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Align",
+       "sentence": "The Spindle holds the A and B sister pairs at the cell equator, with opposite sisters attached toward opposite poles.",
+       "why": "Each pole is connected to a copy of every chromosome type.",
+       "active": [
+        "spindle",
+        "a-left",
+        "a-right",
+        "b-left",
+        "b-right"
+       ],
+       "calloutRegion": "spindle",
+       "readouts": [
+        {
+         "id": "total-copies",
+         "label": "DNA copies: whole cell",
+         "value": "4"
+        },
+        {
+         "id": "left-copies",
+         "label": "DNA copies: left group",
+         "value": "—"
+        },
+        {
+         "id": "right-copies",
+         "label": "DNA copies: right group",
+         "value": "—"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Sister pairs align; copies remain joined."
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Separate",
+       "sentence": "The Spindle separates A-left copy and B-left copy from A-right copy and B-right copy toward opposite poles.",
+       "why": "Released sister copies become independent chromosomes; separation redistributes DNA without making more.",
+       "active": [
+        "a-left",
+        "a-right",
+        "b-left",
+        "b-right"
+       ],
+       "calloutRegion": "a-left",
+       "readouts": [
+        {
+         "id": "total-copies",
+         "label": "DNA copies: whole cell",
+         "value": "4"
+        },
+        {
+         "id": "left-copies",
+         "label": "DNA copies: left group",
+         "value": "2"
+        },
+        {
+         "id": "right-copies",
+         "label": "DNA copies: right group",
+         "value": "2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Matching chromosome groups reach opposite poles."
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Re-form",
+       "sentence": "The Nuclear envelopes re-form around matching A and B sets; chromosome copies decondense and the Spindle disassembles.",
+       "why": "Compare the new nuclei: each contains the same chromosome types. Cytokinesis divides the cell and is not shown.",
+       "active": [
+        "nuclear-envelopes",
+        "a-left",
+        "a-right",
+        "b-left",
+        "b-right"
+       ],
+       "calloutRegion": "nuclear-envelopes",
+       "readouts": [
+        {
+         "id": "total-copies",
+         "label": "DNA copies: whole cell",
+         "value": "4"
+        },
+        {
+         "id": "left-copies",
+         "label": "DNA copies: left group",
+         "value": "2"
+        },
+        {
+         "id": "right-copies",
+         "label": "DNA copies: right group",
+         "value": "2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Mitosis has produced matching chromosome sets in separate nuclei."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1532,
+  "output": 7318
+ },
+ "usd": 0.073374,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3fYwzJytjktg2wxhMND\"}"
+  },
+  "cardUsd": 0
+ }
+}

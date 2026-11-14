@@ -1,0 +1,239 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a33",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "Why does recursive feature elimination refit after each drop?",
+ "ts": "2026-11-14T22:22:51.973Z",
+ "ms": 3117,
+ "raw": "{\n  \"story\": \"Recursive feature elimination removes the weakest feature iteratively. Refitting after each drop ensures the remaining feature coefficients update correctly for the next ranking step.\",\n  \"aha\": {\n    \"stateId\": \"step_refit\",\n    \"observation\": \"Coefficient weights shift dramatically when a correlated feature is removed, proving that refitting is essential for accurate ranking.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-compact\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"RFE Step\",\n      \"options\": [\"Full Model\", \"Drop Weakest\", \"Refit Weights\", \"Final Subset\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"RFE Sequence\",\n        \"regions\": [\n          {\n            \"id\": \"feat_a\",\n            \"label\": \"Feature A\",\n            \"kind\": \"feature\",\n            \"values\": [\"0.85\"]\n          },\n          {\n            \"id\": \"feat_b\",\n            \"label\": \"Feature B\",\n            \"kind\": \"feature\",\n            \"values\": [\"0.12\"]\n          },\n          {\n            \"id\": \"feat_c\",\n            \"label\": \"Feature C\",\n            \"kind\": \"feature\",\n            \"values\": [\"0.45\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"step_full\",\n            \"label\": \"Full Model\",\n            \"short\": \"Fit\",\n            \"sentence\": \"Fit estimator on all available features.\",\n            \"why\": \"Establishes baseline coefficients for all variables.\",\n            \"active\": [\"feat_a\", \"feat_b\", \"feat_c\"],\n            \"calloutRegion\": \"feat_b\",\n            \"readouts\": [\n              {\"id\": \"score\", \"label\": \"R2 Score\", \"value\": \"0.88\"}\n            ]\n          },\n          {\n            \"id\": \"step_drop\",\n            \"label\": \"Drop Weakest\",\n            \"short\": \"Drop\",\n            \"sentence\": \"Identify and remove Feature B with the lowest coefficient.\",\n            \"why\": \"Removes noise from the feature space.\",\n            \"active\": [\"feat_b\"],\n            \"calloutRegion\": \"feat_b\",\n            \"readouts\": [\n              {\"id\": \"score\", \"label\": \"R2 Score\", \"value\": \"0.86\"}\n            ]\n          },\n          {\n            \"id\": \"step_refit\",\n            \"label\": \"Refit Weights\",\n            \"short\": \"Refit\",\n            \"sentence\": \"Refit the model on remaining features A and C.\",\n            \"why\": \"Uncovers updated coefficients affected by multicollinearity.\",\n            \"active\": [\"feat_a\", \"feat_c\"],\n            \"calloutRegion\": \"feat_a\",\n            \"readouts\": [\n              {\"id\": \"score\", \"label\": \"R2 Score\", \"value\": \"0.87\"}\n            ]\n          },\n          {\n            \"id\": \"step_final\",\n            \"label\": \"Final Subset\",\n            \"short\": \"Final\",\n            \"sentence\": \"Selected optimal subset determined.\",\n            \"why\": \"Completes iterative elimination loop.\",\n            \"active\": [\"feat_a\", \"feat_c\"],\n            \"calloutRegion\": \"feat_a\",\n            \"readouts\": [\n              {\"id\": \"score\", \"label\": \"R2 Score\", \"value\": \"0.87\"}\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Recursive feature elimination removes the weakest feature iteratively. Refitting after each drop ensures the remaining feature coefficients update correctly for the next ranking step.",
+  "aha": {
+   "stateId": "step_refit",
+   "observation": "Coefficient weights shift dramatically when a correlated feature is removed, proving that refitting is essential for accurate ranking."
+  },
+  "layout": {
+   "preset": "stepper-compact",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "RFE Step",
+    "options": [
+     "Full Model",
+     "Drop Weakest",
+     "Refit Weights",
+     "Final Subset"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "RFE Sequence",
+     "regions": [
+      {
+       "id": "feat_a",
+       "label": "Feature A",
+       "kind": "feature",
+       "values": [
+        "0.85"
+       ]
+      },
+      {
+       "id": "feat_b",
+       "label": "Feature B",
+       "kind": "feature",
+       "values": [
+        "0.12"
+       ]
+      },
+      {
+       "id": "feat_c",
+       "label": "Feature C",
+       "kind": "feature",
+       "values": [
+        "0.45"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "step_full",
+       "label": "Full Model",
+       "short": "Fit",
+       "sentence": "Fit estimator on all available features.",
+       "why": "Establishes baseline coefficients for all variables.",
+       "active": [
+        "feat_a",
+        "feat_b",
+        "feat_c"
+       ],
+       "calloutRegion": "feat_b",
+       "readouts": [
+        {
+         "id": "score",
+         "label": "R2 Score",
+         "value": "0.88"
+        }
+       ]
+      },
+      {
+       "id": "step_drop",
+       "label": "Drop Weakest",
+       "short": "Drop",
+       "sentence": "Identify and remove Feature B with the lowest coefficient.",
+       "why": "Removes noise from the feature space.",
+       "active": [
+        "feat_b"
+       ],
+       "calloutRegion": "feat_b",
+       "readouts": [
+        {
+         "id": "score",
+         "label": "R2 Score",
+         "value": "0.86"
+        }
+       ]
+      },
+      {
+       "id": "step_refit",
+       "label": "Refit Weights",
+       "short": "Refit",
+       "sentence": "Refit the model on remaining features A and C.",
+       "why": "Uncovers updated coefficients affected by multicollinearity.",
+       "active": [
+        "feat_a",
+        "feat_c"
+       ],
+       "calloutRegion": "feat_a",
+       "readouts": [
+        {
+         "id": "score",
+         "label": "R2 Score",
+         "value": "0.87"
+        }
+       ]
+      },
+      {
+       "id": "step_final",
+       "label": "Final Subset",
+       "short": "Final",
+       "sentence": "Selected optimal subset determined.",
+       "why": "Completes iterative elimination loop.",
+       "active": [
+        "feat_a",
+        "feat_c"
+       ],
+       "calloutRegion": "feat_a",
+       "readouts": [
+        {
+         "id": "score",
+         "label": "R2 Score",
+         "value": "0.87"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1107,
+  "output": 1133
+ },
+ "usd": 0.003165,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The question (why refit?) is only partly addressed: regions hold a single static coefficient each, so the picture never shows the weights changing after refit."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha is at step_refit, but the stepper continues to step_final, which is nearly identical, so the card does not hold at the decisive state."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex control changes the active regions, callout target and R2 readout at each state, so it does alter the evidence shown."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The aha claims coefficients shift dramatically, but the data has no updated coefficient values for A and C; the regions hold fixed values, so that claim is unbound to data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The story says weights shift dramatically, but the step sentences and readouts show only R2 changing slightly (0.88 to 0.86 to 0.87), so the narrative and the changing parts do not match."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The scene is compact, with three regions, a callout and a single readout, and it adds no clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The coefficient values 0.85, 0.12 and 0.45 never update after refit, and the R2 readout is repeated in the picture values and the readout, so values are duplicated and the refit values are incomplete."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011172
+ }
+}

@@ -1,0 +1,203 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a04",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does RLHF work?",
+ "ts": "2026-11-14T22:20:24.354Z",
+ "ms": 2816,
+ "raw": "{\n  \"story\": \"RLHF aligns language models using human preferences. First, the model generates responses. Next, human raters rank them. Finally, a reward model scores outputs and guides the policy.\",\n  \"aha\": {\n    \"stateId\": \"step-3\",\n    \"observation\": \"Human preference signals train a reward model that directly guides policy updates.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"RLHF Step\",\n      \"options\": [\n        \"step-1\",\n        \"step-2\",\n        \"step-3\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Overview\",\n        \"regions\": [\n          {\n            \"id\": \"reg-model\",\n            \"label\": \"Base Model\"\n          },\n          {\n            \"id\": \"reg-human\",\n            \"label\": \"Human Raters\"\n          },\n          {\n            \"id\": \"reg-reward\",\n            \"label\": \"Reward Model\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"step-1\",\n            \"label\": \"Generation\",\n            \"short\": \"Generate\",\n            \"sentence\": \"The base model generates multiple candidate responses for a single prompt.\",\n            \"why\": \"Establishes a batch of diverse outputs for comparison.\",\n            \"calloutRegion\": \"reg-model\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Candidates\",\n                \"value\": \"4 outputs\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-2\",\n            \"label\": \"Preference\",\n            \"short\": \"Rank\",\n            \"sentence\": \"Human raters rank the generated responses from best to worst.\",\n            \"why\": \"Provides ground truth data reflecting human values.\",\n            \"calloutRegion\": \"reg-human\",\n            \"readouts\": [\n              {\n                \"id\": \"r2\",\n                \"label\": \"Agreement\",\n                \"value\": \"85%\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-3\",\n            \"label\": \"Optimization\",\n            \"short\": \"Optimize\",\n            \"sentence\": \"A reward model scores responses, updating the policy via reinforcement learning.\",\n            \"why\": \"Aligns model behavior with human preferences.\",\n            \"calloutRegion\": \"reg-reward\",\n            \"readouts\": [\n              {\n                \"id\": \"r3\",\n                \"label\": \"Reward\",\n                \"value\": \"+2.4 score\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "RLHF aligns language models using human preferences. First, the model generates responses. Next, human raters rank them. Finally, a reward model scores outputs and guides the policy.",
+  "aha": {
+   "stateId": "step-3",
+   "observation": "Human preference signals train a reward model that directly guides policy updates."
+  },
+  "layout": {
+   "preset": "stepper",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "RLHF Step",
+    "options": [
+     "step-1",
+     "step-2",
+     "step-3"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Overview",
+     "regions": [
+      {
+       "id": "reg-model",
+       "label": "Base Model"
+      },
+      {
+       "id": "reg-human",
+       "label": "Human Raters"
+      },
+      {
+       "id": "reg-reward",
+       "label": "Reward Model"
+      }
+     ],
+     "states": [
+      {
+       "id": "step-1",
+       "label": "Generation",
+       "short": "Generate",
+       "sentence": "The base model generates multiple candidate responses for a single prompt.",
+       "why": "Establishes a batch of diverse outputs for comparison.",
+       "calloutRegion": "reg-model",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Candidates",
+         "value": "4 outputs"
+        }
+       ]
+      },
+      {
+       "id": "step-2",
+       "label": "Preference",
+       "short": "Rank",
+       "sentence": "Human raters rank the generated responses from best to worst.",
+       "why": "Provides ground truth data reflecting human values.",
+       "calloutRegion": "reg-human",
+       "readouts": [
+        {
+         "id": "r2",
+         "label": "Agreement",
+         "value": "85%"
+        }
+       ]
+      },
+      {
+       "id": "step-3",
+       "label": "Optimization",
+       "short": "Optimize",
+       "sentence": "A reward model scores responses, updating the policy via reinforcement learning.",
+       "why": "Aligns model behavior with human preferences.",
+       "calloutRegion": "reg-reward",
+       "readouts": [
+        {
+         "id": "r3",
+         "label": "Reward",
+         "value": "+2.4 score"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1102,
+  "output": 1001
+ },
+ "usd": 0.002834,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The scene asks how RLHF turns human preferences into policy updates, with three regions (Base Model, Human Raters, Reward Model) showing the pipeline, though the mechanism is only lightly specified."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha is step-3, but the stepper lets the learner start at step-1 and step through; nothing indicates a hold, and the decisive state is simply the last option with no gating or pause."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single stepIndex parameter changes the active region, callout text and readouts for each step, so each input yields different evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callout binds to the state sentence, why and calloutRegion, the readouts bind to state readouts, and the rail and picture bind to the states and regions; every part has a declared source."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story's generate, rank and reward-model steps match the state labels, region names and the stepper control options."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth shows one changing region per step, one callout and one readout, with no clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The values (4 outputs, 85% agreement, +2.4 reward) are asserted constants with no computation that can be checked. The 85% agreement and +2.4 score are not derived from anything in the picture, and the story says the reward model guides the policy while the readouts show nothing for that."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011134
+ }
+}

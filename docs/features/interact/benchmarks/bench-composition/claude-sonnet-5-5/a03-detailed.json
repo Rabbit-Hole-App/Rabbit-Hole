@@ -1,0 +1,780 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a03",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does RAG work?",
+ "ts": "2026-11-14T22:21:22.668Z",
+ "ms": 39215,
+ "raw": "{\"story\":\"A user asks about a refund window the model never learned. We embed the question, score stored document chunks, keep the top k, and paste them into the prompt. The model then answers from that pasted text. Retrieval changes only the prompt, not the model.\",\"aha\":{\"stateId\":\"s7\",\"observation\":\"The model never searches. Retrieval only adds the best chunks to its prompt, so the answer comes from chunk C3, not memory.\"},\"layout\":{\"preset\":\"pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons; the rail shows the active step\"},{\"id\":\"k\",\"kind\":\"select\",\"label\":\"Chunks retrieved (k)\",\"options\":[\"k = 2\",\"k = 3\"],\"default\":0,\"presentation\":\"Selects the variant; changes the kept chunks, prompt length and cutoff score\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to step 1 and k = 2\"}],\"data\":{\"variants\":[{\"label\":\"k = 2\",\"regions\":[{\"id\":\"question\",\"label\":\"Question\",\"kind\":\"input\",\"values\":[\"What is the refund window?\"]},{\"id\":\"docs\",\"label\":\"Documents\",\"kind\":\"store\",\"values\":[\"refund policy\",\"shipping FAQ\",\"warranty\"]},{\"id\":\"index\",\"label\":\"Vector index\",\"kind\":\"store\",\"values\":[\"C1\",\"C2\",\"C3\",\"C4\",\"C5\"]},{\"id\":\"embedder\",\"label\":\"Embedding model\",\"kind\":\"model\"},{\"id\":\"qvec\",\"label\":\"Query vector\",\"kind\":\"data\",\"values\":[\"768 numbers\"]},{\"id\":\"search\",\"label\":\"Similarity search\",\"kind\":\"process\",\"values\":[\"cosine\"]},{\"id\":\"topk\",\"label\":\"Top-k chunks\",\"kind\":\"data\",\"values\":[\"C3\",\"C1\"]},{\"id\":\"prompt\",\"label\":\"Prompt\",\"kind\":\"data\",\"values\":[\"instruction\",\"question\",\"C3\",\"C1\"]},{\"id\":\"llm\",\"label\":\"Language model\",\"kind\":\"model\"},{\"id\":\"answer\",\"label\":\"Answer\",\"kind\":\"output\",\"values\":[\"30 days, per C3\"]}],\"links\":[{\"from\":\"docs\",\"to\":\"index\",\"label\":\"split + embed\"},{\"from\":\"question\",\"to\":\"embedder\"},{\"from\":\"embedder\",\"to\":\"qvec\"},{\"from\":\"qvec\",\"to\":\"search\"},{\"from\":\"index\",\"to\":\"search\"},{\"from\":\"search\",\"to\":\"topk\",\"label\":\"best k\"},{\"from\":\"topk\",\"to\":\"prompt\"},{\"from\":\"question\",\"to\":\"prompt\"},{\"from\":\"prompt\",\"to\":\"llm\"},{\"from\":\"llm\",\"to\":\"answer\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Ask\",\"short\":\"Question\",\"sentence\":\"A user asks about the company's refund window, which the language model was never trained on.\",\"why\":\"Without outside text, the model could only guess.\",\"calloutRegion\":\"question\",\"active\":[\"question\"],\"readouts\":[{\"id\":\"qt\",\"label\":\"Question tokens\",\"value\":\"12\"},{\"id\":\"kk\",\"label\":\"k\",\"value\":\"2\"}]},{\"id\":\"s2\",\"label\":\"Index\",\"short\":\"Index\",\"sentence\":\"Earlier, documents were split into chunks, and each chunk was stored in the index as a vector.\",\"why\":\"Indexing happens once, before any question.\",\"calloutRegion\":\"index\",\"active\":[\"docs\",\"index\"],\"readouts\":[{\"id\":\"ch\",\"label\":\"Chunks stored\",\"value\":\"5 (C1–C5)\"},{\"id\":\"dm\",\"label\":\"Vector size\",\"value\":\"768 numbers\"}]},{\"id\":\"s3\",\"label\":\"Embed\",\"short\":\"Embed\",\"sentence\":\"The same embedding model turns the question into a vector, so it can be compared with chunks.\",\"why\":\"Matching embedding models put question and chunks in one space.\",\"calloutRegion\":\"embedder\",\"active\":[\"question\",\"embedder\",\"qvec\"],\"readouts\":[{\"id\":\"dm3\",\"label\":\"Query vector size\",\"value\":\"768 numbers\"},{\"id\":\"qt3\",\"label\":\"Input tokens\",\"value\":\"12\"}]},{\"id\":\"s4\",\"label\":\"Score\",\"short\":\"Score\",\"sentence\":\"Similarity search scores every chunk against the query vector with cosine similarity.\",\"why\":\"cosine = (q·c) / (|q| |c|); closer to 1 means more similar.\",\"calloutRegion\":\"search\",\"active\":[\"qvec\",\"index\",\"search\"],\"readouts\":[{\"id\":\"top3\",\"label\":\"Top scores\",\"value\":\"C3 0.82 · C1 0.74 · C5 0.61\"},{\"id\":\"low\",\"label\":\"Lowest scores\",\"value\":\"C2 0.31 · C4 0.22\"}]},{\"id\":\"s5\",\"label\":\"Select\",\"short\":\"Top k\",\"sentence\":\"The search keeps only the k highest-scoring chunks and discards the rest.\",\"why\":\"Fewer chunks keep the prompt short and focused.\",\"calloutRegion\":\"topk\",\"active\":[\"search\",\"topk\"],\"readouts\":[{\"id\":\"kept\",\"label\":\"Kept\",\"value\":\"C3, C1\"},{\"id\":\"cut\",\"label\":\"Cutoff score\",\"value\":\"≥ 0.74\"},{\"id\":\"drop\",\"label\":\"Dropped chunks\",\"value\":\"3\"}]},{\"id\":\"s6\",\"label\":\"Augment\",\"short\":\"Prompt\",\"sentence\":\"The kept chunks are pasted into the prompt next to the question and an instruction.\",\"why\":\"This is the augmentation: the prompt now carries the facts.\",\"calloutRegion\":\"prompt\",\"active\":[\"question\",\"topk\",\"prompt\"],\"readouts\":[{\"id\":\"pt\",\"label\":\"Prompt tokens\",\"value\":\"30 + 12 + 2×150 = 342\"}]},{\"id\":\"s7\",\"label\":\"Generate\",\"short\":\"Answer\",\"sentence\":\"The model reads the prompt and writes an answer from the pasted chunks. It never searches itself.\",\"why\":\"Retrieval changed the input; the model's weights are untouched.\",\"calloutRegion\":\"answer\",\"active\":[\"prompt\",\"llm\",\"answer\"],\"readouts\":[{\"id\":\"src\",\"label\":\"Answer source\",\"value\":\"C3 (refund policy)\"},{\"id\":\"pt7\",\"label\":\"Prompt tokens read\",\"value\":\"342\"},{\"id\":\"se\",\"label\":\"Searches by model\",\"value\":\"0\"}]}]},{\"label\":\"k = 3\",\"regions\":[{\"id\":\"question\",\"label\":\"Question\",\"kind\":\"input\",\"values\":[\"What is the refund window?\"]},{\"id\":\"docs\",\"label\":\"Documents\",\"kind\":\"store\",\"values\":[\"refund policy\",\"shipping FAQ\",\"warranty\"]},{\"id\":\"index\",\"label\":\"Vector index\",\"kind\":\"store\",\"values\":[\"C1\",\"C2\",\"C3\",\"C4\",\"C5\"]},{\"id\":\"embedder\",\"label\":\"Embedding model\",\"kind\":\"model\"},{\"id\":\"qvec\",\"label\":\"Query vector\",\"kind\":\"data\",\"values\":[\"768 numbers\"]},{\"id\":\"search\",\"label\":\"Similarity search\",\"kind\":\"process\",\"values\":[\"cosine\"]},{\"id\":\"topk\",\"label\":\"Top-k chunks\",\"kind\":\"data\",\"values\":[\"C3\",\"C1\",\"C5\"]},{\"id\":\"prompt\",\"label\":\"Prompt\",\"kind\":\"data\",\"values\":[\"instruction\",\"question\",\"C3\",\"C1\",\"C5\"]},{\"id\":\"llm\",\"label\":\"Language model\",\"kind\":\"model\"},{\"id\":\"answer\",\"label\":\"Answer\",\"kind\":\"output\",\"values\":[\"30 days, per C3\"]}],\"links\":[{\"from\":\"docs\",\"to\":\"index\",\"label\":\"split + embed\"},{\"from\":\"question\",\"to\":\"embedder\"},{\"from\":\"embedder\",\"to\":\"qvec\"},{\"from\":\"qvec\",\"to\":\"search\"},{\"from\":\"index\",\"to\":\"search\"},{\"from\":\"search\",\"to\":\"topk\",\"label\":\"best k\"},{\"from\":\"topk\",\"to\":\"prompt\"},{\"from\":\"question\",\"to\":\"prompt\"},{\"from\":\"prompt\",\"to\":\"llm\"},{\"from\":\"llm\",\"to\":\"answer\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Ask\",\"short\":\"Question\",\"sentence\":\"A user asks about the company's refund window, which the language model was never trained on.\",\"why\":\"Without outside text, the model could only guess.\",\"calloutRegion\":\"question\",\"active\":[\"question\"],\"readouts\":[{\"id\":\"qt\",\"label\":\"Question tokens\",\"value\":\"12\"},{\"id\":\"kk\",\"label\":\"k\",\"value\":\"3\"}]},{\"id\":\"s2\",\"label\":\"Index\",\"short\":\"Index\",\"sentence\":\"Earlier, documents were split into chunks, and each chunk was stored in the index as a vector.\",\"why\":\"Indexing happens once, before any question.\",\"calloutRegion\":\"index\",\"active\":[\"docs\",\"index\"],\"readouts\":[{\"id\":\"ch\",\"label\":\"Chunks stored\",\"value\":\"5 (C1–C5)\"},{\"id\":\"dm\",\"label\":\"Vector size\",\"value\":\"768 numbers\"}]},{\"id\":\"s3\",\"label\":\"Embed\",\"short\":\"Embed\",\"sentence\":\"The same embedding model turns the question into a vector, so it can be compared with chunks.\",\"why\":\"Matching embedding models put question and chunks in one space.\",\"calloutRegion\":\"embedder\",\"active\":[\"question\",\"embedder\",\"qvec\"],\"readouts\":[{\"id\":\"dm3\",\"label\":\"Query vector size\",\"value\":\"768 numbers\"},{\"id\":\"qt3\",\"label\":\"Input tokens\",\"value\":\"12\"}]},{\"id\":\"s4\",\"label\":\"Score\",\"short\":\"Score\",\"sentence\":\"Similarity search scores every chunk against the query vector with cosine similarity.\",\"why\":\"cosine = (q·c) / (|q| |c|); closer to 1 means more similar.\",\"calloutRegion\":\"search\",\"active\":[\"qvec\",\"index\",\"search\"],\"readouts\":[{\"id\":\"top3\",\"label\":\"Top scores\",\"value\":\"C3 0.82 · C1 0.74 · C5 0.61\"},{\"id\":\"low\",\"label\":\"Lowest scores\",\"value\":\"C2 0.31 · C4 0.22\"}]},{\"id\":\"s5\",\"label\":\"Select\",\"short\":\"Top k\",\"sentence\":\"The search keeps only the k highest-scoring chunks and discards the rest.\",\"why\":\"A larger k adds context but also weaker matches.\",\"calloutRegion\":\"topk\",\"active\":[\"search\",\"topk\"],\"readouts\":[{\"id\":\"kept\",\"label\":\"Kept\",\"value\":\"C3, C1, C5\"},{\"id\":\"cut\",\"label\":\"Cutoff score\",\"value\":\"≥ 0.61\"},{\"id\":\"drop\",\"label\":\"Dropped chunks\",\"value\":\"2\"}]},{\"id\":\"s6\",\"label\":\"Augment\",\"short\":\"Prompt\",\"sentence\":\"The kept chunks are pasted into the prompt next to the question and an instruction.\",\"why\":\"This is the augmentation: the prompt now carries the facts.\",\"calloutRegion\":\"prompt\",\"active\":[\"question\",\"topk\",\"prompt\"],\"readouts\":[{\"id\":\"pt\",\"label\":\"Prompt tokens\",\"value\":\"30 + 12 + 3×150 = 492\"}]},{\"id\":\"s7\",\"label\":\"Generate\",\"short\":\"Answer\",\"sentence\":\"The model reads the prompt and writes an answer from the pasted chunks. It never searches itself.\",\"why\":\"Retrieval changed the input; the model's weights are untouched.\",\"calloutRegion\":\"answer\",\"active\":[\"prompt\",\"llm\",\"answer\"],\"readouts\":[{\"id\":\"src\",\"label\":\"Answer source\",\"value\":\"C3 (refund policy)\"},{\"id\":\"pt7\",\"label\":\"Prompt tokens read\",\"value\":\"492\"},{\"id\":\"se\",\"label\":\"Searches by model\",\"value\":\"0\"}]}]}]}}",
+ "composition": {
+  "story": "A user asks about a refund window the model never learned. We embed the question, score stored document chunks, keep the top k, and paste them into the prompt. The model then answers from that pasted text. Retrieval changes only the prompt, not the model.",
+  "aha": {
+   "stateId": "s7",
+   "observation": "The model never searches. Retrieval only adds the best chunks to its prompt, so the answer comes from chunk C3, not memory."
+  },
+  "layout": {
+   "preset": "pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons; the rail shows the active step"
+   },
+   {
+    "id": "k",
+    "kind": "select",
+    "label": "Chunks retrieved (k)",
+    "options": [
+     "k = 2",
+     "k = 3"
+    ],
+    "default": 0,
+    "presentation": "Selects the variant; changes the kept chunks, prompt length and cutoff score"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to step 1 and k = 2"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "k = 2",
+     "regions": [
+      {
+       "id": "question",
+       "label": "Question",
+       "kind": "input",
+       "values": [
+        "What is the refund window?"
+       ]
+      },
+      {
+       "id": "docs",
+       "label": "Documents",
+       "kind": "store",
+       "values": [
+        "refund policy",
+        "shipping FAQ",
+        "warranty"
+       ]
+      },
+      {
+       "id": "index",
+       "label": "Vector index",
+       "kind": "store",
+       "values": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5"
+       ]
+      },
+      {
+       "id": "embedder",
+       "label": "Embedding model",
+       "kind": "model"
+      },
+      {
+       "id": "qvec",
+       "label": "Query vector",
+       "kind": "data",
+       "values": [
+        "768 numbers"
+       ]
+      },
+      {
+       "id": "search",
+       "label": "Similarity search",
+       "kind": "process",
+       "values": [
+        "cosine"
+       ]
+      },
+      {
+       "id": "topk",
+       "label": "Top-k chunks",
+       "kind": "data",
+       "values": [
+        "C3",
+        "C1"
+       ]
+      },
+      {
+       "id": "prompt",
+       "label": "Prompt",
+       "kind": "data",
+       "values": [
+        "instruction",
+        "question",
+        "C3",
+        "C1"
+       ]
+      },
+      {
+       "id": "llm",
+       "label": "Language model",
+       "kind": "model"
+      },
+      {
+       "id": "answer",
+       "label": "Answer",
+       "kind": "output",
+       "values": [
+        "30 days, per C3"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "docs",
+       "to": "index",
+       "label": "split + embed"
+      },
+      {
+       "from": "question",
+       "to": "embedder"
+      },
+      {
+       "from": "embedder",
+       "to": "qvec"
+      },
+      {
+       "from": "qvec",
+       "to": "search"
+      },
+      {
+       "from": "index",
+       "to": "search"
+      },
+      {
+       "from": "search",
+       "to": "topk",
+       "label": "best k"
+      },
+      {
+       "from": "topk",
+       "to": "prompt"
+      },
+      {
+       "from": "question",
+       "to": "prompt"
+      },
+      {
+       "from": "prompt",
+       "to": "llm"
+      },
+      {
+       "from": "llm",
+       "to": "answer"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Ask",
+       "short": "Question",
+       "sentence": "A user asks about the company's refund window, which the language model was never trained on.",
+       "why": "Without outside text, the model could only guess.",
+       "calloutRegion": "question",
+       "active": [
+        "question"
+       ],
+       "readouts": [
+        {
+         "id": "qt",
+         "label": "Question tokens",
+         "value": "12"
+        },
+        {
+         "id": "kk",
+         "label": "k",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Index",
+       "short": "Index",
+       "sentence": "Earlier, documents were split into chunks, and each chunk was stored in the index as a vector.",
+       "why": "Indexing happens once, before any question.",
+       "calloutRegion": "index",
+       "active": [
+        "docs",
+        "index"
+       ],
+       "readouts": [
+        {
+         "id": "ch",
+         "label": "Chunks stored",
+         "value": "5 (C1–C5)"
+        },
+        {
+         "id": "dm",
+         "label": "Vector size",
+         "value": "768 numbers"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Embed",
+       "short": "Embed",
+       "sentence": "The same embedding model turns the question into a vector, so it can be compared with chunks.",
+       "why": "Matching embedding models put question and chunks in one space.",
+       "calloutRegion": "embedder",
+       "active": [
+        "question",
+        "embedder",
+        "qvec"
+       ],
+       "readouts": [
+        {
+         "id": "dm3",
+         "label": "Query vector size",
+         "value": "768 numbers"
+        },
+        {
+         "id": "qt3",
+         "label": "Input tokens",
+         "value": "12"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Score",
+       "short": "Score",
+       "sentence": "Similarity search scores every chunk against the query vector with cosine similarity.",
+       "why": "cosine = (q·c) / (|q| |c|); closer to 1 means more similar.",
+       "calloutRegion": "search",
+       "active": [
+        "qvec",
+        "index",
+        "search"
+       ],
+       "readouts": [
+        {
+         "id": "top3",
+         "label": "Top scores",
+         "value": "C3 0.82 · C1 0.74 · C5 0.61"
+        },
+        {
+         "id": "low",
+         "label": "Lowest scores",
+         "value": "C2 0.31 · C4 0.22"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Select",
+       "short": "Top k",
+       "sentence": "The search keeps only the k highest-scoring chunks and discards the rest.",
+       "why": "Fewer chunks keep the prompt short and focused.",
+       "calloutRegion": "topk",
+       "active": [
+        "search",
+        "topk"
+       ],
+       "readouts": [
+        {
+         "id": "kept",
+         "label": "Kept",
+         "value": "C3, C1"
+        },
+        {
+         "id": "cut",
+         "label": "Cutoff score",
+         "value": "≥ 0.74"
+        },
+        {
+         "id": "drop",
+         "label": "Dropped chunks",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Augment",
+       "short": "Prompt",
+       "sentence": "The kept chunks are pasted into the prompt next to the question and an instruction.",
+       "why": "This is the augmentation: the prompt now carries the facts.",
+       "calloutRegion": "prompt",
+       "active": [
+        "question",
+        "topk",
+        "prompt"
+       ],
+       "readouts": [
+        {
+         "id": "pt",
+         "label": "Prompt tokens",
+         "value": "30 + 12 + 2×150 = 342"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Generate",
+       "short": "Answer",
+       "sentence": "The model reads the prompt and writes an answer from the pasted chunks. It never searches itself.",
+       "why": "Retrieval changed the input; the model's weights are untouched.",
+       "calloutRegion": "answer",
+       "active": [
+        "prompt",
+        "llm",
+        "answer"
+       ],
+       "readouts": [
+        {
+         "id": "src",
+         "label": "Answer source",
+         "value": "C3 (refund policy)"
+        },
+        {
+         "id": "pt7",
+         "label": "Prompt tokens read",
+         "value": "342"
+        },
+        {
+         "id": "se",
+         "label": "Searches by model",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "k = 3",
+     "regions": [
+      {
+       "id": "question",
+       "label": "Question",
+       "kind": "input",
+       "values": [
+        "What is the refund window?"
+       ]
+      },
+      {
+       "id": "docs",
+       "label": "Documents",
+       "kind": "store",
+       "values": [
+        "refund policy",
+        "shipping FAQ",
+        "warranty"
+       ]
+      },
+      {
+       "id": "index",
+       "label": "Vector index",
+       "kind": "store",
+       "values": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5"
+       ]
+      },
+      {
+       "id": "embedder",
+       "label": "Embedding model",
+       "kind": "model"
+      },
+      {
+       "id": "qvec",
+       "label": "Query vector",
+       "kind": "data",
+       "values": [
+        "768 numbers"
+       ]
+      },
+      {
+       "id": "search",
+       "label": "Similarity search",
+       "kind": "process",
+       "values": [
+        "cosine"
+       ]
+      },
+      {
+       "id": "topk",
+       "label": "Top-k chunks",
+       "kind": "data",
+       "values": [
+        "C3",
+        "C1",
+        "C5"
+       ]
+      },
+      {
+       "id": "prompt",
+       "label": "Prompt",
+       "kind": "data",
+       "values": [
+        "instruction",
+        "question",
+        "C3",
+        "C1",
+        "C5"
+       ]
+      },
+      {
+       "id": "llm",
+       "label": "Language model",
+       "kind": "model"
+      },
+      {
+       "id": "answer",
+       "label": "Answer",
+       "kind": "output",
+       "values": [
+        "30 days, per C3"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "docs",
+       "to": "index",
+       "label": "split + embed"
+      },
+      {
+       "from": "question",
+       "to": "embedder"
+      },
+      {
+       "from": "embedder",
+       "to": "qvec"
+      },
+      {
+       "from": "qvec",
+       "to": "search"
+      },
+      {
+       "from": "index",
+       "to": "search"
+      },
+      {
+       "from": "search",
+       "to": "topk",
+       "label": "best k"
+      },
+      {
+       "from": "topk",
+       "to": "prompt"
+      },
+      {
+       "from": "question",
+       "to": "prompt"
+      },
+      {
+       "from": "prompt",
+       "to": "llm"
+      },
+      {
+       "from": "llm",
+       "to": "answer"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Ask",
+       "short": "Question",
+       "sentence": "A user asks about the company's refund window, which the language model was never trained on.",
+       "why": "Without outside text, the model could only guess.",
+       "calloutRegion": "question",
+       "active": [
+        "question"
+       ],
+       "readouts": [
+        {
+         "id": "qt",
+         "label": "Question tokens",
+         "value": "12"
+        },
+        {
+         "id": "kk",
+         "label": "k",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Index",
+       "short": "Index",
+       "sentence": "Earlier, documents were split into chunks, and each chunk was stored in the index as a vector.",
+       "why": "Indexing happens once, before any question.",
+       "calloutRegion": "index",
+       "active": [
+        "docs",
+        "index"
+       ],
+       "readouts": [
+        {
+         "id": "ch",
+         "label": "Chunks stored",
+         "value": "5 (C1–C5)"
+        },
+        {
+         "id": "dm",
+         "label": "Vector size",
+         "value": "768 numbers"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Embed",
+       "short": "Embed",
+       "sentence": "The same embedding model turns the question into a vector, so it can be compared with chunks.",
+       "why": "Matching embedding models put question and chunks in one space.",
+       "calloutRegion": "embedder",
+       "active": [
+        "question",
+        "embedder",
+        "qvec"
+       ],
+       "readouts": [
+        {
+         "id": "dm3",
+         "label": "Query vector size",
+         "value": "768 numbers"
+        },
+        {
+         "id": "qt3",
+         "label": "Input tokens",
+         "value": "12"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Score",
+       "short": "Score",
+       "sentence": "Similarity search scores every chunk against the query vector with cosine similarity.",
+       "why": "cosine = (q·c) / (|q| |c|); closer to 1 means more similar.",
+       "calloutRegion": "search",
+       "active": [
+        "qvec",
+        "index",
+        "search"
+       ],
+       "readouts": [
+        {
+         "id": "top3",
+         "label": "Top scores",
+         "value": "C3 0.82 · C1 0.74 · C5 0.61"
+        },
+        {
+         "id": "low",
+         "label": "Lowest scores",
+         "value": "C2 0.31 · C4 0.22"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Select",
+       "short": "Top k",
+       "sentence": "The search keeps only the k highest-scoring chunks and discards the rest.",
+       "why": "A larger k adds context but also weaker matches.",
+       "calloutRegion": "topk",
+       "active": [
+        "search",
+        "topk"
+       ],
+       "readouts": [
+        {
+         "id": "kept",
+         "label": "Kept",
+         "value": "C3, C1, C5"
+        },
+        {
+         "id": "cut",
+         "label": "Cutoff score",
+         "value": "≥ 0.61"
+        },
+        {
+         "id": "drop",
+         "label": "Dropped chunks",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Augment",
+       "short": "Prompt",
+       "sentence": "The kept chunks are pasted into the prompt next to the question and an instruction.",
+       "why": "This is the augmentation: the prompt now carries the facts.",
+       "calloutRegion": "prompt",
+       "active": [
+        "question",
+        "topk",
+        "prompt"
+       ],
+       "readouts": [
+        {
+         "id": "pt",
+         "label": "Prompt tokens",
+         "value": "30 + 12 + 3×150 = 492"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Generate",
+       "short": "Answer",
+       "sentence": "The model reads the prompt and writes an answer from the pasted chunks. It never searches itself.",
+       "why": "Retrieval changed the input; the model's weights are untouched.",
+       "calloutRegion": "answer",
+       "active": [
+        "prompt",
+        "llm",
+        "answer"
+       ],
+       "readouts": [
+        {
+         "id": "src",
+         "label": "Answer source",
+         "value": "C3 (refund policy)"
+        },
+        {
+         "id": "pt7",
+         "label": "Prompt tokens read",
+         "value": "492"
+        },
+        {
+         "id": "se",
+         "label": "Searches by model",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3066,
+  "output": 6619
+ },
+ "usd": 0.072322,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The pipeline picture, with the prompt-to-llm link and the 'Searches by model: 0' readout, shows that retrieval only augments the prompt and answers 'does the model search?'."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s7 is the final step in a step-driven scene, so it holds with the answer, C3 source and 0 searches until the learner moves."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "Switching k changes the kept chunks (C3,C1 vs C3,C1,C5), the cutoff (0.74 vs 0.61), the dropped count, and prompt tokens (342 vs 492)."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Every highlight comes from state.active, each callout targets a declared calloutRegion, the ghost uses previous.active, and readouts are in the state data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and the k control all use the same names: question, index, chunks, top-k, prompt, answer."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At each step only a small subset of regions is active, and the k comparison and the token formula at s6 add mechanism without exceeding the density ceiling."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The arithmetic checks out (30+12+300=342, 30+12+450=492), the cutoffs and dropped counts match the scores, and callouts locate while readouts quantify, with only mild repetition of the token count."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.021512
+ }
+}

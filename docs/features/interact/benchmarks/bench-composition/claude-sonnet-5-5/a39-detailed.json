@@ -1,0 +1,936 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a39",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a bill become law in the United States?",
+ "ts": "2026-11-14T22:34:04.635Z",
+ "ms": 54364,
+ "raw": "{\"story\":\"A bill starts in one chamber, clears committee and a floor vote, then must be matched word for word by the other chamber. Then the president signs, or Congress overrides a veto. Switch the president's action to compare both routes.\",\"aha\":{\"stateId\":\"law\",\"observation\":\"A bill becomes law only when both chambers pass identical text and the president signs, or each chamber overrides a veto by two-thirds.\"},\"layout\":{\"preset\":\"protocol\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"president\",\"kind\":\"select\",\"label\":\"President's action\",\"options\":[\"Signs the bill\",\"Vetoes, then Congress overrides\"],\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Signs the bill\",\"regions\":[{\"id\":\"intro\",\"label\":\"Introduction\",\"kind\":\"step\",\"actors\":[\"House member\"]},{\"id\":\"hcom\",\"label\":\"House committee\",\"kind\":\"step\",\"actors\":[\"Committee\"]},{\"id\":\"hfloor\",\"label\":\"House floor\",\"kind\":\"chamber\",\"actors\":[\"435 members\"]},{\"id\":\"scom\",\"label\":\"Senate committee\",\"kind\":\"step\",\"actors\":[\"Committee\"]},{\"id\":\"sfloor\",\"label\":\"Senate floor\",\"kind\":\"chamber\",\"actors\":[\"100 senators\"]},{\"id\":\"recon\",\"label\":\"Matching text\",\"kind\":\"step\",\"actors\":[\"House\",\"Senate\"]},{\"id\":\"pres\",\"label\":\"President's desk\",\"kind\":\"step\",\"actors\":[\"President\"]},{\"id\":\"law\",\"label\":\"Public law\",\"kind\":\"outcome\"}],\"links\":[{\"from\":\"intro\",\"to\":\"hcom\",\"label\":\"referred\"},{\"from\":\"hcom\",\"to\":\"hfloor\",\"label\":\"reported\"},{\"from\":\"hfloor\",\"to\":\"scom\",\"label\":\"sent over\"},{\"from\":\"scom\",\"to\":\"sfloor\",\"label\":\"reported\"},{\"from\":\"sfloor\",\"to\":\"recon\",\"label\":\"passed\"},{\"from\":\"recon\",\"to\":\"pres\",\"label\":\"presented\"},{\"from\":\"pres\",\"to\":\"law\",\"label\":\"signed\"}],\"states\":[{\"id\":\"intro\",\"label\":\"Introduced\",\"short\":\"Introduce\",\"sentence\":\"A House member introduces the bill, and it receives a number such as H.R. 1.\",\"why\":\"Any member of Congress can start a bill; only Congress can write laws.\",\"active\":[\"intro\"],\"calloutRegion\":\"intro\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"None yet\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"0 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Version A\"}]},{\"id\":\"hcom\",\"label\":\"House committee\",\"short\":\"Committee\",\"sentence\":\"A House committee holds hearings, amends the bill in markup, and votes whether to report it.\",\"why\":\"Most bills die here; without a committee report they rarely reach the floor.\",\"active\":[\"hcom\"],\"calloutRegion\":\"hcom\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"Committee majority\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"0 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Version A, may be amended\"}]},{\"id\":\"hfloor\",\"label\":\"House floor vote\",\"short\":\"House vote\",\"sentence\":\"The full House debates the bill and votes on passage.\",\"why\":\"A simple majority of members voting passes it; the first chamber is then done.\",\"active\":[\"hfloor\"],\"calloutRegion\":\"hfloor\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"218 of 435 if all vote\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"1 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"A (House-passed)\"}]},{\"id\":\"scom\",\"label\":\"Senate committee\",\"short\":\"Sen. committee\",\"sentence\":\"The Senate sends the bill to its own committee, which reviews it and may amend it.\",\"why\":\"The second chamber repeats the process independently and may change the text.\",\"active\":[\"scom\"],\"calloutRegion\":\"scom\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"Committee majority\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"1 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"A, may become B\"}]},{\"id\":\"sfloor\",\"label\":\"Senate floor vote\",\"short\":\"Senate vote\",\"sentence\":\"Senators debate the bill. Ending a filibuster takes extra votes, then a simple majority passes it.\",\"why\":\"Senate rules differ from the House: debate can continue until enough senators end it.\",\"active\":[\"sfloor\"],\"calloutRegion\":\"sfloor\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"60 to end debate, then 51 of 100\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"B (Senate amended) ≠ A\"}]},{\"id\":\"recon\",\"label\":\"Matching text\",\"short\":\"Match text\",\"sentence\":\"The House accepts the Senate changes, or a conference committee negotiates one compromise that both chambers re-approve.\",\"why\":\"The Constitution requires both chambers to approve the same bill, so differing versions cannot advance.\",\"active\":[\"recon\"],\"calloutRegion\":\"recon\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"Majority in each chamber\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2, same text\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Identical in both\"}]},{\"id\":\"pres\",\"label\":\"President's desk\",\"short\":\"President\",\"sentence\":\"The enrolled bill goes to the president, who may sign it or return it with a veto.\",\"why\":\"The president acts last, but cannot change the text; only sign or reject it.\",\"active\":[\"pres\"],\"calloutRegion\":\"pres\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Presidential action\",\"value\":\"Signature\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2, same text\"},{\"id\":\"text\",\"label\":\"Time to act\",\"value\":\"10 days, Sundays excepted\"}]},{\"id\":\"law\",\"label\":\"Became law\",\"short\":\"Law\",\"sentence\":\"The president signs, and the bill becomes a law with a Public Law number.\",\"why\":\"Both chambers agreed on one text and the executive approved it: all three steps are met.\",\"active\":[\"law\"],\"calloutRegion\":\"law\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Presidential action\",\"value\":\"Signed\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2, same text\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Enacted\"}]}]},{\"label\":\"Vetoes, then Congress overrides\",\"regions\":[{\"id\":\"intro\",\"label\":\"Introduction\",\"kind\":\"step\",\"actors\":[\"House member\"]},{\"id\":\"hcom\",\"label\":\"House committee\",\"kind\":\"step\",\"actors\":[\"Committee\"]},{\"id\":\"hfloor\",\"label\":\"House floor\",\"kind\":\"chamber\",\"actors\":[\"435 members\"]},{\"id\":\"scom\",\"label\":\"Senate committee\",\"kind\":\"step\",\"actors\":[\"Committee\"]},{\"id\":\"sfloor\",\"label\":\"Senate floor\",\"kind\":\"chamber\",\"actors\":[\"100 senators\"]},{\"id\":\"recon\",\"label\":\"Matching text\",\"kind\":\"step\",\"actors\":[\"House\",\"Senate\"]},{\"id\":\"pres\",\"label\":\"President's desk\",\"kind\":\"step\",\"actors\":[\"President\"]},{\"id\":\"veto\",\"label\":\"Veto\",\"kind\":\"step\",\"actors\":[\"President\"]},{\"id\":\"ohouse\",\"label\":\"House override\",\"kind\":\"chamber\",\"actors\":[\"435 members\"]},{\"id\":\"osenate\",\"label\":\"Senate override\",\"kind\":\"chamber\",\"actors\":[\"100 senators\"]},{\"id\":\"law\",\"label\":\"Public law\",\"kind\":\"outcome\"}],\"links\":[{\"from\":\"intro\",\"to\":\"hcom\",\"label\":\"referred\"},{\"from\":\"hcom\",\"to\":\"hfloor\",\"label\":\"reported\"},{\"from\":\"hfloor\",\"to\":\"scom\",\"label\":\"sent over\"},{\"from\":\"scom\",\"to\":\"sfloor\",\"label\":\"reported\"},{\"from\":\"sfloor\",\"to\":\"recon\",\"label\":\"passed\"},{\"from\":\"recon\",\"to\":\"pres\",\"label\":\"presented\"},{\"from\":\"pres\",\"to\":\"veto\",\"label\":\"rejected\"},{\"from\":\"veto\",\"to\":\"ohouse\",\"label\":\"returned\"},{\"from\":\"ohouse\",\"to\":\"osenate\",\"label\":\"re-passed\"},{\"from\":\"osenate\",\"to\":\"law\",\"label\":\"overridden\"}],\"states\":[{\"id\":\"intro\",\"label\":\"Introduced\",\"short\":\"Introduce\",\"sentence\":\"A House member introduces the bill, and it receives a number such as H.R. 1.\",\"why\":\"Any member of Congress can start a bill; only Congress can write laws.\",\"active\":[\"intro\"],\"calloutRegion\":\"intro\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"None yet\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"0 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Version A\"}]},{\"id\":\"hcom\",\"label\":\"House committee\",\"short\":\"Committee\",\"sentence\":\"A House committee holds hearings, amends the bill in markup, and votes whether to report it.\",\"why\":\"Most bills die here; without a committee report they rarely reach the floor.\",\"active\":[\"hcom\"],\"calloutRegion\":\"hcom\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"Committee majority\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"0 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Version A, may be amended\"}]},{\"id\":\"hfloor\",\"label\":\"House floor vote\",\"short\":\"House vote\",\"sentence\":\"The full House debates the bill and votes on passage.\",\"why\":\"A simple majority of members voting passes it; the first chamber is then done.\",\"active\":[\"hfloor\"],\"calloutRegion\":\"hfloor\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"218 of 435 if all vote\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"1 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"A (House-passed)\"}]},{\"id\":\"scom\",\"label\":\"Senate committee\",\"short\":\"Sen. committee\",\"sentence\":\"The Senate sends the bill to its own committee, which reviews it and may amend it.\",\"why\":\"The second chamber repeats the process independently and may change the text.\",\"active\":[\"scom\"],\"calloutRegion\":\"scom\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"Committee majority\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"1 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"A, may become B\"}]},{\"id\":\"sfloor\",\"label\":\"Senate floor vote\",\"short\":\"Senate vote\",\"sentence\":\"Senators debate the bill. Ending a filibuster takes extra votes, then a simple majority passes it.\",\"why\":\"Senate rules differ from the House: debate can continue until enough senators end it.\",\"active\":[\"sfloor\"],\"calloutRegion\":\"sfloor\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"60 to end debate, then 51 of 100\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"B (Senate amended) ≠ A\"}]},{\"id\":\"recon\",\"label\":\"Matching text\",\"short\":\"Match text\",\"sentence\":\"The House accepts the Senate changes, or a conference committee negotiates one compromise that both chambers re-approve.\",\"why\":\"The Constitution requires both chambers to approve the same bill, so differing versions cannot advance.\",\"active\":[\"recon\"],\"calloutRegion\":\"recon\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Votes needed\",\"value\":\"Majority in each chamber\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2, same text\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Identical in both\"}]},{\"id\":\"pres\",\"label\":\"President's desk\",\"short\":\"President\",\"sentence\":\"The enrolled bill goes to the president, who may sign it or return it with a veto.\",\"why\":\"The president acts last, but cannot change the text; only sign or reject it.\",\"active\":[\"pres\"],\"calloutRegion\":\"pres\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Presidential action\",\"value\":\"Signature\"},{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2, same text\"},{\"id\":\"text\",\"label\":\"Time to act\",\"value\":\"10 days, Sundays excepted\"}]},{\"id\":\"veto\",\"label\":\"Vetoed\",\"short\":\"Veto\",\"sentence\":\"The president vetoes the bill and returns it, with objections, to the chamber where it began.\",\"why\":\"A veto stops the bill unless Congress gathers a supermajority; a simple majority no longer suffices.\",\"active\":[\"veto\"],\"calloutRegion\":\"veto\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Override needed\",\"value\":\"Two-thirds in each chamber\"},{\"id\":\"chambers\",\"label\":\"Overrides done\",\"value\":\"0 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Unchanged\"}]},{\"id\":\"ohouse\",\"label\":\"House override vote\",\"short\":\"House override\",\"sentence\":\"The House votes again on whether to pass the bill over the president's objection.\",\"why\":\"Two-thirds of 435 is 290 if all members vote, a much higher bar than 218.\",\"active\":[\"ohouse\"],\"calloutRegion\":\"ohouse\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Override needed\",\"value\":\"290 of 435 if all vote\"},{\"id\":\"chambers\",\"label\":\"Overrides done\",\"value\":\"1 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Unchanged\"}]},{\"id\":\"osenate\",\"label\":\"Senate override vote\",\"short\":\"Senate override\",\"sentence\":\"The Senate then votes on the same question, and it must also clear the higher bar.\",\"why\":\"Two-thirds of 100 is 67 if all senators vote; both chambers must succeed.\",\"active\":[\"osenate\"],\"calloutRegion\":\"osenate\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Override needed\",\"value\":\"67 of 100 if all vote\"},{\"id\":\"chambers\",\"label\":\"Overrides done\",\"value\":\"2 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Unchanged\"}]},{\"id\":\"law\",\"label\":\"Became law\",\"short\":\"Law\",\"sentence\":\"Both chambers overrode the veto, so the bill becomes law without the president's signature.\",\"why\":\"Congress supplied the missing approval: identical text passed twice by each chamber, ending with supermajorities.\",\"active\":[\"law\"],\"calloutRegion\":\"law\",\"readouts\":[{\"id\":\"needed\",\"label\":\"Override needed\",\"value\":\"Met in both chambers\"},{\"id\":\"chambers\",\"label\":\"Overrides done\",\"value\":\"2 of 2\"},{\"id\":\"text\",\"label\":\"Bill text\",\"value\":\"Enacted\"}]}]}]}}",
+ "composition": {
+  "story": "A bill starts in one chamber, clears committee and a floor vote, then must be matched word for word by the other chamber. Then the president signs, or Congress overrides a veto. Switch the president's action to compare both routes.",
+  "aha": {
+   "stateId": "law",
+   "observation": "A bill becomes law only when both chambers pass identical text and the president signs, or each chamber overrides a veto by two-thirds."
+  },
+  "layout": {
+   "preset": "protocol",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "president",
+    "kind": "select",
+    "label": "President's action",
+    "options": [
+     "Signs the bill",
+     "Vetoes, then Congress overrides"
+    ],
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Signs the bill",
+     "regions": [
+      {
+       "id": "intro",
+       "label": "Introduction",
+       "kind": "step",
+       "actors": [
+        "House member"
+       ]
+      },
+      {
+       "id": "hcom",
+       "label": "House committee",
+       "kind": "step",
+       "actors": [
+        "Committee"
+       ]
+      },
+      {
+       "id": "hfloor",
+       "label": "House floor",
+       "kind": "chamber",
+       "actors": [
+        "435 members"
+       ]
+      },
+      {
+       "id": "scom",
+       "label": "Senate committee",
+       "kind": "step",
+       "actors": [
+        "Committee"
+       ]
+      },
+      {
+       "id": "sfloor",
+       "label": "Senate floor",
+       "kind": "chamber",
+       "actors": [
+        "100 senators"
+       ]
+      },
+      {
+       "id": "recon",
+       "label": "Matching text",
+       "kind": "step",
+       "actors": [
+        "House",
+        "Senate"
+       ]
+      },
+      {
+       "id": "pres",
+       "label": "President's desk",
+       "kind": "step",
+       "actors": [
+        "President"
+       ]
+      },
+      {
+       "id": "law",
+       "label": "Public law",
+       "kind": "outcome"
+      }
+     ],
+     "links": [
+      {
+       "from": "intro",
+       "to": "hcom",
+       "label": "referred"
+      },
+      {
+       "from": "hcom",
+       "to": "hfloor",
+       "label": "reported"
+      },
+      {
+       "from": "hfloor",
+       "to": "scom",
+       "label": "sent over"
+      },
+      {
+       "from": "scom",
+       "to": "sfloor",
+       "label": "reported"
+      },
+      {
+       "from": "sfloor",
+       "to": "recon",
+       "label": "passed"
+      },
+      {
+       "from": "recon",
+       "to": "pres",
+       "label": "presented"
+      },
+      {
+       "from": "pres",
+       "to": "law",
+       "label": "signed"
+      }
+     ],
+     "states": [
+      {
+       "id": "intro",
+       "label": "Introduced",
+       "short": "Introduce",
+       "sentence": "A House member introduces the bill, and it receives a number such as H.R. 1.",
+       "why": "Any member of Congress can start a bill; only Congress can write laws.",
+       "active": [
+        "intro"
+       ],
+       "calloutRegion": "intro",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "None yet"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "0 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Version A"
+        }
+       ]
+      },
+      {
+       "id": "hcom",
+       "label": "House committee",
+       "short": "Committee",
+       "sentence": "A House committee holds hearings, amends the bill in markup, and votes whether to report it.",
+       "why": "Most bills die here; without a committee report they rarely reach the floor.",
+       "active": [
+        "hcom"
+       ],
+       "calloutRegion": "hcom",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "Committee majority"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "0 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Version A, may be amended"
+        }
+       ]
+      },
+      {
+       "id": "hfloor",
+       "label": "House floor vote",
+       "short": "House vote",
+       "sentence": "The full House debates the bill and votes on passage.",
+       "why": "A simple majority of members voting passes it; the first chamber is then done.",
+       "active": [
+        "hfloor"
+       ],
+       "calloutRegion": "hfloor",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "218 of 435 if all vote"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "1 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "A (House-passed)"
+        }
+       ]
+      },
+      {
+       "id": "scom",
+       "label": "Senate committee",
+       "short": "Sen. committee",
+       "sentence": "The Senate sends the bill to its own committee, which reviews it and may amend it.",
+       "why": "The second chamber repeats the process independently and may change the text.",
+       "active": [
+        "scom"
+       ],
+       "calloutRegion": "scom",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "Committee majority"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "1 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "A, may become B"
+        }
+       ]
+      },
+      {
+       "id": "sfloor",
+       "label": "Senate floor vote",
+       "short": "Senate vote",
+       "sentence": "Senators debate the bill. Ending a filibuster takes extra votes, then a simple majority passes it.",
+       "why": "Senate rules differ from the House: debate can continue until enough senators end it.",
+       "active": [
+        "sfloor"
+       ],
+       "calloutRegion": "sfloor",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "60 to end debate, then 51 of 100"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "B (Senate amended) ≠ A"
+        }
+       ]
+      },
+      {
+       "id": "recon",
+       "label": "Matching text",
+       "short": "Match text",
+       "sentence": "The House accepts the Senate changes, or a conference committee negotiates one compromise that both chambers re-approve.",
+       "why": "The Constitution requires both chambers to approve the same bill, so differing versions cannot advance.",
+       "active": [
+        "recon"
+       ],
+       "calloutRegion": "recon",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "Majority in each chamber"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2, same text"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Identical in both"
+        }
+       ]
+      },
+      {
+       "id": "pres",
+       "label": "President's desk",
+       "short": "President",
+       "sentence": "The enrolled bill goes to the president, who may sign it or return it with a veto.",
+       "why": "The president acts last, but cannot change the text; only sign or reject it.",
+       "active": [
+        "pres"
+       ],
+       "calloutRegion": "pres",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Presidential action",
+         "value": "Signature"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2, same text"
+        },
+        {
+         "id": "text",
+         "label": "Time to act",
+         "value": "10 days, Sundays excepted"
+        }
+       ]
+      },
+      {
+       "id": "law",
+       "label": "Became law",
+       "short": "Law",
+       "sentence": "The president signs, and the bill becomes a law with a Public Law number.",
+       "why": "Both chambers agreed on one text and the executive approved it: all three steps are met.",
+       "active": [
+        "law"
+       ],
+       "calloutRegion": "law",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Presidential action",
+         "value": "Signed"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2, same text"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Enacted"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Vetoes, then Congress overrides",
+     "regions": [
+      {
+       "id": "intro",
+       "label": "Introduction",
+       "kind": "step",
+       "actors": [
+        "House member"
+       ]
+      },
+      {
+       "id": "hcom",
+       "label": "House committee",
+       "kind": "step",
+       "actors": [
+        "Committee"
+       ]
+      },
+      {
+       "id": "hfloor",
+       "label": "House floor",
+       "kind": "chamber",
+       "actors": [
+        "435 members"
+       ]
+      },
+      {
+       "id": "scom",
+       "label": "Senate committee",
+       "kind": "step",
+       "actors": [
+        "Committee"
+       ]
+      },
+      {
+       "id": "sfloor",
+       "label": "Senate floor",
+       "kind": "chamber",
+       "actors": [
+        "100 senators"
+       ]
+      },
+      {
+       "id": "recon",
+       "label": "Matching text",
+       "kind": "step",
+       "actors": [
+        "House",
+        "Senate"
+       ]
+      },
+      {
+       "id": "pres",
+       "label": "President's desk",
+       "kind": "step",
+       "actors": [
+        "President"
+       ]
+      },
+      {
+       "id": "veto",
+       "label": "Veto",
+       "kind": "step",
+       "actors": [
+        "President"
+       ]
+      },
+      {
+       "id": "ohouse",
+       "label": "House override",
+       "kind": "chamber",
+       "actors": [
+        "435 members"
+       ]
+      },
+      {
+       "id": "osenate",
+       "label": "Senate override",
+       "kind": "chamber",
+       "actors": [
+        "100 senators"
+       ]
+      },
+      {
+       "id": "law",
+       "label": "Public law",
+       "kind": "outcome"
+      }
+     ],
+     "links": [
+      {
+       "from": "intro",
+       "to": "hcom",
+       "label": "referred"
+      },
+      {
+       "from": "hcom",
+       "to": "hfloor",
+       "label": "reported"
+      },
+      {
+       "from": "hfloor",
+       "to": "scom",
+       "label": "sent over"
+      },
+      {
+       "from": "scom",
+       "to": "sfloor",
+       "label": "reported"
+      },
+      {
+       "from": "sfloor",
+       "to": "recon",
+       "label": "passed"
+      },
+      {
+       "from": "recon",
+       "to": "pres",
+       "label": "presented"
+      },
+      {
+       "from": "pres",
+       "to": "veto",
+       "label": "rejected"
+      },
+      {
+       "from": "veto",
+       "to": "ohouse",
+       "label": "returned"
+      },
+      {
+       "from": "ohouse",
+       "to": "osenate",
+       "label": "re-passed"
+      },
+      {
+       "from": "osenate",
+       "to": "law",
+       "label": "overridden"
+      }
+     ],
+     "states": [
+      {
+       "id": "intro",
+       "label": "Introduced",
+       "short": "Introduce",
+       "sentence": "A House member introduces the bill, and it receives a number such as H.R. 1.",
+       "why": "Any member of Congress can start a bill; only Congress can write laws.",
+       "active": [
+        "intro"
+       ],
+       "calloutRegion": "intro",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "None yet"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "0 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Version A"
+        }
+       ]
+      },
+      {
+       "id": "hcom",
+       "label": "House committee",
+       "short": "Committee",
+       "sentence": "A House committee holds hearings, amends the bill in markup, and votes whether to report it.",
+       "why": "Most bills die here; without a committee report they rarely reach the floor.",
+       "active": [
+        "hcom"
+       ],
+       "calloutRegion": "hcom",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "Committee majority"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "0 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Version A, may be amended"
+        }
+       ]
+      },
+      {
+       "id": "hfloor",
+       "label": "House floor vote",
+       "short": "House vote",
+       "sentence": "The full House debates the bill and votes on passage.",
+       "why": "A simple majority of members voting passes it; the first chamber is then done.",
+       "active": [
+        "hfloor"
+       ],
+       "calloutRegion": "hfloor",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "218 of 435 if all vote"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "1 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "A (House-passed)"
+        }
+       ]
+      },
+      {
+       "id": "scom",
+       "label": "Senate committee",
+       "short": "Sen. committee",
+       "sentence": "The Senate sends the bill to its own committee, which reviews it and may amend it.",
+       "why": "The second chamber repeats the process independently and may change the text.",
+       "active": [
+        "scom"
+       ],
+       "calloutRegion": "scom",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "Committee majority"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "1 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "A, may become B"
+        }
+       ]
+      },
+      {
+       "id": "sfloor",
+       "label": "Senate floor vote",
+       "short": "Senate vote",
+       "sentence": "Senators debate the bill. Ending a filibuster takes extra votes, then a simple majority passes it.",
+       "why": "Senate rules differ from the House: debate can continue until enough senators end it.",
+       "active": [
+        "sfloor"
+       ],
+       "calloutRegion": "sfloor",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "60 to end debate, then 51 of 100"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "B (Senate amended) ≠ A"
+        }
+       ]
+      },
+      {
+       "id": "recon",
+       "label": "Matching text",
+       "short": "Match text",
+       "sentence": "The House accepts the Senate changes, or a conference committee negotiates one compromise that both chambers re-approve.",
+       "why": "The Constitution requires both chambers to approve the same bill, so differing versions cannot advance.",
+       "active": [
+        "recon"
+       ],
+       "calloutRegion": "recon",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Votes needed",
+         "value": "Majority in each chamber"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2, same text"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Identical in both"
+        }
+       ]
+      },
+      {
+       "id": "pres",
+       "label": "President's desk",
+       "short": "President",
+       "sentence": "The enrolled bill goes to the president, who may sign it or return it with a veto.",
+       "why": "The president acts last, but cannot change the text; only sign or reject it.",
+       "active": [
+        "pres"
+       ],
+       "calloutRegion": "pres",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Presidential action",
+         "value": "Signature"
+        },
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2, same text"
+        },
+        {
+         "id": "text",
+         "label": "Time to act",
+         "value": "10 days, Sundays excepted"
+        }
+       ]
+      },
+      {
+       "id": "veto",
+       "label": "Vetoed",
+       "short": "Veto",
+       "sentence": "The president vetoes the bill and returns it, with objections, to the chamber where it began.",
+       "why": "A veto stops the bill unless Congress gathers a supermajority; a simple majority no longer suffices.",
+       "active": [
+        "veto"
+       ],
+       "calloutRegion": "veto",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Override needed",
+         "value": "Two-thirds in each chamber"
+        },
+        {
+         "id": "chambers",
+         "label": "Overrides done",
+         "value": "0 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Unchanged"
+        }
+       ]
+      },
+      {
+       "id": "ohouse",
+       "label": "House override vote",
+       "short": "House override",
+       "sentence": "The House votes again on whether to pass the bill over the president's objection.",
+       "why": "Two-thirds of 435 is 290 if all members vote, a much higher bar than 218.",
+       "active": [
+        "ohouse"
+       ],
+       "calloutRegion": "ohouse",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Override needed",
+         "value": "290 of 435 if all vote"
+        },
+        {
+         "id": "chambers",
+         "label": "Overrides done",
+         "value": "1 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Unchanged"
+        }
+       ]
+      },
+      {
+       "id": "osenate",
+       "label": "Senate override vote",
+       "short": "Senate override",
+       "sentence": "The Senate then votes on the same question, and it must also clear the higher bar.",
+       "why": "Two-thirds of 100 is 67 if all senators vote; both chambers must succeed.",
+       "active": [
+        "osenate"
+       ],
+       "calloutRegion": "osenate",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Override needed",
+         "value": "67 of 100 if all vote"
+        },
+        {
+         "id": "chambers",
+         "label": "Overrides done",
+         "value": "2 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Unchanged"
+        }
+       ]
+      },
+      {
+       "id": "law",
+       "label": "Became law",
+       "short": "Law",
+       "sentence": "Both chambers overrode the veto, so the bill becomes law without the president's signature.",
+       "why": "Congress supplied the missing approval: identical text passed twice by each chamber, ending with supermajorities.",
+       "active": [
+        "law"
+       ],
+       "calloutRegion": "law",
+       "readouts": [
+        {
+         "id": "needed",
+         "label": "Override needed",
+         "value": "Met in both chambers"
+        },
+        {
+         "id": "chambers",
+         "label": "Overrides done",
+         "value": "2 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Bill text",
+         "value": "Enacted"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3071,
+  "output": 8724
+ },
+ "usd": 0.093382,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture's regions and links trace how a bill becomes law, and the aha (\"both chambers pass identical text, then signature or two-thirds override\") is shown by the matching-text step and the two routes to the law region."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The scene is learner-stepped via the Step index control, and the aha state \"law\" is the final state with its observation, so it holds there until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The president select swaps the whole variant, adding veto, House override and Senate override regions and changing the thresholds (218 and 51 versus 290 and 67), so it changes the experiment."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, ghost, callout, readout and progress parts all bind to variant.states, regions or links, or to state fields (active, calloutRegion, sentence, why, readouts) that are declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, region labels, state labels and the control options use the same names (Signs the bill, Vetoes then overrides, Matching text, Veto, override votes) in the same order as the states."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "Every step carries a sentence, a \"why\" line and three readouts on top of an 8-11 region picture. The veto variant has 11 regions and 10 links, which likely crowds a 640px layout beyond the one-changing-region, one-formula limit."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The numbers check out: 218 is a majority of 435, 290 is two-thirds of 435 (290/435 = 66.7%), 67 is two-thirds of 100, and 60 cloture plus 51 is correct. The one oddity is the \"Chambers passed 2 of 2\" readout at the Senate vote, even though the text still mismatches until the next step. The callout c"
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.022364
+ }
+}

@@ -1,0 +1,209 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a28",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "How does a transformer turn scores into a guess for the next word?",
+ "ts": "2026-11-14T22:47:21.610Z",
+ "ms": 61550,
+ "raw": "{\n  \"story\": \"For “The cat sat on the …”, inspect scores for three word-sized tokens: mat, rug, moon. Advance to probabilities, then the highest-probability guess. This toy uses only these tokens, fixed scores, temperature one, and greedy decoding.\",\n  \"aha\": {\n    \"stateId\": \"guess\",\n    \"observation\": \"Softmax converts scores into probabilities; greedy decoding chooses the most probable token, not a certain answer.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states.algorithm-collection\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"steps\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the story and instructions. Show the active step and completed trace here only.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"candidate-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Show one candidate row with fixed token positions. Region phases follow variant.states order. Highlight the active region without animation.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"candidate-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the candidate row without covering it. Identify the mechanism without repeating numerical values.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"measurements\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Keep token readouts in picture order. Scores are unitless; probabilities cover the same toy vocabulary and round to one decimal percent.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Process step\",\n      \"presentation\": \"Previous and Next; default Scores; increment one state. Keep boundary names when disabled. Every state persists until action. Provide keyboard operation and visible focus.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore Scores and all defaults. Parameter-control budget: zero, excluding navigation and reset. Support Enter and Space with visible focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Three-token softmax with greedy decoding\",\n        \"regions\": [\n          {\n            \"id\": \"candidates\",\n            \"label\": \"Next-token candidates\",\n            \"phases\": [\n              \"Scores: mat leads; rug follows; moon trails.\",\n              \"Probabilities: mat has the largest share; rug and moon remain possible.\",\n              \"Guess: mat selected; rug and moon unselected.\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"scores\",\n            \"label\": \"Scores\",\n            \"short\": \"Compare\",\n            \"sentence\": \"The candidate row starts with the transformer's scores.\",\n            \"why\": \"Scores rank candidates, but they are not probabilities.\",\n            \"active\": [\n              \"candidates\"\n            ],\n            \"calloutRegion\": \"candidates\",\n            \"readouts\": [\n              {\n                \"id\": \"mat\",\n                \"label\": \"mat — score\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"rug\",\n                \"label\": \"rug — score\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"moon\",\n                \"label\": \"moon — score\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Scores ready; no token selected.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"probabilities\",\n            \"label\": \"Probabilities\",\n            \"short\": \"Normalize\",\n            \"sentence\": \"Softmax turns the candidate scores into probability shares.\",\n            \"why\": \"Exponentiate each score, then divide by their sum; the largest score keeps the largest share.\",\n            \"active\": [\n              \"candidates\"\n            ],\n            \"calloutRegion\": \"candidates\",\n            \"readouts\": [\n              {\n                \"id\": \"mat\",\n                \"label\": \"mat — probability\",\n                \"value\": \"66.5%\"\n              },\n              {\n                \"id\": \"rug\",\n                \"label\": \"rug — probability\",\n                \"value\": \"24.5%\"\n              },\n              {\n                \"id\": \"moon\",\n                \"label\": \"moon — probability\",\n                \"value\": \"9.0%\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Probabilities normalized; no token selected.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"guess\",\n            \"label\": \"Guess\",\n            \"short\": \"Choose\",\n            \"sentence\": \"The candidate row marks mat as the greedy next-token guess.\",\n            \"why\": \"Greedy decoding chooses the largest probability; the remaining probability shows why that choice is not certain.\",\n            \"active\": [\n              \"candidates\"\n            ],\n            \"calloutRegion\": \"candidates\",\n            \"readouts\": [\n              {\n                \"id\": \"mat\",\n                \"label\": \"mat — probability\",\n                \"value\": \"66.5%\"\n              },\n              {\n                \"id\": \"rug\",\n                \"label\": \"rug — probability\",\n                \"value\": \"24.5%\"\n              },\n              {\n                \"id\": \"moon\",\n                \"label\": \"moon — probability\",\n                \"value\": \"9.0%\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Guess selected; alternatives remain possible.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "For “The cat sat on the …”, inspect scores for three word-sized tokens: mat, rug, moon. Advance to probabilities, then the highest-probability guess. This toy uses only these tokens, fixed scores, temperature one, and greedy decoding.",
+  "aha": {
+   "stateId": "guess",
+   "observation": "Softmax converts scores into probabilities; greedy decoding chooses the most probable token, not a certain answer."
+  },
+  "layout": {
+   "preset": "stepper-states.algorithm-collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "steps",
+    "kind": "step-rail",
+    "presentation": "Place below the story and instructions. Show the active step and completed trace here only.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "candidate-picture",
+    "kind": "fixed-picture",
+    "presentation": "Show one candidate row with fixed token positions. Region phases follow variant.states order. Highlight the active region without animation.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "candidate-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the candidate row without covering it. Identify the mechanism without repeating numerical values.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "measurements",
+    "kind": "value-readout",
+    "presentation": "Keep token readouts in picture order. Scores are unitless; probabilities cover the same toy vocabulary and round to one decimal percent.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Process step",
+    "presentation": "Previous and Next; default Scores; increment one state. Keep boundary names when disabled. Every state persists until action. Provide keyboard operation and visible focus."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore Scores and all defaults. Parameter-control budget: zero, excluding navigation and reset. Support Enter and Space with visible focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Three-token softmax with greedy decoding",
+     "regions": [
+      {
+       "id": "candidates",
+       "label": "Next-token candidates",
+       "phases": [
+        "Scores: mat leads; rug follows; moon trails.",
+        "Probabilities: mat has the largest share; rug and moon remain possible.",
+        "Guess: mat selected; rug and moon unselected."
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "scores",
+       "label": "Scores",
+       "short": "Compare",
+       "sentence": "The candidate row starts with the transformer's scores.",
+       "why": "Scores rank candidates, but they are not probabilities.",
+       "active": [
+        "candidates"
+       ],
+       "calloutRegion": "candidates",
+       "readouts": [
+        {
+         "id": "mat",
+         "label": "mat — score",
+         "value": "2"
+        },
+        {
+         "id": "rug",
+         "label": "rug — score",
+         "value": "1"
+        },
+        {
+         "id": "moon",
+         "label": "moon — score",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Scores ready; no token selected."
+        }
+       ]
+      },
+      {
+       "id": "probabilities",
+       "label": "Probabilities",
+       "short": "Normalize",
+       "sentence": "Softmax turns the candidate scores into probability shares.",
+       "why": "Exponentiate each score, then divide by their sum; the largest score keeps the largest share.",
+       "active": [
+        "candidates"
+       ],
+       "calloutRegion": "candidates",
+       "readouts": [
+        {
+         "id": "mat",
+         "label": "mat — probability",
+         "value": "66.5%"
+        },
+        {
+         "id": "rug",
+         "label": "rug — probability",
+         "value": "24.5%"
+        },
+        {
+         "id": "moon",
+         "label": "moon — probability",
+         "value": "9.0%"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Probabilities normalized; no token selected."
+        }
+       ]
+      },
+      {
+       "id": "guess",
+       "label": "Guess",
+       "short": "Choose",
+       "sentence": "The candidate row marks mat as the greedy next-token guess.",
+       "why": "Greedy decoding chooses the largest probability; the remaining probability shows why that choice is not certain.",
+       "active": [
+        "candidates"
+       ],
+       "calloutRegion": "candidates",
+       "readouts": [
+        {
+         "id": "mat",
+         "label": "mat — probability",
+         "value": "66.5%"
+        },
+        {
+         "id": "rug",
+         "label": "rug — probability",
+         "value": "24.5%"
+        },
+        {
+         "id": "moon",
+         "label": "moon — probability",
+         "value": "9.0%"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Guess selected; alternatives remain possible."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1540,
+  "output": 3380
+ },
+ "usd": 0.03401,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3dk67HksuCvGmHUPdth\"}"
+  },
+  "cardUsd": 0
+ }
+}

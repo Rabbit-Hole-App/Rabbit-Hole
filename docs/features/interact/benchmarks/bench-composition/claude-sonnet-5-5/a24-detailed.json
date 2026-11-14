@@ -1,0 +1,824 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a24",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a random forest combine the predictions of its trees into one answer?",
+ "ts": "2026-11-14T22:27:57.660Z",
+ "ms": 33479,
+ "raw": "{\"story\":\"One new sample goes to all five trees. Each tree, trained on a different random sample of the data, gives its own answer. The forest then combines them: classification takes a majority vote, regression takes the average. Step through the votes, then switch the task to compare the two rules.\",\"aha\":{\"stateId\":\"s8\",\"observation\":\"The forest does not pick one tree. It counts all five answers, so Cat wins 3 to 2 and the two Dog trees are outvoted.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"task\",\"kind\":\"select\",\"label\":\"Task (combining rule)\",\"options\":[\"Classification vote\",\"Regression average\"],\"default\":0,\"presentation\":\"Switches the combining rule applied to the same five trees.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Classification vote\",\"regions\":[{\"id\":\"x\",\"label\":\"New sample x\",\"kind\":\"input\",\"values\":[\"same x to every tree\"]},{\"id\":\"t1\",\"label\":\"Tree 1\",\"kind\":\"tree\",\"values\":[\"Cat\"]},{\"id\":\"t2\",\"label\":\"Tree 2\",\"kind\":\"tree\",\"values\":[\"Dog\"]},{\"id\":\"t3\",\"label\":\"Tree 3\",\"kind\":\"tree\",\"values\":[\"Cat\"]},{\"id\":\"t4\",\"label\":\"Tree 4\",\"kind\":\"tree\",\"values\":[\"Cat\"]},{\"id\":\"t5\",\"label\":\"Tree 5\",\"kind\":\"tree\",\"values\":[\"Dog\"]},{\"id\":\"tally\",\"label\":\"Vote tally\",\"kind\":\"combiner\",\"values\":[\"Cat 3\",\"Dog 2\"]},{\"id\":\"forest\",\"label\":\"Forest answer\",\"kind\":\"output\",\"values\":[\"Cat\"]}],\"links\":[{\"from\":\"x\",\"to\":\"t1\",\"label\":\"x\"},{\"from\":\"x\",\"to\":\"t2\",\"label\":\"x\"},{\"from\":\"x\",\"to\":\"t3\",\"label\":\"x\"},{\"from\":\"x\",\"to\":\"t4\",\"label\":\"x\"},{\"from\":\"x\",\"to\":\"t5\",\"label\":\"x\"},{\"from\":\"t1\",\"to\":\"tally\",\"label\":\"vote\"},{\"from\":\"t2\",\"to\":\"tally\",\"label\":\"vote\"},{\"from\":\"t3\",\"to\":\"tally\",\"label\":\"vote\"},{\"from\":\"t4\",\"to\":\"tally\",\"label\":\"vote\"},{\"from\":\"t5\",\"to\":\"tally\",\"label\":\"vote\"},{\"from\":\"tally\",\"to\":\"forest\",\"label\":\"most votes\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Send x\",\"short\":\"Send\",\"sentence\":\"The same new sample x is sent to all five trees. No tree has answered yet.\",\"why\":\"Every tree sees the same input.\",\"active\":[\"x\"],\"calloutRegion\":\"x\",\"readouts\":[{\"id\":\"cast\",\"label\":\"Votes cast\",\"value\":\"0 of 5\"},{\"id\":\"cat\",\"label\":\"Cat votes\",\"value\":\"0\"},{\"id\":\"dog\",\"label\":\"Dog votes\",\"value\":\"0\"}]},{\"id\":\"s2\",\"label\":\"Tree 1 votes\",\"short\":\"T1\",\"sentence\":\"Tree 1 follows its own splits and votes Cat.\",\"why\":\"Each tree answers alone, from its own splits.\",\"active\":[\"t1\"],\"calloutRegion\":\"t1\",\"readouts\":[{\"id\":\"cast\",\"label\":\"Votes cast\",\"value\":\"1 of 5\"},{\"id\":\"cat\",\"label\":\"Cat votes\",\"value\":\"1\"},{\"id\":\"dog\",\"label\":\"Dog votes\",\"value\":\"0\"}]},{\"id\":\"s3\",\"label\":\"Tree 2 votes\",\"short\":\"T2\",\"sentence\":\"Tree 2 was trained on a different random sample. It disagrees and votes Dog.\",\"why\":\"Different training samples give different answers.\",\"active\":[\"t2\"],\"calloutRegion\":\"t2\",\"readouts\":[{\"id\":\"cast\",\"label\":\"Votes cast\",\"value\":\"2 of 5\"},{\"id\":\"cat\",\"label\":\"Cat votes\",\"value\":\"1\"},{\"id\":\"dog\",\"label\":\"Dog votes\",\"value\":\"1\"}]},{\"id\":\"s4\",\"label\":\"Tree 3 votes\",\"short\":\"T3\",\"sentence\":\"Tree 3 votes Cat. Cat now leads by one vote.\",\"why\":\"Votes are counted as they arrive.\",\"active\":[\"t3\"],\"calloutRegion\":\"t3\",\"readouts\":[{\"id\":\"cast\",\"label\":\"Votes cast\",\"value\":\"3 of 5\"},{\"id\":\"cat\",\"label\":\"Cat votes\",\"value\":\"2\"},{\"id\":\"dog\",\"label\":\"Dog votes\",\"value\":\"1\"}]},{\"id\":\"s5\",\"label\":\"Tree 4 votes\",\"short\":\"T4\",\"sentence\":\"Tree 4 votes Cat. Cat has 3 votes, and 3 is already a majority of 5.\",\"why\":\"A majority is more than half of the trees.\",\"active\":[\"t4\"],\"calloutRegion\":\"t4\",\"readouts\":[{\"id\":\"cast\",\"label\":\"Votes cast\",\"value\":\"4 of 5\"},{\"id\":\"cat\",\"label\":\"Cat votes\",\"value\":\"3\"},{\"id\":\"dog\",\"label\":\"Dog votes\",\"value\":\"1\"}]},{\"id\":\"s6\",\"label\":\"Tree 5 votes\",\"short\":\"T5\",\"sentence\":\"Tree 5 votes Dog. All five trees have now answered, and they do not agree.\",\"why\":\"The trees are not forced to agree.\",\"active\":[\"t5\"],\"calloutRegion\":\"t5\",\"readouts\":[{\"id\":\"cast\",\"label\":\"Votes cast\",\"value\":\"5 of 5\"},{\"id\":\"cat\",\"label\":\"Cat votes\",\"value\":\"3\"},{\"id\":\"dog\",\"label\":\"Dog votes\",\"value\":\"2\"}]},{\"id\":\"s7\",\"label\":\"Tally votes\",\"short\":\"Tally\",\"sentence\":\"The combiner counts every vote per class: Cat 3, Dog 2. Share of Cat is 3/5 = 60%.\",\"why\":\"The tally is the combining step.\",\"active\":[\"tally\"],\"calloutRegion\":\"tally\",\"readouts\":[{\"id\":\"cat\",\"label\":\"Cat votes\",\"value\":\"3 (60%)\"},{\"id\":\"dog\",\"label\":\"Dog votes\",\"value\":\"2 (40%)\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"mode of h1..h5\"}]},{\"id\":\"s8\",\"label\":\"Forest answer\",\"short\":\"Answer\",\"sentence\":\"The class with the most votes wins. The forest answers Cat, and the two Dog trees are outvoted.\",\"why\":\"Forest answer = mode{h_b(x)}, b = 1..5.\",\"active\":[\"tally\",\"forest\"],\"calloutRegion\":\"forest\",\"readouts\":[{\"id\":\"cat\",\"label\":\"Cat votes\",\"value\":\"3 (60%)\"},{\"id\":\"dog\",\"label\":\"Dog votes\",\"value\":\"2 (40%)\"},{\"id\":\"ans\",\"label\":\"Forest answer\",\"value\":\"Cat\"}]}]},{\"label\":\"Regression average\",\"regions\":[{\"id\":\"x\",\"label\":\"New sample x\",\"kind\":\"input\",\"values\":[\"same x to every tree\"]},{\"id\":\"t1\",\"label\":\"Tree 1\",\"kind\":\"tree\",\"values\":[\"12\"]},{\"id\":\"t2\",\"label\":\"Tree 2\",\"kind\":\"tree\",\"values\":[\"15\"]},{\"id\":\"t3\",\"label\":\"Tree 3\",\"kind\":\"tree\",\"values\":[\"11\"]},{\"id\":\"t4\",\"label\":\"Tree 4\",\"kind\":\"tree\",\"values\":[\"14\"]},{\"id\":\"t5\",\"label\":\"Tree 5\",\"kind\":\"tree\",\"values\":[\"13\"]},{\"id\":\"tally\",\"label\":\"Average\",\"kind\":\"combiner\",\"values\":[\"sum 65\",\"B = 5\"]},{\"id\":\"forest\",\"label\":\"Forest answer\",\"kind\":\"output\",\"values\":[\"13\"]}],\"links\":[{\"from\":\"x\",\"to\":\"t1\",\"label\":\"x\"},{\"from\":\"x\",\"to\":\"t2\",\"label\":\"x\"},{\"from\":\"x\",\"to\":\"t3\",\"label\":\"x\"},{\"from\":\"x\",\"to\":\"t4\",\"label\":\"x\"},{\"from\":\"x\",\"to\":\"t5\",\"label\":\"x\"},{\"from\":\"t1\",\"to\":\"tally\",\"label\":\"value\"},{\"from\":\"t2\",\"to\":\"tally\",\"label\":\"value\"},{\"from\":\"t3\",\"to\":\"tally\",\"label\":\"value\"},{\"from\":\"t4\",\"to\":\"tally\",\"label\":\"value\"},{\"from\":\"t5\",\"to\":\"tally\",\"label\":\"value\"},{\"from\":\"tally\",\"to\":\"forest\",\"label\":\"sum / 5\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Send x\",\"short\":\"Send\",\"sentence\":\"The same new sample x is sent to all five trees. No tree has answered yet.\",\"why\":\"Every tree sees the same input.\",\"active\":[\"x\"],\"calloutRegion\":\"x\",\"readouts\":[{\"id\":\"cnt\",\"label\":\"Trees reported\",\"value\":\"0 of 5\"},{\"id\":\"sum\",\"label\":\"Running sum\",\"value\":\"0\"}]},{\"id\":\"s2\",\"label\":\"Tree 1 predicts\",\"short\":\"T1\",\"sentence\":\"Tree 1 predicts the number 12 for x.\",\"why\":\"Each tree gives a number, not a class.\",\"active\":[\"t1\"],\"calloutRegion\":\"t1\",\"readouts\":[{\"id\":\"cnt\",\"label\":\"Trees reported\",\"value\":\"1 of 5\"},{\"id\":\"sum\",\"label\":\"Running sum\",\"value\":\"12\"}]},{\"id\":\"s3\",\"label\":\"Tree 2 predicts\",\"short\":\"T2\",\"sentence\":\"Tree 2 predicts 15. Different training samples give different numbers.\",\"why\":\"The trees spread around a typical value.\",\"active\":[\"t2\"],\"calloutRegion\":\"t2\",\"readouts\":[{\"id\":\"cnt\",\"label\":\"Trees reported\",\"value\":\"2 of 5\"},{\"id\":\"sum\",\"label\":\"Running sum\",\"value\":\"27\"}]},{\"id\":\"s4\",\"label\":\"Tree 3 predicts\",\"short\":\"T3\",\"sentence\":\"Tree 3 predicts 11, the lowest so far.\",\"why\":\"Values are added as they arrive.\",\"active\":[\"t3\"],\"calloutRegion\":\"t3\",\"readouts\":[{\"id\":\"cnt\",\"label\":\"Trees reported\",\"value\":\"3 of 5\"},{\"id\":\"sum\",\"label\":\"Running sum\",\"value\":\"38\"}]},{\"id\":\"s5\",\"label\":\"Tree 4 predicts\",\"short\":\"T4\",\"sentence\":\"Tree 4 predicts 14.\",\"why\":\"Four of five values are in.\",\"active\":[\"t4\"],\"calloutRegion\":\"t4\",\"readouts\":[{\"id\":\"cnt\",\"label\":\"Trees reported\",\"value\":\"4 of 5\"},{\"id\":\"sum\",\"label\":\"Running sum\",\"value\":\"52\"}]},{\"id\":\"s6\",\"label\":\"Tree 5 predicts\",\"short\":\"T5\",\"sentence\":\"Tree 5 predicts 13. All five values are in, ranging from 11 to 15.\",\"why\":\"The trees disagree by up to 4.\",\"active\":[\"t5\"],\"calloutRegion\":\"t5\",\"readouts\":[{\"id\":\"cnt\",\"label\":\"Trees reported\",\"value\":\"5 of 5\"},{\"id\":\"sum\",\"label\":\"Running sum\",\"value\":\"65\"}]},{\"id\":\"s7\",\"label\":\"Average\",\"short\":\"Average\",\"sentence\":\"The combiner divides the sum by the number of trees: 65 / 5 = 13.\",\"why\":\"Averaging is the combining step.\",\"active\":[\"tally\"],\"calloutRegion\":\"tally\",\"readouts\":[{\"id\":\"sum\",\"label\":\"Sum\",\"value\":\"65\"},{\"id\":\"b\",\"label\":\"Trees B\",\"value\":\"5\"},{\"id\":\"mean\",\"label\":\"Mean\",\"value\":\"13.0\"}]},{\"id\":\"s8\",\"label\":\"Forest answer\",\"short\":\"Answer\",\"sentence\":\"The forest answers 13, the mean of all five trees. No single tree is chosen.\",\"why\":\"Forest answer = (1/B) · Σ h_b(x) = 65/5.\",\"active\":[\"tally\",\"forest\"],\"calloutRegion\":\"forest\",\"readouts\":[{\"id\":\"mean\",\"label\":\"Mean\",\"value\":\"13.0\"},{\"id\":\"ans\",\"label\":\"Forest answer\",\"value\":\"13\"},{\"id\":\"rng\",\"label\":\"Tree range\",\"value\":\"11 to 15\"}]}]}]}}",
+ "composition": {
+  "story": "One new sample goes to all five trees. Each tree, trained on a different random sample of the data, gives its own answer. The forest then combines them: classification takes a majority vote, regression takes the average. Step through the votes, then switch the task to compare the two rules.",
+  "aha": {
+   "stateId": "s8",
+   "observation": "The forest does not pick one tree. It counts all five answers, so Cat wins 3 to 2 and the two Dog trees are outvoted."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "task",
+    "kind": "select",
+    "label": "Task (combining rule)",
+    "options": [
+     "Classification vote",
+     "Regression average"
+    ],
+    "default": 0,
+    "presentation": "Switches the combining rule applied to the same five trees."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Classification vote",
+     "regions": [
+      {
+       "id": "x",
+       "label": "New sample x",
+       "kind": "input",
+       "values": [
+        "same x to every tree"
+       ]
+      },
+      {
+       "id": "t1",
+       "label": "Tree 1",
+       "kind": "tree",
+       "values": [
+        "Cat"
+       ]
+      },
+      {
+       "id": "t2",
+       "label": "Tree 2",
+       "kind": "tree",
+       "values": [
+        "Dog"
+       ]
+      },
+      {
+       "id": "t3",
+       "label": "Tree 3",
+       "kind": "tree",
+       "values": [
+        "Cat"
+       ]
+      },
+      {
+       "id": "t4",
+       "label": "Tree 4",
+       "kind": "tree",
+       "values": [
+        "Cat"
+       ]
+      },
+      {
+       "id": "t5",
+       "label": "Tree 5",
+       "kind": "tree",
+       "values": [
+        "Dog"
+       ]
+      },
+      {
+       "id": "tally",
+       "label": "Vote tally",
+       "kind": "combiner",
+       "values": [
+        "Cat 3",
+        "Dog 2"
+       ]
+      },
+      {
+       "id": "forest",
+       "label": "Forest answer",
+       "kind": "output",
+       "values": [
+        "Cat"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "x",
+       "to": "t1",
+       "label": "x"
+      },
+      {
+       "from": "x",
+       "to": "t2",
+       "label": "x"
+      },
+      {
+       "from": "x",
+       "to": "t3",
+       "label": "x"
+      },
+      {
+       "from": "x",
+       "to": "t4",
+       "label": "x"
+      },
+      {
+       "from": "x",
+       "to": "t5",
+       "label": "x"
+      },
+      {
+       "from": "t1",
+       "to": "tally",
+       "label": "vote"
+      },
+      {
+       "from": "t2",
+       "to": "tally",
+       "label": "vote"
+      },
+      {
+       "from": "t3",
+       "to": "tally",
+       "label": "vote"
+      },
+      {
+       "from": "t4",
+       "to": "tally",
+       "label": "vote"
+      },
+      {
+       "from": "t5",
+       "to": "tally",
+       "label": "vote"
+      },
+      {
+       "from": "tally",
+       "to": "forest",
+       "label": "most votes"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Send x",
+       "short": "Send",
+       "sentence": "The same new sample x is sent to all five trees. No tree has answered yet.",
+       "why": "Every tree sees the same input.",
+       "active": [
+        "x"
+       ],
+       "calloutRegion": "x",
+       "readouts": [
+        {
+         "id": "cast",
+         "label": "Votes cast",
+         "value": "0 of 5"
+        },
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "0"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Tree 1 votes",
+       "short": "T1",
+       "sentence": "Tree 1 follows its own splits and votes Cat.",
+       "why": "Each tree answers alone, from its own splits.",
+       "active": [
+        "t1"
+       ],
+       "calloutRegion": "t1",
+       "readouts": [
+        {
+         "id": "cast",
+         "label": "Votes cast",
+         "value": "1 of 5"
+        },
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "1"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Tree 2 votes",
+       "short": "T2",
+       "sentence": "Tree 2 was trained on a different random sample. It disagrees and votes Dog.",
+       "why": "Different training samples give different answers.",
+       "active": [
+        "t2"
+       ],
+       "calloutRegion": "t2",
+       "readouts": [
+        {
+         "id": "cast",
+         "label": "Votes cast",
+         "value": "2 of 5"
+        },
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "1"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Tree 3 votes",
+       "short": "T3",
+       "sentence": "Tree 3 votes Cat. Cat now leads by one vote.",
+       "why": "Votes are counted as they arrive.",
+       "active": [
+        "t3"
+       ],
+       "calloutRegion": "t3",
+       "readouts": [
+        {
+         "id": "cast",
+         "label": "Votes cast",
+         "value": "3 of 5"
+        },
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "2"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Tree 4 votes",
+       "short": "T4",
+       "sentence": "Tree 4 votes Cat. Cat has 3 votes, and 3 is already a majority of 5.",
+       "why": "A majority is more than half of the trees.",
+       "active": [
+        "t4"
+       ],
+       "calloutRegion": "t4",
+       "readouts": [
+        {
+         "id": "cast",
+         "label": "Votes cast",
+         "value": "4 of 5"
+        },
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "3"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Tree 5 votes",
+       "short": "T5",
+       "sentence": "Tree 5 votes Dog. All five trees have now answered, and they do not agree.",
+       "why": "The trees are not forced to agree.",
+       "active": [
+        "t5"
+       ],
+       "calloutRegion": "t5",
+       "readouts": [
+        {
+         "id": "cast",
+         "label": "Votes cast",
+         "value": "5 of 5"
+        },
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "3"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Tally votes",
+       "short": "Tally",
+       "sentence": "The combiner counts every vote per class: Cat 3, Dog 2. Share of Cat is 3/5 = 60%.",
+       "why": "The tally is the combining step.",
+       "active": [
+        "tally"
+       ],
+       "calloutRegion": "tally",
+       "readouts": [
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "3 (60%)"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "2 (40%)"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "mode of h1..h5"
+        }
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "Forest answer",
+       "short": "Answer",
+       "sentence": "The class with the most votes wins. The forest answers Cat, and the two Dog trees are outvoted.",
+       "why": "Forest answer = mode{h_b(x)}, b = 1..5.",
+       "active": [
+        "tally",
+        "forest"
+       ],
+       "calloutRegion": "forest",
+       "readouts": [
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "3 (60%)"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "2 (40%)"
+        },
+        {
+         "id": "ans",
+         "label": "Forest answer",
+         "value": "Cat"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Regression average",
+     "regions": [
+      {
+       "id": "x",
+       "label": "New sample x",
+       "kind": "input",
+       "values": [
+        "same x to every tree"
+       ]
+      },
+      {
+       "id": "t1",
+       "label": "Tree 1",
+       "kind": "tree",
+       "values": [
+        "12"
+       ]
+      },
+      {
+       "id": "t2",
+       "label": "Tree 2",
+       "kind": "tree",
+       "values": [
+        "15"
+       ]
+      },
+      {
+       "id": "t3",
+       "label": "Tree 3",
+       "kind": "tree",
+       "values": [
+        "11"
+       ]
+      },
+      {
+       "id": "t4",
+       "label": "Tree 4",
+       "kind": "tree",
+       "values": [
+        "14"
+       ]
+      },
+      {
+       "id": "t5",
+       "label": "Tree 5",
+       "kind": "tree",
+       "values": [
+        "13"
+       ]
+      },
+      {
+       "id": "tally",
+       "label": "Average",
+       "kind": "combiner",
+       "values": [
+        "sum 65",
+        "B = 5"
+       ]
+      },
+      {
+       "id": "forest",
+       "label": "Forest answer",
+       "kind": "output",
+       "values": [
+        "13"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "x",
+       "to": "t1",
+       "label": "x"
+      },
+      {
+       "from": "x",
+       "to": "t2",
+       "label": "x"
+      },
+      {
+       "from": "x",
+       "to": "t3",
+       "label": "x"
+      },
+      {
+       "from": "x",
+       "to": "t4",
+       "label": "x"
+      },
+      {
+       "from": "x",
+       "to": "t5",
+       "label": "x"
+      },
+      {
+       "from": "t1",
+       "to": "tally",
+       "label": "value"
+      },
+      {
+       "from": "t2",
+       "to": "tally",
+       "label": "value"
+      },
+      {
+       "from": "t3",
+       "to": "tally",
+       "label": "value"
+      },
+      {
+       "from": "t4",
+       "to": "tally",
+       "label": "value"
+      },
+      {
+       "from": "t5",
+       "to": "tally",
+       "label": "value"
+      },
+      {
+       "from": "tally",
+       "to": "forest",
+       "label": "sum / 5"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Send x",
+       "short": "Send",
+       "sentence": "The same new sample x is sent to all five trees. No tree has answered yet.",
+       "why": "Every tree sees the same input.",
+       "active": [
+        "x"
+       ],
+       "calloutRegion": "x",
+       "readouts": [
+        {
+         "id": "cnt",
+         "label": "Trees reported",
+         "value": "0 of 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Tree 1 predicts",
+       "short": "T1",
+       "sentence": "Tree 1 predicts the number 12 for x.",
+       "why": "Each tree gives a number, not a class.",
+       "active": [
+        "t1"
+       ],
+       "calloutRegion": "t1",
+       "readouts": [
+        {
+         "id": "cnt",
+         "label": "Trees reported",
+         "value": "1 of 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum",
+         "value": "12"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Tree 2 predicts",
+       "short": "T2",
+       "sentence": "Tree 2 predicts 15. Different training samples give different numbers.",
+       "why": "The trees spread around a typical value.",
+       "active": [
+        "t2"
+       ],
+       "calloutRegion": "t2",
+       "readouts": [
+        {
+         "id": "cnt",
+         "label": "Trees reported",
+         "value": "2 of 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum",
+         "value": "27"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Tree 3 predicts",
+       "short": "T3",
+       "sentence": "Tree 3 predicts 11, the lowest so far.",
+       "why": "Values are added as they arrive.",
+       "active": [
+        "t3"
+       ],
+       "calloutRegion": "t3",
+       "readouts": [
+        {
+         "id": "cnt",
+         "label": "Trees reported",
+         "value": "3 of 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum",
+         "value": "38"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Tree 4 predicts",
+       "short": "T4",
+       "sentence": "Tree 4 predicts 14.",
+       "why": "Four of five values are in.",
+       "active": [
+        "t4"
+       ],
+       "calloutRegion": "t4",
+       "readouts": [
+        {
+         "id": "cnt",
+         "label": "Trees reported",
+         "value": "4 of 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum",
+         "value": "52"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Tree 5 predicts",
+       "short": "T5",
+       "sentence": "Tree 5 predicts 13. All five values are in, ranging from 11 to 15.",
+       "why": "The trees disagree by up to 4.",
+       "active": [
+        "t5"
+       ],
+       "calloutRegion": "t5",
+       "readouts": [
+        {
+         "id": "cnt",
+         "label": "Trees reported",
+         "value": "5 of 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum",
+         "value": "65"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Average",
+       "short": "Average",
+       "sentence": "The combiner divides the sum by the number of trees: 65 / 5 = 13.",
+       "why": "Averaging is the combining step.",
+       "active": [
+        "tally"
+       ],
+       "calloutRegion": "tally",
+       "readouts": [
+        {
+         "id": "sum",
+         "label": "Sum",
+         "value": "65"
+        },
+        {
+         "id": "b",
+         "label": "Trees B",
+         "value": "5"
+        },
+        {
+         "id": "mean",
+         "label": "Mean",
+         "value": "13.0"
+        }
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "Forest answer",
+       "short": "Answer",
+       "sentence": "The forest answers 13, the mean of all five trees. No single tree is chosen.",
+       "why": "Forest answer = (1/B) · Σ h_b(x) = 65/5.",
+       "active": [
+        "tally",
+        "forest"
+       ],
+       "calloutRegion": "forest",
+       "readouts": [
+        {
+         "id": "mean",
+         "label": "Mean",
+         "value": "13.0"
+        },
+        {
+         "id": "ans",
+         "label": "Forest answer",
+         "value": "13"
+        },
+        {
+         "id": "rng",
+         "label": "Tree range",
+         "value": "11 to 15"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3080,
+  "output": 5745
+ },
+ "usd": 0.06361,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture shows five trees receiving the same x and feeding a combiner, which answers how the forest combines differing tree answers into one."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha is state s8 (forest answer), a stepper state that holds until the learner advances the step or changes the task."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step index changes the active region and readouts, and the task select swaps the combining rule, with different tree values, tally and formula."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callout region, active highlights, ghost (previous.active), links and readouts all trace to declared regions, links and state fields."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and the Step and Task controls consistently name the trees, votes, tally, average and forest answer."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each state changes one region, and the final states add a compact formula or count (mode, 65/5) without extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The vote counts (3 to 2, 60%), running sums (12, 27, 38, 52, 65), the mean 13 and the range 11 to 15 all check out, with only mild repetition between sentence and readout."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.020688
+ }
+}

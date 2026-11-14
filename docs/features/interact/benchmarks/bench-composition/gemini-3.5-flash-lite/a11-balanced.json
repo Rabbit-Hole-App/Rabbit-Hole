@@ -1,0 +1,235 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a11",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does the TCP handshake work?",
+ "ts": "2026-11-14T22:20:56.072Z",
+ "ms": 3005,
+ "raw": "{\n  \"story\": \"The client and server establish a reliable connection through a three-step sequence, exchanging synchronization and acknowledgment flags before data flows.\",\n  \"aha\": {\n    \"stateId\": \"ack\",\n    \"observation\": \"Both client and server have acknowledged each other's sequence numbers, completing the handshake and opening the connection.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Handshake Step\",\n      \"options\": [\n        \"SYN\",\n        \"SYN-ACK\",\n        \"ACK\"\n      ]\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Restart\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"TCP Handshake\",\n        \"regions\": [\n          {\n            \"id\": \"client\",\n            \"label\": \"Client\",\n            \"kind\": \"actor\",\n            \"values\": [\"CLOSED\", \"SYN_SENT\", \"ESTABLISHED\"]\n          },\n          {\n            \"id\": \"server\",\n            \"label\": \"Server\",\n            \"kind\": \"actor\",\n            \"values\": [\"LISTEN\", \"SYN_RCVD\", \"ESTABLISHED\"]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"client\",\n            \"to\": \"server\",\n            \"label\": \"packet\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"syn\",\n            \"label\": \"1. SYN\",\n            \"short\": \"SYN\",\n            \"sentence\": \"The client sends a SYN packet to initiate the connection.\",\n            \"why\": \"Client proposes initial sequence number.\",\n            \"active\": [\"client\"],\n            \"calloutRegion\": \"client\",\n            \"readouts\": [\n              {\n                \"id\": \"cstate\",\n                \"label\": \"Client State\",\n                \"value\": \"SYN_SENT\"\n              },\n              {\n                \"id\": \"sstate\",\n                \"label\": \"Server State\",\n                \"value\": \"LISTEN\"\n              }\n            ]\n          },\n          {\n            \"id\": \"syn-ack\",\n            \"label\": \"2. SYN-ACK\",\n            \"short\": \"SYN-ACK\",\n            \"sentence\": \"The server replies with SYN-ACK, acknowledging the client's request.\",\n            \"why\": \"Server acknowledges client and sends its own SYN.\",\n            \"active\": [\"server\"],\n            \"calloutRegion\": \"server\",\n            \"readouts\": [\n              {\n                \"id\": \"cstate\",\n                \"label\": \"Client State\",\n                \"value\": \"SYN_SENT\"\n              },\n              {\n                \"id\": \"sstate\",\n                \"label\": \"Server State\",\n                \"value\": \"SYN_RCVD\"\n              }\n            ]\n          },\n          {\n            \"id\": \"ack\",\n            \"label\": \"3. ACK\",\n            \"short\": \"ACK\",\n            \"sentence\": \"The client sends an ACK, confirming the server's sequence number.\",\n            \"why\": \"Connection is fully established for data transfer.\",\n            \"active\": [\"client\", \"server\"],\n            \"calloutRegion\": \"client\",\n            \"readouts\": [\n              {\n                \"id\": \"cstate\",\n                \"label\": \"Client State\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"sstate\",\n                \"label\": \"Server State\",\n                \"value\": \"ESTABLISHED\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "The client and server establish a reliable connection through a three-step sequence, exchanging synchronization and acknowledgment flags before data flows.",
+  "aha": {
+   "stateId": "ack",
+   "observation": "Both client and server have acknowledged each other's sequence numbers, completing the handshake and opening the connection."
+  },
+  "layout": {
+   "preset": "stepper",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Handshake Step",
+    "options": [
+     "SYN",
+     "SYN-ACK",
+     "ACK"
+    ]
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Restart"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "TCP Handshake",
+     "regions": [
+      {
+       "id": "client",
+       "label": "Client",
+       "kind": "actor",
+       "values": [
+        "CLOSED",
+        "SYN_SENT",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "server",
+       "label": "Server",
+       "kind": "actor",
+       "values": [
+        "LISTEN",
+        "SYN_RCVD",
+        "ESTABLISHED"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "client",
+       "to": "server",
+       "label": "packet"
+      }
+     ],
+     "states": [
+      {
+       "id": "syn",
+       "label": "1. SYN",
+       "short": "SYN",
+       "sentence": "The client sends a SYN packet to initiate the connection.",
+       "why": "Client proposes initial sequence number.",
+       "active": [
+        "client"
+       ],
+       "calloutRegion": "client",
+       "readouts": [
+        {
+         "id": "cstate",
+         "label": "Client State",
+         "value": "SYN_SENT"
+        },
+        {
+         "id": "sstate",
+         "label": "Server State",
+         "value": "LISTEN"
+        }
+       ]
+      },
+      {
+       "id": "syn-ack",
+       "label": "2. SYN-ACK",
+       "short": "SYN-ACK",
+       "sentence": "The server replies with SYN-ACK, acknowledging the client's request.",
+       "why": "Server acknowledges client and sends its own SYN.",
+       "active": [
+        "server"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "cstate",
+         "label": "Client State",
+         "value": "SYN_SENT"
+        },
+        {
+         "id": "sstate",
+         "label": "Server State",
+         "value": "SYN_RCVD"
+        }
+       ]
+      },
+      {
+       "id": "ack",
+       "label": "3. ACK",
+       "short": "ACK",
+       "sentence": "The client sends an ACK, confirming the server's sequence number.",
+       "why": "Connection is fully established for data transfer.",
+       "active": [
+        "client",
+        "server"
+       ],
+       "calloutRegion": "client",
+       "readouts": [
+        {
+         "id": "cstate",
+         "label": "Client State",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "sstate",
+         "label": "Server State",
+         "value": "ESTABLISHED"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1103,
+  "output": 1117
+ },
+ "usd": 0.003124,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture shows client and server actors with a link, and the question of how a connection is established is answered by the state changes across the three steps (CLOSED/LISTEN to ESTABLISHED on both sides)."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The scene is a user-driven stepper with no timing, and the aha state 'ack' is the final step where both sides are active and ESTABLISHED, so it holds until the learner acts or restarts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single stepIndex control selects among the three states, each with different active regions, callout, and readout values, so every input change alters the evidence shown."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "Most parts bind to declared data, but the link has only a generic 'packet' label and no per-state binding to show direction or flags (SYN, SYN-ACK, ACK), and the regions' values array is not tied to a state field, so the arrow and the flags are not explicitly bound."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, the control options (SYN, SYN-ACK, ACK), the state labels and sentences, and the Client/Server regions all use the same names and events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At balanced depth the scene has one rail, one picture of two actors, one callout and two readouts, so no clutter is added; the changing region is minimal, though there is no formula or count at standard depth."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The state values are correct for TCP, but the readouts repeat what the region values and the callout sentence already say (e.g. ESTABLISHED appears in several places), and the aha state's callout targets only the client even though both sides become ESTABLISHED, so placement is not once and exact."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012306
+ }
+}

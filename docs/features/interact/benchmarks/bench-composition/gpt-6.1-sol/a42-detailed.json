@@ -1,0 +1,391 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a42",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how are stack frames pushed and popped in recursion?",
+ "ts": "2026-11-14T23:01:37.569Z",
+ "ms": 127861,
+ "raw": "{\n  \"story\": \"Begin with an empty stack and evaluate factorial(3), using factorial(1)=1 and factorial(n)=n×factorial(n−1) for integer n>1. Use Next to follow calls, then compare the stack before and after returns. The newest frame disappears first, while its caller retains its local. Finish with the result and an empty stack.\",\n  \"aha\": {\n    \"stateId\": \"resume-outer\",\n    \"observation\": \"A return removes only the newest frame; the waiting caller resumes with its original local and the child's returned value.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"recursion-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with the story and instructions above the experiment. The compact rail carries the process trace. Its active position represents a state, never elapsed time.\",\n      \"bind\": {\n        \"active\": \"inputs.step\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"call-stack\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Arrange fixed frame regions vertically: Outer at the bottom, Middle above Outer, and Base at the top. Highlighted regions are live frames. Inactive outlines are reference positions, not allocated frames; show their names without their values. The callout identifies the running frame; other live frames are suspended. Local values remain unchanged throughout each frame's lifetime. Assume synchronous execution without inlining or tail-call optimization. Count only factorial frames, excluding runtime and enclosing caller frames. Stack height represents frame count, not memory bytes.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"links\": \"variant.links\"\n      }\n    },\n    {\n      \"id\": \"running-frame-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the named frame without covering labels. Identify the active operation without repeating numerical readouts. At empty-stack states, anchor to the Outer reference position.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"stack-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place live frames, pushes, and pops together on a shared counter row. Place the latest returned value below, followed by the bound status line. Compute live frames as pushes minus pops from the selected state's event prefix. Pushes and pops count events; depth counts frames; returned values are dimensionless integers. All values are exact, with no rounding. Keep each measurement in this readout only.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"label\": \"Recursion state\",\n      \"items\": \"variant.states\",\n      \"presentation\": \"Detailed parameter-control budget: zero. Navigation budget: one index control and Reset. Provide Previous and Next buttons with those accessible names. Default to the first state, with unit increments, endpoint bounds, and no wrapping. Retain button names when disabled at boundaries. Every state, including the aha state, persists until the learner acts. Provide visible focus and keyboard activation.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and its counter defaults. Fixed inputs never change. Provide visible focus and keyboard activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Factorial: calls and returns\",\n        \"regions\": [\n          {\n            \"id\": \"outer\",\n            \"label\": \"Outer frame\",\n            \"values\": [\n              \"Saved local n = 3\",\n              \"Continuation: return n × child result\"\n            ]\n          },\n          {\n            \"id\": \"middle\",\n            \"label\": \"Middle frame\",\n            \"values\": [\n              \"Saved local n = 2\",\n              \"Continuation: return n × child result\"\n            ]\n          },\n          {\n            \"id\": \"base\",\n            \"label\": \"Base frame\",\n            \"values\": [\n              \"Saved local n = 1\",\n              \"Base case: return the saved local\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"ready\",\n            \"label\": \"Before the call\",\n            \"short\": \"Ready\",\n            \"sentence\": \"The stack is empty before the initial call.\",\n            \"why\": \"Next enters factorial and creates the Outer frame.\",\n            \"active\": [],\n            \"calloutRegion\": \"outer\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames = pushes − pops\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"pushes\",\n                \"label\": \"Pushes\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"pops\",\n                \"label\": \"Pops\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"No live frames.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"push-outer\",\n            \"label\": \"Push Outer\",\n            \"short\": \"Call Outer\",\n            \"sentence\": \"The initial call pushes the Outer frame.\",\n            \"why\": \"Outer owns its saved local and will wait for a child result before multiplying.\",\n            \"active\": [\n              \"outer\"\n            ],\n            \"calloutRegion\": \"outer\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames = pushes − pops\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"pushes\",\n                \"label\": \"Pushes\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"pops\",\n                \"label\": \"Pops\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Outer running at the stack top.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"push-middle\",\n            \"label\": \"Push Middle\",\n            \"short\": \"Call Middle\",\n            \"sentence\": \"Outer calls recursively, pushing Middle above itself.\",\n            \"why\": \"Outer is suspended, not replaced; Middle has a separate saved local.\",\n            \"active\": [\n              \"outer\",\n              \"middle\"\n            ],\n            \"calloutRegion\": \"middle\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames = pushes − pops\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"pushes\",\n                \"label\": \"Pushes\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"pops\",\n                \"label\": \"Pops\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Middle running; Outer suspended.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"push-base\",\n            \"label\": \"Push Base\",\n            \"short\": \"Call Base\",\n            \"sentence\": \"Middle calls recursively, pushing Base onto the stack top.\",\n            \"why\": \"Base reaches the stopping condition without calling another child. Both waiting callers retain their locals and continuations.\",\n            \"active\": [\n              \"outer\",\n              \"middle\",\n              \"base\"\n            ],\n            \"calloutRegion\": \"base\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames = pushes − pops\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"pushes\",\n                \"label\": \"Pushes\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"pops\",\n                \"label\": \"Pops\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Base running; Middle and Outer suspended.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"resume-middle\",\n            \"label\": \"Pop Base; resume Middle\",\n            \"short\": \"Return Base\",\n            \"sentence\": \"Base returns and is popped; Middle resumes at its saved continuation.\",\n            \"why\": \"Compare the previous state: Base is gone, while Middle's local is unchanged. Middle multiplies that local by the returned value.\",\n            \"active\": [\n              \"outer\",\n              \"middle\"\n            ],\n            \"calloutRegion\": \"middle\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames = pushes − pops\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"pushes\",\n                \"label\": \"Pushes\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"pops\",\n                \"label\": \"Pops\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Middle resumed with Base's result; Outer suspended.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"resume-outer\",\n            \"label\": \"Pop Middle; resume Outer\",\n            \"short\": \"Return Middle\",\n            \"sentence\": \"Middle returns and is popped; Outer resumes with its original local.\",\n            \"why\": \"The newest remaining frame leaves first. Outer continues its pending multiplication using Middle's returned value, rather than restarting.\",\n            \"active\": [\n              \"outer\"\n            ],\n            \"calloutRegion\": \"outer\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames = pushes − pops\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"pushes\",\n                \"label\": \"Pushes\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"pops\",\n                \"label\": \"Pops\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Outer resumed with Middle's result; its saved local is unchanged.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"finished\",\n            \"label\": \"Pop Outer; finish\",\n            \"short\": \"Return Outer\",\n            \"sentence\": \"Outer returns the final result and is popped.\",\n            \"why\": \"Every push now has a matching pop. No factorial frame remains.\",\n            \"active\": [],\n            \"calloutRegion\": \"outer\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames = pushes − pops\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"pushes\",\n                \"label\": \"Pushes\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"pops\",\n                \"label\": \"Pops\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Finished; stack empty.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Begin with an empty stack and evaluate factorial(3), using factorial(1)=1 and factorial(n)=n×factorial(n−1) for integer n>1. Use Next to follow calls, then compare the stack before and after returns. The newest frame disappears first, while its caller retains its local. Finish with the result and an empty stack.",
+  "aha": {
+   "stateId": "resume-outer",
+   "observation": "A return removes only the newest frame; the waiting caller resumes with its original local and the child's returned value."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "recursion-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with the story and instructions above the experiment. The compact rail carries the process trace. Its active position represents a state, never elapsed time.",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "call-stack",
+    "kind": "fixed-picture",
+    "presentation": "Arrange fixed frame regions vertically: Outer at the bottom, Middle above Outer, and Base at the top. Highlighted regions are live frames. Inactive outlines are reference positions, not allocated frames; show their names without their values. The callout identifies the running frame; other live frames are suspended. Local values remain unchanged throughout each frame's lifetime. Assume synchronous execution without inlining or tail-call optimization. Count only factorial frames, excluding runtime and enclosing caller frames. Stack height represents frame count, not memory bytes.",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "links": "variant.links"
+    }
+   },
+   {
+    "id": "running-frame-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the named frame without covering labels. Identify the active operation without repeating numerical readouts. At empty-stack states, anchor to the Outer reference position.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "stack-evidence",
+    "kind": "value-readout",
+    "presentation": "Place live frames, pushes, and pops together on a shared counter row. Place the latest returned value below, followed by the bound status line. Compute live frames as pushes minus pops from the selected state's event prefix. Pushes and pops count events; depth counts frames; returned values are dimensionless integers. All values are exact, with no rounding. Keep each measurement in this readout only.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Recursion state",
+    "items": "variant.states",
+    "presentation": "Detailed parameter-control budget: zero. Navigation budget: one index control and Reset. Provide Previous and Next buttons with those accessible names. Default to the first state, with unit increments, endpoint bounds, and no wrapping. Retain button names when disabled at boundaries. Every state, including the aha state, persists until the learner acts. Provide visible focus and keyboard activation."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and its counter defaults. Fixed inputs never change. Provide visible focus and keyboard activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Factorial: calls and returns",
+     "regions": [
+      {
+       "id": "outer",
+       "label": "Outer frame",
+       "values": [
+        "Saved local n = 3",
+        "Continuation: return n × child result"
+       ]
+      },
+      {
+       "id": "middle",
+       "label": "Middle frame",
+       "values": [
+        "Saved local n = 2",
+        "Continuation: return n × child result"
+       ]
+      },
+      {
+       "id": "base",
+       "label": "Base frame",
+       "values": [
+        "Saved local n = 1",
+        "Base case: return the saved local"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Before the call",
+       "short": "Ready",
+       "sentence": "The stack is empty before the initial call.",
+       "why": "Next enters factorial and creates the Outer frame.",
+       "active": [],
+       "calloutRegion": "outer",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames = pushes − pops",
+         "value": "0"
+        },
+        {
+         "id": "pushes",
+         "label": "Pushes",
+         "value": "0"
+        },
+        {
+         "id": "pops",
+         "label": "Pops",
+         "value": "0"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "—"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "No live frames."
+        }
+       ]
+      },
+      {
+       "id": "push-outer",
+       "label": "Push Outer",
+       "short": "Call Outer",
+       "sentence": "The initial call pushes the Outer frame.",
+       "why": "Outer owns its saved local and will wait for a child result before multiplying.",
+       "active": [
+        "outer"
+       ],
+       "calloutRegion": "outer",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames = pushes − pops",
+         "value": "1"
+        },
+        {
+         "id": "pushes",
+         "label": "Pushes",
+         "value": "1"
+        },
+        {
+         "id": "pops",
+         "label": "Pops",
+         "value": "0"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "—"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Outer running at the stack top."
+        }
+       ]
+      },
+      {
+       "id": "push-middle",
+       "label": "Push Middle",
+       "short": "Call Middle",
+       "sentence": "Outer calls recursively, pushing Middle above itself.",
+       "why": "Outer is suspended, not replaced; Middle has a separate saved local.",
+       "active": [
+        "outer",
+        "middle"
+       ],
+       "calloutRegion": "middle",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames = pushes − pops",
+         "value": "2"
+        },
+        {
+         "id": "pushes",
+         "label": "Pushes",
+         "value": "2"
+        },
+        {
+         "id": "pops",
+         "label": "Pops",
+         "value": "0"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "—"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Middle running; Outer suspended."
+        }
+       ]
+      },
+      {
+       "id": "push-base",
+       "label": "Push Base",
+       "short": "Call Base",
+       "sentence": "Middle calls recursively, pushing Base onto the stack top.",
+       "why": "Base reaches the stopping condition without calling another child. Both waiting callers retain their locals and continuations.",
+       "active": [
+        "outer",
+        "middle",
+        "base"
+       ],
+       "calloutRegion": "base",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames = pushes − pops",
+         "value": "3"
+        },
+        {
+         "id": "pushes",
+         "label": "Pushes",
+         "value": "3"
+        },
+        {
+         "id": "pops",
+         "label": "Pops",
+         "value": "0"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "—"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Base running; Middle and Outer suspended."
+        }
+       ]
+      },
+      {
+       "id": "resume-middle",
+       "label": "Pop Base; resume Middle",
+       "short": "Return Base",
+       "sentence": "Base returns and is popped; Middle resumes at its saved continuation.",
+       "why": "Compare the previous state: Base is gone, while Middle's local is unchanged. Middle multiplies that local by the returned value.",
+       "active": [
+        "outer",
+        "middle"
+       ],
+       "calloutRegion": "middle",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames = pushes − pops",
+         "value": "2"
+        },
+        {
+         "id": "pushes",
+         "label": "Pushes",
+         "value": "3"
+        },
+        {
+         "id": "pops",
+         "label": "Pops",
+         "value": "1"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "1"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Middle resumed with Base's result; Outer suspended."
+        }
+       ]
+      },
+      {
+       "id": "resume-outer",
+       "label": "Pop Middle; resume Outer",
+       "short": "Return Middle",
+       "sentence": "Middle returns and is popped; Outer resumes with its original local.",
+       "why": "The newest remaining frame leaves first. Outer continues its pending multiplication using Middle's returned value, rather than restarting.",
+       "active": [
+        "outer"
+       ],
+       "calloutRegion": "outer",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames = pushes − pops",
+         "value": "1"
+        },
+        {
+         "id": "pushes",
+         "label": "Pushes",
+         "value": "3"
+        },
+        {
+         "id": "pops",
+         "label": "Pops",
+         "value": "2"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Outer resumed with Middle's result; its saved local is unchanged."
+        }
+       ]
+      },
+      {
+       "id": "finished",
+       "label": "Pop Outer; finish",
+       "short": "Return Outer",
+       "sentence": "Outer returns the final result and is popped.",
+       "why": "Every push now has a matching pop. No factorial frame remains.",
+       "active": [],
+       "calloutRegion": "outer",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames = pushes − pops",
+         "value": "0"
+        },
+        {
+         "id": "pushes",
+         "label": "Pushes",
+         "value": "3"
+        },
+        {
+         "id": "pops",
+         "label": "Pops",
+         "value": "3"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "6"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Finished; stack empty."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1537,
+  "output": 6777
+ },
+ "usd": 0.067974,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3eqB7RbQ8EJ3ycqguB5\"}"
+  },
+  "cardUsd": 0
+ }
+}

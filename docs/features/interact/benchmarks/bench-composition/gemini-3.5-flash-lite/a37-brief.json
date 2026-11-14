@@ -1,0 +1,214 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a37",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "what happens to the centroids in k-means each iteration?",
+ "ts": "2026-11-14T22:23:09.727Z",
+ "ms": 2537,
+ "raw": "{\n  \"story\": \"During K-means iteration, each point is assigned to its nearest centroid. Then, centroids move to the exact mean position of their assigned points, minimizing variance.\",\n  \"aha\": {\n    \"stateId\": \"step-2\",\n    \"observation\": \"Centroids shift toward the center of their assigned point clusters after assignment.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"target\": \"state.calloutRegion\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Iteration Step\",\n      \"options\": [\n        \"Init\",\n        \"Assign\",\n        \"Update\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"K-means Iteration\",\n        \"regions\": [\n          {\n            \"id\": \"c1\",\n            \"label\": \"Centroid A\",\n            \"kind\": \"centroid\",\n            \"values\": [\"2.0\", \"3.0\"]\n          },\n          {\n            \"id\": \"c2\",\n            \"label\": \"Centroid B\",\n            \"kind\": \"centroid\",\n            \"values\": [\"7.0\", \"8.0\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"step-0\",\n            \"label\": \"Initialize\",\n            \"short\": \"Init\",\n            \"sentence\": \"Initial random centroids are placed on the plane.\",\n            \"why\": \"Starting point for clustering.\",\n            \"active\": [\"c1\", \"c2\"],\n            \"calloutRegion\": \"c1\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Shift A\",\n                \"value\": \"0.0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-1\",\n            \"label\": \"Assign Points\",\n            \"short\": \"Assign\",\n            \"sentence\": \"Every data point is assigned to its nearest centroid.\",\n            \"why\": \"Defines membership clusters.\",\n            \"active\": [\"c1\", \"c2\"],\n            \"calloutRegion\": \"c2\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Shift A\",\n                \"value\": \"0.5\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-2\",\n            \"label\": \"Update Centroids\",\n            \"short\": \"Update\",\n            \"sentence\": \"Centroids move to the mean position of their assigned points.\",\n            \"why\": \"Reduces within-cluster scatter.\",\n            \"active\": [\"c1\", \"c2\"],\n            \"calloutRegion\": \"c1\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Shift A\",\n                \"value\": \"2.3\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "During K-means iteration, each point is assigned to its nearest centroid. Then, centroids move to the exact mean position of their assigned points, minimizing variance.",
+  "aha": {
+   "stateId": "step-2",
+   "observation": "Centroids shift toward the center of their assigned point clusters after assignment."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "target": "state.calloutRegion"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Iteration Step",
+    "options": [
+     "Init",
+     "Assign",
+     "Update"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "K-means Iteration",
+     "regions": [
+      {
+       "id": "c1",
+       "label": "Centroid A",
+       "kind": "centroid",
+       "values": [
+        "2.0",
+        "3.0"
+       ]
+      },
+      {
+       "id": "c2",
+       "label": "Centroid B",
+       "kind": "centroid",
+       "values": [
+        "7.0",
+        "8.0"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "step-0",
+       "label": "Initialize",
+       "short": "Init",
+       "sentence": "Initial random centroids are placed on the plane.",
+       "why": "Starting point for clustering.",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "calloutRegion": "c1",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Shift A",
+         "value": "0.0"
+        }
+       ]
+      },
+      {
+       "id": "step-1",
+       "label": "Assign Points",
+       "short": "Assign",
+       "sentence": "Every data point is assigned to its nearest centroid.",
+       "why": "Defines membership clusters.",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "calloutRegion": "c2",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Shift A",
+         "value": "0.5"
+        }
+       ]
+      },
+      {
+       "id": "step-2",
+       "label": "Update Centroids",
+       "short": "Update",
+       "sentence": "Centroids move to the mean position of their assigned points.",
+       "why": "Reduces within-cluster scatter.",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "calloutRegion": "c1",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Shift A",
+         "value": "2.3"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1108,
+  "output": 990
+ },
+ "usd": 0.002808,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The only regions are two centroid markers with no data points, assignments or means, so nothing in the drawing shows centroids moving toward their cluster means."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha is step-2, but the stepper is an index control with no timing, and the learner can step past it with no hold or emphasis on the decisive state."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "Stepping only changes the callout text and the Shift A number. The centroid values are fixed, and no experiment input or outcome changes with the step."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The readout values are hard-coded, with no data points or means to derive them from. The regions carry no positions or shift data for a ghost or arrow, and the callout targets only c1 or c2."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The story and steps mention points, assignment and movement, but no points exist as objects. The \"Shift A\" readout shows 0.5 at the Assign step, where the story says nothing moves."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The scene is sparse, with one picture, one callout and one readout, so there is no clutter. It adds little mechanism, but it does not exceed the density for a brief depth."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "Centroid A is at (2,3), and Shift A is 2.3 after the update with no new position given, so it cannot be verified. The 0.5 shift at the Assign step contradicts the story, since centroids do not move during assignment."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011434
+ }
+}

@@ -1,0 +1,718 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a33",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "Why does recursive feature elimination refit after each drop?",
+ "ts": "2026-11-14T22:36:44.764Z",
+ "ms": 57864,
+ "raw": "{\"story\":\"RFE ranks features by the model's weights, but those weights depend on which features are present. Features x1 and x2 are near-duplicates that split one strong signal. Step through the rounds: after x2 is dropped, the refit gives its share back to x1. Switch to \\\"Rank once\\\" to see stale weights discard that signal and lower held-out R².\",\"aha\":{\"stateId\":\"fit2\",\"observation\":\"Once x2 is dropped, the refit moves x1 from 0.36 to 0.70. The rankings changed, so x1 is kept and x4 becomes the weakest.\"},\"layout\":{\"preset\":\"stepper-collection\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.short\",\"reason\":\"state.why\"}},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"progress\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step (Previous / Next)\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"mode\",\"kind\":\"select\",\"label\":\"Elimination mode\",\"options\":[\"Refit after each drop (RFE)\",\"Rank once, no refit\"],\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step and RFE mode\"}],\"data\":{\"variants\":[{\"label\":\"Refit after each drop (RFE)\",\"regions\":[{\"id\":\"model\",\"label\":\"Linear model (standardized inputs)\",\"kind\":\"estimator\",\"values\":[\"|w| = absolute standardized coefficient\",\"k = 2 kept, step = 1\"]},{\"id\":\"x1\",\"label\":\"x1\",\"kind\":\"feature\",\"values\":[\"fit1 0.36\",\"fit2 0.70\",\"fit3 0.70\"]},{\"id\":\"x2\",\"label\":\"x2\",\"kind\":\"feature\",\"values\":[\"fit1 0.34\",\"dropped\"]},{\"id\":\"x3\",\"label\":\"x3\",\"kind\":\"feature\",\"values\":[\"fit1 0.40\",\"fit2 0.40\",\"fit3 0.40\"]},{\"id\":\"x4\",\"label\":\"x4\",\"kind\":\"feature\",\"values\":[\"fit1 0.38\",\"fit2 0.38\",\"dropped\"]}],\"links\":[{\"from\":\"x1\",\"to\":\"x2\",\"label\":\"r = 0.95\"}],\"states\":[{\"id\":\"start\",\"label\":\"Start\",\"short\":\"Four features\",\"sentence\":\"There are four features. x1 and x2 are near-duplicates with r = 0.95. The goal is to keep k = 2.\",\"why\":\"Assumptions: synthetic data, standardized inputs, one feature dropped per round.\",\"active\":[\"x1\",\"x2\",\"x3\",\"x4\"],\"calloutRegion\":\"model\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"4\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"0\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"—\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"—\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"(p − k)/step + 1 = (4 − 2)/1 + 1 = 3\"}]},{\"id\":\"fit1\",\"label\":\"Fit 1\",\"short\":\"Shared signal split\",\"sentence\":\"Fit 1 splits the shared signal between x1 and x2. Weights: x1 0.36, x2 0.34, x3 0.40, x4 0.38.\",\"why\":\"Correlated features divide the weight of one signal between them.\",\"active\":[\"x1\",\"x2\",\"x3\",\"x4\",\"model\"],\"calloutRegion\":\"x2\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"4\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"1 of 3\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"0.36\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"0.81\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"(4 − 2)/1 + 1 = 3\"}]},{\"id\":\"drop1\",\"label\":\"Drop x2\",\"short\":\"Smallest |w|\",\"sentence\":\"x2 has the smallest weight (0.34), so RFE drops it.\",\"why\":\"Each round removes the lowest-ranked feature from the latest fit.\",\"active\":[\"x1\",\"x3\",\"x4\"],\"calloutRegion\":\"x2\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"3\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"1 of 3\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"0.36 (from fit 1)\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"0.81\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"(4 − 2)/1 + 1 = 3\"}]},{\"id\":\"fit2\",\"label\":\"Refit 2\",\"short\":\"x1 absorbs credit\",\"sentence\":\"After the refit, x1 takes back x2's share and rises from 0.36 to 0.70. Now x4 is the weakest.\",\"why\":\"A feature's weight depends on which other features are in the model.\",\"active\":[\"x1\",\"x3\",\"x4\",\"model\"],\"calloutRegion\":\"x1\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"3\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"2 of 3\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"0.70\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"0.81\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"(4 − 2)/1 + 1 = 3\"}]},{\"id\":\"drop2\",\"label\":\"Drop x4\",\"short\":\"New weakest\",\"sentence\":\"x4 now has the smallest weight (0.38), so RFE drops it.\",\"why\":\"This ranking comes from the refit, not from the stale first fit.\",\"active\":[\"x1\",\"x3\"],\"calloutRegion\":\"x4\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"2\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"2 of 3\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"0.70\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"0.81\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"(4 − 2)/1 + 1 = 3\"}]},{\"id\":\"fit3\",\"label\":\"Fit 3 · stop\",\"short\":\"Kept x1, x3\",\"sentence\":\"Fit 3 uses x1 and x3, with weights 0.70 and 0.40. Held-out R² is 0.79. RFE stops at k = 2.\",\"why\":\"The strong signal survives because each ranking used the current feature set.\",\"active\":[\"x1\",\"x3\",\"model\"],\"calloutRegion\":\"model\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"2\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"3 of 3\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"0.70\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"0.79\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"(4 − 2)/1 + 1 = 3\"}]}]},{\"label\":\"Rank once, no refit\",\"regions\":[{\"id\":\"model\",\"label\":\"Linear model (standardized inputs)\",\"kind\":\"estimator\",\"values\":[\"|w| = absolute standardized coefficient\",\"k = 2 kept, ranking fixed after fit 1\"]},{\"id\":\"x1\",\"label\":\"x1\",\"kind\":\"feature\",\"values\":[\"fit1 0.36\",\"dropped\"]},{\"id\":\"x2\",\"label\":\"x2\",\"kind\":\"feature\",\"values\":[\"fit1 0.34\",\"dropped\"]},{\"id\":\"x3\",\"label\":\"x3\",\"kind\":\"feature\",\"values\":[\"fit1 0.40\",\"final 0.40\"]},{\"id\":\"x4\",\"label\":\"x4\",\"kind\":\"feature\",\"values\":[\"fit1 0.38\",\"final 0.38\"]}],\"links\":[{\"from\":\"x1\",\"to\":\"x2\",\"label\":\"r = 0.95\"}],\"states\":[{\"id\":\"start\",\"label\":\"Start\",\"short\":\"Four features\",\"sentence\":\"There are four features. x1 and x2 are near-duplicates with r = 0.95. The goal is to keep k = 2.\",\"why\":\"Same synthetic data, but this mode ranks the features only once.\",\"active\":[\"x1\",\"x2\",\"x3\",\"x4\"],\"calloutRegion\":\"model\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"4\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"0\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"—\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"—\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"1 ranking fit + 1 final fit = 2\"}]},{\"id\":\"fit1\",\"label\":\"Fit 1\",\"short\":\"Shared signal split\",\"sentence\":\"Fit 1 splits the shared signal between x1 and x2. Weights: x1 0.36, x2 0.34, x3 0.40, x4 0.38.\",\"why\":\"This one ranking will decide every later drop.\",\"active\":[\"x1\",\"x2\",\"x3\",\"x4\",\"model\"],\"calloutRegion\":\"x2\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"4\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"1 of 2\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"0.36\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"0.81\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"1 + 1 = 2\"}]},{\"id\":\"drop1\",\"label\":\"Drop x2\",\"short\":\"Smallest |w|\",\"sentence\":\"x2 has the smallest weight (0.34), so it is dropped.\",\"why\":\"So far, this matches RFE.\",\"active\":[\"x1\",\"x3\",\"x4\"],\"calloutRegion\":\"x2\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"3\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"1 of 2\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"0.36 (stale)\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"—\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"1 + 1 = 2\"}]},{\"id\":\"fit2\",\"label\":\"Drop x1\",\"short\":\"Stale rank\",\"sentence\":\"With no refit, the stale ranking still lists x1 at 0.36. That makes x1 the next weakest, so it is dropped.\",\"why\":\"x1 never gets back x2's share, so its true strength stays hidden.\",\"active\":[\"x3\",\"x4\"],\"calloutRegion\":\"x1\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"2\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"1 of 2\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"0.36 (stale)\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"—\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"1 + 1 = 2\"}]},{\"id\":\"drop2\",\"label\":\"Kept x3, x4\",\"short\":\"Signal lost\",\"sentence\":\"The kept features are x3 and x4. Both copies of the strong shared signal are gone.\",\"why\":\"Both duplicate features looked weak only because they shared credit.\",\"active\":[\"x3\",\"x4\"],\"calloutRegion\":\"x4\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"2\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"1 of 2\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"dropped\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"—\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"1 + 1 = 2\"}]},{\"id\":\"fit3\",\"label\":\"Final fit\",\"short\":\"R² drops\",\"sentence\":\"The final fit uses x3 and x4. Held-out R² is 0.42, compared with 0.79 when RFE refits.\",\"why\":\"Skipping one refit saved compute, but cost most of the predictive signal.\",\"active\":[\"x3\",\"x4\",\"model\"],\"calloutRegion\":\"model\",\"readouts\":[{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"2\"},{\"id\":\"fits\",\"label\":\"Fits run\",\"value\":\"2 of 2\"},{\"id\":\"w1\",\"label\":\"|w| x1\",\"value\":\"dropped\"},{\"id\":\"r2\",\"label\":\"Held-out R²\",\"value\":\"0.42\"},{\"id\":\"count\",\"label\":\"Fits needed\",\"value\":\"1 + 1 = 2\"}]}]}]}}",
+ "composition": {
+  "story": "RFE ranks features by the model's weights, but those weights depend on which features are present. Features x1 and x2 are near-duplicates that split one strong signal. Step through the rounds: after x2 is dropped, the refit gives its share back to x1. Switch to \"Rank once\" to see stale weights discard that signal and lower held-out R².",
+  "aha": {
+   "stateId": "fit2",
+   "observation": "Once x2 is dropped, the refit moves x1 from 0.36 to 0.70. The rankings changed, so x1 is kept and x4 becomes the weakest."
+  },
+  "layout": {
+   "preset": "stepper-collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.short",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "progress",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step (Previous / Next)",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "mode",
+    "kind": "select",
+    "label": "Elimination mode",
+    "options": [
+     "Refit after each drop (RFE)",
+     "Rank once, no refit"
+    ],
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step and RFE mode"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Refit after each drop (RFE)",
+     "regions": [
+      {
+       "id": "model",
+       "label": "Linear model (standardized inputs)",
+       "kind": "estimator",
+       "values": [
+        "|w| = absolute standardized coefficient",
+        "k = 2 kept, step = 1"
+       ]
+      },
+      {
+       "id": "x1",
+       "label": "x1",
+       "kind": "feature",
+       "values": [
+        "fit1 0.36",
+        "fit2 0.70",
+        "fit3 0.70"
+       ]
+      },
+      {
+       "id": "x2",
+       "label": "x2",
+       "kind": "feature",
+       "values": [
+        "fit1 0.34",
+        "dropped"
+       ]
+      },
+      {
+       "id": "x3",
+       "label": "x3",
+       "kind": "feature",
+       "values": [
+        "fit1 0.40",
+        "fit2 0.40",
+        "fit3 0.40"
+       ]
+      },
+      {
+       "id": "x4",
+       "label": "x4",
+       "kind": "feature",
+       "values": [
+        "fit1 0.38",
+        "fit2 0.38",
+        "dropped"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "x1",
+       "to": "x2",
+       "label": "r = 0.95"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start",
+       "short": "Four features",
+       "sentence": "There are four features. x1 and x2 are near-duplicates with r = 0.95. The goal is to keep k = 2.",
+       "why": "Assumptions: synthetic data, standardized inputs, one feature dropped per round.",
+       "active": [
+        "x1",
+        "x2",
+        "x3",
+        "x4"
+       ],
+       "calloutRegion": "model",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "4"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "0"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "—"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "—"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "(p − k)/step + 1 = (4 − 2)/1 + 1 = 3"
+        }
+       ]
+      },
+      {
+       "id": "fit1",
+       "label": "Fit 1",
+       "short": "Shared signal split",
+       "sentence": "Fit 1 splits the shared signal between x1 and x2. Weights: x1 0.36, x2 0.34, x3 0.40, x4 0.38.",
+       "why": "Correlated features divide the weight of one signal between them.",
+       "active": [
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "model"
+       ],
+       "calloutRegion": "x2",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "4"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "1 of 3"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "0.36"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "0.81"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "(4 − 2)/1 + 1 = 3"
+        }
+       ]
+      },
+      {
+       "id": "drop1",
+       "label": "Drop x2",
+       "short": "Smallest |w|",
+       "sentence": "x2 has the smallest weight (0.34), so RFE drops it.",
+       "why": "Each round removes the lowest-ranked feature from the latest fit.",
+       "active": [
+        "x1",
+        "x3",
+        "x4"
+       ],
+       "calloutRegion": "x2",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "3"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "1 of 3"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "0.36 (from fit 1)"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "0.81"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "(4 − 2)/1 + 1 = 3"
+        }
+       ]
+      },
+      {
+       "id": "fit2",
+       "label": "Refit 2",
+       "short": "x1 absorbs credit",
+       "sentence": "After the refit, x1 takes back x2's share and rises from 0.36 to 0.70. Now x4 is the weakest.",
+       "why": "A feature's weight depends on which other features are in the model.",
+       "active": [
+        "x1",
+        "x3",
+        "x4",
+        "model"
+       ],
+       "calloutRegion": "x1",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "3"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "2 of 3"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "0.70"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "0.81"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "(4 − 2)/1 + 1 = 3"
+        }
+       ]
+      },
+      {
+       "id": "drop2",
+       "label": "Drop x4",
+       "short": "New weakest",
+       "sentence": "x4 now has the smallest weight (0.38), so RFE drops it.",
+       "why": "This ranking comes from the refit, not from the stale first fit.",
+       "active": [
+        "x1",
+        "x3"
+       ],
+       "calloutRegion": "x4",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "2"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "2 of 3"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "0.70"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "0.81"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "(4 − 2)/1 + 1 = 3"
+        }
+       ]
+      },
+      {
+       "id": "fit3",
+       "label": "Fit 3 · stop",
+       "short": "Kept x1, x3",
+       "sentence": "Fit 3 uses x1 and x3, with weights 0.70 and 0.40. Held-out R² is 0.79. RFE stops at k = 2.",
+       "why": "The strong signal survives because each ranking used the current feature set.",
+       "active": [
+        "x1",
+        "x3",
+        "model"
+       ],
+       "calloutRegion": "model",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "2"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "3 of 3"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "0.70"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "0.79"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "(4 − 2)/1 + 1 = 3"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Rank once, no refit",
+     "regions": [
+      {
+       "id": "model",
+       "label": "Linear model (standardized inputs)",
+       "kind": "estimator",
+       "values": [
+        "|w| = absolute standardized coefficient",
+        "k = 2 kept, ranking fixed after fit 1"
+       ]
+      },
+      {
+       "id": "x1",
+       "label": "x1",
+       "kind": "feature",
+       "values": [
+        "fit1 0.36",
+        "dropped"
+       ]
+      },
+      {
+       "id": "x2",
+       "label": "x2",
+       "kind": "feature",
+       "values": [
+        "fit1 0.34",
+        "dropped"
+       ]
+      },
+      {
+       "id": "x3",
+       "label": "x3",
+       "kind": "feature",
+       "values": [
+        "fit1 0.40",
+        "final 0.40"
+       ]
+      },
+      {
+       "id": "x4",
+       "label": "x4",
+       "kind": "feature",
+       "values": [
+        "fit1 0.38",
+        "final 0.38"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "x1",
+       "to": "x2",
+       "label": "r = 0.95"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start",
+       "short": "Four features",
+       "sentence": "There are four features. x1 and x2 are near-duplicates with r = 0.95. The goal is to keep k = 2.",
+       "why": "Same synthetic data, but this mode ranks the features only once.",
+       "active": [
+        "x1",
+        "x2",
+        "x3",
+        "x4"
+       ],
+       "calloutRegion": "model",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "4"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "0"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "—"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "—"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "1 ranking fit + 1 final fit = 2"
+        }
+       ]
+      },
+      {
+       "id": "fit1",
+       "label": "Fit 1",
+       "short": "Shared signal split",
+       "sentence": "Fit 1 splits the shared signal between x1 and x2. Weights: x1 0.36, x2 0.34, x3 0.40, x4 0.38.",
+       "why": "This one ranking will decide every later drop.",
+       "active": [
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "model"
+       ],
+       "calloutRegion": "x2",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "4"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "1 of 2"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "0.36"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "0.81"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "1 + 1 = 2"
+        }
+       ]
+      },
+      {
+       "id": "drop1",
+       "label": "Drop x2",
+       "short": "Smallest |w|",
+       "sentence": "x2 has the smallest weight (0.34), so it is dropped.",
+       "why": "So far, this matches RFE.",
+       "active": [
+        "x1",
+        "x3",
+        "x4"
+       ],
+       "calloutRegion": "x2",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "3"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "1 of 2"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "0.36 (stale)"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "—"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "1 + 1 = 2"
+        }
+       ]
+      },
+      {
+       "id": "fit2",
+       "label": "Drop x1",
+       "short": "Stale rank",
+       "sentence": "With no refit, the stale ranking still lists x1 at 0.36. That makes x1 the next weakest, so it is dropped.",
+       "why": "x1 never gets back x2's share, so its true strength stays hidden.",
+       "active": [
+        "x3",
+        "x4"
+       ],
+       "calloutRegion": "x1",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "2"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "1 of 2"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "0.36 (stale)"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "—"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "1 + 1 = 2"
+        }
+       ]
+      },
+      {
+       "id": "drop2",
+       "label": "Kept x3, x4",
+       "short": "Signal lost",
+       "sentence": "The kept features are x3 and x4. Both copies of the strong shared signal are gone.",
+       "why": "Both duplicate features looked weak only because they shared credit.",
+       "active": [
+        "x3",
+        "x4"
+       ],
+       "calloutRegion": "x4",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "2"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "1 of 2"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "dropped"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "—"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "1 + 1 = 2"
+        }
+       ]
+      },
+      {
+       "id": "fit3",
+       "label": "Final fit",
+       "short": "R² drops",
+       "sentence": "The final fit uses x3 and x4. Held-out R² is 0.42, compared with 0.79 when RFE refits.",
+       "why": "Skipping one refit saved compute, but cost most of the predictive signal.",
+       "active": [
+        "x3",
+        "x4",
+        "model"
+       ],
+       "calloutRegion": "model",
+       "readouts": [
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "2"
+        },
+        {
+         "id": "fits",
+         "label": "Fits run",
+         "value": "2 of 2"
+        },
+        {
+         "id": "w1",
+         "label": "|w| x1",
+         "value": "dropped"
+        },
+        {
+         "id": "r2",
+         "label": "Held-out R²",
+         "value": "0.42"
+        },
+        {
+         "id": "count",
+         "label": "Fits needed",
+         "value": "1 + 1 = 2"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3077,
+  "output": 6855
+ },
+ "usd": 0.149408,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3cw8rgWXXtUX4vWogKX\"}"
+  },
+  "cardUsd": 0
+ }
+}

@@ -1,0 +1,378 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a28",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "How does a transformer turn scores into a guess for the next word?",
+ "ts": "2026-11-14T22:33:52.023Z",
+ "ms": 31357,
+ "raw": "{\"story\":\"After reading “The cat sat on the,” a transformer gives each candidate word a raw score. Softmax turns these scores into positive values, then divides by their total to make probabilities. The model chooses the most likely word: mat, at 69%. The scores are fixed for a toy vocabulary of four words.\",\"aha\":{\"stateId\":\"guess\",\"observation\":\"The highest score, mat at 4.1, becomes the most likely word at 69%. The other words still keep some chance.\"},\"layout\":{\"preset\":\"pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top rail listing the five steps, with the current step highlighted\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Left-to-right pipeline: context → scores → softmax → probabilities → guess\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the active region; names where the change happens, not the values\"},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"One row per candidate word (mat, floor, sofa, moon). Logits have no unit; e^score is rounded to 2 decimals; probabilities are rounded to whole percent\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons that keep their names when disabled at the ends; arrow keys also work\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step\",\"presentation\":\"Goes back to step 1\"}],\"data\":{\"variants\":[{\"label\":\"Toy next-word guess\",\"regions\":[{\"id\":\"context\",\"label\":\"Context\",\"kind\":\"input\",\"values\":[\"The cat sat on the\"]},{\"id\":\"scores\",\"label\":\"Raw scores (logits)\",\"kind\":\"stage\",\"values\":[\"mat\",\"floor\",\"sofa\",\"moon\"]},{\"id\":\"softmax\",\"label\":\"Softmax: e^score\",\"kind\":\"stage\",\"values\":[\"mat\",\"floor\",\"sofa\",\"moon\"]},{\"id\":\"probs\",\"label\":\"Probabilities\",\"kind\":\"stage\",\"values\":[\"mat\",\"floor\",\"sofa\",\"moon\"]},{\"id\":\"guess\",\"label\":\"Next-word guess\",\"kind\":\"output\",\"values\":[\"mat\"]}],\"links\":[{\"from\":\"context\",\"to\":\"scores\",\"label\":\"final layer\"},{\"from\":\"scores\",\"to\":\"softmax\",\"label\":\"e^score\"},{\"from\":\"softmax\",\"to\":\"probs\",\"label\":\"÷ total\"},{\"from\":\"probs\",\"to\":\"guess\",\"label\":\"pick top\"}],\"states\":[{\"id\":\"context\",\"label\":\"Read context\",\"short\":\"Context\",\"sentence\":\"The model reads “The cat sat on the” and must guess which word comes next.\",\"why\":\"Every guess starts from the words the model has already seen.\",\"active\":[\"context\"],\"calloutRegion\":\"context\",\"readouts\":[{\"id\":\"mat\",\"label\":\"mat\",\"value\":\"not scored\"},{\"id\":\"floor\",\"label\":\"floor\",\"value\":\"not scored\"},{\"id\":\"sofa\",\"label\":\"sofa\",\"value\":\"not scored\"},{\"id\":\"moon\",\"label\":\"moon\",\"value\":\"not scored\"}]},{\"id\":\"scores\",\"label\":\"Score candidates\",\"short\":\"Scores\",\"sentence\":\"The final layer gives each candidate word a raw score. Higher scores fit the context better.\",\"why\":\"Raw scores can be any size and do not add up to anything, so they are not probabilities yet.\",\"active\":[\"scores\"],\"calloutRegion\":\"scores\",\"readouts\":[{\"id\":\"mat\",\"label\":\"mat\",\"value\":\"4.1\"},{\"id\":\"floor\",\"label\":\"floor\",\"value\":\"2.9\"},{\"id\":\"sofa\",\"label\":\"sofa\",\"value\":\"2.0\"},{\"id\":\"moon\",\"label\":\"moon\",\"value\":\"0.3\"}]},{\"id\":\"exp\",\"label\":\"Exponentiate\",\"short\":\"e^score\",\"sentence\":\"Softmax raises e to each score. This makes every value positive and stretches the gaps between words.\",\"why\":\"Exponentiating keeps the same order but makes the top score stand out more.\",\"active\":[\"softmax\"],\"calloutRegion\":\"softmax\",\"readouts\":[{\"id\":\"mat\",\"label\":\"mat\",\"value\":\"60.34\"},{\"id\":\"floor\",\"label\":\"floor\",\"value\":\"18.17\"},{\"id\":\"sofa\",\"label\":\"sofa\",\"value\":\"7.39\"},{\"id\":\"moon\",\"label\":\"moon\",\"value\":\"1.35\"}]},{\"id\":\"normalize\",\"label\":\"Normalize\",\"short\":\"÷ total\",\"sentence\":\"Dividing each value by the total, 87.25, turns the values into probabilities that add up to 100%.\",\"why\":\"Dividing by the total keeps each word's share of the whole.\",\"active\":[\"probs\"],\"calloutRegion\":\"probs\",\"readouts\":[{\"id\":\"mat\",\"label\":\"mat\",\"value\":\"69%\"},{\"id\":\"floor\",\"label\":\"floor\",\"value\":\"21%\"},{\"id\":\"sofa\",\"label\":\"sofa\",\"value\":\"8%\"},{\"id\":\"moon\",\"label\":\"moon\",\"value\":\"2%\"}]},{\"id\":\"guess\",\"label\":\"Pick the guess\",\"short\":\"Guess\",\"sentence\":\"The most likely word, mat, becomes the guess. Floor, sofa and moon still have smaller chances.\",\"why\":\"The top score becomes the top probability, but the other words are not ruled out.\",\"active\":[\"probs\",\"guess\"],\"calloutRegion\":\"guess\",\"readouts\":[{\"id\":\"mat\",\"label\":\"mat (chosen)\",\"value\":\"69%\"},{\"id\":\"floor\",\"label\":\"floor\",\"value\":\"21%\"},{\"id\":\"sofa\",\"label\":\"sofa\",\"value\":\"8%\"},{\"id\":\"moon\",\"label\":\"moon\",\"value\":\"2%\"}]}]}]}}",
+ "composition": {
+  "story": "After reading “The cat sat on the,” a transformer gives each candidate word a raw score. Softmax turns these scores into positive values, then divides by their total to make probabilities. The model chooses the most likely word: mat, at 69%. The scores are fixed for a toy vocabulary of four words.",
+  "aha": {
+   "stateId": "guess",
+   "observation": "The highest score, mat at 4.1, becomes the most likely word at 69%. The other words still keep some chance."
+  },
+  "layout": {
+   "preset": "pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top rail listing the five steps, with the current step highlighted"
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Left-to-right pipeline: context → scores → softmax → probabilities → guess"
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the active region; names where the change happens, not the values"
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "One row per candidate word (mat, floor, sofa, moon). Logits have no unit; e^score is rounded to 2 decimals; probabilities are rounded to whole percent"
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons that keep their names when disabled at the ends; arrow keys also work"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step",
+    "presentation": "Goes back to step 1"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Toy next-word guess",
+     "regions": [
+      {
+       "id": "context",
+       "label": "Context",
+       "kind": "input",
+       "values": [
+        "The cat sat on the"
+       ]
+      },
+      {
+       "id": "scores",
+       "label": "Raw scores (logits)",
+       "kind": "stage",
+       "values": [
+        "mat",
+        "floor",
+        "sofa",
+        "moon"
+       ]
+      },
+      {
+       "id": "softmax",
+       "label": "Softmax: e^score",
+       "kind": "stage",
+       "values": [
+        "mat",
+        "floor",
+        "sofa",
+        "moon"
+       ]
+      },
+      {
+       "id": "probs",
+       "label": "Probabilities",
+       "kind": "stage",
+       "values": [
+        "mat",
+        "floor",
+        "sofa",
+        "moon"
+       ]
+      },
+      {
+       "id": "guess",
+       "label": "Next-word guess",
+       "kind": "output",
+       "values": [
+        "mat"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "context",
+       "to": "scores",
+       "label": "final layer"
+      },
+      {
+       "from": "scores",
+       "to": "softmax",
+       "label": "e^score"
+      },
+      {
+       "from": "softmax",
+       "to": "probs",
+       "label": "÷ total"
+      },
+      {
+       "from": "probs",
+       "to": "guess",
+       "label": "pick top"
+      }
+     ],
+     "states": [
+      {
+       "id": "context",
+       "label": "Read context",
+       "short": "Context",
+       "sentence": "The model reads “The cat sat on the” and must guess which word comes next.",
+       "why": "Every guess starts from the words the model has already seen.",
+       "active": [
+        "context"
+       ],
+       "calloutRegion": "context",
+       "readouts": [
+        {
+         "id": "mat",
+         "label": "mat",
+         "value": "not scored"
+        },
+        {
+         "id": "floor",
+         "label": "floor",
+         "value": "not scored"
+        },
+        {
+         "id": "sofa",
+         "label": "sofa",
+         "value": "not scored"
+        },
+        {
+         "id": "moon",
+         "label": "moon",
+         "value": "not scored"
+        }
+       ]
+      },
+      {
+       "id": "scores",
+       "label": "Score candidates",
+       "short": "Scores",
+       "sentence": "The final layer gives each candidate word a raw score. Higher scores fit the context better.",
+       "why": "Raw scores can be any size and do not add up to anything, so they are not probabilities yet.",
+       "active": [
+        "scores"
+       ],
+       "calloutRegion": "scores",
+       "readouts": [
+        {
+         "id": "mat",
+         "label": "mat",
+         "value": "4.1"
+        },
+        {
+         "id": "floor",
+         "label": "floor",
+         "value": "2.9"
+        },
+        {
+         "id": "sofa",
+         "label": "sofa",
+         "value": "2.0"
+        },
+        {
+         "id": "moon",
+         "label": "moon",
+         "value": "0.3"
+        }
+       ]
+      },
+      {
+       "id": "exp",
+       "label": "Exponentiate",
+       "short": "e^score",
+       "sentence": "Softmax raises e to each score. This makes every value positive and stretches the gaps between words.",
+       "why": "Exponentiating keeps the same order but makes the top score stand out more.",
+       "active": [
+        "softmax"
+       ],
+       "calloutRegion": "softmax",
+       "readouts": [
+        {
+         "id": "mat",
+         "label": "mat",
+         "value": "60.34"
+        },
+        {
+         "id": "floor",
+         "label": "floor",
+         "value": "18.17"
+        },
+        {
+         "id": "sofa",
+         "label": "sofa",
+         "value": "7.39"
+        },
+        {
+         "id": "moon",
+         "label": "moon",
+         "value": "1.35"
+        }
+       ]
+      },
+      {
+       "id": "normalize",
+       "label": "Normalize",
+       "short": "÷ total",
+       "sentence": "Dividing each value by the total, 87.25, turns the values into probabilities that add up to 100%.",
+       "why": "Dividing by the total keeps each word's share of the whole.",
+       "active": [
+        "probs"
+       ],
+       "calloutRegion": "probs",
+       "readouts": [
+        {
+         "id": "mat",
+         "label": "mat",
+         "value": "69%"
+        },
+        {
+         "id": "floor",
+         "label": "floor",
+         "value": "21%"
+        },
+        {
+         "id": "sofa",
+         "label": "sofa",
+         "value": "8%"
+        },
+        {
+         "id": "moon",
+         "label": "moon",
+         "value": "2%"
+        }
+       ]
+      },
+      {
+       "id": "guess",
+       "label": "Pick the guess",
+       "short": "Guess",
+       "sentence": "The most likely word, mat, becomes the guess. Floor, sofa and moon still have smaller chances.",
+       "why": "The top score becomes the top probability, but the other words are not ruled out.",
+       "active": [
+        "probs",
+        "guess"
+       ],
+       "calloutRegion": "guess",
+       "readouts": [
+        {
+         "id": "mat",
+         "label": "mat (chosen)",
+         "value": "69%"
+        },
+        {
+         "id": "floor",
+         "label": "floor",
+         "value": "21%"
+        },
+        {
+         "id": "sofa",
+         "label": "sofa",
+         "value": "8%"
+        },
+        {
+         "id": "moon",
+         "label": "moon",
+         "value": "2%"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3077,
+  "output": 3486
+ },
+ "usd": 0.082028,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The pipeline of context, scores, softmax, probabilities and guess shows how raw scores become a probability and a chosen word."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state (guess) is the final step, and it holds with mat at 69% until the learner presses Previous or Reset."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There are no numeric parameters and the fixed toy scores are justified; the step control changes the active region and the readouts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active regions, callout targets, sentences and readouts all trace to the declared regions, links and per-state data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The narrative, region labels, readout rows and step names all use the same words (mat, floor, sofa, moon; scores, e^score, ÷ total)."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each step highlights one region and shows one four-row readout, with no extra panels, so the depth stays uncluttered."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "I recomputed e^4.1=60.34, e^2.9=18.17, e^2.0=7.39, e^0.3=1.35, which total 87.25 and give 69/21/8/2%; callouts locate and readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01887
+ }
+}

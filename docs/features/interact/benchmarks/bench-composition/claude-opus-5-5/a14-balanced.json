@@ -1,0 +1,801 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a14",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a hash table work?",
+ "ts": "2026-11-14T22:26:53.399Z",
+ "ms": 42736,
+ "raw": "{\"story\":\"A hash table stores keys in five buckets. The hash function h(k) = k mod 5 turns each key into a bucket index. Insert 12, then 9, then 17. Key 17 lands in bucket 2 with 12, so the keys collide. Compare chaining with linear probing. Then look up 17: the search jumps straight to bucket 2 and skips the other buckets.\",\"aha\":{\"stateId\":\"lookup-17\",\"observation\":\"Looking up 17 recomputes h(17) = 2 and checks only bucket 2 (and bucket 3 with probing). Two comparisons find the key without scanning the whole table.\"},\"layout\":{\"preset\":\"stepper-array\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"progress\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step (Previous / Next)\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"strategy\",\"kind\":\"select\",\"label\":\"Collision strategy\",\"options\":[\"Chaining\",\"Linear probing\"],\"default\":0,\"presentation\":\"Switches variant; same keys and states, different collision handling\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step and Chaining\"}],\"data\":{\"variants\":[{\"label\":\"Chaining\",\"links\":[{\"from\":\"key\",\"to\":\"hash\",\"label\":\"key in\"},{\"from\":\"hash\",\"to\":\"b2\",\"label\":\"index out\"}],\"regions\":[{\"id\":\"key\",\"kind\":\"input\",\"label\":\"Key\",\"values\":[\"—\",\"12\",\"9\",\"17\",\"17\",\"17\"]},{\"id\":\"hash\",\"kind\":\"function\",\"label\":\"h(k) = k mod 5\",\"values\":[\"—\",\"2\",\"4\",\"2\",\"2\",\"2\"]},{\"id\":\"b0\",\"kind\":\"cell\",\"label\":\"Bucket 0\",\"values\":[\"empty\",\"empty\",\"empty\",\"empty\",\"empty\",\"empty\"]},{\"id\":\"b1\",\"kind\":\"cell\",\"label\":\"Bucket 1\",\"values\":[\"empty\",\"empty\",\"empty\",\"empty\",\"empty\",\"empty\"]},{\"id\":\"b2\",\"kind\":\"cell\",\"label\":\"Bucket 2\",\"values\":[\"empty\",\"12\",\"12\",\"12\",\"12 → 17\",\"12 → 17\"]},{\"id\":\"b3\",\"kind\":\"cell\",\"label\":\"Bucket 3\",\"values\":[\"empty\",\"empty\",\"empty\",\"empty\",\"empty\",\"empty\"]},{\"id\":\"b4\",\"kind\":\"cell\",\"label\":\"Bucket 4\",\"values\":[\"empty\",\"empty\",\"9\",\"9\",\"9\",\"9\"]}],\"states\":[{\"id\":\"empty\",\"label\":\"Empty table\",\"short\":\"Start\",\"sentence\":\"The table starts as five empty buckets, numbered 0 to 4.\",\"why\":\"The bucket number is the array index, so reaching any bucket takes one step.\",\"active\":[\"b0\",\"b1\",\"b2\",\"b3\",\"b4\"],\"calloutRegion\":\"hash\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"—\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"—\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"0\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.0\"}]},{\"id\":\"insert-12\",\"label\":\"Insert 12\",\"short\":\"12\",\"sentence\":\"h(12) = 2, so key 12 goes straight into bucket 2.\",\"why\":\"The hash computes the location, so the insert never searches for a slot.\",\"active\":[\"key\",\"hash\",\"b2\"],\"calloutRegion\":\"b2\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"12\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"2\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"0\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.2\"}]},{\"id\":\"insert-9\",\"label\":\"Insert 9\",\"short\":\"9\",\"sentence\":\"h(9) = 4, so key 9 goes into bucket 4.\",\"why\":\"Different keys usually hash to different buckets, which spreads keys across the table.\",\"active\":[\"key\",\"hash\",\"b4\"],\"calloutRegion\":\"b4\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"9\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"4\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"0\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.4\"}]},{\"id\":\"collide-17\",\"label\":\"Collision\",\"short\":\"17 hits 2\",\"sentence\":\"h(17) = 2, but bucket 2 already holds 12. This is a collision.\",\"why\":\"Many keys map to only five buckets, so two keys can get the same index.\",\"active\":[\"key\",\"hash\",\"b2\"],\"calloutRegion\":\"b2\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"17\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"2\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"1\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.4\"}]},{\"id\":\"resolve-17\",\"label\":\"Chain 17\",\"short\":\"Chain\",\"sentence\":\"Chaining adds 17 to a list in bucket 2, after 12.\",\"why\":\"Each key stays in its home bucket, so h(k) still gives its location.\",\"active\":[\"b2\"],\"calloutRegion\":\"b2\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"17\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"2\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"1\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.6\"}]},{\"id\":\"lookup-17\",\"label\":\"Look up 17\",\"short\":\"Find\",\"sentence\":\"Looking up 17 recomputes h(17) = 2 and checks only bucket 2: 12, then 17.\",\"why\":\"The work depends on the bucket's contents, not the table size. Buckets 0, 1, 3 and 4 are never checked.\",\"active\":[\"key\",\"hash\",\"b2\"],\"calloutRegion\":\"b2\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"17\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"2\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"2\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.6\"}]}]},{\"label\":\"Linear probing\",\"links\":[{\"from\":\"key\",\"to\":\"hash\",\"label\":\"key in\"},{\"from\":\"hash\",\"to\":\"b2\",\"label\":\"index out\"},{\"from\":\"b2\",\"to\":\"b3\",\"label\":\"probe +1\"}],\"regions\":[{\"id\":\"key\",\"kind\":\"input\",\"label\":\"Key\",\"values\":[\"—\",\"12\",\"9\",\"17\",\"17\",\"17\"]},{\"id\":\"hash\",\"kind\":\"function\",\"label\":\"h(k) = k mod 5\",\"values\":[\"—\",\"2\",\"4\",\"2\",\"2\",\"2\"]},{\"id\":\"b0\",\"kind\":\"cell\",\"label\":\"Bucket 0\",\"values\":[\"empty\",\"empty\",\"empty\",\"empty\",\"empty\",\"empty\"]},{\"id\":\"b1\",\"kind\":\"cell\",\"label\":\"Bucket 1\",\"values\":[\"empty\",\"empty\",\"empty\",\"empty\",\"empty\",\"empty\"]},{\"id\":\"b2\",\"kind\":\"cell\",\"label\":\"Bucket 2\",\"values\":[\"empty\",\"12\",\"12\",\"12\",\"12\",\"12\"]},{\"id\":\"b3\",\"kind\":\"cell\",\"label\":\"Bucket 3\",\"values\":[\"empty\",\"empty\",\"empty\",\"empty\",\"17\",\"17\"]},{\"id\":\"b4\",\"kind\":\"cell\",\"label\":\"Bucket 4\",\"values\":[\"empty\",\"empty\",\"9\",\"9\",\"9\",\"9\"]}],\"states\":[{\"id\":\"empty\",\"label\":\"Empty table\",\"short\":\"Start\",\"sentence\":\"The table starts as five empty buckets, numbered 0 to 4.\",\"why\":\"The bucket number is the array index, so reaching any bucket takes one step.\",\"active\":[\"b0\",\"b1\",\"b2\",\"b3\",\"b4\"],\"calloutRegion\":\"hash\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"—\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"—\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"0\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.0\"}]},{\"id\":\"insert-12\",\"label\":\"Insert 12\",\"short\":\"12\",\"sentence\":\"h(12) = 2, so key 12 goes straight into bucket 2.\",\"why\":\"The hash computes the location, so the insert never searches for a slot.\",\"active\":[\"key\",\"hash\",\"b2\"],\"calloutRegion\":\"b2\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"12\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"2\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"0\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.2\"}]},{\"id\":\"insert-9\",\"label\":\"Insert 9\",\"short\":\"9\",\"sentence\":\"h(9) = 4, so key 9 goes into bucket 4.\",\"why\":\"Different keys usually hash to different buckets, which spreads keys across the table.\",\"active\":[\"key\",\"hash\",\"b4\"],\"calloutRegion\":\"b4\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"9\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"4\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"0\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.4\"}]},{\"id\":\"collide-17\",\"label\":\"Collision\",\"short\":\"17 hits 2\",\"sentence\":\"h(17) = 2, but bucket 2 already holds 12. This is a collision.\",\"why\":\"Many keys map to only five buckets, so two keys can get the same index.\",\"active\":[\"key\",\"hash\",\"b2\"],\"calloutRegion\":\"b2\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"17\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"2\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"1\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.4\"}]},{\"id\":\"resolve-17\",\"label\":\"Probe to 3\",\"short\":\"Probe\",\"sentence\":\"Linear probing finds bucket 2 full, steps to bucket 3, and stores 17 there.\",\"why\":\"Each key sits at h(k) or the next open bucket after it, so searches always start at h(k).\",\"active\":[\"b2\",\"b3\"],\"calloutRegion\":\"b3\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"17\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"2\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"1\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.6\"}]},{\"id\":\"lookup-17\",\"label\":\"Look up 17\",\"short\":\"Find\",\"sentence\":\"Looking up 17 recomputes h(17) = 2, finds 12, probes bucket 3, and finds 17.\",\"why\":\"The search starts at the hashed index and stops after two comparisons. Buckets 0, 1 and 4 are never checked.\",\"active\":[\"key\",\"hash\",\"b2\",\"b3\"],\"calloutRegion\":\"b3\",\"readouts\":[{\"id\":\"k\",\"label\":\"Key\",\"value\":\"17\"},{\"id\":\"h\",\"label\":\"h(k) = k mod 5\",\"value\":\"2\"},{\"id\":\"cmp\",\"label\":\"Comparisons\",\"value\":\"2\"},{\"id\":\"lf\",\"label\":\"Load factor (n / 5)\",\"value\":\"0.6\"}]}]}]}}",
+ "composition": {
+  "story": "A hash table stores keys in five buckets. The hash function h(k) = k mod 5 turns each key into a bucket index. Insert 12, then 9, then 17. Key 17 lands in bucket 2 with 12, so the keys collide. Compare chaining with linear probing. Then look up 17: the search jumps straight to bucket 2 and skips the other buckets.",
+  "aha": {
+   "stateId": "lookup-17",
+   "observation": "Looking up 17 recomputes h(17) = 2 and checks only bucket 2 (and bucket 3 with probing). Two comparisons find the key without scanning the whole table."
+  },
+  "layout": {
+   "preset": "stepper-array",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "progress",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step (Previous / Next)",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "strategy",
+    "kind": "select",
+    "label": "Collision strategy",
+    "options": [
+     "Chaining",
+     "Linear probing"
+    ],
+    "default": 0,
+    "presentation": "Switches variant; same keys and states, different collision handling"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step and Chaining"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Chaining",
+     "links": [
+      {
+       "from": "key",
+       "to": "hash",
+       "label": "key in"
+      },
+      {
+       "from": "hash",
+       "to": "b2",
+       "label": "index out"
+      }
+     ],
+     "regions": [
+      {
+       "id": "key",
+       "kind": "input",
+       "label": "Key",
+       "values": [
+        "—",
+        "12",
+        "9",
+        "17",
+        "17",
+        "17"
+       ]
+      },
+      {
+       "id": "hash",
+       "kind": "function",
+       "label": "h(k) = k mod 5",
+       "values": [
+        "—",
+        "2",
+        "4",
+        "2",
+        "2",
+        "2"
+       ]
+      },
+      {
+       "id": "b0",
+       "kind": "cell",
+       "label": "Bucket 0",
+       "values": [
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "empty"
+       ]
+      },
+      {
+       "id": "b1",
+       "kind": "cell",
+       "label": "Bucket 1",
+       "values": [
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "empty"
+       ]
+      },
+      {
+       "id": "b2",
+       "kind": "cell",
+       "label": "Bucket 2",
+       "values": [
+        "empty",
+        "12",
+        "12",
+        "12",
+        "12 → 17",
+        "12 → 17"
+       ]
+      },
+      {
+       "id": "b3",
+       "kind": "cell",
+       "label": "Bucket 3",
+       "values": [
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "empty"
+       ]
+      },
+      {
+       "id": "b4",
+       "kind": "cell",
+       "label": "Bucket 4",
+       "values": [
+        "empty",
+        "empty",
+        "9",
+        "9",
+        "9",
+        "9"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "empty",
+       "label": "Empty table",
+       "short": "Start",
+       "sentence": "The table starts as five empty buckets, numbered 0 to 4.",
+       "why": "The bucket number is the array index, so reaching any bucket takes one step.",
+       "active": [
+        "b0",
+        "b1",
+        "b2",
+        "b3",
+        "b4"
+       ],
+       "calloutRegion": "hash",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "—"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "—"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "0"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.0"
+        }
+       ]
+      },
+      {
+       "id": "insert-12",
+       "label": "Insert 12",
+       "short": "12",
+       "sentence": "h(12) = 2, so key 12 goes straight into bucket 2.",
+       "why": "The hash computes the location, so the insert never searches for a slot.",
+       "active": [
+        "key",
+        "hash",
+        "b2"
+       ],
+       "calloutRegion": "b2",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "12"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "2"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "0"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.2"
+        }
+       ]
+      },
+      {
+       "id": "insert-9",
+       "label": "Insert 9",
+       "short": "9",
+       "sentence": "h(9) = 4, so key 9 goes into bucket 4.",
+       "why": "Different keys usually hash to different buckets, which spreads keys across the table.",
+       "active": [
+        "key",
+        "hash",
+        "b4"
+       ],
+       "calloutRegion": "b4",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "9"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "4"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "0"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.4"
+        }
+       ]
+      },
+      {
+       "id": "collide-17",
+       "label": "Collision",
+       "short": "17 hits 2",
+       "sentence": "h(17) = 2, but bucket 2 already holds 12. This is a collision.",
+       "why": "Many keys map to only five buckets, so two keys can get the same index.",
+       "active": [
+        "key",
+        "hash",
+        "b2"
+       ],
+       "calloutRegion": "b2",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "17"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "2"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "1"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.4"
+        }
+       ]
+      },
+      {
+       "id": "resolve-17",
+       "label": "Chain 17",
+       "short": "Chain",
+       "sentence": "Chaining adds 17 to a list in bucket 2, after 12.",
+       "why": "Each key stays in its home bucket, so h(k) still gives its location.",
+       "active": [
+        "b2"
+       ],
+       "calloutRegion": "b2",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "17"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "2"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "1"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.6"
+        }
+       ]
+      },
+      {
+       "id": "lookup-17",
+       "label": "Look up 17",
+       "short": "Find",
+       "sentence": "Looking up 17 recomputes h(17) = 2 and checks only bucket 2: 12, then 17.",
+       "why": "The work depends on the bucket's contents, not the table size. Buckets 0, 1, 3 and 4 are never checked.",
+       "active": [
+        "key",
+        "hash",
+        "b2"
+       ],
+       "calloutRegion": "b2",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "17"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "2"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "2"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.6"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Linear probing",
+     "links": [
+      {
+       "from": "key",
+       "to": "hash",
+       "label": "key in"
+      },
+      {
+       "from": "hash",
+       "to": "b2",
+       "label": "index out"
+      },
+      {
+       "from": "b2",
+       "to": "b3",
+       "label": "probe +1"
+      }
+     ],
+     "regions": [
+      {
+       "id": "key",
+       "kind": "input",
+       "label": "Key",
+       "values": [
+        "—",
+        "12",
+        "9",
+        "17",
+        "17",
+        "17"
+       ]
+      },
+      {
+       "id": "hash",
+       "kind": "function",
+       "label": "h(k) = k mod 5",
+       "values": [
+        "—",
+        "2",
+        "4",
+        "2",
+        "2",
+        "2"
+       ]
+      },
+      {
+       "id": "b0",
+       "kind": "cell",
+       "label": "Bucket 0",
+       "values": [
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "empty"
+       ]
+      },
+      {
+       "id": "b1",
+       "kind": "cell",
+       "label": "Bucket 1",
+       "values": [
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "empty"
+       ]
+      },
+      {
+       "id": "b2",
+       "kind": "cell",
+       "label": "Bucket 2",
+       "values": [
+        "empty",
+        "12",
+        "12",
+        "12",
+        "12",
+        "12"
+       ]
+      },
+      {
+       "id": "b3",
+       "kind": "cell",
+       "label": "Bucket 3",
+       "values": [
+        "empty",
+        "empty",
+        "empty",
+        "empty",
+        "17",
+        "17"
+       ]
+      },
+      {
+       "id": "b4",
+       "kind": "cell",
+       "label": "Bucket 4",
+       "values": [
+        "empty",
+        "empty",
+        "9",
+        "9",
+        "9",
+        "9"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "empty",
+       "label": "Empty table",
+       "short": "Start",
+       "sentence": "The table starts as five empty buckets, numbered 0 to 4.",
+       "why": "The bucket number is the array index, so reaching any bucket takes one step.",
+       "active": [
+        "b0",
+        "b1",
+        "b2",
+        "b3",
+        "b4"
+       ],
+       "calloutRegion": "hash",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "—"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "—"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "0"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.0"
+        }
+       ]
+      },
+      {
+       "id": "insert-12",
+       "label": "Insert 12",
+       "short": "12",
+       "sentence": "h(12) = 2, so key 12 goes straight into bucket 2.",
+       "why": "The hash computes the location, so the insert never searches for a slot.",
+       "active": [
+        "key",
+        "hash",
+        "b2"
+       ],
+       "calloutRegion": "b2",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "12"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "2"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "0"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.2"
+        }
+       ]
+      },
+      {
+       "id": "insert-9",
+       "label": "Insert 9",
+       "short": "9",
+       "sentence": "h(9) = 4, so key 9 goes into bucket 4.",
+       "why": "Different keys usually hash to different buckets, which spreads keys across the table.",
+       "active": [
+        "key",
+        "hash",
+        "b4"
+       ],
+       "calloutRegion": "b4",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "9"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "4"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "0"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.4"
+        }
+       ]
+      },
+      {
+       "id": "collide-17",
+       "label": "Collision",
+       "short": "17 hits 2",
+       "sentence": "h(17) = 2, but bucket 2 already holds 12. This is a collision.",
+       "why": "Many keys map to only five buckets, so two keys can get the same index.",
+       "active": [
+        "key",
+        "hash",
+        "b2"
+       ],
+       "calloutRegion": "b2",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "17"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "2"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "1"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.4"
+        }
+       ]
+      },
+      {
+       "id": "resolve-17",
+       "label": "Probe to 3",
+       "short": "Probe",
+       "sentence": "Linear probing finds bucket 2 full, steps to bucket 3, and stores 17 there.",
+       "why": "Each key sits at h(k) or the next open bucket after it, so searches always start at h(k).",
+       "active": [
+        "b2",
+        "b3"
+       ],
+       "calloutRegion": "b3",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "17"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "2"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "1"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.6"
+        }
+       ]
+      },
+      {
+       "id": "lookup-17",
+       "label": "Look up 17",
+       "short": "Find",
+       "sentence": "Looking up 17 recomputes h(17) = 2, finds 12, probes bucket 3, and finds 17.",
+       "why": "The search starts at the hashed index and stops after two comparisons. Buckets 0, 1 and 4 are never checked.",
+       "active": [
+        "key",
+        "hash",
+        "b2",
+        "b3"
+       ],
+       "calloutRegion": "b3",
+       "readouts": [
+        {
+         "id": "k",
+         "label": "Key",
+         "value": "17"
+        },
+        {
+         "id": "h",
+         "label": "h(k) = k mod 5",
+         "value": "2"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons",
+         "value": "2"
+        },
+        {
+         "id": "lf",
+         "label": "Load factor (n / 5)",
+         "value": "0.6"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3067,
+  "output": 5488
+ },
+ "usd": 0.122028,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The question is how a lookup finds a key without scanning the table. The key, hash function and bucket regions with their links show that the search goes directly to bucket 2."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The stepper is index-driven, and the final state (lookup-17) holds the aha with the key, hash and bucket 2 (plus bucket 3 when probing) active until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The collision-strategy select changes bucket contents, the active regions, the links (a probe +1 link appears) and the lookup path, while the step control changes every state."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callouts, readouts, highlights and ghost bind to declared fields (state.calloutRegion, state.sentence, state.readouts, state.active, previous.active), and every calloutRegion is a declared region."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels and region labels all use the same names (keys 12, 9 and 17; buckets 2, 3 and 4; chaining and probing), and the control labels match the variant names."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At balanced depth, each step has a small active region set and a single comparison between the two strategies. The readouts are four compact values and nothing extra is added."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The hashes are correct (12 mod 5 = 2, 9 mod 5 = 4, 17 mod 5 = 2) and the load factors are correct (0.2, 0.4, 0.6). Callouts locate while readouts quantify; the sentences repeat some values, but they do so as narrative rather than as a competing readout."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018538
+ }
+}

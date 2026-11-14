@@ -1,0 +1,449 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a04",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does RLHF work?",
+ "ts": "2026-11-14T22:21:42.230Z",
+ "ms": 32069,
+ "raw": "{\"story\":\"A language model answers a prompt twice. A human picks the better answer. A reward model learns to copy that choice. The reward model then scores each new answer, so no human is needed for each one. Reinforcement learning shifts the model toward high-scoring answers, and a KL leash keeps it close to its starting behavior.\",\"aha\":{\"stateId\":\"rm-scores\",\"observation\":\"The reward model, trained on human comparisons, now scores every new answer itself, standing in for the human at scale.\"},\"layout\":{\"preset\":\"pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top row of step names; the active step is highlighted, and earlier steps are marked done.\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Left-to-right pipeline: Prompt → Policy → Answers → Human / Reward model → PPO update, with a loop back to Policy.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.short\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the active region; says where the action is, with no numbers.\"},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Right-side panel; the only place numbers appear.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons that keep their names when disabled at the ends; arrow keys work; focus is visible.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step\",\"presentation\":\"Returns to step 1. Parameter-control budget at brief depth: 0.\"}],\"data\":{\"variants\":[{\"label\":\"RLHF pipeline (illustrative scores, unitless)\",\"regions\":[{\"id\":\"prompt\",\"kind\":\"input\",\"label\":\"Prompt\",\"values\":[\"Explain gravity to a child\"]},{\"id\":\"policy\",\"kind\":\"model\",\"label\":\"Language model (policy)\",\"phases\":[\"pretrained\",\"fine-tuned on demos\",\"RL-tuned\"]},{\"id\":\"answers\",\"kind\":\"data\",\"label\":\"Answers A and B\",\"values\":[\"A: simple ball-drop analogy\",\"B: dense jargon\"]},{\"id\":\"human\",\"kind\":\"actor\",\"label\":\"Human labeler\",\"actors\":[\"labeler\"]},{\"id\":\"reward\",\"kind\":\"model\",\"label\":\"Reward model\",\"values\":[\"preference score\"]},{\"id\":\"update\",\"kind\":\"step\",\"label\":\"PPO update\",\"values\":[\"raise odds of high-reward answers\"]},{\"id\":\"kl\",\"kind\":\"constraint\",\"label\":\"KL leash to fine-tuned model\",\"values\":[\"penalty for drifting\"]}],\"links\":[{\"from\":\"prompt\",\"to\":\"policy\",\"label\":\"input\"},{\"from\":\"policy\",\"to\":\"answers\",\"label\":\"sample\"},{\"from\":\"answers\",\"to\":\"human\",\"label\":\"compare\"},{\"from\":\"human\",\"to\":\"reward\",\"label\":\"train on choice\"},{\"from\":\"answers\",\"to\":\"reward\",\"label\":\"score\"},{\"from\":\"reward\",\"to\":\"update\",\"label\":\"reward\"},{\"from\":\"kl\",\"to\":\"update\",\"label\":\"penalty\"},{\"from\":\"update\",\"to\":\"policy\",\"label\":\"adjust weights\"}],\"states\":[{\"id\":\"demos\",\"label\":\"1 Fine-tune on demos\",\"short\":\"Learn from examples\",\"active\":[\"policy\"],\"calloutRegion\":\"policy\",\"sentence\":\"First, the pretrained model is fine-tuned on answers written by humans, so it learns how a helpful answer looks.\",\"why\":\"RL needs a reasonable starting model.\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Policy phase\",\"value\":\"fine-tuned on demos\"},{\"id\":\"cmp\",\"label\":\"Human comparisons\",\"value\":\"0\"},{\"id\":\"ra\",\"label\":\"Reward A\",\"value\":\"—\"},{\"id\":\"rb\",\"label\":\"Reward B\",\"value\":\"—\"}]},{\"id\":\"sample\",\"label\":\"2 Sample two answers\",\"short\":\"Two answers to one prompt\",\"active\":[\"prompt\",\"policy\",\"answers\"],\"calloutRegion\":\"answers\",\"sentence\":\"The model answers the same prompt twice, giving two different candidate answers.\",\"why\":\"People compare two answers more reliably than they score one.\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Policy phase\",\"value\":\"fine-tuned on demos\"},{\"id\":\"cmp\",\"label\":\"Human comparisons\",\"value\":\"0\"},{\"id\":\"ra\",\"label\":\"Reward A\",\"value\":\"—\"},{\"id\":\"rb\",\"label\":\"Reward B\",\"value\":\"—\"}]},{\"id\":\"prefer\",\"label\":\"3 Human picks\",\"short\":\"Human prefers A\",\"active\":[\"answers\",\"human\"],\"calloutRegion\":\"human\",\"sentence\":\"A human labeler marks answer A as better than answer B.\",\"why\":\"This is the only place human judgment enters.\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Policy phase\",\"value\":\"fine-tuned on demos\"},{\"id\":\"cmp\",\"label\":\"Human comparisons\",\"value\":\"1 (A > B)\"},{\"id\":\"ra\",\"label\":\"Reward A\",\"value\":\"—\"},{\"id\":\"rb\",\"label\":\"Reward B\",\"value\":\"—\"}]},{\"id\":\"train-rm\",\"label\":\"4 Train reward model\",\"short\":\"Learns to copy the choice\",\"active\":[\"human\",\"reward\"],\"calloutRegion\":\"reward\",\"sentence\":\"After many human comparisons, the reward model learns to score preferred answers higher.\",\"why\":\"It turns comparisons into a score for any answer.\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Policy phase\",\"value\":\"fine-tuned on demos\"},{\"id\":\"cmp\",\"label\":\"Human comparisons\",\"value\":\"many (A > B style)\"},{\"id\":\"ra\",\"label\":\"Reward A\",\"value\":\"+1.8\"},{\"id\":\"rb\",\"label\":\"Reward B\",\"value\":\"−0.6\"}]},{\"id\":\"rm-scores\",\"label\":\"5 Reward model scores\",\"short\":\"No human needed here\",\"active\":[\"policy\",\"answers\",\"reward\"],\"calloutRegion\":\"reward\",\"sentence\":\"For new answers, the reward model gives the score itself. The human is no longer needed for each answer.\",\"why\":\"This lets feedback scale to millions of answers.\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Policy phase\",\"value\":\"generating new answers\"},{\"id\":\"cmp\",\"label\":\"Human comparisons\",\"value\":\"none for these answers\"},{\"id\":\"ra\",\"label\":\"Reward A\",\"value\":\"+1.8\"},{\"id\":\"rb\",\"label\":\"Reward B\",\"value\":\"−0.6\"}]},{\"id\":\"ppo\",\"label\":\"6 PPO update\",\"short\":\"Push toward high reward\",\"active\":[\"reward\",\"update\",\"kl\",\"policy\"],\"calloutRegion\":\"update\",\"sentence\":\"PPO makes high-reward answers more likely. The KL penalty stops the model from drifting far from its fine-tuned version.\",\"why\":\"Without the leash, the model could exploit flaws in the reward model.\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Policy phase\",\"value\":\"RL-tuned\"},{\"id\":\"cmp\",\"label\":\"Human comparisons\",\"value\":\"none for these answers\"},{\"id\":\"ra\",\"label\":\"Reward A\",\"value\":\"+1.8\"},{\"id\":\"rb\",\"label\":\"Reward B\",\"value\":\"−0.6\"}]}]}]}}",
+ "composition": {
+  "story": "A language model answers a prompt twice. A human picks the better answer. A reward model learns to copy that choice. The reward model then scores each new answer, so no human is needed for each one. Reinforcement learning shifts the model toward high-scoring answers, and a KL leash keeps it close to its starting behavior.",
+  "aha": {
+   "stateId": "rm-scores",
+   "observation": "The reward model, trained on human comparisons, now scores every new answer itself, standing in for the human at scale."
+  },
+  "layout": {
+   "preset": "pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top row of step names; the active step is highlighted, and earlier steps are marked done."
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Left-to-right pipeline: Prompt → Policy → Answers → Human / Reward model → PPO update, with a loop back to Policy."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.short",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the active region; says where the action is, with no numbers."
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Right-side panel; the only place numbers appear."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons that keep their names when disabled at the ends; arrow keys work; focus is visible."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step",
+    "presentation": "Returns to step 1. Parameter-control budget at brief depth: 0."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "RLHF pipeline (illustrative scores, unitless)",
+     "regions": [
+      {
+       "id": "prompt",
+       "kind": "input",
+       "label": "Prompt",
+       "values": [
+        "Explain gravity to a child"
+       ]
+      },
+      {
+       "id": "policy",
+       "kind": "model",
+       "label": "Language model (policy)",
+       "phases": [
+        "pretrained",
+        "fine-tuned on demos",
+        "RL-tuned"
+       ]
+      },
+      {
+       "id": "answers",
+       "kind": "data",
+       "label": "Answers A and B",
+       "values": [
+        "A: simple ball-drop analogy",
+        "B: dense jargon"
+       ]
+      },
+      {
+       "id": "human",
+       "kind": "actor",
+       "label": "Human labeler",
+       "actors": [
+        "labeler"
+       ]
+      },
+      {
+       "id": "reward",
+       "kind": "model",
+       "label": "Reward model",
+       "values": [
+        "preference score"
+       ]
+      },
+      {
+       "id": "update",
+       "kind": "step",
+       "label": "PPO update",
+       "values": [
+        "raise odds of high-reward answers"
+       ]
+      },
+      {
+       "id": "kl",
+       "kind": "constraint",
+       "label": "KL leash to fine-tuned model",
+       "values": [
+        "penalty for drifting"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "prompt",
+       "to": "policy",
+       "label": "input"
+      },
+      {
+       "from": "policy",
+       "to": "answers",
+       "label": "sample"
+      },
+      {
+       "from": "answers",
+       "to": "human",
+       "label": "compare"
+      },
+      {
+       "from": "human",
+       "to": "reward",
+       "label": "train on choice"
+      },
+      {
+       "from": "answers",
+       "to": "reward",
+       "label": "score"
+      },
+      {
+       "from": "reward",
+       "to": "update",
+       "label": "reward"
+      },
+      {
+       "from": "kl",
+       "to": "update",
+       "label": "penalty"
+      },
+      {
+       "from": "update",
+       "to": "policy",
+       "label": "adjust weights"
+      }
+     ],
+     "states": [
+      {
+       "id": "demos",
+       "label": "1 Fine-tune on demos",
+       "short": "Learn from examples",
+       "active": [
+        "policy"
+       ],
+       "calloutRegion": "policy",
+       "sentence": "First, the pretrained model is fine-tuned on answers written by humans, so it learns how a helpful answer looks.",
+       "why": "RL needs a reasonable starting model.",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Policy phase",
+         "value": "fine-tuned on demos"
+        },
+        {
+         "id": "cmp",
+         "label": "Human comparisons",
+         "value": "0"
+        },
+        {
+         "id": "ra",
+         "label": "Reward A",
+         "value": "—"
+        },
+        {
+         "id": "rb",
+         "label": "Reward B",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "sample",
+       "label": "2 Sample two answers",
+       "short": "Two answers to one prompt",
+       "active": [
+        "prompt",
+        "policy",
+        "answers"
+       ],
+       "calloutRegion": "answers",
+       "sentence": "The model answers the same prompt twice, giving two different candidate answers.",
+       "why": "People compare two answers more reliably than they score one.",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Policy phase",
+         "value": "fine-tuned on demos"
+        },
+        {
+         "id": "cmp",
+         "label": "Human comparisons",
+         "value": "0"
+        },
+        {
+         "id": "ra",
+         "label": "Reward A",
+         "value": "—"
+        },
+        {
+         "id": "rb",
+         "label": "Reward B",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "prefer",
+       "label": "3 Human picks",
+       "short": "Human prefers A",
+       "active": [
+        "answers",
+        "human"
+       ],
+       "calloutRegion": "human",
+       "sentence": "A human labeler marks answer A as better than answer B.",
+       "why": "This is the only place human judgment enters.",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Policy phase",
+         "value": "fine-tuned on demos"
+        },
+        {
+         "id": "cmp",
+         "label": "Human comparisons",
+         "value": "1 (A > B)"
+        },
+        {
+         "id": "ra",
+         "label": "Reward A",
+         "value": "—"
+        },
+        {
+         "id": "rb",
+         "label": "Reward B",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "train-rm",
+       "label": "4 Train reward model",
+       "short": "Learns to copy the choice",
+       "active": [
+        "human",
+        "reward"
+       ],
+       "calloutRegion": "reward",
+       "sentence": "After many human comparisons, the reward model learns to score preferred answers higher.",
+       "why": "It turns comparisons into a score for any answer.",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Policy phase",
+         "value": "fine-tuned on demos"
+        },
+        {
+         "id": "cmp",
+         "label": "Human comparisons",
+         "value": "many (A > B style)"
+        },
+        {
+         "id": "ra",
+         "label": "Reward A",
+         "value": "+1.8"
+        },
+        {
+         "id": "rb",
+         "label": "Reward B",
+         "value": "−0.6"
+        }
+       ]
+      },
+      {
+       "id": "rm-scores",
+       "label": "5 Reward model scores",
+       "short": "No human needed here",
+       "active": [
+        "policy",
+        "answers",
+        "reward"
+       ],
+       "calloutRegion": "reward",
+       "sentence": "For new answers, the reward model gives the score itself. The human is no longer needed for each answer.",
+       "why": "This lets feedback scale to millions of answers.",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Policy phase",
+         "value": "generating new answers"
+        },
+        {
+         "id": "cmp",
+         "label": "Human comparisons",
+         "value": "none for these answers"
+        },
+        {
+         "id": "ra",
+         "label": "Reward A",
+         "value": "+1.8"
+        },
+        {
+         "id": "rb",
+         "label": "Reward B",
+         "value": "−0.6"
+        }
+       ]
+      },
+      {
+       "id": "ppo",
+       "label": "6 PPO update",
+       "short": "Push toward high reward",
+       "active": [
+        "reward",
+        "update",
+        "kl",
+        "policy"
+       ],
+       "calloutRegion": "update",
+       "sentence": "PPO makes high-reward answers more likely. The KL penalty stops the model from drifting far from its fine-tuned version.",
+       "why": "Without the leash, the model could exploit flaws in the reward model.",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Policy phase",
+         "value": "RL-tuned"
+        },
+        {
+         "id": "cmp",
+         "label": "Human comparisons",
+         "value": "none for these answers"
+        },
+        {
+         "id": "ra",
+         "label": "Reward A",
+         "value": "+1.8"
+        },
+        {
+         "id": "rb",
+         "label": "Reward B",
+         "value": "−0.6"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3066,
+  "output": 3691
+ },
+ "usd": 0.086084,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed pipeline picture, with its links from answers to human, human to reward, and reward to update, answers the question of how a reward model replaces per-answer human feedback."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state rm-scores is step 5 of 6, and the learner can step straight past it. The step control is a plain index with no hold mechanism, and the story continues to the PPO update, so the card does not stay at the aha."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "This is a brief-depth scene with a parameter budget of 0, so the only input is the step index. Each step changes the active regions, the callout and the readouts, which justifies the fixed comparison."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail binds to variant.states, the highlights and links to regions, links and state.active, the callout to calloutRegion, short and why, and the readouts to state.readouts. All of these are declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "Region labels, state sentences, step names and callouts consistently refer to the same objects: policy, answers A and B, human labeler, reward model and PPO update. The Previous/Next controls match the step names."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth each step lights only two to four regions in a single left-to-right pipeline, with four readouts and one callout. This adds mechanism without clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The readouts are placed once and consistent, but the callout text duplicates the state.short phrase in the step label. In step 6 the Reward A/B readouts still show +1.8/−0.6 and the comparisons readout stays 'none for these answers', which is stale context. The scores are illustrative and not indepe"
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.015402
+ }
+}

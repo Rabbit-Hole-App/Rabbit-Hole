@@ -1,0 +1,893 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a26",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does cross-validation detect overfitting?",
+ "ts": "2026-11-14T22:33:10.396Z",
+ "ms": 58989,
+ "raw": "{\"story\":\"One hundred points are split into five folds. Each fold takes one turn as unseen validation data while the model trains on the other four. A degree-12 model scores well on the points it trained on but badly on the held-out folds. A degree-2 model scores about the same on both. That gap between training and validation error is the sign of overfitting.\",\"aha\":{\"stateId\":\"verdict\",\"observation\":\"Degree-12: training MSE 0.20 vs cross-validated MSE 2.75, gap 2.55. Degree-2 gap is only 0.13. A large held-out gap reveals overfitting.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step (Previous / Next)\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"model\",\"kind\":\"select\",\"label\":\"Model complexity\",\"options\":[\"Simple (degree 2)\",\"Complex (degree 12)\"],\"default\":1},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step and complex model\"}],\"data\":{\"variants\":[{\"label\":\"Simple (degree 2)\",\"regions\":[{\"id\":\"fold-1\",\"label\":\"Fold 1 (20 pts)\",\"kind\":\"cell\",\"values\":[\"train\",\"validate\"]},{\"id\":\"fold-2\",\"label\":\"Fold 2 (20 pts)\",\"kind\":\"cell\",\"values\":[\"train\",\"validate\"]},{\"id\":\"fold-3\",\"label\":\"Fold 3 (20 pts)\",\"kind\":\"cell\",\"values\":[\"train\",\"validate\"]},{\"id\":\"fold-4\",\"label\":\"Fold 4 (20 pts)\",\"kind\":\"cell\",\"values\":[\"train\",\"validate\"]},{\"id\":\"fold-5\",\"label\":\"Fold 5 (20 pts)\",\"kind\":\"cell\",\"values\":[\"train\",\"validate\"]},{\"id\":\"model\",\"label\":\"Degree-2 polynomial\",\"kind\":\"actor\",\"actors\":[\"model\"]},{\"id\":\"train-score\",\"label\":\"Training error\",\"kind\":\"meter\",\"values\":[\"MSE\"]},{\"id\":\"val-score\",\"label\":\"Validation error\",\"kind\":\"meter\",\"values\":[\"MSE\"]}],\"links\":[{\"from\":\"fold-1\",\"to\":\"model\",\"label\":\"fit on 4 folds\"},{\"from\":\"model\",\"to\":\"train-score\",\"label\":\"score seen data\"},{\"from\":\"model\",\"to\":\"val-score\",\"label\":\"score held-out fold\"}],\"states\":[{\"id\":\"split\",\"label\":\"Split\",\"short\":\"Split\",\"sentence\":\"Split 100 points into five folds of 20; each point belongs to exactly one fold.\",\"why\":\"Each point is used for validation exactly once.\",\"active\":[\"fold-1\",\"fold-2\",\"fold-3\",\"fold-4\",\"fold-5\"],\"calloutRegion\":\"fold-1\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"none yet\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"—\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"—\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"—\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"—\"}]},{\"id\":\"fold1\",\"label\":\"Hold out fold 1\",\"short\":\"F1\",\"sentence\":\"Fit on folds 2–5, then score fold 1, which the model never saw.\",\"why\":\"The held-out fold acts like new data.\",\"active\":[\"fold-1\",\"model\",\"val-score\"],\"calloutRegion\":\"fold-1\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"1 of 5\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"1.10\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"1.20\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"0.10\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"1.20\"}]},{\"id\":\"fold2\",\"label\":\"Hold out fold 2\",\"short\":\"F2\",\"sentence\":\"Retrain from scratch on folds 1, 3–5; score fold 2.\",\"why\":\"Each fold gets a fresh model, so no fold leaks into its own test.\",\"active\":[\"fold-2\",\"model\",\"val-score\"],\"calloutRegion\":\"fold-2\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"2 of 5\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"1.05\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"1.25\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"0.20\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"1.23\"}]},{\"id\":\"fold3\",\"label\":\"Hold out fold 3\",\"short\":\"F3\",\"sentence\":\"Retrain on folds 1–2, 4–5; score fold 3.\",\"why\":\"Validation error stays close to training error.\",\"active\":[\"fold-3\",\"model\",\"val-score\"],\"calloutRegion\":\"fold-3\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"3 of 5\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"1.12\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"1.18\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"0.06\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"1.21\"}]},{\"id\":\"fold4\",\"label\":\"Hold out fold 4\",\"short\":\"F4\",\"sentence\":\"Retrain on folds 1–3 and 5; score fold 4.\",\"why\":\"Small gaps on every fold mean the fit is consistent.\",\"active\":[\"fold-4\",\"model\",\"val-score\"],\"calloutRegion\":\"fold-4\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"4 of 5\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"1.08\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"1.30\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"0.22\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"1.23\"}]},{\"id\":\"fold5\",\"label\":\"Hold out fold 5\",\"short\":\"F5\",\"sentence\":\"Retrain on folds 1–4; score fold 5, the last unseen fold.\",\"why\":\"After this, every point has been validated once.\",\"active\":[\"fold-5\",\"model\",\"val-score\"],\"calloutRegion\":\"fold-5\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"5 of 5\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"1.15\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"1.22\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"0.07\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"1.23\"}]},{\"id\":\"verdict\",\"label\":\"Compare averages\",\"short\":\"Verdict\",\"sentence\":\"Mean training MSE 1.10 and cross-validated MSE 1.23 nearly match, so this model generalizes.\",\"why\":\"Overfitting would show as validation error far above training error.\",\"active\":[\"train-score\",\"val-score\"],\"calloutRegion\":\"val-score\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"all 5 averaged\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"1.10 (mean)\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"1.23 (mean)\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"0.13\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"1.23\"}]}]},{\"label\":\"Complex (degree 12)\",\"regions\":[{\"id\":\"fold-1\",\"label\":\"Fold 1 (20 pts)\",\"kind\":\"cell\",\"values\":[\"train\",\"validate\"]},{\"id\":\"fold-2\",\"label\":\"Fold 2 (20 pts)\",\"kind\":\"cell\",\"values\":[\"train\",\"validate\"]},{\"id\":\"fold-3\",\"label\":\"Fold 3 (20 pts)\",\"kind\":\"cell\",\"values\":[\"train\",\"validate\"]},{\"id\":\"fold-4\",\"label\":\"Fold 4 (20 pts)\",\"kind\":\"cell\",\"values\":[\"train\",\"validate\"]},{\"id\":\"fold-5\",\"label\":\"Fold 5 (20 pts)\",\"kind\":\"cell\",\"values\":[\"train\",\"validate\"]},{\"id\":\"model\",\"label\":\"Degree-12 polynomial\",\"kind\":\"actor\",\"actors\":[\"model\"]},{\"id\":\"train-score\",\"label\":\"Training error\",\"kind\":\"meter\",\"values\":[\"MSE\"]},{\"id\":\"val-score\",\"label\":\"Validation error\",\"kind\":\"meter\",\"values\":[\"MSE\"]}],\"links\":[{\"from\":\"fold-1\",\"to\":\"model\",\"label\":\"fit on 4 folds\"},{\"from\":\"model\",\"to\":\"train-score\",\"label\":\"score seen data\"},{\"from\":\"model\",\"to\":\"val-score\",\"label\":\"score held-out fold\"}],\"states\":[{\"id\":\"split\",\"label\":\"Split\",\"short\":\"Split\",\"sentence\":\"Split 100 points into five folds of 20; each point belongs to exactly one fold.\",\"why\":\"Each point is used for validation exactly once.\",\"active\":[\"fold-1\",\"fold-2\",\"fold-3\",\"fold-4\",\"fold-5\"],\"calloutRegion\":\"fold-1\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"none yet\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"—\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"—\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"—\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"—\"}]},{\"id\":\"fold1\",\"label\":\"Hold out fold 1\",\"short\":\"F1\",\"sentence\":\"Fit on folds 2–5, then score fold 1, which the model never saw.\",\"why\":\"Low training error comes from fitting noise in seen points.\",\"active\":[\"fold-1\",\"model\",\"val-score\"],\"calloutRegion\":\"fold-1\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"1 of 5\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"0.20\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"2.40\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"2.20\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"2.40\"}]},{\"id\":\"fold2\",\"label\":\"Hold out fold 2\",\"short\":\"F2\",\"sentence\":\"Retrain from scratch on folds 1, 3–5; score fold 2.\",\"why\":\"The large gap appears again with a different held-out fold.\",\"active\":[\"fold-2\",\"model\",\"val-score\"],\"calloutRegion\":\"fold-2\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"2 of 5\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"0.18\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"3.10\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"2.92\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"2.75\"}]},{\"id\":\"fold3\",\"label\":\"Hold out fold 3\",\"short\":\"F3\",\"sentence\":\"Retrain on folds 1–2, 4–5; score fold 3.\",\"why\":\"A gap on every fold means it is not just one unlucky split.\",\"active\":[\"fold-3\",\"model\",\"val-score\"],\"calloutRegion\":\"fold-3\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"3 of 5\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"0.22\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"2.70\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"2.48\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"2.73\"}]},{\"id\":\"fold4\",\"label\":\"Hold out fold 4\",\"short\":\"F4\",\"sentence\":\"Retrain on folds 1–3 and 5; score fold 4.\",\"why\":\"The model's wiggles match its training points, not new points.\",\"active\":[\"fold-4\",\"model\",\"val-score\"],\"calloutRegion\":\"fold-4\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"4 of 5\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"0.19\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"2.95\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"2.76\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"2.79\"}]},{\"id\":\"fold5\",\"label\":\"Hold out fold 5\",\"short\":\"F5\",\"sentence\":\"Retrain on folds 1–4; score fold 5, the last unseen fold.\",\"why\":\"After this, every point has been validated once.\",\"active\":[\"fold-5\",\"model\",\"val-score\"],\"calloutRegion\":\"fold-5\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"5 of 5\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"0.21\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"2.60\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"2.39\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"2.75\"}]},{\"id\":\"verdict\",\"label\":\"Compare averages\",\"short\":\"Verdict\",\"sentence\":\"Mean training MSE is 0.20 but cross-validated MSE is 2.75: the model memorized noise and overfits.\",\"why\":\"Only held-out scores expose this; training error alone looks excellent.\",\"active\":[\"train-score\",\"val-score\"],\"calloutRegion\":\"val-score\",\"readouts\":[{\"id\":\"held\",\"label\":\"Held-out fold\",\"value\":\"all 5 averaged\"},{\"id\":\"train\",\"label\":\"Training MSE\",\"value\":\"0.20 (mean)\"},{\"id\":\"val\",\"label\":\"Validation MSE\",\"value\":\"2.75 (mean)\"},{\"id\":\"gap\",\"label\":\"Gap (val − train)\",\"value\":\"2.55\"},{\"id\":\"cv\",\"label\":\"CV mean MSE so far\",\"value\":\"2.75\"}]}]}]}}",
+ "composition": {
+  "story": "One hundred points are split into five folds. Each fold takes one turn as unseen validation data while the model trains on the other four. A degree-12 model scores well on the points it trained on but badly on the held-out folds. A degree-2 model scores about the same on both. That gap between training and validation error is the sign of overfitting.",
+  "aha": {
+   "stateId": "verdict",
+   "observation": "Degree-12: training MSE 0.20 vs cross-validated MSE 2.75, gap 2.55. Degree-2 gap is only 0.13. A large held-out gap reveals overfitting."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step (Previous / Next)",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "model",
+    "kind": "select",
+    "label": "Model complexity",
+    "options": [
+     "Simple (degree 2)",
+     "Complex (degree 12)"
+    ],
+    "default": 1
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step and complex model"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Simple (degree 2)",
+     "regions": [
+      {
+       "id": "fold-1",
+       "label": "Fold 1 (20 pts)",
+       "kind": "cell",
+       "values": [
+        "train",
+        "validate"
+       ]
+      },
+      {
+       "id": "fold-2",
+       "label": "Fold 2 (20 pts)",
+       "kind": "cell",
+       "values": [
+        "train",
+        "validate"
+       ]
+      },
+      {
+       "id": "fold-3",
+       "label": "Fold 3 (20 pts)",
+       "kind": "cell",
+       "values": [
+        "train",
+        "validate"
+       ]
+      },
+      {
+       "id": "fold-4",
+       "label": "Fold 4 (20 pts)",
+       "kind": "cell",
+       "values": [
+        "train",
+        "validate"
+       ]
+      },
+      {
+       "id": "fold-5",
+       "label": "Fold 5 (20 pts)",
+       "kind": "cell",
+       "values": [
+        "train",
+        "validate"
+       ]
+      },
+      {
+       "id": "model",
+       "label": "Degree-2 polynomial",
+       "kind": "actor",
+       "actors": [
+        "model"
+       ]
+      },
+      {
+       "id": "train-score",
+       "label": "Training error",
+       "kind": "meter",
+       "values": [
+        "MSE"
+       ]
+      },
+      {
+       "id": "val-score",
+       "label": "Validation error",
+       "kind": "meter",
+       "values": [
+        "MSE"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "fold-1",
+       "to": "model",
+       "label": "fit on 4 folds"
+      },
+      {
+       "from": "model",
+       "to": "train-score",
+       "label": "score seen data"
+      },
+      {
+       "from": "model",
+       "to": "val-score",
+       "label": "score held-out fold"
+      }
+     ],
+     "states": [
+      {
+       "id": "split",
+       "label": "Split",
+       "short": "Split",
+       "sentence": "Split 100 points into five folds of 20; each point belongs to exactly one fold.",
+       "why": "Each point is used for validation exactly once.",
+       "active": [
+        "fold-1",
+        "fold-2",
+        "fold-3",
+        "fold-4",
+        "fold-5"
+       ],
+       "calloutRegion": "fold-1",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "none yet"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "—"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "—"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "—"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "fold1",
+       "label": "Hold out fold 1",
+       "short": "F1",
+       "sentence": "Fit on folds 2–5, then score fold 1, which the model never saw.",
+       "why": "The held-out fold acts like new data.",
+       "active": [
+        "fold-1",
+        "model",
+        "val-score"
+       ],
+       "calloutRegion": "fold-1",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "1 of 5"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "1.10"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "1.20"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "0.10"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "1.20"
+        }
+       ]
+      },
+      {
+       "id": "fold2",
+       "label": "Hold out fold 2",
+       "short": "F2",
+       "sentence": "Retrain from scratch on folds 1, 3–5; score fold 2.",
+       "why": "Each fold gets a fresh model, so no fold leaks into its own test.",
+       "active": [
+        "fold-2",
+        "model",
+        "val-score"
+       ],
+       "calloutRegion": "fold-2",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "2 of 5"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "1.05"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "1.25"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "0.20"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "1.23"
+        }
+       ]
+      },
+      {
+       "id": "fold3",
+       "label": "Hold out fold 3",
+       "short": "F3",
+       "sentence": "Retrain on folds 1–2, 4–5; score fold 3.",
+       "why": "Validation error stays close to training error.",
+       "active": [
+        "fold-3",
+        "model",
+        "val-score"
+       ],
+       "calloutRegion": "fold-3",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "3 of 5"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "1.12"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "1.18"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "0.06"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "1.21"
+        }
+       ]
+      },
+      {
+       "id": "fold4",
+       "label": "Hold out fold 4",
+       "short": "F4",
+       "sentence": "Retrain on folds 1–3 and 5; score fold 4.",
+       "why": "Small gaps on every fold mean the fit is consistent.",
+       "active": [
+        "fold-4",
+        "model",
+        "val-score"
+       ],
+       "calloutRegion": "fold-4",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "4 of 5"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "1.08"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "1.30"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "0.22"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "1.23"
+        }
+       ]
+      },
+      {
+       "id": "fold5",
+       "label": "Hold out fold 5",
+       "short": "F5",
+       "sentence": "Retrain on folds 1–4; score fold 5, the last unseen fold.",
+       "why": "After this, every point has been validated once.",
+       "active": [
+        "fold-5",
+        "model",
+        "val-score"
+       ],
+       "calloutRegion": "fold-5",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "5 of 5"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "1.15"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "1.22"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "0.07"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "1.23"
+        }
+       ]
+      },
+      {
+       "id": "verdict",
+       "label": "Compare averages",
+       "short": "Verdict",
+       "sentence": "Mean training MSE 1.10 and cross-validated MSE 1.23 nearly match, so this model generalizes.",
+       "why": "Overfitting would show as validation error far above training error.",
+       "active": [
+        "train-score",
+        "val-score"
+       ],
+       "calloutRegion": "val-score",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "all 5 averaged"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "1.10 (mean)"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "1.23 (mean)"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "0.13"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "1.23"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Complex (degree 12)",
+     "regions": [
+      {
+       "id": "fold-1",
+       "label": "Fold 1 (20 pts)",
+       "kind": "cell",
+       "values": [
+        "train",
+        "validate"
+       ]
+      },
+      {
+       "id": "fold-2",
+       "label": "Fold 2 (20 pts)",
+       "kind": "cell",
+       "values": [
+        "train",
+        "validate"
+       ]
+      },
+      {
+       "id": "fold-3",
+       "label": "Fold 3 (20 pts)",
+       "kind": "cell",
+       "values": [
+        "train",
+        "validate"
+       ]
+      },
+      {
+       "id": "fold-4",
+       "label": "Fold 4 (20 pts)",
+       "kind": "cell",
+       "values": [
+        "train",
+        "validate"
+       ]
+      },
+      {
+       "id": "fold-5",
+       "label": "Fold 5 (20 pts)",
+       "kind": "cell",
+       "values": [
+        "train",
+        "validate"
+       ]
+      },
+      {
+       "id": "model",
+       "label": "Degree-12 polynomial",
+       "kind": "actor",
+       "actors": [
+        "model"
+       ]
+      },
+      {
+       "id": "train-score",
+       "label": "Training error",
+       "kind": "meter",
+       "values": [
+        "MSE"
+       ]
+      },
+      {
+       "id": "val-score",
+       "label": "Validation error",
+       "kind": "meter",
+       "values": [
+        "MSE"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "fold-1",
+       "to": "model",
+       "label": "fit on 4 folds"
+      },
+      {
+       "from": "model",
+       "to": "train-score",
+       "label": "score seen data"
+      },
+      {
+       "from": "model",
+       "to": "val-score",
+       "label": "score held-out fold"
+      }
+     ],
+     "states": [
+      {
+       "id": "split",
+       "label": "Split",
+       "short": "Split",
+       "sentence": "Split 100 points into five folds of 20; each point belongs to exactly one fold.",
+       "why": "Each point is used for validation exactly once.",
+       "active": [
+        "fold-1",
+        "fold-2",
+        "fold-3",
+        "fold-4",
+        "fold-5"
+       ],
+       "calloutRegion": "fold-1",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "none yet"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "—"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "—"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "—"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "fold1",
+       "label": "Hold out fold 1",
+       "short": "F1",
+       "sentence": "Fit on folds 2–5, then score fold 1, which the model never saw.",
+       "why": "Low training error comes from fitting noise in seen points.",
+       "active": [
+        "fold-1",
+        "model",
+        "val-score"
+       ],
+       "calloutRegion": "fold-1",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "1 of 5"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "0.20"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "2.40"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "2.20"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "2.40"
+        }
+       ]
+      },
+      {
+       "id": "fold2",
+       "label": "Hold out fold 2",
+       "short": "F2",
+       "sentence": "Retrain from scratch on folds 1, 3–5; score fold 2.",
+       "why": "The large gap appears again with a different held-out fold.",
+       "active": [
+        "fold-2",
+        "model",
+        "val-score"
+       ],
+       "calloutRegion": "fold-2",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "2 of 5"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "0.18"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "3.10"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "2.92"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "2.75"
+        }
+       ]
+      },
+      {
+       "id": "fold3",
+       "label": "Hold out fold 3",
+       "short": "F3",
+       "sentence": "Retrain on folds 1–2, 4–5; score fold 3.",
+       "why": "A gap on every fold means it is not just one unlucky split.",
+       "active": [
+        "fold-3",
+        "model",
+        "val-score"
+       ],
+       "calloutRegion": "fold-3",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "3 of 5"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "0.22"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "2.70"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "2.48"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "2.73"
+        }
+       ]
+      },
+      {
+       "id": "fold4",
+       "label": "Hold out fold 4",
+       "short": "F4",
+       "sentence": "Retrain on folds 1–3 and 5; score fold 4.",
+       "why": "The model's wiggles match its training points, not new points.",
+       "active": [
+        "fold-4",
+        "model",
+        "val-score"
+       ],
+       "calloutRegion": "fold-4",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "4 of 5"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "0.19"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "2.95"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "2.76"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "2.79"
+        }
+       ]
+      },
+      {
+       "id": "fold5",
+       "label": "Hold out fold 5",
+       "short": "F5",
+       "sentence": "Retrain on folds 1–4; score fold 5, the last unseen fold.",
+       "why": "After this, every point has been validated once.",
+       "active": [
+        "fold-5",
+        "model",
+        "val-score"
+       ],
+       "calloutRegion": "fold-5",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "5 of 5"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "0.21"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "2.60"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "2.39"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "2.75"
+        }
+       ]
+      },
+      {
+       "id": "verdict",
+       "label": "Compare averages",
+       "short": "Verdict",
+       "sentence": "Mean training MSE is 0.20 but cross-validated MSE is 2.75: the model memorized noise and overfits.",
+       "why": "Only held-out scores expose this; training error alone looks excellent.",
+       "active": [
+        "train-score",
+        "val-score"
+       ],
+       "calloutRegion": "val-score",
+       "readouts": [
+        {
+         "id": "held",
+         "label": "Held-out fold",
+         "value": "all 5 averaged"
+        },
+        {
+         "id": "train",
+         "label": "Training MSE",
+         "value": "0.20 (mean)"
+        },
+        {
+         "id": "val",
+         "label": "Validation MSE",
+         "value": "2.75 (mean)"
+        },
+        {
+         "id": "gap",
+         "label": "Gap (val − train)",
+         "value": "2.55"
+        },
+        {
+         "id": "cv",
+         "label": "CV mean MSE so far",
+         "value": "2.75"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3073,
+  "output": 7411
+ },
+ "usd": 0.160512,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of five folds, the model and the train/validation meters shows how held-out scoring exposes the train-versus-validation gap, which answers the question of whether the model overfits."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The verdict state is the final step, with the callout on val-score and the gap readout of 2.55, and it stays there until the learner presses Previous or Reset."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The model select switches between degree 2 and degree 12, changing every MSE and gap (gap 0.13 versus 2.55) and the explanatory sentences."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Each state's active regions, calloutRegion, sentence, why and readouts are declared per state and refer to existing region ids."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, region labels and the model control all use the same terms (folds, held-out, training and validation MSE, degree-2/12), and the sentences match the active parts."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each fold step highlights one fold and one readout set, and the verdict adds a comparison of the two means, so detail is added without exceeding the standard comparison density."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The means (2.75, 0.20, 1.23, 1.10), the gaps and the running CV means all check out, with 2.7875 correctly rounded to 2.79, and the callouts locate the part while the readouts carry the numbers."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.025666
+ }
+}

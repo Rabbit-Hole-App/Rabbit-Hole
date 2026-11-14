@@ -1,0 +1,564 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a02",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does tokenization work?",
+ "ts": "2026-11-14T22:20:44.816Z",
+ "ms": 31754,
+ "raw": "{\"story\":\"A language model cannot read letters directly. Tokenization cuts text into pieces from a fixed vocabulary, always taking the longest piece that matches, then swaps each piece for an ID. Watch a rare word split into known pieces, then compare it with a common phrase.\",\"aha\":{\"stateId\":\"ids\",\"observation\":\"A word missing from the vocabulary is not rejected. It splits into known pieces, and each piece becomes its own ID.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons; keyboard arrows move one state; names stay visible when disabled at the ends\"},{\"id\":\"text\",\"kind\":\"select\",\"label\":\"Input text\",\"options\":[\"unhappiness\",\"the cat\"],\"default\":0,\"presentation\":\"Chooses the variant. The rare word splits into three pieces; the common phrase needs two whole-word tokens.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first state and the default input text\"}],\"data\":{\"variants\":[{\"label\":\"unhappiness\",\"regions\":[{\"id\":\"text\",\"label\":\"Input text\",\"values\":[\"unhappiness\"]},{\"id\":\"vocab\",\"label\":\"Vocabulary\",\"values\":[\"un\",\"happi\",\"ness\",\"happy\",\"the\",\" cat\"]},{\"id\":\"piece1\",\"label\":\"Piece 1\",\"values\":[\"un\"]},{\"id\":\"piece2\",\"label\":\"Piece 2\",\"values\":[\"happi\"]},{\"id\":\"piece3\",\"label\":\"Piece 3\",\"values\":[\"ness\"]},{\"id\":\"ids\",\"label\":\"Token IDs\",\"values\":[\"403\",\"7712\",\"1108\"]}],\"links\":[{\"from\":\"text\",\"to\":\"piece1\",\"label\":\"longest match\"},{\"from\":\"piece1\",\"to\":\"piece2\",\"label\":\"next\"},{\"from\":\"piece2\",\"to\":\"piece3\",\"label\":\"next\"},{\"from\":\"piece3\",\"to\":\"ids\",\"label\":\"look up ID\"}],\"states\":[{\"id\":\"raw\",\"label\":\"Raw text\",\"sentence\":\"The input is one string of 11 characters. The model needs a list of numbers instead.\",\"short\":\"Raw string\",\"why\":\"This is the starting point before any cutting.\",\"calloutRegion\":\"text\",\"active\":[\"text\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"0\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"11\"}]},{\"id\":\"vocab\",\"label\":\"Vocabulary\",\"sentence\":\"A fixed vocabulary lists every piece the tokenizer knows. The whole word is not in it.\",\"short\":\"Known pieces\",\"why\":\"Only listed pieces can become tokens.\",\"calloutRegion\":\"vocab\",\"active\":[\"vocab\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"0\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"11\"}]},{\"id\":\"m1\",\"label\":\"Match 1\",\"sentence\":\"From the start, the longest vocabulary match is the two letters un. The tokenizer cuts them off.\",\"short\":\"Cut un\",\"why\":\"Longer starts such as unh are not in the vocabulary.\",\"calloutRegion\":\"piece1\",\"active\":[\"text\",\"piece1\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"1\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"9\"}]},{\"id\":\"m2\",\"label\":\"Match 2\",\"sentence\":\"Continuing from happiness, the longest match is happi. Happy is a different spelling, so it fails.\",\"short\":\"Cut happi\",\"why\":\"Matching works on exact characters, not meaning.\",\"calloutRegion\":\"piece2\",\"active\":[\"piece2\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"2\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"4\"}]},{\"id\":\"m3\",\"label\":\"Match 3\",\"sentence\":\"The remaining four letters, ness, are one vocabulary piece. No text is left to cut.\",\"short\":\"Cut ness\",\"why\":\"The string is now fully covered by known pieces.\",\"calloutRegion\":\"piece3\",\"active\":[\"piece3\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"3\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"0\"}]},{\"id\":\"ids\",\"label\":\"Token IDs\",\"sentence\":\"Each piece is replaced by its vocabulary ID. The model receives 403, 7712 and 1108, not letters.\",\"short\":\"IDs out\",\"why\":\"A rare word became three known pieces instead of failing.\",\"calloutRegion\":\"ids\",\"active\":[\"ids\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"3\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"0\"},{\"id\":\"ratio\",\"label\":\"Characters per token\",\"value\":\"3.7\"}]}]},{\"label\":\"the cat\",\"regions\":[{\"id\":\"text\",\"label\":\"Input text\",\"values\":[\"the cat\"]},{\"id\":\"vocab\",\"label\":\"Vocabulary\",\"values\":[\"un\",\"happi\",\"ness\",\"happy\",\"the\",\" cat\"]},{\"id\":\"piece1\",\"label\":\"Piece 1\",\"values\":[\"the\"]},{\"id\":\"piece2\",\"label\":\"Piece 2\",\"values\":[\" cat\"]},{\"id\":\"ids\",\"label\":\"Token IDs\",\"values\":[\"262\",\"3797\"]}],\"links\":[{\"from\":\"text\",\"to\":\"piece1\",\"label\":\"longest match\"},{\"from\":\"piece1\",\"to\":\"piece2\",\"label\":\"next\"},{\"from\":\"piece2\",\"to\":\"ids\",\"label\":\"look up ID\"}],\"states\":[{\"id\":\"raw\",\"label\":\"Raw text\",\"sentence\":\"The input is one string of 7 characters, including the space. The model needs numbers instead.\",\"short\":\"Raw string\",\"why\":\"This is the starting point before any cutting.\",\"calloutRegion\":\"text\",\"active\":[\"text\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"0\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"7\"}]},{\"id\":\"vocab\",\"label\":\"Vocabulary\",\"sentence\":\"The same vocabulary lists known pieces. Both the and cat, with its leading space, are in it.\",\"short\":\"Known pieces\",\"why\":\"Common words are stored whole.\",\"calloutRegion\":\"vocab\",\"active\":[\"vocab\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"0\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"7\"}]},{\"id\":\"m1\",\"label\":\"Match 1\",\"sentence\":\"The longest match at the start is the whole word the. The tokenizer cuts it off.\",\"short\":\"Cut the\",\"why\":\"One piece covers the full word.\",\"calloutRegion\":\"piece1\",\"active\":[\"text\",\"piece1\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"1\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"4\"}]},{\"id\":\"m2\",\"label\":\"Match 2\",\"sentence\":\"The remaining four characters, a space and cat, match one piece. No text is left.\",\"short\":\"Cut cat\",\"why\":\"The leading space is part of the piece.\",\"calloutRegion\":\"piece2\",\"active\":[\"piece2\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"2\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"0\"}]},{\"id\":\"ids\",\"label\":\"Token IDs\",\"sentence\":\"Two pieces give IDs 262 and 3797. Common words stay whole, while rare words split into more pieces.\",\"short\":\"IDs out\",\"why\":\"Compare with unhappiness: fewer pieces, more characters per token.\",\"calloutRegion\":\"ids\",\"active\":[\"ids\"],\"readouts\":[{\"id\":\"tokens\",\"label\":\"Tokens made\",\"value\":\"2\"},{\"id\":\"left\",\"label\":\"Characters left\",\"value\":\"0\"},{\"id\":\"ratio\",\"label\":\"Characters per token\",\"value\":\"3.5\"}]}]}]}}",
+ "composition": {
+  "story": "A language model cannot read letters directly. Tokenization cuts text into pieces from a fixed vocabulary, always taking the longest piece that matches, then swaps each piece for an ID. Watch a rare word split into known pieces, then compare it with a common phrase.",
+  "aha": {
+   "stateId": "ids",
+   "observation": "A word missing from the vocabulary is not rejected. It splits into known pieces, and each piece becomes its own ID."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons; keyboard arrows move one state; names stay visible when disabled at the ends"
+   },
+   {
+    "id": "text",
+    "kind": "select",
+    "label": "Input text",
+    "options": [
+     "unhappiness",
+     "the cat"
+    ],
+    "default": 0,
+    "presentation": "Chooses the variant. The rare word splits into three pieces; the common phrase needs two whole-word tokens."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first state and the default input text"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "unhappiness",
+     "regions": [
+      {
+       "id": "text",
+       "label": "Input text",
+       "values": [
+        "unhappiness"
+       ]
+      },
+      {
+       "id": "vocab",
+       "label": "Vocabulary",
+       "values": [
+        "un",
+        "happi",
+        "ness",
+        "happy",
+        "the",
+        " cat"
+       ]
+      },
+      {
+       "id": "piece1",
+       "label": "Piece 1",
+       "values": [
+        "un"
+       ]
+      },
+      {
+       "id": "piece2",
+       "label": "Piece 2",
+       "values": [
+        "happi"
+       ]
+      },
+      {
+       "id": "piece3",
+       "label": "Piece 3",
+       "values": [
+        "ness"
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "Token IDs",
+       "values": [
+        "403",
+        "7712",
+        "1108"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "text",
+       "to": "piece1",
+       "label": "longest match"
+      },
+      {
+       "from": "piece1",
+       "to": "piece2",
+       "label": "next"
+      },
+      {
+       "from": "piece2",
+       "to": "piece3",
+       "label": "next"
+      },
+      {
+       "from": "piece3",
+       "to": "ids",
+       "label": "look up ID"
+      }
+     ],
+     "states": [
+      {
+       "id": "raw",
+       "label": "Raw text",
+       "sentence": "The input is one string of 11 characters. The model needs a list of numbers instead.",
+       "short": "Raw string",
+       "why": "This is the starting point before any cutting.",
+       "calloutRegion": "text",
+       "active": [
+        "text"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "0"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "11"
+        }
+       ]
+      },
+      {
+       "id": "vocab",
+       "label": "Vocabulary",
+       "sentence": "A fixed vocabulary lists every piece the tokenizer knows. The whole word is not in it.",
+       "short": "Known pieces",
+       "why": "Only listed pieces can become tokens.",
+       "calloutRegion": "vocab",
+       "active": [
+        "vocab"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "0"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "11"
+        }
+       ]
+      },
+      {
+       "id": "m1",
+       "label": "Match 1",
+       "sentence": "From the start, the longest vocabulary match is the two letters un. The tokenizer cuts them off.",
+       "short": "Cut un",
+       "why": "Longer starts such as unh are not in the vocabulary.",
+       "calloutRegion": "piece1",
+       "active": [
+        "text",
+        "piece1"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "1"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "9"
+        }
+       ]
+      },
+      {
+       "id": "m2",
+       "label": "Match 2",
+       "sentence": "Continuing from happiness, the longest match is happi. Happy is a different spelling, so it fails.",
+       "short": "Cut happi",
+       "why": "Matching works on exact characters, not meaning.",
+       "calloutRegion": "piece2",
+       "active": [
+        "piece2"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "2"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "m3",
+       "label": "Match 3",
+       "sentence": "The remaining four letters, ness, are one vocabulary piece. No text is left to cut.",
+       "short": "Cut ness",
+       "why": "The string is now fully covered by known pieces.",
+       "calloutRegion": "piece3",
+       "active": [
+        "piece3"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "3"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "Token IDs",
+       "sentence": "Each piece is replaced by its vocabulary ID. The model receives 403, 7712 and 1108, not letters.",
+       "short": "IDs out",
+       "why": "A rare word became three known pieces instead of failing.",
+       "calloutRegion": "ids",
+       "active": [
+        "ids"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "3"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "0"
+        },
+        {
+         "id": "ratio",
+         "label": "Characters per token",
+         "value": "3.7"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "the cat",
+     "regions": [
+      {
+       "id": "text",
+       "label": "Input text",
+       "values": [
+        "the cat"
+       ]
+      },
+      {
+       "id": "vocab",
+       "label": "Vocabulary",
+       "values": [
+        "un",
+        "happi",
+        "ness",
+        "happy",
+        "the",
+        " cat"
+       ]
+      },
+      {
+       "id": "piece1",
+       "label": "Piece 1",
+       "values": [
+        "the"
+       ]
+      },
+      {
+       "id": "piece2",
+       "label": "Piece 2",
+       "values": [
+        " cat"
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "Token IDs",
+       "values": [
+        "262",
+        "3797"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "text",
+       "to": "piece1",
+       "label": "longest match"
+      },
+      {
+       "from": "piece1",
+       "to": "piece2",
+       "label": "next"
+      },
+      {
+       "from": "piece2",
+       "to": "ids",
+       "label": "look up ID"
+      }
+     ],
+     "states": [
+      {
+       "id": "raw",
+       "label": "Raw text",
+       "sentence": "The input is one string of 7 characters, including the space. The model needs numbers instead.",
+       "short": "Raw string",
+       "why": "This is the starting point before any cutting.",
+       "calloutRegion": "text",
+       "active": [
+        "text"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "0"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "7"
+        }
+       ]
+      },
+      {
+       "id": "vocab",
+       "label": "Vocabulary",
+       "sentence": "The same vocabulary lists known pieces. Both the and cat, with its leading space, are in it.",
+       "short": "Known pieces",
+       "why": "Common words are stored whole.",
+       "calloutRegion": "vocab",
+       "active": [
+        "vocab"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "0"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "7"
+        }
+       ]
+      },
+      {
+       "id": "m1",
+       "label": "Match 1",
+       "sentence": "The longest match at the start is the whole word the. The tokenizer cuts it off.",
+       "short": "Cut the",
+       "why": "One piece covers the full word.",
+       "calloutRegion": "piece1",
+       "active": [
+        "text",
+        "piece1"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "1"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "m2",
+       "label": "Match 2",
+       "sentence": "The remaining four characters, a space and cat, match one piece. No text is left.",
+       "short": "Cut cat",
+       "why": "The leading space is part of the piece.",
+       "calloutRegion": "piece2",
+       "active": [
+        "piece2"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "2"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "Token IDs",
+       "sentence": "Two pieces give IDs 262 and 3797. Common words stay whole, while rare words split into more pieces.",
+       "short": "IDs out",
+       "why": "Compare with unhappiness: fewer pieces, more characters per token.",
+       "calloutRegion": "ids",
+       "active": [
+        "ids"
+       ],
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Tokens made",
+         "value": "2"
+        },
+        {
+         "id": "left",
+         "label": "Characters left",
+         "value": "0"
+        },
+        {
+         "id": "ratio",
+         "label": "Characters per token",
+         "value": "3.5"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3067,
+  "output": 5037
+ },
+ "usd": 0.056504,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The drawing answers how a rare word becomes IDs, using text, vocabulary, three cut pieces and the ID row linked by longest-match arrows."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The stepper is learner-driven with no timer, and the ids state (the aha) is the last state, so it holds there until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "Input text switches the variant (3 pieces vs 2), changing the pieces, IDs and ratio, and the step control changes which evidence is shown."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callout binds to state.calloutRegion, sentence and why, the ghost binds to previous.active, the readouts to state.readouts, and the links to variant.links, all declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story's longest-piece cutting and ID swap match the state names, the callout sentences and the Step/Input text controls."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each state activates one region and gives a compact readout, and the ratio appears only in the final state, which gives the cross-variant comparison without clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The character counts (11, 9, 4, 0 and 7, 4, 0) and the ratios 11/3≈3.7 and 7/2=3.5 check out, and callouts locate while the readouts quantify, with only light repetition of the starting count."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.021284
+ }
+}

@@ -1,0 +1,241 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a40",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does the call stack work during recursion?",
+ "ts": "2026-11-14T22:23:28.760Z",
+ "ms": 3374,
+ "raw": "{\n  \"story\": \"Recursive calls pile up on the call stack, allocating local variables until the base case stops the growth and unwinds.\",\n  \"aha\": {\n    \"stateId\": \"base_case\",\n    \"observation\": \"At the base case, stacking stops and execution reverses to return and pop frames.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\n        \"push_3\",\n        \"push_2\",\n        \"base_case\",\n        \"pop_2\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Recursion Stack\",\n        \"regions\": [\n          {\n            \"id\": \"frame3\",\n            \"label\": \"Frame f(3)\",\n            \"kind\": \"stack-frame\",\n            \"values\": [\"n = 3\"]\n          },\n          {\n            \"id\": \"frame2\",\n            \"label\": \"Frame f(2)\",\n            \"kind\": \"stack-frame\",\n            \"values\": [\"n = 2\"]\n          },\n          {\n            \"id\": \"frame1\",\n            \"label\": \"Frame f(1)\",\n            \"kind\": \"stack-frame\",\n            \"values\": [\"n = 1\"]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"push_3\",\n            \"label\": \"Call f(3)\",\n            \"short\": \"f(3)\",\n            \"sentence\": \"Function f(3) is called and pushed to the stack.\",\n            \"why\": \"Initial call starts the stacking process.\",\n            \"active\": [\"frame3\"],\n            \"calloutRegion\": \"frame3\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"push_2\",\n            \"label\": \"Call f(2)\",\n            \"short\": \"f(2)\",\n            \"sentence\": \"f(3) calls f(2), pushing a second frame.\",\n            \"why\": \"Each recursive call adds a new layer.\",\n            \"active\": [\"frame3\", \"frame2\"],\n            \"calloutRegion\": \"frame2\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"2\"\n              }\n            ]\n          },\n          {\n            \"id\": \"base_case\",\n            \"label\": \"Base Case f(1)\",\n            \"short\": \"f(1)\",\n            \"sentence\": \"f(2) calls f(1), hitting the base case.\",\n            \"why\": \"The base case halts further recursion.\",\n            \"active\": [\"frame3\", \"frame2\", \"frame1\"],\n            \"calloutRegion\": \"frame1\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"3\"\n              }\n            ]\n          },\n          {\n            \"id\": \"pop_2\",\n            \"label\": \"Return & Pop\",\n            \"short\": \"Return\",\n            \"sentence\": \"f(1) returns, and the stack begins popping frames.\",\n            \"why\": \"Unwinding resolves pending calls.\",\n            \"active\": [\"frame3\", \"frame2\"],\n            \"calloutRegion\": \"frame1\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"2\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Recursive calls pile up on the call stack, allocating local variables until the base case stops the growth and unwinds.",
+  "aha": {
+   "stateId": "base_case",
+   "observation": "At the base case, stacking stops and execution reverses to return and pop frames."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "push_3",
+     "push_2",
+     "base_case",
+     "pop_2"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Recursion Stack",
+     "regions": [
+      {
+       "id": "frame3",
+       "label": "Frame f(3)",
+       "kind": "stack-frame",
+       "values": [
+        "n = 3"
+       ]
+      },
+      {
+       "id": "frame2",
+       "label": "Frame f(2)",
+       "kind": "stack-frame",
+       "values": [
+        "n = 2"
+       ]
+      },
+      {
+       "id": "frame1",
+       "label": "Frame f(1)",
+       "kind": "stack-frame",
+       "values": [
+        "n = 1"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "push_3",
+       "label": "Call f(3)",
+       "short": "f(3)",
+       "sentence": "Function f(3) is called and pushed to the stack.",
+       "why": "Initial call starts the stacking process.",
+       "active": [
+        "frame3"
+       ],
+       "calloutRegion": "frame3",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "push_2",
+       "label": "Call f(2)",
+       "short": "f(2)",
+       "sentence": "f(3) calls f(2), pushing a second frame.",
+       "why": "Each recursive call adds a new layer.",
+       "active": [
+        "frame3",
+        "frame2"
+       ],
+       "calloutRegion": "frame2",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "base_case",
+       "label": "Base Case f(1)",
+       "short": "f(1)",
+       "sentence": "f(2) calls f(1), hitting the base case.",
+       "why": "The base case halts further recursion.",
+       "active": [
+        "frame3",
+        "frame2",
+        "frame1"
+       ],
+       "calloutRegion": "frame1",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "pop_2",
+       "label": "Return & Pop",
+       "short": "Return",
+       "sentence": "f(1) returns, and the stack begins popping frames.",
+       "why": "Unwinding resolves pending calls.",
+       "active": [
+        "frame3",
+        "frame2"
+       ],
+       "calloutRegion": "frame1",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "2"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1105,
+  "output": 1189
+ },
+ "usd": 0.003304,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The stack-frame regions f(3), f(2), f(1) with a depth readout show how frames pile up until the base case and then unwind, answering what happens to the stack during recursion."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The base_case state is a discrete step on a stepIndex control, so it holds with all three frames active and depth 3 until the learner advances."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is the step index, which walks through the sequence, and there is no parameter such as the starting n that changes the experiment or its outcomes."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail binds to variant.states, the picture to regions, active and readouts, and the callout to calloutRegion, sentence and why, so every part traces to declared data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "In the pop_2 step the narrative says f(1) returns and frames pop, but frame1 is dropped from active while the callout still targets frame1, and the step is labeled Return & Pop although only one frame pops."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Brief depth shows just three frames, one callout and one depth readout, with one changing region and no clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Depths of 1, 2, 3, 2 match the number of active frames in each state, and each value appears only in the readout while the callout holds the explanation."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011188
+ }
+}

@@ -1,0 +1,814 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a03",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does RAG work?",
+ "ts": "2026-11-14T22:21:40.894Z",
+ "ms": 48207,
+ "raw": "{\"story\":\"A question arrives and is embedded as a vector. Cosine similarity scores every stored chunk against that vector, and the top-k chunks are pasted into the prompt. The model writes an answer from that prompt. Switch k from 2 to 1: the height fact drops out of the prompt, so it also drops out of the answer.\",\"aha\":{\"stateId\":\"answer\",\"observation\":\"The answer contains only facts from retrieved chunks: with k = 2 both facts appear and are cited; with k = 1 the height is missing.\"},\"layout\":{\"preset\":\"pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"},\"presentation\":\"inside rail\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons; keep their names when disabled at the ends\"},{\"id\":\"topk\",\"kind\":\"select\",\"label\":\"Chunks retrieved (k)\",\"options\":[\"Top-k = 2\",\"Top-k = 1\"],\"default\":0,\"presentation\":\"Picks the variant. Fixed inputs: same question, same 4 chunks, same scores. Only one parameter control.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Go back to step 1 and k = 2\"}],\"data\":{\"variants\":[{\"label\":\"Top-k = 2\",\"regions\":[{\"id\":\"c1\",\"label\":\"Chunk C1\",\"values\":[\"Eiffel Tower opened 31 March 1889.\"]},{\"id\":\"c2\",\"label\":\"Chunk C2\",\"values\":[\"It stands 330 m tall with antennas.\"]},{\"id\":\"c3\",\"label\":\"Chunk C3\",\"values\":[\"Paris hosts the Louvre museum.\"]},{\"id\":\"c4\",\"label\":\"Chunk C4\",\"values\":[\"Gustave Eiffel's firm built it.\"]},{\"id\":\"index\",\"label\":\"Vector index\",\"values\":[\"4 chunks\",\"384-dim vectors\"]},{\"id\":\"question\",\"label\":\"Question\",\"values\":[\"When did the Eiffel Tower open, and how tall is it?\"]},{\"id\":\"embed\",\"label\":\"Embedder\",\"values\":[\"text → q (384 dims)\"]},{\"id\":\"rank\",\"label\":\"Retriever\",\"values\":[\"cos(q,d) = q·d / (|q||d|)\",\"keep top k\"]},{\"id\":\"prompt\",\"label\":\"Augmented prompt\",\"values\":[\"instructions + chunks + question\"]},{\"id\":\"llm\",\"label\":\"LLM\",\"values\":[\"reads only the prompt\"]},{\"id\":\"answer\",\"label\":\"Answer\",\"values\":[\"—\"]}],\"links\":[{\"from\":\"c1\",\"to\":\"index\"},{\"from\":\"c2\",\"to\":\"index\"},{\"from\":\"c3\",\"to\":\"index\"},{\"from\":\"c4\",\"to\":\"index\"},{\"from\":\"question\",\"to\":\"embed\"},{\"from\":\"embed\",\"to\":\"rank\",\"label\":\"q\"},{\"from\":\"index\",\"to\":\"rank\",\"label\":\"d\"},{\"from\":\"rank\",\"to\":\"prompt\",\"label\":\"top k\"},{\"from\":\"prompt\",\"to\":\"llm\"},{\"from\":\"llm\",\"to\":\"answer\"}],\"states\":[{\"id\":\"ingest\",\"label\":\"Index\",\"short\":\"1\",\"sentence\":\"Ahead of time, each chunk is embedded into a 384-dimension vector and stored in the index.\",\"why\":\"You can't search text by meaning until it has been turned into vectors.\",\"calloutRegion\":\"index\",\"active\":[\"c1\",\"c2\",\"c3\",\"c4\",\"index\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"2\"},{\"id\":\"chunks\",\"label\":\"Chunks indexed\",\"value\":\"4\"}]},{\"id\":\"ask\",\"label\":\"Ask\",\"short\":\"2\",\"sentence\":\"A user asks one question with two parts: the opening date and the height.\",\"why\":\"A full answer needs two separate facts.\",\"calloutRegion\":\"question\",\"active\":[\"question\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"2\"},{\"id\":\"need\",\"label\":\"Facts needed\",\"value\":\"2\"}]},{\"id\":\"embedq\",\"label\":\"Embed\",\"short\":\"3\",\"sentence\":\"The same embedder turns the question into a vector q in the same 384-dimension space.\",\"why\":\"Comparing q with the chunks only makes sense if both use the same space.\",\"calloutRegion\":\"embed\",\"active\":[\"embed\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"2\"},{\"id\":\"dims\",\"label\":\"Vector size\",\"value\":\"384\"}]},{\"id\":\"score\",\"label\":\"Score\",\"short\":\"4\",\"sentence\":\"The retriever computes the cosine similarity between q and every chunk vector.\",\"why\":\"A higher cosine means the chunk's meaning is closer to the question.\",\"calloutRegion\":\"rank\",\"active\":[\"rank\",\"c1\",\"c2\",\"c3\",\"c4\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"2\"},{\"id\":\"cos\",\"label\":\"cos C1 / C2 / C4 / C3\",\"value\":\"0.82 / 0.77 / 0.61 / 0.12\"}]},{\"id\":\"select\",\"label\":\"Top-k\",\"short\":\"5\",\"sentence\":\"Only the two highest-scoring chunks pass: C1 (0.82) and C2 (0.77).\",\"why\":\"k is the cutoff. Chunks below rank k never reach the model.\",\"calloutRegion\":\"rank\",\"active\":[\"rank\",\"c1\",\"c2\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"2\"},{\"id\":\"kept\",\"label\":\"Kept\",\"value\":\"C1, C2\"}]},{\"id\":\"augment\",\"label\":\"Augment\",\"short\":\"6\",\"sentence\":\"The prompt is the instructions, then C1 and C2, then the question.\",\"why\":\"Pasting the chunks in gives the model facts it was never trained on.\",\"calloutRegion\":\"prompt\",\"active\":[\"prompt\",\"c1\",\"c2\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"2\"},{\"id\":\"tokens\",\"label\":\"Prompt tokens\",\"value\":\"40 + 12 + 14 + 16 = 82\"}]},{\"id\":\"generate\",\"label\":\"Generate\",\"short\":\"7\",\"sentence\":\"The LLM writes its answer from the prompt and is told to use only the given chunks.\",\"why\":\"The answer is grounded in the context, not in the model's memory.\",\"calloutRegion\":\"llm\",\"active\":[\"llm\",\"prompt\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"2\"},{\"id\":\"tokens\",\"label\":\"Prompt tokens\",\"value\":\"82\"}]},{\"id\":\"answer\",\"label\":\"Answer\",\"short\":\"8\",\"sentence\":\"Answer: opened 31 March 1889 [C1]; 330 m tall [C2]. Both facts trace back to retrieved chunks.\",\"why\":\"Every claim in the answer points to a chunk that was in the prompt.\",\"calloutRegion\":\"answer\",\"active\":[\"answer\",\"c1\",\"c2\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"2\"},{\"id\":\"facts\",\"label\":\"Facts answered\",\"value\":\"2 of 2\"}]}]},{\"label\":\"Top-k = 1\",\"regions\":[{\"id\":\"c1\",\"label\":\"Chunk C1\",\"values\":[\"Eiffel Tower opened 31 March 1889.\"]},{\"id\":\"c2\",\"label\":\"Chunk C2\",\"values\":[\"It stands 330 m tall with antennas.\"]},{\"id\":\"c3\",\"label\":\"Chunk C3\",\"values\":[\"Paris hosts the Louvre museum.\"]},{\"id\":\"c4\",\"label\":\"Chunk C4\",\"values\":[\"Gustave Eiffel's firm built it.\"]},{\"id\":\"index\",\"label\":\"Vector index\",\"values\":[\"4 chunks\",\"384-dim vectors\"]},{\"id\":\"question\",\"label\":\"Question\",\"values\":[\"When did the Eiffel Tower open, and how tall is it?\"]},{\"id\":\"embed\",\"label\":\"Embedder\",\"values\":[\"text → q (384 dims)\"]},{\"id\":\"rank\",\"label\":\"Retriever\",\"values\":[\"cos(q,d) = q·d / (|q||d|)\",\"keep top k\"]},{\"id\":\"prompt\",\"label\":\"Augmented prompt\",\"values\":[\"instructions + chunks + question\"]},{\"id\":\"llm\",\"label\":\"LLM\",\"values\":[\"reads only the prompt\"]},{\"id\":\"answer\",\"label\":\"Answer\",\"values\":[\"—\"]}],\"links\":[{\"from\":\"c1\",\"to\":\"index\"},{\"from\":\"c2\",\"to\":\"index\"},{\"from\":\"c3\",\"to\":\"index\"},{\"from\":\"c4\",\"to\":\"index\"},{\"from\":\"question\",\"to\":\"embed\"},{\"from\":\"embed\",\"to\":\"rank\",\"label\":\"q\"},{\"from\":\"index\",\"to\":\"rank\",\"label\":\"d\"},{\"from\":\"rank\",\"to\":\"prompt\",\"label\":\"top k\"},{\"from\":\"prompt\",\"to\":\"llm\"},{\"from\":\"llm\",\"to\":\"answer\"}],\"states\":[{\"id\":\"ingest\",\"label\":\"Index\",\"short\":\"1\",\"sentence\":\"Ahead of time, each chunk is embedded into a 384-dimension vector and stored in the index.\",\"why\":\"You can't search text by meaning until it has been turned into vectors.\",\"calloutRegion\":\"index\",\"active\":[\"c1\",\"c2\",\"c3\",\"c4\",\"index\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"1\"},{\"id\":\"chunks\",\"label\":\"Chunks indexed\",\"value\":\"4\"}]},{\"id\":\"ask\",\"label\":\"Ask\",\"short\":\"2\",\"sentence\":\"A user asks one question with two parts: the opening date and the height.\",\"why\":\"A full answer needs two separate facts.\",\"calloutRegion\":\"question\",\"active\":[\"question\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"1\"},{\"id\":\"need\",\"label\":\"Facts needed\",\"value\":\"2\"}]},{\"id\":\"embedq\",\"label\":\"Embed\",\"short\":\"3\",\"sentence\":\"The same embedder turns the question into a vector q in the same 384-dimension space.\",\"why\":\"Comparing q with the chunks only makes sense if both use the same space.\",\"calloutRegion\":\"embed\",\"active\":[\"embed\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"1\"},{\"id\":\"dims\",\"label\":\"Vector size\",\"value\":\"384\"}]},{\"id\":\"score\",\"label\":\"Score\",\"short\":\"4\",\"sentence\":\"The retriever computes the cosine similarity between q and every chunk vector.\",\"why\":\"The scores don't depend on k. Only the cutoff changes.\",\"calloutRegion\":\"rank\",\"active\":[\"rank\",\"c1\",\"c2\",\"c3\",\"c4\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"1\"},{\"id\":\"cos\",\"label\":\"cos C1 / C2 / C4 / C3\",\"value\":\"0.82 / 0.77 / 0.61 / 0.12\"}]},{\"id\":\"select\",\"label\":\"Top-k\",\"short\":\"5\",\"sentence\":\"Only C1 (0.82) passes. C2 (0.77) is dropped, even though it holds the height.\",\"why\":\"With k = 1, the second-best chunk never reaches the model.\",\"calloutRegion\":\"rank\",\"active\":[\"rank\",\"c1\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"1\"},{\"id\":\"kept\",\"label\":\"Kept\",\"value\":\"C1\"}]},{\"id\":\"augment\",\"label\":\"Augment\",\"short\":\"6\",\"sentence\":\"The prompt is the instructions, then C1 only, then the question.\",\"why\":\"Fewer chunks mean fewer tokens, but also fewer facts.\",\"calloutRegion\":\"prompt\",\"active\":[\"prompt\",\"c1\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"1\"},{\"id\":\"tokens\",\"label\":\"Prompt tokens\",\"value\":\"40 + 12 + 16 = 68\"}]},{\"id\":\"generate\",\"label\":\"Generate\",\"short\":\"7\",\"sentence\":\"The LLM writes its answer from the prompt and is told to use only the given chunks.\",\"why\":\"No chunk in the prompt mentions the height.\",\"calloutRegion\":\"llm\",\"active\":[\"llm\",\"prompt\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"1\"},{\"id\":\"tokens\",\"label\":\"Prompt tokens\",\"value\":\"68\"}]},{\"id\":\"answer\",\"label\":\"Answer\",\"short\":\"8\",\"sentence\":\"Answer: opened 31 March 1889 [C1]; the height isn't in the provided sources.\",\"why\":\"Retrieval sets the limit: a fact left out of the prompt is left out of the answer.\",\"calloutRegion\":\"answer\",\"active\":[\"answer\",\"c1\"],\"readouts\":[{\"id\":\"k\",\"label\":\"k\",\"value\":\"1\"},{\"id\":\"facts\",\"label\":\"Facts answered\",\"value\":\"1 of 2\"}]}]}]}}",
+ "composition": {
+  "story": "A question arrives and is embedded as a vector. Cosine similarity scores every stored chunk against that vector, and the top-k chunks are pasted into the prompt. The model writes an answer from that prompt. Switch k from 2 to 1: the height fact drops out of the prompt, so it also drops out of the answer.",
+  "aha": {
+   "stateId": "answer",
+   "observation": "The answer contains only facts from retrieved chunks: with k = 2 both facts appear and are cited; with k = 1 the height is missing."
+  },
+  "layout": {
+   "preset": "pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    },
+    "presentation": "inside rail"
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons; keep their names when disabled at the ends"
+   },
+   {
+    "id": "topk",
+    "kind": "select",
+    "label": "Chunks retrieved (k)",
+    "options": [
+     "Top-k = 2",
+     "Top-k = 1"
+    ],
+    "default": 0,
+    "presentation": "Picks the variant. Fixed inputs: same question, same 4 chunks, same scores. Only one parameter control."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Go back to step 1 and k = 2"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Top-k = 2",
+     "regions": [
+      {
+       "id": "c1",
+       "label": "Chunk C1",
+       "values": [
+        "Eiffel Tower opened 31 March 1889."
+       ]
+      },
+      {
+       "id": "c2",
+       "label": "Chunk C2",
+       "values": [
+        "It stands 330 m tall with antennas."
+       ]
+      },
+      {
+       "id": "c3",
+       "label": "Chunk C3",
+       "values": [
+        "Paris hosts the Louvre museum."
+       ]
+      },
+      {
+       "id": "c4",
+       "label": "Chunk C4",
+       "values": [
+        "Gustave Eiffel's firm built it."
+       ]
+      },
+      {
+       "id": "index",
+       "label": "Vector index",
+       "values": [
+        "4 chunks",
+        "384-dim vectors"
+       ]
+      },
+      {
+       "id": "question",
+       "label": "Question",
+       "values": [
+        "When did the Eiffel Tower open, and how tall is it?"
+       ]
+      },
+      {
+       "id": "embed",
+       "label": "Embedder",
+       "values": [
+        "text → q (384 dims)"
+       ]
+      },
+      {
+       "id": "rank",
+       "label": "Retriever",
+       "values": [
+        "cos(q,d) = q·d / (|q||d|)",
+        "keep top k"
+       ]
+      },
+      {
+       "id": "prompt",
+       "label": "Augmented prompt",
+       "values": [
+        "instructions + chunks + question"
+       ]
+      },
+      {
+       "id": "llm",
+       "label": "LLM",
+       "values": [
+        "reads only the prompt"
+       ]
+      },
+      {
+       "id": "answer",
+       "label": "Answer",
+       "values": [
+        "—"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "c1",
+       "to": "index"
+      },
+      {
+       "from": "c2",
+       "to": "index"
+      },
+      {
+       "from": "c3",
+       "to": "index"
+      },
+      {
+       "from": "c4",
+       "to": "index"
+      },
+      {
+       "from": "question",
+       "to": "embed"
+      },
+      {
+       "from": "embed",
+       "to": "rank",
+       "label": "q"
+      },
+      {
+       "from": "index",
+       "to": "rank",
+       "label": "d"
+      },
+      {
+       "from": "rank",
+       "to": "prompt",
+       "label": "top k"
+      },
+      {
+       "from": "prompt",
+       "to": "llm"
+      },
+      {
+       "from": "llm",
+       "to": "answer"
+      }
+     ],
+     "states": [
+      {
+       "id": "ingest",
+       "label": "Index",
+       "short": "1",
+       "sentence": "Ahead of time, each chunk is embedded into a 384-dimension vector and stored in the index.",
+       "why": "You can't search text by meaning until it has been turned into vectors.",
+       "calloutRegion": "index",
+       "active": [
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "index"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "2"
+        },
+        {
+         "id": "chunks",
+         "label": "Chunks indexed",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "ask",
+       "label": "Ask",
+       "short": "2",
+       "sentence": "A user asks one question with two parts: the opening date and the height.",
+       "why": "A full answer needs two separate facts.",
+       "calloutRegion": "question",
+       "active": [
+        "question"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "2"
+        },
+        {
+         "id": "need",
+         "label": "Facts needed",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "embedq",
+       "label": "Embed",
+       "short": "3",
+       "sentence": "The same embedder turns the question into a vector q in the same 384-dimension space.",
+       "why": "Comparing q with the chunks only makes sense if both use the same space.",
+       "calloutRegion": "embed",
+       "active": [
+        "embed"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "2"
+        },
+        {
+         "id": "dims",
+         "label": "Vector size",
+         "value": "384"
+        }
+       ]
+      },
+      {
+       "id": "score",
+       "label": "Score",
+       "short": "4",
+       "sentence": "The retriever computes the cosine similarity between q and every chunk vector.",
+       "why": "A higher cosine means the chunk's meaning is closer to the question.",
+       "calloutRegion": "rank",
+       "active": [
+        "rank",
+        "c1",
+        "c2",
+        "c3",
+        "c4"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "2"
+        },
+        {
+         "id": "cos",
+         "label": "cos C1 / C2 / C4 / C3",
+         "value": "0.82 / 0.77 / 0.61 / 0.12"
+        }
+       ]
+      },
+      {
+       "id": "select",
+       "label": "Top-k",
+       "short": "5",
+       "sentence": "Only the two highest-scoring chunks pass: C1 (0.82) and C2 (0.77).",
+       "why": "k is the cutoff. Chunks below rank k never reach the model.",
+       "calloutRegion": "rank",
+       "active": [
+        "rank",
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "2"
+        },
+        {
+         "id": "kept",
+         "label": "Kept",
+         "value": "C1, C2"
+        }
+       ]
+      },
+      {
+       "id": "augment",
+       "label": "Augment",
+       "short": "6",
+       "sentence": "The prompt is the instructions, then C1 and C2, then the question.",
+       "why": "Pasting the chunks in gives the model facts it was never trained on.",
+       "calloutRegion": "prompt",
+       "active": [
+        "prompt",
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "2"
+        },
+        {
+         "id": "tokens",
+         "label": "Prompt tokens",
+         "value": "40 + 12 + 14 + 16 = 82"
+        }
+       ]
+      },
+      {
+       "id": "generate",
+       "label": "Generate",
+       "short": "7",
+       "sentence": "The LLM writes its answer from the prompt and is told to use only the given chunks.",
+       "why": "The answer is grounded in the context, not in the model's memory.",
+       "calloutRegion": "llm",
+       "active": [
+        "llm",
+        "prompt"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "2"
+        },
+        {
+         "id": "tokens",
+         "label": "Prompt tokens",
+         "value": "82"
+        }
+       ]
+      },
+      {
+       "id": "answer",
+       "label": "Answer",
+       "short": "8",
+       "sentence": "Answer: opened 31 March 1889 [C1]; 330 m tall [C2]. Both facts trace back to retrieved chunks.",
+       "why": "Every claim in the answer points to a chunk that was in the prompt.",
+       "calloutRegion": "answer",
+       "active": [
+        "answer",
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "2"
+        },
+        {
+         "id": "facts",
+         "label": "Facts answered",
+         "value": "2 of 2"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Top-k = 1",
+     "regions": [
+      {
+       "id": "c1",
+       "label": "Chunk C1",
+       "values": [
+        "Eiffel Tower opened 31 March 1889."
+       ]
+      },
+      {
+       "id": "c2",
+       "label": "Chunk C2",
+       "values": [
+        "It stands 330 m tall with antennas."
+       ]
+      },
+      {
+       "id": "c3",
+       "label": "Chunk C3",
+       "values": [
+        "Paris hosts the Louvre museum."
+       ]
+      },
+      {
+       "id": "c4",
+       "label": "Chunk C4",
+       "values": [
+        "Gustave Eiffel's firm built it."
+       ]
+      },
+      {
+       "id": "index",
+       "label": "Vector index",
+       "values": [
+        "4 chunks",
+        "384-dim vectors"
+       ]
+      },
+      {
+       "id": "question",
+       "label": "Question",
+       "values": [
+        "When did the Eiffel Tower open, and how tall is it?"
+       ]
+      },
+      {
+       "id": "embed",
+       "label": "Embedder",
+       "values": [
+        "text → q (384 dims)"
+       ]
+      },
+      {
+       "id": "rank",
+       "label": "Retriever",
+       "values": [
+        "cos(q,d) = q·d / (|q||d|)",
+        "keep top k"
+       ]
+      },
+      {
+       "id": "prompt",
+       "label": "Augmented prompt",
+       "values": [
+        "instructions + chunks + question"
+       ]
+      },
+      {
+       "id": "llm",
+       "label": "LLM",
+       "values": [
+        "reads only the prompt"
+       ]
+      },
+      {
+       "id": "answer",
+       "label": "Answer",
+       "values": [
+        "—"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "c1",
+       "to": "index"
+      },
+      {
+       "from": "c2",
+       "to": "index"
+      },
+      {
+       "from": "c3",
+       "to": "index"
+      },
+      {
+       "from": "c4",
+       "to": "index"
+      },
+      {
+       "from": "question",
+       "to": "embed"
+      },
+      {
+       "from": "embed",
+       "to": "rank",
+       "label": "q"
+      },
+      {
+       "from": "index",
+       "to": "rank",
+       "label": "d"
+      },
+      {
+       "from": "rank",
+       "to": "prompt",
+       "label": "top k"
+      },
+      {
+       "from": "prompt",
+       "to": "llm"
+      },
+      {
+       "from": "llm",
+       "to": "answer"
+      }
+     ],
+     "states": [
+      {
+       "id": "ingest",
+       "label": "Index",
+       "short": "1",
+       "sentence": "Ahead of time, each chunk is embedded into a 384-dimension vector and stored in the index.",
+       "why": "You can't search text by meaning until it has been turned into vectors.",
+       "calloutRegion": "index",
+       "active": [
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "index"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "1"
+        },
+        {
+         "id": "chunks",
+         "label": "Chunks indexed",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "ask",
+       "label": "Ask",
+       "short": "2",
+       "sentence": "A user asks one question with two parts: the opening date and the height.",
+       "why": "A full answer needs two separate facts.",
+       "calloutRegion": "question",
+       "active": [
+        "question"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "1"
+        },
+        {
+         "id": "need",
+         "label": "Facts needed",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "embedq",
+       "label": "Embed",
+       "short": "3",
+       "sentence": "The same embedder turns the question into a vector q in the same 384-dimension space.",
+       "why": "Comparing q with the chunks only makes sense if both use the same space.",
+       "calloutRegion": "embed",
+       "active": [
+        "embed"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "1"
+        },
+        {
+         "id": "dims",
+         "label": "Vector size",
+         "value": "384"
+        }
+       ]
+      },
+      {
+       "id": "score",
+       "label": "Score",
+       "short": "4",
+       "sentence": "The retriever computes the cosine similarity between q and every chunk vector.",
+       "why": "The scores don't depend on k. Only the cutoff changes.",
+       "calloutRegion": "rank",
+       "active": [
+        "rank",
+        "c1",
+        "c2",
+        "c3",
+        "c4"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "1"
+        },
+        {
+         "id": "cos",
+         "label": "cos C1 / C2 / C4 / C3",
+         "value": "0.82 / 0.77 / 0.61 / 0.12"
+        }
+       ]
+      },
+      {
+       "id": "select",
+       "label": "Top-k",
+       "short": "5",
+       "sentence": "Only C1 (0.82) passes. C2 (0.77) is dropped, even though it holds the height.",
+       "why": "With k = 1, the second-best chunk never reaches the model.",
+       "calloutRegion": "rank",
+       "active": [
+        "rank",
+        "c1"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "1"
+        },
+        {
+         "id": "kept",
+         "label": "Kept",
+         "value": "C1"
+        }
+       ]
+      },
+      {
+       "id": "augment",
+       "label": "Augment",
+       "short": "6",
+       "sentence": "The prompt is the instructions, then C1 only, then the question.",
+       "why": "Fewer chunks mean fewer tokens, but also fewer facts.",
+       "calloutRegion": "prompt",
+       "active": [
+        "prompt",
+        "c1"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "1"
+        },
+        {
+         "id": "tokens",
+         "label": "Prompt tokens",
+         "value": "40 + 12 + 16 = 68"
+        }
+       ]
+      },
+      {
+       "id": "generate",
+       "label": "Generate",
+       "short": "7",
+       "sentence": "The LLM writes its answer from the prompt and is told to use only the given chunks.",
+       "why": "No chunk in the prompt mentions the height.",
+       "calloutRegion": "llm",
+       "active": [
+        "llm",
+        "prompt"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "1"
+        },
+        {
+         "id": "tokens",
+         "label": "Prompt tokens",
+         "value": "68"
+        }
+       ]
+      },
+      {
+       "id": "answer",
+       "label": "Answer",
+       "short": "8",
+       "sentence": "Answer: opened 31 March 1889 [C1]; the height isn't in the provided sources.",
+       "why": "Retrieval sets the limit: a fact left out of the prompt is left out of the answer.",
+       "calloutRegion": "answer",
+       "active": [
+        "answer",
+        "c1"
+       ],
+       "readouts": [
+        {
+         "id": "k",
+         "label": "k",
+         "value": "1"
+        },
+        {
+         "id": "facts",
+         "label": "Facts answered",
+         "value": "1 of 2"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3066,
+  "output": 6036
+ },
+ "usd": 0.132984,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The pipeline picture answers 'why does a fact vanish when k drops?', with the rank region keeping C1/C2 versus only C1 and the answer region showing the missing height."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha is the final 'answer' state, which is a stepper (no timer), so it holds there until the learner clicks Previous or changes k."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "Changing k changes the kept chunks, prompt tokens (82 vs 68), and facts answered (2 of 2 vs 1 of 2), while the question, chunks and scores stay fixed."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Highlights come from state.active, callouts from calloutRegion/sentence/why, readouts from state.readouts, and ghost from previous.active, all declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, sentences, region labels (Retriever, Augmented prompt, Answer) and the k control all refer to the same chunks, k cutoff and answer events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Detailed depth adds the cosine formula, the score list, and the token-sum count, with each step highlighting only a few regions and the pipeline layout staying fixed."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The token sums 82 and 68 and the score ordering are correct, and the callout sentences locate or explain while the readouts carry the quantities; the C2 score 0.77 repeats in the sentence and the readout, a minor duplication."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.019966
+ }
+}

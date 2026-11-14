@@ -1,0 +1,222 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a03",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does RAG work?",
+ "ts": "2026-11-14T22:20:15.981Z",
+ "ms": 2881,
+ "raw": "{\n  \"story\": \"Retrieval-Augmented Generation enhances large language models by fetching relevant external documents before generating an answer.\",\n  \"aha\": {\n    \"stateId\": \"generate\",\n    \"observation\": \"External retrieved knowledge is injected directly into the prompt context to ground the final response.\"\n  },\n  \"layout\": {\n    \"preset\": \"pipeline\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"RAG Step\",\n      \"options\": [\n        \"Query\",\n        \"Retrieve\",\n        \"Augment\",\n        \"Generate\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Standard RAG Pipeline\",\n        \"regions\": [\n          {\n            \"id\": \"reg-query\",\n            \"label\": \"User Query\"\n          },\n          {\n            \"id\": \"reg-retriever\",\n            \"label\": \"Vector Database\"\n          },\n          {\n            \"id\": \"reg-augment\",\n            \"label\": \"Context Assembler\"\n          },\n          {\n            \"id\": \"reg-generator\",\n            \"label\": \"Language Model\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"query\",\n            \"label\": \"1. Query\",\n            \"short\": \"Query\",\n            \"sentence\": \"The user submits a prompt asking for specific external facts.\",\n            \"why\": \"Initializes the information need.\",\n            \"calloutRegion\": \"reg-query\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Input Token Count\",\n                \"value\": \"12\"\n              }\n            ]\n          },\n          {\n            \"id\": \"retrieve\",\n            \"label\": \"2. Retrieve\",\n            \"short\": \"Retrieve\",\n            \"sentence\": \"The system searches the vector database for matching passages.\",\n            \"why\": \"Finds relevant domain knowledge.\",\n            \"calloutRegion\": \"reg-retriever\",\n            \"readouts\": [\n              {\n                \"id\": \"r2\",\n                \"label\": \"Chunks Found\",\n                \"value\": \"3\"\n              }\n            ]\n          },\n          {\n            \"id\": \"augment\",\n            \"label\": \"3. Augment\",\n            \"short\": \"Augment\",\n            \"sentence\": \"Retrieved documents are merged into the original prompt context.\",\n            \"why\": \"Provides ground truth data.\",\n            \"calloutRegion\": \"reg-augment\",\n            \"readouts\": [\n              {\n                \"id\": \"r3\",\n                \"label\": \"Context Length\",\n                \"value\": \"840 tokens\"\n              }\n            ]\n          },\n          {\n            \"id\": \"generate\",\n            \"label\": \"4. Generate\",\n            \"short\": \"Generate\",\n            \"sentence\": \"The model produces a factual answer based on the augmented context.\",\n            \"why\": \"Delivers the final grounded response.\",\n            \"calloutRegion\": \"reg-generator\",\n            \"readouts\": [\n              {\n                \"id\": \"r4\",\n                \"label\": \"Confidence Score\",\n                \"value\": \"0.98\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Retrieval-Augmented Generation enhances large language models by fetching relevant external documents before generating an answer.",
+  "aha": {
+   "stateId": "generate",
+   "observation": "External retrieved knowledge is injected directly into the prompt context to ground the final response."
+  },
+  "layout": {
+   "preset": "pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "RAG Step",
+    "options": [
+     "Query",
+     "Retrieve",
+     "Augment",
+     "Generate"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Standard RAG Pipeline",
+     "regions": [
+      {
+       "id": "reg-query",
+       "label": "User Query"
+      },
+      {
+       "id": "reg-retriever",
+       "label": "Vector Database"
+      },
+      {
+       "id": "reg-augment",
+       "label": "Context Assembler"
+      },
+      {
+       "id": "reg-generator",
+       "label": "Language Model"
+      }
+     ],
+     "states": [
+      {
+       "id": "query",
+       "label": "1. Query",
+       "short": "Query",
+       "sentence": "The user submits a prompt asking for specific external facts.",
+       "why": "Initializes the information need.",
+       "calloutRegion": "reg-query",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Input Token Count",
+         "value": "12"
+        }
+       ]
+      },
+      {
+       "id": "retrieve",
+       "label": "2. Retrieve",
+       "short": "Retrieve",
+       "sentence": "The system searches the vector database for matching passages.",
+       "why": "Finds relevant domain knowledge.",
+       "calloutRegion": "reg-retriever",
+       "readouts": [
+        {
+         "id": "r2",
+         "label": "Chunks Found",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "augment",
+       "label": "3. Augment",
+       "short": "Augment",
+       "sentence": "Retrieved documents are merged into the original prompt context.",
+       "why": "Provides ground truth data.",
+       "calloutRegion": "reg-augment",
+       "readouts": [
+        {
+         "id": "r3",
+         "label": "Context Length",
+         "value": "840 tokens"
+        }
+       ]
+      },
+      {
+       "id": "generate",
+       "label": "4. Generate",
+       "short": "Generate",
+       "sentence": "The model produces a factual answer based on the augmented context.",
+       "why": "Delivers the final grounded response.",
+       "calloutRegion": "reg-generator",
+       "readouts": [
+        {
+         "id": "r4",
+         "label": "Confidence Score",
+         "value": "0.98"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1102,
+  "output": 1107
+ },
+ "usd": 0.003099,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The four-region pipeline (query, vector DB, context assembler, LM) shows how retrieved knowledge reaches the prompt, answering how RAG grounds a response."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state (generate) is only the last of four steps and nothing holds or defaults there; the aha observation about injection into the prompt really belongs to the augment step."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single stepIndex input changes the active region, callout, and readout, so each setting yields different evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout (state.calloutRegion, sentence, why), readout (state.readouts) and progress all bind to declared variant and state fields."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The control options, state labels, region names, and sentences consistently name the same Query, Retrieve, Augment, and Generate events."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The detailed depth adds only one readout per step with no comparison, formula or count, so it contributes little mechanism beyond the overview."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The readouts are asserted values with no derivation; the 840-token context is not checked against the 12-token query and 3 chunks, and the 0.98 confidence is unexplained."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011036
+ }
+}

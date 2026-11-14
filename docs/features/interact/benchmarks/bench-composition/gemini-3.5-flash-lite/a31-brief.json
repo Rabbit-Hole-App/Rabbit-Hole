@@ -1,0 +1,235 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a31",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "How does Bayesian optimization decide which setting to try next?",
+ "ts": "2026-11-14T22:22:42.454Z",
+ "ms": 3278,
+ "raw": "{\n  \"story\": \"Bayesian optimization builds a probabilistic surrogate model from evaluated points. It then uses an acquisition function to balance exploring uncertain regions and exploiting known high performers, picking the next sample where utility peaks.\",\n  \"aha\": {\n    \"stateId\": \"acq\",\n    \"observation\": \"The acquisition function peaks at an unexplored region with high model uncertainty, directing the next test.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"variant.states.active\",\n        \"regions\": \"variant.regions\",\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\n        \"Surrogate\",\n        \"Uncertainty\",\n        \"Acquisition\",\n        \"Sample\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Bayesian Loop\",\n        \"regions\": [\n          {\n            \"id\": \"regModel\",\n            \"label\": \"Surrogate Model\",\n            \"values\": [\"Fit GP\", \"Mean & Var\"]\n          },\n          {\n            \"id\": \"regAcq\",\n            \"label\": \"Acquisition Function\",\n            \"values\": [\"Calculate EI\", \"Find Maximum\"]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"regModel\",\n            \"to\": \"regAcq\",\n            \"label\": \"posterior\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"surr\",\n            \"label\": \"Fit Surrogate\",\n            \"short\": \"Model\",\n            \"sentence\": \"A Gaussian Process fits the observed evaluations.\",\n            \"why\": \"Provides a smooth probabilistic estimate across the whole space.\",\n            \"active\": [\"regModel\"],\n            \"calloutRegion\": \"regModel\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Points evaluated\",\n                \"value\": \"4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"unc\",\n            \"label\": \"Estimate Variance\",\n            \"short\": \"Uncertainty\",\n            \"sentence\": \"Model uncertainty remains high far from tested points.\",\n            \"why\": \"Quantifies ignorance to guide safe exploration.\",\n            \"active\": [\"regModel\"],\n            \"calloutRegion\": \"regModel\",\n            \"readouts\": [\n              {\n                \"id\": \"r2\",\n                \"label\": \"Max uncertainty\",\n                \"value\": \"0.82\"\n              }\n            ]\n          },\n          {\n            \"id\": \"acq\",\n            \"label\": \"Compute Acquisition\",\n            \"short\": \"Acquisition\",\n            \"sentence\": \"Expected Improvement combines predicted mean and variance.\",\n            \"why\": \"Balances exploitation of good areas with exploration of unknowns.\",\n            \"active\": [\"regAcq\"],\n            \"calloutRegion\": \"regAcq\",\n            \"readouts\": [\n              {\n                \"id\": \"r3\",\n                \"label\": \"Peak EI score\",\n                \"value\": \"1.45\"\n              }\n            ]\n          },\n          {\n            \"id\": \"sample\",\n            \"label\": \"Select Next\",\n            \"short\": \"Sample\",\n            \"sentence\": \"The peak of the acquisition function determines the next setting.\",\n            \"why\": \"Maximizes expected gain per physical experiment.\",\n            \"active\": [\"regAcq\"],\n            \"calloutRegion\": \"regAcq\",\n            \"readouts\": [\n              {\n                \"id\": \"r4\",\n                \"label\": \"Next X\",\n                \"value\": \"0.74\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Bayesian optimization builds a probabilistic surrogate model from evaluated points. It then uses an acquisition function to balance exploring uncertain regions and exploiting known high performers, picking the next sample where utility peaks.",
+  "aha": {
+   "stateId": "acq",
+   "observation": "The acquisition function peaks at an unexplored region with high model uncertainty, directing the next test."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "variant.states.active",
+     "regions": "variant.regions",
+     "completedBefore": "inputs.stepIndex"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "Surrogate",
+     "Uncertainty",
+     "Acquisition",
+     "Sample"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Bayesian Loop",
+     "regions": [
+      {
+       "id": "regModel",
+       "label": "Surrogate Model",
+       "values": [
+        "Fit GP",
+        "Mean & Var"
+       ]
+      },
+      {
+       "id": "regAcq",
+       "label": "Acquisition Function",
+       "values": [
+        "Calculate EI",
+        "Find Maximum"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "regModel",
+       "to": "regAcq",
+       "label": "posterior"
+      }
+     ],
+     "states": [
+      {
+       "id": "surr",
+       "label": "Fit Surrogate",
+       "short": "Model",
+       "sentence": "A Gaussian Process fits the observed evaluations.",
+       "why": "Provides a smooth probabilistic estimate across the whole space.",
+       "active": [
+        "regModel"
+       ],
+       "calloutRegion": "regModel",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Points evaluated",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "unc",
+       "label": "Estimate Variance",
+       "short": "Uncertainty",
+       "sentence": "Model uncertainty remains high far from tested points.",
+       "why": "Quantifies ignorance to guide safe exploration.",
+       "active": [
+        "regModel"
+       ],
+       "calloutRegion": "regModel",
+       "readouts": [
+        {
+         "id": "r2",
+         "label": "Max uncertainty",
+         "value": "0.82"
+        }
+       ]
+      },
+      {
+       "id": "acq",
+       "label": "Compute Acquisition",
+       "short": "Acquisition",
+       "sentence": "Expected Improvement combines predicted mean and variance.",
+       "why": "Balances exploitation of good areas with exploration of unknowns.",
+       "active": [
+        "regAcq"
+       ],
+       "calloutRegion": "regAcq",
+       "readouts": [
+        {
+         "id": "r3",
+         "label": "Peak EI score",
+         "value": "1.45"
+        }
+       ]
+      },
+      {
+       "id": "sample",
+       "label": "Select Next",
+       "short": "Sample",
+       "sentence": "The peak of the acquisition function determines the next setting.",
+       "why": "Maximizes expected gain per physical experiment.",
+       "active": [
+        "regAcq"
+       ],
+       "calloutRegion": "regAcq",
+       "readouts": [
+        {
+         "id": "r4",
+         "label": "Next X",
+         "value": "0.74"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1107,
+  "output": 1161
+ },
+ "usd": 0.003235,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The picture is only two abstract region boxes with text values like \"Fit GP\" and \"Calculate EI\", with no curve, uncertainty band or acquisition peak drawn to show the mechanism."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha is declared at state \"acq\", but the control is a freely stepped index and nothing pauses or holds there; the following \"sample\" step moves the learner on without a gate."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is the step index, which advances the narrative; it changes no experiment parameter, and the readout values are hardcoded strings."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The bindings use generic paths such as variant.regions, and the link \"posterior\" is declared but not bound to any part. The callout target is only a region box, and the readouts are static strings with no data behind them."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, sentences and callout regions use the same terms (surrogate, uncertainty, acquisition, sample) in a consistent order."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The brief depth adds no changing mechanism region beyond highlighting one of two boxes. The extra text values inside the regions add nothing visual, and there is no comparison or count."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The values 4, 0.82, 1.45 and 0.74 are asserted with no underlying data to verify them. The \"Points evaluated\" readout shows 4 only in the first step, and the sentence text restates what the readouts and region labels already say."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012006
+ }
+}

@@ -1,0 +1,422 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a35",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does k-means clustering work?",
+ "ts": "2026-11-14T22:54:40.344Z",
+ "ms": 129019,
+ "raw": "{\n  \"story\": \"How does k-means clustering work? Start with five points and two seeded centers. Assign each point to its nearest center, then replace centers with cluster means. Watch Point R switch after the centers move. Repeat until assignments stop changing. Use Previous and Next to compare the states.\",\n  \"aha\": {\n    \"stateId\": \"stable\",\n    \"observation\": \"Point R switches after the centers move; repeating assignment and mean updates ends with unchanged assignments.\"\n  },\n  \"layout\": {\n    \"preset\": \"approved-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"steps\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the story and instructions, above the experiment. Use the canonical algorithm/collection composition. Highlight the active state; progress belongs here. State indices represent algorithm states, never elapsed time. Reference capture shows Stable.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"clustering-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Show fixed array cells P, Q, R, S, T, with Center A and Center B below. Each region displays its phases entry at the active step's index. Coordinates remain fixed; membership words change. Cell spacing does not encode distance. Use membership text and highlighting, never color alone. Fixed inputs are the displayed coordinates, k=2, and the centers shown in Seed. Assume one-dimensional Euclidean distance. Ties choose A; none occur here. No cluster becomes empty.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"mechanism-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor to the named active part without covering cells. Reserve wrapping space for every state. Identify the mechanism here; numerical measurements belong in the readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"measurements-and-status\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place measurements below the picture in two columns, followed by the bound status line. Positions and distances use arbitrary x-units and a common origin. Distances are absolute coordinate differences; centers are arithmetic means of assigned coordinates. Update arrows compare previous and current center positions; distances always use current centers. All displayed measurements are exact integers for these inputs. Balanced depth has zero parameter controls, excluding navigation and reset.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Step\",\n      \"presentation\": \"Use Previous and Next, retaining their names when disabled at boundaries. Default is Seed; bounds are the listed states; increment is one state. Every state persists until learner action, including Stable. Provide visible focus and keyboard activation. Left Arrow selects Previous; Right Arrow selects Next.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore Seed and all fixed defaults. Provide the accessible name Reset, visible focus, and keyboard activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"One-dimensional k-means with two clusters\",\n        \"regions\": [\n          {\n            \"id\": \"point-p\",\n            \"label\": \"Point P\",\n            \"phases\": [\n              \"x=0 · Unassigned\",\n              \"x=0 · Cluster A\",\n              \"x=0 · Cluster A\",\n              \"x=0 · Cluster A\",\n              \"x=0 · Cluster A\",\n              \"x=0 · Cluster A\"\n            ]\n          },\n          {\n            \"id\": \"point-q\",\n            \"label\": \"Point Q\",\n            \"phases\": [\n              \"x=2 · Unassigned\",\n              \"x=2 · Cluster A\",\n              \"x=2 · Cluster A\",\n              \"x=2 · Cluster A\",\n              \"x=2 · Cluster A\",\n              \"x=2 · Cluster A\"\n            ]\n          },\n          {\n            \"id\": \"point-r\",\n            \"label\": \"Point R\",\n            \"phases\": [\n              \"x=4 · Unassigned\",\n              \"x=4 · Cluster B\",\n              \"x=4 · Cluster B\",\n              \"x=4 · Cluster A\",\n              \"x=4 · Cluster A\",\n              \"x=4 · Cluster A\"\n            ]\n          },\n          {\n            \"id\": \"point-s\",\n            \"label\": \"Point S\",\n            \"phases\": [\n              \"x=10 · Unassigned\",\n              \"x=10 · Cluster B\",\n              \"x=10 · Cluster B\",\n              \"x=10 · Cluster B\",\n              \"x=10 · Cluster B\",\n              \"x=10 · Cluster B\"\n            ]\n          },\n          {\n            \"id\": \"point-t\",\n            \"label\": \"Point T\",\n            \"phases\": [\n              \"x=16 · Unassigned\",\n              \"x=16 · Cluster B\",\n              \"x=16 · Cluster B\",\n              \"x=16 · Cluster B\",\n              \"x=16 · Cluster B\",\n              \"x=16 · Cluster B\"\n            ]\n          },\n          {\n            \"id\": \"center-a\",\n            \"label\": \"Center A\",\n            \"phases\": [\n              \"Seeded\",\n              \"Held fixed during assignment\",\n              \"Replaced by Cluster A's mean\",\n              \"Held fixed during assignment\",\n              \"Replaced by Cluster A's mean\",\n              \"Cluster A's mean remains unchanged\"\n            ]\n          },\n          {\n            \"id\": \"center-b\",\n            \"label\": \"Center B\",\n            \"phases\": [\n              \"Seeded\",\n              \"Held fixed during assignment\",\n              \"Replaced by Cluster B's mean\",\n              \"Held fixed during assignment\",\n              \"Replaced by Cluster B's mean\",\n              \"Cluster B's mean remains unchanged\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"seed\",\n            \"label\": \"Seed\",\n            \"short\": \"Initialize\",\n            \"sentence\": \"Begin with seeded centers and unassigned points.\",\n            \"why\": \"These fixed starting centers determine the first assignment; different seeds can produce different outcomes.\",\n            \"active\": [\n              \"center-a\",\n              \"center-b\"\n            ],\n            \"calloutRegion\": \"center-b\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-position\",\n                \"label\": \"Center A position\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"center-b-position\",\n                \"label\": \"Center B position\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"r-distance-a\",\n                \"label\": \"R distance to A\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"r-distance-b\",\n                \"label\": \"R distance to B\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Ready for nearest-center assignment\"\n              }\n            ]\n          },\n          {\n            \"id\": \"assign-first\",\n            \"label\": \"Assign\",\n            \"short\": \"Nearest centers\",\n            \"sentence\": \"Assign each point to its nearest center; Point R joins Cluster B.\",\n            \"why\": \"Keep centers fixed during assignment. P and Q choose A; R, S, and T choose B.\",\n            \"active\": [\n              \"point-p\",\n              \"point-q\",\n              \"point-r\",\n              \"point-s\",\n              \"point-t\"\n            ],\n            \"calloutRegion\": \"point-r\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-position\",\n                \"label\": \"Center A position\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"center-b-position\",\n                \"label\": \"Center B position\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"r-distance-a\",\n                \"label\": \"R distance to A\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"r-distance-b\",\n                \"label\": \"R distance to B\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Assigned; recompute means next\"\n              }\n            ]\n          },\n          {\n            \"id\": \"means-first\",\n            \"label\": \"Update means\",\n            \"short\": \"Move centers\",\n            \"sentence\": \"Replace each center with the mean of its assigned points.\",\n            \"why\": \"Point R is now closer to A, but its membership remains B until the next assignment step.\",\n            \"active\": [\n              \"center-a\",\n              \"center-b\"\n            ],\n            \"calloutRegion\": \"center-b\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-position\",\n                \"label\": \"Center A position\",\n                \"value\": \"0 → 1\"\n              },\n              {\n                \"id\": \"center-b-position\",\n                \"label\": \"Center B position\",\n                \"value\": \"6 → 10\"\n              },\n              {\n                \"id\": \"r-distance-a\",\n                \"label\": \"R distance to A\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"r-distance-b\",\n                \"label\": \"R distance to B\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Means updated; reassignment next\"\n              }\n            ]\n          },\n          {\n            \"id\": \"assign-second\",\n            \"label\": \"Reassign\",\n            \"short\": \"R switches\",\n            \"sentence\": \"Point R switches to Cluster A because the updated Center A is nearer.\",\n            \"why\": \"The other memberships stay unchanged. Moving the centers changed the nearest-center comparison for Point R.\",\n            \"active\": [\n              \"point-r\"\n            ],\n            \"calloutRegion\": \"point-r\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-position\",\n                \"label\": \"Center A position\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"center-b-position\",\n                \"label\": \"Center B position\",\n                \"value\": \"10\"\n              },\n              {\n                \"id\": \"r-distance-a\",\n                \"label\": \"R distance to A\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"r-distance-b\",\n                \"label\": \"R distance to B\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Membership changed; recompute means\"\n              }\n            ]\n          },\n          {\n            \"id\": \"means-second\",\n            \"label\": \"Update means\",\n            \"short\": \"New cluster means\",\n            \"sentence\": \"Recompute both means using the changed memberships.\",\n            \"why\": \"P, Q, and R determine Center A; S and T determine Center B. Membership stays fixed during this update.\",\n            \"active\": [\n              \"center-a\",\n              \"center-b\"\n            ],\n            \"calloutRegion\": \"center-a\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-position\",\n                \"label\": \"Center A position\",\n                \"value\": \"1 → 2\"\n              },\n              {\n                \"id\": \"center-b-position\",\n                \"label\": \"Center B position\",\n                \"value\": \"10 → 13\"\n              },\n              {\n                \"id\": \"r-distance-a\",\n                \"label\": \"R distance to A\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"r-distance-b\",\n                \"label\": \"R distance to B\",\n                \"value\": \"9\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Means updated; check assignments again\"\n              }\n            ]\n          },\n          {\n            \"id\": \"stable\",\n            \"label\": \"Stable\",\n            \"short\": \"Assignments unchanged\",\n            \"sentence\": \"Another nearest-center assignment changes nothing, so this run stops.\",\n            \"why\": \"Every point remains nearest its assigned center, and both centers equal their assigned points' means.\",\n            \"active\": [\n              \"point-r\",\n              \"center-a\",\n              \"center-b\"\n            ],\n            \"calloutRegion\": \"point-r\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-position\",\n                \"label\": \"Center A position\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"center-b-position\",\n                \"label\": \"Center B position\",\n                \"value\": \"13\"\n              },\n              {\n                \"id\": \"r-distance-a\",\n                \"label\": \"R distance to A\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"r-distance-b\",\n                \"label\": \"R distance to B\",\n                \"value\": \"9\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"No assignments changed; stop\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does k-means clustering work? Start with five points and two seeded centers. Assign each point to its nearest center, then replace centers with cluster means. Watch Point R switch after the centers move. Repeat until assignments stop changing. Use Previous and Next to compare the states.",
+  "aha": {
+   "stateId": "stable",
+   "observation": "Point R switches after the centers move; repeating assignment and mean updates ends with unchanged assignments."
+  },
+  "layout": {
+   "preset": "approved-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "steps",
+    "kind": "step-rail",
+    "presentation": "Place below the story and instructions, above the experiment. Use the canonical algorithm/collection composition. Highlight the active state; progress belongs here. State indices represent algorithm states, never elapsed time. Reference capture shows Stable.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "clustering-picture",
+    "kind": "fixed-picture",
+    "presentation": "Show fixed array cells P, Q, R, S, T, with Center A and Center B below. Each region displays its phases entry at the active step's index. Coordinates remain fixed; membership words change. Cell spacing does not encode distance. Use membership text and highlighting, never color alone. Fixed inputs are the displayed coordinates, k=2, and the centers shown in Seed. Assume one-dimensional Euclidean distance. Ties choose A; none occur here. No cluster becomes empty.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "mechanism-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor to the named active part without covering cells. Reserve wrapping space for every state. Identify the mechanism here; numerical measurements belong in the readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "measurements-and-status",
+    "kind": "value-readout",
+    "presentation": "Place measurements below the picture in two columns, followed by the bound status line. Positions and distances use arbitrary x-units and a common origin. Distances are absolute coordinate differences; centers are arithmetic means of assigned coordinates. Update arrows compare previous and current center positions; distances always use current centers. All displayed measurements are exact integers for these inputs. Balanced depth has zero parameter controls, excluding navigation and reset.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Step",
+    "presentation": "Use Previous and Next, retaining their names when disabled at boundaries. Default is Seed; bounds are the listed states; increment is one state. Every state persists until learner action, including Stable. Provide visible focus and keyboard activation. Left Arrow selects Previous; Right Arrow selects Next."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore Seed and all fixed defaults. Provide the accessible name Reset, visible focus, and keyboard activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "One-dimensional k-means with two clusters",
+     "regions": [
+      {
+       "id": "point-p",
+       "label": "Point P",
+       "phases": [
+        "x=0 · Unassigned",
+        "x=0 · Cluster A",
+        "x=0 · Cluster A",
+        "x=0 · Cluster A",
+        "x=0 · Cluster A",
+        "x=0 · Cluster A"
+       ]
+      },
+      {
+       "id": "point-q",
+       "label": "Point Q",
+       "phases": [
+        "x=2 · Unassigned",
+        "x=2 · Cluster A",
+        "x=2 · Cluster A",
+        "x=2 · Cluster A",
+        "x=2 · Cluster A",
+        "x=2 · Cluster A"
+       ]
+      },
+      {
+       "id": "point-r",
+       "label": "Point R",
+       "phases": [
+        "x=4 · Unassigned",
+        "x=4 · Cluster B",
+        "x=4 · Cluster B",
+        "x=4 · Cluster A",
+        "x=4 · Cluster A",
+        "x=4 · Cluster A"
+       ]
+      },
+      {
+       "id": "point-s",
+       "label": "Point S",
+       "phases": [
+        "x=10 · Unassigned",
+        "x=10 · Cluster B",
+        "x=10 · Cluster B",
+        "x=10 · Cluster B",
+        "x=10 · Cluster B",
+        "x=10 · Cluster B"
+       ]
+      },
+      {
+       "id": "point-t",
+       "label": "Point T",
+       "phases": [
+        "x=16 · Unassigned",
+        "x=16 · Cluster B",
+        "x=16 · Cluster B",
+        "x=16 · Cluster B",
+        "x=16 · Cluster B",
+        "x=16 · Cluster B"
+       ]
+      },
+      {
+       "id": "center-a",
+       "label": "Center A",
+       "phases": [
+        "Seeded",
+        "Held fixed during assignment",
+        "Replaced by Cluster A's mean",
+        "Held fixed during assignment",
+        "Replaced by Cluster A's mean",
+        "Cluster A's mean remains unchanged"
+       ]
+      },
+      {
+       "id": "center-b",
+       "label": "Center B",
+       "phases": [
+        "Seeded",
+        "Held fixed during assignment",
+        "Replaced by Cluster B's mean",
+        "Held fixed during assignment",
+        "Replaced by Cluster B's mean",
+        "Cluster B's mean remains unchanged"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "seed",
+       "label": "Seed",
+       "short": "Initialize",
+       "sentence": "Begin with seeded centers and unassigned points.",
+       "why": "These fixed starting centers determine the first assignment; different seeds can produce different outcomes.",
+       "active": [
+        "center-a",
+        "center-b"
+       ],
+       "calloutRegion": "center-b",
+       "readouts": [
+        {
+         "id": "center-a-position",
+         "label": "Center A position",
+         "value": "0"
+        },
+        {
+         "id": "center-b-position",
+         "label": "Center B position",
+         "value": "6"
+        },
+        {
+         "id": "r-distance-a",
+         "label": "R distance to A",
+         "value": "4"
+        },
+        {
+         "id": "r-distance-b",
+         "label": "R distance to B",
+         "value": "2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Ready for nearest-center assignment"
+        }
+       ]
+      },
+      {
+       "id": "assign-first",
+       "label": "Assign",
+       "short": "Nearest centers",
+       "sentence": "Assign each point to its nearest center; Point R joins Cluster B.",
+       "why": "Keep centers fixed during assignment. P and Q choose A; R, S, and T choose B.",
+       "active": [
+        "point-p",
+        "point-q",
+        "point-r",
+        "point-s",
+        "point-t"
+       ],
+       "calloutRegion": "point-r",
+       "readouts": [
+        {
+         "id": "center-a-position",
+         "label": "Center A position",
+         "value": "0"
+        },
+        {
+         "id": "center-b-position",
+         "label": "Center B position",
+         "value": "6"
+        },
+        {
+         "id": "r-distance-a",
+         "label": "R distance to A",
+         "value": "4"
+        },
+        {
+         "id": "r-distance-b",
+         "label": "R distance to B",
+         "value": "2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Assigned; recompute means next"
+        }
+       ]
+      },
+      {
+       "id": "means-first",
+       "label": "Update means",
+       "short": "Move centers",
+       "sentence": "Replace each center with the mean of its assigned points.",
+       "why": "Point R is now closer to A, but its membership remains B until the next assignment step.",
+       "active": [
+        "center-a",
+        "center-b"
+       ],
+       "calloutRegion": "center-b",
+       "readouts": [
+        {
+         "id": "center-a-position",
+         "label": "Center A position",
+         "value": "0 → 1"
+        },
+        {
+         "id": "center-b-position",
+         "label": "Center B position",
+         "value": "6 → 10"
+        },
+        {
+         "id": "r-distance-a",
+         "label": "R distance to A",
+         "value": "3"
+        },
+        {
+         "id": "r-distance-b",
+         "label": "R distance to B",
+         "value": "6"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Means updated; reassignment next"
+        }
+       ]
+      },
+      {
+       "id": "assign-second",
+       "label": "Reassign",
+       "short": "R switches",
+       "sentence": "Point R switches to Cluster A because the updated Center A is nearer.",
+       "why": "The other memberships stay unchanged. Moving the centers changed the nearest-center comparison for Point R.",
+       "active": [
+        "point-r"
+       ],
+       "calloutRegion": "point-r",
+       "readouts": [
+        {
+         "id": "center-a-position",
+         "label": "Center A position",
+         "value": "1"
+        },
+        {
+         "id": "center-b-position",
+         "label": "Center B position",
+         "value": "10"
+        },
+        {
+         "id": "r-distance-a",
+         "label": "R distance to A",
+         "value": "3"
+        },
+        {
+         "id": "r-distance-b",
+         "label": "R distance to B",
+         "value": "6"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Membership changed; recompute means"
+        }
+       ]
+      },
+      {
+       "id": "means-second",
+       "label": "Update means",
+       "short": "New cluster means",
+       "sentence": "Recompute both means using the changed memberships.",
+       "why": "P, Q, and R determine Center A; S and T determine Center B. Membership stays fixed during this update.",
+       "active": [
+        "center-a",
+        "center-b"
+       ],
+       "calloutRegion": "center-a",
+       "readouts": [
+        {
+         "id": "center-a-position",
+         "label": "Center A position",
+         "value": "1 → 2"
+        },
+        {
+         "id": "center-b-position",
+         "label": "Center B position",
+         "value": "10 → 13"
+        },
+        {
+         "id": "r-distance-a",
+         "label": "R distance to A",
+         "value": "2"
+        },
+        {
+         "id": "r-distance-b",
+         "label": "R distance to B",
+         "value": "9"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Means updated; check assignments again"
+        }
+       ]
+      },
+      {
+       "id": "stable",
+       "label": "Stable",
+       "short": "Assignments unchanged",
+       "sentence": "Another nearest-center assignment changes nothing, so this run stops.",
+       "why": "Every point remains nearest its assigned center, and both centers equal their assigned points' means.",
+       "active": [
+        "point-r",
+        "center-a",
+        "center-b"
+       ],
+       "calloutRegion": "point-r",
+       "readouts": [
+        {
+         "id": "center-a-position",
+         "label": "Center A position",
+         "value": "2"
+        },
+        {
+         "id": "center-b-position",
+         "label": "Center B position",
+         "value": "13"
+        },
+        {
+         "id": "r-distance-a",
+         "label": "R distance to A",
+         "value": "2"
+        },
+        {
+         "id": "r-distance-b",
+         "label": "R distance to B",
+         "value": "9"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "No assignments changed; stop"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1534,
+  "output": 7396
+ },
+ "usd": 0.074158,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3eJRZUYAyJHkipykUYB\"}"
+  },
+  "cardUsd": 0
+ }
+}

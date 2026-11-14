@@ -1,0 +1,13 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a38",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "explain k-means clustering with an example",
+ "ts": "2026-11-14T22:36:44.440Z",
+ "ms": null,
+ "usd": 0,
+ "composition": null,
+ "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3cw54UMt5GT1pgxpyJk\"}"
+}

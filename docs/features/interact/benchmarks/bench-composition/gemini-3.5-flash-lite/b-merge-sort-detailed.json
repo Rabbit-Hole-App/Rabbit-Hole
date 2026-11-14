@@ -1,0 +1,237 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "b-merge-sort",
+ "set": "B",
+ "subject": "merge-sort",
+ "depth": "detailed",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T22:24:08.239Z",
+ "ms": 2954,
+ "raw": "{\n  \"story\": \"Merge sort divides the array into single elements, then merges sorted pairs recursively until the entire collection is fully ordered.\",\n  \"aha\": {\n    \"stateId\": \"merge\",\n    \"observation\": \"Sub-arrays combine into a sorted sequence by comparing leading items.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"reason\": \"variant.states.why\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\n        \"divide\",\n        \"split\",\n        \"merge\",\n        \"sorted\"\n      ]\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Merge Sort\",\n        \"regions\": [\n          {\n            \"id\": \"r1\",\n            \"label\": \"Left Partition\",\n            \"kind\": \"array\",\n            \"values\": [\"3\", \"1\"]\n          },\n          {\n            \"id\": \"r2\",\n            \"label\": \"Right Partition\",\n            \"kind\": \"array\",\n            \"values\": [\"4\", \"2\"]\n          },\n          {\n            \"id\": \"r3\",\n            \"label\": \"Output Buffer\",\n            \"kind\": \"array\",\n            \"values\": [\"1\", \"2\", \"3\", \"4\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"divide\",\n            \"label\": \"Initial\",\n            \"short\": \"Start\",\n            \"sentence\": \"Unsorted array loaded.\",\n            \"why\": \"Begin with four items.\",\n            \"active\": [\"r1\", \"r2\"],\n            \"calloutRegion\": \"r1\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Recursion Depth\",\n                \"value\": \"0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"split\",\n            \"label\": \"Split\",\n            \"short\": \"Split\",\n            \"sentence\": \"Array split into halves.\",\n            \"why\": \"Halving reduces problem size.\",\n            \"active\": [\"r1\", \"r2\"],\n            \"calloutRegion\": \"r2\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Recursion Depth\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"merge\",\n            \"label\": \"Merge\",\n            \"short\": \"Merge\",\n            \"sentence\": \"Comparing smallest elements.\",\n            \"why\": \"Order is established during merge.\",\n            \"active\": [\"r3\"],\n            \"calloutRegion\": \"r3\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Recursion Depth\",\n                \"value\": \"2\"\n              }\n            ]\n          },\n          {\n            \"id\": \"sorted\",\n            \"label\": \"Complete\",\n            \"short\": \"Done\",\n            \"sentence\": \"Collection is fully sorted.\",\n            \"why\": \"Merge completes all invariants.\",\n            \"active\": [\"r3\"],\n            \"calloutRegion\": \"r3\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Recursion Depth\",\n                \"value\": \"0\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Merge sort divides the array into single elements, then merges sorted pairs recursively until the entire collection is fully ordered.",
+  "aha": {
+   "stateId": "merge",
+   "observation": "Sub-arrays combine into a sorted sequence by comparing leading items."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "reason": "variant.states.why"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "divide",
+     "split",
+     "merge",
+     "sorted"
+    ]
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Merge Sort",
+     "regions": [
+      {
+       "id": "r1",
+       "label": "Left Partition",
+       "kind": "array",
+       "values": [
+        "3",
+        "1"
+       ]
+      },
+      {
+       "id": "r2",
+       "label": "Right Partition",
+       "kind": "array",
+       "values": [
+        "4",
+        "2"
+       ]
+      },
+      {
+       "id": "r3",
+       "label": "Output Buffer",
+       "kind": "array",
+       "values": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "divide",
+       "label": "Initial",
+       "short": "Start",
+       "sentence": "Unsorted array loaded.",
+       "why": "Begin with four items.",
+       "active": [
+        "r1",
+        "r2"
+       ],
+       "calloutRegion": "r1",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Recursion Depth",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "split",
+       "label": "Split",
+       "short": "Split",
+       "sentence": "Array split into halves.",
+       "why": "Halving reduces problem size.",
+       "active": [
+        "r1",
+        "r2"
+       ],
+       "calloutRegion": "r2",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Recursion Depth",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "merge",
+       "label": "Merge",
+       "short": "Merge",
+       "sentence": "Comparing smallest elements.",
+       "why": "Order is established during merge.",
+       "active": [
+        "r3"
+       ],
+       "calloutRegion": "r3",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Recursion Depth",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "sorted",
+       "label": "Complete",
+       "short": "Done",
+       "sentence": "Collection is fully sorted.",
+       "why": "Merge completes all invariants.",
+       "active": [
+        "r3"
+       ],
+       "calloutRegion": "r3",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Recursion Depth",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1102,
+  "output": 1069
+ },
+ "usd": 0.003004,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The regions are static arrays (left [3,1], right [4,2], output already [1,2,3,4]) with no marks showing the compare-leading-items mechanism, so the merge observation is only asserted in text."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state 'merge' is the third of four steps and the learner can step on to 'sorted'. There is no timing or hold, and the output buffer shows the final sorted result from the start."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single stepIndex control changes the active regions, callout target, sentence and depth readout for each state."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "Callouts and readouts bind to declared state fields, but the regions' values are fixed and do not change per step. The unsorted halves [3,1] and [4,2] are never split to single elements, and no comparison mark is bound to data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The story speaks of dividing to single elements and recursive merging of pairs, but the scene shows only two halves and a final buffer. The step labelled 'divide' says 'unsorted array loaded' and 'split' is a separate step, which is confusing."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The scene is sparse, with three regions, one callout and one readout. There is no clutter, though it also adds little mechanism depth for a 'detailed' request."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "Recursion depth reads 0, 1, 2, 0, which is inconsistent: the depth does not reach the single-element level for 4 items, and it drops to 0 at the end. The output buffer is also shown sorted before the merge happens."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012054
+ }
+}

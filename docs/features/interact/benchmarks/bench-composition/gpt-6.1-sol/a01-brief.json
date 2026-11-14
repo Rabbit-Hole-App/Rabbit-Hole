@@ -1,0 +1,207 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a01",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "what is gradient descent?",
+ "ts": "2026-11-14T22:21:33.814Z",
+ "ms": 80755,
+ "raw": "{\n  \"story\": \"How does gradient descent reduce error? Start with a model setting on a positive slope, then move opposite that slope. Compare the error before and after. Here, error is w², and each update subtracts half the slope. This chosen step reaches the minimum; other problems usually require repeated updates.\",\n  \"aha\": {\n    \"stateId\": \"after-update\",\n    \"observation\": \"Moving opposite the slope lowers error, as the before-and-after comparison shows.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"step-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with the story above the experiment. Show navigation progress only on this rail. Parameter-control budget: zero.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"error-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical algorithm/collection arrangement with two named regions on one row. Highlight only the active region; do not animate movement.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"measurements\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Give each measurement one location. The model setting is dimensionless; error uses squared setting units. Values are exact, without rounding. Arrows compare before with after.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor the text to the active region without covering labels. Render the reason as the bound status line below the experiment.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"presentation\": \"Use Previous and Next, retaining their names when disabled at boundaries. Default to the first state; increment by one state. Every state persists until navigation. Provide keyboard operation, accessible names, and visible focus.\",\n      \"items\": \"variant.states\",\n      \"label\": \"Gradient descent step\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide keyboard operation and visible focus.\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"One setting, squared error\",\n        \"regions\": [\n          {\n            \"id\": \"positive-slope\",\n            \"label\": \"Positive slope\",\n            \"values\": [\n              \"Increasing the setting increases error.\"\n            ]\n          },\n          {\n            \"id\": \"minimum\",\n            \"label\": \"Minimum\",\n            \"values\": [\n              \"No downhill direction remains.\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"positive-slope\",\n            \"to\": \"minimum\",\n            \"label\": \"Move opposite the slope\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"before-update\",\n            \"label\": \"Before update\",\n            \"short\": \"Inspect\",\n            \"sentence\": \"At Positive slope, decreasing the model setting moves downhill.\",\n            \"why\": \"Next applies the fixed half-slope update.\",\n            \"active\": [\n              \"positive-slope\"\n            ],\n            \"calloutRegion\": \"positive-slope\",\n            \"readouts\": [\n              {\n                \"id\": \"setting\",\n                \"label\": \"Model setting w\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"error\",\n                \"label\": \"Squared error\",\n                \"value\": \"4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"after-update\",\n            \"label\": \"After update\",\n            \"short\": \"Compare\",\n            \"sentence\": \"The model setting reaches Minimum after moving opposite the slope.\",\n            \"why\": \"Error fell after the update. This example reaches the minimum in one step.\",\n            \"active\": [\n              \"minimum\"\n            ],\n            \"calloutRegion\": \"minimum\",\n            \"readouts\": [\n              {\n                \"id\": \"setting\",\n                \"label\": \"Model setting w\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"error\",\n                \"label\": \"Squared error: before → after\",\n                \"value\": \"4 → 0\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does gradient descent reduce error? Start with a model setting on a positive slope, then move opposite that slope. Compare the error before and after. Here, error is w², and each update subtracts half the slope. This chosen step reaches the minimum; other problems usually require repeated updates.",
+  "aha": {
+   "stateId": "after-update",
+   "observation": "Moving opposite the slope lowers error, as the before-and-after comparison shows."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "step-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with the story above the experiment. Show navigation progress only on this rail. Parameter-control budget: zero.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "error-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical algorithm/collection arrangement with two named regions on one row. Highlight only the active region; do not animate movement.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "measurements",
+    "kind": "value-readout",
+    "presentation": "Give each measurement one location. The model setting is dimensionless; error uses squared setting units. Values are exact, without rounding. Arrows compare before with after.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor the text to the active region without covering labels. Render the reason as the bound status line below the experiment.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "presentation": "Use Previous and Next, retaining their names when disabled at boundaries. Default to the first state; increment by one state. Every state persists until navigation. Provide keyboard operation, accessible names, and visible focus.",
+    "items": "variant.states",
+    "label": "Gradient descent step"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "presentation": "Restore the first state and all defaults. Provide keyboard operation and visible focus.",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "One setting, squared error",
+     "regions": [
+      {
+       "id": "positive-slope",
+       "label": "Positive slope",
+       "values": [
+        "Increasing the setting increases error."
+       ]
+      },
+      {
+       "id": "minimum",
+       "label": "Minimum",
+       "values": [
+        "No downhill direction remains."
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "positive-slope",
+       "to": "minimum",
+       "label": "Move opposite the slope"
+      }
+     ],
+     "states": [
+      {
+       "id": "before-update",
+       "label": "Before update",
+       "short": "Inspect",
+       "sentence": "At Positive slope, decreasing the model setting moves downhill.",
+       "why": "Next applies the fixed half-slope update.",
+       "active": [
+        "positive-slope"
+       ],
+       "calloutRegion": "positive-slope",
+       "readouts": [
+        {
+         "id": "setting",
+         "label": "Model setting w",
+         "value": "2"
+        },
+        {
+         "id": "error",
+         "label": "Squared error",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "after-update",
+       "label": "After update",
+       "short": "Compare",
+       "sentence": "The model setting reaches Minimum after moving opposite the slope.",
+       "why": "Error fell after the update. This example reaches the minimum in one step.",
+       "active": [
+        "minimum"
+       ],
+       "calloutRegion": "minimum",
+       "readouts": [
+        {
+         "id": "setting",
+         "label": "Model setting w",
+         "value": "0"
+        },
+        {
+         "id": "error",
+         "label": "Squared error: before → after",
+         "value": "4 → 0"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1531,
+  "output": 3625
+ },
+ "usd": 0.039312,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture links Positive slope to Minimum with a \"Move opposite the slope\" arrow, and the readouts show the error falling from 4 to 0, which answers how gradient descent reduces error."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The after-update state, which is the aha, persists until navigation, and every state is stated to persist until the learner acts. There is no timer."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The controls are Previous and Next, and the parameter-control budget is zero, so there is no parameter to vary. Each step changes the active region, callout and readouts, and the fixed comparison is justified."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlight comes from state.active, the callout from calloutRegion and sentence, the status line from why, the readouts from state.readouts, and the arrow from variant.links. Everything is bound to declared data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, the sentences, the region labels (Positive slope, Minimum) and the readout labels all use the same terms: model setting, squared error and moving opposite the slope. The controls are named Previous, Next and Reset."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "This is a brief scene with two regions on one row and two readouts. Only the active region changes, and nothing is extra."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "With w=2, error=4 and slope=4, subtracting half the slope gives w=0 and error 0, so 4 → 0 is correct. The before-and-after comparison appears once in the error readout, and the callout only locates the active region."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01293
+ }
+}

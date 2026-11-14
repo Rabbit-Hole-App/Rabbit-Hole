@@ -1,0 +1,458 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a22",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+ "ts": "2026-11-14T22:30:17.592Z",
+ "ms": 28037,
+ "raw": "{\"story\":\"A parent node holds 10 samples, 5 A and 5 B. We compute its Gini impurity. Then a split sends 6 samples left and 4 right. We compute each side's Gini and weight it by size. Information gain is the parent Gini minus that weighted average: 0.500 − 0.417 = 0.083.\",\"aha\":{\"stateId\":\"gain\",\"observation\":\"Information gain is the parent Gini minus the size-weighted child Gini: 0.500 − 0.417 = 0.083, so this split reduces impurity.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons. Names stay the same when disabled at the first or last step. Keyboard: Left and Right arrow keys.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Goes back to step 1, Parent node.\"}],\"data\":{\"variants\":[{\"label\":\"10 samples, split 6 / 4\",\"regions\":[{\"id\":\"parent\",\"label\":\"Parent node (10)\",\"values\":[\"A A A A A\",\"B B B B B\"]},{\"id\":\"left\",\"label\":\"Left child (6)\",\"values\":[\"A A A A\",\"B B\"]},{\"id\":\"right\",\"label\":\"Right child (4)\",\"values\":[\"A\",\"B B B\"]},{\"id\":\"weighted\",\"label\":\"Weighted child Gini\",\"values\":[\"6/10 × G_left + 4/10 × G_right\"]},{\"id\":\"gainbox\",\"label\":\"Information gain\",\"values\":[\"G_parent − weighted\"]}],\"links\":[{\"from\":\"parent\",\"to\":\"left\",\"label\":\"feature ≤ t\"},{\"from\":\"parent\",\"to\":\"right\",\"label\":\"feature > t\"}],\"states\":[{\"id\":\"start\",\"label\":\"Parent node\",\"short\":\"Parent\",\"sentence\":\"The parent node holds 10 samples: 5 of class A and 5 of class B.\",\"why\":\"Impurity measures how mixed the classes are before the split.\",\"active\":[\"parent\"],\"calloutRegion\":\"parent\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"—\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"—\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"—\"},{\"id\":\"gw\",\"label\":\"Weighted\",\"value\":\"—\"},{\"id\":\"ig\",\"label\":\"Gain\",\"value\":\"—\"}]},{\"id\":\"parentGini\",\"label\":\"Parent Gini\",\"short\":\"G parent\",\"sentence\":\"Gini is 1 minus the sum of squared class shares: 1 − (0.5² + 0.5²) = 0.500.\",\"why\":\"A 50/50 mix gives the highest Gini possible for two classes.\",\"active\":[\"parent\"],\"calloutRegion\":\"parent\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.500\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"—\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"—\"},{\"id\":\"gw\",\"label\":\"Weighted\",\"value\":\"—\"},{\"id\":\"ig\",\"label\":\"Gain\",\"value\":\"—\"}]},{\"id\":\"split\",\"label\":\"Apply split\",\"short\":\"Split\",\"sentence\":\"The split sends 6 samples left (4 A, 2 B) and 4 samples right (1 A, 3 B).\",\"why\":\"Each child is scored on its own class counts.\",\"active\":[\"left\",\"right\"],\"calloutRegion\":\"left\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.500\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"—\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"—\"},{\"id\":\"gw\",\"label\":\"Weighted\",\"value\":\"—\"},{\"id\":\"ig\",\"label\":\"Gain\",\"value\":\"—\"}]},{\"id\":\"leftGini\",\"label\":\"Left Gini\",\"short\":\"G left\",\"sentence\":\"Left Gini: 1 − ((4/6)² + (2/6)²) = 1 − 20/36 = 0.444.\",\"why\":\"Mostly A, so it is purer than the parent.\",\"active\":[\"left\"],\"calloutRegion\":\"left\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.500\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.444\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"—\"},{\"id\":\"gw\",\"label\":\"Weighted\",\"value\":\"—\"},{\"id\":\"ig\",\"label\":\"Gain\",\"value\":\"—\"}]},{\"id\":\"rightGini\",\"label\":\"Right Gini\",\"short\":\"G right\",\"sentence\":\"Right Gini: 1 − ((1/4)² + (3/4)²) = 1 − 10/16 = 0.375.\",\"why\":\"Mostly B, so it is also purer than the parent.\",\"active\":[\"right\"],\"calloutRegion\":\"right\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.500\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.444\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"0.375\"},{\"id\":\"gw\",\"label\":\"Weighted\",\"value\":\"—\"},{\"id\":\"ig\",\"label\":\"Gain\",\"value\":\"—\"}]},{\"id\":\"weightedGini\",\"label\":\"Weighted average\",\"short\":\"Weight\",\"sentence\":\"Weight each side by its share of samples: 0.6 × 0.444 + 0.4 × 0.375 = 0.417.\",\"why\":\"Bigger children affect the split's score more.\",\"active\":[\"weighted\",\"left\",\"right\"],\"calloutRegion\":\"weighted\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.500\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.444\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"0.375\"},{\"id\":\"gw\",\"label\":\"Weighted\",\"value\":\"0.417\"},{\"id\":\"ig\",\"label\":\"Gain\",\"value\":\"—\"}]},{\"id\":\"gain\",\"label\":\"Information gain\",\"short\":\"Gain\",\"sentence\":\"Gain = parent Gini − weighted child Gini = 0.500 − 0.417 = 0.083.\",\"why\":\"A positive gain means the split lowers impurity. The tree picks the split with the largest gain.\",\"active\":[\"gainbox\",\"parent\",\"weighted\"],\"calloutRegion\":\"gainbox\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.500\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.444\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"0.375\"},{\"id\":\"gw\",\"label\":\"Weighted\",\"value\":\"0.417\"},{\"id\":\"ig\",\"label\":\"Gain\",\"value\":\"0.083\"}]}]}]}}",
+ "composition": {
+  "story": "A parent node holds 10 samples, 5 A and 5 B. We compute its Gini impurity. Then a split sends 6 samples left and 4 right. We compute each side's Gini and weight it by size. Information gain is the parent Gini minus that weighted average: 0.500 − 0.417 = 0.083.",
+  "aha": {
+   "stateId": "gain",
+   "observation": "Information gain is the parent Gini minus the size-weighted child Gini: 0.500 − 0.417 = 0.083, so this split reduces impurity."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons. Names stay the same when disabled at the first or last step. Keyboard: Left and Right arrow keys."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Goes back to step 1, Parent node."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "10 samples, split 6 / 4",
+     "regions": [
+      {
+       "id": "parent",
+       "label": "Parent node (10)",
+       "values": [
+        "A A A A A",
+        "B B B B B"
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left child (6)",
+       "values": [
+        "A A A A",
+        "B B"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right child (4)",
+       "values": [
+        "A",
+        "B B B"
+       ]
+      },
+      {
+       "id": "weighted",
+       "label": "Weighted child Gini",
+       "values": [
+        "6/10 × G_left + 4/10 × G_right"
+       ]
+      },
+      {
+       "id": "gainbox",
+       "label": "Information gain",
+       "values": [
+        "G_parent − weighted"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "parent",
+       "to": "left",
+       "label": "feature ≤ t"
+      },
+      {
+       "from": "parent",
+       "to": "right",
+       "label": "feature > t"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Parent node",
+       "short": "Parent",
+       "sentence": "The parent node holds 10 samples: 5 of class A and 5 of class B.",
+       "why": "Impurity measures how mixed the classes are before the split.",
+       "active": [
+        "parent"
+       ],
+       "calloutRegion": "parent",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "—"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "—"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "—"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted",
+         "value": "—"
+        },
+        {
+         "id": "ig",
+         "label": "Gain",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "parentGini",
+       "label": "Parent Gini",
+       "short": "G parent",
+       "sentence": "Gini is 1 minus the sum of squared class shares: 1 − (0.5² + 0.5²) = 0.500.",
+       "why": "A 50/50 mix gives the highest Gini possible for two classes.",
+       "active": [
+        "parent"
+       ],
+       "calloutRegion": "parent",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.500"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "—"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "—"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted",
+         "value": "—"
+        },
+        {
+         "id": "ig",
+         "label": "Gain",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "split",
+       "label": "Apply split",
+       "short": "Split",
+       "sentence": "The split sends 6 samples left (4 A, 2 B) and 4 samples right (1 A, 3 B).",
+       "why": "Each child is scored on its own class counts.",
+       "active": [
+        "left",
+        "right"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.500"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "—"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "—"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted",
+         "value": "—"
+        },
+        {
+         "id": "ig",
+         "label": "Gain",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "leftGini",
+       "label": "Left Gini",
+       "short": "G left",
+       "sentence": "Left Gini: 1 − ((4/6)² + (2/6)²) = 1 − 20/36 = 0.444.",
+       "why": "Mostly A, so it is purer than the parent.",
+       "active": [
+        "left"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.500"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.444"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "—"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted",
+         "value": "—"
+        },
+        {
+         "id": "ig",
+         "label": "Gain",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "rightGini",
+       "label": "Right Gini",
+       "short": "G right",
+       "sentence": "Right Gini: 1 − ((1/4)² + (3/4)²) = 1 − 10/16 = 0.375.",
+       "why": "Mostly B, so it is also purer than the parent.",
+       "active": [
+        "right"
+       ],
+       "calloutRegion": "right",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.500"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.444"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "0.375"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted",
+         "value": "—"
+        },
+        {
+         "id": "ig",
+         "label": "Gain",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "weightedGini",
+       "label": "Weighted average",
+       "short": "Weight",
+       "sentence": "Weight each side by its share of samples: 0.6 × 0.444 + 0.4 × 0.375 = 0.417.",
+       "why": "Bigger children affect the split's score more.",
+       "active": [
+        "weighted",
+        "left",
+        "right"
+       ],
+       "calloutRegion": "weighted",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.500"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.444"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "0.375"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted",
+         "value": "0.417"
+        },
+        {
+         "id": "ig",
+         "label": "Gain",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "gain",
+       "label": "Information gain",
+       "short": "Gain",
+       "sentence": "Gain = parent Gini − weighted child Gini = 0.500 − 0.417 = 0.083.",
+       "why": "A positive gain means the split lowers impurity. The tree picks the split with the largest gain.",
+       "active": [
+        "gainbox",
+        "parent",
+        "weighted"
+       ],
+       "calloutRegion": "gainbox",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.500"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.444"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "0.375"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted",
+         "value": "0.417"
+        },
+        {
+         "id": "ig",
+         "label": "Gain",
+         "value": "0.083"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3083,
+  "output": 3599
+ },
+ "usd": 0.084312,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture shows the parent, the two children and the weighted/gain boxes, with links, so it answers how a split's information gain is computed from Gini impurity."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'gain' is the last step; it holds there with 0.083 and no auto-advance until the learner steps back or resets."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only control is the step index, and each step changes the active regions, callout and readouts; a fixed worked example is justified as the comparison."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active regions, callout targets, text and readouts all come from the declared state and variant data, and the links come from variant.links."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, region labels and callouts consistently refer to parent, left, right, weighted and gain, and the Previous/Next/Reset controls match the stepper."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth has one active region per step, with a compact five-readout row and no extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "I recomputed every value: 0.500, 0.444, 0.375, 0.417 and 0.083 are all correct, and each readout fills in once as its step is reached."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018538
+ }
+}

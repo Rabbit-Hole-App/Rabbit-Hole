@@ -1,0 +1,663 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a33",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "Why does recursive feature elimination refit after each drop?",
+ "ts": "2026-11-14T22:31:14.021Z",
+ "ms": 43372,
+ "raw": "{\"story\":\"Recursive feature elimination drops the weakest feature, then refits. Features x1 and x2 share one signal, so each looks weak alone. Step through four features down to one. Watch x2's weight after x1 leaves, then compare with fitting once.\",\"aha\":{\"stateId\":\"fit3\",\"observation\":\"After x1 is dropped, the refit gives x2 weight 0.59, up from 0.31. Old weights were stale, so refitting prevents dropping x2 by mistake.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons over the step rail; keyboard arrows move one state\"},{\"id\":\"mode\",\"kind\":\"select\",\"label\":\"Elimination method\",\"options\":[\"Refit each round\",\"Fit once\"],\"default\":0,\"presentation\":\"Select switching between the two variants; each restarts at its first state\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first state and Refit each round\"}],\"data\":{\"variants\":[{\"label\":\"Refit each round\",\"regions\":[{\"id\":\"x1\",\"label\":\"Feature x1 (twin of x2)\",\"values\":[\"fit 1: 0.30\",\"fit 2: 0.30\",\"dropped before fit 3\"]},{\"id\":\"x2\",\"label\":\"Feature x2 (twin of x1)\",\"values\":[\"fit 1: 0.31\",\"fit 2: 0.31\",\"fit 3: 0.59\"]},{\"id\":\"x3\",\"label\":\"Feature x3 (independent)\",\"values\":[\"fit 1: 0.40\",\"fit 2: 0.40\",\"fit 3: 0.40\"]},{\"id\":\"x4\",\"label\":\"Feature x4 (noise)\",\"values\":[\"fit 1: 0.05\",\"dropped before fit 2\"]},{\"id\":\"model\",\"label\":\"Linear model fit on remaining features\",\"phases\":[\"fit\",\"rank by |weight|\",\"drop lowest\",\"refit\"]},{\"id\":\"rank\",\"label\":\"Lowest |weight| this round\",\"values\":[\"x4 0.05\",\"x1 0.30\",\"x3 0.40\"]}],\"links\":[{\"from\":\"x1\",\"to\":\"x2\",\"label\":\"shared signal\"},{\"from\":\"model\",\"to\":\"rank\",\"label\":\"ranks\"}],\"states\":[{\"id\":\"start\",\"label\":\"Start\",\"sentence\":\"Four features are in. x1 and x2 carry nearly the same signal. The goal is to keep one feature.\",\"why\":\"Shared signal means weights depend on which features are present.\",\"calloutRegion\":\"model\",\"active\":[\"x1\",\"x2\",\"x3\",\"x4\"],\"short\":\"Start\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"0\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"4\"},{\"id\":\"low\",\"label\":\"Lowest |w|\",\"value\":\"not fit yet\"}]},{\"id\":\"fit1\",\"label\":\"Fit 1\",\"sentence\":\"Fit 1 on all four: x1 0.30, x2 0.31, x3 0.40, x4 0.05. The twins split their shared weight.\",\"why\":\"Each twin gets about half of the signal they share.\",\"calloutRegion\":\"model\",\"active\":[\"x1\",\"x2\",\"x3\",\"x4\",\"model\"],\"short\":\"Fit 1\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"1\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"4\"},{\"id\":\"low\",\"label\":\"Lowest |w|\",\"value\":\"x4 = 0.05\"}]},{\"id\":\"drop-x4\",\"label\":\"Drop x4\",\"sentence\":\"x4 has the smallest weight, so x4 is dropped. This choice is safe because x4 is noise.\",\"why\":\"The lowest weight is removed first.\",\"calloutRegion\":\"x4\",\"active\":[\"x4\",\"rank\"],\"short\":\"Drop x4\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"1\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"3\"},{\"id\":\"low\",\"label\":\"Lowest |w|\",\"value\":\"x4 = 0.05\"}]},{\"id\":\"fit2\",\"label\":\"Fit 2\",\"sentence\":\"Refit on x1, x2, x3: weights barely move, because x4 shared no signal with them.\",\"why\":\"Refitting changes little when the dropped feature was independent.\",\"calloutRegion\":\"model\",\"active\":[\"x1\",\"x2\",\"x3\",\"model\"],\"short\":\"Fit 2\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"2\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"3\"},{\"id\":\"low\",\"label\":\"Lowest |w|\",\"value\":\"x1 = 0.30\"}]},{\"id\":\"drop-x1\",\"label\":\"Drop x1\",\"sentence\":\"x1 is now lowest, so x1 is dropped. Its shared signal has to go somewhere.\",\"why\":\"Removing one twin leaves its signal for the other twin to carry.\",\"calloutRegion\":\"x1\",\"active\":[\"x1\",\"rank\"],\"short\":\"Drop x1\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"2\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"2\"},{\"id\":\"low\",\"label\":\"Lowest |w|\",\"value\":\"x1 = 0.30\"}]},{\"id\":\"fit3\",\"label\":\"Fit 3: refit\",\"sentence\":\"Refit on x2, x3: x2 jumps from 0.31 to 0.59. It absorbed x1's share.\",\"why\":\"The old 0.31 was stale. Weights are w(S), valid only for the current feature set S.\",\"calloutRegion\":\"x2\",\"active\":[\"x2\",\"x3\",\"model\"],\"short\":\"Fit 3\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"3\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"2\"},{\"id\":\"x2w\",\"label\":\"x2 weight\",\"value\":\"0.31 → 0.59\"},{\"id\":\"low\",\"label\":\"Lowest |w|\",\"value\":\"x3 = 0.40\"}]},{\"id\":\"drop-x3\",\"label\":\"Drop x3\",\"sentence\":\"Now x3 is lowest, so x3 is dropped. x2 remains as the best single feature.\",\"why\":\"Fresh weights rank x2 above x3, the reverse of the stale ranking.\",\"calloutRegion\":\"x3\",\"active\":[\"x3\",\"rank\",\"x2\"],\"short\":\"Keep x2\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"3\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"1\"},{\"id\":\"low\",\"label\":\"Kept feature\",\"value\":\"x2\"}]}]},{\"label\":\"Fit once\",\"regions\":[{\"id\":\"x1\",\"label\":\"Feature x1 (twin of x2)\",\"values\":[\"fit 1: 0.30\"]},{\"id\":\"x2\",\"label\":\"Feature x2 (twin of x1)\",\"values\":[\"fit 1: 0.31\",\"never refit: stays 0.31\"]},{\"id\":\"x3\",\"label\":\"Feature x3 (independent)\",\"values\":[\"fit 1: 0.40\"]},{\"id\":\"x4\",\"label\":\"Feature x4 (noise)\",\"values\":[\"fit 1: 0.05\"]},{\"id\":\"model\",\"label\":\"Linear model fit once on all features\",\"phases\":[\"fit\",\"rank by |weight|\",\"drop lowest\"]},{\"id\":\"rank\",\"label\":\"Lowest stale |weight|\",\"values\":[\"x4 0.05\",\"x1 0.30\",\"x2 0.31\"]}],\"links\":[{\"from\":\"x1\",\"to\":\"x2\",\"label\":\"shared signal\"},{\"from\":\"model\",\"to\":\"rank\",\"label\":\"ranks\"}],\"states\":[{\"id\":\"start\",\"label\":\"Start\",\"sentence\":\"Same four features, but the model is fit only once. The goal is still to keep one feature.\",\"why\":\"Every later drop will reuse the first fit's weights.\",\"calloutRegion\":\"model\",\"active\":[\"x1\",\"x2\",\"x3\",\"x4\"],\"short\":\"Start\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"0\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"4\"},{\"id\":\"low\",\"label\":\"Lowest |w|\",\"value\":\"not fit yet\"}]},{\"id\":\"fit-once\",\"label\":\"Single fit\",\"sentence\":\"The one fit gives x1 0.30, x2 0.31, x3 0.40, x4 0.05. This ranking is never updated.\",\"why\":\"The ranking is fixed from now on.\",\"calloutRegion\":\"model\",\"active\":[\"x1\",\"x2\",\"x3\",\"x4\",\"model\"],\"short\":\"Fit once\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"1\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"4\"},{\"id\":\"low\",\"label\":\"Lowest |w|\",\"value\":\"x4 = 0.05\"}]},{\"id\":\"drop-x4\",\"label\":\"Drop x4\",\"sentence\":\"x4 is lowest and is dropped. This matches the refit run so far.\",\"why\":\"Dropping noise is correct either way.\",\"calloutRegion\":\"x4\",\"active\":[\"x4\",\"rank\"],\"short\":\"Drop x4\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"1\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"3\"},{\"id\":\"low\",\"label\":\"Lowest |w|\",\"value\":\"x4 = 0.05\"}]},{\"id\":\"drop-x1\",\"label\":\"Drop x1\",\"sentence\":\"x1 is next lowest on the old ranking and is dropped. Nothing checks how x2 changed.\",\"why\":\"The old ranking cannot see x2 absorbing x1's signal.\",\"calloutRegion\":\"x1\",\"active\":[\"x1\",\"rank\"],\"short\":\"Drop x1\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"1\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"2\"},{\"id\":\"low\",\"label\":\"Lowest |w|\",\"value\":\"x1 = 0.30\"}]},{\"id\":\"stale-x2\",\"label\":\"Drop x2 (wrong)\",\"sentence\":\"Stale x2 at 0.31 is below x3 at 0.40, so x2 is dropped. x3 is kept, which is wrong.\",\"why\":\"The true x2 weight is 0.59, but without a refit it is never measured.\",\"calloutRegion\":\"x2\",\"active\":[\"x2\",\"rank\",\"x3\"],\"short\":\"Keep x3\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"1\"},{\"id\":\"left\",\"label\":\"Features left\",\"value\":\"1\"},{\"id\":\"low\",\"label\":\"Kept feature\",\"value\":\"x3 (wrong)\"}]}]}]}}",
+ "composition": {
+  "story": "Recursive feature elimination drops the weakest feature, then refits. Features x1 and x2 share one signal, so each looks weak alone. Step through four features down to one. Watch x2's weight after x1 leaves, then compare with fitting once.",
+  "aha": {
+   "stateId": "fit3",
+   "observation": "After x1 is dropped, the refit gives x2 weight 0.59, up from 0.31. Old weights were stale, so refitting prevents dropping x2 by mistake."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons over the step rail; keyboard arrows move one state"
+   },
+   {
+    "id": "mode",
+    "kind": "select",
+    "label": "Elimination method",
+    "options": [
+     "Refit each round",
+     "Fit once"
+    ],
+    "default": 0,
+    "presentation": "Select switching between the two variants; each restarts at its first state"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first state and Refit each round"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Refit each round",
+     "regions": [
+      {
+       "id": "x1",
+       "label": "Feature x1 (twin of x2)",
+       "values": [
+        "fit 1: 0.30",
+        "fit 2: 0.30",
+        "dropped before fit 3"
+       ]
+      },
+      {
+       "id": "x2",
+       "label": "Feature x2 (twin of x1)",
+       "values": [
+        "fit 1: 0.31",
+        "fit 2: 0.31",
+        "fit 3: 0.59"
+       ]
+      },
+      {
+       "id": "x3",
+       "label": "Feature x3 (independent)",
+       "values": [
+        "fit 1: 0.40",
+        "fit 2: 0.40",
+        "fit 3: 0.40"
+       ]
+      },
+      {
+       "id": "x4",
+       "label": "Feature x4 (noise)",
+       "values": [
+        "fit 1: 0.05",
+        "dropped before fit 2"
+       ]
+      },
+      {
+       "id": "model",
+       "label": "Linear model fit on remaining features",
+       "phases": [
+        "fit",
+        "rank by |weight|",
+        "drop lowest",
+        "refit"
+       ]
+      },
+      {
+       "id": "rank",
+       "label": "Lowest |weight| this round",
+       "values": [
+        "x4 0.05",
+        "x1 0.30",
+        "x3 0.40"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "x1",
+       "to": "x2",
+       "label": "shared signal"
+      },
+      {
+       "from": "model",
+       "to": "rank",
+       "label": "ranks"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start",
+       "sentence": "Four features are in. x1 and x2 carry nearly the same signal. The goal is to keep one feature.",
+       "why": "Shared signal means weights depend on which features are present.",
+       "calloutRegion": "model",
+       "active": [
+        "x1",
+        "x2",
+        "x3",
+        "x4"
+       ],
+       "short": "Start",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "0"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "4"
+        },
+        {
+         "id": "low",
+         "label": "Lowest |w|",
+         "value": "not fit yet"
+        }
+       ]
+      },
+      {
+       "id": "fit1",
+       "label": "Fit 1",
+       "sentence": "Fit 1 on all four: x1 0.30, x2 0.31, x3 0.40, x4 0.05. The twins split their shared weight.",
+       "why": "Each twin gets about half of the signal they share.",
+       "calloutRegion": "model",
+       "active": [
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "model"
+       ],
+       "short": "Fit 1",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "1"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "4"
+        },
+        {
+         "id": "low",
+         "label": "Lowest |w|",
+         "value": "x4 = 0.05"
+        }
+       ]
+      },
+      {
+       "id": "drop-x4",
+       "label": "Drop x4",
+       "sentence": "x4 has the smallest weight, so x4 is dropped. This choice is safe because x4 is noise.",
+       "why": "The lowest weight is removed first.",
+       "calloutRegion": "x4",
+       "active": [
+        "x4",
+        "rank"
+       ],
+       "short": "Drop x4",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "1"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "3"
+        },
+        {
+         "id": "low",
+         "label": "Lowest |w|",
+         "value": "x4 = 0.05"
+        }
+       ]
+      },
+      {
+       "id": "fit2",
+       "label": "Fit 2",
+       "sentence": "Refit on x1, x2, x3: weights barely move, because x4 shared no signal with them.",
+       "why": "Refitting changes little when the dropped feature was independent.",
+       "calloutRegion": "model",
+       "active": [
+        "x1",
+        "x2",
+        "x3",
+        "model"
+       ],
+       "short": "Fit 2",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "2"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "3"
+        },
+        {
+         "id": "low",
+         "label": "Lowest |w|",
+         "value": "x1 = 0.30"
+        }
+       ]
+      },
+      {
+       "id": "drop-x1",
+       "label": "Drop x1",
+       "sentence": "x1 is now lowest, so x1 is dropped. Its shared signal has to go somewhere.",
+       "why": "Removing one twin leaves its signal for the other twin to carry.",
+       "calloutRegion": "x1",
+       "active": [
+        "x1",
+        "rank"
+       ],
+       "short": "Drop x1",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "2"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "2"
+        },
+        {
+         "id": "low",
+         "label": "Lowest |w|",
+         "value": "x1 = 0.30"
+        }
+       ]
+      },
+      {
+       "id": "fit3",
+       "label": "Fit 3: refit",
+       "sentence": "Refit on x2, x3: x2 jumps from 0.31 to 0.59. It absorbed x1's share.",
+       "why": "The old 0.31 was stale. Weights are w(S), valid only for the current feature set S.",
+       "calloutRegion": "x2",
+       "active": [
+        "x2",
+        "x3",
+        "model"
+       ],
+       "short": "Fit 3",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "3"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "2"
+        },
+        {
+         "id": "x2w",
+         "label": "x2 weight",
+         "value": "0.31 → 0.59"
+        },
+        {
+         "id": "low",
+         "label": "Lowest |w|",
+         "value": "x3 = 0.40"
+        }
+       ]
+      },
+      {
+       "id": "drop-x3",
+       "label": "Drop x3",
+       "sentence": "Now x3 is lowest, so x3 is dropped. x2 remains as the best single feature.",
+       "why": "Fresh weights rank x2 above x3, the reverse of the stale ranking.",
+       "calloutRegion": "x3",
+       "active": [
+        "x3",
+        "rank",
+        "x2"
+       ],
+       "short": "Keep x2",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "3"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "1"
+        },
+        {
+         "id": "low",
+         "label": "Kept feature",
+         "value": "x2"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Fit once",
+     "regions": [
+      {
+       "id": "x1",
+       "label": "Feature x1 (twin of x2)",
+       "values": [
+        "fit 1: 0.30"
+       ]
+      },
+      {
+       "id": "x2",
+       "label": "Feature x2 (twin of x1)",
+       "values": [
+        "fit 1: 0.31",
+        "never refit: stays 0.31"
+       ]
+      },
+      {
+       "id": "x3",
+       "label": "Feature x3 (independent)",
+       "values": [
+        "fit 1: 0.40"
+       ]
+      },
+      {
+       "id": "x4",
+       "label": "Feature x4 (noise)",
+       "values": [
+        "fit 1: 0.05"
+       ]
+      },
+      {
+       "id": "model",
+       "label": "Linear model fit once on all features",
+       "phases": [
+        "fit",
+        "rank by |weight|",
+        "drop lowest"
+       ]
+      },
+      {
+       "id": "rank",
+       "label": "Lowest stale |weight|",
+       "values": [
+        "x4 0.05",
+        "x1 0.30",
+        "x2 0.31"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "x1",
+       "to": "x2",
+       "label": "shared signal"
+      },
+      {
+       "from": "model",
+       "to": "rank",
+       "label": "ranks"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start",
+       "sentence": "Same four features, but the model is fit only once. The goal is still to keep one feature.",
+       "why": "Every later drop will reuse the first fit's weights.",
+       "calloutRegion": "model",
+       "active": [
+        "x1",
+        "x2",
+        "x3",
+        "x4"
+       ],
+       "short": "Start",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "0"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "4"
+        },
+        {
+         "id": "low",
+         "label": "Lowest |w|",
+         "value": "not fit yet"
+        }
+       ]
+      },
+      {
+       "id": "fit-once",
+       "label": "Single fit",
+       "sentence": "The one fit gives x1 0.30, x2 0.31, x3 0.40, x4 0.05. This ranking is never updated.",
+       "why": "The ranking is fixed from now on.",
+       "calloutRegion": "model",
+       "active": [
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "model"
+       ],
+       "short": "Fit once",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "1"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "4"
+        },
+        {
+         "id": "low",
+         "label": "Lowest |w|",
+         "value": "x4 = 0.05"
+        }
+       ]
+      },
+      {
+       "id": "drop-x4",
+       "label": "Drop x4",
+       "sentence": "x4 is lowest and is dropped. This matches the refit run so far.",
+       "why": "Dropping noise is correct either way.",
+       "calloutRegion": "x4",
+       "active": [
+        "x4",
+        "rank"
+       ],
+       "short": "Drop x4",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "1"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "3"
+        },
+        {
+         "id": "low",
+         "label": "Lowest |w|",
+         "value": "x4 = 0.05"
+        }
+       ]
+      },
+      {
+       "id": "drop-x1",
+       "label": "Drop x1",
+       "sentence": "x1 is next lowest on the old ranking and is dropped. Nothing checks how x2 changed.",
+       "why": "The old ranking cannot see x2 absorbing x1's signal.",
+       "calloutRegion": "x1",
+       "active": [
+        "x1",
+        "rank"
+       ],
+       "short": "Drop x1",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "1"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "2"
+        },
+        {
+         "id": "low",
+         "label": "Lowest |w|",
+         "value": "x1 = 0.30"
+        }
+       ]
+      },
+      {
+       "id": "stale-x2",
+       "label": "Drop x2 (wrong)",
+       "sentence": "Stale x2 at 0.31 is below x3 at 0.40, so x2 is dropped. x3 is kept, which is wrong.",
+       "why": "The true x2 weight is 0.59, but without a refit it is never measured.",
+       "calloutRegion": "x2",
+       "active": [
+        "x2",
+        "rank",
+        "x3"
+       ],
+       "short": "Keep x3",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "1"
+        },
+        {
+         "id": "left",
+         "label": "Features left",
+         "value": "1"
+        },
+        {
+         "id": "low",
+         "label": "Kept feature",
+         "value": "x3 (wrong)"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3077,
+  "output": 6776
+ },
+ "usd": 0.073914,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The scene asks whether a twin's weight changes after its partner is dropped; the x1/x2 shared-signal link and the fit3 weights (x2 0.31→0.59) demonstrate it."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state fit3 is a stepper state that holds until the learner presses Next, with the decisive x2 jump shown in the callout and readout."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The method select changes the outcome: refit keeps x2, fit once drops x2 on stale weights and wrongly keeps x3."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callout targets, active highlights, ghost (previous.active), links and readouts all trace to declared regions and state fields."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, the state sentences, the step labels and the mode names all refer to the same features, fits and drops in the same order."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The refit vs fit-once comparison adds mechanism at the detailed level, with a few readouts and one callout per state and no excess marks."
+    },
+    "8": {
+     "answer": "No",
+     "reason": ""
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.02475
+ }
+}

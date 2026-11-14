@@ -1,0 +1,423 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a10",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does photosynthesis work?",
+ "ts": "2026-11-14T22:25:07.345Z",
+ "ms": 34519,
+ "raw": "{\"story\":\"Sunlight strikes chlorophyll in a chloroplast. Its energy splits water, releasing oxygen, and charges ATP and NADPH carriers. In the stroma, the Calvin cycle spends that energy to attach carbon dioxide from air. Step forward to watch light energy become sugar: the carbon comes from air, the oxygen from water.\",\"aha\":{\"stateId\":\"build-sugar\",\"observation\":\"Light never becomes sugar directly. It charges ATP and NADPH, and those carriers power building glucose from CO₂ carbon.\"},\"layout\":{\"preset\":\"stepper-pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top rail with step names. It shows progress and trace.\"},{\"id\":\"chloroplast\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Fixed chloroplast diagram. The thylakoid is on the left, the stroma Calvin cycle is on the right, and the active regions are highlighted.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the active region. It says where the change happens, with no numbers.\"},{\"id\":\"tally\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Status line below the picture. It shows running molecule counts per glucose built.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons keep their names when disabled at the ends. Use arrow keys and visible focus. Navigation only, with no parameter-control budget used at brief depth.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to step 1.\"}],\"data\":{\"variants\":[{\"label\":\"Photosynthesis in one chloroplast (net equation: 6 CO₂ + 6 H₂O → glucose + 6 O₂)\",\"regions\":[{\"id\":\"sunlight\",\"kind\":\"input\",\"label\":\"Sunlight\",\"values\":[\"photons\"]},{\"id\":\"water\",\"kind\":\"input\",\"label\":\"Water (H₂O)\",\"values\":[\"from roots\"]},{\"id\":\"thylakoid\",\"kind\":\"stage\",\"label\":\"Thylakoid: light reactions\",\"phases\":[\"absorb light\",\"split water\",\"charge carriers\"]},{\"id\":\"oxygen\",\"kind\":\"output\",\"label\":\"Oxygen (O₂)\",\"values\":[\"released to air\"]},{\"id\":\"carriers\",\"kind\":\"carrier\",\"label\":\"ATP + NADPH\",\"values\":[\"charged\",\"spent: ADP, NADP⁺\"]},{\"id\":\"co2\",\"kind\":\"input\",\"label\":\"Carbon dioxide (CO₂)\",\"values\":[\"from air\"]},{\"id\":\"calvin\",\"kind\":\"stage\",\"label\":\"Stroma: Calvin cycle\",\"phases\":[\"fix CO₂\",\"build sugar\"]},{\"id\":\"sugar\",\"kind\":\"output\",\"label\":\"Glucose (C₆H₁₂O₆)\",\"values\":[\"stored energy\"]}],\"links\":[{\"from\":\"sunlight\",\"to\":\"thylakoid\",\"label\":\"light\"},{\"from\":\"water\",\"to\":\"thylakoid\",\"label\":\"H₂O\"},{\"from\":\"thylakoid\",\"to\":\"oxygen\",\"label\":\"O₂\"},{\"from\":\"thylakoid\",\"to\":\"carriers\",\"label\":\"charge\"},{\"from\":\"carriers\",\"to\":\"calvin\",\"label\":\"energy\"},{\"from\":\"co2\",\"to\":\"calvin\",\"label\":\"carbon\"},{\"from\":\"calvin\",\"to\":\"sugar\",\"label\":\"glucose\"},{\"from\":\"calvin\",\"to\":\"carriers\",\"label\":\"spent carriers return\"}],\"states\":[{\"id\":\"absorb-light\",\"label\":\"1. Absorb light\",\"short\":\"Light\",\"sentence\":\"Sunlight strikes chlorophyll in the thylakoid membranes, exciting electrons.\",\"why\":\"Chlorophyll captures the energy source for everything that follows.\",\"active\":[\"sunlight\",\"thylakoid\"],\"calloutRegion\":\"thylakoid\",\"readouts\":[{\"id\":\"h2o\",\"label\":\"Water split (molecules per glucose)\",\"value\":\"0\"},{\"id\":\"o2\",\"label\":\"O₂ released\",\"value\":\"0\"},{\"id\":\"co2\",\"label\":\"CO₂ fixed\",\"value\":\"0\"},{\"id\":\"glc\",\"label\":\"Glucose built\",\"value\":\"0\"}]},{\"id\":\"split-water\",\"label\":\"2. Split water\",\"short\":\"Water\",\"sentence\":\"Light energy splits water; its oxygen escapes as O₂ gas.\",\"why\":\"Water replaces the electrons that light knocked loose.\",\"active\":[\"water\",\"thylakoid\",\"oxygen\"],\"calloutRegion\":\"oxygen\",\"readouts\":[{\"id\":\"h2o\",\"label\":\"Water split (molecules per glucose)\",\"value\":\"6\"},{\"id\":\"o2\",\"label\":\"O₂ released\",\"value\":\"6\"},{\"id\":\"co2\",\"label\":\"CO₂ fixed\",\"value\":\"0\"},{\"id\":\"glc\",\"label\":\"Glucose built\",\"value\":\"0\"}]},{\"id\":\"charge-carriers\",\"label\":\"3. Charge carriers\",\"short\":\"Carriers\",\"sentence\":\"The captured energy charges ATP and NADPH, portable energy carriers.\",\"why\":\"Carriers move the energy from the thylakoid to the stroma.\",\"active\":[\"thylakoid\",\"carriers\"],\"calloutRegion\":\"carriers\",\"readouts\":[{\"id\":\"h2o\",\"label\":\"Water split (molecules per glucose)\",\"value\":\"6\"},{\"id\":\"o2\",\"label\":\"O₂ released\",\"value\":\"6\"},{\"id\":\"co2\",\"label\":\"CO₂ fixed\",\"value\":\"0\"},{\"id\":\"glc\",\"label\":\"Glucose built\",\"value\":\"0\"}]},{\"id\":\"fix-carbon\",\"label\":\"4. Fix CO₂\",\"short\":\"Fix\",\"sentence\":\"In the stroma, the Calvin cycle grabs CO₂ from air onto existing sugars.\",\"why\":\"This is where sugar's carbon comes from.\",\"active\":[\"co2\",\"calvin\"],\"calloutRegion\":\"calvin\",\"readouts\":[{\"id\":\"h2o\",\"label\":\"Water split (molecules per glucose)\",\"value\":\"6\"},{\"id\":\"o2\",\"label\":\"O₂ released\",\"value\":\"6\"},{\"id\":\"co2\",\"label\":\"CO₂ fixed\",\"value\":\"6\"},{\"id\":\"glc\",\"label\":\"Glucose built\",\"value\":\"0\"}]},{\"id\":\"build-sugar\",\"label\":\"5. Build sugar\",\"short\":\"Sugar\",\"sentence\":\"Spending ATP and NADPH, the cycle builds glucose; spent carriers return to recharge.\",\"why\":\"Light energy is now stored in sugar bonds.\",\"active\":[\"carriers\",\"calvin\",\"sugar\"],\"calloutRegion\":\"sugar\",\"readouts\":[{\"id\":\"h2o\",\"label\":\"Water split (molecules per glucose)\",\"value\":\"6\"},{\"id\":\"o2\",\"label\":\"O₂ released\",\"value\":\"6\"},{\"id\":\"co2\",\"label\":\"CO₂ fixed\",\"value\":\"6\"},{\"id\":\"glc\",\"label\":\"Glucose built\",\"value\":\"1\"}]}]}]}}",
+ "composition": {
+  "story": "Sunlight strikes chlorophyll in a chloroplast. Its energy splits water, releasing oxygen, and charges ATP and NADPH carriers. In the stroma, the Calvin cycle spends that energy to attach carbon dioxide from air. Step forward to watch light energy become sugar: the carbon comes from air, the oxygen from water.",
+  "aha": {
+   "stateId": "build-sugar",
+   "observation": "Light never becomes sugar directly. It charges ATP and NADPH, and those carriers power building glucose from CO₂ carbon."
+  },
+  "layout": {
+   "preset": "stepper-pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top rail with step names. It shows progress and trace."
+   },
+   {
+    "id": "chloroplast",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Fixed chloroplast diagram. The thylakoid is on the left, the stroma Calvin cycle is on the right, and the active regions are highlighted."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the active region. It says where the change happens, with no numbers."
+   },
+   {
+    "id": "tally",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Status line below the picture. It shows running molecule counts per glucose built."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons keep their names when disabled at the ends. Use arrow keys and visible focus. Navigation only, with no parameter-control budget used at brief depth."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to step 1."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Photosynthesis in one chloroplast (net equation: 6 CO₂ + 6 H₂O → glucose + 6 O₂)",
+     "regions": [
+      {
+       "id": "sunlight",
+       "kind": "input",
+       "label": "Sunlight",
+       "values": [
+        "photons"
+       ]
+      },
+      {
+       "id": "water",
+       "kind": "input",
+       "label": "Water (H₂O)",
+       "values": [
+        "from roots"
+       ]
+      },
+      {
+       "id": "thylakoid",
+       "kind": "stage",
+       "label": "Thylakoid: light reactions",
+       "phases": [
+        "absorb light",
+        "split water",
+        "charge carriers"
+       ]
+      },
+      {
+       "id": "oxygen",
+       "kind": "output",
+       "label": "Oxygen (O₂)",
+       "values": [
+        "released to air"
+       ]
+      },
+      {
+       "id": "carriers",
+       "kind": "carrier",
+       "label": "ATP + NADPH",
+       "values": [
+        "charged",
+        "spent: ADP, NADP⁺"
+       ]
+      },
+      {
+       "id": "co2",
+       "kind": "input",
+       "label": "Carbon dioxide (CO₂)",
+       "values": [
+        "from air"
+       ]
+      },
+      {
+       "id": "calvin",
+       "kind": "stage",
+       "label": "Stroma: Calvin cycle",
+       "phases": [
+        "fix CO₂",
+        "build sugar"
+       ]
+      },
+      {
+       "id": "sugar",
+       "kind": "output",
+       "label": "Glucose (C₆H₁₂O₆)",
+       "values": [
+        "stored energy"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "sunlight",
+       "to": "thylakoid",
+       "label": "light"
+      },
+      {
+       "from": "water",
+       "to": "thylakoid",
+       "label": "H₂O"
+      },
+      {
+       "from": "thylakoid",
+       "to": "oxygen",
+       "label": "O₂"
+      },
+      {
+       "from": "thylakoid",
+       "to": "carriers",
+       "label": "charge"
+      },
+      {
+       "from": "carriers",
+       "to": "calvin",
+       "label": "energy"
+      },
+      {
+       "from": "co2",
+       "to": "calvin",
+       "label": "carbon"
+      },
+      {
+       "from": "calvin",
+       "to": "sugar",
+       "label": "glucose"
+      },
+      {
+       "from": "calvin",
+       "to": "carriers",
+       "label": "spent carriers return"
+      }
+     ],
+     "states": [
+      {
+       "id": "absorb-light",
+       "label": "1. Absorb light",
+       "short": "Light",
+       "sentence": "Sunlight strikes chlorophyll in the thylakoid membranes, exciting electrons.",
+       "why": "Chlorophyll captures the energy source for everything that follows.",
+       "active": [
+        "sunlight",
+        "thylakoid"
+       ],
+       "calloutRegion": "thylakoid",
+       "readouts": [
+        {
+         "id": "h2o",
+         "label": "Water split (molecules per glucose)",
+         "value": "0"
+        },
+        {
+         "id": "o2",
+         "label": "O₂ released",
+         "value": "0"
+        },
+        {
+         "id": "co2",
+         "label": "CO₂ fixed",
+         "value": "0"
+        },
+        {
+         "id": "glc",
+         "label": "Glucose built",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "split-water",
+       "label": "2. Split water",
+       "short": "Water",
+       "sentence": "Light energy splits water; its oxygen escapes as O₂ gas.",
+       "why": "Water replaces the electrons that light knocked loose.",
+       "active": [
+        "water",
+        "thylakoid",
+        "oxygen"
+       ],
+       "calloutRegion": "oxygen",
+       "readouts": [
+        {
+         "id": "h2o",
+         "label": "Water split (molecules per glucose)",
+         "value": "6"
+        },
+        {
+         "id": "o2",
+         "label": "O₂ released",
+         "value": "6"
+        },
+        {
+         "id": "co2",
+         "label": "CO₂ fixed",
+         "value": "0"
+        },
+        {
+         "id": "glc",
+         "label": "Glucose built",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "charge-carriers",
+       "label": "3. Charge carriers",
+       "short": "Carriers",
+       "sentence": "The captured energy charges ATP and NADPH, portable energy carriers.",
+       "why": "Carriers move the energy from the thylakoid to the stroma.",
+       "active": [
+        "thylakoid",
+        "carriers"
+       ],
+       "calloutRegion": "carriers",
+       "readouts": [
+        {
+         "id": "h2o",
+         "label": "Water split (molecules per glucose)",
+         "value": "6"
+        },
+        {
+         "id": "o2",
+         "label": "O₂ released",
+         "value": "6"
+        },
+        {
+         "id": "co2",
+         "label": "CO₂ fixed",
+         "value": "0"
+        },
+        {
+         "id": "glc",
+         "label": "Glucose built",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "fix-carbon",
+       "label": "4. Fix CO₂",
+       "short": "Fix",
+       "sentence": "In the stroma, the Calvin cycle grabs CO₂ from air onto existing sugars.",
+       "why": "This is where sugar's carbon comes from.",
+       "active": [
+        "co2",
+        "calvin"
+       ],
+       "calloutRegion": "calvin",
+       "readouts": [
+        {
+         "id": "h2o",
+         "label": "Water split (molecules per glucose)",
+         "value": "6"
+        },
+        {
+         "id": "o2",
+         "label": "O₂ released",
+         "value": "6"
+        },
+        {
+         "id": "co2",
+         "label": "CO₂ fixed",
+         "value": "6"
+        },
+        {
+         "id": "glc",
+         "label": "Glucose built",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "build-sugar",
+       "label": "5. Build sugar",
+       "short": "Sugar",
+       "sentence": "Spending ATP and NADPH, the cycle builds glucose; spent carriers return to recharge.",
+       "why": "Light energy is now stored in sugar bonds.",
+       "active": [
+        "carriers",
+        "calvin",
+        "sugar"
+       ],
+       "calloutRegion": "sugar",
+       "readouts": [
+        {
+         "id": "h2o",
+         "label": "Water split (molecules per glucose)",
+         "value": "6"
+        },
+        {
+         "id": "o2",
+         "label": "O₂ released",
+         "value": "6"
+        },
+        {
+         "id": "co2",
+         "label": "CO₂ fixed",
+         "value": "6"
+        },
+        {
+         "id": "glc",
+         "label": "Glucose built",
+         "value": "1"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 3957
+ },
+ "usd": 0.091412,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed chloroplast diagram, with its links and highlighted regions, answers one question: where sugar's carbon and energy come from (carbon from CO₂ in air, oxygen from water, energy through ATP and NADPH)."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state is build-sugar, which is the last step of a learner-driven stepper, so it holds until the learner acts. However, the decisive link (carriers to Calvin to sugar) is not set apart from the other steps, and the \"never directly\" claim is only stated, not shown."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step index is the only control and it is navigation only. Each step changes the active regions, the callout and the readouts, so a fixed comparison is justified at brief depth."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Highlights come from state.active, the callout from state.calloutRegion, sentence and why, the rail from variant.states, and the readouts from state.readouts. Every part traces to declared data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, region labels and readouts all use the same names (thylakoid, stroma, ATP + NADPH, CO₂, O₂, glucose) in the same order of events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth each step highlights one small region group, and there is a single status line of four readouts. Nothing extra is added."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The counts are chemically correct for one glucose (6 H₂O, 6 O₂, 6 CO₂, 1 glucose). However, the readout label says \"per glucose\" while the water value reads 0 at step 1, and O₂ and water are counted as complete at step 2 even though the 12 H₂O of the real light reactions is not reflected. Step 4 als"
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.015866
+ }
+}

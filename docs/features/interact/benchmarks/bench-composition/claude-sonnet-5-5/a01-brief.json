@@ -1,0 +1,363 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a01",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "what is gradient descent?",
+ "ts": "2026-11-14T22:20:34.073Z",
+ "ms": 21011,
+ "raw": "{\"story\":\"Gradient descent finds a low point of a loss curve. Start at a guess for w, measure the slope, then step the opposite way. Repeat: loss falls, and steps shrink as the curve flattens near the minimum.\",\"aha\":{\"stateId\":\"s5\",\"observation\":\"Each step goes against the slope, so loss keeps falling. Steps shrink as the slope flattens near the minimum.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Loss = w², step size 0.25, start w = 4\",\"regions\":[{\"id\":\"curve\",\"label\":\"Loss curve (loss = w²)\",\"kind\":\"curve\"},{\"id\":\"point\",\"label\":\"Current w\",\"kind\":\"marker\"},{\"id\":\"slope\",\"label\":\"Slope (2w)\",\"kind\":\"arrow\"},{\"id\":\"update\",\"label\":\"Step (−0.25 × slope)\",\"kind\":\"arrow\"},{\"id\":\"minimum\",\"label\":\"Minimum (w = 0)\",\"kind\":\"target\"}],\"links\":[{\"from\":\"point\",\"to\":\"slope\",\"label\":\"measure\"},{\"from\":\"slope\",\"to\":\"update\",\"label\":\"reverse\"},{\"from\":\"update\",\"to\":\"point\",\"label\":\"move\"}],\"states\":[{\"id\":\"s0\",\"label\":\"Start\",\"short\":\"Start\",\"sentence\":\"Pick a starting guess, w = 4. The loss here is high.\",\"why\":\"Gradient descent needs a starting point on the loss curve.\",\"active\":[\"curve\",\"point\"],\"calloutRegion\":\"point\",\"readouts\":[{\"id\":\"w\",\"label\":\"w\",\"value\":\"4.00\"},{\"id\":\"loss\",\"label\":\"Loss\",\"value\":\"16.00\"},{\"id\":\"slope\",\"label\":\"Slope\",\"value\":\"–\"}]},{\"id\":\"s1\",\"label\":\"Measure slope\",\"short\":\"Slope\",\"sentence\":\"Measure the slope at w. It is positive, so the curve rises to the right.\",\"why\":\"The slope tells which direction is uphill.\",\"active\":[\"point\",\"slope\"],\"calloutRegion\":\"slope\",\"readouts\":[{\"id\":\"w\",\"label\":\"w\",\"value\":\"4.00\"},{\"id\":\"loss\",\"label\":\"Loss\",\"value\":\"16.00\"},{\"id\":\"slope\",\"label\":\"Slope\",\"value\":\"8.00\"}]},{\"id\":\"s2\",\"label\":\"Step downhill\",\"short\":\"Step\",\"sentence\":\"Move w opposite the slope: 4 − 0.25 × 8 = 2. Loss drops sharply.\",\"why\":\"Going against the slope goes downhill.\",\"active\":[\"slope\",\"update\",\"point\"],\"calloutRegion\":\"update\",\"readouts\":[{\"id\":\"w\",\"label\":\"w\",\"value\":\"2.00\"},{\"id\":\"loss\",\"label\":\"Loss\",\"value\":\"4.00\"},{\"id\":\"slope\",\"label\":\"Slope\",\"value\":\"4.00\"}]},{\"id\":\"s3\",\"label\":\"Repeat\",\"short\":\"Repeat 1\",\"sentence\":\"Repeat the same rule. The slope is smaller, so the step is smaller: w becomes 1.\",\"why\":\"Step length is proportional to the slope.\",\"active\":[\"point\",\"slope\",\"update\"],\"calloutRegion\":\"point\",\"readouts\":[{\"id\":\"w\",\"label\":\"w\",\"value\":\"1.00\"},{\"id\":\"loss\",\"label\":\"Loss\",\"value\":\"1.00\"},{\"id\":\"slope\",\"label\":\"Slope\",\"value\":\"2.00\"}]},{\"id\":\"s4\",\"label\":\"Repeat again\",\"short\":\"Repeat 2\",\"sentence\":\"Again: w becomes 0.5. The curve is flatter here, and the step is only 0.5.\",\"why\":\"The flatter curve gives a smaller slope and smaller step.\",\"active\":[\"point\",\"slope\",\"update\"],\"calloutRegion\":\"point\",\"readouts\":[{\"id\":\"w\",\"label\":\"w\",\"value\":\"0.50\"},{\"id\":\"loss\",\"label\":\"Loss\",\"value\":\"0.25\"},{\"id\":\"slope\",\"label\":\"Slope\",\"value\":\"1.00\"}]},{\"id\":\"s5\",\"label\":\"Near the minimum\",\"short\":\"Settle\",\"sentence\":\"w is 0.25, close to the minimum. The slope is nearly flat, so steps almost stop.\",\"why\":\"Loss fell every step; a flat slope signals the low point.\",\"active\":[\"point\",\"minimum\",\"slope\"],\"calloutRegion\":\"minimum\",\"readouts\":[{\"id\":\"w\",\"label\":\"w\",\"value\":\"0.25\"},{\"id\":\"loss\",\"label\":\"Loss\",\"value\":\"0.06\"},{\"id\":\"slope\",\"label\":\"Slope\",\"value\":\"0.50\"}]}]}]}}",
+ "composition": {
+  "story": "Gradient descent finds a low point of a loss curve. Start at a guess for w, measure the slope, then step the opposite way. Repeat: loss falls, and steps shrink as the curve flattens near the minimum.",
+  "aha": {
+   "stateId": "s5",
+   "observation": "Each step goes against the slope, so loss keeps falling. Steps shrink as the slope flattens near the minimum."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Loss = w², step size 0.25, start w = 4",
+     "regions": [
+      {
+       "id": "curve",
+       "label": "Loss curve (loss = w²)",
+       "kind": "curve"
+      },
+      {
+       "id": "point",
+       "label": "Current w",
+       "kind": "marker"
+      },
+      {
+       "id": "slope",
+       "label": "Slope (2w)",
+       "kind": "arrow"
+      },
+      {
+       "id": "update",
+       "label": "Step (−0.25 × slope)",
+       "kind": "arrow"
+      },
+      {
+       "id": "minimum",
+       "label": "Minimum (w = 0)",
+       "kind": "target"
+      }
+     ],
+     "links": [
+      {
+       "from": "point",
+       "to": "slope",
+       "label": "measure"
+      },
+      {
+       "from": "slope",
+       "to": "update",
+       "label": "reverse"
+      },
+      {
+       "from": "update",
+       "to": "point",
+       "label": "move"
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "Start",
+       "short": "Start",
+       "sentence": "Pick a starting guess, w = 4. The loss here is high.",
+       "why": "Gradient descent needs a starting point on the loss curve.",
+       "active": [
+        "curve",
+        "point"
+       ],
+       "calloutRegion": "point",
+       "readouts": [
+        {
+         "id": "w",
+         "label": "w",
+         "value": "4.00"
+        },
+        {
+         "id": "loss",
+         "label": "Loss",
+         "value": "16.00"
+        },
+        {
+         "id": "slope",
+         "label": "Slope",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Measure slope",
+       "short": "Slope",
+       "sentence": "Measure the slope at w. It is positive, so the curve rises to the right.",
+       "why": "The slope tells which direction is uphill.",
+       "active": [
+        "point",
+        "slope"
+       ],
+       "calloutRegion": "slope",
+       "readouts": [
+        {
+         "id": "w",
+         "label": "w",
+         "value": "4.00"
+        },
+        {
+         "id": "loss",
+         "label": "Loss",
+         "value": "16.00"
+        },
+        {
+         "id": "slope",
+         "label": "Slope",
+         "value": "8.00"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Step downhill",
+       "short": "Step",
+       "sentence": "Move w opposite the slope: 4 − 0.25 × 8 = 2. Loss drops sharply.",
+       "why": "Going against the slope goes downhill.",
+       "active": [
+        "slope",
+        "update",
+        "point"
+       ],
+       "calloutRegion": "update",
+       "readouts": [
+        {
+         "id": "w",
+         "label": "w",
+         "value": "2.00"
+        },
+        {
+         "id": "loss",
+         "label": "Loss",
+         "value": "4.00"
+        },
+        {
+         "id": "slope",
+         "label": "Slope",
+         "value": "4.00"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Repeat",
+       "short": "Repeat 1",
+       "sentence": "Repeat the same rule. The slope is smaller, so the step is smaller: w becomes 1.",
+       "why": "Step length is proportional to the slope.",
+       "active": [
+        "point",
+        "slope",
+        "update"
+       ],
+       "calloutRegion": "point",
+       "readouts": [
+        {
+         "id": "w",
+         "label": "w",
+         "value": "1.00"
+        },
+        {
+         "id": "loss",
+         "label": "Loss",
+         "value": "1.00"
+        },
+        {
+         "id": "slope",
+         "label": "Slope",
+         "value": "2.00"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Repeat again",
+       "short": "Repeat 2",
+       "sentence": "Again: w becomes 0.5. The curve is flatter here, and the step is only 0.5.",
+       "why": "The flatter curve gives a smaller slope and smaller step.",
+       "active": [
+        "point",
+        "slope",
+        "update"
+       ],
+       "calloutRegion": "point",
+       "readouts": [
+        {
+         "id": "w",
+         "label": "w",
+         "value": "0.50"
+        },
+        {
+         "id": "loss",
+         "label": "Loss",
+         "value": "0.25"
+        },
+        {
+         "id": "slope",
+         "label": "Slope",
+         "value": "1.00"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Near the minimum",
+       "short": "Settle",
+       "sentence": "w is 0.25, close to the minimum. The slope is nearly flat, so steps almost stop.",
+       "why": "Loss fell every step; a flat slope signals the low point.",
+       "active": [
+        "point",
+        "minimum",
+        "slope"
+       ],
+       "calloutRegion": "minimum",
+       "readouts": [
+        {
+         "id": "w",
+         "label": "w",
+         "value": "0.25"
+        },
+        {
+         "id": "loss",
+         "label": "Loss",
+         "value": "0.06"
+        },
+        {
+         "id": "slope",
+         "label": "Slope",
+         "value": "0.50"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3066,
+  "output": 3202
+ },
+ "usd": 0.038152,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The curve, marker, slope arrow and update arrow show why stepping against the slope lowers loss and why steps shrink as the curve flattens."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s5 is the final step of a learner-driven Previous/Next stepper, so it holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only control is the step index, and each step changes w, loss, slope and the active regions; a fixed single experiment is justified for a stepper."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callout targets, active regions, ghost (previous.active), links and readouts all bind to declared region ids and state fields."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, region labels (point, slope, step, minimum) and the Step control name the same objects and events in the same order."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The picture is fixed and each state activates only 2-3 regions with a single callout, which is appropriate density for a brief scene."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The sequence w=4, 2, 1, 0.5, 0.25 with loss 16, 4, 1, 0.25, 0.0625 and slope 8, 4, 2, 1, 0.5 is correct; the sentences repeat some numbers that the readouts also show, and \"nearly flat\" for slope 0.5 is mild, but nothing is wrong."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018414
+ }
+}

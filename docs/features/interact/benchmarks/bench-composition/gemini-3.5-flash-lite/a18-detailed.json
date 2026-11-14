@@ -1,0 +1,284 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a18",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a four-stroke car engine work?",
+ "ts": "2026-11-14T22:21:34.165Z",
+ "ms": 3437,
+ "raw": "{\n  \"story\": \"A four-stroke engine converts fuel energy into motion through intake, compression, power, and exhaust stages.\",\n  \"aha\": {\n    \"stateId\": \"power\",\n    \"observation\": \"The downward expansion of hot combustion gases drives the piston, delivering the actual work.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"metrics\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Engine Stroke\",\n      \"options\": [\"intake\", \"compression\", \"power\", \"exhaust\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset Cycle\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"regions\": [\n          {\n            \"id\": \"valveIn\",\n            \"label\": \"Intake Valve\",\n            \"kind\": \"valve\",\n            \"phases\": [\"open\", \"closed\", \"closed\", \"closed\"]\n          },\n          {\n            \"id\": \"valveEx\",\n            \"label\": \"Exhaust Valve\",\n            \"kind\": \"valve\",\n            \"phases\": [\"closed\", \"closed\", \"closed\", \"open\"]\n          },\n          {\n            \"id\": \"piston\",\n            \"label\": \"Piston\",\n            \"kind\": \"piston\",\n            \"phases\": [\"down\", \"up\", \"down\", \"up\"]\n          },\n          {\n            \"id\": \"spark\",\n            \"label\": \"Spark Plug\",\n            \"kind\": \"igniter\",\n            \"phases\": [\"off\", \"off\", \"fire\", \"off\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"intake\",\n            \"label\": \"1. Intake\",\n            \"short\": \"Intake\",\n            \"sentence\": \"The intake valve opens as the piston descends, drawing air and fuel into the cylinder.\",\n            \"why\": \"Low pressure created by the moving piston pulls the mixture inward.\",\n            \"active\": [\"valveIn\", \"piston\"],\n            \"calloutRegion\": \"valveIn\",\n            \"readouts\": [\n              {\"id\": \"pPos\", \"label\": \"Piston Position\", \"value\": \"Top to Bottom\"},\n              {\"id\": \"press\", \"label\": \"Cylinder Pressure\", \"value\": \"0.9 bar\"}\n            ]\n          },\n          {\n            \"id\": \"compression\",\n            \"label\": \"2. Compression\",\n            \"short\": \"Compression\",\n            \"sentence\": \"Both valves close, and the piston ascends to compress the air-fuel mixture.\",\n            \"why\": \"Higher density and pressure prepare the mixture for rapid, efficient burning.\",\n            \"active\": [\"piston\"],\n            \"calloutRegion\": \"piston\",\n            \"readouts\": [\n              {\"id\": \"pPos\", \"label\": \"Piston Position\", \"value\": \"Bottom to Top\"},\n              {\"id\": \"press\", \"label\": \"Cylinder Pressure\", \"value\": \"12.0 bar\"}\n            ]\n          },\n          {\n            \"id\": \"power\",\n            \"label\": \"3. Power\",\n            \"short\": \"Power\",\n            \"sentence\": \"The spark plug ignites the mixture, and expanding gases forcefully push the piston down.\",\n            \"why\": \"Thermal energy converts into mechanical work at the crankshaft.\",\n            \"active\": [\"spark\", \"piston\"],\n            \"calloutRegion\": \"spark\",\n            \"readouts\": [\n              {\"id\": \"pPos\", \"label\": \"Piston Position\", \"value\": \"Top to Bottom\"},\n              {\"id\": \"press\", \"label\": \"Cylinder Pressure\", \"value\": \"55.0 bar\"}\n            ]\n          },\n          {\n            \"id\": \"exhaust\",\n            \"label\": \"4. Exhaust\",\n            \"short\": \"Exhaust\",\n            \"sentence\": \"The exhaust valve opens as the piston rises again, pushing spent gases out.\",\n            \"why\": \"Clearing the cylinder prepares the engine for the next intake stroke.\",\n            \"active\": [\"valveEx\", \"piston\"],\n            \"calloutRegion\": \"valveEx\",\n            \"readouts\": [\n              {\"id\": \"pPos\", \"label\": \"Piston Position\", \"value\": \"Bottom to Top\"},\n              {\"id\": \"press\", \"label\": \"Cylinder Pressure\", \"value\": \"1.1 bar\"}\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "A four-stroke engine converts fuel energy into motion through intake, compression, power, and exhaust stages.",
+  "aha": {
+   "stateId": "power",
+   "observation": "The downward expansion of hot combustion gases drives the piston, delivering the actual work."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "metrics",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Engine Stroke",
+    "options": [
+     "intake",
+     "compression",
+     "power",
+     "exhaust"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset Cycle"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "regions": [
+      {
+       "id": "valveIn",
+       "label": "Intake Valve",
+       "kind": "valve",
+       "phases": [
+        "open",
+        "closed",
+        "closed",
+        "closed"
+       ]
+      },
+      {
+       "id": "valveEx",
+       "label": "Exhaust Valve",
+       "kind": "valve",
+       "phases": [
+        "closed",
+        "closed",
+        "closed",
+        "open"
+       ]
+      },
+      {
+       "id": "piston",
+       "label": "Piston",
+       "kind": "piston",
+       "phases": [
+        "down",
+        "up",
+        "down",
+        "up"
+       ]
+      },
+      {
+       "id": "spark",
+       "label": "Spark Plug",
+       "kind": "igniter",
+       "phases": [
+        "off",
+        "off",
+        "fire",
+        "off"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "intake",
+       "label": "1. Intake",
+       "short": "Intake",
+       "sentence": "The intake valve opens as the piston descends, drawing air and fuel into the cylinder.",
+       "why": "Low pressure created by the moving piston pulls the mixture inward.",
+       "active": [
+        "valveIn",
+        "piston"
+       ],
+       "calloutRegion": "valveIn",
+       "readouts": [
+        {
+         "id": "pPos",
+         "label": "Piston Position",
+         "value": "Top to Bottom"
+        },
+        {
+         "id": "press",
+         "label": "Cylinder Pressure",
+         "value": "0.9 bar"
+        }
+       ]
+      },
+      {
+       "id": "compression",
+       "label": "2. Compression",
+       "short": "Compression",
+       "sentence": "Both valves close, and the piston ascends to compress the air-fuel mixture.",
+       "why": "Higher density and pressure prepare the mixture for rapid, efficient burning.",
+       "active": [
+        "piston"
+       ],
+       "calloutRegion": "piston",
+       "readouts": [
+        {
+         "id": "pPos",
+         "label": "Piston Position",
+         "value": "Bottom to Top"
+        },
+        {
+         "id": "press",
+         "label": "Cylinder Pressure",
+         "value": "12.0 bar"
+        }
+       ]
+      },
+      {
+       "id": "power",
+       "label": "3. Power",
+       "short": "Power",
+       "sentence": "The spark plug ignites the mixture, and expanding gases forcefully push the piston down.",
+       "why": "Thermal energy converts into mechanical work at the crankshaft.",
+       "active": [
+        "spark",
+        "piston"
+       ],
+       "calloutRegion": "spark",
+       "readouts": [
+        {
+         "id": "pPos",
+         "label": "Piston Position",
+         "value": "Top to Bottom"
+        },
+        {
+         "id": "press",
+         "label": "Cylinder Pressure",
+         "value": "55.0 bar"
+        }
+       ]
+      },
+      {
+       "id": "exhaust",
+       "label": "4. Exhaust",
+       "short": "Exhaust",
+       "sentence": "The exhaust valve opens as the piston rises again, pushing spent gases out.",
+       "why": "Clearing the cylinder prepares the engine for the next intake stroke.",
+       "active": [
+        "valveEx",
+        "piston"
+       ],
+       "calloutRegion": "valveEx",
+       "readouts": [
+        {
+         "id": "pPos",
+         "label": "Piston Position",
+         "value": "Bottom to Top"
+        },
+        {
+         "id": "press",
+         "label": "Cylinder Pressure",
+         "value": "1.1 bar"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1106,
+  "output": 1337
+ },
+ "usd": 0.003675,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture shows valves, piston and spark plug across the four strokes, answering how the cycle turns fuel into work, with the power stroke (spark fire, piston down) as the key observation."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The stepper is learner-driven with no timer, and the power state stays on screen with its spark, piston and callout until the learner picks another stroke."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single stepIndex control changes the active regions, valve/piston/spark phases, callout and pressure readouts in each state, so every step shows different evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout, readouts and progress bind to declared inputs, variant regions and state fields; each calloutRegion id exists in the regions list."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "Sentences, region labels, state labels and the control options all use the same names (intake valve, piston, spark plug, exhaust valve, and the four strokes)."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At the detailed depth there is one picture, one callout and two readouts (position and pressure), and no extra panels; the pressure values add a count-like comparison without clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Pressure values (0.9, 12, 55, 1.1 bar) follow the physical trend, and the piston direction readouts match the phases array. The callout locates the part while the readouts carry the numbers, with no duplication."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012168
+ }
+}

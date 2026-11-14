@@ -1,0 +1,367 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a07",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a robot arm pick up an object?",
+ "ts": "2026-11-14T22:22:29.517Z",
+ "ms": 18271,
+ "raw": "{\"story\":\"A robot arm picks up an object in four moves: line up above it, lower the open gripper around it, close the fingers until force is sensed, then lift. The object only rises once the fingers grip it.\",\"aha\":{\"stateId\":\"lift\",\"observation\":\"The object rises only after the closed fingers press on it with sensed force; the gripper's grip, not the arm's motion, carries it.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"state.id\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"presentation\":\"Previous / Next buttons, keyboard arrow keys, visible focus\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first state\"}],\"data\":{\"variants\":[{\"label\":\"Pick up a block\",\"regions\":[{\"id\":\"arm\",\"label\":\"Arm\",\"kind\":\"actor\",\"values\":[\"home\",\"over object\",\"lowered\",\"lowered\",\"raised\"]},{\"id\":\"gripper\",\"label\":\"Gripper fingers\",\"kind\":\"actor\",\"phases\":[\"open\",\"closed\"]},{\"id\":\"object\",\"label\":\"Object (block)\",\"kind\":\"item\",\"phases\":[\"on table\",\"in grip\",\"lifted\"]},{\"id\":\"table\",\"label\":\"Table\",\"kind\":\"surface\"},{\"id\":\"sensor\",\"label\":\"Force sensor\",\"kind\":\"sensor\",\"values\":[\"no contact\",\"contact\"]}],\"links\":[{\"from\":\"arm\",\"to\":\"gripper\",\"label\":\"carries\"},{\"from\":\"gripper\",\"to\":\"object\",\"label\":\"presses on\"},{\"from\":\"sensor\",\"to\":\"gripper\",\"label\":\"reports force\"}],\"states\":[{\"id\":\"start\",\"label\":\"Start\",\"sentence\":\"The arm waits at home with the gripper open. The block rests on the table.\",\"short\":\"Start\",\"why\":\"Everything begins at rest, so later changes are easy to spot.\",\"calloutRegion\":\"arm\",\"active\":[\"arm\",\"gripper\",\"object\",\"table\"],\"readouts\":[{\"id\":\"opening\",\"label\":\"Finger opening\",\"value\":\"80 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"0 N\"},{\"id\":\"height\",\"label\":\"Block height\",\"value\":\"0 cm\"}]},{\"id\":\"align\",\"label\":\"Align\",\"sentence\":\"The arm moves until the open gripper sits directly above the block.\",\"short\":\"Align\",\"why\":\"The fingers must straddle the block before descending.\",\"calloutRegion\":\"arm\",\"active\":[\"arm\",\"gripper\",\"object\"],\"readouts\":[{\"id\":\"opening\",\"label\":\"Finger opening\",\"value\":\"80 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"0 N\"},{\"id\":\"height\",\"label\":\"Block height\",\"value\":\"0 cm\"}]},{\"id\":\"lower\",\"label\":\"Lower\",\"sentence\":\"The arm descends so the open fingers surround the block, one on each side.\",\"short\":\"Lower\",\"why\":\"The fingers open wider than the 60 mm block, so they do not touch it.\",\"calloutRegion\":\"gripper\",\"active\":[\"arm\",\"gripper\",\"object\",\"table\"],\"readouts\":[{\"id\":\"opening\",\"label\":\"Finger opening\",\"value\":\"80 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"0 N\"},{\"id\":\"height\",\"label\":\"Block height\",\"value\":\"0 cm\"}]},{\"id\":\"close\",\"label\":\"Close\",\"sentence\":\"The fingers close on the block until the force sensor reports contact.\",\"short\":\"Close\",\"why\":\"Sensed force confirms the fingers are pressing, so friction can hold the block.\",\"calloutRegion\":\"sensor\",\"active\":[\"gripper\",\"object\",\"sensor\",\"table\"],\"readouts\":[{\"id\":\"opening\",\"label\":\"Finger opening\",\"value\":\"60 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"10 N\"},{\"id\":\"height\",\"label\":\"Block height\",\"value\":\"0 cm\"}]},{\"id\":\"lift\",\"label\":\"Lift\",\"sentence\":\"The arm rises and the block rises with it, held only by the fingers' pressure.\",\"short\":\"Lift\",\"why\":\"The block lifts because the fingers still press on it; opening them would drop it.\",\"calloutRegion\":\"object\",\"active\":[\"arm\",\"gripper\",\"object\",\"sensor\"],\"readouts\":[{\"id\":\"opening\",\"label\":\"Finger opening\",\"value\":\"60 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"10 N\"},{\"id\":\"height\",\"label\":\"Block height\",\"value\":\"15 cm\"}]}]}]}}",
+ "composition": {
+  "story": "A robot arm picks up an object in four moves: line up above it, lower the open gripper around it, close the fingers until force is sensed, then lift. The object only rises once the fingers grip it.",
+  "aha": {
+   "stateId": "lift",
+   "observation": "The object rises only after the closed fingers press on it with sensed force; the gripper's grip, not the arm's motion, carries it."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "state.id",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "presentation": "Previous / Next buttons, keyboard arrow keys, visible focus"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first state"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Pick up a block",
+     "regions": [
+      {
+       "id": "arm",
+       "label": "Arm",
+       "kind": "actor",
+       "values": [
+        "home",
+        "over object",
+        "lowered",
+        "lowered",
+        "raised"
+       ]
+      },
+      {
+       "id": "gripper",
+       "label": "Gripper fingers",
+       "kind": "actor",
+       "phases": [
+        "open",
+        "closed"
+       ]
+      },
+      {
+       "id": "object",
+       "label": "Object (block)",
+       "kind": "item",
+       "phases": [
+        "on table",
+        "in grip",
+        "lifted"
+       ]
+      },
+      {
+       "id": "table",
+       "label": "Table",
+       "kind": "surface"
+      },
+      {
+       "id": "sensor",
+       "label": "Force sensor",
+       "kind": "sensor",
+       "values": [
+        "no contact",
+        "contact"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "arm",
+       "to": "gripper",
+       "label": "carries"
+      },
+      {
+       "from": "gripper",
+       "to": "object",
+       "label": "presses on"
+      },
+      {
+       "from": "sensor",
+       "to": "gripper",
+       "label": "reports force"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start",
+       "sentence": "The arm waits at home with the gripper open. The block rests on the table.",
+       "short": "Start",
+       "why": "Everything begins at rest, so later changes are easy to spot.",
+       "calloutRegion": "arm",
+       "active": [
+        "arm",
+        "gripper",
+        "object",
+        "table"
+       ],
+       "readouts": [
+        {
+         "id": "opening",
+         "label": "Finger opening",
+         "value": "80 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "0 N"
+        },
+        {
+         "id": "height",
+         "label": "Block height",
+         "value": "0 cm"
+        }
+       ]
+      },
+      {
+       "id": "align",
+       "label": "Align",
+       "sentence": "The arm moves until the open gripper sits directly above the block.",
+       "short": "Align",
+       "why": "The fingers must straddle the block before descending.",
+       "calloutRegion": "arm",
+       "active": [
+        "arm",
+        "gripper",
+        "object"
+       ],
+       "readouts": [
+        {
+         "id": "opening",
+         "label": "Finger opening",
+         "value": "80 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "0 N"
+        },
+        {
+         "id": "height",
+         "label": "Block height",
+         "value": "0 cm"
+        }
+       ]
+      },
+      {
+       "id": "lower",
+       "label": "Lower",
+       "sentence": "The arm descends so the open fingers surround the block, one on each side.",
+       "short": "Lower",
+       "why": "The fingers open wider than the 60 mm block, so they do not touch it.",
+       "calloutRegion": "gripper",
+       "active": [
+        "arm",
+        "gripper",
+        "object",
+        "table"
+       ],
+       "readouts": [
+        {
+         "id": "opening",
+         "label": "Finger opening",
+         "value": "80 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "0 N"
+        },
+        {
+         "id": "height",
+         "label": "Block height",
+         "value": "0 cm"
+        }
+       ]
+      },
+      {
+       "id": "close",
+       "label": "Close",
+       "sentence": "The fingers close on the block until the force sensor reports contact.",
+       "short": "Close",
+       "why": "Sensed force confirms the fingers are pressing, so friction can hold the block.",
+       "calloutRegion": "sensor",
+       "active": [
+        "gripper",
+        "object",
+        "sensor",
+        "table"
+       ],
+       "readouts": [
+        {
+         "id": "opening",
+         "label": "Finger opening",
+         "value": "60 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "10 N"
+        },
+        {
+         "id": "height",
+         "label": "Block height",
+         "value": "0 cm"
+        }
+       ]
+      },
+      {
+       "id": "lift",
+       "label": "Lift",
+       "sentence": "The arm rises and the block rises with it, held only by the fingers' pressure.",
+       "short": "Lift",
+       "why": "The block lifts because the fingers still press on it; opening them would drop it.",
+       "calloutRegion": "object",
+       "active": [
+        "arm",
+        "gripper",
+        "object",
+        "sensor"
+       ],
+       "readouts": [
+        {
+         "id": "opening",
+         "label": "Finger opening",
+         "value": "60 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "10 N"
+        },
+        {
+         "id": "height",
+         "label": "Block height",
+         "value": "15 cm"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3071,
+  "output": 2800
+ },
+ "usd": 0.034142,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The scene answers what makes the block rise, using fingers, force sensor, block and height readout across the states."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'lift' is the final step, so the stepper stays there until the learner presses Previous or Reset."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There is no parameter, but the fixed step sequence is justified: each step changes the opening, force and height readouts and the active parts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callout targets, ghost, links and readouts all trace to declared regions, state fields and links."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, labels and callouts consistently name the arm, gripper fingers, block, force sensor and table, matching the steps."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Brief depth shows a single callout region per state and three compact readouts, with no extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The values are consistent: 80 mm to 60 mm matches the 60 mm block, force 0 to 10 N, height 0 to 15 cm, and the callouts locate while the readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01669
+ }
+}

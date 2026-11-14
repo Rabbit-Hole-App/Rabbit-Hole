@@ -1,0 +1,384 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a09",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does the water cycle work?",
+ "ts": "2026-11-14T22:29:42.204Z",
+ "ms": 139494,
+ "raw": "{\n  \"story\": \"Track a closed, warm-water cycle without ice, plants, or groundwater. Start with ocean water, then advance through evaporation, condensation, precipitation, and runoff. Sunlight enables evaporation; cooling forms cloud droplets; gravity returns water through rain and runoff. Compare the final reservoir masses with the start: phase and location change, but total water stays constant.\",\n  \"aha\": {\n    \"stateId\": \"returned\",\n    \"observation\": \"Water changes phase and location during its cycle, but transfers between reservoirs leave the total water mass unchanged.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"cycle-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Reuse the approved card shell and canonical cycle composition. Keep explanation and instructions above the experiment, with progress confined to this rail. Capture the returned state as the reference evidence.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"water-reservoirs\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Arrange four fixed, named regions in canonical cycle order, using the declared links. Highlight active regions and their connecting transfer link. Show phase names explicitly, without relying on color. Region sizes are schematic, not mass-scaled; reserve readable label space throughout.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"links\": \"variant.links\"\n      }\n    },\n    {\n      \"id\": \"reservoir-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor text beside the target region, with consistent space in every state. Render reason as the bound status line. Callouts identify where and explain mechanisms; numerical values appear only in the ledger.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"water-mass-ledger\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Use stable ledger rows labeled Water mass, in kilograms. Values are exact integers; no rounding applies. Compute total mass as M = O + V + C + L. The initial ocean mass and evaporated parcel mass are fixed by their respective ledger states. Every later transfer moves that same parcel intact. Count water only, excluding air; permit no outside water exchanges. Place the formula and measurement conventions above the experiment.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"cycle-state\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Water cycle state\",\n      \"presentation\": \"Navigation budget: one index control; parameter-control budget: zero. Default to the first state; advance one state within the first and last bounds. Use Previous and Next, retaining their names when disabled at boundaries. Every state persists until learner action, including returned; there is no autoplay. States represent transfers, not equal time intervals. Provide accessible button names, visible focus, and Left/Right keyboard operation.\"\n    },\n    {\n      \"id\": \"reset-cycle\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide visible focus, an accessible name, and Enter/Space activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Closed warm-water cycle\",\n        \"regions\": [\n          {\n            \"id\": \"ocean\",\n            \"label\": \"Ocean\",\n            \"phases\": [\n              \"Liquid water\"\n            ]\n          },\n          {\n            \"id\": \"vapor\",\n            \"label\": \"Water vapor\",\n            \"phases\": [\n              \"Invisible gas\"\n            ]\n          },\n          {\n            \"id\": \"cloud\",\n            \"label\": \"Cloud droplets\",\n            \"phases\": [\n              \"Liquid water\"\n            ]\n          },\n          {\n            \"id\": \"land\",\n            \"label\": \"Land surface\",\n            \"phases\": [\n              \"Liquid water\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"ocean\",\n            \"to\": \"vapor\",\n            \"label\": \"Evaporation\"\n          },\n          {\n            \"from\": \"vapor\",\n            \"to\": \"cloud\",\n            \"label\": \"Condensation\"\n          },\n          {\n            \"from\": \"cloud\",\n            \"to\": \"land\",\n            \"label\": \"Precipitation\"\n          },\n          {\n            \"from\": \"land\",\n            \"to\": \"ocean\",\n            \"label\": \"Runoff\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"initial\",\n            \"label\": \"Ocean start\",\n            \"short\": \"Start\",\n            \"sentence\": \"The tracked water starts in the ocean.\",\n            \"why\": \"This ledger counts only the tracked water, not the entire ocean or atmosphere; empty reservoirs contain none of this tracked water.\",\n            \"active\": [\n              \"ocean\"\n            ],\n            \"calloutRegion\": \"ocean\",\n            \"readouts\": [\n              {\n                \"id\": \"ocean-mass\",\n                \"label\": \"Ocean O\",\n                \"value\": \"10\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Water vapor V\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"cloud-mass\",\n                \"label\": \"Cloud droplets C\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"land-mass\",\n                \"label\": \"Land surface L\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total M\",\n                \"value\": \"10\"\n              }\n            ]\n          },\n          {\n            \"id\": \"evaporated\",\n            \"label\": \"After evaporation\",\n            \"short\": \"Evaporate\",\n            \"sentence\": \"Some ocean water becomes invisible water vapor.\",\n            \"why\": \"Sunlight supplies energy for evaporation; the ocean loses exactly the mass gained by water vapor in the atmosphere.\",\n            \"active\": [\n              \"ocean\",\n              \"vapor\"\n            ],\n            \"calloutRegion\": \"vapor\",\n            \"readouts\": [\n              {\n                \"id\": \"ocean-mass\",\n                \"label\": \"Ocean O\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Water vapor V\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"cloud-mass\",\n                \"label\": \"Cloud droplets C\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"land-mass\",\n                \"label\": \"Land surface L\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total M\",\n                \"value\": \"10\"\n              }\n            ]\n          },\n          {\n            \"id\": \"condensed\",\n            \"label\": \"After condensation\",\n            \"short\": \"Condense\",\n            \"sentence\": \"Cooling turns the tracked vapor into cloud droplets.\",\n            \"why\": \"Cooling air to saturation allows vapor to condense on tiny airborne particles; these warm clouds contain liquid droplets, not visible vapor.\",\n            \"active\": [\n              \"vapor\",\n              \"cloud\"\n            ],\n            \"calloutRegion\": \"cloud\",\n            \"readouts\": [\n              {\n                \"id\": \"ocean-mass\",\n                \"label\": \"Ocean O\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Water vapor V\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"cloud-mass\",\n                \"label\": \"Cloud droplets C\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"land-mass\",\n                \"label\": \"Land surface L\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total M\",\n                \"value\": \"10\"\n              }\n            ]\n          },\n          {\n            \"id\": \"precipitated\",\n            \"label\": \"After precipitation\",\n            \"short\": \"Rain\",\n            \"sentence\": \"Cloud water reaches the land surface as rain.\",\n            \"why\": \"Collisions grow droplets large enough to fall as rain, transferring liquid water from clouds to the land surface under gravity.\",\n            \"active\": [\n              \"cloud\",\n              \"land\"\n            ],\n            \"calloutRegion\": \"land\",\n            \"readouts\": [\n              {\n                \"id\": \"ocean-mass\",\n                \"label\": \"Ocean O\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Water vapor V\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"cloud-mass\",\n                \"label\": \"Cloud droplets C\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"land-mass\",\n                \"label\": \"Land surface L\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total M\",\n                \"value\": \"10\"\n              }\n            ]\n          },\n          {\n            \"id\": \"returned\",\n            \"label\": \"Returned to ocean\",\n            \"short\": \"Return\",\n            \"sentence\": \"Runoff returns the tracked parcel to the ocean.\",\n            \"why\": \"Gravity drives surface water downhill; the original reservoir distribution returns, while the unchanged total shows that transfers conserved water mass.\",\n            \"active\": [\n              \"land\",\n              \"ocean\"\n            ],\n            \"calloutRegion\": \"ocean\",\n            \"readouts\": [\n              {\n                \"id\": \"ocean-mass\",\n                \"label\": \"Ocean O\",\n                \"value\": \"10\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Water vapor V\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"cloud-mass\",\n                \"label\": \"Cloud droplets C\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"land-mass\",\n                \"label\": \"Land surface L\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total M\",\n                \"value\": \"10\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Track a closed, warm-water cycle without ice, plants, or groundwater. Start with ocean water, then advance through evaporation, condensation, precipitation, and runoff. Sunlight enables evaporation; cooling forms cloud droplets; gravity returns water through rain and runoff. Compare the final reservoir masses with the start: phase and location change, but total water stays constant.",
+  "aha": {
+   "stateId": "returned",
+   "observation": "Water changes phase and location during its cycle, but transfers between reservoirs leave the total water mass unchanged."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "cycle-rail",
+    "kind": "step-rail",
+    "presentation": "Reuse the approved card shell and canonical cycle composition. Keep explanation and instructions above the experiment, with progress confined to this rail. Capture the returned state as the reference evidence.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "water-reservoirs",
+    "kind": "fixed-picture",
+    "presentation": "Arrange four fixed, named regions in canonical cycle order, using the declared links. Highlight active regions and their connecting transfer link. Show phase names explicitly, without relying on color. Region sizes are schematic, not mass-scaled; reserve readable label space throughout.",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "links": "variant.links"
+    }
+   },
+   {
+    "id": "reservoir-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor text beside the target region, with consistent space in every state. Render reason as the bound status line. Callouts identify where and explain mechanisms; numerical values appear only in the ledger.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "water-mass-ledger",
+    "kind": "value-readout",
+    "presentation": "Use stable ledger rows labeled Water mass, in kilograms. Values are exact integers; no rounding applies. Compute total mass as M = O + V + C + L. The initial ocean mass and evaporated parcel mass are fixed by their respective ledger states. Every later transfer moves that same parcel intact. Count water only, excluding air; permit no outside water exchanges. Place the formula and measurement conventions above the experiment.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "cycle-state",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Water cycle state",
+    "presentation": "Navigation budget: one index control; parameter-control budget: zero. Default to the first state; advance one state within the first and last bounds. Use Previous and Next, retaining their names when disabled at boundaries. Every state persists until learner action, including returned; there is no autoplay. States represent transfers, not equal time intervals. Provide accessible button names, visible focus, and Left/Right keyboard operation."
+   },
+   {
+    "id": "reset-cycle",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide visible focus, an accessible name, and Enter/Space activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Closed warm-water cycle",
+     "regions": [
+      {
+       "id": "ocean",
+       "label": "Ocean",
+       "phases": [
+        "Liquid water"
+       ]
+      },
+      {
+       "id": "vapor",
+       "label": "Water vapor",
+       "phases": [
+        "Invisible gas"
+       ]
+      },
+      {
+       "id": "cloud",
+       "label": "Cloud droplets",
+       "phases": [
+        "Liquid water"
+       ]
+      },
+      {
+       "id": "land",
+       "label": "Land surface",
+       "phases": [
+        "Liquid water"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "ocean",
+       "to": "vapor",
+       "label": "Evaporation"
+      },
+      {
+       "from": "vapor",
+       "to": "cloud",
+       "label": "Condensation"
+      },
+      {
+       "from": "cloud",
+       "to": "land",
+       "label": "Precipitation"
+      },
+      {
+       "from": "land",
+       "to": "ocean",
+       "label": "Runoff"
+      }
+     ],
+     "states": [
+      {
+       "id": "initial",
+       "label": "Ocean start",
+       "short": "Start",
+       "sentence": "The tracked water starts in the ocean.",
+       "why": "This ledger counts only the tracked water, not the entire ocean or atmosphere; empty reservoirs contain none of this tracked water.",
+       "active": [
+        "ocean"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "ocean-mass",
+         "label": "Ocean O",
+         "value": "10"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Water vapor V",
+         "value": "0"
+        },
+        {
+         "id": "cloud-mass",
+         "label": "Cloud droplets C",
+         "value": "0"
+        },
+        {
+         "id": "land-mass",
+         "label": "Land surface L",
+         "value": "0"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total M",
+         "value": "10"
+        }
+       ]
+      },
+      {
+       "id": "evaporated",
+       "label": "After evaporation",
+       "short": "Evaporate",
+       "sentence": "Some ocean water becomes invisible water vapor.",
+       "why": "Sunlight supplies energy for evaporation; the ocean loses exactly the mass gained by water vapor in the atmosphere.",
+       "active": [
+        "ocean",
+        "vapor"
+       ],
+       "calloutRegion": "vapor",
+       "readouts": [
+        {
+         "id": "ocean-mass",
+         "label": "Ocean O",
+         "value": "6"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Water vapor V",
+         "value": "4"
+        },
+        {
+         "id": "cloud-mass",
+         "label": "Cloud droplets C",
+         "value": "0"
+        },
+        {
+         "id": "land-mass",
+         "label": "Land surface L",
+         "value": "0"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total M",
+         "value": "10"
+        }
+       ]
+      },
+      {
+       "id": "condensed",
+       "label": "After condensation",
+       "short": "Condense",
+       "sentence": "Cooling turns the tracked vapor into cloud droplets.",
+       "why": "Cooling air to saturation allows vapor to condense on tiny airborne particles; these warm clouds contain liquid droplets, not visible vapor.",
+       "active": [
+        "vapor",
+        "cloud"
+       ],
+       "calloutRegion": "cloud",
+       "readouts": [
+        {
+         "id": "ocean-mass",
+         "label": "Ocean O",
+         "value": "6"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Water vapor V",
+         "value": "0"
+        },
+        {
+         "id": "cloud-mass",
+         "label": "Cloud droplets C",
+         "value": "4"
+        },
+        {
+         "id": "land-mass",
+         "label": "Land surface L",
+         "value": "0"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total M",
+         "value": "10"
+        }
+       ]
+      },
+      {
+       "id": "precipitated",
+       "label": "After precipitation",
+       "short": "Rain",
+       "sentence": "Cloud water reaches the land surface as rain.",
+       "why": "Collisions grow droplets large enough to fall as rain, transferring liquid water from clouds to the land surface under gravity.",
+       "active": [
+        "cloud",
+        "land"
+       ],
+       "calloutRegion": "land",
+       "readouts": [
+        {
+         "id": "ocean-mass",
+         "label": "Ocean O",
+         "value": "6"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Water vapor V",
+         "value": "0"
+        },
+        {
+         "id": "cloud-mass",
+         "label": "Cloud droplets C",
+         "value": "0"
+        },
+        {
+         "id": "land-mass",
+         "label": "Land surface L",
+         "value": "4"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total M",
+         "value": "10"
+        }
+       ]
+      },
+      {
+       "id": "returned",
+       "label": "Returned to ocean",
+       "short": "Return",
+       "sentence": "Runoff returns the tracked parcel to the ocean.",
+       "why": "Gravity drives surface water downhill; the original reservoir distribution returns, while the unchanged total shows that transfers conserved water mass.",
+       "active": [
+        "land",
+        "ocean"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "ocean-mass",
+         "label": "Ocean O",
+         "value": "10"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Water vapor V",
+         "value": "0"
+        },
+        {
+         "id": "cloud-mass",
+         "label": "Cloud droplets C",
+         "value": "0"
+        },
+        {
+         "id": "land-mass",
+         "label": "Land surface L",
+         "value": "0"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total M",
+         "value": "10"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1534,
+  "output": 6949
+ },
+ "usd": 0.069688,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "Four named reservoirs with transfer links and per-state mass readouts show that total water stays constant while phase and location change."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'returned' is the final state, persists until learner action with no autoplay, and shows O=10 and M=10 against the start."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only control is the state index, which is the experiment itself and moves the active regions and masses at each step; no parameter is claimed, so the fixed comparison is justified."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlights, callout target, callout text, reason line and ledger all bind to state.active, calloutRegion, sentence, why and readouts, and the links come from variant.links."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, link labels, region labels and ledger rows all use the same names: ocean, vapor, cloud droplets, land surface, evaporation, condensation, precipitation and runoff."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The scene has four regions, one callout, one ledger and one rail, and the ledger carries the formula M = O + V + C + L as the deep count without extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The totals check at every state (10; 6+4; 6+4; 6+4; 10), and numbers appear only in the ledger while the callouts only locate and explain."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.014696
+ }
+}

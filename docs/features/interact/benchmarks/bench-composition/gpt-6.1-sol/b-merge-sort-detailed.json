@@ -1,0 +1,542 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "b-merge-sort",
+ "set": "B",
+ "subject": "merge-sort",
+ "depth": "detailed",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T23:05:58.940Z",
+ "ms": 162676,
+ "raw": "{\n  \"story\": \"Why does splitting help sorting? Main array divides into Left run and Right run, then Left A, Left B, Right A, and Right B. Merge singletons into sorted runs. Compare remaining fronts and move the smaller into Main array. Its sorted prefix grows until the array is sorted.\",\n  \"aha\": {\n    \"stateId\": \"smaller-front\",\n    \"observation\": \"Choosing the smaller remaining front preserves sorted output because every later item in either run is at least its front.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states.algorithm-collection\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"state-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell and canonical algorithm/collection composition. Keep explanation and navigation instructions above the experiment. Parameter-control budget: zero; navigation consists of Previous, Next, and Reset. Show the active item's sentence as the bound status line. Every state persists until learner action; reference capture uses smaller-front.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"trace\",\n      \"kind\": \"progress\",\n      \"presentation\": \"Integrate completed-state marks into the rail. Sequence position is not elapsed time.\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.step\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"merge-tree\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical fixed binary tree with Main array above runs and singletons. Each region displays its phase at the active index. Links establish the arrangement without custom geometry. Highlight active regions and retain every region's label. Front marks the first remaining item; a dash marks an empty slot. Pending and consumed regions retain labels without item values. Fix ascending numeric order and top-down recursion, visiting Left run first. Ties choose Left run. No animation or clock is needed.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-part\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the named target using reserved label space. Identify the location and explain its role; keep numerical measurements in readouts.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.short\"\n      }\n    },\n    {\n      \"id\": \"measurements\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Stack readouts beneath the picture with readable wrapping at native width. Counts are exact integer item comparisons, without rounding. Each front comparison emits one item; draining a remaining run uses no comparisons. Accounting follows the displayed fixed input and active state. The ceiling assumes distinct items and power-of-two input length. Keep instructions above the experiment.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"presentation\": \"Render Previous and Next buttons. Default index 0; bounds 0–9; increment 1. Disable at boundaries while retaining names. Support keyboard operation and visible focus. Advancing changes the displayed array state and comparison evidence.\",\n      \"items\": \"variant.states\",\n      \"label\": \"Merge sort state\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"presentation\": \"Restore index 0 and the fixed input. Support keyboard operation and visible focus.\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Ascending merge sort: interleaved sorted runs\",\n        \"regions\": [\n          {\n            \"id\": \"main\",\n            \"label\": \"Main array\",\n            \"phases\": [\n              \"Unsorted [8, 3, 5, 1]\",\n              \"Split; awaiting sorted runs\",\n              \"Awaiting sorted runs\",\n              \"Awaiting Right run\",\n              \"Both sorted runs ready\",\n              \"Output [—, —, —, —]\",\n              \"Sorted prefix [1, —, —, —]\",\n              \"Sorted prefix [1, 3, —, —]\",\n              \"Sorted prefix [1, 3, 5, —]\",\n              \"Sorted [1, 3, 5, 8]\"\n            ]\n          },\n          {\n            \"id\": \"left\",\n            \"label\": \"Left run\",\n            \"phases\": [\n              \"Not yet split\",\n              \"Unsorted [8, 3]\",\n              \"Awaiting singleton merge\",\n              \"Sorted [3, 8]\",\n              \"Sorted [3, 8]\",\n              \"Remaining [3 front, 8]\",\n              \"Remaining [3 front, 8]\",\n              \"Remaining [—, 8 front]\",\n              \"Remaining [—, 8 front]\",\n              \"Exhausted [—, —]\"\n            ]\n          },\n          {\n            \"id\": \"right\",\n            \"label\": \"Right run\",\n            \"phases\": [\n              \"Not yet split\",\n              \"Unsorted [5, 1]\",\n              \"Awaiting singleton merge\",\n              \"Awaiting singleton merge\",\n              \"Sorted [1, 5]\",\n              \"Remaining [1 front, 5]\",\n              \"Remaining [—, 5 front]\",\n              \"Remaining [—, 5 front]\",\n              \"Exhausted [—, —]\",\n              \"Exhausted [—, —]\"\n            ]\n          },\n          {\n            \"id\": \"left-a\",\n            \"label\": \"Left A\",\n            \"phases\": [\n              \"Pending\",\n              \"Pending\",\n              \"Singleton [8]\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\"\n            ]\n          },\n          {\n            \"id\": \"left-b\",\n            \"label\": \"Left B\",\n            \"phases\": [\n              \"Pending\",\n              \"Pending\",\n              \"Singleton [3]\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\"\n            ]\n          },\n          {\n            \"id\": \"right-a\",\n            \"label\": \"Right A\",\n            \"phases\": [\n              \"Pending\",\n              \"Pending\",\n              \"Singleton [5]\",\n              \"Singleton [5]\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\"\n            ]\n          },\n          {\n            \"id\": \"right-b\",\n            \"label\": \"Right B\",\n            \"phases\": [\n              \"Pending\",\n              \"Pending\",\n              \"Singleton [1]\",\n              \"Singleton [1]\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\",\n              \"Consumed\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"main\",\n            \"to\": \"left\",\n            \"label\": \"split down; merge up\"\n          },\n          {\n            \"from\": \"main\",\n            \"to\": \"right\",\n            \"label\": \"split down; merge up\"\n          },\n          {\n            \"from\": \"left\",\n            \"to\": \"left-a\",\n            \"label\": \"split down; merge up\"\n          },\n          {\n            \"from\": \"left\",\n            \"to\": \"left-b\",\n            \"label\": \"split down; merge up\"\n          },\n          {\n            \"from\": \"right\",\n            \"to\": \"right-a\",\n            \"label\": \"split down; merge up\"\n          },\n          {\n            \"from\": \"right\",\n            \"to\": \"right-b\",\n            \"label\": \"split down; merge up\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"input\",\n            \"label\": \"Input\",\n            \"short\": \"Start at Main array\",\n            \"sentence\": \"Main array is unsorted; the input remains fixed throughout this experiment.\",\n            \"why\": \"Splitting creates smaller sorting problems without deciding the final order yet.\",\n            \"active\": [\"main\"],\n            \"calloutRegion\": \"main\",\n            \"readouts\": [\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Comparisons: Left run + Right run + Main array\",\n                \"value\": \"0 + 0 + 0 = 0\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Merge invariant\",\n                \"value\": \"No merge output yet.\"\n              },\n              {\n                \"id\": \"ceiling\",\n                \"label\": \"Worst-case comparisons; n is input length\",\n                \"value\": \"Cmax(n) = n log₂(n) − n + 1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"split-runs\",\n            \"label\": \"Split\",\n            \"short\": \"Divide Main array\",\n            \"sentence\": \"Main array splits into Left run and Right run without comparing item values.\",\n            \"why\": \"Each run will be sorted independently before the final merge.\",\n            \"active\": [\"left\", \"right\"],\n            \"calloutRegion\": \"main\",\n            \"readouts\": [\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Comparisons: Left run + Right run + Main array\",\n                \"value\": \"0 + 0 + 0 = 0\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Merge invariant\",\n                \"value\": \"No merge output yet.\"\n              },\n              {\n                \"id\": \"ceiling\",\n                \"label\": \"Worst-case comparisons; n is input length\",\n                \"value\": \"Cmax(n) = n log₂(n) − n + 1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"singletons\",\n            \"label\": \"Base cases\",\n            \"short\": \"Reach the singletons\",\n            \"sentence\": \"Left A, Left B, Right A, and Right B are singleton runs, each already sorted.\",\n            \"why\": \"Recursion stops at singletons because their internal order cannot be wrong.\",\n            \"active\": [\"left-a\", \"left-b\", \"right-a\", \"right-b\"],\n            \"calloutRegion\": \"left-a\",\n            \"readouts\": [\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Comparisons: Left run + Right run + Main array\",\n                \"value\": \"0 + 0 + 0 = 0\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Merge invariant\",\n                \"value\": \"Singleton inputs are sorted.\"\n              },\n              {\n                \"id\": \"ceiling\",\n                \"label\": \"Worst-case comparisons; n is input length\",\n                \"value\": \"Cmax(n) = n log₂(n) − n + 1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"left-sorted\",\n            \"label\": \"Merge left\",\n            \"short\": \"Build sorted Left run\",\n            \"sentence\": \"Compare Left A with Left B, emit the smaller item, then append the remainder into Left run.\",\n            \"why\": \"A singleton merge establishes the same sorted-output rule used by larger merges.\",\n            \"active\": [\"left\"],\n            \"calloutRegion\": \"left\",\n            \"readouts\": [\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Comparisons: Left run + Right run + Main array\",\n                \"value\": \"1 + 0 + 0 = 1\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Merge invariant\",\n                \"value\": \"Left run is sorted.\"\n              },\n              {\n                \"id\": \"ceiling\",\n                \"label\": \"Worst-case comparisons; n is input length\",\n                \"value\": \"Cmax(n) = n log₂(n) − n + 1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"right-sorted\",\n            \"label\": \"Merge right\",\n            \"short\": \"Build sorted Right run\",\n            \"sentence\": \"Compare Right A with Right B, emit the smaller item, then append the remainder into Right run.\",\n            \"why\": \"Both child runs are now sorted, which makes comparing only their fronts sufficient.\",\n            \"active\": [\"right\"],\n            \"calloutRegion\": \"right\",\n            \"readouts\": [\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Comparisons: Left run + Right run + Main array\",\n                \"value\": \"1 + 1 + 0 = 2\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Merge invariant\",\n                \"value\": \"Both inputs to the final merge are sorted.\"\n              },\n              {\n                \"id\": \"ceiling\",\n                \"label\": \"Worst-case comparisons; n is input length\",\n                \"value\": \"Cmax(n) = n log₂(n) − n + 1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"compare-fronts\",\n            \"label\": \"Find fronts\",\n            \"short\": \"Inspect the remaining fronts\",\n            \"sentence\": \"Left run and Right run expose their smallest remaining items; Main array starts with an empty output.\",\n            \"why\": \"Every item behind a front is at least as large as that front.\",\n            \"active\": [\"left\", \"right\"],\n            \"calloutRegion\": \"right\",\n            \"readouts\": [\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Comparisons: Left run + Right run + Main array\",\n                \"value\": \"1 + 1 + 0 = 2\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Merge invariant\",\n                \"value\": \"Empty output is sorted.\"\n              },\n              {\n                \"id\": \"ceiling\",\n                \"label\": \"Worst-case comparisons; n is input length\",\n                \"value\": \"Cmax(n) = n log₂(n) − n + 1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"take-right\",\n            \"label\": \"Take right\",\n            \"short\": \"Extend Main array from Right run\",\n            \"sentence\": \"The smaller front moves from Right run into Main array; only Right run advances.\",\n            \"why\": \"The selected front was no larger than either run's remaining items.\",\n            \"active\": [\"main\", \"right\"],\n            \"calloutRegion\": \"main\",\n            \"readouts\": [\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Comparisons: Left run + Right run + Main array\",\n                \"value\": \"1 + 1 + 1 = 3\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Merge invariant\",\n                \"value\": \"Sorted prefix; last output ≤ every remaining front.\"\n              },\n              {\n                \"id\": \"ceiling\",\n                \"label\": \"Worst-case comparisons; n is input length\",\n                \"value\": \"Cmax(n) = n log₂(n) − n + 1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"smaller-front\",\n            \"label\": \"Take left\",\n            \"short\": \"Extend Main array from Left run\",\n            \"sentence\": \"The next smaller front comes from Left run; Main array remains sorted despite switching source runs.\",\n            \"why\": \"Only the fronts needed comparison; neither sorted run hides a smaller item behind its front.\",\n            \"active\": [\"main\", \"left\", \"right\"],\n            \"calloutRegion\": \"main\",\n            \"readouts\": [\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Comparisons: Left run + Right run + Main array\",\n                \"value\": \"1 + 1 + 2 = 4\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Merge invariant\",\n                \"value\": \"Sorted prefix; last output ≤ every remaining front.\"\n              },\n              {\n                \"id\": \"ceiling\",\n                \"label\": \"Worst-case comparisons; n is input length\",\n                \"value\": \"Cmax(n) = n log₂(n) − n + 1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"right-exhausted\",\n            \"label\": \"Take right\",\n            \"short\": \"Empty Right run\",\n            \"sentence\": \"The smaller front moves from Right run into Main array, exhausting Right run.\",\n            \"why\": \"Left run contains the only remaining item, so no further front comparison is necessary.\",\n            \"active\": [\"main\", \"right\"],\n            \"calloutRegion\": \"right\",\n            \"readouts\": [\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Comparisons: Left run + Right run + Main array\",\n                \"value\": \"1 + 1 + 3 = 5\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Merge invariant\",\n                \"value\": \"Sorted prefix; last output ≤ the remaining front.\"\n              },\n              {\n                \"id\": \"ceiling\",\n                \"label\": \"Worst-case comparisons; n is input length\",\n                \"value\": \"Cmax(n) = n log₂(n) − n + 1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"sorted\",\n            \"label\": \"Append rest\",\n            \"short\": \"Complete Main array\",\n            \"sentence\": \"Append the remainder of Left run into Main array without another comparison; the complete array is sorted.\",\n            \"why\": \"The remainder is already sorted and cannot precede the existing output prefix.\",\n            \"active\": [\"main\"],\n            \"calloutRegion\": \"main\",\n            \"readouts\": [\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Comparisons: Left run + Right run + Main array\",\n                \"value\": \"1 + 1 + 3 = 5\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Merge invariant\",\n                \"value\": \"Complete sorted output; both input runs exhausted.\"\n              },\n              {\n                \"id\": \"ceiling\",\n                \"label\": \"Worst-case comparisons; n is input length\",\n                \"value\": \"Cmax(n) = n log₂(n) − n + 1\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Why does splitting help sorting? Main array divides into Left run and Right run, then Left A, Left B, Right A, and Right B. Merge singletons into sorted runs. Compare remaining fronts and move the smaller into Main array. Its sorted prefix grows until the array is sorted.",
+  "aha": {
+   "stateId": "smaller-front",
+   "observation": "Choosing the smaller remaining front preserves sorted output because every later item in either run is at least its front."
+  },
+  "layout": {
+   "preset": "stepper-states.algorithm-collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "state-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell and canonical algorithm/collection composition. Keep explanation and navigation instructions above the experiment. Parameter-control budget: zero; navigation consists of Previous, Next, and Reset. Show the active item's sentence as the bound status line. Every state persists until learner action; reference capture uses smaller-front.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "presentation": "Integrate completed-state marks into the rail. Sequence position is not elapsed time.",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "merge-tree",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical fixed binary tree with Main array above runs and singletons. Each region displays its phase at the active index. Links establish the arrangement without custom geometry. Highlight active regions and retain every region's label. Front marks the first remaining item; a dash marks an empty slot. Pending and consumed regions retain labels without item values. Fix ascending numeric order and top-down recursion, visiting Left run first. Ties choose Left run. No animation or clock is needed.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-part",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the named target using reserved label space. Identify the location and explain its role; keep numerical measurements in readouts.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.short"
+    }
+   },
+   {
+    "id": "measurements",
+    "kind": "value-readout",
+    "presentation": "Stack readouts beneath the picture with readable wrapping at native width. Counts are exact integer item comparisons, without rounding. Each front comparison emits one item; draining a remaining run uses no comparisons. Accounting follows the displayed fixed input and active state. The ceiling assumes distinct items and power-of-two input length. Keep instructions above the experiment.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "presentation": "Render Previous and Next buttons. Default index 0; bounds 0–9; increment 1. Disable at boundaries while retaining names. Support keyboard operation and visible focus. Advancing changes the displayed array state and comparison evidence.",
+    "items": "variant.states",
+    "label": "Merge sort state"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "presentation": "Restore index 0 and the fixed input. Support keyboard operation and visible focus.",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Ascending merge sort: interleaved sorted runs",
+     "regions": [
+      {
+       "id": "main",
+       "label": "Main array",
+       "phases": [
+        "Unsorted [8, 3, 5, 1]",
+        "Split; awaiting sorted runs",
+        "Awaiting sorted runs",
+        "Awaiting Right run",
+        "Both sorted runs ready",
+        "Output [—, —, —, —]",
+        "Sorted prefix [1, —, —, —]",
+        "Sorted prefix [1, 3, —, —]",
+        "Sorted prefix [1, 3, 5, —]",
+        "Sorted [1, 3, 5, 8]"
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left run",
+       "phases": [
+        "Not yet split",
+        "Unsorted [8, 3]",
+        "Awaiting singleton merge",
+        "Sorted [3, 8]",
+        "Sorted [3, 8]",
+        "Remaining [3 front, 8]",
+        "Remaining [3 front, 8]",
+        "Remaining [—, 8 front]",
+        "Remaining [—, 8 front]",
+        "Exhausted [—, —]"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right run",
+       "phases": [
+        "Not yet split",
+        "Unsorted [5, 1]",
+        "Awaiting singleton merge",
+        "Awaiting singleton merge",
+        "Sorted [1, 5]",
+        "Remaining [1 front, 5]",
+        "Remaining [—, 5 front]",
+        "Remaining [—, 5 front]",
+        "Exhausted [—, —]",
+        "Exhausted [—, —]"
+       ]
+      },
+      {
+       "id": "left-a",
+       "label": "Left A",
+       "phases": [
+        "Pending",
+        "Pending",
+        "Singleton [8]",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed"
+       ]
+      },
+      {
+       "id": "left-b",
+       "label": "Left B",
+       "phases": [
+        "Pending",
+        "Pending",
+        "Singleton [3]",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed"
+       ]
+      },
+      {
+       "id": "right-a",
+       "label": "Right A",
+       "phases": [
+        "Pending",
+        "Pending",
+        "Singleton [5]",
+        "Singleton [5]",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed"
+       ]
+      },
+      {
+       "id": "right-b",
+       "label": "Right B",
+       "phases": [
+        "Pending",
+        "Pending",
+        "Singleton [1]",
+        "Singleton [1]",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed",
+        "Consumed"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "main",
+       "to": "left",
+       "label": "split down; merge up"
+      },
+      {
+       "from": "main",
+       "to": "right",
+       "label": "split down; merge up"
+      },
+      {
+       "from": "left",
+       "to": "left-a",
+       "label": "split down; merge up"
+      },
+      {
+       "from": "left",
+       "to": "left-b",
+       "label": "split down; merge up"
+      },
+      {
+       "from": "right",
+       "to": "right-a",
+       "label": "split down; merge up"
+      },
+      {
+       "from": "right",
+       "to": "right-b",
+       "label": "split down; merge up"
+      }
+     ],
+     "states": [
+      {
+       "id": "input",
+       "label": "Input",
+       "short": "Start at Main array",
+       "sentence": "Main array is unsorted; the input remains fixed throughout this experiment.",
+       "why": "Splitting creates smaller sorting problems without deciding the final order yet.",
+       "active": [
+        "main"
+       ],
+       "calloutRegion": "main",
+       "readouts": [
+        {
+         "id": "comparisons",
+         "label": "Comparisons: Left run + Right run + Main array",
+         "value": "0 + 0 + 0 = 0"
+        },
+        {
+         "id": "invariant",
+         "label": "Merge invariant",
+         "value": "No merge output yet."
+        },
+        {
+         "id": "ceiling",
+         "label": "Worst-case comparisons; n is input length",
+         "value": "Cmax(n) = n log₂(n) − n + 1"
+        }
+       ]
+      },
+      {
+       "id": "split-runs",
+       "label": "Split",
+       "short": "Divide Main array",
+       "sentence": "Main array splits into Left run and Right run without comparing item values.",
+       "why": "Each run will be sorted independently before the final merge.",
+       "active": [
+        "left",
+        "right"
+       ],
+       "calloutRegion": "main",
+       "readouts": [
+        {
+         "id": "comparisons",
+         "label": "Comparisons: Left run + Right run + Main array",
+         "value": "0 + 0 + 0 = 0"
+        },
+        {
+         "id": "invariant",
+         "label": "Merge invariant",
+         "value": "No merge output yet."
+        },
+        {
+         "id": "ceiling",
+         "label": "Worst-case comparisons; n is input length",
+         "value": "Cmax(n) = n log₂(n) − n + 1"
+        }
+       ]
+      },
+      {
+       "id": "singletons",
+       "label": "Base cases",
+       "short": "Reach the singletons",
+       "sentence": "Left A, Left B, Right A, and Right B are singleton runs, each already sorted.",
+       "why": "Recursion stops at singletons because their internal order cannot be wrong.",
+       "active": [
+        "left-a",
+        "left-b",
+        "right-a",
+        "right-b"
+       ],
+       "calloutRegion": "left-a",
+       "readouts": [
+        {
+         "id": "comparisons",
+         "label": "Comparisons: Left run + Right run + Main array",
+         "value": "0 + 0 + 0 = 0"
+        },
+        {
+         "id": "invariant",
+         "label": "Merge invariant",
+         "value": "Singleton inputs are sorted."
+        },
+        {
+         "id": "ceiling",
+         "label": "Worst-case comparisons; n is input length",
+         "value": "Cmax(n) = n log₂(n) − n + 1"
+        }
+       ]
+      },
+      {
+       "id": "left-sorted",
+       "label": "Merge left",
+       "short": "Build sorted Left run",
+       "sentence": "Compare Left A with Left B, emit the smaller item, then append the remainder into Left run.",
+       "why": "A singleton merge establishes the same sorted-output rule used by larger merges.",
+       "active": [
+        "left"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "comparisons",
+         "label": "Comparisons: Left run + Right run + Main array",
+         "value": "1 + 0 + 0 = 1"
+        },
+        {
+         "id": "invariant",
+         "label": "Merge invariant",
+         "value": "Left run is sorted."
+        },
+        {
+         "id": "ceiling",
+         "label": "Worst-case comparisons; n is input length",
+         "value": "Cmax(n) = n log₂(n) − n + 1"
+        }
+       ]
+      },
+      {
+       "id": "right-sorted",
+       "label": "Merge right",
+       "short": "Build sorted Right run",
+       "sentence": "Compare Right A with Right B, emit the smaller item, then append the remainder into Right run.",
+       "why": "Both child runs are now sorted, which makes comparing only their fronts sufficient.",
+       "active": [
+        "right"
+       ],
+       "calloutRegion": "right",
+       "readouts": [
+        {
+         "id": "comparisons",
+         "label": "Comparisons: Left run + Right run + Main array",
+         "value": "1 + 1 + 0 = 2"
+        },
+        {
+         "id": "invariant",
+         "label": "Merge invariant",
+         "value": "Both inputs to the final merge are sorted."
+        },
+        {
+         "id": "ceiling",
+         "label": "Worst-case comparisons; n is input length",
+         "value": "Cmax(n) = n log₂(n) − n + 1"
+        }
+       ]
+      },
+      {
+       "id": "compare-fronts",
+       "label": "Find fronts",
+       "short": "Inspect the remaining fronts",
+       "sentence": "Left run and Right run expose their smallest remaining items; Main array starts with an empty output.",
+       "why": "Every item behind a front is at least as large as that front.",
+       "active": [
+        "left",
+        "right"
+       ],
+       "calloutRegion": "right",
+       "readouts": [
+        {
+         "id": "comparisons",
+         "label": "Comparisons: Left run + Right run + Main array",
+         "value": "1 + 1 + 0 = 2"
+        },
+        {
+         "id": "invariant",
+         "label": "Merge invariant",
+         "value": "Empty output is sorted."
+        },
+        {
+         "id": "ceiling",
+         "label": "Worst-case comparisons; n is input length",
+         "value": "Cmax(n) = n log₂(n) − n + 1"
+        }
+       ]
+      },
+      {
+       "id": "take-right",
+       "label": "Take right",
+       "short": "Extend Main array from Right run",
+       "sentence": "The smaller front moves from Right run into Main array; only Right run advances.",
+       "why": "The selected front was no larger than either run's remaining items.",
+       "active": [
+        "main",
+        "right"
+       ],
+       "calloutRegion": "main",
+       "readouts": [
+        {
+         "id": "comparisons",
+         "label": "Comparisons: Left run + Right run + Main array",
+         "value": "1 + 1 + 1 = 3"
+        },
+        {
+         "id": "invariant",
+         "label": "Merge invariant",
+         "value": "Sorted prefix; last output ≤ every remaining front."
+        },
+        {
+         "id": "ceiling",
+         "label": "Worst-case comparisons; n is input length",
+         "value": "Cmax(n) = n log₂(n) − n + 1"
+        }
+       ]
+      },
+      {
+       "id": "smaller-front",
+       "label": "Take left",
+       "short": "Extend Main array from Left run",
+       "sentence": "The next smaller front comes from Left run; Main array remains sorted despite switching source runs.",
+       "why": "Only the fronts needed comparison; neither sorted run hides a smaller item behind its front.",
+       "active": [
+        "main",
+        "left",
+        "right"
+       ],
+       "calloutRegion": "main",
+       "readouts": [
+        {
+         "id": "comparisons",
+         "label": "Comparisons: Left run + Right run + Main array",
+         "value": "1 + 1 + 2 = 4"
+        },
+        {
+         "id": "invariant",
+         "label": "Merge invariant",
+         "value": "Sorted prefix; last output ≤ every remaining front."
+        },
+        {
+         "id": "ceiling",
+         "label": "Worst-case comparisons; n is input length",
+         "value": "Cmax(n) = n log₂(n) − n + 1"
+        }
+       ]
+      },
+      {
+       "id": "right-exhausted",
+       "label": "Take right",
+       "short": "Empty Right run",
+       "sentence": "The smaller front moves from Right run into Main array, exhausting Right run.",
+       "why": "Left run contains the only remaining item, so no further front comparison is necessary.",
+       "active": [
+        "main",
+        "right"
+       ],
+       "calloutRegion": "right",
+       "readouts": [
+        {
+         "id": "comparisons",
+         "label": "Comparisons: Left run + Right run + Main array",
+         "value": "1 + 1 + 3 = 5"
+        },
+        {
+         "id": "invariant",
+         "label": "Merge invariant",
+         "value": "Sorted prefix; last output ≤ the remaining front."
+        },
+        {
+         "id": "ceiling",
+         "label": "Worst-case comparisons; n is input length",
+         "value": "Cmax(n) = n log₂(n) − n + 1"
+        }
+       ]
+      },
+      {
+       "id": "sorted",
+       "label": "Append rest",
+       "short": "Complete Main array",
+       "sentence": "Append the remainder of Left run into Main array without another comparison; the complete array is sorted.",
+       "why": "The remainder is already sorted and cannot precede the existing output prefix.",
+       "active": [
+        "main"
+       ],
+       "calloutRegion": "main",
+       "readouts": [
+        {
+         "id": "comparisons",
+         "label": "Comparisons: Left run + Right run + Main array",
+         "value": "1 + 1 + 3 = 5"
+        },
+        {
+         "id": "invariant",
+         "label": "Merge invariant",
+         "value": "Complete sorted output; both input runs exhausted."
+        },
+        {
+         "id": "ceiling",
+         "label": "Worst-case comparisons; n is input length",
+         "value": "Cmax(n) = n log₂(n) − n + 1"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 9269
+ },
+ "usd": 0.092849,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3fASxhWuGMAxPFyDCQi\"}"
+  },
+  "cardUsd": 0
+ }
+}

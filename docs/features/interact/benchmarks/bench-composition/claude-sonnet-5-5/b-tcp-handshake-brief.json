@@ -1,0 +1,286 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "b-tcp-handshake",
+ "set": "B",
+ "subject": "tcp-handshake",
+ "depth": "brief",
+ "request": "how does the TCP handshake work?",
+ "ts": "2026-11-14T22:36:31.110Z",
+ "ms": 19323,
+ "raw": "{\"story\":\"A client wants to talk to a server, but neither knows the other is reachable. Step through three segments: SYN, SYN-ACK, ACK. Watch each side's state change until both reach ESTABLISHED, each having heard the other confirm.\",\"aha\":{\"stateId\":\"established\",\"observation\":\"Only after the third segment, ACK, has each side seen the other's sequence number acknowledged. Both are ESTABLISHED and data can flow.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"default\":0,\"items\":\"variant.states\",\"presentation\":\"Previous / Next buttons; keyboard arrows; names kept when disabled at ends\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first state\"}],\"data\":{\"variants\":[{\"label\":\"Three-way handshake (client opens, server listens)\",\"regions\":[{\"id\":\"client\",\"label\":\"Client\",\"kind\":\"actor\",\"phases\":[\"CLOSED\",\"SYN-SENT\",\"ESTABLISHED\"]},{\"id\":\"server\",\"label\":\"Server\",\"kind\":\"actor\",\"phases\":[\"LISTEN\",\"SYN-RECEIVED\",\"ESTABLISHED\"]},{\"id\":\"syn\",\"label\":\"SYN segment\",\"kind\":\"segment\",\"values\":[\"SYN\",\"seq=x\"]},{\"id\":\"synack\",\"label\":\"SYN-ACK segment\",\"kind\":\"segment\",\"values\":[\"SYN+ACK\",\"seq=y\",\"ack=x+1\"]},{\"id\":\"ack\",\"label\":\"ACK segment\",\"kind\":\"segment\",\"values\":[\"ACK\",\"ack=y+1\"]}],\"links\":[{\"from\":\"client\",\"to\":\"server\",\"label\":\"1 SYN\"},{\"from\":\"server\",\"to\":\"client\",\"label\":\"2 SYN-ACK\"},{\"from\":\"client\",\"to\":\"server\",\"label\":\"3 ACK\"}],\"states\":[{\"id\":\"listening\",\"label\":\"Listening\",\"short\":\"Listen\",\"sentence\":\"The server waits on an open port. The client has no connection yet.\",\"why\":\"A server must be listening before any client can connect.\",\"active\":[\"client\",\"server\"],\"calloutRegion\":\"server\",\"readouts\":[{\"id\":\"client-state\",\"label\":\"Client state\",\"value\":\"CLOSED\"},{\"id\":\"server-state\",\"label\":\"Server state\",\"value\":\"LISTEN\"},{\"id\":\"segments\",\"label\":\"Segments sent\",\"value\":\"0 of 3\"}]},{\"id\":\"syn-sent\",\"label\":\"SYN\",\"short\":\"SYN\",\"sentence\":\"The client sends SYN with its starting sequence number x, asking to open a connection.\",\"why\":\"This announces the client's sequence number so the server can acknowledge it.\",\"active\":[\"client\",\"syn\"],\"calloutRegion\":\"syn\",\"readouts\":[{\"id\":\"client-state\",\"label\":\"Client state\",\"value\":\"SYN-SENT\"},{\"id\":\"server-state\",\"label\":\"Server state\",\"value\":\"LISTEN\"},{\"id\":\"segments\",\"label\":\"Segments sent\",\"value\":\"1 of 3\"}]},{\"id\":\"syn-ack\",\"label\":\"SYN-ACK\",\"short\":\"SYN-ACK\",\"sentence\":\"The server acknowledges x by sending ack=x+1, and announces its own starting sequence number y.\",\"why\":\"One segment both confirms the client and opens the server's direction.\",\"active\":[\"server\",\"synack\"],\"calloutRegion\":\"synack\",\"readouts\":[{\"id\":\"client-state\",\"label\":\"Client state\",\"value\":\"SYN-SENT\"},{\"id\":\"server-state\",\"label\":\"Server state\",\"value\":\"SYN-RECEIVED\"},{\"id\":\"segments\",\"label\":\"Segments sent\",\"value\":\"2 of 3\"}]},{\"id\":\"established\",\"label\":\"ACK\",\"short\":\"ACK\",\"sentence\":\"The client acknowledges y with ack=y+1. Both sides are now ESTABLISHED and can send data.\",\"why\":\"The server only learns its SYN-ACK arrived when this final ACK comes back.\",\"active\":[\"client\",\"server\",\"ack\"],\"calloutRegion\":\"ack\",\"readouts\":[{\"id\":\"client-state\",\"label\":\"Client state\",\"value\":\"ESTABLISHED\"},{\"id\":\"server-state\",\"label\":\"Server state\",\"value\":\"ESTABLISHED\"},{\"id\":\"segments\",\"label\":\"Segments sent\",\"value\":\"3 of 3\"}]}]}]}}",
+ "composition": {
+  "story": "A client wants to talk to a server, but neither knows the other is reachable. Step through three segments: SYN, SYN-ACK, ACK. Watch each side's state change until both reach ESTABLISHED, each having heard the other confirm.",
+  "aha": {
+   "stateId": "established",
+   "observation": "Only after the third segment, ACK, has each side seen the other's sequence number acknowledged. Both are ESTABLISHED and data can flow."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "default": 0,
+    "items": "variant.states",
+    "presentation": "Previous / Next buttons; keyboard arrows; names kept when disabled at ends"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first state"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Three-way handshake (client opens, server listens)",
+     "regions": [
+      {
+       "id": "client",
+       "label": "Client",
+       "kind": "actor",
+       "phases": [
+        "CLOSED",
+        "SYN-SENT",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "server",
+       "label": "Server",
+       "kind": "actor",
+       "phases": [
+        "LISTEN",
+        "SYN-RECEIVED",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "syn",
+       "label": "SYN segment",
+       "kind": "segment",
+       "values": [
+        "SYN",
+        "seq=x"
+       ]
+      },
+      {
+       "id": "synack",
+       "label": "SYN-ACK segment",
+       "kind": "segment",
+       "values": [
+        "SYN+ACK",
+        "seq=y",
+        "ack=x+1"
+       ]
+      },
+      {
+       "id": "ack",
+       "label": "ACK segment",
+       "kind": "segment",
+       "values": [
+        "ACK",
+        "ack=y+1"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "client",
+       "to": "server",
+       "label": "1 SYN"
+      },
+      {
+       "from": "server",
+       "to": "client",
+       "label": "2 SYN-ACK"
+      },
+      {
+       "from": "client",
+       "to": "server",
+       "label": "3 ACK"
+      }
+     ],
+     "states": [
+      {
+       "id": "listening",
+       "label": "Listening",
+       "short": "Listen",
+       "sentence": "The server waits on an open port. The client has no connection yet.",
+       "why": "A server must be listening before any client can connect.",
+       "active": [
+        "client",
+        "server"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "CLOSED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "segments",
+         "label": "Segments sent",
+         "value": "0 of 3"
+        }
+       ]
+      },
+      {
+       "id": "syn-sent",
+       "label": "SYN",
+       "short": "SYN",
+       "sentence": "The client sends SYN with its starting sequence number x, asking to open a connection.",
+       "why": "This announces the client's sequence number so the server can acknowledge it.",
+       "active": [
+        "client",
+        "syn"
+       ],
+       "calloutRegion": "syn",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "segments",
+         "label": "Segments sent",
+         "value": "1 of 3"
+        }
+       ]
+      },
+      {
+       "id": "syn-ack",
+       "label": "SYN-ACK",
+       "short": "SYN-ACK",
+       "sentence": "The server acknowledges x by sending ack=x+1, and announces its own starting sequence number y.",
+       "why": "One segment both confirms the client and opens the server's direction.",
+       "active": [
+        "server",
+        "synack"
+       ],
+       "calloutRegion": "synack",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "segments",
+         "label": "Segments sent",
+         "value": "2 of 3"
+        }
+       ]
+      },
+      {
+       "id": "established",
+       "label": "ACK",
+       "short": "ACK",
+       "sentence": "The client acknowledges y with ack=y+1. Both sides are now ESTABLISHED and can send data.",
+       "why": "The server only learns its SYN-ACK arrived when this final ACK comes back.",
+       "active": [
+        "client",
+        "server",
+        "ack"
+       ],
+       "calloutRegion": "ack",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "segments",
+         "label": "Segments sent",
+         "value": "3 of 3"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3069,
+  "output": 2946
+ },
+ "usd": 0.035598,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3cv9rSGHofcyrLLFBVU\"}"
+  },
+  "cardUsd": 0
+ }
+}

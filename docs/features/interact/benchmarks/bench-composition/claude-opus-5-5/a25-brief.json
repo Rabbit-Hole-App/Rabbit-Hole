@@ -1,0 +1,391 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a25",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "What happens inside one Llama-style decoder block?",
+ "ts": "2026-11-14T22:32:05.960Z",
+ "ms": 28822,
+ "raw": "{\"story\":\"A token's vector x travels along the residual stream. Twice, a sublayer reads an RMSNorm copy: first attention, mixing earlier tokens, then the SwiGLU MLP, transforming each token. Each result is added back. Step through the block and watch the stream: it leaves as x + attention + MLP, still the same shape, ready for the next block.\",\"aha\":{\"stateId\":\"add2\",\"observation\":\"The block never replaces x; it adds two updates to it, so the stream leaves as x + a + m with unchanged shape.\"},\"layout\":{\"preset\":\"pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"inputs.step\"},\"presentation\":\"Top row, one labelled step per state; trace of visited steps.\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Left-to-right block: residual stream line with two skip links; active region highlighted.\"},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"},\"presentation\":\"Faint outline on the previously active region.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the active region; says where the work happens.\"},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Below picture: stream contents and shape, the only place numbers appear.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Block step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons, names kept when disabled at ends; arrow keys.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step\"}],\"data\":{\"variants\":[{\"label\":\"Llama-style decoder block (d_model 4096, MLP hidden 11008, n tokens)\",\"regions\":[{\"id\":\"stream\",\"label\":\"Residual stream\",\"kind\":\"stream\",\"values\":[\"x\",\"x + a\",\"x + a + m\"]},{\"id\":\"norm1\",\"label\":\"RMSNorm 1\",\"kind\":\"op\"},{\"id\":\"attn\",\"label\":\"Causal self-attention (RoPE)\",\"kind\":\"op\"},{\"id\":\"add1\",\"label\":\"Add (+ a)\",\"kind\":\"op\"},{\"id\":\"norm2\",\"label\":\"RMSNorm 2\",\"kind\":\"op\"},{\"id\":\"mlp\",\"label\":\"SwiGLU MLP\",\"kind\":\"op\"},{\"id\":\"add2\",\"label\":\"Add (+ m)\",\"kind\":\"op\"}],\"links\":[{\"from\":\"stream\",\"to\":\"norm1\",\"label\":\"copy\"},{\"from\":\"norm1\",\"to\":\"attn\"},{\"from\":\"attn\",\"to\":\"add1\",\"label\":\"a\"},{\"from\":\"stream\",\"to\":\"add1\",\"label\":\"skip x\"},{\"from\":\"add1\",\"to\":\"norm2\",\"label\":\"copy\"},{\"from\":\"norm2\",\"to\":\"mlp\"},{\"from\":\"mlp\",\"to\":\"add2\",\"label\":\"m\"},{\"from\":\"add1\",\"to\":\"add2\",\"label\":\"skip x + a\"}],\"states\":[{\"id\":\"input\",\"label\":\"Input\",\"short\":\"x\",\"active\":[\"stream\"],\"calloutRegion\":\"stream\",\"sentence\":\"Each token enters as one vector in the residual stream x.\",\"why\":\"The stream is what the block reads from and writes back to.\",\"readouts\":[{\"id\":\"contents\",\"label\":\"Stream\",\"value\":\"x\"},{\"id\":\"shape\",\"label\":\"Shape\",\"value\":\"n × 4096\"}]},{\"id\":\"norm1\",\"label\":\"RMSNorm 1\",\"short\":\"Norm\",\"active\":[\"norm1\"],\"calloutRegion\":\"norm1\",\"sentence\":\"RMSNorm rescales a copy of x; the stream itself stays untouched.\",\"why\":\"Normalizing the copy keeps sublayer inputs at a stable scale.\",\"readouts\":[{\"id\":\"contents\",\"label\":\"Stream\",\"value\":\"x\"},{\"id\":\"shape\",\"label\":\"Shape\",\"value\":\"n × 4096\"}]},{\"id\":\"attn\",\"label\":\"Attention\",\"short\":\"Attn\",\"active\":[\"attn\"],\"calloutRegion\":\"attn\",\"sentence\":\"RoPE rotates queries and keys; each token mixes values from itself and earlier tokens only.\",\"why\":\"This is the only step where tokens exchange information.\",\"readouts\":[{\"id\":\"contents\",\"label\":\"Stream\",\"value\":\"x\"},{\"id\":\"shape\",\"label\":\"Shape\",\"value\":\"n × 4096\"}]},{\"id\":\"add1\",\"label\":\"Add attention\",\"short\":\"+a\",\"active\":[\"add1\",\"stream\"],\"calloutRegion\":\"add1\",\"sentence\":\"The attention output a is added back, so the stream becomes x + a.\",\"why\":\"Adding, not replacing, preserves the original x.\",\"readouts\":[{\"id\":\"contents\",\"label\":\"Stream\",\"value\":\"x + a\"},{\"id\":\"shape\",\"label\":\"Shape\",\"value\":\"n × 4096\"}]},{\"id\":\"norm2\",\"label\":\"RMSNorm 2\",\"short\":\"Norm\",\"active\":[\"norm2\"],\"calloutRegion\":\"norm2\",\"sentence\":\"A second RMSNorm rescales a copy of the updated stream.\",\"why\":\"The MLP reads a normalized copy, just like attention did.\",\"readouts\":[{\"id\":\"contents\",\"label\":\"Stream\",\"value\":\"x + a\"},{\"id\":\"shape\",\"label\":\"Shape\",\"value\":\"n × 4096\"}]},{\"id\":\"mlp\",\"label\":\"SwiGLU MLP\",\"short\":\"MLP\",\"active\":[\"mlp\"],\"calloutRegion\":\"mlp\",\"sentence\":\"Each token alone expands to 11008, is gated by SiLU, then projects back to 4096.\",\"why\":\"The MLP transforms tokens independently; no mixing across tokens.\",\"readouts\":[{\"id\":\"contents\",\"label\":\"Stream\",\"value\":\"x + a\"},{\"id\":\"shape\",\"label\":\"Shape\",\"value\":\"n × 4096\"}]},{\"id\":\"add2\",\"label\":\"Add MLP\",\"short\":\"+m\",\"active\":[\"add2\",\"stream\"],\"calloutRegion\":\"stream\",\"sentence\":\"The MLP output m is added: the stream leaves as x + a + m, same shape as it entered.\",\"why\":\"The block only adds two updates, so blocks can stack.\",\"readouts\":[{\"id\":\"contents\",\"label\":\"Stream\",\"value\":\"x + a + m\"},{\"id\":\"shape\",\"label\":\"Shape\",\"value\":\"n × 4096\"}]}]}]}}",
+ "composition": {
+  "story": "A token's vector x travels along the residual stream. Twice, a sublayer reads an RMSNorm copy: first attention, mixing earlier tokens, then the SwiGLU MLP, transforming each token. Each result is added back. Step through the block and watch the stream: it leaves as x + attention + MLP, still the same shape, ready for the next block.",
+  "aha": {
+   "stateId": "add2",
+   "observation": "The block never replaces x; it adds two updates to it, so the stream leaves as x + a + m with unchanged shape."
+  },
+  "layout": {
+   "preset": "pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "inputs.step"
+    },
+    "presentation": "Top row, one labelled step per state; trace of visited steps."
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Left-to-right block: residual stream line with two skip links; active region highlighted."
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    },
+    "presentation": "Faint outline on the previously active region."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the active region; says where the work happens."
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Below picture: stream contents and shape, the only place numbers appear."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Block step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons, names kept when disabled at ends; arrow keys."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Llama-style decoder block (d_model 4096, MLP hidden 11008, n tokens)",
+     "regions": [
+      {
+       "id": "stream",
+       "label": "Residual stream",
+       "kind": "stream",
+       "values": [
+        "x",
+        "x + a",
+        "x + a + m"
+       ]
+      },
+      {
+       "id": "norm1",
+       "label": "RMSNorm 1",
+       "kind": "op"
+      },
+      {
+       "id": "attn",
+       "label": "Causal self-attention (RoPE)",
+       "kind": "op"
+      },
+      {
+       "id": "add1",
+       "label": "Add (+ a)",
+       "kind": "op"
+      },
+      {
+       "id": "norm2",
+       "label": "RMSNorm 2",
+       "kind": "op"
+      },
+      {
+       "id": "mlp",
+       "label": "SwiGLU MLP",
+       "kind": "op"
+      },
+      {
+       "id": "add2",
+       "label": "Add (+ m)",
+       "kind": "op"
+      }
+     ],
+     "links": [
+      {
+       "from": "stream",
+       "to": "norm1",
+       "label": "copy"
+      },
+      {
+       "from": "norm1",
+       "to": "attn"
+      },
+      {
+       "from": "attn",
+       "to": "add1",
+       "label": "a"
+      },
+      {
+       "from": "stream",
+       "to": "add1",
+       "label": "skip x"
+      },
+      {
+       "from": "add1",
+       "to": "norm2",
+       "label": "copy"
+      },
+      {
+       "from": "norm2",
+       "to": "mlp"
+      },
+      {
+       "from": "mlp",
+       "to": "add2",
+       "label": "m"
+      },
+      {
+       "from": "add1",
+       "to": "add2",
+       "label": "skip x + a"
+      }
+     ],
+     "states": [
+      {
+       "id": "input",
+       "label": "Input",
+       "short": "x",
+       "active": [
+        "stream"
+       ],
+       "calloutRegion": "stream",
+       "sentence": "Each token enters as one vector in the residual stream x.",
+       "why": "The stream is what the block reads from and writes back to.",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Stream",
+         "value": "x"
+        },
+        {
+         "id": "shape",
+         "label": "Shape",
+         "value": "n × 4096"
+        }
+       ]
+      },
+      {
+       "id": "norm1",
+       "label": "RMSNorm 1",
+       "short": "Norm",
+       "active": [
+        "norm1"
+       ],
+       "calloutRegion": "norm1",
+       "sentence": "RMSNorm rescales a copy of x; the stream itself stays untouched.",
+       "why": "Normalizing the copy keeps sublayer inputs at a stable scale.",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Stream",
+         "value": "x"
+        },
+        {
+         "id": "shape",
+         "label": "Shape",
+         "value": "n × 4096"
+        }
+       ]
+      },
+      {
+       "id": "attn",
+       "label": "Attention",
+       "short": "Attn",
+       "active": [
+        "attn"
+       ],
+       "calloutRegion": "attn",
+       "sentence": "RoPE rotates queries and keys; each token mixes values from itself and earlier tokens only.",
+       "why": "This is the only step where tokens exchange information.",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Stream",
+         "value": "x"
+        },
+        {
+         "id": "shape",
+         "label": "Shape",
+         "value": "n × 4096"
+        }
+       ]
+      },
+      {
+       "id": "add1",
+       "label": "Add attention",
+       "short": "+a",
+       "active": [
+        "add1",
+        "stream"
+       ],
+       "calloutRegion": "add1",
+       "sentence": "The attention output a is added back, so the stream becomes x + a.",
+       "why": "Adding, not replacing, preserves the original x.",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Stream",
+         "value": "x + a"
+        },
+        {
+         "id": "shape",
+         "label": "Shape",
+         "value": "n × 4096"
+        }
+       ]
+      },
+      {
+       "id": "norm2",
+       "label": "RMSNorm 2",
+       "short": "Norm",
+       "active": [
+        "norm2"
+       ],
+       "calloutRegion": "norm2",
+       "sentence": "A second RMSNorm rescales a copy of the updated stream.",
+       "why": "The MLP reads a normalized copy, just like attention did.",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Stream",
+         "value": "x + a"
+        },
+        {
+         "id": "shape",
+         "label": "Shape",
+         "value": "n × 4096"
+        }
+       ]
+      },
+      {
+       "id": "mlp",
+       "label": "SwiGLU MLP",
+       "short": "MLP",
+       "active": [
+        "mlp"
+       ],
+       "calloutRegion": "mlp",
+       "sentence": "Each token alone expands to 11008, is gated by SiLU, then projects back to 4096.",
+       "why": "The MLP transforms tokens independently; no mixing across tokens.",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Stream",
+         "value": "x + a"
+        },
+        {
+         "id": "shape",
+         "label": "Shape",
+         "value": "n × 4096"
+        }
+       ]
+      },
+      {
+       "id": "add2",
+       "label": "Add MLP",
+       "short": "+m",
+       "active": [
+        "add2",
+        "stream"
+       ],
+       "calloutRegion": "stream",
+       "sentence": "The MLP output m is added: the stream leaves as x + a + m, same shape as it entered.",
+       "why": "The block only adds two updates, so blocks can stack.",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Stream",
+         "value": "x + a + m"
+        },
+        {
+         "id": "shape",
+         "label": "Shape",
+         "value": "n × 4096"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3074,
+  "output": 3292
+ },
+ "usd": 0.078136,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture shows the residual stream with two skip links and two adds, which answers how the block turns x into x + a + m while keeping its shape."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state add2 is the last step, so stepping stops there, but nothing is declared that holds the card for the learner to act, and the callout on the stream region is not tied to a learner action."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single step control changes the active region, the callout and the readouts at each state, so every input has a visible effect."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, ghost, callout and readout bind to the declared states, regions, links, previous.active and readouts."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, region labels, step labels and callouts use the same terms (RMSNorm, attention, MLP, +a, +m, x + a + m), and the sequence matches the story."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth shows one pipeline picture with one highlighted active region and a two-line readout, with no extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The stream contents go x, x + a, x + a + m at the right states and the shape stays n × 4096, with 11008 only in the MLP callout; numbers appear only in the readout."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.013504
+ }
+}

@@ -1,0 +1,242 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a10",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does photosynthesis work?",
+ "ts": "2026-11-14T22:29:37.921Z",
+ "ms": 72543,
+ "raw": "{\n  \"story\": \"Begin with water and carbon dioxide beside a chloroplast under sunlight. Use Next to highlight light capture, then sugar and oxygen. Compare inputs and products: the chloroplast uses light energy to build sugar, storing chemical energy while releasing oxygen.\",\n  \"aha\": {\n    \"stateId\": \"products\",\n    \"observation\": \"The chloroplast converts light energy into chemical energy stored in sugar, using carbon dioxide and water and releasing oxygen.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"state-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with explanation and instructions above the experiment. Keep navigation progress on this rail. Brief parameter-control budget: zero. Navigation budget: one index control and Reset.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"photosynthesis-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Arrange inputs, chloroplast, and products left to right, with sunlight above the chloroplast. Keep positions fixed and labels readable at native width. Emphasize only the active region. Assume a healthy green leaf with sufficient sunlight, water, and carbon dioxide. Stages summarize overlapping reactions, not elapsed time. No quantitative measurements are modeled.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"links\": \"variant.links\"\n      }\n    },\n    {\n      \"id\": \"active-location\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the active region without covering labels. Identify where the highlighted mechanism occurs.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"evidence-status\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show one bound status line below the picture. Keep this location fixed across states.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Photosynthesis stage\",\n      \"presentation\": \"Render Previous and Next with accessible names, visible focus, and keyboard operation. Default index: 0; bounds: 0–2; increment: 1. Changing the index moves the picture highlight and updates the callout and evidence status. Retain Previous and Next names when disabled at boundaries. Every state persists until learner action, including products. Reference captures show products.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore index 0 and the initial highlight, callout, and status. Provide an accessible name, visible focus, and keyboard operation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Photosynthesis in a green leaf\",\n        \"regions\": [\n          {\n            \"id\": \"inputs\",\n            \"label\": \"Inputs\",\n            \"values\": [\n              \"Carbon dioxide\",\n              \"Water\"\n            ]\n          },\n          {\n            \"id\": \"sunlight\",\n            \"label\": \"Sunlight\",\n            \"values\": [\n              \"Light energy\"\n            ]\n          },\n          {\n            \"id\": \"chloroplast\",\n            \"label\": \"Chloroplast\",\n            \"phases\": [\n              \"Capture light energy\",\n              \"Build sugar\"\n            ]\n          },\n          {\n            \"id\": \"products\",\n            \"label\": \"Products\",\n            \"values\": [\n              \"Sugar\",\n              \"Oxygen\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"inputs\",\n            \"to\": \"chloroplast\",\n            \"label\": \"Matter enters\"\n          },\n          {\n            \"from\": \"sunlight\",\n            \"to\": \"chloroplast\",\n            \"label\": \"Energy enters\"\n          },\n          {\n            \"from\": \"chloroplast\",\n            \"to\": \"products\",\n            \"label\": \"Matter leaves\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"inputs\",\n            \"label\": \"Starting materials\",\n            \"short\": \"Inputs\",\n            \"sentence\": \"Inputs enter the chloroplast.\",\n            \"why\": \"Carbon dioxide and water supply the matter used in photosynthesis.\",\n            \"active\": [\n              \"inputs\"\n            ],\n            \"calloutRegion\": \"inputs\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Evidence\",\n                \"value\": \"Matter comes from carbon dioxide and water; energy comes from sunlight.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"capture\",\n            \"label\": \"Capture light\",\n            \"short\": \"Capture\",\n            \"sentence\": \"Light capture occurs inside the chloroplast.\",\n            \"why\": \"Chlorophyll absorbs sunlight, supplying energy that powers sugar formation.\",\n            \"active\": [\n              \"chloroplast\"\n            ],\n            \"calloutRegion\": \"chloroplast\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Evidence\",\n                \"value\": \"Light supplies energy, not the matter used to build sugar.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"products\",\n            \"label\": \"Sugar stores energy\",\n            \"short\": \"Products\",\n            \"sentence\": \"Sugar and oxygen are the products.\",\n            \"why\": \"Sugar stores captured energy chemically; oxygen is released.\",\n            \"active\": [\n              \"products\"\n            ],\n            \"calloutRegion\": \"products\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Evidence\",\n                \"value\": \"Carbon dioxide and water become sugar and oxygen; captured light energy is stored chemically in sugar.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Begin with water and carbon dioxide beside a chloroplast under sunlight. Use Next to highlight light capture, then sugar and oxygen. Compare inputs and products: the chloroplast uses light energy to build sugar, storing chemical energy while releasing oxygen.",
+  "aha": {
+   "stateId": "products",
+   "observation": "The chloroplast converts light energy into chemical energy stored in sugar, using carbon dioxide and water and releasing oxygen."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "state-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with explanation and instructions above the experiment. Keep navigation progress on this rail. Brief parameter-control budget: zero. Navigation budget: one index control and Reset.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "photosynthesis-picture",
+    "kind": "fixed-picture",
+    "presentation": "Arrange inputs, chloroplast, and products left to right, with sunlight above the chloroplast. Keep positions fixed and labels readable at native width. Emphasize only the active region. Assume a healthy green leaf with sufficient sunlight, water, and carbon dioxide. Stages summarize overlapping reactions, not elapsed time. No quantitative measurements are modeled.",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "links": "variant.links"
+    }
+   },
+   {
+    "id": "active-location",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the active region without covering labels. Identify where the highlighted mechanism occurs.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "evidence-status",
+    "kind": "value-readout",
+    "presentation": "Show one bound status line below the picture. Keep this location fixed across states.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Photosynthesis stage",
+    "presentation": "Render Previous and Next with accessible names, visible focus, and keyboard operation. Default index: 0; bounds: 0–2; increment: 1. Changing the index moves the picture highlight and updates the callout and evidence status. Retain Previous and Next names when disabled at boundaries. Every state persists until learner action, including products. Reference captures show products."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore index 0 and the initial highlight, callout, and status. Provide an accessible name, visible focus, and keyboard operation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Photosynthesis in a green leaf",
+     "regions": [
+      {
+       "id": "inputs",
+       "label": "Inputs",
+       "values": [
+        "Carbon dioxide",
+        "Water"
+       ]
+      },
+      {
+       "id": "sunlight",
+       "label": "Sunlight",
+       "values": [
+        "Light energy"
+       ]
+      },
+      {
+       "id": "chloroplast",
+       "label": "Chloroplast",
+       "phases": [
+        "Capture light energy",
+        "Build sugar"
+       ]
+      },
+      {
+       "id": "products",
+       "label": "Products",
+       "values": [
+        "Sugar",
+        "Oxygen"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "inputs",
+       "to": "chloroplast",
+       "label": "Matter enters"
+      },
+      {
+       "from": "sunlight",
+       "to": "chloroplast",
+       "label": "Energy enters"
+      },
+      {
+       "from": "chloroplast",
+       "to": "products",
+       "label": "Matter leaves"
+      }
+     ],
+     "states": [
+      {
+       "id": "inputs",
+       "label": "Starting materials",
+       "short": "Inputs",
+       "sentence": "Inputs enter the chloroplast.",
+       "why": "Carbon dioxide and water supply the matter used in photosynthesis.",
+       "active": [
+        "inputs"
+       ],
+       "calloutRegion": "inputs",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Evidence",
+         "value": "Matter comes from carbon dioxide and water; energy comes from sunlight."
+        }
+       ]
+      },
+      {
+       "id": "capture",
+       "label": "Capture light",
+       "short": "Capture",
+       "sentence": "Light capture occurs inside the chloroplast.",
+       "why": "Chlorophyll absorbs sunlight, supplying energy that powers sugar formation.",
+       "active": [
+        "chloroplast"
+       ],
+       "calloutRegion": "chloroplast",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Evidence",
+         "value": "Light supplies energy, not the matter used to build sugar."
+        }
+       ]
+      },
+      {
+       "id": "products",
+       "label": "Sugar stores energy",
+       "short": "Products",
+       "sentence": "Sugar and oxygen are the products.",
+       "why": "Sugar stores captured energy chemically; oxygen is released.",
+       "active": [
+        "products"
+       ],
+       "calloutRegion": "products",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Evidence",
+         "value": "Carbon dioxide and water become sugar and oxygen; captured light energy is stored chemically in sugar."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1532,
+  "output": 3712
+ },
+ "usd": 0.037314,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture links inputs, sunlight and chloroplast to products, which answers how a chloroplast turns light, CO2 and water into sugar and oxygen."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The products state is the aha, and the controls say every state persists until learner action, with no timer."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "There are no parameters (budget zero), and the step index only changes which region is highlighted. No fixed comparison is justified beyond the narrative, and the evidence stays qualitative."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlight, callout and readout are bound to state.active, state.calloutRegion/sentence/why and state.readouts, which come from the declared regions and states."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels and region names all use inputs, light capture, sugar and oxygen consistently, and the control is labelled with the stage."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "A brief overview with one highlighted region at a time, three states, and a single callout and status line adds no clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "No numbers are modeled. The index bounds 0–2 match the three states, and the callout locates while the readout states the evidence, with little repetition."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012132
+ }
+}

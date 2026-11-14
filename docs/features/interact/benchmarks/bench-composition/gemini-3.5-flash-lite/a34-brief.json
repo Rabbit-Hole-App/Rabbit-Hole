@@ -1,0 +1,209 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a34",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does public-key encryption work?",
+ "ts": "2026-11-14T22:22:58.994Z",
+ "ms": 2692,
+ "raw": "{\n  \"story\": \"Alice locks a secret message inside a box using a public key. Only Bob possesses the private key required to unlock it.\",\n  \"aha\": {\n    \"stateId\": \"decrypt\",\n    \"observation\": \"The private key successfully unlocks the message encrypted by the matching public key.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\n        \"Generate\",\n        \"Encrypt\",\n        \"Decrypt\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"RSA Overview\",\n        \"regions\": [\n          {\n            \"id\": \"pub\",\n            \"label\": \"Public Key\",\n            \"kind\": \"key\",\n            \"values\": [\"Lock\"]\n          },\n          {\n            \"id\": \"priv\",\n            \"label\": \"Private Key\",\n            \"kind\": \"key\",\n            \"values\": [\"Unlock\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"generate\",\n            \"label\": \"1. Generate\",\n            \"short\": \"Key pair\",\n            \"sentence\": \"Bob creates a public and private key pair.\",\n            \"why\": \"Setup keys\",\n            \"active\": [\"pub\", \"priv\"],\n            \"calloutRegion\": \"pub\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Visibility\",\n                \"value\": \"Public\"\n              }\n            ]\n          },\n          {\n            \"id\": \"encrypt\",\n            \"label\": \"2. Encrypt\",\n            \"short\": \"Lock message\",\n            \"sentence\": \"Alice locks the message using Bob's public key.\",\n            \"why\": \"Secure in transit\",\n            \"active\": [\"pub\"],\n            \"calloutRegion\": \"pub\",\n            \"readouts\": [\n              {\n                \"id\": \"r2\",\n                \"label\": \"State\",\n                \"value\": \"Ciphertext\"\n              }\n            ]\n          },\n          {\n            \"id\": \"decrypt\",\n            \"label\": \"3. Decrypt\",\n            \"short\": \"Unlock message\",\n            \"sentence\": \"Bob unlocks the ciphertext using his private key.\",\n            \"why\": \"Retrieve plaintext\",\n            \"active\": [\"priv\"],\n            \"calloutRegion\": \"priv\",\n            \"readouts\": [\n              {\n                \"id\": \"r3\",\n                \"label\": \"State\",\n                \"value\": \"Plaintext\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Alice locks a secret message inside a box using a public key. Only Bob possesses the private key required to unlock it.",
+  "aha": {
+   "stateId": "decrypt",
+   "observation": "The private key successfully unlocks the message encrypted by the matching public key."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "Generate",
+     "Encrypt",
+     "Decrypt"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "RSA Overview",
+     "regions": [
+      {
+       "id": "pub",
+       "label": "Public Key",
+       "kind": "key",
+       "values": [
+        "Lock"
+       ]
+      },
+      {
+       "id": "priv",
+       "label": "Private Key",
+       "kind": "key",
+       "values": [
+        "Unlock"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "generate",
+       "label": "1. Generate",
+       "short": "Key pair",
+       "sentence": "Bob creates a public and private key pair.",
+       "why": "Setup keys",
+       "active": [
+        "pub",
+        "priv"
+       ],
+       "calloutRegion": "pub",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Visibility",
+         "value": "Public"
+        }
+       ]
+      },
+      {
+       "id": "encrypt",
+       "label": "2. Encrypt",
+       "short": "Lock message",
+       "sentence": "Alice locks the message using Bob's public key.",
+       "why": "Secure in transit",
+       "active": [
+        "pub"
+       ],
+       "calloutRegion": "pub",
+       "readouts": [
+        {
+         "id": "r2",
+         "label": "State",
+         "value": "Ciphertext"
+        }
+       ]
+      },
+      {
+       "id": "decrypt",
+       "label": "3. Decrypt",
+       "short": "Unlock message",
+       "sentence": "Bob unlocks the ciphertext using his private key.",
+       "why": "Retrieve plaintext",
+       "active": [
+        "priv"
+       ],
+       "calloutRegion": "priv",
+       "readouts": [
+        {
+         "id": "r3",
+         "label": "State",
+         "value": "Plaintext"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1104,
+  "output": 926
+ },
+ "usd": 0.002647,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The picture only has two key regions (Lock/Unlock) with no message, box, or marks showing the mechanism of the key pair actually unlocking the ciphertext; the question is stated only in text."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The stepper is learner-driven with no timer, and the decrypt state is the final step where it holds until the learner acts or resets."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is the step index, which navigates the narrative; there are no parameters that change inputs or outcomes, and no fixed comparison is justified."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "Callout and readouts bind to state fields, but the picture lacks any message/ciphertext object, so readouts like Ciphertext and Plaintext have no drawn element to refer to, and the highlight of the public key at the decrypt step is not matched to the private key's actual pairing."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The step labels, sentences, and regions consistently name public key, private key, and the encrypt/decrypt events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Brief depth shows just two regions with one active highlight per step and a single readout, which is minimal and uncluttered."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "There are no numeric computations; the readouts are simple qualitative words and each appears once without duplicating the callout text."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01074
+ }
+}

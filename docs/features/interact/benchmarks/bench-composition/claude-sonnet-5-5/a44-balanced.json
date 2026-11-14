@@ -1,0 +1,371 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a44",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "Explain post entries to cash",
+ "ts": "2026-11-14T22:35:25.081Z",
+ "ms": 23124,
+ "raw": "{\"story\":\"A journal records each transaction as debits and credits. Posting copies only the cash line of each entry into the Cash T-account: debits go left, credits go right. After three entries, the column totals give the cash balance, which matches the journal's cash lines.\",\"aha\":{\"stateId\":\"s4\",\"observation\":\"Cash balance is the left column minus the right column: 6,200 debits − 800 credits = 5,400. Posting only moved each cash line to its side.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"state.id\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons; Previous disabled at the first state, Next at the last\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first state\"}],\"data\":{\"variants\":[{\"label\":\"Posting three entries to Cash (amounts in dollars)\",\"regions\":[{\"id\":\"j1\",\"label\":\"Journal entry 1: owner invests\",\"values\":[\"Debit Cash 5,000\",\"Credit Owner's Capital 5,000\"]},{\"id\":\"j2\",\"label\":\"Journal entry 2: buy supplies\",\"values\":[\"Debit Supplies 800\",\"Credit Cash 800\"]},{\"id\":\"j3\",\"label\":\"Journal entry 3: service revenue\",\"values\":[\"Debit Cash 1,200\",\"Credit Service Revenue 1,200\"]},{\"id\":\"other\",\"label\":\"Other accounts (not Cash)\",\"values\":[\"Owner's Capital\",\"Supplies\",\"Service Revenue\"]},{\"id\":\"cash-dr\",\"label\":\"Cash T-account: debit (left)\",\"values\":[\"5,000\",\"1,200\"]},{\"id\":\"cash-cr\",\"label\":\"Cash T-account: credit (right)\",\"values\":[\"800\"]},{\"id\":\"cash-bal\",\"label\":\"Cash balance\",\"values\":[\"Debits − credits\"]}],\"links\":[{\"from\":\"j1\",\"to\":\"cash-dr\",\"label\":\"debit 5,000\"},{\"from\":\"j2\",\"to\":\"cash-cr\",\"label\":\"credit 800\"},{\"from\":\"j3\",\"to\":\"cash-dr\",\"label\":\"debit 1,200\"}],\"states\":[{\"id\":\"s0\",\"label\":\"Journal ready\",\"short\":\"Start\",\"sentence\":\"Three journal entries are recorded. The Cash T-account is still empty, so its balance is 0.\",\"why\":\"Posting has not begun; the journal alone does not show cash on hand.\",\"calloutRegion\":\"cash-bal\",\"active\":[\"j1\",\"j2\",\"j3\"],\"readouts\":[{\"id\":\"dr\",\"label\":\"Cash debits\",\"value\":\"0\"},{\"id\":\"cr\",\"label\":\"Cash credits\",\"value\":\"0\"},{\"id\":\"bal\",\"label\":\"Cash balance\",\"value\":\"0\"}]},{\"id\":\"s1\",\"label\":\"Post entry 1\",\"short\":\"Entry 1\",\"sentence\":\"Entry 1 debits Cash 5,000, so 5,000 is posted on the left, debit side.\",\"why\":\"Only the Cash line is copied; the capital line goes to another account.\",\"calloutRegion\":\"cash-dr\",\"active\":[\"j1\",\"cash-dr\"],\"readouts\":[{\"id\":\"dr\",\"label\":\"Cash debits\",\"value\":\"5,000\"},{\"id\":\"cr\",\"label\":\"Cash credits\",\"value\":\"0\"},{\"id\":\"bal\",\"label\":\"Cash balance\",\"value\":\"5,000\"}]},{\"id\":\"s2\",\"label\":\"Post entry 2\",\"short\":\"Entry 2\",\"sentence\":\"Entry 2 credits Cash 800, so 800 is posted on the right, credit side.\",\"why\":\"A credit to Cash means cash went out, so it reduces the balance.\",\"calloutRegion\":\"cash-cr\",\"active\":[\"j2\",\"cash-cr\"],\"readouts\":[{\"id\":\"dr\",\"label\":\"Cash debits\",\"value\":\"5,000\"},{\"id\":\"cr\",\"label\":\"Cash credits\",\"value\":\"800\"},{\"id\":\"bal\",\"label\":\"Cash balance\",\"value\":\"4,200\"}]},{\"id\":\"s3\",\"label\":\"Post entry 3\",\"short\":\"Entry 3\",\"sentence\":\"Entry 3 debits Cash 1,200, so 1,200 is added below 5,000 on the debit side.\",\"why\":\"Debits stack on the left; the revenue line goes to Service Revenue.\",\"calloutRegion\":\"cash-dr\",\"active\":[\"j3\",\"cash-dr\"],\"readouts\":[{\"id\":\"dr\",\"label\":\"Cash debits\",\"value\":\"6,200\"},{\"id\":\"cr\",\"label\":\"Cash credits\",\"value\":\"800\"},{\"id\":\"bal\",\"label\":\"Cash balance\",\"value\":\"5,400\"}]},{\"id\":\"s4\",\"label\":\"Total and balance\",\"short\":\"Balance\",\"sentence\":\"Total each side: 6,200 debits minus 800 credits leaves a Cash balance of 5,400.\",\"why\":\"The balance equals the sum of the journal's Cash lines, with debits positive and credits negative.\",\"calloutRegion\":\"cash-bal\",\"active\":[\"cash-dr\",\"cash-cr\",\"cash-bal\"],\"readouts\":[{\"id\":\"dr\",\"label\":\"Cash debits\",\"value\":\"6,200\"},{\"id\":\"cr\",\"label\":\"Cash credits\",\"value\":\"800\"},{\"id\":\"bal\",\"label\":\"Cash balance (Dr)\",\"value\":\"5,400\"}]}]}]}}",
+ "composition": {
+  "story": "A journal records each transaction as debits and credits. Posting copies only the cash line of each entry into the Cash T-account: debits go left, credits go right. After three entries, the column totals give the cash balance, which matches the journal's cash lines.",
+  "aha": {
+   "stateId": "s4",
+   "observation": "Cash balance is the left column minus the right column: 6,200 debits − 800 credits = 5,400. Posting only moved each cash line to its side."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "state.id",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons; Previous disabled at the first state, Next at the last"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first state"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Posting three entries to Cash (amounts in dollars)",
+     "regions": [
+      {
+       "id": "j1",
+       "label": "Journal entry 1: owner invests",
+       "values": [
+        "Debit Cash 5,000",
+        "Credit Owner's Capital 5,000"
+       ]
+      },
+      {
+       "id": "j2",
+       "label": "Journal entry 2: buy supplies",
+       "values": [
+        "Debit Supplies 800",
+        "Credit Cash 800"
+       ]
+      },
+      {
+       "id": "j3",
+       "label": "Journal entry 3: service revenue",
+       "values": [
+        "Debit Cash 1,200",
+        "Credit Service Revenue 1,200"
+       ]
+      },
+      {
+       "id": "other",
+       "label": "Other accounts (not Cash)",
+       "values": [
+        "Owner's Capital",
+        "Supplies",
+        "Service Revenue"
+       ]
+      },
+      {
+       "id": "cash-dr",
+       "label": "Cash T-account: debit (left)",
+       "values": [
+        "5,000",
+        "1,200"
+       ]
+      },
+      {
+       "id": "cash-cr",
+       "label": "Cash T-account: credit (right)",
+       "values": [
+        "800"
+       ]
+      },
+      {
+       "id": "cash-bal",
+       "label": "Cash balance",
+       "values": [
+        "Debits − credits"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "j1",
+       "to": "cash-dr",
+       "label": "debit 5,000"
+      },
+      {
+       "from": "j2",
+       "to": "cash-cr",
+       "label": "credit 800"
+      },
+      {
+       "from": "j3",
+       "to": "cash-dr",
+       "label": "debit 1,200"
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "Journal ready",
+       "short": "Start",
+       "sentence": "Three journal entries are recorded. The Cash T-account is still empty, so its balance is 0.",
+       "why": "Posting has not begun; the journal alone does not show cash on hand.",
+       "calloutRegion": "cash-bal",
+       "active": [
+        "j1",
+        "j2",
+        "j3"
+       ],
+       "readouts": [
+        {
+         "id": "dr",
+         "label": "Cash debits",
+         "value": "0"
+        },
+        {
+         "id": "cr",
+         "label": "Cash credits",
+         "value": "0"
+        },
+        {
+         "id": "bal",
+         "label": "Cash balance",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Post entry 1",
+       "short": "Entry 1",
+       "sentence": "Entry 1 debits Cash 5,000, so 5,000 is posted on the left, debit side.",
+       "why": "Only the Cash line is copied; the capital line goes to another account.",
+       "calloutRegion": "cash-dr",
+       "active": [
+        "j1",
+        "cash-dr"
+       ],
+       "readouts": [
+        {
+         "id": "dr",
+         "label": "Cash debits",
+         "value": "5,000"
+        },
+        {
+         "id": "cr",
+         "label": "Cash credits",
+         "value": "0"
+        },
+        {
+         "id": "bal",
+         "label": "Cash balance",
+         "value": "5,000"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Post entry 2",
+       "short": "Entry 2",
+       "sentence": "Entry 2 credits Cash 800, so 800 is posted on the right, credit side.",
+       "why": "A credit to Cash means cash went out, so it reduces the balance.",
+       "calloutRegion": "cash-cr",
+       "active": [
+        "j2",
+        "cash-cr"
+       ],
+       "readouts": [
+        {
+         "id": "dr",
+         "label": "Cash debits",
+         "value": "5,000"
+        },
+        {
+         "id": "cr",
+         "label": "Cash credits",
+         "value": "800"
+        },
+        {
+         "id": "bal",
+         "label": "Cash balance",
+         "value": "4,200"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Post entry 3",
+       "short": "Entry 3",
+       "sentence": "Entry 3 debits Cash 1,200, so 1,200 is added below 5,000 on the debit side.",
+       "why": "Debits stack on the left; the revenue line goes to Service Revenue.",
+       "calloutRegion": "cash-dr",
+       "active": [
+        "j3",
+        "cash-dr"
+       ],
+       "readouts": [
+        {
+         "id": "dr",
+         "label": "Cash debits",
+         "value": "6,200"
+        },
+        {
+         "id": "cr",
+         "label": "Cash credits",
+         "value": "800"
+        },
+        {
+         "id": "bal",
+         "label": "Cash balance",
+         "value": "5,400"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Total and balance",
+       "short": "Balance",
+       "sentence": "Total each side: 6,200 debits minus 800 credits leaves a Cash balance of 5,400.",
+       "why": "The balance equals the sum of the journal's Cash lines, with debits positive and credits negative.",
+       "calloutRegion": "cash-bal",
+       "active": [
+        "cash-dr",
+        "cash-cr",
+        "cash-bal"
+       ],
+       "readouts": [
+        {
+         "id": "dr",
+         "label": "Cash debits",
+         "value": "6,200"
+        },
+        {
+         "id": "cr",
+         "label": "Cash credits",
+         "value": "800"
+        },
+        {
+         "id": "bal",
+         "label": "Cash balance (Dr)",
+         "value": "5,400"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 3531
+ },
+ "usd": 0.041446,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "Links from journal cash lines to the T-account sides show how posting produces the cash balance."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s4 is the final state, and the card stays there until the learner clicks Previous or Reset."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There is no parameter, only a fixed three-entry walkthrough, and each step changes the active regions and readouts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callout targets, active regions, links and readouts all reference declared region ids and per-state data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The sentences, region labels, link labels and step labels name the same entries and accounts."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each state activates two or three regions and shows three readouts, with the formula appearing only at the final state."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The numbers are correct, but the callout sentences repeat figures such as 6,200, 800 and 5,400 that the readouts already show, so values are not placed once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.016738
+ }
+}

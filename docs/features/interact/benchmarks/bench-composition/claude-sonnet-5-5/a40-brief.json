@@ -1,0 +1,364 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a40",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does the call stack work during recursion?",
+ "ts": "2026-11-14T22:34:11.164Z",
+ "ms": 21358,
+ "raw": "{\"story\":\"Calling fact(3) pushes a new frame for each recursive call, each holding its own n. At the base case, the newest frame returns first and pops. Each older frame then resumes with its saved n, finishing in reverse order.\",\"aha\":{\"stateId\":\"s5\",\"observation\":\"After fact(1) pops, fact(2) resumes with its own saved n = 2. It returns 2 × 1 = 2, so frames finish in reverse order.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"stack\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"fact(3): factorial by recursion\",\"regions\":[{\"id\":\"main\",\"label\":\"main (caller)\",\"values\":[\"waits for fact(3)\",\"receives final result\"]},{\"id\":\"f3\",\"label\":\"Frame fact(3)\",\"values\":[\"n = 3\",\"returns 3 × fact(2)\"]},{\"id\":\"f2\",\"label\":\"Frame fact(2)\",\"values\":[\"n = 2\",\"returns 2 × fact(1)\"]},{\"id\":\"f1\",\"label\":\"Frame fact(1) – base case\",\"values\":[\"n = 1\",\"returns 1, no further call\"]}],\"links\":[{\"from\":\"main\",\"to\":\"f3\",\"label\":\"calls\"},{\"from\":\"f3\",\"to\":\"f2\",\"label\":\"calls\"},{\"from\":\"f2\",\"to\":\"f1\",\"label\":\"calls\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Call fact(3)\",\"sentence\":\"main calls fact(3). A frame holding n = 3 is pushed onto the stack.\",\"why\":\"Every call gets its own frame.\",\"short\":\"push fact(3)\",\"calloutRegion\":\"f3\",\"active\":[\"f3\"],\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"1\"},{\"id\":\"top\",\"label\":\"Top frame\",\"value\":\"fact(3)\"},{\"id\":\"ret\",\"label\":\"Returned value\",\"value\":\"none yet\"}]},{\"id\":\"s2\",\"label\":\"Call fact(2)\",\"sentence\":\"fact(3) cannot finish yet, so it calls fact(2). A new frame with n = 2 sits on top.\",\"why\":\"The caller waits, frozen below.\",\"short\":\"push fact(2)\",\"calloutRegion\":\"f2\",\"active\":[\"f3\",\"f2\"],\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"2\"},{\"id\":\"top\",\"label\":\"Top frame\",\"value\":\"fact(2)\"},{\"id\":\"ret\",\"label\":\"Returned value\",\"value\":\"none yet\"}]},{\"id\":\"s3\",\"label\":\"Call fact(1): base case\",\"sentence\":\"fact(2) calls fact(1). Here n = 1 is the base case, so no further call is made.\",\"why\":\"The base case stops the growth.\",\"short\":\"push fact(1)\",\"calloutRegion\":\"f1\",\"active\":[\"f3\",\"f2\",\"f1\"],\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"3 (peak)\"},{\"id\":\"top\",\"label\":\"Top frame\",\"value\":\"fact(1)\"},{\"id\":\"ret\",\"label\":\"Returned value\",\"value\":\"none yet\"}]},{\"id\":\"s4\",\"label\":\"fact(1) returns 1\",\"sentence\":\"fact(1) returns 1 and its frame is popped. The stack shrinks to two frames.\",\"why\":\"The newest frame leaves first (last in, first out).\",\"short\":\"pop fact(1)\",\"calloutRegion\":\"f2\",\"active\":[\"f3\",\"f2\"],\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"2\"},{\"id\":\"top\",\"label\":\"Top frame\",\"value\":\"fact(2)\"},{\"id\":\"ret\",\"label\":\"Returned value\",\"value\":\"1\"}]},{\"id\":\"s5\",\"label\":\"fact(2) returns 2\",\"sentence\":\"fact(2) resumes with its own saved n = 2, computes 2 × 1, returns 2, and is popped.\",\"why\":\"Each frame remembered its own n while waiting.\",\"short\":\"pop fact(2)\",\"calloutRegion\":\"f2\",\"active\":[\"f3\"],\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"1\"},{\"id\":\"top\",\"label\":\"Top frame\",\"value\":\"fact(3)\"},{\"id\":\"ret\",\"label\":\"Returned value\",\"value\":\"2\"}]},{\"id\":\"s6\",\"label\":\"fact(3) returns 6\",\"sentence\":\"fact(3) resumes with n = 3, computes 3 × 2, and returns 6 to main. The stack is empty.\",\"why\":\"The last frame to unwind is the first one called.\",\"short\":\"pop fact(3)\",\"calloutRegion\":\"main\",\"active\":[\"main\"],\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"0\"},{\"id\":\"top\",\"label\":\"Top frame\",\"value\":\"none\"},{\"id\":\"ret\",\"label\":\"Returned value\",\"value\":\"6\"}]}]}]}}",
+ "composition": {
+  "story": "Calling fact(3) pushes a new frame for each recursive call, each holding its own n. At the base case, the newest frame returns first and pops. Each older frame then resumes with its saved n, finishing in reverse order.",
+  "aha": {
+   "stateId": "s5",
+   "observation": "After fact(1) pops, fact(2) resumes with its own saved n = 2. It returns 2 × 1 = 2, so frames finish in reverse order."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "stack",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "fact(3): factorial by recursion",
+     "regions": [
+      {
+       "id": "main",
+       "label": "main (caller)",
+       "values": [
+        "waits for fact(3)",
+        "receives final result"
+       ]
+      },
+      {
+       "id": "f3",
+       "label": "Frame fact(3)",
+       "values": [
+        "n = 3",
+        "returns 3 × fact(2)"
+       ]
+      },
+      {
+       "id": "f2",
+       "label": "Frame fact(2)",
+       "values": [
+        "n = 2",
+        "returns 2 × fact(1)"
+       ]
+      },
+      {
+       "id": "f1",
+       "label": "Frame fact(1) – base case",
+       "values": [
+        "n = 1",
+        "returns 1, no further call"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "main",
+       "to": "f3",
+       "label": "calls"
+      },
+      {
+       "from": "f3",
+       "to": "f2",
+       "label": "calls"
+      },
+      {
+       "from": "f2",
+       "to": "f1",
+       "label": "calls"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Call fact(3)",
+       "sentence": "main calls fact(3). A frame holding n = 3 is pushed onto the stack.",
+       "why": "Every call gets its own frame.",
+       "short": "push fact(3)",
+       "calloutRegion": "f3",
+       "active": [
+        "f3"
+       ],
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "1"
+        },
+        {
+         "id": "top",
+         "label": "Top frame",
+         "value": "fact(3)"
+        },
+        {
+         "id": "ret",
+         "label": "Returned value",
+         "value": "none yet"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Call fact(2)",
+       "sentence": "fact(3) cannot finish yet, so it calls fact(2). A new frame with n = 2 sits on top.",
+       "why": "The caller waits, frozen below.",
+       "short": "push fact(2)",
+       "calloutRegion": "f2",
+       "active": [
+        "f3",
+        "f2"
+       ],
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "2"
+        },
+        {
+         "id": "top",
+         "label": "Top frame",
+         "value": "fact(2)"
+        },
+        {
+         "id": "ret",
+         "label": "Returned value",
+         "value": "none yet"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Call fact(1): base case",
+       "sentence": "fact(2) calls fact(1). Here n = 1 is the base case, so no further call is made.",
+       "why": "The base case stops the growth.",
+       "short": "push fact(1)",
+       "calloutRegion": "f1",
+       "active": [
+        "f3",
+        "f2",
+        "f1"
+       ],
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "3 (peak)"
+        },
+        {
+         "id": "top",
+         "label": "Top frame",
+         "value": "fact(1)"
+        },
+        {
+         "id": "ret",
+         "label": "Returned value",
+         "value": "none yet"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "fact(1) returns 1",
+       "sentence": "fact(1) returns 1 and its frame is popped. The stack shrinks to two frames.",
+       "why": "The newest frame leaves first (last in, first out).",
+       "short": "pop fact(1)",
+       "calloutRegion": "f2",
+       "active": [
+        "f3",
+        "f2"
+       ],
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "2"
+        },
+        {
+         "id": "top",
+         "label": "Top frame",
+         "value": "fact(2)"
+        },
+        {
+         "id": "ret",
+         "label": "Returned value",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "fact(2) returns 2",
+       "sentence": "fact(2) resumes with its own saved n = 2, computes 2 × 1, returns 2, and is popped.",
+       "why": "Each frame remembered its own n while waiting.",
+       "short": "pop fact(2)",
+       "calloutRegion": "f2",
+       "active": [
+        "f3"
+       ],
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "1"
+        },
+        {
+         "id": "top",
+         "label": "Top frame",
+         "value": "fact(3)"
+        },
+        {
+         "id": "ret",
+         "label": "Returned value",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "fact(3) returns 6",
+       "sentence": "fact(3) resumes with n = 3, computes 3 × 2, and returns 6 to main. The stack is empty.",
+       "why": "The last frame to unwind is the first one called.",
+       "short": "pop fact(3)",
+       "calloutRegion": "main",
+       "active": [
+        "main"
+       ],
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "0"
+        },
+        {
+         "id": "top",
+         "label": "Top frame",
+         "value": "none"
+        },
+        {
+         "id": "ret",
+         "label": "Returned value",
+         "value": "6"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3070,
+  "output": 3259
+ },
+ "usd": 0.03873,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The stack of frames with calls links shows that each frame keeps its own n and unwinds in reverse order."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The step-driven stepper holds at whichever state the learner selects, and s5 is a stable state that shows the aha until Next is pressed."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There is no parameter, only a step index, and each step changes the active frames and readouts, so a fixed trace is justified."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The picture, ghost, callout and readouts all bind to declared regions, states and readout fields."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels and frame names all use the same fact(n) frames and push and pop events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth has one picture with one callout and three small readouts, with no clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The depths 1, 2, 3, 2, 1, 0 and the returns 1, 2, 6 are correct, and the callout locates a frame while the readouts give the numbers."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01671
+ }
+}

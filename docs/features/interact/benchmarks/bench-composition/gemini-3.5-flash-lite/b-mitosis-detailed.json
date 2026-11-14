@@ -1,0 +1,282 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "b-mitosis",
+ "set": "B",
+ "subject": "mitosis",
+ "depth": "detailed",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T22:24:35.348Z",
+ "ms": 3622,
+ "raw": "{\n  \"story\": \"Mitosis replicates a cell into two identical daughter cells through coordinated steps. Chromosomes condense, align at the center, separate to opposite poles, and finally the cell divides completely.\",\n  \"aha\": {\n    \"stateId\": \"anaphase\",\n    \"observation\": \"Sister chromatids split apart and migrate toward opposing spindle poles, doubling the genetic material count at each side.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.active\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"ghost\",\n      \"kind\": \"previous-state-ghost\",\n      \"bind\": {\n        \"regions\": \"previous.regions\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Mitosis Step\",\n      \"options\": [\n        \"prophase\",\n        \"metaphase\",\n        \"anaphase\",\n        \"telophase\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Standard Mitosis Cycle\",\n        \"regions\": [\n          {\n            \"id\": \"chromosomes\",\n            \"label\": \"Chromosomes\",\n            \"kind\": \"DNA\",\n            \"phases\": [\"condensing\", \"aligned\", \"separating\", \"decondensing\"]\n          },\n          {\n            \"id\": \"spindle\",\n            \"label\": \"Spindle Fibers\",\n            \"kind\": \"Cytoskeleton\",\n            \"phases\": [\"forming\", \"attached\", \"pulling\", \"dissolving\"]\n          },\n          {\n            \"id\": \"membrane\",\n            \"label\": \"Nuclear Envelope\",\n            \"kind\": \"Barrier\",\n            \"phases\": [\"breaking down\", \"absent\", \"absent\", \"reforming\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"prophase\",\n            \"label\": \"Prophase\",\n            \"short\": \"Condense\",\n            \"sentence\": \"Chromatin condenses into visible chromosomes and the nuclear envelope breaks down.\",\n            \"why\": \"Preparation for orderly DNA distribution.\",\n            \"active\": [\"chromosomes\", \"membrane\"],\n            \"calloutRegion\": \"chromosomes\",\n            \"readouts\": [\n              {\n                \"id\": \"chromCount\",\n                \"label\": \"Chromosomes\",\n                \"value\": \"46 duplicated\"\n              },\n              {\n                \"id\": \"ploidy\",\n                \"label\": \"Ploidy\",\n                \"value\": \"2N (96 chromatids)\"\n              }\n            ]\n          },\n          {\n            \"id\": \"metaphase\",\n            \"label\": \"Metaphase\",\n            \"short\": \"Align\",\n            \"sentence\": \"Chromosomes align along the metaphase plate, attached to spindle fibers.\",\n            \"why\": \"Ensures equal segregation in the next phase.\",\n            \"active\": [\"chromosomes\", \"spindle\"],\n            \"calloutRegion\": \"chromosomes\",\n            \"readouts\": [\n              {\n                \"id\": \"chromCount\",\n                \"label\": \"Chromosomes\",\n                \"value\": \"Aligned at center\"\n              },\n              {\n                \"id\": \"ploidy\",\n                \"label\": \"Ploidy\",\n                \"value\": \"2N checkpoint passed\"\n              }\n            ]\n          },\n          {\n            \"id\": \"anaphase\",\n            \"label\": \"Anaphase\",\n            \"short\": \"Separate\",\n            \"sentence\": \"Sister chromatids are pulled apart toward opposite poles by shortening spindle fibers.\",\n            \"why\": \"Genetic material is equally divided.\",\n            \"active\": [\"chromosomes\", \"spindle\"],\n            \"calloutRegion\": \"chromosomes\",\n            \"readouts\": [\n              {\n                \"id\": \"chromCount\",\n                \"label\": \"Chromatids\",\n                \"value\": \"46 moving each way\"\n              },\n              {\n                \"id\": \"ploidy\",\n                \"label\": \"Ploidy\",\n                \"value\": \"Separating\"\n              }\n            ]\n          },\n          {\n            \"id\": \"telophase\",\n            \"label\": \"Telophase\",\n            \"short\": \"Divide\",\n            \"sentence\": \"Two new nuclear envelopes form around the separated sets and chromosomes decondense.\",\n            \"why\": \"Restores resting state for two independent cells.\",\n            \"active\": [\"chromosomes\", \"membrane\"],\n            \"calloutRegion\": \"membrane\",\n            \"readouts\": [\n              {\n                \"id\": \"chromCount\",\n                \"label\": \"Nuclei\",\n                \"value\": \"2 nuclei forming\"\n              },\n              {\n                \"id\": \"ploidy\",\n                \"label\": \"Ploidy\",\n                \"value\": \"2 x (2N)\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Mitosis replicates a cell into two identical daughter cells through coordinated steps. Chromosomes condense, align at the center, separate to opposite poles, and finally the cell divides completely.",
+  "aha": {
+   "stateId": "anaphase",
+   "observation": "Sister chromatids split apart and migrate toward opposing spindle poles, doubling the genetic material count at each side."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.regions"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Mitosis Step",
+    "options": [
+     "prophase",
+     "metaphase",
+     "anaphase",
+     "telophase"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Standard Mitosis Cycle",
+     "regions": [
+      {
+       "id": "chromosomes",
+       "label": "Chromosomes",
+       "kind": "DNA",
+       "phases": [
+        "condensing",
+        "aligned",
+        "separating",
+        "decondensing"
+       ]
+      },
+      {
+       "id": "spindle",
+       "label": "Spindle Fibers",
+       "kind": "Cytoskeleton",
+       "phases": [
+        "forming",
+        "attached",
+        "pulling",
+        "dissolving"
+       ]
+      },
+      {
+       "id": "membrane",
+       "label": "Nuclear Envelope",
+       "kind": "Barrier",
+       "phases": [
+        "breaking down",
+        "absent",
+        "absent",
+        "reforming"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Condense",
+       "sentence": "Chromatin condenses into visible chromosomes and the nuclear envelope breaks down.",
+       "why": "Preparation for orderly DNA distribution.",
+       "active": [
+        "chromosomes",
+        "membrane"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "chromCount",
+         "label": "Chromosomes",
+         "value": "46 duplicated"
+        },
+        {
+         "id": "ploidy",
+         "label": "Ploidy",
+         "value": "2N (96 chromatids)"
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Align",
+       "sentence": "Chromosomes align along the metaphase plate, attached to spindle fibers.",
+       "why": "Ensures equal segregation in the next phase.",
+       "active": [
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "chromCount",
+         "label": "Chromosomes",
+         "value": "Aligned at center"
+        },
+        {
+         "id": "ploidy",
+         "label": "Ploidy",
+         "value": "2N checkpoint passed"
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Separate",
+       "sentence": "Sister chromatids are pulled apart toward opposite poles by shortening spindle fibers.",
+       "why": "Genetic material is equally divided.",
+       "active": [
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "chromCount",
+         "label": "Chromatids",
+         "value": "46 moving each way"
+        },
+        {
+         "id": "ploidy",
+         "label": "Ploidy",
+         "value": "Separating"
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Divide",
+       "sentence": "Two new nuclear envelopes form around the separated sets and chromosomes decondense.",
+       "why": "Restores resting state for two independent cells.",
+       "active": [
+        "chromosomes",
+        "membrane"
+       ],
+       "calloutRegion": "membrane",
+       "readouts": [
+        {
+         "id": "chromCount",
+         "label": "Nuclei",
+         "value": "2 nuclei forming"
+        },
+        {
+         "id": "ploidy",
+         "label": "Ploidy",
+         "value": "2 x (2N)"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1101,
+  "output": 1459
+ },
+ "usd": 0.003978,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture with chromosome, spindle and envelope regions shows how sister chromatids segregate across the steps, with anaphase as the key observation."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "No initial stepIndex or hold at anaphase is declared, so the card is not designed to rest at the aha until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex input changes the active regions, callout, readouts and progress, so each value gives different evidence."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The ghost binds to previous.regions, which is not declared in the data, and the aha text about doubling is not bound to any readout."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, labels, control options and region names consistently refer to chromosomes, spindle fibers and the nuclear envelope across the four steps."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The deep level adds a modest count readout and previous-state ghost on one picture, without excessive clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The prophase readout says \"96 chromatids\" where 46 duplicated chromosomes give 92, and the aha's \"doubling the genetic material count at each side\" is misleading."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.016112
+ }
+}

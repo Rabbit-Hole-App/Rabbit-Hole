@@ -1,0 +1,454 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a13",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a bill become a law in the United States?",
+ "ts": "2026-11-14T22:24:22.660Z",
+ "ms": 19456,
+ "raw": "{\"story\":\"A bill starts with one member of Congress. It moves through committee and a floor vote in each chamber. Both chambers must approve identical text. Then the President signs it, and it becomes law.\",\"aha\":{\"stateId\":\"law\",\"observation\":\"A bill becomes law only after the House and Senate both pass identical text and the President signs it.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"state.id\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Standard path (House first)\",\"regions\":[{\"id\":\"sponsor\",\"label\":\"Sponsor introduces bill\",\"kind\":\"actor\",\"actors\":[\"Member of Congress\"]},{\"id\":\"hcommittee\",\"label\":\"House committee\",\"kind\":\"stage\",\"phases\":[\"Review\",\"Amend\",\"Report\"]},{\"id\":\"hfloor\",\"label\":\"House floor\",\"kind\":\"chamber\",\"values\":[\"Majority vote\"]},{\"id\":\"scommittee\",\"label\":\"Senate committee\",\"kind\":\"stage\",\"phases\":[\"Review\",\"Amend\",\"Report\"]},{\"id\":\"sfloor\",\"label\":\"Senate floor\",\"kind\":\"chamber\",\"values\":[\"Majority vote\"]},{\"id\":\"reconcile\",\"label\":\"Identical text\",\"kind\":\"check\",\"values\":[\"Both chambers match\"]},{\"id\":\"president\",\"label\":\"President\",\"kind\":\"actor\",\"actors\":[\"President\"]},{\"id\":\"law\",\"label\":\"Law\",\"kind\":\"outcome\",\"values\":[\"Enacted\"]}],\"links\":[{\"from\":\"sponsor\",\"to\":\"hcommittee\",\"label\":\"referred\"},{\"from\":\"hcommittee\",\"to\":\"hfloor\",\"label\":\"reported\"},{\"from\":\"hfloor\",\"to\":\"scommittee\",\"label\":\"passed\"},{\"from\":\"scommittee\",\"to\":\"sfloor\",\"label\":\"reported\"},{\"from\":\"sfloor\",\"to\":\"reconcile\",\"label\":\"passed\"},{\"from\":\"reconcile\",\"to\":\"president\",\"label\":\"sent\"},{\"from\":\"president\",\"to\":\"law\",\"label\":\"signs\"}],\"states\":[{\"id\":\"intro\",\"label\":\"Introduce\",\"sentence\":\"A member of Congress introduces the bill in the House.\",\"short\":\"Introduced\",\"why\":\"Every bill needs a sponsor in one chamber.\",\"active\":[\"sponsor\"],\"calloutRegion\":\"sponsor\",\"readouts\":[{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"0 of 2\"},{\"id\":\"sign\",\"label\":\"President signed\",\"value\":\"No\"}]},{\"id\":\"hcom\",\"label\":\"House committee\",\"sentence\":\"A House committee studies, amends, and votes on whether to report the bill.\",\"short\":\"Committee\",\"why\":\"Most bills die here without a report.\",\"active\":[\"hcommittee\"],\"calloutRegion\":\"hcommittee\",\"readouts\":[{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"0 of 2\"},{\"id\":\"sign\",\"label\":\"President signed\",\"value\":\"No\"}]},{\"id\":\"hvote\",\"label\":\"House vote\",\"sentence\":\"The full House debates the bill and passes it by majority vote.\",\"short\":\"House passes\",\"why\":\"The first chamber has approved the text.\",\"active\":[\"hfloor\"],\"calloutRegion\":\"hfloor\",\"readouts\":[{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"1 of 2\"},{\"id\":\"sign\",\"label\":\"President signed\",\"value\":\"No\"}]},{\"id\":\"scom\",\"label\":\"Senate committee\",\"sentence\":\"The bill moves to a Senate committee for the same review and amendment.\",\"short\":\"Committee\",\"why\":\"The Senate reviews the bill independently.\",\"active\":[\"scommittee\"],\"calloutRegion\":\"scommittee\",\"readouts\":[{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"1 of 2\"},{\"id\":\"sign\",\"label\":\"President signed\",\"value\":\"No\"}]},{\"id\":\"svote\",\"label\":\"Senate vote\",\"sentence\":\"The full Senate debates the bill and passes it by majority vote.\",\"short\":\"Senate passes\",\"why\":\"The second chamber has approved a version.\",\"active\":[\"sfloor\"],\"calloutRegion\":\"sfloor\",\"readouts\":[{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2\"},{\"id\":\"sign\",\"label\":\"President signed\",\"value\":\"No\"}]},{\"id\":\"match\",\"label\":\"Match text\",\"sentence\":\"If versions differ, the chambers reconcile them until both pass identical text.\",\"short\":\"Same text\",\"why\":\"Differing wording means no single bill can go forward.\",\"active\":[\"reconcile\"],\"calloutRegion\":\"reconcile\",\"readouts\":[{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2\"},{\"id\":\"text\",\"label\":\"Text identical\",\"value\":\"Yes\"},{\"id\":\"sign\",\"label\":\"President signed\",\"value\":\"No\"}]},{\"id\":\"desk\",\"label\":\"President\",\"sentence\":\"The bill goes to the President, who may sign it or veto it.\",\"short\":\"President's desk\",\"why\":\"A veto stops the bill unless two-thirds of each chamber override.\",\"active\":[\"president\"],\"calloutRegion\":\"president\",\"readouts\":[{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2\"},{\"id\":\"text\",\"label\":\"Text identical\",\"value\":\"Yes\"},{\"id\":\"sign\",\"label\":\"President signed\",\"value\":\"Pending\"}]},{\"id\":\"law\",\"label\":\"Law\",\"sentence\":\"The President signs. Both chambers agreed on identical text, so the bill is now law.\",\"short\":\"Enacted\",\"why\":\"Two chamber approvals plus a signature complete the path.\",\"active\":[\"law\"],\"calloutRegion\":\"law\",\"readouts\":[{\"id\":\"chambers\",\"label\":\"Chambers passed\",\"value\":\"2 of 2\"},{\"id\":\"text\",\"label\":\"Text identical\",\"value\":\"Yes\"},{\"id\":\"sign\",\"label\":\"President signed\",\"value\":\"Yes\"}]}]}]}}",
+ "composition": {
+  "story": "A bill starts with one member of Congress. It moves through committee and a floor vote in each chamber. Both chambers must approve identical text. Then the President signs it, and it becomes law.",
+  "aha": {
+   "stateId": "law",
+   "observation": "A bill becomes law only after the House and Senate both pass identical text and the President signs it."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "state.id",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Standard path (House first)",
+     "regions": [
+      {
+       "id": "sponsor",
+       "label": "Sponsor introduces bill",
+       "kind": "actor",
+       "actors": [
+        "Member of Congress"
+       ]
+      },
+      {
+       "id": "hcommittee",
+       "label": "House committee",
+       "kind": "stage",
+       "phases": [
+        "Review",
+        "Amend",
+        "Report"
+       ]
+      },
+      {
+       "id": "hfloor",
+       "label": "House floor",
+       "kind": "chamber",
+       "values": [
+        "Majority vote"
+       ]
+      },
+      {
+       "id": "scommittee",
+       "label": "Senate committee",
+       "kind": "stage",
+       "phases": [
+        "Review",
+        "Amend",
+        "Report"
+       ]
+      },
+      {
+       "id": "sfloor",
+       "label": "Senate floor",
+       "kind": "chamber",
+       "values": [
+        "Majority vote"
+       ]
+      },
+      {
+       "id": "reconcile",
+       "label": "Identical text",
+       "kind": "check",
+       "values": [
+        "Both chambers match"
+       ]
+      },
+      {
+       "id": "president",
+       "label": "President",
+       "kind": "actor",
+       "actors": [
+        "President"
+       ]
+      },
+      {
+       "id": "law",
+       "label": "Law",
+       "kind": "outcome",
+       "values": [
+        "Enacted"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "sponsor",
+       "to": "hcommittee",
+       "label": "referred"
+      },
+      {
+       "from": "hcommittee",
+       "to": "hfloor",
+       "label": "reported"
+      },
+      {
+       "from": "hfloor",
+       "to": "scommittee",
+       "label": "passed"
+      },
+      {
+       "from": "scommittee",
+       "to": "sfloor",
+       "label": "reported"
+      },
+      {
+       "from": "sfloor",
+       "to": "reconcile",
+       "label": "passed"
+      },
+      {
+       "from": "reconcile",
+       "to": "president",
+       "label": "sent"
+      },
+      {
+       "from": "president",
+       "to": "law",
+       "label": "signs"
+      }
+     ],
+     "states": [
+      {
+       "id": "intro",
+       "label": "Introduce",
+       "sentence": "A member of Congress introduces the bill in the House.",
+       "short": "Introduced",
+       "why": "Every bill needs a sponsor in one chamber.",
+       "active": [
+        "sponsor"
+       ],
+       "calloutRegion": "sponsor",
+       "readouts": [
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "0 of 2"
+        },
+        {
+         "id": "sign",
+         "label": "President signed",
+         "value": "No"
+        }
+       ]
+      },
+      {
+       "id": "hcom",
+       "label": "House committee",
+       "sentence": "A House committee studies, amends, and votes on whether to report the bill.",
+       "short": "Committee",
+       "why": "Most bills die here without a report.",
+       "active": [
+        "hcommittee"
+       ],
+       "calloutRegion": "hcommittee",
+       "readouts": [
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "0 of 2"
+        },
+        {
+         "id": "sign",
+         "label": "President signed",
+         "value": "No"
+        }
+       ]
+      },
+      {
+       "id": "hvote",
+       "label": "House vote",
+       "sentence": "The full House debates the bill and passes it by majority vote.",
+       "short": "House passes",
+       "why": "The first chamber has approved the text.",
+       "active": [
+        "hfloor"
+       ],
+       "calloutRegion": "hfloor",
+       "readouts": [
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "1 of 2"
+        },
+        {
+         "id": "sign",
+         "label": "President signed",
+         "value": "No"
+        }
+       ]
+      },
+      {
+       "id": "scom",
+       "label": "Senate committee",
+       "sentence": "The bill moves to a Senate committee for the same review and amendment.",
+       "short": "Committee",
+       "why": "The Senate reviews the bill independently.",
+       "active": [
+        "scommittee"
+       ],
+       "calloutRegion": "scommittee",
+       "readouts": [
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "1 of 2"
+        },
+        {
+         "id": "sign",
+         "label": "President signed",
+         "value": "No"
+        }
+       ]
+      },
+      {
+       "id": "svote",
+       "label": "Senate vote",
+       "sentence": "The full Senate debates the bill and passes it by majority vote.",
+       "short": "Senate passes",
+       "why": "The second chamber has approved a version.",
+       "active": [
+        "sfloor"
+       ],
+       "calloutRegion": "sfloor",
+       "readouts": [
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2"
+        },
+        {
+         "id": "sign",
+         "label": "President signed",
+         "value": "No"
+        }
+       ]
+      },
+      {
+       "id": "match",
+       "label": "Match text",
+       "sentence": "If versions differ, the chambers reconcile them until both pass identical text.",
+       "short": "Same text",
+       "why": "Differing wording means no single bill can go forward.",
+       "active": [
+        "reconcile"
+       ],
+       "calloutRegion": "reconcile",
+       "readouts": [
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Text identical",
+         "value": "Yes"
+        },
+        {
+         "id": "sign",
+         "label": "President signed",
+         "value": "No"
+        }
+       ]
+      },
+      {
+       "id": "desk",
+       "label": "President",
+       "sentence": "The bill goes to the President, who may sign it or veto it.",
+       "short": "President's desk",
+       "why": "A veto stops the bill unless two-thirds of each chamber override.",
+       "active": [
+        "president"
+       ],
+       "calloutRegion": "president",
+       "readouts": [
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Text identical",
+         "value": "Yes"
+        },
+        {
+         "id": "sign",
+         "label": "President signed",
+         "value": "Pending"
+        }
+       ]
+      },
+      {
+       "id": "law",
+       "label": "Law",
+       "sentence": "The President signs. Both chambers agreed on identical text, so the bill is now law.",
+       "short": "Enacted",
+       "why": "Two chamber approvals plus a signature complete the path.",
+       "active": [
+        "law"
+       ],
+       "calloutRegion": "law",
+       "readouts": [
+        {
+         "id": "chambers",
+         "label": "Chambers passed",
+         "value": "2 of 2"
+        },
+        {
+         "id": "text",
+         "label": "Text identical",
+         "value": "Yes"
+        },
+        {
+         "id": "sign",
+         "label": "President signed",
+         "value": "Yes"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3071,
+  "output": 3155
+ },
+ "usd": 0.037692,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of regions and links shows the path a bill takes from sponsor to law, answering how a bill becomes law."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'law' is the final step in an index-controlled stepper, so it holds until the learner acts and shows all three readouts satisfied."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The Step index changes the active region, callout and readouts (chambers passed 0→2, signed No→Pending→Yes), so each setting yields different evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Every part binds to declared fields: states, links, regions, active, calloutRegion, sentence, why and readouts all exist in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, region labels, step labels and callout sentences all name the same sponsor, committees, floors, identical text, President and law."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth each state activates a single region with a small 2-3 row readout, with no formula or extra comparison clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The chamber counts (0,0,1,1,2,2,2,2) and signature progression are correct, and the callouts give prose while the readouts give the quantities."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.019718
+ }
+}

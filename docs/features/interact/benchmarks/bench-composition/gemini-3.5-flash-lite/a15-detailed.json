@@ -1,0 +1,214 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a15",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T22:21:14.441Z",
+ "ms": 2585,
+ "raw": "{\n  \"story\": \"Merge sort divides the array into single elements and repeatedly merges sorted halves.\",\n  \"aha\": {\n    \"stateId\": \"merge\",\n    \"observation\": \"Sub-arrays combine in sorted order, forming the final sorted sequence.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"target\": \"variant.states.calloutRegion\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\n        \"divide\",\n        \"split\",\n        \"merge\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Merge Sort\",\n        \"regions\": [\n          {\n            \"id\": \"arr\",\n            \"label\": \"Array\",\n            \"kind\": \"array\",\n            \"values\": [\"38\", \"27\", \"43\", \"3\", \"9\", \"82\", \"10\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"divide\",\n            \"label\": \"Initial\",\n            \"short\": \"Start\",\n            \"sentence\": \"Array is ready to be divided recursively.\",\n            \"why\": \"Unsorted input data requires partitioning.\",\n            \"active\": [\"arr\"],\n            \"calloutRegion\": \"arr\",\n            \"readouts\": [\n              {\n                \"id\": \"len\",\n                \"label\": \"Length\",\n                \"value\": \"7\"\n              }\n            ]\n          },\n          {\n            \"id\": \"split\",\n            \"label\": \"Split\",\n            \"short\": \"Split\",\n            \"sentence\": \"Elements are broken down to single units.\",\n            \"why\": \"Base cases of size 1 are trivially sorted.\",\n            \"active\": [\"arr\"],\n            \"calloutRegion\": \"arr\",\n            \"readouts\": [\n              {\n                \"id\": \"len\",\n                \"label\": \"Depth\",\n                \"value\": \"3\"\n              }\n            ]\n          },\n          {\n            \"id\": \"merge\",\n            \"label\": \"Merge\",\n            \"short\": \"Merge\",\n            \"sentence\": \"Sorted halves are merged back together.\",\n            \"why\": \"Merging linear sequences maintains sorted order.\",\n            \"active\": [\"arr\"],\n            \"calloutRegion\": \"arr\",\n            \"readouts\": [\n              {\n                \"id\": \"len\",\n                \"label\": \"Status\",\n                \"value\": \"Sorted\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Merge sort divides the array into single elements and repeatedly merges sorted halves.",
+  "aha": {
+   "stateId": "merge",
+   "observation": "Sub-arrays combine in sorted order, forming the final sorted sequence."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "target": "variant.states.calloutRegion"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "divide",
+     "split",
+     "merge"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Merge Sort",
+     "regions": [
+      {
+       "id": "arr",
+       "label": "Array",
+       "kind": "array",
+       "values": [
+        "38",
+        "27",
+        "43",
+        "3",
+        "9",
+        "82",
+        "10"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "divide",
+       "label": "Initial",
+       "short": "Start",
+       "sentence": "Array is ready to be divided recursively.",
+       "why": "Unsorted input data requires partitioning.",
+       "active": [
+        "arr"
+       ],
+       "calloutRegion": "arr",
+       "readouts": [
+        {
+         "id": "len",
+         "label": "Length",
+         "value": "7"
+        }
+       ]
+      },
+      {
+       "id": "split",
+       "label": "Split",
+       "short": "Split",
+       "sentence": "Elements are broken down to single units.",
+       "why": "Base cases of size 1 are trivially sorted.",
+       "active": [
+        "arr"
+       ],
+       "calloutRegion": "arr",
+       "readouts": [
+        {
+         "id": "len",
+         "label": "Depth",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "merge",
+       "label": "Merge",
+       "short": "Merge",
+       "sentence": "Sorted halves are merged back together.",
+       "why": "Merging linear sequences maintains sorted order.",
+       "active": [
+        "arr"
+       ],
+       "calloutRegion": "arr",
+       "readouts": [
+        {
+         "id": "len",
+         "label": "Status",
+         "value": "Sorted"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1102,
+  "output": 944
+ },
+ "usd": 0.002691,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The only region is a single static array of unsorted values, so no marks show the divide/merge mechanism or how halves combine; the question is only stated in the story."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state is the final step, but the array region never changes to show a sorted result, so the held card does not display the decisive observation."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The stepIndex only changes text and readouts, and the array values are identical in every state, so the control doesn't change any drawn evidence."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "Every state targets the same whole array region with no sub-array highlights, arrows, or ghosts, and the readout values (Depth 3, Sorted) are hardcoded strings not derived from the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The control options are divide/split/merge, while the state labels are Initial/Split/Merge; the 'divide' step vs. 'Initial' state and the readout id 'len' relabelled as Depth and Status are inconsistent. The narrative mentions halves and sub-arrays that are never drawn."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The detailed depth adds no comparison, formula, or count beyond a one-line readout. The depth does not add mechanism, since the picture is the same static array."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The readout reuses the 'len' id with changing meanings (Length, Depth, Status); depth 3 is plausible for 7 elements (ceil(log2 7) = 3), but the \"Sorted\" status is contradicted by the unchanged array display, and the same sentence is repeated in the callout and the story."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011564
+ }
+}

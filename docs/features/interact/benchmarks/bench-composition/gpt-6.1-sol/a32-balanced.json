@@ -1,0 +1,357 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a32",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "How does successive halving decide which trials get more training?",
+ "ts": "2026-11-14T22:52:06.300Z",
+ "ms": 105008,
+ "raw": "{\n  \"story\": \"Start with equally trained trials and compare validation accuracy. Keep the stronger half, then resume only those trials with a larger budget. Advance through the checkpoints to see how each comparison determines who receives more training.\",\n  \"aha\": {\n    \"stateId\": \"final-budget\",\n    \"observation\": \"Successive halving gives more training only to the top half at each equal-budget checkpoint, using their current validation scores.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"checkpoint-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation and above the experiment. Show the active checkpoint and completed trace here only. Steps represent states, not elapsed time. Reference captures show final-budget.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"trial-roster\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use four fixed trial rows in alphabetical order. Align each named region with its readout. Highlight candidates participating in the current comparison or allocation. Keep stopped candidates visible; their frozen readouts preserve earlier evidence. No ghost or animation is needed.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"trial-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show cumulative training, validation accuracy, and allocation status beside each trial. Put the allocation entry below the rows as the bound status line. Assume fixed configurations, one validation set, equal epoch costs, and deterministic scores. Higher accuracy wins; alphabetical trial order breaks ties. Accuracy uses a shared percentage scale, rounded to whole percentage points. Epoch counts measure cumulative training from each trial's start. The initial checkpoint follows one epoch; later cumulative budgets double. Keep half the eligible trials at each selection. Survivors resume training rather than restart. Stopped trials never re-enter. All changing measurements come from the selected state's readouts.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"allocation-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the named trial without covering its readout. Identify the decision and explain its cause. Keep numeric evidence in the readouts only.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"checkpoint\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Checkpoint\",\n      \"presentation\": \"Navigation budget: one index control. Parameter-control budget: none. Provide Previous and Next with accessible names, visible focus, and keyboard operation. Default to the first state; move one state per action. Bound navigation to the first and last states. Retain button names when disabled at boundaries. Every state, including final-budget, persists until learner action. No timer or autoplay.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and fixed defaults. Provide an accessible name, visible focus, and keyboard operation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Fixed successive-halving example\",\n        \"regions\": [\n          {\n            \"id\": \"trial-a\",\n            \"label\": \"Trial A\",\n            \"values\": []\n          },\n          {\n            \"id\": \"trial-b\",\n            \"label\": \"Trial B\",\n            \"values\": []\n          },\n          {\n            \"id\": \"trial-c\",\n            \"label\": \"Trial C\",\n            \"values\": []\n          },\n          {\n            \"id\": \"trial-d\",\n            \"label\": \"Trial D\",\n            \"values\": []\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"initial\",\n            \"label\": \"Candidates\",\n            \"short\": \"Start\",\n            \"sentence\": \"Trial A begins alongside the other untrained candidates.\",\n            \"why\": \"Every candidate receives the same initial training budget before any comparison.\",\n            \"active\": [\n              \"trial-a\",\n              \"trial-b\",\n              \"trial-c\",\n              \"trial-d\"\n            ],\n            \"calloutRegion\": \"trial-a\",\n            \"readouts\": [\n              {\n                \"id\": \"trial-a\",\n                \"label\": \"Trial A\",\n                \"value\": \"0 epochs · accuracy not measured · waiting\"\n              },\n              {\n                \"id\": \"trial-b\",\n                \"label\": \"Trial B\",\n                \"value\": \"0 epochs · accuracy not measured · waiting\"\n              },\n              {\n                \"id\": \"trial-c\",\n                \"label\": \"Trial C\",\n                \"value\": \"0 epochs · accuracy not measured · waiting\"\n              },\n              {\n                \"id\": \"trial-d\",\n                \"label\": \"Trial D\",\n                \"value\": \"0 epochs · accuracy not measured · waiting\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"Allocation\",\n                \"value\": \"All candidates receive initial training.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"first-checkpoint\",\n            \"label\": \"Initial comparison\",\n            \"short\": \"Compare all\",\n            \"sentence\": \"Trial A leads the initial comparison.\",\n            \"why\": \"Rank every candidate by validation accuracy because their cumulative training budgets match.\",\n            \"active\": [\n              \"trial-a\",\n              \"trial-b\",\n              \"trial-c\",\n              \"trial-d\"\n            ],\n            \"calloutRegion\": \"trial-a\",\n            \"readouts\": [\n              {\n                \"id\": \"trial-a\",\n                \"label\": \"Trial A\",\n                \"value\": \"1 epoch · 74% accuracy · eligible\"\n              },\n              {\n                \"id\": \"trial-b\",\n                \"label\": \"Trial B\",\n                \"value\": \"1 epoch · 71% accuracy · eligible\"\n              },\n              {\n                \"id\": \"trial-c\",\n                \"label\": \"Trial C\",\n                \"value\": \"1 epoch · 68% accuracy · eligible\"\n              },\n              {\n                \"id\": \"trial-d\",\n                \"label\": \"Trial D\",\n                \"value\": \"1 epoch · 65% accuracy · eligible\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"Allocation\",\n                \"value\": \"Compare eligible candidates before allocating more training.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"first-selection\",\n            \"label\": \"Keep the stronger half\",\n            \"short\": \"Keep A, B\",\n            \"sentence\": \"Trial A and Trial B advance; the other candidates stop.\",\n            \"why\": \"The stronger half receives the larger budget; stopped trials keep their existing measurements.\",\n            \"active\": [\n              \"trial-a\",\n              \"trial-b\"\n            ],\n            \"calloutRegion\": \"trial-a\",\n            \"readouts\": [\n              {\n                \"id\": \"trial-a\",\n                \"label\": \"Trial A\",\n                \"value\": \"1 epoch · 74% accuracy · selected for more training\"\n              },\n              {\n                \"id\": \"trial-b\",\n                \"label\": \"Trial B\",\n                \"value\": \"1 epoch · 71% accuracy · selected for more training\"\n              },\n              {\n                \"id\": \"trial-c\",\n                \"label\": \"Trial C\",\n                \"value\": \"1 epoch · 68% accuracy · stopped\"\n              },\n              {\n                \"id\": \"trial-d\",\n                \"label\": \"Trial D\",\n                \"value\": \"1 epoch · 65% accuracy · stopped\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"Allocation\",\n                \"value\": \"Only selected candidates resume training.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"second-checkpoint\",\n            \"label\": \"Compare survivors\",\n            \"short\": \"Compare A, B\",\n            \"sentence\": \"Trial B now leads the surviving candidates.\",\n            \"why\": \"Compare the survivors' current scores at matching budgets, not their earlier ranking or stopped candidates' frozen scores.\",\n            \"active\": [\n              \"trial-a\",\n              \"trial-b\"\n            ],\n            \"calloutRegion\": \"trial-b\",\n            \"readouts\": [\n              {\n                \"id\": \"trial-a\",\n                \"label\": \"Trial A\",\n                \"value\": \"2 epochs · 78% accuracy · eligible\"\n              },\n              {\n                \"id\": \"trial-b\",\n                \"label\": \"Trial B\",\n                \"value\": \"2 epochs · 81% accuracy · eligible\"\n              },\n              {\n                \"id\": \"trial-c\",\n                \"label\": \"Trial C\",\n                \"value\": \"1 epoch · 68% accuracy · stopped; not ranked\"\n              },\n              {\n                \"id\": \"trial-d\",\n                \"label\": \"Trial D\",\n                \"value\": \"1 epoch · 65% accuracy · stopped; not ranked\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"Allocation\",\n                \"value\": \"Rank only the equally trained survivors.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"second-selection\",\n            \"label\": \"Keep the stronger survivor\",\n            \"short\": \"Keep B\",\n            \"sentence\": \"Trial B advances; Trial A stops.\",\n            \"why\": \"The latest equal-budget comparison determines the next allocation, even though Trial A led earlier.\",\n            \"active\": [\n              \"trial-b\"\n            ],\n            \"calloutRegion\": \"trial-b\",\n            \"readouts\": [\n              {\n                \"id\": \"trial-a\",\n                \"label\": \"Trial A\",\n                \"value\": \"2 epochs · 78% accuracy · stopped\"\n              },\n              {\n                \"id\": \"trial-b\",\n                \"label\": \"Trial B\",\n                \"value\": \"2 epochs · 81% accuracy · selected for more training\"\n              },\n              {\n                \"id\": \"trial-c\",\n                \"label\": \"Trial C\",\n                \"value\": \"1 epoch · 68% accuracy · stopped; not ranked\"\n              },\n              {\n                \"id\": \"trial-d\",\n                \"label\": \"Trial D\",\n                \"value\": \"1 epoch · 65% accuracy · stopped; not ranked\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"Allocation\",\n                \"value\": \"Only Trial B resumes training.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"final-budget\",\n            \"label\": \"Allocation evidence\",\n            \"short\": \"B finishes\",\n            \"sentence\": \"Trial B alone received the final training allocation.\",\n            \"why\": \"Repeated equal-budget comparisons concentrated training on survivors; eliminated trials received no further training.\",\n            \"active\": [\n              \"trial-b\"\n            ],\n            \"calloutRegion\": \"trial-b\",\n            \"readouts\": [\n              {\n                \"id\": \"trial-a\",\n                \"label\": \"Trial A\",\n                \"value\": \"2 epochs · 78% accuracy · stopped\"\n              },\n              {\n                \"id\": \"trial-b\",\n                \"label\": \"Trial B\",\n                \"value\": \"4 epochs · 84% accuracy · complete\"\n              },\n              {\n                \"id\": \"trial-c\",\n                \"label\": \"Trial C\",\n                \"value\": \"1 epoch · 68% accuracy · stopped; not ranked\"\n              },\n              {\n                \"id\": \"trial-d\",\n                \"label\": \"Trial D\",\n                \"value\": \"1 epoch · 65% accuracy · stopped; not ranked\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"Allocation\",\n                \"value\": \"Run complete; maximum budget reached.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Start with equally trained trials and compare validation accuracy. Keep the stronger half, then resume only those trials with a larger budget. Advance through the checkpoints to see how each comparison determines who receives more training.",
+  "aha": {
+   "stateId": "final-budget",
+   "observation": "Successive halving gives more training only to the top half at each equal-budget checkpoint, using their current validation scores."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "checkpoint-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation and above the experiment. Show the active checkpoint and completed trace here only. Steps represent states, not elapsed time. Reference captures show final-budget.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "trial-roster",
+    "kind": "fixed-picture",
+    "presentation": "Use four fixed trial rows in alphabetical order. Align each named region with its readout. Highlight candidates participating in the current comparison or allocation. Keep stopped candidates visible; their frozen readouts preserve earlier evidence. No ghost or animation is needed.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "trial-evidence",
+    "kind": "value-readout",
+    "presentation": "Show cumulative training, validation accuracy, and allocation status beside each trial. Put the allocation entry below the rows as the bound status line. Assume fixed configurations, one validation set, equal epoch costs, and deterministic scores. Higher accuracy wins; alphabetical trial order breaks ties. Accuracy uses a shared percentage scale, rounded to whole percentage points. Epoch counts measure cumulative training from each trial's start. The initial checkpoint follows one epoch; later cumulative budgets double. Keep half the eligible trials at each selection. Survivors resume training rather than restart. Stopped trials never re-enter. All changing measurements come from the selected state's readouts.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "allocation-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the named trial without covering its readout. Identify the decision and explain its cause. Keep numeric evidence in the readouts only.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "checkpoint",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Checkpoint",
+    "presentation": "Navigation budget: one index control. Parameter-control budget: none. Provide Previous and Next with accessible names, visible focus, and keyboard operation. Default to the first state; move one state per action. Bound navigation to the first and last states. Retain button names when disabled at boundaries. Every state, including final-budget, persists until learner action. No timer or autoplay."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and fixed defaults. Provide an accessible name, visible focus, and keyboard operation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Fixed successive-halving example",
+     "regions": [
+      {
+       "id": "trial-a",
+       "label": "Trial A",
+       "values": []
+      },
+      {
+       "id": "trial-b",
+       "label": "Trial B",
+       "values": []
+      },
+      {
+       "id": "trial-c",
+       "label": "Trial C",
+       "values": []
+      },
+      {
+       "id": "trial-d",
+       "label": "Trial D",
+       "values": []
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "initial",
+       "label": "Candidates",
+       "short": "Start",
+       "sentence": "Trial A begins alongside the other untrained candidates.",
+       "why": "Every candidate receives the same initial training budget before any comparison.",
+       "active": [
+        "trial-a",
+        "trial-b",
+        "trial-c",
+        "trial-d"
+       ],
+       "calloutRegion": "trial-a",
+       "readouts": [
+        {
+         "id": "trial-a",
+         "label": "Trial A",
+         "value": "0 epochs · accuracy not measured · waiting"
+        },
+        {
+         "id": "trial-b",
+         "label": "Trial B",
+         "value": "0 epochs · accuracy not measured · waiting"
+        },
+        {
+         "id": "trial-c",
+         "label": "Trial C",
+         "value": "0 epochs · accuracy not measured · waiting"
+        },
+        {
+         "id": "trial-d",
+         "label": "Trial D",
+         "value": "0 epochs · accuracy not measured · waiting"
+        },
+        {
+         "id": "allocation",
+         "label": "Allocation",
+         "value": "All candidates receive initial training."
+        }
+       ]
+      },
+      {
+       "id": "first-checkpoint",
+       "label": "Initial comparison",
+       "short": "Compare all",
+       "sentence": "Trial A leads the initial comparison.",
+       "why": "Rank every candidate by validation accuracy because their cumulative training budgets match.",
+       "active": [
+        "trial-a",
+        "trial-b",
+        "trial-c",
+        "trial-d"
+       ],
+       "calloutRegion": "trial-a",
+       "readouts": [
+        {
+         "id": "trial-a",
+         "label": "Trial A",
+         "value": "1 epoch · 74% accuracy · eligible"
+        },
+        {
+         "id": "trial-b",
+         "label": "Trial B",
+         "value": "1 epoch · 71% accuracy · eligible"
+        },
+        {
+         "id": "trial-c",
+         "label": "Trial C",
+         "value": "1 epoch · 68% accuracy · eligible"
+        },
+        {
+         "id": "trial-d",
+         "label": "Trial D",
+         "value": "1 epoch · 65% accuracy · eligible"
+        },
+        {
+         "id": "allocation",
+         "label": "Allocation",
+         "value": "Compare eligible candidates before allocating more training."
+        }
+       ]
+      },
+      {
+       "id": "first-selection",
+       "label": "Keep the stronger half",
+       "short": "Keep A, B",
+       "sentence": "Trial A and Trial B advance; the other candidates stop.",
+       "why": "The stronger half receives the larger budget; stopped trials keep their existing measurements.",
+       "active": [
+        "trial-a",
+        "trial-b"
+       ],
+       "calloutRegion": "trial-a",
+       "readouts": [
+        {
+         "id": "trial-a",
+         "label": "Trial A",
+         "value": "1 epoch · 74% accuracy · selected for more training"
+        },
+        {
+         "id": "trial-b",
+         "label": "Trial B",
+         "value": "1 epoch · 71% accuracy · selected for more training"
+        },
+        {
+         "id": "trial-c",
+         "label": "Trial C",
+         "value": "1 epoch · 68% accuracy · stopped"
+        },
+        {
+         "id": "trial-d",
+         "label": "Trial D",
+         "value": "1 epoch · 65% accuracy · stopped"
+        },
+        {
+         "id": "allocation",
+         "label": "Allocation",
+         "value": "Only selected candidates resume training."
+        }
+       ]
+      },
+      {
+       "id": "second-checkpoint",
+       "label": "Compare survivors",
+       "short": "Compare A, B",
+       "sentence": "Trial B now leads the surviving candidates.",
+       "why": "Compare the survivors' current scores at matching budgets, not their earlier ranking or stopped candidates' frozen scores.",
+       "active": [
+        "trial-a",
+        "trial-b"
+       ],
+       "calloutRegion": "trial-b",
+       "readouts": [
+        {
+         "id": "trial-a",
+         "label": "Trial A",
+         "value": "2 epochs · 78% accuracy · eligible"
+        },
+        {
+         "id": "trial-b",
+         "label": "Trial B",
+         "value": "2 epochs · 81% accuracy · eligible"
+        },
+        {
+         "id": "trial-c",
+         "label": "Trial C",
+         "value": "1 epoch · 68% accuracy · stopped; not ranked"
+        },
+        {
+         "id": "trial-d",
+         "label": "Trial D",
+         "value": "1 epoch · 65% accuracy · stopped; not ranked"
+        },
+        {
+         "id": "allocation",
+         "label": "Allocation",
+         "value": "Rank only the equally trained survivors."
+        }
+       ]
+      },
+      {
+       "id": "second-selection",
+       "label": "Keep the stronger survivor",
+       "short": "Keep B",
+       "sentence": "Trial B advances; Trial A stops.",
+       "why": "The latest equal-budget comparison determines the next allocation, even though Trial A led earlier.",
+       "active": [
+        "trial-b"
+       ],
+       "calloutRegion": "trial-b",
+       "readouts": [
+        {
+         "id": "trial-a",
+         "label": "Trial A",
+         "value": "2 epochs · 78% accuracy · stopped"
+        },
+        {
+         "id": "trial-b",
+         "label": "Trial B",
+         "value": "2 epochs · 81% accuracy · selected for more training"
+        },
+        {
+         "id": "trial-c",
+         "label": "Trial C",
+         "value": "1 epoch · 68% accuracy · stopped; not ranked"
+        },
+        {
+         "id": "trial-d",
+         "label": "Trial D",
+         "value": "1 epoch · 65% accuracy · stopped; not ranked"
+        },
+        {
+         "id": "allocation",
+         "label": "Allocation",
+         "value": "Only Trial B resumes training."
+        }
+       ]
+      },
+      {
+       "id": "final-budget",
+       "label": "Allocation evidence",
+       "short": "B finishes",
+       "sentence": "Trial B alone received the final training allocation.",
+       "why": "Repeated equal-budget comparisons concentrated training on survivors; eliminated trials received no further training.",
+       "active": [
+        "trial-b"
+       ],
+       "calloutRegion": "trial-b",
+       "readouts": [
+        {
+         "id": "trial-a",
+         "label": "Trial A",
+         "value": "2 epochs · 78% accuracy · stopped"
+        },
+        {
+         "id": "trial-b",
+         "label": "Trial B",
+         "value": "4 epochs · 84% accuracy · complete"
+        },
+        {
+         "id": "trial-c",
+         "label": "Trial C",
+         "value": "1 epoch · 68% accuracy · stopped; not ranked"
+        },
+        {
+         "id": "trial-d",
+         "label": "Trial D",
+         "value": "1 epoch · 65% accuracy · stopped; not ranked"
+        },
+        {
+         "id": "allocation",
+         "label": "Allocation",
+         "value": "Run complete; maximum budget reached."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1538,
+  "output": 5646
+ },
+ "usd": 0.056666,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3e74vgaU5pE9QPSaGFf\"}"
+  },
+  "cardUsd": 0
+ }
+}

@@ -1,0 +1,728 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a09",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does the water cycle work?",
+ "ts": "2026-11-14T22:23:30.313Z",
+ "ms": 52159,
+ "raw": "{\"story\":\"Follow one parcel of water around Earth. The sun lifts it from the ocean as vapor, cold air turns it into cloud, and rain returns it to land or sea. Runoff carries it back. Nothing is used up: global evaporation equals global precipitation.\",\"aha\":{\"stateId\":\"balance\",\"observation\":\"The water is never used up: every route ends in the ocean, and total evaporation equals total precipitation, 500 units each.\"},\"layout\":{\"preset\":\"stepper-cycle\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next\"},{\"id\":\"path\",\"kind\":\"select\",\"label\":\"Where rain falls\",\"options\":[\"Full cycle: rain on land\",\"Short loop: rain on ocean\"],\"default\":0,\"presentation\":\"Selects which variant is shown; resets step to first state\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Full cycle: rain on land\",\"regions\":[{\"id\":\"sun\",\"label\":\"Sun\",\"values\":[\"energy source\"]},{\"id\":\"ocean\",\"label\":\"Ocean\",\"values\":[\"liquid\"]},{\"id\":\"vapor\",\"label\":\"Water vapor\",\"values\":[\"gas\"]},{\"id\":\"cloud\",\"label\":\"Cloud\",\"values\":[\"liquid droplets\"]},{\"id\":\"rain\",\"label\":\"Precipitation\",\"values\":[\"rain or snow\"]},{\"id\":\"land\",\"label\":\"Land surface\",\"values\":[\"soil\"]},{\"id\":\"plants\",\"label\":\"Plants\",\"values\":[\"transpiration\"]},{\"id\":\"runoff\",\"label\":\"Rivers and runoff\",\"values\":[\"liquid\"]},{\"id\":\"groundwater\",\"label\":\"Groundwater\",\"values\":[\"slow flow\"]}],\"links\":[{\"from\":\"sun\",\"to\":\"ocean\",\"label\":\"heat\"},{\"from\":\"ocean\",\"to\":\"vapor\",\"label\":\"evaporation\"},{\"from\":\"vapor\",\"to\":\"cloud\",\"label\":\"condensation\"},{\"from\":\"cloud\",\"to\":\"rain\",\"label\":\"precipitation\"},{\"from\":\"rain\",\"to\":\"land\",\"label\":\"falls\"},{\"from\":\"land\",\"to\":\"plants\",\"label\":\"uptake\"},{\"from\":\"plants\",\"to\":\"vapor\",\"label\":\"transpiration\"},{\"from\":\"land\",\"to\":\"runoff\",\"label\":\"runoff\"},{\"from\":\"land\",\"to\":\"groundwater\",\"label\":\"infiltration\"},{\"from\":\"runoff\",\"to\":\"ocean\",\"label\":\"return\"},{\"from\":\"groundwater\",\"to\":\"ocean\",\"label\":\"seepage\"}],\"states\":[{\"id\":\"heat\",\"label\":\"Sun heats\",\"short\":\"Heat\",\"sentence\":\"The sun warms the ocean surface, supplying the energy that drives the whole cycle.\",\"why\":\"Without this energy input, nothing would leave the ocean.\",\"active\":[\"sun\",\"ocean\"],\"calloutRegion\":\"ocean\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"liquid\"},{\"id\":\"vap\",\"label\":\"Vapor aloft\",\"value\":\"0\"}]},{\"id\":\"evaporate\",\"label\":\"Evaporation\",\"short\":\"Evaporate\",\"sentence\":\"Warmed surface water molecules escape into the air as invisible vapor.\",\"why\":\"Evaporation changes liquid to gas and leaves salt behind.\",\"active\":[\"ocean\",\"vapor\"],\"calloutRegion\":\"vapor\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"liquid to gas\"},{\"id\":\"evap\",\"label\":\"Ocean evaporation (10³ km³/yr)\",\"value\":\"430\"}]},{\"id\":\"rise\",\"label\":\"Rise and cool\",\"short\":\"Cool\",\"sentence\":\"Moist air rises and cools as it climbs, so it can hold less vapor.\",\"why\":\"Cooling is what pushes the air toward saturation.\",\"active\":[\"vapor\"],\"calloutRegion\":\"vapor\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"gas\"},{\"id\":\"lapse\",\"label\":\"Cooling with height (°C/km)\",\"value\":\"about 6.5\"}]},{\"id\":\"condense\",\"label\":\"Condensation\",\"short\":\"Condense\",\"sentence\":\"Cooled vapor condenses onto tiny particles, forming droplets that gather as cloud.\",\"why\":\"Condensation releases the heat that evaporation absorbed.\",\"active\":[\"vapor\",\"cloud\"],\"calloutRegion\":\"cloud\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"gas to liquid\"},{\"id\":\"vap\",\"label\":\"Ocean vapor blown to land (10³ km³/yr)\",\"value\":\"40\"}]},{\"id\":\"transport\",\"label\":\"Wind carries cloud\",\"short\":\"Transport\",\"sentence\":\"Wind carries clouds from over the ocean to over the land.\",\"why\":\"This moves water to land without any pipes or pumping.\",\"active\":[\"cloud\",\"land\"],\"calloutRegion\":\"cloud\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"liquid droplets\"},{\"id\":\"vap\",\"label\":\"Ocean vapor blown to land (10³ km³/yr)\",\"value\":\"40\"}]},{\"id\":\"precip\",\"label\":\"Precipitation on land\",\"short\":\"Rain\",\"sentence\":\"Droplets grow heavy and fall as rain or snow onto the land surface.\",\"why\":\"Gravity takes over once droplets are too heavy to stay aloft.\",\"active\":[\"cloud\",\"rain\",\"land\"],\"calloutRegion\":\"rain\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"liquid or ice\"},{\"id\":\"lp\",\"label\":\"Land precipitation (10³ km³/yr)\",\"value\":\"110\"}]},{\"id\":\"plants\",\"label\":\"Plants and soil\",\"short\":\"Plants\",\"sentence\":\"Plants draw up soil water and release it as vapor, while soil surfaces also evaporate.\",\"why\":\"This recycled water rejoins the air over land.\",\"active\":[\"land\",\"plants\",\"vapor\"],\"calloutRegion\":\"plants\",\"readouts\":[{\"id\":\"et\",\"label\":\"Land evapotranspiration (10³ km³/yr)\",\"value\":\"70\"},{\"id\":\"left\",\"label\":\"Left on land (110 − 70)\",\"value\":\"40\"}]},{\"id\":\"runoff\",\"label\":\"Runoff and groundwater\",\"short\":\"Runoff\",\"sentence\":\"The water left over flows downhill in rivers or seeps through groundwater toward the sea.\",\"why\":\"Gravity completes the loop back to the ocean.\",\"active\":[\"land\",\"runoff\",\"groundwater\",\"ocean\"],\"calloutRegion\":\"runoff\",\"readouts\":[{\"id\":\"ro\",\"label\":\"Runoff to ocean (10³ km³/yr)\",\"value\":\"40\"},{\"id\":\"left\",\"label\":\"Left on land\",\"value\":\"0 net\"}]},{\"id\":\"balance\",\"label\":\"Loop closes\",\"short\":\"Balance\",\"sentence\":\"The ocean regains what it gave to the land. Evaporation and precipitation totals match.\",\"why\":\"Water is conserved: it only changes place and phase.\",\"active\":[\"ocean\",\"vapor\",\"rain\",\"land\",\"runoff\"],\"calloutRegion\":\"ocean\",\"readouts\":[{\"id\":\"te\",\"label\":\"Total evaporation (430 + 70)\",\"value\":\"500\"},{\"id\":\"tp\",\"label\":\"Total precipitation (390 + 110)\",\"value\":\"500\"},{\"id\":\"net\",\"label\":\"Net water gained or lost\",\"value\":\"0\"}]}]},{\"label\":\"Short loop: rain on ocean\",\"regions\":[{\"id\":\"sun\",\"label\":\"Sun\",\"values\":[\"energy source\"]},{\"id\":\"ocean\",\"label\":\"Ocean\",\"values\":[\"liquid\"]},{\"id\":\"vapor\",\"label\":\"Water vapor\",\"values\":[\"gas\"]},{\"id\":\"cloud\",\"label\":\"Cloud\",\"values\":[\"liquid droplets\"]},{\"id\":\"rain\",\"label\":\"Precipitation\",\"values\":[\"rain\"]}],\"links\":[{\"from\":\"sun\",\"to\":\"ocean\",\"label\":\"heat\"},{\"from\":\"ocean\",\"to\":\"vapor\",\"label\":\"evaporation\"},{\"from\":\"vapor\",\"to\":\"cloud\",\"label\":\"condensation\"},{\"from\":\"cloud\",\"to\":\"rain\",\"label\":\"precipitation\"},{\"from\":\"rain\",\"to\":\"ocean\",\"label\":\"return\"}],\"states\":[{\"id\":\"heat\",\"label\":\"Sun heats\",\"short\":\"Heat\",\"sentence\":\"The sun warms the ocean surface, supplying the energy that drives the whole cycle.\",\"why\":\"Without this energy input, nothing would leave the ocean.\",\"active\":[\"sun\",\"ocean\"],\"calloutRegion\":\"ocean\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"liquid\"},{\"id\":\"vap\",\"label\":\"Vapor aloft\",\"value\":\"0\"}]},{\"id\":\"evaporate\",\"label\":\"Evaporation\",\"short\":\"Evaporate\",\"sentence\":\"Warmed surface water molecules escape into the air as invisible vapor.\",\"why\":\"Evaporation changes liquid to gas and leaves salt behind.\",\"active\":[\"ocean\",\"vapor\"],\"calloutRegion\":\"vapor\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"liquid to gas\"},{\"id\":\"evap\",\"label\":\"Ocean evaporation (10³ km³/yr)\",\"value\":\"430\"}]},{\"id\":\"rise\",\"label\":\"Rise and cool\",\"short\":\"Cool\",\"sentence\":\"Moist air rises and cools as it climbs, so it can hold less vapor.\",\"why\":\"Cooling is what pushes the air toward saturation.\",\"active\":[\"vapor\"],\"calloutRegion\":\"vapor\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"gas\"},{\"id\":\"lapse\",\"label\":\"Cooling with height (°C/km)\",\"value\":\"about 6.5\"}]},{\"id\":\"condense\",\"label\":\"Condensation\",\"short\":\"Condense\",\"sentence\":\"Cooled vapor condenses onto tiny particles, forming droplets that gather as cloud over the sea.\",\"why\":\"Condensation releases the heat that evaporation absorbed.\",\"active\":[\"vapor\",\"cloud\"],\"calloutRegion\":\"cloud\",\"readouts\":[{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"gas to liquid\"},{\"id\":\"stay\",\"label\":\"Stays over ocean (430 − 40)\",\"value\":\"390\"}]},{\"id\":\"precip\",\"label\":\"Rain on ocean\",\"short\":\"Rain\",\"sentence\":\"Most droplets fall straight back into the sea, closing a short loop in days.\",\"why\":\"The water never touches land on this route.\",\"active\":[\"cloud\",\"rain\",\"ocean\"],\"calloutRegion\":\"rain\",\"readouts\":[{\"id\":\"op\",\"label\":\"Ocean precipitation (10³ km³/yr)\",\"value\":\"390\"},{\"id\":\"phase\",\"label\":\"Water phase\",\"value\":\"liquid\"}]},{\"id\":\"balance\",\"label\":\"Loop closes\",\"short\":\"Balance\",\"sentence\":\"The short loop returns 390 of 430 evaporated units. The other 40 take the land route, returning by runoff.\",\"why\":\"Every route ends in the ocean, so total water is conserved.\",\"active\":[\"ocean\",\"vapor\",\"rain\"],\"calloutRegion\":\"ocean\",\"readouts\":[{\"id\":\"ev\",\"label\":\"Ocean evaporation (10³ km³/yr)\",\"value\":\"430\"},{\"id\":\"op\",\"label\":\"Returned by ocean rain\",\"value\":\"390\"},{\"id\":\"land\",\"label\":\"Sent to land route (returns as runoff)\",\"value\":\"40\"}]}]}]}}",
+ "composition": {
+  "story": "Follow one parcel of water around Earth. The sun lifts it from the ocean as vapor, cold air turns it into cloud, and rain returns it to land or sea. Runoff carries it back. Nothing is used up: global evaporation equals global precipitation.",
+  "aha": {
+   "stateId": "balance",
+   "observation": "The water is never used up: every route ends in the ocean, and total evaporation equals total precipitation, 500 units each."
+  },
+  "layout": {
+   "preset": "stepper-cycle",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "path",
+    "kind": "select",
+    "label": "Where rain falls",
+    "options": [
+     "Full cycle: rain on land",
+     "Short loop: rain on ocean"
+    ],
+    "default": 0,
+    "presentation": "Selects which variant is shown; resets step to first state"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Full cycle: rain on land",
+     "regions": [
+      {
+       "id": "sun",
+       "label": "Sun",
+       "values": [
+        "energy source"
+       ]
+      },
+      {
+       "id": "ocean",
+       "label": "Ocean",
+       "values": [
+        "liquid"
+       ]
+      },
+      {
+       "id": "vapor",
+       "label": "Water vapor",
+       "values": [
+        "gas"
+       ]
+      },
+      {
+       "id": "cloud",
+       "label": "Cloud",
+       "values": [
+        "liquid droplets"
+       ]
+      },
+      {
+       "id": "rain",
+       "label": "Precipitation",
+       "values": [
+        "rain or snow"
+       ]
+      },
+      {
+       "id": "land",
+       "label": "Land surface",
+       "values": [
+        "soil"
+       ]
+      },
+      {
+       "id": "plants",
+       "label": "Plants",
+       "values": [
+        "transpiration"
+       ]
+      },
+      {
+       "id": "runoff",
+       "label": "Rivers and runoff",
+       "values": [
+        "liquid"
+       ]
+      },
+      {
+       "id": "groundwater",
+       "label": "Groundwater",
+       "values": [
+        "slow flow"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "sun",
+       "to": "ocean",
+       "label": "heat"
+      },
+      {
+       "from": "ocean",
+       "to": "vapor",
+       "label": "evaporation"
+      },
+      {
+       "from": "vapor",
+       "to": "cloud",
+       "label": "condensation"
+      },
+      {
+       "from": "cloud",
+       "to": "rain",
+       "label": "precipitation"
+      },
+      {
+       "from": "rain",
+       "to": "land",
+       "label": "falls"
+      },
+      {
+       "from": "land",
+       "to": "plants",
+       "label": "uptake"
+      },
+      {
+       "from": "plants",
+       "to": "vapor",
+       "label": "transpiration"
+      },
+      {
+       "from": "land",
+       "to": "runoff",
+       "label": "runoff"
+      },
+      {
+       "from": "land",
+       "to": "groundwater",
+       "label": "infiltration"
+      },
+      {
+       "from": "runoff",
+       "to": "ocean",
+       "label": "return"
+      },
+      {
+       "from": "groundwater",
+       "to": "ocean",
+       "label": "seepage"
+      }
+     ],
+     "states": [
+      {
+       "id": "heat",
+       "label": "Sun heats",
+       "short": "Heat",
+       "sentence": "The sun warms the ocean surface, supplying the energy that drives the whole cycle.",
+       "why": "Without this energy input, nothing would leave the ocean.",
+       "active": [
+        "sun",
+        "ocean"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "liquid"
+        },
+        {
+         "id": "vap",
+         "label": "Vapor aloft",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "evaporate",
+       "label": "Evaporation",
+       "short": "Evaporate",
+       "sentence": "Warmed surface water molecules escape into the air as invisible vapor.",
+       "why": "Evaporation changes liquid to gas and leaves salt behind.",
+       "active": [
+        "ocean",
+        "vapor"
+       ],
+       "calloutRegion": "vapor",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "liquid to gas"
+        },
+        {
+         "id": "evap",
+         "label": "Ocean evaporation (10³ km³/yr)",
+         "value": "430"
+        }
+       ]
+      },
+      {
+       "id": "rise",
+       "label": "Rise and cool",
+       "short": "Cool",
+       "sentence": "Moist air rises and cools as it climbs, so it can hold less vapor.",
+       "why": "Cooling is what pushes the air toward saturation.",
+       "active": [
+        "vapor"
+       ],
+       "calloutRegion": "vapor",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "gas"
+        },
+        {
+         "id": "lapse",
+         "label": "Cooling with height (°C/km)",
+         "value": "about 6.5"
+        }
+       ]
+      },
+      {
+       "id": "condense",
+       "label": "Condensation",
+       "short": "Condense",
+       "sentence": "Cooled vapor condenses onto tiny particles, forming droplets that gather as cloud.",
+       "why": "Condensation releases the heat that evaporation absorbed.",
+       "active": [
+        "vapor",
+        "cloud"
+       ],
+       "calloutRegion": "cloud",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "gas to liquid"
+        },
+        {
+         "id": "vap",
+         "label": "Ocean vapor blown to land (10³ km³/yr)",
+         "value": "40"
+        }
+       ]
+      },
+      {
+       "id": "transport",
+       "label": "Wind carries cloud",
+       "short": "Transport",
+       "sentence": "Wind carries clouds from over the ocean to over the land.",
+       "why": "This moves water to land without any pipes or pumping.",
+       "active": [
+        "cloud",
+        "land"
+       ],
+       "calloutRegion": "cloud",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "liquid droplets"
+        },
+        {
+         "id": "vap",
+         "label": "Ocean vapor blown to land (10³ km³/yr)",
+         "value": "40"
+        }
+       ]
+      },
+      {
+       "id": "precip",
+       "label": "Precipitation on land",
+       "short": "Rain",
+       "sentence": "Droplets grow heavy and fall as rain or snow onto the land surface.",
+       "why": "Gravity takes over once droplets are too heavy to stay aloft.",
+       "active": [
+        "cloud",
+        "rain",
+        "land"
+       ],
+       "calloutRegion": "rain",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "liquid or ice"
+        },
+        {
+         "id": "lp",
+         "label": "Land precipitation (10³ km³/yr)",
+         "value": "110"
+        }
+       ]
+      },
+      {
+       "id": "plants",
+       "label": "Plants and soil",
+       "short": "Plants",
+       "sentence": "Plants draw up soil water and release it as vapor, while soil surfaces also evaporate.",
+       "why": "This recycled water rejoins the air over land.",
+       "active": [
+        "land",
+        "plants",
+        "vapor"
+       ],
+       "calloutRegion": "plants",
+       "readouts": [
+        {
+         "id": "et",
+         "label": "Land evapotranspiration (10³ km³/yr)",
+         "value": "70"
+        },
+        {
+         "id": "left",
+         "label": "Left on land (110 − 70)",
+         "value": "40"
+        }
+       ]
+      },
+      {
+       "id": "runoff",
+       "label": "Runoff and groundwater",
+       "short": "Runoff",
+       "sentence": "The water left over flows downhill in rivers or seeps through groundwater toward the sea.",
+       "why": "Gravity completes the loop back to the ocean.",
+       "active": [
+        "land",
+        "runoff",
+        "groundwater",
+        "ocean"
+       ],
+       "calloutRegion": "runoff",
+       "readouts": [
+        {
+         "id": "ro",
+         "label": "Runoff to ocean (10³ km³/yr)",
+         "value": "40"
+        },
+        {
+         "id": "left",
+         "label": "Left on land",
+         "value": "0 net"
+        }
+       ]
+      },
+      {
+       "id": "balance",
+       "label": "Loop closes",
+       "short": "Balance",
+       "sentence": "The ocean regains what it gave to the land. Evaporation and precipitation totals match.",
+       "why": "Water is conserved: it only changes place and phase.",
+       "active": [
+        "ocean",
+        "vapor",
+        "rain",
+        "land",
+        "runoff"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "te",
+         "label": "Total evaporation (430 + 70)",
+         "value": "500"
+        },
+        {
+         "id": "tp",
+         "label": "Total precipitation (390 + 110)",
+         "value": "500"
+        },
+        {
+         "id": "net",
+         "label": "Net water gained or lost",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Short loop: rain on ocean",
+     "regions": [
+      {
+       "id": "sun",
+       "label": "Sun",
+       "values": [
+        "energy source"
+       ]
+      },
+      {
+       "id": "ocean",
+       "label": "Ocean",
+       "values": [
+        "liquid"
+       ]
+      },
+      {
+       "id": "vapor",
+       "label": "Water vapor",
+       "values": [
+        "gas"
+       ]
+      },
+      {
+       "id": "cloud",
+       "label": "Cloud",
+       "values": [
+        "liquid droplets"
+       ]
+      },
+      {
+       "id": "rain",
+       "label": "Precipitation",
+       "values": [
+        "rain"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "sun",
+       "to": "ocean",
+       "label": "heat"
+      },
+      {
+       "from": "ocean",
+       "to": "vapor",
+       "label": "evaporation"
+      },
+      {
+       "from": "vapor",
+       "to": "cloud",
+       "label": "condensation"
+      },
+      {
+       "from": "cloud",
+       "to": "rain",
+       "label": "precipitation"
+      },
+      {
+       "from": "rain",
+       "to": "ocean",
+       "label": "return"
+      }
+     ],
+     "states": [
+      {
+       "id": "heat",
+       "label": "Sun heats",
+       "short": "Heat",
+       "sentence": "The sun warms the ocean surface, supplying the energy that drives the whole cycle.",
+       "why": "Without this energy input, nothing would leave the ocean.",
+       "active": [
+        "sun",
+        "ocean"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "liquid"
+        },
+        {
+         "id": "vap",
+         "label": "Vapor aloft",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "evaporate",
+       "label": "Evaporation",
+       "short": "Evaporate",
+       "sentence": "Warmed surface water molecules escape into the air as invisible vapor.",
+       "why": "Evaporation changes liquid to gas and leaves salt behind.",
+       "active": [
+        "ocean",
+        "vapor"
+       ],
+       "calloutRegion": "vapor",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "liquid to gas"
+        },
+        {
+         "id": "evap",
+         "label": "Ocean evaporation (10³ km³/yr)",
+         "value": "430"
+        }
+       ]
+      },
+      {
+       "id": "rise",
+       "label": "Rise and cool",
+       "short": "Cool",
+       "sentence": "Moist air rises and cools as it climbs, so it can hold less vapor.",
+       "why": "Cooling is what pushes the air toward saturation.",
+       "active": [
+        "vapor"
+       ],
+       "calloutRegion": "vapor",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "gas"
+        },
+        {
+         "id": "lapse",
+         "label": "Cooling with height (°C/km)",
+         "value": "about 6.5"
+        }
+       ]
+      },
+      {
+       "id": "condense",
+       "label": "Condensation",
+       "short": "Condense",
+       "sentence": "Cooled vapor condenses onto tiny particles, forming droplets that gather as cloud over the sea.",
+       "why": "Condensation releases the heat that evaporation absorbed.",
+       "active": [
+        "vapor",
+        "cloud"
+       ],
+       "calloutRegion": "cloud",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "gas to liquid"
+        },
+        {
+         "id": "stay",
+         "label": "Stays over ocean (430 − 40)",
+         "value": "390"
+        }
+       ]
+      },
+      {
+       "id": "precip",
+       "label": "Rain on ocean",
+       "short": "Rain",
+       "sentence": "Most droplets fall straight back into the sea, closing a short loop in days.",
+       "why": "The water never touches land on this route.",
+       "active": [
+        "cloud",
+        "rain",
+        "ocean"
+       ],
+       "calloutRegion": "rain",
+       "readouts": [
+        {
+         "id": "op",
+         "label": "Ocean precipitation (10³ km³/yr)",
+         "value": "390"
+        },
+        {
+         "id": "phase",
+         "label": "Water phase",
+         "value": "liquid"
+        }
+       ]
+      },
+      {
+       "id": "balance",
+       "label": "Loop closes",
+       "short": "Balance",
+       "sentence": "The short loop returns 390 of 430 evaporated units. The other 40 take the land route, returning by runoff.",
+       "why": "Every route ends in the ocean, so total water is conserved.",
+       "active": [
+        "ocean",
+        "vapor",
+        "rain"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "ev",
+         "label": "Ocean evaporation (10³ km³/yr)",
+         "value": "430"
+        },
+        {
+         "id": "op",
+         "label": "Returned by ocean rain",
+         "value": "390"
+        },
+        {
+         "id": "land",
+         "label": "Sent to land route (returns as runoff)",
+         "value": "40"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 7852
+ },
+ "usd": 0.084656,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of sun, ocean, vapor, cloud, rain, land and runoff answers one question: where the water goes and why none is lost, shown by links that all end at the ocean."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The balance state is the last step and is reached through the Previous/Next stepper, so it holds with its 500 = 500, net 0 readouts until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The path select swaps in different regions, links and readouts (land route with 110 and 70 versus short loop with 390 and 40), and step changes the active regions and readouts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, ghost, callout, readouts and progress trace are each bound to inputs.step, state.active, previous.active, state.calloutRegion, state.sentence or state.readouts, all of which are declared."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, link labels and region names use the same terms (evaporation, condensation, precipitation, runoff), and each sentence names the regions that are highlighted."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At detailed depth each state adds one or two readouts, and only the balance state carries a three-term count with formulas such as 430+70, so the density stays moderate."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The arithmetic checks out (430+70=500, 390+110=500, 110-70=40, 430-40=390), but in the short-loop balance state the sentence repeats the 390 and 40 that the readouts already quantify, so the values are not placed once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.024552
+ }
+}

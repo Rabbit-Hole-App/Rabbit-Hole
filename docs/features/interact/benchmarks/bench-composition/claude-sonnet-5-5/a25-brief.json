@@ -1,0 +1,414 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a25",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "What happens inside one Llama-style decoder block?",
+ "ts": "2026-11-14T22:28:27.314Z",
+ "ms": 22074,
+ "raw": "{\"story\":\"A Llama decoder block receives one vector per token. Attention and the MLP each read a normalized copy of that stream, then add their result back. Step through to see the stream keep its shape while gaining two additions.\",\"aha\":{\"stateId\":\"s7\",\"observation\":\"The block never replaces the stream: its output is the input plus an attention update plus an MLP update, so the shape stays the same.\"},\"layout\":{\"preset\":\"stepper-pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons; keyboard arrows; names kept when disabled at ends\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first state\"}],\"data\":{\"variants\":[{\"label\":\"Llama-style decoder block\",\"regions\":[{\"id\":\"stream-in\",\"label\":\"Input stream x\",\"kind\":\"stream\",\"values\":[\"one vector per token\"]},{\"id\":\"norm1\",\"label\":\"RMSNorm 1\",\"kind\":\"op\"},{\"id\":\"attention\",\"label\":\"Self-attention\",\"kind\":\"op\",\"phases\":[\"Q, K, V with RoPE\",\"causal softmax over earlier tokens\",\"output projection\"]},{\"id\":\"add1\",\"label\":\"Residual add 1\",\"kind\":\"add\"},{\"id\":\"norm2\",\"label\":\"RMSNorm 2\",\"kind\":\"op\"},{\"id\":\"mlp\",\"label\":\"SwiGLU MLP\",\"kind\":\"op\",\"phases\":[\"gate and up projections\",\"SiLU(gate) × up\",\"down projection\"]},{\"id\":\"add2\",\"label\":\"Residual add 2\",\"kind\":\"add\"},{\"id\":\"stream-out\",\"label\":\"Output stream\",\"kind\":\"stream\",\"values\":[\"same shape as input\"]}],\"links\":[{\"from\":\"stream-in\",\"to\":\"norm1\",\"label\":\"copy\"},{\"from\":\"norm1\",\"to\":\"attention\"},{\"from\":\"attention\",\"to\":\"add1\",\"label\":\"update\"},{\"from\":\"stream-in\",\"to\":\"add1\",\"label\":\"skip\"},{\"from\":\"add1\",\"to\":\"norm2\",\"label\":\"copy\"},{\"from\":\"norm2\",\"to\":\"mlp\"},{\"from\":\"mlp\",\"to\":\"add2\",\"label\":\"update\"},{\"from\":\"add1\",\"to\":\"add2\",\"label\":\"skip\"},{\"from\":\"add2\",\"to\":\"stream-out\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Stream enters\",\"sentence\":\"Each token arrives as one vector; together they form the residual stream that runs through the block.\",\"why\":\"This stream is what the block will update.\",\"short\":\"Input\",\"calloutRegion\":\"stream-in\",\"active\":[\"stream-in\"],\"readouts\":[{\"id\":\"shape\",\"label\":\"Stream shape\",\"value\":\"tokens × hidden size\"},{\"id\":\"adds\",\"label\":\"Additions done\",\"value\":\"0 of 2\"}]},{\"id\":\"s2\",\"label\":\"Normalize copy\",\"sentence\":\"RMSNorm rescales a copy of every token vector. The original stream waits on the skip path, untouched.\",\"why\":\"Attention should read scaled values, not the raw stream.\",\"short\":\"Norm 1\",\"calloutRegion\":\"norm1\",\"active\":[\"stream-in\",\"norm1\"],\"readouts\":[{\"id\":\"shape\",\"label\":\"Stream shape\",\"value\":\"tokens × hidden size\"},{\"id\":\"adds\",\"label\":\"Additions done\",\"value\":\"0 of 2\"}]},{\"id\":\"s3\",\"label\":\"Attention mixes tokens\",\"sentence\":\"Attention applies RoPE to queries and keys, then each token blends values from itself and earlier tokens.\",\"why\":\"This is the only place tokens exchange information.\",\"short\":\"Attention\",\"calloutRegion\":\"attention\",\"active\":[\"norm1\",\"attention\"],\"readouts\":[{\"id\":\"shape\",\"label\":\"Update shape\",\"value\":\"tokens × hidden size\"},{\"id\":\"adds\",\"label\":\"Additions done\",\"value\":\"0 of 2\"}]},{\"id\":\"s4\",\"label\":\"Add attention update\",\"sentence\":\"The attention result is added to the original stream, not substituted for it.\",\"why\":\"The skip path keeps the earlier information intact.\",\"short\":\"Add 1\",\"calloutRegion\":\"add1\",\"active\":[\"stream-in\",\"attention\",\"add1\"],\"readouts\":[{\"id\":\"shape\",\"label\":\"Stream shape\",\"value\":\"tokens × hidden size\"},{\"id\":\"adds\",\"label\":\"Additions done\",\"value\":\"1 of 2\"}]},{\"id\":\"s5\",\"label\":\"Normalize again\",\"sentence\":\"A second RMSNorm rescales a copy of the updated stream for the feed-forward part.\",\"why\":\"The MLP also reads a normalized copy.\",\"short\":\"Norm 2\",\"calloutRegion\":\"norm2\",\"active\":[\"add1\",\"norm2\"],\"readouts\":[{\"id\":\"shape\",\"label\":\"Stream shape\",\"value\":\"tokens × hidden size\"},{\"id\":\"adds\",\"label\":\"Additions done\",\"value\":\"1 of 2\"}]},{\"id\":\"s6\",\"label\":\"MLP transforms each token\",\"sentence\":\"SwiGLU gates one projection with another, then projects back down. Each token is processed separately.\",\"why\":\"This step transforms tokens independently, without mixing them.\",\"short\":\"MLP\",\"calloutRegion\":\"mlp\",\"active\":[\"norm2\",\"mlp\"],\"readouts\":[{\"id\":\"shape\",\"label\":\"Update shape\",\"value\":\"tokens × hidden size\"},{\"id\":\"adds\",\"label\":\"Additions done\",\"value\":\"1 of 2\"}]},{\"id\":\"s7\",\"label\":\"Add MLP update\",\"sentence\":\"The MLP result is added to the stream. Output equals input plus attention update plus MLP update.\",\"why\":\"Shape is unchanged, so identical blocks can be stacked.\",\"short\":\"Add 2\",\"calloutRegion\":\"add2\",\"active\":[\"add1\",\"mlp\",\"add2\",\"stream-out\"],\"readouts\":[{\"id\":\"shape\",\"label\":\"Output shape\",\"value\":\"tokens × hidden size\"},{\"id\":\"adds\",\"label\":\"Additions done\",\"value\":\"2 of 2\"}]}]}]}}",
+ "composition": {
+  "story": "A Llama decoder block receives one vector per token. Attention and the MLP each read a normalized copy of that stream, then add their result back. Step through to see the stream keep its shape while gaining two additions.",
+  "aha": {
+   "stateId": "s7",
+   "observation": "The block never replaces the stream: its output is the input plus an attention update plus an MLP update, so the shape stays the same."
+  },
+  "layout": {
+   "preset": "stepper-pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons; keyboard arrows; names kept when disabled at ends"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first state"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Llama-style decoder block",
+     "regions": [
+      {
+       "id": "stream-in",
+       "label": "Input stream x",
+       "kind": "stream",
+       "values": [
+        "one vector per token"
+       ]
+      },
+      {
+       "id": "norm1",
+       "label": "RMSNorm 1",
+       "kind": "op"
+      },
+      {
+       "id": "attention",
+       "label": "Self-attention",
+       "kind": "op",
+       "phases": [
+        "Q, K, V with RoPE",
+        "causal softmax over earlier tokens",
+        "output projection"
+       ]
+      },
+      {
+       "id": "add1",
+       "label": "Residual add 1",
+       "kind": "add"
+      },
+      {
+       "id": "norm2",
+       "label": "RMSNorm 2",
+       "kind": "op"
+      },
+      {
+       "id": "mlp",
+       "label": "SwiGLU MLP",
+       "kind": "op",
+       "phases": [
+        "gate and up projections",
+        "SiLU(gate) × up",
+        "down projection"
+       ]
+      },
+      {
+       "id": "add2",
+       "label": "Residual add 2",
+       "kind": "add"
+      },
+      {
+       "id": "stream-out",
+       "label": "Output stream",
+       "kind": "stream",
+       "values": [
+        "same shape as input"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "stream-in",
+       "to": "norm1",
+       "label": "copy"
+      },
+      {
+       "from": "norm1",
+       "to": "attention"
+      },
+      {
+       "from": "attention",
+       "to": "add1",
+       "label": "update"
+      },
+      {
+       "from": "stream-in",
+       "to": "add1",
+       "label": "skip"
+      },
+      {
+       "from": "add1",
+       "to": "norm2",
+       "label": "copy"
+      },
+      {
+       "from": "norm2",
+       "to": "mlp"
+      },
+      {
+       "from": "mlp",
+       "to": "add2",
+       "label": "update"
+      },
+      {
+       "from": "add1",
+       "to": "add2",
+       "label": "skip"
+      },
+      {
+       "from": "add2",
+       "to": "stream-out"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Stream enters",
+       "sentence": "Each token arrives as one vector; together they form the residual stream that runs through the block.",
+       "why": "This stream is what the block will update.",
+       "short": "Input",
+       "calloutRegion": "stream-in",
+       "active": [
+        "stream-in"
+       ],
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Stream shape",
+         "value": "tokens × hidden size"
+        },
+        {
+         "id": "adds",
+         "label": "Additions done",
+         "value": "0 of 2"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Normalize copy",
+       "sentence": "RMSNorm rescales a copy of every token vector. The original stream waits on the skip path, untouched.",
+       "why": "Attention should read scaled values, not the raw stream.",
+       "short": "Norm 1",
+       "calloutRegion": "norm1",
+       "active": [
+        "stream-in",
+        "norm1"
+       ],
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Stream shape",
+         "value": "tokens × hidden size"
+        },
+        {
+         "id": "adds",
+         "label": "Additions done",
+         "value": "0 of 2"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Attention mixes tokens",
+       "sentence": "Attention applies RoPE to queries and keys, then each token blends values from itself and earlier tokens.",
+       "why": "This is the only place tokens exchange information.",
+       "short": "Attention",
+       "calloutRegion": "attention",
+       "active": [
+        "norm1",
+        "attention"
+       ],
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Update shape",
+         "value": "tokens × hidden size"
+        },
+        {
+         "id": "adds",
+         "label": "Additions done",
+         "value": "0 of 2"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Add attention update",
+       "sentence": "The attention result is added to the original stream, not substituted for it.",
+       "why": "The skip path keeps the earlier information intact.",
+       "short": "Add 1",
+       "calloutRegion": "add1",
+       "active": [
+        "stream-in",
+        "attention",
+        "add1"
+       ],
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Stream shape",
+         "value": "tokens × hidden size"
+        },
+        {
+         "id": "adds",
+         "label": "Additions done",
+         "value": "1 of 2"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Normalize again",
+       "sentence": "A second RMSNorm rescales a copy of the updated stream for the feed-forward part.",
+       "why": "The MLP also reads a normalized copy.",
+       "short": "Norm 2",
+       "calloutRegion": "norm2",
+       "active": [
+        "add1",
+        "norm2"
+       ],
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Stream shape",
+         "value": "tokens × hidden size"
+        },
+        {
+         "id": "adds",
+         "label": "Additions done",
+         "value": "1 of 2"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "MLP transforms each token",
+       "sentence": "SwiGLU gates one projection with another, then projects back down. Each token is processed separately.",
+       "why": "This step transforms tokens independently, without mixing them.",
+       "short": "MLP",
+       "calloutRegion": "mlp",
+       "active": [
+        "norm2",
+        "mlp"
+       ],
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Update shape",
+         "value": "tokens × hidden size"
+        },
+        {
+         "id": "adds",
+         "label": "Additions done",
+         "value": "1 of 2"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Add MLP update",
+       "sentence": "The MLP result is added to the stream. Output equals input plus attention update plus MLP update.",
+       "why": "Shape is unchanged, so identical blocks can be stacked.",
+       "short": "Add 2",
+       "calloutRegion": "add2",
+       "active": [
+        "add1",
+        "mlp",
+        "add2",
+        "stream-out"
+       ],
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Output shape",
+         "value": "tokens × hidden size"
+        },
+        {
+         "id": "adds",
+         "label": "Additions done",
+         "value": "2 of 2"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3074,
+  "output": 3515
+ },
+ "usd": 0.041298,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed pipeline picture with skip and update links answers how the block updates the stream without replacing it, shown by the add1 and add2 regions with skip links."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s7 is a user-stepped state (index control, no timer), and it highlights add1, mlp, add2 and stream-out with the sentence \"Output equals input plus attention update plus MLP update.\""
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only parameter is the step index, and each step changes the active regions, callout target and the \"Additions done\" readout (0, 0, 0, 1, 1, 1, 2 of 2)."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The active sets, callout regions, links and readouts all reference declared region ids and state fields (calloutRegion, active, readouts), and the ghost binds to previous.active."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels and region labels use the same names (RMSNorm, Self-attention, SwiGLU MLP, Residual add, stream), and the step names match the callout regions."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth gives one picture with one active callout and two readouts per step, with no extra formulas or grids."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The addition counter is correct (add1 at s4 gives 1 of 2, add2 at s7 gives 2 of 2) and the shape stays tokens × hidden size throughout; the callouts only locate while the readouts carry the values."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.014386
+ }
+}

@@ -1,0 +1,1038 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a06",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does KV caching speed up inference?",
+ "ts": "2026-11-14T22:23:12.644Z",
+ "ms": 84047,
+ "raw": "{\"story\":\"A 4-token prompt generates 4 more tokens, one per step, using one layer and one head. Each new query must attend to every earlier key and value. Step through with the KV cache, then switch to Without cache: every step then recomputes K and V for the whole context. The Totals step compares Σn with P+G.\",\"aha\":{\"stateId\":\"totals\",\"observation\":\"With the cache, each token's key and value are projected once (P+G = 8 rows). Without it, every step re-projects the whole context (Σn = 30 rows).\"},\"layout\":{\"preset\":\"stepper-algorithm\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.short\",\"reason\":\"state.why\"}},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons; names kept when disabled at the first and last step\"},{\"id\":\"mode\",\"kind\":\"select\",\"label\":\"Cache mode\",\"options\":[\"With KV cache\",\"Without cache\"],\"default\":0,\"presentation\":\"Selects the variant. Same tokens and steps; changes the K/V rows recomputed and the attention scores counted\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to Prefill and to With KV cache\"}],\"data\":{\"variants\":[{\"label\":\"With KV cache\",\"regions\":[{\"id\":\"t1\",\"label\":\"t1\",\"kind\":\"token\",\"values\":[\"The\"]},{\"id\":\"t2\",\"label\":\"t2\",\"kind\":\"token\",\"values\":[\"cat\"]},{\"id\":\"t3\",\"label\":\"t3\",\"kind\":\"token\",\"values\":[\"sat\"]},{\"id\":\"t4\",\"label\":\"t4\",\"kind\":\"token\",\"values\":[\"on\"]},{\"id\":\"t5\",\"label\":\"t5\",\"kind\":\"token\",\"values\":[\"the\"]},{\"id\":\"t6\",\"label\":\"t6\",\"kind\":\"token\",\"values\":[\"mat\"]},{\"id\":\"t7\",\"label\":\"t7\",\"kind\":\"token\",\"values\":[\"and\"]},{\"id\":\"t8\",\"label\":\"t8\",\"kind\":\"token\",\"values\":[\"purred\"]},{\"id\":\"proj\",\"label\":\"K/V projection\",\"kind\":\"operation\",\"values\":[\"x·W_K\",\"x·W_V\"]},{\"id\":\"kcache\",\"label\":\"K cache\",\"kind\":\"store\",\"values\":[\"k1\",\"k2\",\"k3\",\"k4\",\"k5\",\"k6\",\"k7\",\"k8\"]},{\"id\":\"vcache\",\"label\":\"V cache\",\"kind\":\"store\",\"values\":[\"v1\",\"v2\",\"v3\",\"v4\",\"v5\",\"v6\",\"v7\",\"v8\"]},{\"id\":\"query\",\"label\":\"Query of newest token\",\"kind\":\"operation\",\"values\":[\"q4\",\"q5\",\"q6\",\"q7\",\"q8\"]},{\"id\":\"attn\",\"label\":\"Attention softmax(q·Kᵀ)V\",\"kind\":\"operation\",\"values\":[\"scores over n keys\"]},{\"id\":\"next\",\"label\":\"Next token\",\"kind\":\"output\",\"values\":[\"the\",\"mat\",\"and\",\"purred\",\".\"]}],\"links\":[{\"from\":\"proj\",\"to\":\"kcache\",\"label\":\"append k\"},{\"from\":\"proj\",\"to\":\"vcache\",\"label\":\"append v\"},{\"from\":\"query\",\"to\":\"attn\",\"label\":\"q\"},{\"from\":\"kcache\",\"to\":\"attn\",\"label\":\"read K\"},{\"from\":\"vcache\",\"to\":\"attn\",\"label\":\"read V\"},{\"from\":\"attn\",\"to\":\"next\",\"label\":\"predict\"}],\"states\":[{\"id\":\"prefill\",\"label\":\"Prefill\",\"sentence\":\"Prefill: the prompt tokens are projected into keys and values once, stored in the cache, and predict “the”.\",\"active\":[\"t1\",\"t2\",\"t3\",\"t4\",\"proj\",\"kcache\",\"vcache\",\"query\",\"attn\",\"next\"],\"calloutRegion\":\"proj\",\"short\":\"Prompt projected once\",\"why\":\"Every prompt token needs a key and value before the first prediction.\",\"readouts\":[{\"id\":\"n\",\"label\":\"Context length n\",\"value\":\"4 tokens\"},{\"id\":\"kv_step\",\"label\":\"K/V rows computed this step\",\"value\":\"4\"},{\"id\":\"kv_total\",\"label\":\"K/V rows computed so far\",\"value\":\"4\"},{\"id\":\"cache\",\"label\":\"Cache rows stored\",\"value\":\"4\"},{\"id\":\"scores\",\"label\":\"Attention scores this step\",\"value\":\"10 = n(n+1)/2, causal\"}]},{\"id\":\"d1\",\"label\":\"Decode 1\",\"sentence\":\"Decode: only “the” is projected; its query attends over cached keys and values to predict “mat”.\",\"active\":[\"t5\",\"proj\",\"kcache\",\"vcache\",\"query\",\"attn\",\"next\"],\"calloutRegion\":\"proj\",\"short\":\"Only the new token is projected\",\"why\":\"Earlier keys and values are unchanged, so they are read from the cache.\",\"readouts\":[{\"id\":\"n\",\"label\":\"Context length n\",\"value\":\"5 tokens\"},{\"id\":\"kv_step\",\"label\":\"K/V rows computed this step\",\"value\":\"1\"},{\"id\":\"kv_total\",\"label\":\"K/V rows computed so far\",\"value\":\"5\"},{\"id\":\"cache\",\"label\":\"Cache rows stored\",\"value\":\"5\"},{\"id\":\"scores\",\"label\":\"Attention scores this step\",\"value\":\"5 = n, one query\"}]},{\"id\":\"d2\",\"label\":\"Decode 2\",\"sentence\":\"Decode: only “mat” is projected and appended; the cache supplies every earlier key and value to predict “and”.\",\"active\":[\"t6\",\"proj\",\"kcache\",\"vcache\",\"query\",\"attn\",\"next\"],\"calloutRegion\":\"kcache\",\"short\":\"Cache grows by one row\",\"why\":\"Each step appends a single key and value; nothing is recomputed.\",\"readouts\":[{\"id\":\"n\",\"label\":\"Context length n\",\"value\":\"6 tokens\"},{\"id\":\"kv_step\",\"label\":\"K/V rows computed this step\",\"value\":\"1\"},{\"id\":\"kv_total\",\"label\":\"K/V rows computed so far\",\"value\":\"6\"},{\"id\":\"cache\",\"label\":\"Cache rows stored\",\"value\":\"6\"},{\"id\":\"scores\",\"label\":\"Attention scores this step\",\"value\":\"6 = n, one query\"}]},{\"id\":\"d3\",\"label\":\"Decode 3\",\"sentence\":\"Decode: only “and” is new work; attention still reads the whole cache to predict “purred”.\",\"active\":[\"t7\",\"proj\",\"kcache\",\"vcache\",\"query\",\"attn\",\"next\"],\"calloutRegion\":\"attn\",\"short\":\"Attention still reads every key\",\"why\":\"Caching saves projection work, not the need to attend over the full context.\",\"readouts\":[{\"id\":\"n\",\"label\":\"Context length n\",\"value\":\"7 tokens\"},{\"id\":\"kv_step\",\"label\":\"K/V rows computed this step\",\"value\":\"1\"},{\"id\":\"kv_total\",\"label\":\"K/V rows computed so far\",\"value\":\"7\"},{\"id\":\"cache\",\"label\":\"Cache rows stored\",\"value\":\"7\"},{\"id\":\"scores\",\"label\":\"Attention scores this step\",\"value\":\"7 = n, one query\"}]},{\"id\":\"d4\",\"label\":\"Decode 4\",\"sentence\":\"Decode: only “purred” is projected; attention over the full cache predicts the final period.\",\"active\":[\"t8\",\"proj\",\"kcache\",\"vcache\",\"query\",\"attn\",\"next\"],\"calloutRegion\":\"proj\",\"short\":\"One row of new work\",\"why\":\"Per-step projection cost stays constant while the context keeps growing.\",\"readouts\":[{\"id\":\"n\",\"label\":\"Context length n\",\"value\":\"8 tokens\"},{\"id\":\"kv_step\",\"label\":\"K/V rows computed this step\",\"value\":\"1\"},{\"id\":\"kv_total\",\"label\":\"K/V rows computed so far\",\"value\":\"8\"},{\"id\":\"cache\",\"label\":\"Cache rows stored\",\"value\":\"8\"},{\"id\":\"scores\",\"label\":\"Attention scores this step\",\"value\":\"8 = n, one query\"}]},{\"id\":\"totals\",\"label\":\"Totals\",\"sentence\":\"Totals: with caching, K/V work grows linearly with token count; recomputing it every step grows quadratically.\",\"active\":[\"kcache\",\"vcache\"],\"calloutRegion\":\"kcache\",\"short\":\"Each row computed exactly once\",\"why\":\"Stored keys and values replace repeated projections of the same tokens.\",\"readouts\":[{\"id\":\"kv_nocache\",\"label\":\"K/V rows without cache, Σn for n=4..8\",\"value\":\"30\"},{\"id\":\"kv_cache\",\"label\":\"K/V rows with cache, P+G\",\"value\":\"8\"},{\"id\":\"saved\",\"label\":\"Rows not recomputed\",\"value\":\"22 (73%, rounded)\"},{\"id\":\"sc_nocache\",\"label\":\"Attention scores without cache, Σn(n+1)/2\",\"value\":\"110\"},{\"id\":\"sc_cache\",\"label\":\"Attention scores with cache\",\"value\":\"36\"}]}]},{\"label\":\"Without cache\",\"regions\":[{\"id\":\"t1\",\"label\":\"t1\",\"kind\":\"token\",\"values\":[\"The\"]},{\"id\":\"t2\",\"label\":\"t2\",\"kind\":\"token\",\"values\":[\"cat\"]},{\"id\":\"t3\",\"label\":\"t3\",\"kind\":\"token\",\"values\":[\"sat\"]},{\"id\":\"t4\",\"label\":\"t4\",\"kind\":\"token\",\"values\":[\"on\"]},{\"id\":\"t5\",\"label\":\"t5\",\"kind\":\"token\",\"values\":[\"the\"]},{\"id\":\"t6\",\"label\":\"t6\",\"kind\":\"token\",\"values\":[\"mat\"]},{\"id\":\"t7\",\"label\":\"t7\",\"kind\":\"token\",\"values\":[\"and\"]},{\"id\":\"t8\",\"label\":\"t8\",\"kind\":\"token\",\"values\":[\"purred\"]},{\"id\":\"proj\",\"label\":\"K/V projection\",\"kind\":\"operation\",\"values\":[\"x·W_K\",\"x·W_V\"]},{\"id\":\"kcache\",\"label\":\"K (discarded after step)\",\"kind\":\"store\",\"values\":[\"k1\",\"k2\",\"k3\",\"k4\",\"k5\",\"k6\",\"k7\",\"k8\"]},{\"id\":\"vcache\",\"label\":\"V (discarded after step)\",\"kind\":\"store\",\"values\":[\"v1\",\"v2\",\"v3\",\"v4\",\"v5\",\"v6\",\"v7\",\"v8\"]},{\"id\":\"query\",\"label\":\"Queries, all positions\",\"kind\":\"operation\",\"values\":[\"q1…qn\"]},{\"id\":\"attn\",\"label\":\"Attention softmax(QKᵀ)V\",\"kind\":\"operation\",\"values\":[\"causal scores over n keys\"]},{\"id\":\"next\",\"label\":\"Next token\",\"kind\":\"output\",\"values\":[\"the\",\"mat\",\"and\",\"purred\",\".\"]}],\"links\":[{\"from\":\"proj\",\"to\":\"kcache\",\"label\":\"temporary K\"},{\"from\":\"proj\",\"to\":\"vcache\",\"label\":\"temporary V\"},{\"from\":\"query\",\"to\":\"attn\",\"label\":\"Q\"},{\"from\":\"kcache\",\"to\":\"attn\",\"label\":\"K\"},{\"from\":\"vcache\",\"to\":\"attn\",\"label\":\"V\"},{\"from\":\"attn\",\"to\":\"next\",\"label\":\"predict\"}],\"states\":[{\"id\":\"prefill\",\"label\":\"Prefill\",\"sentence\":\"Prefill: the prompt tokens are projected into keys and values, used once to predict “the”, then discarded.\",\"active\":[\"t1\",\"t2\",\"t3\",\"t4\",\"proj\",\"kcache\",\"vcache\",\"query\",\"attn\",\"next\"],\"calloutRegion\":\"kcache\",\"short\":\"Keys and values thrown away\",\"why\":\"Nothing is kept, so the next step must rebuild them.\",\"readouts\":[{\"id\":\"n\",\"label\":\"Context length n\",\"value\":\"4 tokens\"},{\"id\":\"kv_step\",\"label\":\"K/V rows computed this step\",\"value\":\"4\"},{\"id\":\"kv_total\",\"label\":\"K/V rows computed so far\",\"value\":\"4\"},{\"id\":\"cache\",\"label\":\"Cache rows stored\",\"value\":\"0\"},{\"id\":\"scores\",\"label\":\"Attention scores this step\",\"value\":\"10 = n(n+1)/2, causal\"}]},{\"id\":\"d1\",\"label\":\"Decode 1\",\"sentence\":\"Decode: all tokens through “the” are re-projected from scratch so the new query can attend; predicts “mat”.\",\"active\":[\"t1\",\"t2\",\"t3\",\"t4\",\"t5\",\"proj\",\"kcache\",\"vcache\",\"query\",\"attn\",\"next\"],\"calloutRegion\":\"proj\",\"short\":\"Whole context re-projected\",\"why\":\"Without stored keys and values, earlier tokens are recomputed to be attended.\",\"readouts\":[{\"id\":\"n\",\"label\":\"Context length n\",\"value\":\"5 tokens\"},{\"id\":\"kv_step\",\"label\":\"K/V rows computed this step\",\"value\":\"5\"},{\"id\":\"kv_total\",\"label\":\"K/V rows computed so far\",\"value\":\"9\"},{\"id\":\"cache\",\"label\":\"Cache rows stored\",\"value\":\"0\"},{\"id\":\"scores\",\"label\":\"Attention scores this step\",\"value\":\"15 = n(n+1)/2, causal\"}]},{\"id\":\"d2\",\"label\":\"Decode 2\",\"sentence\":\"Decode: the whole context through “mat” is re-projected again, repeating work already done; predicts “and”.\",\"active\":[\"t1\",\"t2\",\"t3\",\"t4\",\"t5\",\"t6\",\"proj\",\"kcache\",\"vcache\",\"query\",\"attn\",\"next\"],\"calloutRegion\":\"proj\",\"short\":\"Same rows computed again\",\"why\":\"Earlier tokens' keys and values are identical to last step's.\",\"readouts\":[{\"id\":\"n\",\"label\":\"Context length n\",\"value\":\"6 tokens\"},{\"id\":\"kv_step\",\"label\":\"K/V rows computed this step\",\"value\":\"6\"},{\"id\":\"kv_total\",\"label\":\"K/V rows computed so far\",\"value\":\"15\"},{\"id\":\"cache\",\"label\":\"Cache rows stored\",\"value\":\"0\"},{\"id\":\"scores\",\"label\":\"Attention scores this step\",\"value\":\"21 = n(n+1)/2, causal\"}]},{\"id\":\"d3\",\"label\":\"Decode 3\",\"sentence\":\"Decode: every earlier key and value is recomputed once more before predicting “purred”.\",\"active\":[\"t1\",\"t2\",\"t3\",\"t4\",\"t5\",\"t6\",\"t7\",\"proj\",\"kcache\",\"vcache\",\"query\",\"attn\",\"next\"],\"calloutRegion\":\"attn\",\"short\":\"All positions re-attended\",\"why\":\"Only the newest position's output is used; the rest is wasted work.\",\"readouts\":[{\"id\":\"n\",\"label\":\"Context length n\",\"value\":\"7 tokens\"},{\"id\":\"kv_step\",\"label\":\"K/V rows computed this step\",\"value\":\"7\"},{\"id\":\"kv_total\",\"label\":\"K/V rows computed so far\",\"value\":\"22\"},{\"id\":\"cache\",\"label\":\"Cache rows stored\",\"value\":\"0\"},{\"id\":\"scores\",\"label\":\"Attention scores this step\",\"value\":\"28 = n(n+1)/2, causal\"}]},{\"id\":\"d4\",\"label\":\"Decode 4\",\"sentence\":\"Decode: the full context is re-projected yet again before predicting the final period.\",\"active\":[\"t1\",\"t2\",\"t3\",\"t4\",\"t5\",\"t6\",\"t7\",\"t8\",\"proj\",\"kcache\",\"vcache\",\"query\",\"attn\",\"next\"],\"calloutRegion\":\"proj\",\"short\":\"Per-step work keeps growing\",\"why\":\"Each step's cost scales with the whole context length.\",\"readouts\":[{\"id\":\"n\",\"label\":\"Context length n\",\"value\":\"8 tokens\"},{\"id\":\"kv_step\",\"label\":\"K/V rows computed this step\",\"value\":\"8\"},{\"id\":\"kv_total\",\"label\":\"K/V rows computed so far\",\"value\":\"30\"},{\"id\":\"cache\",\"label\":\"Cache rows stored\",\"value\":\"0\"},{\"id\":\"scores\",\"label\":\"Attention scores this step\",\"value\":\"36 = n(n+1)/2, causal\"}]},{\"id\":\"totals\",\"label\":\"Totals\",\"sentence\":\"Totals: with caching, K/V work grows linearly with token count; recomputing it every step grows quadratically.\",\"active\":[\"kcache\",\"vcache\"],\"calloutRegion\":\"proj\",\"short\":\"Repeated projections add up\",\"why\":\"Each step redoes every earlier token's projection.\",\"readouts\":[{\"id\":\"kv_nocache\",\"label\":\"K/V rows without cache, Σn for n=4..8\",\"value\":\"30\"},{\"id\":\"kv_cache\",\"label\":\"K/V rows with cache, P+G\",\"value\":\"8\"},{\"id\":\"saved\",\"label\":\"Rows not recomputed\",\"value\":\"22 (73%, rounded)\"},{\"id\":\"sc_nocache\",\"label\":\"Attention scores without cache, Σn(n+1)/2\",\"value\":\"110\"},{\"id\":\"sc_cache\",\"label\":\"Attention scores with cache\",\"value\":\"36\"}]}]}]}}",
+ "composition": {
+  "story": "A 4-token prompt generates 4 more tokens, one per step, using one layer and one head. Each new query must attend to every earlier key and value. Step through with the KV cache, then switch to Without cache: every step then recomputes K and V for the whole context. The Totals step compares Σn with P+G.",
+  "aha": {
+   "stateId": "totals",
+   "observation": "With the cache, each token's key and value are projected once (P+G = 8 rows). Without it, every step re-projects the whole context (Σn = 30 rows)."
+  },
+  "layout": {
+   "preset": "stepper-algorithm",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.short",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons; names kept when disabled at the first and last step"
+   },
+   {
+    "id": "mode",
+    "kind": "select",
+    "label": "Cache mode",
+    "options": [
+     "With KV cache",
+     "Without cache"
+    ],
+    "default": 0,
+    "presentation": "Selects the variant. Same tokens and steps; changes the K/V rows recomputed and the attention scores counted"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to Prefill and to With KV cache"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "With KV cache",
+     "regions": [
+      {
+       "id": "t1",
+       "label": "t1",
+       "kind": "token",
+       "values": [
+        "The"
+       ]
+      },
+      {
+       "id": "t2",
+       "label": "t2",
+       "kind": "token",
+       "values": [
+        "cat"
+       ]
+      },
+      {
+       "id": "t3",
+       "label": "t3",
+       "kind": "token",
+       "values": [
+        "sat"
+       ]
+      },
+      {
+       "id": "t4",
+       "label": "t4",
+       "kind": "token",
+       "values": [
+        "on"
+       ]
+      },
+      {
+       "id": "t5",
+       "label": "t5",
+       "kind": "token",
+       "values": [
+        "the"
+       ]
+      },
+      {
+       "id": "t6",
+       "label": "t6",
+       "kind": "token",
+       "values": [
+        "mat"
+       ]
+      },
+      {
+       "id": "t7",
+       "label": "t7",
+       "kind": "token",
+       "values": [
+        "and"
+       ]
+      },
+      {
+       "id": "t8",
+       "label": "t8",
+       "kind": "token",
+       "values": [
+        "purred"
+       ]
+      },
+      {
+       "id": "proj",
+       "label": "K/V projection",
+       "kind": "operation",
+       "values": [
+        "x·W_K",
+        "x·W_V"
+       ]
+      },
+      {
+       "id": "kcache",
+       "label": "K cache",
+       "kind": "store",
+       "values": [
+        "k1",
+        "k2",
+        "k3",
+        "k4",
+        "k5",
+        "k6",
+        "k7",
+        "k8"
+       ]
+      },
+      {
+       "id": "vcache",
+       "label": "V cache",
+       "kind": "store",
+       "values": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "v7",
+        "v8"
+       ]
+      },
+      {
+       "id": "query",
+       "label": "Query of newest token",
+       "kind": "operation",
+       "values": [
+        "q4",
+        "q5",
+        "q6",
+        "q7",
+        "q8"
+       ]
+      },
+      {
+       "id": "attn",
+       "label": "Attention softmax(q·Kᵀ)V",
+       "kind": "operation",
+       "values": [
+        "scores over n keys"
+       ]
+      },
+      {
+       "id": "next",
+       "label": "Next token",
+       "kind": "output",
+       "values": [
+        "the",
+        "mat",
+        "and",
+        "purred",
+        "."
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "proj",
+       "to": "kcache",
+       "label": "append k"
+      },
+      {
+       "from": "proj",
+       "to": "vcache",
+       "label": "append v"
+      },
+      {
+       "from": "query",
+       "to": "attn",
+       "label": "q"
+      },
+      {
+       "from": "kcache",
+       "to": "attn",
+       "label": "read K"
+      },
+      {
+       "from": "vcache",
+       "to": "attn",
+       "label": "read V"
+      },
+      {
+       "from": "attn",
+       "to": "next",
+       "label": "predict"
+      }
+     ],
+     "states": [
+      {
+       "id": "prefill",
+       "label": "Prefill",
+       "sentence": "Prefill: the prompt tokens are projected into keys and values once, stored in the cache, and predict “the”.",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "proj",
+        "kcache",
+        "vcache",
+        "query",
+        "attn",
+        "next"
+       ],
+       "calloutRegion": "proj",
+       "short": "Prompt projected once",
+       "why": "Every prompt token needs a key and value before the first prediction.",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Context length n",
+         "value": "4 tokens"
+        },
+        {
+         "id": "kv_step",
+         "label": "K/V rows computed this step",
+         "value": "4"
+        },
+        {
+         "id": "kv_total",
+         "label": "K/V rows computed so far",
+         "value": "4"
+        },
+        {
+         "id": "cache",
+         "label": "Cache rows stored",
+         "value": "4"
+        },
+        {
+         "id": "scores",
+         "label": "Attention scores this step",
+         "value": "10 = n(n+1)/2, causal"
+        }
+       ]
+      },
+      {
+       "id": "d1",
+       "label": "Decode 1",
+       "sentence": "Decode: only “the” is projected; its query attends over cached keys and values to predict “mat”.",
+       "active": [
+        "t5",
+        "proj",
+        "kcache",
+        "vcache",
+        "query",
+        "attn",
+        "next"
+       ],
+       "calloutRegion": "proj",
+       "short": "Only the new token is projected",
+       "why": "Earlier keys and values are unchanged, so they are read from the cache.",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Context length n",
+         "value": "5 tokens"
+        },
+        {
+         "id": "kv_step",
+         "label": "K/V rows computed this step",
+         "value": "1"
+        },
+        {
+         "id": "kv_total",
+         "label": "K/V rows computed so far",
+         "value": "5"
+        },
+        {
+         "id": "cache",
+         "label": "Cache rows stored",
+         "value": "5"
+        },
+        {
+         "id": "scores",
+         "label": "Attention scores this step",
+         "value": "5 = n, one query"
+        }
+       ]
+      },
+      {
+       "id": "d2",
+       "label": "Decode 2",
+       "sentence": "Decode: only “mat” is projected and appended; the cache supplies every earlier key and value to predict “and”.",
+       "active": [
+        "t6",
+        "proj",
+        "kcache",
+        "vcache",
+        "query",
+        "attn",
+        "next"
+       ],
+       "calloutRegion": "kcache",
+       "short": "Cache grows by one row",
+       "why": "Each step appends a single key and value; nothing is recomputed.",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Context length n",
+         "value": "6 tokens"
+        },
+        {
+         "id": "kv_step",
+         "label": "K/V rows computed this step",
+         "value": "1"
+        },
+        {
+         "id": "kv_total",
+         "label": "K/V rows computed so far",
+         "value": "6"
+        },
+        {
+         "id": "cache",
+         "label": "Cache rows stored",
+         "value": "6"
+        },
+        {
+         "id": "scores",
+         "label": "Attention scores this step",
+         "value": "6 = n, one query"
+        }
+       ]
+      },
+      {
+       "id": "d3",
+       "label": "Decode 3",
+       "sentence": "Decode: only “and” is new work; attention still reads the whole cache to predict “purred”.",
+       "active": [
+        "t7",
+        "proj",
+        "kcache",
+        "vcache",
+        "query",
+        "attn",
+        "next"
+       ],
+       "calloutRegion": "attn",
+       "short": "Attention still reads every key",
+       "why": "Caching saves projection work, not the need to attend over the full context.",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Context length n",
+         "value": "7 tokens"
+        },
+        {
+         "id": "kv_step",
+         "label": "K/V rows computed this step",
+         "value": "1"
+        },
+        {
+         "id": "kv_total",
+         "label": "K/V rows computed so far",
+         "value": "7"
+        },
+        {
+         "id": "cache",
+         "label": "Cache rows stored",
+         "value": "7"
+        },
+        {
+         "id": "scores",
+         "label": "Attention scores this step",
+         "value": "7 = n, one query"
+        }
+       ]
+      },
+      {
+       "id": "d4",
+       "label": "Decode 4",
+       "sentence": "Decode: only “purred” is projected; attention over the full cache predicts the final period.",
+       "active": [
+        "t8",
+        "proj",
+        "kcache",
+        "vcache",
+        "query",
+        "attn",
+        "next"
+       ],
+       "calloutRegion": "proj",
+       "short": "One row of new work",
+       "why": "Per-step projection cost stays constant while the context keeps growing.",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Context length n",
+         "value": "8 tokens"
+        },
+        {
+         "id": "kv_step",
+         "label": "K/V rows computed this step",
+         "value": "1"
+        },
+        {
+         "id": "kv_total",
+         "label": "K/V rows computed so far",
+         "value": "8"
+        },
+        {
+         "id": "cache",
+         "label": "Cache rows stored",
+         "value": "8"
+        },
+        {
+         "id": "scores",
+         "label": "Attention scores this step",
+         "value": "8 = n, one query"
+        }
+       ]
+      },
+      {
+       "id": "totals",
+       "label": "Totals",
+       "sentence": "Totals: with caching, K/V work grows linearly with token count; recomputing it every step grows quadratically.",
+       "active": [
+        "kcache",
+        "vcache"
+       ],
+       "calloutRegion": "kcache",
+       "short": "Each row computed exactly once",
+       "why": "Stored keys and values replace repeated projections of the same tokens.",
+       "readouts": [
+        {
+         "id": "kv_nocache",
+         "label": "K/V rows without cache, Σn for n=4..8",
+         "value": "30"
+        },
+        {
+         "id": "kv_cache",
+         "label": "K/V rows with cache, P+G",
+         "value": "8"
+        },
+        {
+         "id": "saved",
+         "label": "Rows not recomputed",
+         "value": "22 (73%, rounded)"
+        },
+        {
+         "id": "sc_nocache",
+         "label": "Attention scores without cache, Σn(n+1)/2",
+         "value": "110"
+        },
+        {
+         "id": "sc_cache",
+         "label": "Attention scores with cache",
+         "value": "36"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Without cache",
+     "regions": [
+      {
+       "id": "t1",
+       "label": "t1",
+       "kind": "token",
+       "values": [
+        "The"
+       ]
+      },
+      {
+       "id": "t2",
+       "label": "t2",
+       "kind": "token",
+       "values": [
+        "cat"
+       ]
+      },
+      {
+       "id": "t3",
+       "label": "t3",
+       "kind": "token",
+       "values": [
+        "sat"
+       ]
+      },
+      {
+       "id": "t4",
+       "label": "t4",
+       "kind": "token",
+       "values": [
+        "on"
+       ]
+      },
+      {
+       "id": "t5",
+       "label": "t5",
+       "kind": "token",
+       "values": [
+        "the"
+       ]
+      },
+      {
+       "id": "t6",
+       "label": "t6",
+       "kind": "token",
+       "values": [
+        "mat"
+       ]
+      },
+      {
+       "id": "t7",
+       "label": "t7",
+       "kind": "token",
+       "values": [
+        "and"
+       ]
+      },
+      {
+       "id": "t8",
+       "label": "t8",
+       "kind": "token",
+       "values": [
+        "purred"
+       ]
+      },
+      {
+       "id": "proj",
+       "label": "K/V projection",
+       "kind": "operation",
+       "values": [
+        "x·W_K",
+        "x·W_V"
+       ]
+      },
+      {
+       "id": "kcache",
+       "label": "K (discarded after step)",
+       "kind": "store",
+       "values": [
+        "k1",
+        "k2",
+        "k3",
+        "k4",
+        "k5",
+        "k6",
+        "k7",
+        "k8"
+       ]
+      },
+      {
+       "id": "vcache",
+       "label": "V (discarded after step)",
+       "kind": "store",
+       "values": [
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "v7",
+        "v8"
+       ]
+      },
+      {
+       "id": "query",
+       "label": "Queries, all positions",
+       "kind": "operation",
+       "values": [
+        "q1…qn"
+       ]
+      },
+      {
+       "id": "attn",
+       "label": "Attention softmax(QKᵀ)V",
+       "kind": "operation",
+       "values": [
+        "causal scores over n keys"
+       ]
+      },
+      {
+       "id": "next",
+       "label": "Next token",
+       "kind": "output",
+       "values": [
+        "the",
+        "mat",
+        "and",
+        "purred",
+        "."
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "proj",
+       "to": "kcache",
+       "label": "temporary K"
+      },
+      {
+       "from": "proj",
+       "to": "vcache",
+       "label": "temporary V"
+      },
+      {
+       "from": "query",
+       "to": "attn",
+       "label": "Q"
+      },
+      {
+       "from": "kcache",
+       "to": "attn",
+       "label": "K"
+      },
+      {
+       "from": "vcache",
+       "to": "attn",
+       "label": "V"
+      },
+      {
+       "from": "attn",
+       "to": "next",
+       "label": "predict"
+      }
+     ],
+     "states": [
+      {
+       "id": "prefill",
+       "label": "Prefill",
+       "sentence": "Prefill: the prompt tokens are projected into keys and values, used once to predict “the”, then discarded.",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "proj",
+        "kcache",
+        "vcache",
+        "query",
+        "attn",
+        "next"
+       ],
+       "calloutRegion": "kcache",
+       "short": "Keys and values thrown away",
+       "why": "Nothing is kept, so the next step must rebuild them.",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Context length n",
+         "value": "4 tokens"
+        },
+        {
+         "id": "kv_step",
+         "label": "K/V rows computed this step",
+         "value": "4"
+        },
+        {
+         "id": "kv_total",
+         "label": "K/V rows computed so far",
+         "value": "4"
+        },
+        {
+         "id": "cache",
+         "label": "Cache rows stored",
+         "value": "0"
+        },
+        {
+         "id": "scores",
+         "label": "Attention scores this step",
+         "value": "10 = n(n+1)/2, causal"
+        }
+       ]
+      },
+      {
+       "id": "d1",
+       "label": "Decode 1",
+       "sentence": "Decode: all tokens through “the” are re-projected from scratch so the new query can attend; predicts “mat”.",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "proj",
+        "kcache",
+        "vcache",
+        "query",
+        "attn",
+        "next"
+       ],
+       "calloutRegion": "proj",
+       "short": "Whole context re-projected",
+       "why": "Without stored keys and values, earlier tokens are recomputed to be attended.",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Context length n",
+         "value": "5 tokens"
+        },
+        {
+         "id": "kv_step",
+         "label": "K/V rows computed this step",
+         "value": "5"
+        },
+        {
+         "id": "kv_total",
+         "label": "K/V rows computed so far",
+         "value": "9"
+        },
+        {
+         "id": "cache",
+         "label": "Cache rows stored",
+         "value": "0"
+        },
+        {
+         "id": "scores",
+         "label": "Attention scores this step",
+         "value": "15 = n(n+1)/2, causal"
+        }
+       ]
+      },
+      {
+       "id": "d2",
+       "label": "Decode 2",
+       "sentence": "Decode: the whole context through “mat” is re-projected again, repeating work already done; predicts “and”.",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "t6",
+        "proj",
+        "kcache",
+        "vcache",
+        "query",
+        "attn",
+        "next"
+       ],
+       "calloutRegion": "proj",
+       "short": "Same rows computed again",
+       "why": "Earlier tokens' keys and values are identical to last step's.",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Context length n",
+         "value": "6 tokens"
+        },
+        {
+         "id": "kv_step",
+         "label": "K/V rows computed this step",
+         "value": "6"
+        },
+        {
+         "id": "kv_total",
+         "label": "K/V rows computed so far",
+         "value": "15"
+        },
+        {
+         "id": "cache",
+         "label": "Cache rows stored",
+         "value": "0"
+        },
+        {
+         "id": "scores",
+         "label": "Attention scores this step",
+         "value": "21 = n(n+1)/2, causal"
+        }
+       ]
+      },
+      {
+       "id": "d3",
+       "label": "Decode 3",
+       "sentence": "Decode: every earlier key and value is recomputed once more before predicting “purred”.",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "t6",
+        "t7",
+        "proj",
+        "kcache",
+        "vcache",
+        "query",
+        "attn",
+        "next"
+       ],
+       "calloutRegion": "attn",
+       "short": "All positions re-attended",
+       "why": "Only the newest position's output is used; the rest is wasted work.",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Context length n",
+         "value": "7 tokens"
+        },
+        {
+         "id": "kv_step",
+         "label": "K/V rows computed this step",
+         "value": "7"
+        },
+        {
+         "id": "kv_total",
+         "label": "K/V rows computed so far",
+         "value": "22"
+        },
+        {
+         "id": "cache",
+         "label": "Cache rows stored",
+         "value": "0"
+        },
+        {
+         "id": "scores",
+         "label": "Attention scores this step",
+         "value": "28 = n(n+1)/2, causal"
+        }
+       ]
+      },
+      {
+       "id": "d4",
+       "label": "Decode 4",
+       "sentence": "Decode: the full context is re-projected yet again before predicting the final period.",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "t6",
+        "t7",
+        "t8",
+        "proj",
+        "kcache",
+        "vcache",
+        "query",
+        "attn",
+        "next"
+       ],
+       "calloutRegion": "proj",
+       "short": "Per-step work keeps growing",
+       "why": "Each step's cost scales with the whole context length.",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Context length n",
+         "value": "8 tokens"
+        },
+        {
+         "id": "kv_step",
+         "label": "K/V rows computed this step",
+         "value": "8"
+        },
+        {
+         "id": "kv_total",
+         "label": "K/V rows computed so far",
+         "value": "30"
+        },
+        {
+         "id": "cache",
+         "label": "Cache rows stored",
+         "value": "0"
+        },
+        {
+         "id": "scores",
+         "label": "Attention scores this step",
+         "value": "36 = n(n+1)/2, causal"
+        }
+       ]
+      },
+      {
+       "id": "totals",
+       "label": "Totals",
+       "sentence": "Totals: with caching, K/V work grows linearly with token count; recomputing it every step grows quadratically.",
+       "active": [
+        "kcache",
+        "vcache"
+       ],
+       "calloutRegion": "proj",
+       "short": "Repeated projections add up",
+       "why": "Each step redoes every earlier token's projection.",
+       "readouts": [
+        {
+         "id": "kv_nocache",
+         "label": "K/V rows without cache, Σn for n=4..8",
+         "value": "30"
+        },
+        {
+         "id": "kv_cache",
+         "label": "K/V rows with cache, P+G",
+         "value": "8"
+        },
+        {
+         "id": "saved",
+         "label": "Rows not recomputed",
+         "value": "22 (73%, rounded)"
+        },
+        {
+         "id": "sc_nocache",
+         "label": "Attention scores without cache, Σn(n+1)/2",
+         "value": "110"
+        },
+        {
+         "id": "sc_cache",
+         "label": "Attention scores with cache",
+         "value": "36"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3071,
+  "output": 10005
+ },
+ "usd": 0.212384,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of tokens, projection, K/V stores, query and attention, with active regions per step, shows whether earlier K/V are reused or recomputed, which answers why caching saves work."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The stepper rests on the Totals state, which carries the 30 vs 8 rows comparison, until the learner presses Next or changes mode, and nothing is timed."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The mode select swaps the active token sets, the rows computed per step (1 vs n), and the cache contents (n vs 0), and the step control moves through different states with different readouts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callout targets are declared region ids, the active lists drive the highlights, the ghost binds to previous.active, and the readouts bind to state.readouts, so every part traces to declared data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, the sentences, the region labels (K cache vs \"K (discarded after step)\") and the controls consistently name the same tokens, projection, cache and Totals step, apart from a minor \"4 more tokens\" vs 5 predictions mismatch."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The detailed depth adds the per-step and cumulative row counts and the score formulas n(n+1)/2 vs n, which are the formula and count the mechanism needs, and the picture stays one fixed layout with a single active set."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": ""
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.028078
+ }
+}

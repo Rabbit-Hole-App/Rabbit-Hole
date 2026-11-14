@@ -1,0 +1,284 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a29",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "What happens to the training weights after AdaBoost gets one example wrong?",
+ "ts": "2026-11-14T22:22:29.287Z",
+ "ms": 3328,
+ "raw": "{\n  \"story\": \"AdaBoost increases the weight of misclassified training examples so subsequent weak learners focus on hard cases.\",\n  \"aha\": {\n    \"stateId\": \"step-boost\",\n    \"observation\": \"The misclassified example's weight is scaled up significantly by the exponential error factor.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"AdaBoost Step\",\n      \"options\": [\n        \"Initialize\",\n        \"Predict\",\n        \"Evaluate\",\n        \"Boost\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"AdaBoost Weights Update\",\n        \"regions\": [\n          {\n            \"id\": \"ex1\",\n            \"label\": \"Example A (Correct)\",\n            \"kind\": \"cell\",\n            \"values\": [\"x=1\", \"y=+1\", \"w=0.25\"]\n          },\n          {\n            \"id\": \"ex2\",\n            \"label\": \"Example B (Wrong)\",\n            \"kind\": \"cell\",\n            \"values\": [\"x=2\", \"y=-1\", \"w=0.25\"]\n          },\n          {\n            \"id\": \"ex3\",\n            \"label\": \"Example C (Correct)\",\n            \"kind\": \"cell\",\n            \"values\": [\"x=3\", \"y=+1\", \"w=0.25\"]\n          },\n          {\n            \"id\": \"ex4\",\n            \"label\": \"Example D (Correct)\",\n            \"kind\": \"cell\",\n            \"values\": [\"x=4\", \"y=-1\", \"w=0.25\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"step-init\",\n            \"label\": \"Initialize\",\n            \"short\": \"Init\",\n            \"sentence\": \"All training examples start with equal uniform weights.\",\n            \"why\": \"Uniform distribution gives every sample an equal initial vote.\",\n            \"active\": [\"ex1\", \"ex2\", \"ex3\", \"ex4\"],\n            \"calloutRegion\": \"ex1\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Total Weight\",\n                \"value\": \"1.00\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Error Rate\",\n                \"value\": \"0.00\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-pred\",\n            \"label\": \"Predict\",\n            \"short\": \"Predict\",\n            \"sentence\": \"The weak learner classifies the four examples.\",\n            \"why\": \"Testing current model hypothesis against labels.\",\n            \"active\": [\"ex1\", \"ex2\", \"ex3\", \"ex4\"],\n            \"calloutRegion\": \"ex2\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Correct\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Mistakes\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-eval\",\n            \"label\": \"Evaluate\",\n            \"short\": \"Eval\",\n            \"sentence\": \"Example B is incorrectly predicted by the learner.\",\n            \"why\": \"Identifying the error source to compute stage value alpha.\",\n            \"active\": [\"ex2\"],\n            \"calloutRegion\": \"ex2\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Error epsilon\",\n                \"value\": \"0.25\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Model alpha\",\n                \"value\": \"0.69\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-boost\",\n            \"label\": \"Boost\",\n            \"short\": \"Boost\",\n            \"sentence\": \"The wrong example's weight increases while correct ones shrink.\",\n            \"why\": \"Exponential multiplier amplifies penalty on missed items.\",\n            \"active\": [\"ex2\"],\n            \"calloutRegion\": \"ex2\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"New Weight B\",\n                \"value\": \"0.50\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Normalized Sum\",\n                \"value\": \"1.00\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "AdaBoost increases the weight of misclassified training examples so subsequent weak learners focus on hard cases.",
+  "aha": {
+   "stateId": "step-boost",
+   "observation": "The misclassified example's weight is scaled up significantly by the exponential error factor."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "AdaBoost Step",
+    "options": [
+     "Initialize",
+     "Predict",
+     "Evaluate",
+     "Boost"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "AdaBoost Weights Update",
+     "regions": [
+      {
+       "id": "ex1",
+       "label": "Example A (Correct)",
+       "kind": "cell",
+       "values": [
+        "x=1",
+        "y=+1",
+        "w=0.25"
+       ]
+      },
+      {
+       "id": "ex2",
+       "label": "Example B (Wrong)",
+       "kind": "cell",
+       "values": [
+        "x=2",
+        "y=-1",
+        "w=0.25"
+       ]
+      },
+      {
+       "id": "ex3",
+       "label": "Example C (Correct)",
+       "kind": "cell",
+       "values": [
+        "x=3",
+        "y=+1",
+        "w=0.25"
+       ]
+      },
+      {
+       "id": "ex4",
+       "label": "Example D (Correct)",
+       "kind": "cell",
+       "values": [
+        "x=4",
+        "y=-1",
+        "w=0.25"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "step-init",
+       "label": "Initialize",
+       "short": "Init",
+       "sentence": "All training examples start with equal uniform weights.",
+       "why": "Uniform distribution gives every sample an equal initial vote.",
+       "active": [
+        "ex1",
+        "ex2",
+        "ex3",
+        "ex4"
+       ],
+       "calloutRegion": "ex1",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Total Weight",
+         "value": "1.00"
+        },
+        {
+         "id": "r2",
+         "label": "Error Rate",
+         "value": "0.00"
+        }
+       ]
+      },
+      {
+       "id": "step-pred",
+       "label": "Predict",
+       "short": "Predict",
+       "sentence": "The weak learner classifies the four examples.",
+       "why": "Testing current model hypothesis against labels.",
+       "active": [
+        "ex1",
+        "ex2",
+        "ex3",
+        "ex4"
+       ],
+       "calloutRegion": "ex2",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Correct",
+         "value": "3"
+        },
+        {
+         "id": "r2",
+         "label": "Mistakes",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "step-eval",
+       "label": "Evaluate",
+       "short": "Eval",
+       "sentence": "Example B is incorrectly predicted by the learner.",
+       "why": "Identifying the error source to compute stage value alpha.",
+       "active": [
+        "ex2"
+       ],
+       "calloutRegion": "ex2",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Error epsilon",
+         "value": "0.25"
+        },
+        {
+         "id": "r2",
+         "label": "Model alpha",
+         "value": "0.69"
+        }
+       ]
+      },
+      {
+       "id": "step-boost",
+       "label": "Boost",
+       "short": "Boost",
+       "sentence": "The wrong example's weight increases while correct ones shrink.",
+       "why": "Exponential multiplier amplifies penalty on missed items.",
+       "active": [
+        "ex2"
+       ],
+       "calloutRegion": "ex2",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "New Weight B",
+         "value": "0.50"
+        },
+        {
+         "id": "r2",
+         "label": "Normalized Sum",
+         "value": "1.00"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1110,
+  "output": 1429
+ },
+ "usd": 0.003906,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The four example cells and the step sequence show how a single misclassified example (B) gets up-weighted, which answers one clear question."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state step-boost is the last step of a learner-driven stepper, so it holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only input is stepIndex, and each step changes the active regions, callout and readouts, which is acceptable for a stepper."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The regions keep static w=0.25 values, so the picture never shows the updated weights, and the Boost callout says correct ones shrink while only ex2 is active, so that claim has no bound marks or values."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, callouts and Example B naming consistently refer to the same objects and events (initialize, predict, evaluate, boost)."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The four-cell row has a single highlighted region and two readouts per step, which is appropriately light for the balanced depth."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "With epsilon=0.25, alpha=0.5*ln(3)≈0.55, not the 0.69 shown, and the 0.50 weight for B only works out with alpha≈0.55, so the readouts are inconsistent."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.017552
+ }
+}

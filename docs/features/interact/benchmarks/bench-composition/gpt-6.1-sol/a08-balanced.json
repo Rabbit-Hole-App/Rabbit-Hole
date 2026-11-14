@@ -1,0 +1,468 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a08",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does the human heart pump blood?",
+ "ts": "2026-11-14T22:28:16.837Z",
+ "ms": 102614,
+ "raw": "{\n  \"story\": \"Follow a simplified, healthy resting heartbeat. Atria receive blood; ventricles pump it. Both sides are synchronized here. Compare filling and squeezing through pressure and valve states. Watch blood leave toward the lungs and body instead of returning to the atria. Use Previous and Next; Reset restarts.\",\n  \"aha\": {\n    \"stateId\": \"ejection\",\n    \"observation\": \"Squeezing ventricles raise pressure, closing inlet valves and opening outlet valves so blood moves toward the lungs and body.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"heartbeat-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation and above the experiment. Show ordered states, completed states, and the active state without clock markings.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"circulation-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the fixed cycle arrangement with paired heart pathways. Keep every named region visible and stationary. Arrows indicate anatomical routes, not continuous flow. Highlight only the bound active regions. Use readable labels without animated particles, anatomical scaling, or changing chamber geometry.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"phase-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show four compact rows beneath the picture. Compare pressures within each side, never across sides. Comparisons are qualitative, so units and rounding do not apply. Volume describes change during the selected phase, not a numerical measurement.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"active-status\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the named target without covering labels. Use the bound sentence as the status line and the reason as its explanation.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"heartbeat-state\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Heartbeat state\",\n      \"presentation\": \"Use Previous and Next with one-state increments, defaulting to the first state. Bounds are the first and last states, without wrapping. Retain both names when boundary buttons are disabled. Every state persists until learner action, including ejection. Reference captures show ejection. Balanced parameter-control budget: zero; navigation and Reset are separate. Fixed assumptions are healthy valves, resting circulation, and simplified synchronization between sides. Provide keyboard operation, visible focus, and accessible names matching visible labels.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all fixed defaults. Provide keyboard operation, visible focus, and the accessible name Reset.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Simplified healthy resting heartbeat\",\n        \"regions\": [\n          {\n            \"id\": \"body\",\n            \"label\": \"Body\",\n            \"values\": [\"Systemic circulation\"]\n          },\n          {\n            \"id\": \"right-atrium\",\n            \"label\": \"Right atrium\",\n            \"values\": [\"Receiving chamber\"]\n          },\n          {\n            \"id\": \"tricuspid\",\n            \"label\": \"Tricuspid valve\",\n            \"values\": [\"Right inlet\"]\n          },\n          {\n            \"id\": \"right-ventricle\",\n            \"label\": \"Right ventricle\",\n            \"values\": [\"Pumping chamber\"]\n          },\n          {\n            \"id\": \"pulmonary\",\n            \"label\": \"Pulmonary valve\",\n            \"values\": [\"Right outlet\"]\n          },\n          {\n            \"id\": \"lungs\",\n            \"label\": \"Lungs\",\n            \"values\": [\"Pulmonary circulation\"]\n          },\n          {\n            \"id\": \"left-atrium\",\n            \"label\": \"Left atrium\",\n            \"values\": [\"Receiving chamber\"]\n          },\n          {\n            \"id\": \"mitral\",\n            \"label\": \"Mitral valve\",\n            \"values\": [\"Left inlet\"]\n          },\n          {\n            \"id\": \"left-ventricle\",\n            \"label\": \"Left ventricle\",\n            \"values\": [\"Pumping chamber\"]\n          },\n          {\n            \"id\": \"aortic\",\n            \"label\": \"Aortic valve\",\n            \"values\": [\"Left outlet\"]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"body\",\n            \"to\": \"right-atrium\"\n          },\n          {\n            \"from\": \"right-atrium\",\n            \"to\": \"tricuspid\"\n          },\n          {\n            \"from\": \"tricuspid\",\n            \"to\": \"right-ventricle\"\n          },\n          {\n            \"from\": \"right-ventricle\",\n            \"to\": \"pulmonary\"\n          },\n          {\n            \"from\": \"pulmonary\",\n            \"to\": \"lungs\"\n          },\n          {\n            \"from\": \"lungs\",\n            \"to\": \"left-atrium\"\n          },\n          {\n            \"from\": \"left-atrium\",\n            \"to\": \"mitral\"\n          },\n          {\n            \"from\": \"mitral\",\n            \"to\": \"left-ventricle\"\n          },\n          {\n            \"from\": \"left-ventricle\",\n            \"to\": \"aortic\"\n          },\n          {\n            \"from\": \"aortic\",\n            \"to\": \"body\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"filling\",\n            \"label\": \"Relaxed filling\",\n            \"short\": \"Fill\",\n            \"sentence\": \"Relaxed ventricles receive blood from the atria.\",\n            \"why\": \"Lower ventricular pressure opens inlet valves; higher arterial pressure keeps outlet valves closed.\",\n            \"active\": [\n              \"tricuspid\",\n              \"right-ventricle\",\n              \"mitral\",\n              \"left-ventricle\"\n            ],\n            \"calloutRegion\": \"mitral\",\n            \"readouts\": [\n              {\n                \"id\": \"pressure\",\n                \"label\": \"Ventricular pressure\",\n                \"value\": \"Below atria and arteries\"\n              },\n              {\n                \"id\": \"inlets\",\n                \"label\": \"Inlet valves\",\n                \"value\": \"Open\"\n              },\n              {\n                \"id\": \"outlets\",\n                \"label\": \"Outlet valves\",\n                \"value\": \"Closed\"\n              },\n              {\n                \"id\": \"volume\",\n                \"label\": \"Ventricular volume\",\n                \"value\": \"Increasing\"\n              }\n            ]\n          },\n          {\n            \"id\": \"atrial-squeeze\",\n            \"label\": \"Atria finish filling\",\n            \"short\": \"Top up\",\n            \"sentence\": \"The atria squeeze additional blood into the ventricles.\",\n            \"why\": \"Atrial contraction moves blood through open inlet valves while the ventricles remain relaxed.\",\n            \"active\": [\n              \"right-atrium\",\n              \"tricuspid\",\n              \"left-atrium\",\n              \"mitral\"\n            ],\n            \"calloutRegion\": \"left-atrium\",\n            \"readouts\": [\n              {\n                \"id\": \"pressure\",\n                \"label\": \"Ventricular pressure\",\n                \"value\": \"Below atria and arteries\"\n              },\n              {\n                \"id\": \"inlets\",\n                \"label\": \"Inlet valves\",\n                \"value\": \"Open\"\n              },\n              {\n                \"id\": \"outlets\",\n                \"label\": \"Outlet valves\",\n                \"value\": \"Closed\"\n              },\n              {\n                \"id\": \"volume\",\n                \"label\": \"Ventricular volume\",\n                \"value\": \"Increasing\"\n              }\n            ]\n          },\n          {\n            \"id\": \"pressure-rise\",\n            \"label\": \"Ventricles begin squeezing\",\n            \"short\": \"Build pressure\",\n            \"sentence\": \"Ventricular squeezing closes the inlet valves before blood can leave.\",\n            \"why\": \"Ventricular pressure exceeds atrial pressure but remains below arterial pressure, leaving both valve pairs closed.\",\n            \"active\": [\n              \"right-ventricle\",\n              \"left-ventricle\",\n              \"tricuspid\",\n              \"mitral\"\n            ],\n            \"calloutRegion\": \"left-ventricle\",\n            \"readouts\": [\n              {\n                \"id\": \"pressure\",\n                \"label\": \"Ventricular pressure\",\n                \"value\": \"Rising; above atria, below arteries\"\n              },\n              {\n                \"id\": \"inlets\",\n                \"label\": \"Inlet valves\",\n                \"value\": \"Closed\"\n              },\n              {\n                \"id\": \"outlets\",\n                \"label\": \"Outlet valves\",\n                \"value\": \"Closed\"\n              },\n              {\n                \"id\": \"volume\",\n                \"label\": \"Ventricular volume\",\n                \"value\": \"Unchanged\"\n              }\n            ]\n          },\n          {\n            \"id\": \"ejection\",\n            \"label\": \"Ventricles eject blood\",\n            \"short\": \"Pump forward\",\n            \"sentence\": \"The right ventricle pumps toward the lungs; the left ventricle pumps toward the body.\",\n            \"why\": \"Higher ventricular pressure opens outlet valves; closed inlet valves prevent backflow into the atria.\",\n            \"active\": [\n              \"right-ventricle\",\n              \"pulmonary\",\n              \"left-ventricle\",\n              \"aortic\"\n            ],\n            \"calloutRegion\": \"left-ventricle\",\n            \"readouts\": [\n              {\n                \"id\": \"pressure\",\n                \"label\": \"Ventricular pressure\",\n                \"value\": \"Above atria and arteries\"\n              },\n              {\n                \"id\": \"inlets\",\n                \"label\": \"Inlet valves\",\n                \"value\": \"Closed\"\n              },\n              {\n                \"id\": \"outlets\",\n                \"label\": \"Outlet valves\",\n                \"value\": \"Open\"\n              },\n              {\n                \"id\": \"volume\",\n                \"label\": \"Ventricular volume\",\n                \"value\": \"Decreasing\"\n              }\n            ]\n          },\n          {\n            \"id\": \"pressure-fall\",\n            \"label\": \"Ventricles begin relaxing\",\n            \"short\": \"Release pressure\",\n            \"sentence\": \"Relaxing ventricles lose pressure, and the outlet valves close.\",\n            \"why\": \"Arterial pressure now exceeds ventricular pressure, preventing reverse flow through the outlet valves; inlet valves have not opened yet.\",\n            \"active\": [\n              \"right-ventricle\",\n              \"pulmonary\",\n              \"left-ventricle\",\n              \"aortic\"\n            ],\n            \"calloutRegion\": \"aortic\",\n            \"readouts\": [\n              {\n                \"id\": \"pressure\",\n                \"label\": \"Ventricular pressure\",\n                \"value\": \"Falling; above atria, below arteries\"\n              },\n              {\n                \"id\": \"inlets\",\n                \"label\": \"Inlet valves\",\n                \"value\": \"Closed\"\n              },\n              {\n                \"id\": \"outlets\",\n                \"label\": \"Outlet valves\",\n                \"value\": \"Closed\"\n              },\n              {\n                \"id\": \"volume\",\n                \"label\": \"Ventricular volume\",\n                \"value\": \"Unchanged\"\n              }\n            ]\n          },\n          {\n            \"id\": \"refilling\",\n            \"label\": \"Filling resumes\",\n            \"short\": \"Refill\",\n            \"sentence\": \"Inlet valves reopen as ventricular pressure falls below atrial pressure.\",\n            \"why\": \"The ventricles refill for another beat; pressure-operated valves preserve the same forward route through each cycle.\",\n            \"active\": [\n              \"tricuspid\",\n              \"right-ventricle\",\n              \"mitral\",\n              \"left-ventricle\"\n            ],\n            \"calloutRegion\": \"mitral\",\n            \"readouts\": [\n              {\n                \"id\": \"pressure\",\n                \"label\": \"Ventricular pressure\",\n                \"value\": \"Below atria and arteries\"\n              },\n              {\n                \"id\": \"inlets\",\n                \"label\": \"Inlet valves\",\n                \"value\": \"Open\"\n              },\n              {\n                \"id\": \"outlets\",\n                \"label\": \"Outlet valves\",\n                \"value\": \"Closed\"\n              },\n              {\n                \"id\": \"volume\",\n                \"label\": \"Ventricular volume\",\n                \"value\": \"Increasing\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Follow a simplified, healthy resting heartbeat. Atria receive blood; ventricles pump it. Both sides are synchronized here. Compare filling and squeezing through pressure and valve states. Watch blood leave toward the lungs and body instead of returning to the atria. Use Previous and Next; Reset restarts.",
+  "aha": {
+   "stateId": "ejection",
+   "observation": "Squeezing ventricles raise pressure, closing inlet valves and opening outlet valves so blood moves toward the lungs and body."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "heartbeat-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation and above the experiment. Show ordered states, completed states, and the active state without clock markings.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "circulation-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the fixed cycle arrangement with paired heart pathways. Keep every named region visible and stationary. Arrows indicate anatomical routes, not continuous flow. Highlight only the bound active regions. Use readable labels without animated particles, anatomical scaling, or changing chamber geometry.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "phase-evidence",
+    "kind": "value-readout",
+    "presentation": "Show four compact rows beneath the picture. Compare pressures within each side, never across sides. Comparisons are qualitative, so units and rounding do not apply. Volume describes change during the selected phase, not a numerical measurement.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "active-status",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the named target without covering labels. Use the bound sentence as the status line and the reason as its explanation.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "heartbeat-state",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Heartbeat state",
+    "presentation": "Use Previous and Next with one-state increments, defaulting to the first state. Bounds are the first and last states, without wrapping. Retain both names when boundary buttons are disabled. Every state persists until learner action, including ejection. Reference captures show ejection. Balanced parameter-control budget: zero; navigation and Reset are separate. Fixed assumptions are healthy valves, resting circulation, and simplified synchronization between sides. Provide keyboard operation, visible focus, and accessible names matching visible labels."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all fixed defaults. Provide keyboard operation, visible focus, and the accessible name Reset."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Simplified healthy resting heartbeat",
+     "regions": [
+      {
+       "id": "body",
+       "label": "Body",
+       "values": [
+        "Systemic circulation"
+       ]
+      },
+      {
+       "id": "right-atrium",
+       "label": "Right atrium",
+       "values": [
+        "Receiving chamber"
+       ]
+      },
+      {
+       "id": "tricuspid",
+       "label": "Tricuspid valve",
+       "values": [
+        "Right inlet"
+       ]
+      },
+      {
+       "id": "right-ventricle",
+       "label": "Right ventricle",
+       "values": [
+        "Pumping chamber"
+       ]
+      },
+      {
+       "id": "pulmonary",
+       "label": "Pulmonary valve",
+       "values": [
+        "Right outlet"
+       ]
+      },
+      {
+       "id": "lungs",
+       "label": "Lungs",
+       "values": [
+        "Pulmonary circulation"
+       ]
+      },
+      {
+       "id": "left-atrium",
+       "label": "Left atrium",
+       "values": [
+        "Receiving chamber"
+       ]
+      },
+      {
+       "id": "mitral",
+       "label": "Mitral valve",
+       "values": [
+        "Left inlet"
+       ]
+      },
+      {
+       "id": "left-ventricle",
+       "label": "Left ventricle",
+       "values": [
+        "Pumping chamber"
+       ]
+      },
+      {
+       "id": "aortic",
+       "label": "Aortic valve",
+       "values": [
+        "Left outlet"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "body",
+       "to": "right-atrium"
+      },
+      {
+       "from": "right-atrium",
+       "to": "tricuspid"
+      },
+      {
+       "from": "tricuspid",
+       "to": "right-ventricle"
+      },
+      {
+       "from": "right-ventricle",
+       "to": "pulmonary"
+      },
+      {
+       "from": "pulmonary",
+       "to": "lungs"
+      },
+      {
+       "from": "lungs",
+       "to": "left-atrium"
+      },
+      {
+       "from": "left-atrium",
+       "to": "mitral"
+      },
+      {
+       "from": "mitral",
+       "to": "left-ventricle"
+      },
+      {
+       "from": "left-ventricle",
+       "to": "aortic"
+      },
+      {
+       "from": "aortic",
+       "to": "body"
+      }
+     ],
+     "states": [
+      {
+       "id": "filling",
+       "label": "Relaxed filling",
+       "short": "Fill",
+       "sentence": "Relaxed ventricles receive blood from the atria.",
+       "why": "Lower ventricular pressure opens inlet valves; higher arterial pressure keeps outlet valves closed.",
+       "active": [
+        "tricuspid",
+        "right-ventricle",
+        "mitral",
+        "left-ventricle"
+       ],
+       "calloutRegion": "mitral",
+       "readouts": [
+        {
+         "id": "pressure",
+         "label": "Ventricular pressure",
+         "value": "Below atria and arteries"
+        },
+        {
+         "id": "inlets",
+         "label": "Inlet valves",
+         "value": "Open"
+        },
+        {
+         "id": "outlets",
+         "label": "Outlet valves",
+         "value": "Closed"
+        },
+        {
+         "id": "volume",
+         "label": "Ventricular volume",
+         "value": "Increasing"
+        }
+       ]
+      },
+      {
+       "id": "atrial-squeeze",
+       "label": "Atria finish filling",
+       "short": "Top up",
+       "sentence": "The atria squeeze additional blood into the ventricles.",
+       "why": "Atrial contraction moves blood through open inlet valves while the ventricles remain relaxed.",
+       "active": [
+        "right-atrium",
+        "tricuspid",
+        "left-atrium",
+        "mitral"
+       ],
+       "calloutRegion": "left-atrium",
+       "readouts": [
+        {
+         "id": "pressure",
+         "label": "Ventricular pressure",
+         "value": "Below atria and arteries"
+        },
+        {
+         "id": "inlets",
+         "label": "Inlet valves",
+         "value": "Open"
+        },
+        {
+         "id": "outlets",
+         "label": "Outlet valves",
+         "value": "Closed"
+        },
+        {
+         "id": "volume",
+         "label": "Ventricular volume",
+         "value": "Increasing"
+        }
+       ]
+      },
+      {
+       "id": "pressure-rise",
+       "label": "Ventricles begin squeezing",
+       "short": "Build pressure",
+       "sentence": "Ventricular squeezing closes the inlet valves before blood can leave.",
+       "why": "Ventricular pressure exceeds atrial pressure but remains below arterial pressure, leaving both valve pairs closed.",
+       "active": [
+        "right-ventricle",
+        "left-ventricle",
+        "tricuspid",
+        "mitral"
+       ],
+       "calloutRegion": "left-ventricle",
+       "readouts": [
+        {
+         "id": "pressure",
+         "label": "Ventricular pressure",
+         "value": "Rising; above atria, below arteries"
+        },
+        {
+         "id": "inlets",
+         "label": "Inlet valves",
+         "value": "Closed"
+        },
+        {
+         "id": "outlets",
+         "label": "Outlet valves",
+         "value": "Closed"
+        },
+        {
+         "id": "volume",
+         "label": "Ventricular volume",
+         "value": "Unchanged"
+        }
+       ]
+      },
+      {
+       "id": "ejection",
+       "label": "Ventricles eject blood",
+       "short": "Pump forward",
+       "sentence": "The right ventricle pumps toward the lungs; the left ventricle pumps toward the body.",
+       "why": "Higher ventricular pressure opens outlet valves; closed inlet valves prevent backflow into the atria.",
+       "active": [
+        "right-ventricle",
+        "pulmonary",
+        "left-ventricle",
+        "aortic"
+       ],
+       "calloutRegion": "left-ventricle",
+       "readouts": [
+        {
+         "id": "pressure",
+         "label": "Ventricular pressure",
+         "value": "Above atria and arteries"
+        },
+        {
+         "id": "inlets",
+         "label": "Inlet valves",
+         "value": "Closed"
+        },
+        {
+         "id": "outlets",
+         "label": "Outlet valves",
+         "value": "Open"
+        },
+        {
+         "id": "volume",
+         "label": "Ventricular volume",
+         "value": "Decreasing"
+        }
+       ]
+      },
+      {
+       "id": "pressure-fall",
+       "label": "Ventricles begin relaxing",
+       "short": "Release pressure",
+       "sentence": "Relaxing ventricles lose pressure, and the outlet valves close.",
+       "why": "Arterial pressure now exceeds ventricular pressure, preventing reverse flow through the outlet valves; inlet valves have not opened yet.",
+       "active": [
+        "right-ventricle",
+        "pulmonary",
+        "left-ventricle",
+        "aortic"
+       ],
+       "calloutRegion": "aortic",
+       "readouts": [
+        {
+         "id": "pressure",
+         "label": "Ventricular pressure",
+         "value": "Falling; above atria, below arteries"
+        },
+        {
+         "id": "inlets",
+         "label": "Inlet valves",
+         "value": "Closed"
+        },
+        {
+         "id": "outlets",
+         "label": "Outlet valves",
+         "value": "Closed"
+        },
+        {
+         "id": "volume",
+         "label": "Ventricular volume",
+         "value": "Unchanged"
+        }
+       ]
+      },
+      {
+       "id": "refilling",
+       "label": "Filling resumes",
+       "short": "Refill",
+       "sentence": "Inlet valves reopen as ventricular pressure falls below atrial pressure.",
+       "why": "The ventricles refill for another beat; pressure-operated valves preserve the same forward route through each cycle.",
+       "active": [
+        "tricuspid",
+        "right-ventricle",
+        "mitral",
+        "left-ventricle"
+       ],
+       "calloutRegion": "mitral",
+       "readouts": [
+        {
+         "id": "pressure",
+         "label": "Ventricular pressure",
+         "value": "Below atria and arteries"
+        },
+        {
+         "id": "inlets",
+         "label": "Inlet valves",
+         "value": "Open"
+        },
+        {
+         "id": "outlets",
+         "label": "Outlet valves",
+         "value": "Closed"
+        },
+        {
+         "id": "volume",
+         "label": "Ventricular volume",
+         "value": "Increasing"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1534,
+  "output": 6061
+ },
+ "usd": 0.060808,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The ejection state highlights ventricles and outlet valves, with readouts showing closed inlets and open outlets, answering why blood goes forward and not back."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The control text states that every state, including ejection, persists until learner action, and there is no timer."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There are no parameters, but each step changes the active regions and readout values, and the fixed assumptions are declared."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlights, callout region, sentence, why and readouts all bind to state fields, and the regions and links come from variant data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story's filling, squeezing and ejection match the state labels, sentences and valve names, and the controls are named Previous, Next and Reset."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The scene has one fixed picture with a changing active set, four compact readout rows and one callout, which fits balanced depth without clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The qualitative pressure, valve and volume values are physiologically consistent in every state, and the callout gives the explanation while the readouts hold the quantities."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.019508
+ }
+}

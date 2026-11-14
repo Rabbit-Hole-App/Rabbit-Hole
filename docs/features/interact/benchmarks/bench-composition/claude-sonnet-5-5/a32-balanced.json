@@ -1,0 +1,545 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a32",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "How does successive halving decide which trials get more training?",
+ "ts": "2026-11-14T22:30:43.924Z",
+ "ms": 33169,
+ "raw": "{\"story\":\"Eight trials start with one epoch each. After every round, successive halving ranks trials by their current score, drops the lower half, and doubles the epochs for survivors. Each round costs the same eight epochs, so training concentrates on trials that keep ranking well.\",\"aha\":{\"stateId\":\"s6\",\"observation\":\"Rank, cut the lower half, double the survivors' epochs: every round costs 8 epochs, so trial C reached 4 epochs for 24 total instead of 32.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"presentation\":\"Previous / Next over the states\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Eight trials, keep top half each round (accuracy %, higher is better)\",\"regions\":[{\"id\":\"round1\",\"label\":\"Round 1 · 1 epoch each\",\"kind\":\"round\",\"values\":[\"8 trials\",\"1 epoch\",\"8 epochs\"]},{\"id\":\"round2\",\"label\":\"Round 2 · 2 epochs each\",\"kind\":\"round\",\"values\":[\"4 trials\",\"2 epochs\",\"8 epochs\"]},{\"id\":\"round3\",\"label\":\"Round 3 · 4 epochs each\",\"kind\":\"round\",\"values\":[\"2 trials\",\"4 epochs\",\"8 epochs\"]},{\"id\":\"tA\",\"label\":\"Trial A\",\"kind\":\"trial\",\"values\":[\"R1 62\",\"R2 67\",\"cut after R2\"]},{\"id\":\"tB\",\"label\":\"Trial B\",\"kind\":\"trial\",\"values\":[\"R1 55\",\"cut after R1\"]},{\"id\":\"tC\",\"label\":\"Trial C\",\"kind\":\"trial\",\"values\":[\"R1 68\",\"R2 76\",\"R3 81\"]},{\"id\":\"tD\",\"label\":\"Trial D\",\"kind\":\"trial\",\"values\":[\"R1 48\",\"cut after R1\"]},{\"id\":\"tE\",\"label\":\"Trial E\",\"kind\":\"trial\",\"values\":[\"R1 66\",\"R2 69\",\"cut after R2\"]},{\"id\":\"tF\",\"label\":\"Trial F\",\"kind\":\"trial\",\"values\":[\"R1 59\",\"cut after R1\"]},{\"id\":\"tG\",\"label\":\"Trial G\",\"kind\":\"trial\",\"values\":[\"R1 71\",\"R2 74\",\"R3 79\"]},{\"id\":\"tH\",\"label\":\"Trial H\",\"kind\":\"trial\",\"values\":[\"R1 52\",\"cut after R1\"]}],\"links\":[{\"from\":\"round1\",\"to\":\"round2\",\"label\":\"keep top 4\"},{\"from\":\"round2\",\"to\":\"round3\",\"label\":\"keep top 2\"}],\"states\":[{\"id\":\"s0\",\"label\":\"Start\",\"sentence\":\"Eight untrained trials share one budget. Nothing is scored yet, so none can be preferred.\",\"why\":\"Halving needs scores before it can choose.\",\"short\":\"Eight trials\",\"calloutRegion\":\"round1\",\"active\":[\"tA\",\"tB\",\"tC\",\"tD\",\"tE\",\"tF\",\"tG\",\"tH\"],\"readouts\":[{\"id\":\"r\",\"label\":\"Round\",\"value\":\"0 of 3\"},{\"id\":\"n\",\"label\":\"Trials alive\",\"value\":\"8\"},{\"id\":\"e\",\"label\":\"Epochs per trial\",\"value\":\"0\"},{\"id\":\"c\",\"label\":\"Total epochs spent\",\"value\":\"0\"}]},{\"id\":\"s1\",\"label\":\"Round 1 training\",\"sentence\":\"Every trial trains one epoch and gets a score. G leads at 71; D trails at 48.\",\"why\":\"A cheap, equal budget gives a fair first ranking.\",\"short\":\"Train all, 1 epoch\",\"calloutRegion\":\"round1\",\"active\":[\"round1\",\"tA\",\"tB\",\"tC\",\"tD\",\"tE\",\"tF\",\"tG\",\"tH\"],\"readouts\":[{\"id\":\"r\",\"label\":\"Round\",\"value\":\"1 of 3\"},{\"id\":\"n\",\"label\":\"Trials alive\",\"value\":\"8\"},{\"id\":\"e\",\"label\":\"Epochs per trial\",\"value\":\"1\"},{\"id\":\"rc\",\"label\":\"Round cost (8 × 1)\",\"value\":\"8 epochs\"},{\"id\":\"c\",\"label\":\"Total epochs spent\",\"value\":\"8\"}]},{\"id\":\"s2\",\"label\":\"Cut to four\",\"sentence\":\"The top four scores survive: G 71, C 68, E 66, A 62. F, B, H and D stop.\",\"why\":\"The lower half is dropped; no more epochs go to it.\",\"short\":\"Keep top 4\",\"calloutRegion\":\"tG\",\"active\":[\"round1\",\"tG\",\"tC\",\"tE\",\"tA\"],\"readouts\":[{\"id\":\"r\",\"label\":\"Round\",\"value\":\"1 of 3\"},{\"id\":\"n\",\"label\":\"Trials alive\",\"value\":\"4\"},{\"id\":\"cut\",\"label\":\"Cut\",\"value\":\"F 59, B 55, H 52, D 48\"},{\"id\":\"c\",\"label\":\"Total epochs spent\",\"value\":\"8\"}]},{\"id\":\"s3\",\"label\":\"Round 2 training\",\"sentence\":\"The four survivors train to two epochs. C rises to 76 and passes G at 74.\",\"why\":\"Doubled budget per trial; the ranking can change.\",\"short\":\"Train 4, 2 epochs\",\"calloutRegion\":\"tC\",\"active\":[\"round2\",\"tC\",\"tG\",\"tE\",\"tA\"],\"readouts\":[{\"id\":\"r\",\"label\":\"Round\",\"value\":\"2 of 3\"},{\"id\":\"n\",\"label\":\"Trials alive\",\"value\":\"4\"},{\"id\":\"e\",\"label\":\"Epochs per trial\",\"value\":\"2\"},{\"id\":\"rc\",\"label\":\"Round cost (4 × 2)\",\"value\":\"8 epochs\"},{\"id\":\"c\",\"label\":\"Total epochs spent\",\"value\":\"16\"}]},{\"id\":\"s4\",\"label\":\"Cut to two\",\"sentence\":\"Only C 76 and G 74 stay. E at 69 and A at 67 stop.\",\"why\":\"The same halving rule is applied to the survivors.\",\"short\":\"Keep top 2\",\"calloutRegion\":\"tC\",\"active\":[\"round2\",\"tC\",\"tG\"],\"readouts\":[{\"id\":\"r\",\"label\":\"Round\",\"value\":\"2 of 3\"},{\"id\":\"n\",\"label\":\"Trials alive\",\"value\":\"2\"},{\"id\":\"cut\",\"label\":\"Cut\",\"value\":\"E 69, A 67\"},{\"id\":\"c\",\"label\":\"Total epochs spent\",\"value\":\"16\"}]},{\"id\":\"s5\",\"label\":\"Round 3 training\",\"sentence\":\"C and G train to four epochs. C scores 81 and G scores 79.\",\"why\":\"Fewer trials now receive the largest budget.\",\"short\":\"Train 2, 4 epochs\",\"calloutRegion\":\"round3\",\"active\":[\"round3\",\"tC\",\"tG\"],\"readouts\":[{\"id\":\"r\",\"label\":\"Round\",\"value\":\"3 of 3\"},{\"id\":\"n\",\"label\":\"Trials alive\",\"value\":\"2\"},{\"id\":\"e\",\"label\":\"Epochs per trial\",\"value\":\"4\"},{\"id\":\"rc\",\"label\":\"Round cost (2 × 4)\",\"value\":\"8 epochs\"},{\"id\":\"c\",\"label\":\"Total epochs spent\",\"value\":\"24\"}]},{\"id\":\"s6\",\"label\":\"Winner and cost\",\"sentence\":\"C wins at 81. Each round cost 8 epochs, so halving spent 24 versus 32 for training all eight to 4 epochs.\",\"why\":\"Survivors halve while epochs per trial double, holding round cost constant.\",\"short\":\"Winner C\",\"calloutRegion\":\"tC\",\"active\":[\"round1\",\"round2\",\"round3\",\"tC\"],\"readouts\":[{\"id\":\"w\",\"label\":\"Winner\",\"value\":\"Trial C, 81\"},{\"id\":\"cost\",\"label\":\"Costs by round\",\"value\":\"8 + 8 + 8 = 24 epochs\"},{\"id\":\"full\",\"label\":\"All 8 trained 4 epochs\",\"value\":\"8 × 4 = 32 epochs\"},{\"id\":\"save\",\"label\":\"Epochs saved\",\"value\":\"8 (25%)\"}]}]}]}}",
+ "composition": {
+  "story": "Eight trials start with one epoch each. After every round, successive halving ranks trials by their current score, drops the lower half, and doubles the epochs for survivors. Each round costs the same eight epochs, so training concentrates on trials that keep ranking well.",
+  "aha": {
+   "stateId": "s6",
+   "observation": "Rank, cut the lower half, double the survivors' epochs: every round costs 8 epochs, so trial C reached 4 epochs for 24 total instead of 32."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "presentation": "Previous / Next over the states",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Eight trials, keep top half each round (accuracy %, higher is better)",
+     "regions": [
+      {
+       "id": "round1",
+       "label": "Round 1 · 1 epoch each",
+       "kind": "round",
+       "values": [
+        "8 trials",
+        "1 epoch",
+        "8 epochs"
+       ]
+      },
+      {
+       "id": "round2",
+       "label": "Round 2 · 2 epochs each",
+       "kind": "round",
+       "values": [
+        "4 trials",
+        "2 epochs",
+        "8 epochs"
+       ]
+      },
+      {
+       "id": "round3",
+       "label": "Round 3 · 4 epochs each",
+       "kind": "round",
+       "values": [
+        "2 trials",
+        "4 epochs",
+        "8 epochs"
+       ]
+      },
+      {
+       "id": "tA",
+       "label": "Trial A",
+       "kind": "trial",
+       "values": [
+        "R1 62",
+        "R2 67",
+        "cut after R2"
+       ]
+      },
+      {
+       "id": "tB",
+       "label": "Trial B",
+       "kind": "trial",
+       "values": [
+        "R1 55",
+        "cut after R1"
+       ]
+      },
+      {
+       "id": "tC",
+       "label": "Trial C",
+       "kind": "trial",
+       "values": [
+        "R1 68",
+        "R2 76",
+        "R3 81"
+       ]
+      },
+      {
+       "id": "tD",
+       "label": "Trial D",
+       "kind": "trial",
+       "values": [
+        "R1 48",
+        "cut after R1"
+       ]
+      },
+      {
+       "id": "tE",
+       "label": "Trial E",
+       "kind": "trial",
+       "values": [
+        "R1 66",
+        "R2 69",
+        "cut after R2"
+       ]
+      },
+      {
+       "id": "tF",
+       "label": "Trial F",
+       "kind": "trial",
+       "values": [
+        "R1 59",
+        "cut after R1"
+       ]
+      },
+      {
+       "id": "tG",
+       "label": "Trial G",
+       "kind": "trial",
+       "values": [
+        "R1 71",
+        "R2 74",
+        "R3 79"
+       ]
+      },
+      {
+       "id": "tH",
+       "label": "Trial H",
+       "kind": "trial",
+       "values": [
+        "R1 52",
+        "cut after R1"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "round1",
+       "to": "round2",
+       "label": "keep top 4"
+      },
+      {
+       "from": "round2",
+       "to": "round3",
+       "label": "keep top 2"
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "Start",
+       "sentence": "Eight untrained trials share one budget. Nothing is scored yet, so none can be preferred.",
+       "why": "Halving needs scores before it can choose.",
+       "short": "Eight trials",
+       "calloutRegion": "round1",
+       "active": [
+        "tA",
+        "tB",
+        "tC",
+        "tD",
+        "tE",
+        "tF",
+        "tG",
+        "tH"
+       ],
+       "readouts": [
+        {
+         "id": "r",
+         "label": "Round",
+         "value": "0 of 3"
+        },
+        {
+         "id": "n",
+         "label": "Trials alive",
+         "value": "8"
+        },
+        {
+         "id": "e",
+         "label": "Epochs per trial",
+         "value": "0"
+        },
+        {
+         "id": "c",
+         "label": "Total epochs spent",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Round 1 training",
+       "sentence": "Every trial trains one epoch and gets a score. G leads at 71; D trails at 48.",
+       "why": "A cheap, equal budget gives a fair first ranking.",
+       "short": "Train all, 1 epoch",
+       "calloutRegion": "round1",
+       "active": [
+        "round1",
+        "tA",
+        "tB",
+        "tC",
+        "tD",
+        "tE",
+        "tF",
+        "tG",
+        "tH"
+       ],
+       "readouts": [
+        {
+         "id": "r",
+         "label": "Round",
+         "value": "1 of 3"
+        },
+        {
+         "id": "n",
+         "label": "Trials alive",
+         "value": "8"
+        },
+        {
+         "id": "e",
+         "label": "Epochs per trial",
+         "value": "1"
+        },
+        {
+         "id": "rc",
+         "label": "Round cost (8 × 1)",
+         "value": "8 epochs"
+        },
+        {
+         "id": "c",
+         "label": "Total epochs spent",
+         "value": "8"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Cut to four",
+       "sentence": "The top four scores survive: G 71, C 68, E 66, A 62. F, B, H and D stop.",
+       "why": "The lower half is dropped; no more epochs go to it.",
+       "short": "Keep top 4",
+       "calloutRegion": "tG",
+       "active": [
+        "round1",
+        "tG",
+        "tC",
+        "tE",
+        "tA"
+       ],
+       "readouts": [
+        {
+         "id": "r",
+         "label": "Round",
+         "value": "1 of 3"
+        },
+        {
+         "id": "n",
+         "label": "Trials alive",
+         "value": "4"
+        },
+        {
+         "id": "cut",
+         "label": "Cut",
+         "value": "F 59, B 55, H 52, D 48"
+        },
+        {
+         "id": "c",
+         "label": "Total epochs spent",
+         "value": "8"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Round 2 training",
+       "sentence": "The four survivors train to two epochs. C rises to 76 and passes G at 74.",
+       "why": "Doubled budget per trial; the ranking can change.",
+       "short": "Train 4, 2 epochs",
+       "calloutRegion": "tC",
+       "active": [
+        "round2",
+        "tC",
+        "tG",
+        "tE",
+        "tA"
+       ],
+       "readouts": [
+        {
+         "id": "r",
+         "label": "Round",
+         "value": "2 of 3"
+        },
+        {
+         "id": "n",
+         "label": "Trials alive",
+         "value": "4"
+        },
+        {
+         "id": "e",
+         "label": "Epochs per trial",
+         "value": "2"
+        },
+        {
+         "id": "rc",
+         "label": "Round cost (4 × 2)",
+         "value": "8 epochs"
+        },
+        {
+         "id": "c",
+         "label": "Total epochs spent",
+         "value": "16"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Cut to two",
+       "sentence": "Only C 76 and G 74 stay. E at 69 and A at 67 stop.",
+       "why": "The same halving rule is applied to the survivors.",
+       "short": "Keep top 2",
+       "calloutRegion": "tC",
+       "active": [
+        "round2",
+        "tC",
+        "tG"
+       ],
+       "readouts": [
+        {
+         "id": "r",
+         "label": "Round",
+         "value": "2 of 3"
+        },
+        {
+         "id": "n",
+         "label": "Trials alive",
+         "value": "2"
+        },
+        {
+         "id": "cut",
+         "label": "Cut",
+         "value": "E 69, A 67"
+        },
+        {
+         "id": "c",
+         "label": "Total epochs spent",
+         "value": "16"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Round 3 training",
+       "sentence": "C and G train to four epochs. C scores 81 and G scores 79.",
+       "why": "Fewer trials now receive the largest budget.",
+       "short": "Train 2, 4 epochs",
+       "calloutRegion": "round3",
+       "active": [
+        "round3",
+        "tC",
+        "tG"
+       ],
+       "readouts": [
+        {
+         "id": "r",
+         "label": "Round",
+         "value": "3 of 3"
+        },
+        {
+         "id": "n",
+         "label": "Trials alive",
+         "value": "2"
+        },
+        {
+         "id": "e",
+         "label": "Epochs per trial",
+         "value": "4"
+        },
+        {
+         "id": "rc",
+         "label": "Round cost (2 × 4)",
+         "value": "8 epochs"
+        },
+        {
+         "id": "c",
+         "label": "Total epochs spent",
+         "value": "24"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Winner and cost",
+       "sentence": "C wins at 81. Each round cost 8 epochs, so halving spent 24 versus 32 for training all eight to 4 epochs.",
+       "why": "Survivors halve while epochs per trial double, holding round cost constant.",
+       "short": "Winner C",
+       "calloutRegion": "tC",
+       "active": [
+        "round1",
+        "round2",
+        "round3",
+        "tC"
+       ],
+       "readouts": [
+        {
+         "id": "w",
+         "label": "Winner",
+         "value": "Trial C, 81"
+        },
+        {
+         "id": "cost",
+         "label": "Costs by round",
+         "value": "8 + 8 + 8 = 24 epochs"
+        },
+        {
+         "id": "full",
+         "label": "All 8 trained 4 epochs",
+         "value": "8 × 4 = 32 epochs"
+        },
+        {
+         "id": "save",
+         "label": "Epochs saved",
+         "value": "8 (25%)"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3074,
+  "output": 4989
+ },
+ "usd": 0.056038,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of rounds, trials and links answers how halving concentrates epochs, shown by the shrinking active sets and the constant 8-epoch round cost."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s6 is the final step, so the stepper rests on the winner and cost comparison until the learner moves."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only control is the step index, which is a fixed experiment, and each step changes the active set, scores and readouts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callout targets, active highlights, ghost and readouts all bind to declared regions and per-state fields, and every number matches the trial data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, callouts and Step control all refer to the same rounds, trials and cuts, though the story's 'C reached 4 epochs for 24 total' is slightly loose."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Depth is modest: one active set per step plus a few readouts, with the cost formula appearing only at the end, and the density is below the mitosis ceiling."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The ranks, cuts, per-round costs (8 each), cumulative totals (8, 16, 24), 32 baseline and 25% saving all check out, though the cut lists appear in both sentence and readout."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018898
+ }
+}

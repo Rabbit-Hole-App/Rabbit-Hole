@@ -1,0 +1,328 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a31",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "How does Bayesian optimization decide which setting to try next?",
+ "ts": "2026-11-14T22:30:19.915Z",
+ "ms": 19722,
+ "raw": "{\"story\":\"Bayesian optimization has measured three settings. It fits a surrogate model that predicts a score and its uncertainty everywhere. An acquisition score combines both. The next setting to try is the acquisition peak, which is not always the best predicted score.\",\"aha\":{\"stateId\":\"pick\",\"observation\":\"The next setting is the acquisition peak at 0.70. Its mean is lower than at 0.35, but its uncertainty is much larger.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Tuning one setting (score 0–1, setting 0–1, κ = 1)\",\"regions\":[{\"id\":\"observed\",\"label\":\"Observed trials\",\"kind\":\"points\",\"values\":[\"0.10 → 0.50\",\"0.35 → 0.64\",\"0.90 → 0.45\"]},{\"id\":\"surrogate\",\"label\":\"Surrogate mean\",\"kind\":\"curve\",\"values\":[\"predicted score at each setting\"]},{\"id\":\"uncertainty\",\"label\":\"Uncertainty band\",\"kind\":\"band\",\"values\":[\"narrow near trials\",\"wide in gaps\"]},{\"id\":\"acquisition\",\"label\":\"Acquisition score\",\"kind\":\"curve\",\"values\":[\"mean + 1 × uncertainty\"]},{\"id\":\"pick\",\"label\":\"Next setting\",\"kind\":\"marker\",\"values\":[\"0.70\"]}],\"links\":[{\"from\":\"observed\",\"to\":\"surrogate\",\"label\":\"fit\"},{\"from\":\"surrogate\",\"to\":\"acquisition\",\"label\":\"mean\"},{\"from\":\"uncertainty\",\"to\":\"acquisition\",\"label\":\"spread\"},{\"from\":\"acquisition\",\"to\":\"pick\",\"label\":\"highest\"}],\"states\":[{\"id\":\"observed\",\"label\":\"Observed\",\"short\":\"Trials\",\"sentence\":\"Three settings have been tried and scored. Nothing is known about the settings between them.\",\"why\":\"The model can only learn from measured trials.\",\"calloutRegion\":\"observed\",\"active\":[\"observed\"],\"readouts\":[{\"id\":\"n\",\"label\":\"Trials\",\"value\":\"3\"},{\"id\":\"best\",\"label\":\"Best score so far\",\"value\":\"0.64 at 0.35\"}]},{\"id\":\"fit\",\"label\":\"Fit surrogate\",\"short\":\"Fit\",\"sentence\":\"A surrogate model is fitted to the trials. It predicts a mean score for every setting.\",\"why\":\"Predictions are cheap, so many settings can be compared without running trials.\",\"calloutRegion\":\"surrogate\",\"active\":[\"observed\",\"surrogate\"],\"readouts\":[{\"id\":\"mean35\",\"label\":\"Mean at 0.35\",\"value\":\"0.64\"},{\"id\":\"mean70\",\"label\":\"Mean at 0.70\",\"value\":\"0.58\"}]},{\"id\":\"uncertainty\",\"label\":\"Add uncertainty\",\"short\":\"Spread\",\"sentence\":\"The model also reports uncertainty. It is small near measured trials and large in the unexplored gap.\",\"why\":\"A wide band means the true score could be much higher or lower.\",\"calloutRegion\":\"uncertainty\",\"active\":[\"observed\",\"surrogate\",\"uncertainty\"],\"readouts\":[{\"id\":\"sd35\",\"label\":\"Uncertainty at 0.35\",\"value\":\"0.04\"},{\"id\":\"sd70\",\"label\":\"Uncertainty at 0.70\",\"value\":\"0.22\"}]},{\"id\":\"score\",\"label\":\"Score options\",\"short\":\"Acquire\",\"sentence\":\"The acquisition score adds mean and uncertainty at each setting. High values mean promising or poorly known.\",\"why\":\"One number now balances exploiting good results and exploring gaps.\",\"calloutRegion\":\"acquisition\",\"active\":[\"surrogate\",\"uncertainty\",\"acquisition\"],\"readouts\":[{\"id\":\"a35\",\"label\":\"Score at 0.35\",\"value\":\"0.64 + 0.04 = 0.68\"},{\"id\":\"a70\",\"label\":\"Score at 0.70\",\"value\":\"0.58 + 0.22 = 0.80\"}]},{\"id\":\"pick\",\"label\":\"Pick next\",\"short\":\"Pick\",\"sentence\":\"The next trial is the acquisition peak, 0.70. It beats 0.35 despite a lower predicted mean.\",\"why\":\"Large uncertainty gives 0.70 more potential gain than the known good region.\",\"calloutRegion\":\"pick\",\"active\":[\"acquisition\",\"pick\"],\"readouts\":[{\"id\":\"next\",\"label\":\"Next setting\",\"value\":\"0.70\"},{\"id\":\"win\",\"label\":\"Winning score\",\"value\":\"0.80 vs 0.68\"}]}]}]}}",
+ "composition": {
+  "story": "Bayesian optimization has measured three settings. It fits a surrogate model that predicts a score and its uncertainty everywhere. An acquisition score combines both. The next setting to try is the acquisition peak, which is not always the best predicted score.",
+  "aha": {
+   "stateId": "pick",
+   "observation": "The next setting is the acquisition peak at 0.70. Its mean is lower than at 0.35, but its uncertainty is much larger."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Tuning one setting (score 0–1, setting 0–1, κ = 1)",
+     "regions": [
+      {
+       "id": "observed",
+       "label": "Observed trials",
+       "kind": "points",
+       "values": [
+        "0.10 → 0.50",
+        "0.35 → 0.64",
+        "0.90 → 0.45"
+       ]
+      },
+      {
+       "id": "surrogate",
+       "label": "Surrogate mean",
+       "kind": "curve",
+       "values": [
+        "predicted score at each setting"
+       ]
+      },
+      {
+       "id": "uncertainty",
+       "label": "Uncertainty band",
+       "kind": "band",
+       "values": [
+        "narrow near trials",
+        "wide in gaps"
+       ]
+      },
+      {
+       "id": "acquisition",
+       "label": "Acquisition score",
+       "kind": "curve",
+       "values": [
+        "mean + 1 × uncertainty"
+       ]
+      },
+      {
+       "id": "pick",
+       "label": "Next setting",
+       "kind": "marker",
+       "values": [
+        "0.70"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "observed",
+       "to": "surrogate",
+       "label": "fit"
+      },
+      {
+       "from": "surrogate",
+       "to": "acquisition",
+       "label": "mean"
+      },
+      {
+       "from": "uncertainty",
+       "to": "acquisition",
+       "label": "spread"
+      },
+      {
+       "from": "acquisition",
+       "to": "pick",
+       "label": "highest"
+      }
+     ],
+     "states": [
+      {
+       "id": "observed",
+       "label": "Observed",
+       "short": "Trials",
+       "sentence": "Three settings have been tried and scored. Nothing is known about the settings between them.",
+       "why": "The model can only learn from measured trials.",
+       "calloutRegion": "observed",
+       "active": [
+        "observed"
+       ],
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Trials",
+         "value": "3"
+        },
+        {
+         "id": "best",
+         "label": "Best score so far",
+         "value": "0.64 at 0.35"
+        }
+       ]
+      },
+      {
+       "id": "fit",
+       "label": "Fit surrogate",
+       "short": "Fit",
+       "sentence": "A surrogate model is fitted to the trials. It predicts a mean score for every setting.",
+       "why": "Predictions are cheap, so many settings can be compared without running trials.",
+       "calloutRegion": "surrogate",
+       "active": [
+        "observed",
+        "surrogate"
+       ],
+       "readouts": [
+        {
+         "id": "mean35",
+         "label": "Mean at 0.35",
+         "value": "0.64"
+        },
+        {
+         "id": "mean70",
+         "label": "Mean at 0.70",
+         "value": "0.58"
+        }
+       ]
+      },
+      {
+       "id": "uncertainty",
+       "label": "Add uncertainty",
+       "short": "Spread",
+       "sentence": "The model also reports uncertainty. It is small near measured trials and large in the unexplored gap.",
+       "why": "A wide band means the true score could be much higher or lower.",
+       "calloutRegion": "uncertainty",
+       "active": [
+        "observed",
+        "surrogate",
+        "uncertainty"
+       ],
+       "readouts": [
+        {
+         "id": "sd35",
+         "label": "Uncertainty at 0.35",
+         "value": "0.04"
+        },
+        {
+         "id": "sd70",
+         "label": "Uncertainty at 0.70",
+         "value": "0.22"
+        }
+       ]
+      },
+      {
+       "id": "score",
+       "label": "Score options",
+       "short": "Acquire",
+       "sentence": "The acquisition score adds mean and uncertainty at each setting. High values mean promising or poorly known.",
+       "why": "One number now balances exploiting good results and exploring gaps.",
+       "calloutRegion": "acquisition",
+       "active": [
+        "surrogate",
+        "uncertainty",
+        "acquisition"
+       ],
+       "readouts": [
+        {
+         "id": "a35",
+         "label": "Score at 0.35",
+         "value": "0.64 + 0.04 = 0.68"
+        },
+        {
+         "id": "a70",
+         "label": "Score at 0.70",
+         "value": "0.58 + 0.22 = 0.80"
+        }
+       ]
+      },
+      {
+       "id": "pick",
+       "label": "Pick next",
+       "short": "Pick",
+       "sentence": "The next trial is the acquisition peak, 0.70. It beats 0.35 despite a lower predicted mean.",
+       "why": "Large uncertainty gives 0.70 more potential gain than the known good region.",
+       "calloutRegion": "pick",
+       "active": [
+        "acquisition",
+        "pick"
+       ],
+       "readouts": [
+        {
+         "id": "next",
+         "label": "Next setting",
+         "value": "0.70"
+        },
+        {
+         "id": "win",
+         "label": "Winning score",
+         "value": "0.80 vs 0.68"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3077,
+  "output": 2872
+ },
+ "usd": 0.034874,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The drawing answers \"why pick 0.70 over the best-known 0.35?\" using the observed points, mean curve, uncertainty band, acquisition curve and pick marker."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state 'pick' is the last step, but the step control defaults to 0 (Observed) and the learner must advance to reach it, so it holds until they act; the data declares no timed autoplay, so this is fine, though no explicit hold is declared."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only parameter is the step index, which moves through the story but does not change inputs or outcomes. κ=1 is fixed with no justification for omitting a comparison like varying κ."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Each part binds to declared sources: rail to variant.states, picture to regions and links, callout to state.calloutRegion/sentence/why, ghost to previous.active, readout to state.readouts."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and the 'Step' control all refer to the same trials, surrogate, uncertainty, acquisition score and next setting 0.70."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth the states build up one idea at a time with only two readouts each and a single callout target, so it stays uncluttered, with up to three active regions in the middle steps."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The values check out with κ=1 (0.64+0.04=0.68; 0.58+0.22=0.80, and 0.80>0.68), and the readouts carry the numbers while the callouts only locate the regions."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01854
+ }
+}

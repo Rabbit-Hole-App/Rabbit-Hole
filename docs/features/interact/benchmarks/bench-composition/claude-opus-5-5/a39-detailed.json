@@ -1,0 +1,13 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a39",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a bill become law in the United States?",
+ "ts": "2026-11-14T22:36:44.749Z",
+ "ms": null,
+ "usd": 0,
+ "composition": null,
+ "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3cw6Y2bGLjDXRKcC2vP\"}"
+}

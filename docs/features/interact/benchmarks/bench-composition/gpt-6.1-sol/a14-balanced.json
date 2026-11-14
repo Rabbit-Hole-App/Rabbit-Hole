@@ -1,0 +1,418 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a14",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a hash table work?",
+ "ts": "2026-11-14T22:34:48.577Z",
+ "ms": 113872,
+ "raw": "{\n  \"story\": \"How does a hash table retrieve a value without scanning every entry? Start with three stored entries and request “act.” Hash the key, follow its bucket, and compare the chained keys. Watch “cat” fail before “act” matches: sharing a bucket never makes two keys interchangeable.\",\n  \"aha\": {\n    \"stateId\": \"found\",\n    \"observation\": \"Hashing selects a bucket; exact key comparison distinguishes colliding keys and retrieves the correct value.\"\n  },\n  \"layout\": {\n    \"preset\": \"approved-card/stepper-states/collection\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"lookup-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation, above the picture. Show the active step and completed-step trace here, without suggesting elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"lookup-table\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use tested collection parts within the approved shell. Keep the query, hash function, four buckets, and linked entries fixed throughout. Show each entry's key and stored value. Highlight only the bound active regions. Bucket labels are zero-based addresses. Fixed inputs use case-sensitive keys and an intentionally weak character-count hash. Separate chaining preserves entry order. No insertion, deletion, or resizing occurs. Reserve label space at native width; do not animate.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"lookup-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor text beside its target without covering entries. Callout text identifies location only. Put the bound reason above the experiment.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"lookup-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place compact readouts below the picture. Render Status as the bound status line. Hash outputs are zero-based bucket indices. Comparisons count exact key-equality tests; integers require no rounding. Balanced parameter-control budget: zero, excluding navigation and reset.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"lookup-step\",\n      \"kind\": \"index\",\n      \"presentation\": \"Use Previous and Next, retaining both names when disabled at boundaries. Default to the first state; advance one state within array bounds. Every state, including found, persists until learner action. Reference captures show found. Provide matching accessible names, keyboard operation, and visible focus.\",\n      \"items\": \"variant.states\",\n      \"label\": \"Lookup step\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"presentation\": \"Reset restores the first state and fixed defaults. Provide the accessible name Reset, keyboard operation, and visible focus.\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Chained hash-table lookup\",\n        \"regions\": [\n          {\n            \"id\": \"query\",\n            \"label\": \"Requested key\",\n            \"values\": [\n              \"act\"\n            ]\n          },\n          {\n            \"id\": \"hash\",\n            \"label\": \"Hash function\",\n            \"values\": [\n              \"Character count modulo bucket count\"\n            ]\n          },\n          {\n            \"id\": \"bucket-0\",\n            \"label\": \"Bucket 0\",\n            \"values\": [\n              \"Chain head\"\n            ]\n          },\n          {\n            \"id\": \"bucket-1\",\n            \"label\": \"Bucket 1\",\n            \"values\": [\n              \"Empty\"\n            ]\n          },\n          {\n            \"id\": \"bucket-2\",\n            \"label\": \"Bucket 2\",\n            \"values\": [\n              \"Empty\"\n            ]\n          },\n          {\n            \"id\": \"bucket-3\",\n            \"label\": \"Bucket 3\",\n            \"values\": [\n              \"Chain head\"\n            ]\n          },\n          {\n            \"id\": \"entry-cat\",\n            \"label\": \"Entry cat\",\n            \"values\": [\n              \"Key: cat\",\n              \"Value: feline\"\n            ]\n          },\n          {\n            \"id\": \"entry-act\",\n            \"label\": \"Entry act\",\n            \"values\": [\n              \"Key: act\",\n              \"Value: perform\"\n            ]\n          },\n          {\n            \"id\": \"entry-pear\",\n            \"label\": \"Entry pear\",\n            \"values\": [\n              \"Key: pear\",\n              \"Value: fruit\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"query\",\n            \"to\": \"hash\",\n            \"label\": \"Input\"\n          },\n          {\n            \"from\": \"bucket-0\",\n            \"to\": \"entry-pear\",\n            \"label\": \"Head\"\n          },\n          {\n            \"from\": \"bucket-3\",\n            \"to\": \"entry-cat\",\n            \"label\": \"Head\"\n          },\n          {\n            \"from\": \"entry-cat\",\n            \"to\": \"entry-act\",\n            \"label\": \"Next\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"request\",\n            \"label\": \"Request the key\",\n            \"short\": \"Request\",\n            \"sentence\": \"The requested key is here.\",\n            \"why\": \"The table already stores its entries. Use Next to look up act without scanning the entire table.\",\n            \"active\": [\n              \"query\"\n            ],\n            \"calloutRegion\": \"query\",\n            \"readouts\": [\n              {\n                \"id\": \"bucket-count\",\n                \"label\": \"Bucket count\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"hash-output\",\n                \"label\": \"Hash output\",\n                \"value\": \"Not computed\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Key comparisons\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"result\",\n                \"label\": \"Returned value\",\n                \"value\": \"Not returned\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Ready to hash the requested key.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"hash-key\",\n            \"label\": \"Compute the bucket\",\n            \"short\": \"Hash\",\n            \"sentence\": \"The hash function is here.\",\n            \"why\": \"The requested key has three characters. Its character count modulo the bucket count determines the bucket address.\",\n            \"active\": [\n              \"hash\"\n            ],\n            \"calloutRegion\": \"hash\",\n            \"readouts\": [\n              {\n                \"id\": \"bucket-count\",\n                \"label\": \"Bucket count\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"hash-output\",\n                \"label\": \"Hash output\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Key comparisons\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"result\",\n                \"label\": \"Returned value\",\n                \"value\": \"Not returned\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Bucket address computed; no stored keys compared.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"open-bucket\",\n            \"label\": \"Follow the bucket\",\n            \"short\": \"Bucket\",\n            \"sentence\": \"The selected bucket begins here.\",\n            \"why\": \"Only this bucket's chain needs searching. The pear entry belongs to another bucket and remains untouched.\",\n            \"active\": [\n              \"bucket-3\"\n            ],\n            \"calloutRegion\": \"bucket-3\",\n            \"readouts\": [\n              {\n                \"id\": \"bucket-count\",\n                \"label\": \"Bucket count\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"hash-output\",\n                \"label\": \"Hash output\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Key comparisons\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"result\",\n                \"label\": \"Returned value\",\n                \"value\": \"Not returned\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Follow the selected bucket's head link.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"reject-collision\",\n            \"label\": \"Reject the colliding key\",\n            \"short\": \"Compare cat\",\n            \"sentence\": \"The first candidate is here.\",\n            \"why\": \"Cat and act share a hash output, but their keys differ. Follow Next within the chain instead of returning feline.\",\n            \"active\": [\n              \"entry-cat\"\n            ],\n            \"calloutRegion\": \"entry-cat\",\n            \"readouts\": [\n              {\n                \"id\": \"bucket-count\",\n                \"label\": \"Bucket count\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"hash-output\",\n                \"label\": \"Hash output\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Key comparisons\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"result\",\n                \"label\": \"Returned value\",\n                \"value\": \"Not returned\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Key mismatch; continue along the same chain.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"found\",\n            \"label\": \"Return the matching value\",\n            \"short\": \"Match act\",\n            \"sentence\": \"The matching entry is here.\",\n            \"why\": \"The exact key matches. Hashing narrowed the search; key comparison distinguished the colliding entries and selected the correct value.\",\n            \"active\": [\n              \"entry-act\"\n            ],\n            \"calloutRegion\": \"entry-act\",\n            \"readouts\": [\n              {\n                \"id\": \"bucket-count\",\n                \"label\": \"Bucket count\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"hash-output\",\n                \"label\": \"Hash output\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Key comparisons\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"result\",\n                \"label\": \"Returned value\",\n                \"value\": \"perform\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Lookup complete; pear was never compared.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does a hash table retrieve a value without scanning every entry? Start with three stored entries and request “act.” Hash the key, follow its bucket, and compare the chained keys. Watch “cat” fail before “act” matches: sharing a bucket never makes two keys interchangeable.",
+  "aha": {
+   "stateId": "found",
+   "observation": "Hashing selects a bucket; exact key comparison distinguishes colliding keys and retrieves the correct value."
+  },
+  "layout": {
+   "preset": "approved-card/stepper-states/collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "lookup-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation, above the picture. Show the active step and completed-step trace here, without suggesting elapsed time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "lookup-table",
+    "kind": "fixed-picture",
+    "presentation": "Use tested collection parts within the approved shell. Keep the query, hash function, four buckets, and linked entries fixed throughout. Show each entry's key and stored value. Highlight only the bound active regions. Bucket labels are zero-based addresses. Fixed inputs use case-sensitive keys and an intentionally weak character-count hash. Separate chaining preserves entry order. No insertion, deletion, or resizing occurs. Reserve label space at native width; do not animate.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "lookup-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor text beside its target without covering entries. Callout text identifies location only. Put the bound reason above the experiment.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "lookup-readouts",
+    "kind": "value-readout",
+    "presentation": "Place compact readouts below the picture. Render Status as the bound status line. Hash outputs are zero-based bucket indices. Comparisons count exact key-equality tests; integers require no rounding. Balanced parameter-control budget: zero, excluding navigation and reset.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "lookup-step",
+    "kind": "index",
+    "presentation": "Use Previous and Next, retaining both names when disabled at boundaries. Default to the first state; advance one state within array bounds. Every state, including found, persists until learner action. Reference captures show found. Provide matching accessible names, keyboard operation, and visible focus.",
+    "items": "variant.states",
+    "label": "Lookup step"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "presentation": "Reset restores the first state and fixed defaults. Provide the accessible name Reset, keyboard operation, and visible focus.",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Chained hash-table lookup",
+     "regions": [
+      {
+       "id": "query",
+       "label": "Requested key",
+       "values": [
+        "act"
+       ]
+      },
+      {
+       "id": "hash",
+       "label": "Hash function",
+       "values": [
+        "Character count modulo bucket count"
+       ]
+      },
+      {
+       "id": "bucket-0",
+       "label": "Bucket 0",
+       "values": [
+        "Chain head"
+       ]
+      },
+      {
+       "id": "bucket-1",
+       "label": "Bucket 1",
+       "values": [
+        "Empty"
+       ]
+      },
+      {
+       "id": "bucket-2",
+       "label": "Bucket 2",
+       "values": [
+        "Empty"
+       ]
+      },
+      {
+       "id": "bucket-3",
+       "label": "Bucket 3",
+       "values": [
+        "Chain head"
+       ]
+      },
+      {
+       "id": "entry-cat",
+       "label": "Entry cat",
+       "values": [
+        "Key: cat",
+        "Value: feline"
+       ]
+      },
+      {
+       "id": "entry-act",
+       "label": "Entry act",
+       "values": [
+        "Key: act",
+        "Value: perform"
+       ]
+      },
+      {
+       "id": "entry-pear",
+       "label": "Entry pear",
+       "values": [
+        "Key: pear",
+        "Value: fruit"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "query",
+       "to": "hash",
+       "label": "Input"
+      },
+      {
+       "from": "bucket-0",
+       "to": "entry-pear",
+       "label": "Head"
+      },
+      {
+       "from": "bucket-3",
+       "to": "entry-cat",
+       "label": "Head"
+      },
+      {
+       "from": "entry-cat",
+       "to": "entry-act",
+       "label": "Next"
+      }
+     ],
+     "states": [
+      {
+       "id": "request",
+       "label": "Request the key",
+       "short": "Request",
+       "sentence": "The requested key is here.",
+       "why": "The table already stores its entries. Use Next to look up act without scanning the entire table.",
+       "active": [
+        "query"
+       ],
+       "calloutRegion": "query",
+       "readouts": [
+        {
+         "id": "bucket-count",
+         "label": "Bucket count",
+         "value": "4"
+        },
+        {
+         "id": "hash-output",
+         "label": "Hash output",
+         "value": "Not computed"
+        },
+        {
+         "id": "comparisons",
+         "label": "Key comparisons",
+         "value": "0"
+        },
+        {
+         "id": "result",
+         "label": "Returned value",
+         "value": "Not returned"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Ready to hash the requested key."
+        }
+       ]
+      },
+      {
+       "id": "hash-key",
+       "label": "Compute the bucket",
+       "short": "Hash",
+       "sentence": "The hash function is here.",
+       "why": "The requested key has three characters. Its character count modulo the bucket count determines the bucket address.",
+       "active": [
+        "hash"
+       ],
+       "calloutRegion": "hash",
+       "readouts": [
+        {
+         "id": "bucket-count",
+         "label": "Bucket count",
+         "value": "4"
+        },
+        {
+         "id": "hash-output",
+         "label": "Hash output",
+         "value": "3"
+        },
+        {
+         "id": "comparisons",
+         "label": "Key comparisons",
+         "value": "0"
+        },
+        {
+         "id": "result",
+         "label": "Returned value",
+         "value": "Not returned"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Bucket address computed; no stored keys compared."
+        }
+       ]
+      },
+      {
+       "id": "open-bucket",
+       "label": "Follow the bucket",
+       "short": "Bucket",
+       "sentence": "The selected bucket begins here.",
+       "why": "Only this bucket's chain needs searching. The pear entry belongs to another bucket and remains untouched.",
+       "active": [
+        "bucket-3"
+       ],
+       "calloutRegion": "bucket-3",
+       "readouts": [
+        {
+         "id": "bucket-count",
+         "label": "Bucket count",
+         "value": "4"
+        },
+        {
+         "id": "hash-output",
+         "label": "Hash output",
+         "value": "3"
+        },
+        {
+         "id": "comparisons",
+         "label": "Key comparisons",
+         "value": "0"
+        },
+        {
+         "id": "result",
+         "label": "Returned value",
+         "value": "Not returned"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Follow the selected bucket's head link."
+        }
+       ]
+      },
+      {
+       "id": "reject-collision",
+       "label": "Reject the colliding key",
+       "short": "Compare cat",
+       "sentence": "The first candidate is here.",
+       "why": "Cat and act share a hash output, but their keys differ. Follow Next within the chain instead of returning feline.",
+       "active": [
+        "entry-cat"
+       ],
+       "calloutRegion": "entry-cat",
+       "readouts": [
+        {
+         "id": "bucket-count",
+         "label": "Bucket count",
+         "value": "4"
+        },
+        {
+         "id": "hash-output",
+         "label": "Hash output",
+         "value": "3"
+        },
+        {
+         "id": "comparisons",
+         "label": "Key comparisons",
+         "value": "1"
+        },
+        {
+         "id": "result",
+         "label": "Returned value",
+         "value": "Not returned"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Key mismatch; continue along the same chain."
+        }
+       ]
+      },
+      {
+       "id": "found",
+       "label": "Return the matching value",
+       "short": "Match act",
+       "sentence": "The matching entry is here.",
+       "why": "The exact key matches. Hashing narrowed the search; key comparison distinguished the colliding entries and selected the correct value.",
+       "active": [
+        "entry-act"
+       ],
+       "calloutRegion": "entry-act",
+       "readouts": [
+        {
+         "id": "bucket-count",
+         "label": "Bucket count",
+         "value": "4"
+        },
+        {
+         "id": "hash-output",
+         "label": "Hash output",
+         "value": "3"
+        },
+        {
+         "id": "comparisons",
+         "label": "Key comparisons",
+         "value": "2"
+        },
+        {
+         "id": "result",
+         "label": "Returned value",
+         "value": "perform"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Lookup complete; pear was never compared."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 5971
+ },
+ "usd": 0.059906,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed table with the act query, bucket 3 chain, cat mismatch, and act match demonstrates how hashing narrows the search and key comparison disambiguates collisions."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The found state is the final step, persists until the learner acts, and shows the act match with the value perform and 2 comparisons."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There are no parameters (budget zero) and the fixed comparison is justified; the step index changes the active region and the readouts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Highlights, callouts, and readouts trace to state.active, state.calloutRegion, state.sentence, state.why, and state.readouts, and the links come from variant.links."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, callouts, why text, and the Previous/Next and Reset controls consistently refer to act, cat, the hash, and bucket 3."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each state highlights a single region, and the cat-versus-act comparison adds mechanism without extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The values check out (3 mod 4 = 3, pear at 4 mod 4 = 0, comparisons 0/0/0/1/2, result perform), and callouts only locate while readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018856
+ }
+}

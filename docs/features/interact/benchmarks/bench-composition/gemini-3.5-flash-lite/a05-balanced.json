@@ -1,0 +1,250 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a05",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a diffusion model generate an image?",
+ "ts": "2026-11-14T22:20:28.096Z",
+ "ms": 3186,
+ "raw": "{\n  \"story\": \"Diffusion models destroy images with noise step by step, then learn to reverse the process. Start from pure static, remove noise gradually, and reveal a clean photograph.\",\n  \"aha\": {\n    \"stateId\": \"step3\",\n    \"observation\": \"At step three, recognizable shapes emerge from the chaotic static as the reverse process successfully predicts and subtracts the noise.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"metrics\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"bar\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Generation Step\",\n      \"options\": [\n        \"step0\",\n        \"step1\",\n        \"step2\",\n        \"step3\",\n        \"step4\"\n      ]\n    },\n    {\n      \"id\": \"resetState\",\n      \"kind\": \"reset\",\n      \"label\": \"Restart\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Standard Generation\",\n        \"regions\": [\n          {\n            \"id\": \"canvas\",\n            \"label\": \"Latent Space Canvas\",\n            \"kind\": \"grid\",\n            \"values\": [\"Static\", \"Noise\", \"Shapes\", \"Subject\", \"Clear\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"step0\",\n            \"label\": \"Pure Noise\",\n            \"short\": \"Start\",\n            \"sentence\": \"The model begins with completely random Gaussian noise.\",\n            \"why\": \"Initial state has zero signal.\",\n            \"active\": [\"canvas\"],\n            \"calloutRegion\": \"canvas\",\n            \"readouts\": [\n              {\n                \"id\": \"noiseLevel\",\n                \"label\": \"Noise Level\",\n                \"value\": \"100%\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step1\",\n            \"label\": \"Early Denoising\",\n            \"short\": \"Step 1\",\n            \"sentence\": \"The neural network predicts and removes the first layer of noise.\",\n            \"why\": \"Broad outlines start to cluster.\",\n            \"active\": [\"canvas\"],\n            \"calloutRegion\": \"canvas\",\n            \"readouts\": [\n              {\n                \"id\": \"noiseLevel\",\n                \"label\": \"Noise Level\",\n                \"value\": \"75%\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step2\",\n            \"label\": \"Mid Denoising\",\n            \"short\": \"Step 2\",\n            \"sentence\": \"Intermediate features and color blobs take form.\",\n            \"why\": \"Structural composition locks in.\",\n            \"active\": [\"canvas\"],\n            \"calloutRegion\": \"canvas\",\n            \"readouts\": [\n              {\n                \"id\": \"noiseLevel\",\n                \"label\": \"Noise Level\",\n                \"value\": \"50%\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step3\",\n            \"label\": \"Late Denoising\",\n            \"short\": \"Step 3\",\n            \"sentence\": \"Fine details, textures, and edges sharpen rapidly.\",\n            \"why\": \"High frequency details are restored.\",\n            \"active\": [\"canvas\"],\n            \"calloutRegion\": \"canvas\",\n            \"readouts\": [\n              {\n                \"id\": \"noiseLevel\",\n                \"label\": \"Noise Level\",\n                \"value\": \"25%\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step4\",\n            \"label\": \"Final Image\",\n            \"short\": \"Done\",\n            \"sentence\": \"The final clean image is fully realized.\",\n            \"why\": \"Zero residual noise remains.\",\n            \"active\": [\"canvas\"],\n            \"calloutRegion\": \"canvas\",\n            \"readouts\": [\n              {\n                \"id\": \"noiseLevel\",\n                \"label\": \"Noise Level\",\n                \"value\": \"0%\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Diffusion models destroy images with noise step by step, then learn to reverse the process. Start from pure static, remove noise gradually, and reveal a clean photograph.",
+  "aha": {
+   "stateId": "step3",
+   "observation": "At step three, recognizable shapes emerge from the chaotic static as the reverse process successfully predicts and subtracts the noise."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "metrics",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "bar",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Generation Step",
+    "options": [
+     "step0",
+     "step1",
+     "step2",
+     "step3",
+     "step4"
+    ]
+   },
+   {
+    "id": "resetState",
+    "kind": "reset",
+    "label": "Restart",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Standard Generation",
+     "regions": [
+      {
+       "id": "canvas",
+       "label": "Latent Space Canvas",
+       "kind": "grid",
+       "values": [
+        "Static",
+        "Noise",
+        "Shapes",
+        "Subject",
+        "Clear"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "step0",
+       "label": "Pure Noise",
+       "short": "Start",
+       "sentence": "The model begins with completely random Gaussian noise.",
+       "why": "Initial state has zero signal.",
+       "active": [
+        "canvas"
+       ],
+       "calloutRegion": "canvas",
+       "readouts": [
+        {
+         "id": "noiseLevel",
+         "label": "Noise Level",
+         "value": "100%"
+        }
+       ]
+      },
+      {
+       "id": "step1",
+       "label": "Early Denoising",
+       "short": "Step 1",
+       "sentence": "The neural network predicts and removes the first layer of noise.",
+       "why": "Broad outlines start to cluster.",
+       "active": [
+        "canvas"
+       ],
+       "calloutRegion": "canvas",
+       "readouts": [
+        {
+         "id": "noiseLevel",
+         "label": "Noise Level",
+         "value": "75%"
+        }
+       ]
+      },
+      {
+       "id": "step2",
+       "label": "Mid Denoising",
+       "short": "Step 2",
+       "sentence": "Intermediate features and color blobs take form.",
+       "why": "Structural composition locks in.",
+       "active": [
+        "canvas"
+       ],
+       "calloutRegion": "canvas",
+       "readouts": [
+        {
+         "id": "noiseLevel",
+         "label": "Noise Level",
+         "value": "50%"
+        }
+       ]
+      },
+      {
+       "id": "step3",
+       "label": "Late Denoising",
+       "short": "Step 3",
+       "sentence": "Fine details, textures, and edges sharpen rapidly.",
+       "why": "High frequency details are restored.",
+       "active": [
+        "canvas"
+       ],
+       "calloutRegion": "canvas",
+       "readouts": [
+        {
+         "id": "noiseLevel",
+         "label": "Noise Level",
+         "value": "25%"
+        }
+       ]
+      },
+      {
+       "id": "step4",
+       "label": "Final Image",
+       "short": "Done",
+       "sentence": "The final clean image is fully realized.",
+       "why": "Zero residual noise remains.",
+       "active": [
+        "canvas"
+       ],
+       "calloutRegion": "canvas",
+       "readouts": [
+        {
+         "id": "noiseLevel",
+         "label": "Noise Level",
+         "value": "0%"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1105,
+  "output": 1244
+ },
+ "usd": 0.003442,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The scene shows a generic grid of five text labels (Static to Clear) and a noise percentage, so it never visibly demonstrates the noise-prediction-and-subtraction mechanism."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha is declared at step3, but the user-driven stepper has no hold; the step3 sentence (fine details sharpen) also conflicts with the aha text (shapes emerge), and the final step follows it."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only input is a step index that swaps a noise-level string; there is no parameter such as noise schedule or step count that changes the experiment."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The callout always targets the same canvas region and the picture is bound only to string readouts, so no highlights or arrows trace to meaningful per-step data, and the grid values are not tied to state."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The aha says shapes emerge at step three while the grid labels put Shapes at the third cell (step2) and the step3 sentence is about fine details; the 'Generation Step' control names also mismatch the 'Step 1' to 'Done' shorts."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The balanced depth has one changing region and one readout with no clutter, though it adds no comparison or formula."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The noise percentages (100 to 0 in steps of 25) are internally consistent, but the readout is duplicated by both the metrics and picture bindings, and nothing is actually computed or verifiable."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012098
+ }
+}

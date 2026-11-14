@@ -1,0 +1,377 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "b-tcp-handshake",
+ "set": "B",
+ "subject": "tcp-handshake",
+ "depth": "detailed",
+ "request": "how does the TCP handshake work?",
+ "ts": "2026-11-14T23:09:05.884Z",
+ "ms": 120612,
+ "raw": "{\n  \"story\": \"Client wants a TCP connection with listening Server. Follow SYN, SYN-ACK, and ACK across Wire using Previous and Next. Sequence numbers count positions, not elapsed time; SYN consumes a position even without payload. Compare both endpoint states before and after ACK reaches Server.\",\n  \"aha\": {\n    \"stateId\": \"established\",\n    \"observation\": \"Server becomes established only after ACK confirms receipt of its SYN; sending SYN-ACK alone leaves Server waiting.\"\n  },\n  \"layout\": {\n    \"preset\": \"protocol\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"handshake-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell and canonical protocol arrangement. Place explanation and instructions above the experiment. Keep progress and trace on this rail. Each index represents a discrete state, never elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"endpoints-and-wire\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Keep Client left, Wire centered, and Server right in every state. Links show connectivity, not transmission direction. Highlight only bound active regions. Wire evidence identifies the segment, direction, and delivery condition. Keep all labels readable at native card width.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-endpoint-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor the callout to its named target without covering labels. Identify the active mechanism here; reserve numeric values for readouts. Reference capture must show established. That state persists until the learner acts.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"handshake-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place aligned readouts below the picture, with Status last. Preserve endpoint rows across states. Assume no loss, reordering, retransmission, simultaneous open, or sequence wrap; payload is absent. Initial ISNs are fixed inputs declared in Ready. Sequence fields use exact unsigned sequence positions; payload terms use bytes, with no rounding. ACK names the next expected peer sequence position. Compute ACK as peer ISN plus SYN cost plus payload length. Count transmitted TCP segments cumulatively, excluding lower-layer traffic. Materialized readouts use these same inputs and states.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"handshake-state\",\n      \"kind\": \"index\",\n      \"presentation\": \"Detailed parameter-control budget: zero, excluding navigation and Reset. Default index is zero; bounds are zero through four, with unit increments. Render Previous and Next, retaining their names when disabled at boundaries. Each activation selects the adjacent state and updates all evidence. All states persist without timers. Provide accessible names, visible focus, and keyboard operation.\",\n      \"items\": \"variant.states\",\n      \"label\": \"Handshake state\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"presentation\": \"Restore Ready and the fixed input defaults. Use the accessible name Reset, visible focus, and keyboard activation.\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"TCP handshake\",\n        \"regions\": [\n          {\n            \"id\": \"client\",\n            \"label\": \"Client\",\n            \"actors\": [\n              \"Active opener\"\n            ]\n          },\n          {\n            \"id\": \"wire\",\n            \"label\": \"Wire\",\n            \"actors\": [\n              \"TCP segment\"\n            ]\n          },\n          {\n            \"id\": \"server\",\n            \"label\": \"Server\",\n            \"actors\": [\n              \"Passive listener\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"client\",\n            \"to\": \"wire\",\n            \"label\": \"TCP connection path\"\n          },\n          {\n            \"from\": \"wire\",\n            \"to\": \"server\",\n            \"label\": \"TCP connection path\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"ready\",\n            \"label\": \"Ready\",\n            \"short\": \"Listening\",\n            \"sentence\": \"Server is listening; Client has not sent SYN.\",\n            \"why\": \"Each endpoint has its own initial sequence number, abbreviated ISN; neither endpoint has received the other's SYN.\",\n            \"active\": [\n              \"server\"\n            ],\n            \"calloutRegion\": \"server\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"CLOSED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"LISTEN\"\n              },\n              {\n                \"id\": \"wire-evidence\",\n                \"label\": \"Wire evidence\",\n                \"value\": \"Idle\"\n              },\n              {\n                \"id\": \"client-isn\",\n                \"label\": \"Fixed Client ISN\",\n                \"value\": \"1000\"\n              },\n              {\n                \"id\": \"server-isn\",\n                \"label\": \"Fixed Server ISN\",\n                \"value\": \"5000\"\n              },\n              {\n                \"id\": \"segments-sent\",\n                \"label\": \"Segments sent\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"No handshake evidence has crossed Wire.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"syn-in-flight\",\n            \"label\": \"Client sends SYN\",\n            \"short\": \"SYN\",\n            \"sentence\": \"SYN crosses Wire from Client to Server.\",\n            \"why\": \"Client advertises its starting sequence number; SYN consumes one sequence position despite carrying no application payload.\",\n            \"active\": [\n              \"client\",\n              \"wire\"\n            ],\n            \"calloutRegion\": \"wire\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"SYN-SENT\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"LISTEN\"\n              },\n              {\n                \"id\": \"wire-evidence\",\n                \"label\": \"Wire evidence\",\n                \"value\": \"SYN · Client → Server · in transit\"\n              },\n              {\n                \"id\": \"segment-seq\",\n                \"label\": \"Segment SEQ\",\n                \"value\": \"1000\"\n              },\n              {\n                \"id\": \"segment-ack\",\n                \"label\": \"Segment ACK\",\n                \"value\": \"Not valid; ACK flag is off.\"\n              },\n              {\n                \"id\": \"segments-sent\",\n                \"label\": \"Segments sent\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Server remains LISTEN until SYN arrives.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"syn-ack-in-flight\",\n            \"label\": \"Server replies SYN-ACK\",\n            \"short\": \"SYN-ACK\",\n            \"sentence\": \"Server receives SYN and replies with SYN-ACK.\",\n            \"why\": \"SYN-ACK acknowledges Client's SYN and advertises Server's starting sequence number; Server still needs acknowledgment of its own SYN.\",\n            \"active\": [\n              \"server\",\n              \"wire\"\n            ],\n            \"calloutRegion\": \"server\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"SYN-SENT\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"SYN-RECEIVED\"\n              },\n              {\n                \"id\": \"wire-evidence\",\n                \"label\": \"Wire evidence\",\n                \"value\": \"SYN-ACK · Server → Client · in transit\"\n              },\n              {\n                \"id\": \"segment-seq\",\n                \"label\": \"Segment SEQ\",\n                \"value\": \"5000\"\n              },\n              {\n                \"id\": \"segment-ack\",\n                \"label\": \"Segment ACK: ISN + SYN + payload\",\n                \"value\": \"1000 + 1 + 0 = 1001\"\n              },\n              {\n                \"id\": \"segments-sent\",\n                \"label\": \"Segments sent\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Server acknowledges Client's SYN but cannot yet know its own SYN arrived.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"ack-in-flight\",\n            \"label\": \"Client sends ACK\",\n            \"short\": \"ACK sent\",\n            \"sentence\": \"Client accepts SYN-ACK and sends ACK; Server still waits.\",\n            \"why\": \"Client has received Server's SYN and acknowledgment, so Client becomes established; its returning ACK has not yet reached Server.\",\n            \"active\": [\n              \"client\",\n              \"wire\"\n            ],\n            \"calloutRegion\": \"client\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"SYN-RECEIVED\"\n              },\n              {\n                \"id\": \"wire-evidence\",\n                \"label\": \"Wire evidence\",\n                \"value\": \"ACK · Client → Server · in transit\"\n              },\n              {\n                \"id\": \"segment-seq\",\n                \"label\": \"Segment SEQ\",\n                \"value\": \"1001\"\n              },\n              {\n                \"id\": \"segment-ack\",\n                \"label\": \"Segment ACK: ISN + SYN + payload\",\n                \"value\": \"5000 + 1 + 0 = 5001\"\n              },\n              {\n                \"id\": \"segments-sent\",\n                \"label\": \"Segments sent\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The endpoint states differ while ACK is in transit.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"established\",\n            \"label\": \"Server accepts ACK\",\n            \"short\": \"Both established\",\n            \"sentence\": \"Server accepts ACK; both endpoint states now show ESTABLISHED.\",\n            \"why\": \"ACK matches Server's next sequence position, confirming Client received Server's SYN; a pure ACK consumes no sequence positions.\",\n            \"active\": [\n              \"client\",\n              \"server\"\n            ],\n            \"calloutRegion\": \"server\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"wire-evidence\",\n                \"label\": \"Wire evidence\",\n                \"value\": \"ACK · Client → Server · received by Server\"\n              },\n              {\n                \"id\": \"segment-seq\",\n                \"label\": \"Received segment SEQ\",\n                \"value\": \"1001\"\n              },\n              {\n                \"id\": \"segment-ack\",\n                \"label\": \"Received ACK: ISN + SYN + payload\",\n                \"value\": \"5000 + 1 + 0 = 5001\"\n              },\n              {\n                \"id\": \"segments-sent\",\n                \"label\": \"Segments sent\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Both SYNs are acknowledged; Server now joins Client in ESTABLISHED.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Client wants a TCP connection with listening Server. Follow SYN, SYN-ACK, and ACK across Wire using Previous and Next. Sequence numbers count positions, not elapsed time; SYN consumes a position even without payload. Compare both endpoint states before and after ACK reaches Server.",
+  "aha": {
+   "stateId": "established",
+   "observation": "Server becomes established only after ACK confirms receipt of its SYN; sending SYN-ACK alone leaves Server waiting."
+  },
+  "layout": {
+   "preset": "protocol",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "handshake-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell and canonical protocol arrangement. Place explanation and instructions above the experiment. Keep progress and trace on this rail. Each index represents a discrete state, never elapsed time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "endpoints-and-wire",
+    "kind": "fixed-picture",
+    "presentation": "Keep Client left, Wire centered, and Server right in every state. Links show connectivity, not transmission direction. Highlight only bound active regions. Wire evidence identifies the segment, direction, and delivery condition. Keep all labels readable at native card width.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-endpoint-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor the callout to its named target without covering labels. Identify the active mechanism here; reserve numeric values for readouts. Reference capture must show established. That state persists until the learner acts.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "handshake-evidence",
+    "kind": "value-readout",
+    "presentation": "Place aligned readouts below the picture, with Status last. Preserve endpoint rows across states. Assume no loss, reordering, retransmission, simultaneous open, or sequence wrap; payload is absent. Initial ISNs are fixed inputs declared in Ready. Sequence fields use exact unsigned sequence positions; payload terms use bytes, with no rounding. ACK names the next expected peer sequence position. Compute ACK as peer ISN plus SYN cost plus payload length. Count transmitted TCP segments cumulatively, excluding lower-layer traffic. Materialized readouts use these same inputs and states.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "handshake-state",
+    "kind": "index",
+    "presentation": "Detailed parameter-control budget: zero, excluding navigation and Reset. Default index is zero; bounds are zero through four, with unit increments. Render Previous and Next, retaining their names when disabled at boundaries. Each activation selects the adjacent state and updates all evidence. All states persist without timers. Provide accessible names, visible focus, and keyboard operation.",
+    "items": "variant.states",
+    "label": "Handshake state"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "presentation": "Restore Ready and the fixed input defaults. Use the accessible name Reset, visible focus, and keyboard activation.",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "TCP handshake",
+     "regions": [
+      {
+       "id": "client",
+       "label": "Client",
+       "actors": [
+        "Active opener"
+       ]
+      },
+      {
+       "id": "wire",
+       "label": "Wire",
+       "actors": [
+        "TCP segment"
+       ]
+      },
+      {
+       "id": "server",
+       "label": "Server",
+       "actors": [
+        "Passive listener"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "client",
+       "to": "wire",
+       "label": "TCP connection path"
+      },
+      {
+       "from": "wire",
+       "to": "server",
+       "label": "TCP connection path"
+      }
+     ],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Ready",
+       "short": "Listening",
+       "sentence": "Server is listening; Client has not sent SYN.",
+       "why": "Each endpoint has its own initial sequence number, abbreviated ISN; neither endpoint has received the other's SYN.",
+       "active": [
+        "server"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "CLOSED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "wire-evidence",
+         "label": "Wire evidence",
+         "value": "Idle"
+        },
+        {
+         "id": "client-isn",
+         "label": "Fixed Client ISN",
+         "value": "1000"
+        },
+        {
+         "id": "server-isn",
+         "label": "Fixed Server ISN",
+         "value": "5000"
+        },
+        {
+         "id": "segments-sent",
+         "label": "Segments sent",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "No handshake evidence has crossed Wire."
+        }
+       ]
+      },
+      {
+       "id": "syn-in-flight",
+       "label": "Client sends SYN",
+       "short": "SYN",
+       "sentence": "SYN crosses Wire from Client to Server.",
+       "why": "Client advertises its starting sequence number; SYN consumes one sequence position despite carrying no application payload.",
+       "active": [
+        "client",
+        "wire"
+       ],
+       "calloutRegion": "wire",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "wire-evidence",
+         "label": "Wire evidence",
+         "value": "SYN · Client → Server · in transit"
+        },
+        {
+         "id": "segment-seq",
+         "label": "Segment SEQ",
+         "value": "1000"
+        },
+        {
+         "id": "segment-ack",
+         "label": "Segment ACK",
+         "value": "Not valid; ACK flag is off."
+        },
+        {
+         "id": "segments-sent",
+         "label": "Segments sent",
+         "value": "1"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Server remains LISTEN until SYN arrives."
+        }
+       ]
+      },
+      {
+       "id": "syn-ack-in-flight",
+       "label": "Server replies SYN-ACK",
+       "short": "SYN-ACK",
+       "sentence": "Server receives SYN and replies with SYN-ACK.",
+       "why": "SYN-ACK acknowledges Client's SYN and advertises Server's starting sequence number; Server still needs acknowledgment of its own SYN.",
+       "active": [
+        "server",
+        "wire"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "wire-evidence",
+         "label": "Wire evidence",
+         "value": "SYN-ACK · Server → Client · in transit"
+        },
+        {
+         "id": "segment-seq",
+         "label": "Segment SEQ",
+         "value": "5000"
+        },
+        {
+         "id": "segment-ack",
+         "label": "Segment ACK: ISN + SYN + payload",
+         "value": "1000 + 1 + 0 = 1001"
+        },
+        {
+         "id": "segments-sent",
+         "label": "Segments sent",
+         "value": "2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Server acknowledges Client's SYN but cannot yet know its own SYN arrived."
+        }
+       ]
+      },
+      {
+       "id": "ack-in-flight",
+       "label": "Client sends ACK",
+       "short": "ACK sent",
+       "sentence": "Client accepts SYN-ACK and sends ACK; Server still waits.",
+       "why": "Client has received Server's SYN and acknowledgment, so Client becomes established; its returning ACK has not yet reached Server.",
+       "active": [
+        "client",
+        "wire"
+       ],
+       "calloutRegion": "client",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "wire-evidence",
+         "label": "Wire evidence",
+         "value": "ACK · Client → Server · in transit"
+        },
+        {
+         "id": "segment-seq",
+         "label": "Segment SEQ",
+         "value": "1001"
+        },
+        {
+         "id": "segment-ack",
+         "label": "Segment ACK: ISN + SYN + payload",
+         "value": "5000 + 1 + 0 = 5001"
+        },
+        {
+         "id": "segments-sent",
+         "label": "Segments sent",
+         "value": "3"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The endpoint states differ while ACK is in transit."
+        }
+       ]
+      },
+      {
+       "id": "established",
+       "label": "Server accepts ACK",
+       "short": "Both established",
+       "sentence": "Server accepts ACK; both endpoint states now show ESTABLISHED.",
+       "why": "ACK matches Server's next sequence position, confirming Client received Server's SYN; a pure ACK consumes no sequence positions.",
+       "active": [
+        "client",
+        "server"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "wire-evidence",
+         "label": "Wire evidence",
+         "value": "ACK · Client → Server · received by Server"
+        },
+        {
+         "id": "segment-seq",
+         "label": "Received segment SEQ",
+         "value": "1001"
+        },
+        {
+         "id": "segment-ack",
+         "label": "Received ACK: ISN + SYN + payload",
+         "value": "5000 + 1 + 0 = 5001"
+        },
+        {
+         "id": "segments-sent",
+         "label": "Segments sent",
+         "value": "3"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Both SYNs are acknowledged; Server now joins Client in ESTABLISHED."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1534,
+  "output": 6748
+ },
+ "usd": 0.067678,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3fQDcubTxbMziufCrzm\"}"
+  },
+  "cardUsd": 0
+ }
+}

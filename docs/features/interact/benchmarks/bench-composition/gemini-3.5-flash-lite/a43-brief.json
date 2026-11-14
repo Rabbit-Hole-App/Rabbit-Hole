@@ -1,0 +1,278 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a43",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "explain the call stack and the base case in a recursive factorial",
+ "ts": "2026-11-14T22:23:45.095Z",
+ "ms": 3528,
+ "raw": "{\n  \"story\": \"Recursion builds up a stack of deferred multiplications until it hits the base case, then unwinds the results.\",\n  \"aha\": {\n    \"stateId\": \"base_case\",\n    \"observation\": \"When factorial(0) returns 1, the stacked calls resolve in reverse order.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.step\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.step\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\n        \"factorial(3)\",\n        \"factorial(2)\",\n        \"factorial(1)\",\n        \"factorial(0)\",\n        \"Return 1\",\n        \"Return 2\",\n        \"Return 6\"\n      ]\n    },\n    {\n      \"id\": \"res\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"regions\": [\n          {\n            \"id\": \"stack\",\n            \"label\": \"Call Stack\",\n            \"kind\": \"list\",\n            \"values\": [\n              \"fact(3)\",\n              \"fact(2)\",\n              \"fact(1)\",\n              \"fact(0)\"\n            ]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"call_3\",\n            \"label\": \"Step 1\",\n            \"short\": \"fact(3)\",\n            \"sentence\": \"factorial(3) calls factorial(2).\",\n            \"why\": \"Waiting for multiplier.\",\n            \"active\": [\"stack\"],\n            \"calloutRegion\": \"stack\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"call_2\",\n            \"label\": \"Step 2\",\n            \"short\": \"fact(2)\",\n            \"sentence\": \"factorial(2) calls factorial(1).\",\n            \"why\": \"Waiting for multiplier.\",\n            \"active\": [\"stack\"],\n            \"calloutRegion\": \"stack\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"2\"\n              }\n            ]\n          },\n          {\n            \"id\": \"call_1\",\n            \"label\": \"Step 3\",\n            \"short\": \"fact(1)\",\n            \"sentence\": \"factorial(1) calls factorial(0).\",\n            \"why\": \"Waiting for multiplier.\",\n            \"active\": [\"stack\"],\n            \"calloutRegion\": \"stack\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"3\"\n              }\n            ]\n          },\n          {\n            \"id\": \"base_case\",\n            \"label\": \"Step 4\",\n            \"short\": \"fact(0)\",\n            \"sentence\": \"factorial(0) reaches the base case and returns 1.\",\n            \"why\": \"Base case stops recursion.\",\n            \"active\": [\"stack\"],\n            \"calloutRegion\": \"stack\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"ret_1\",\n            \"label\": \"Step 5\",\n            \"short\": \"Return 1\",\n            \"sentence\": \"factorial(1) computes 1 * 1 and returns 1.\",\n            \"why\": \"Unwinding stack.\",\n            \"active\": [\"stack\"],\n            \"calloutRegion\": \"stack\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"3\"\n              }\n            ]\n          },\n          {\n            \"id\": \"ret_2\",\n            \"label\": \"Step 6\",\n            \"short\": \"Return 2\",\n            \"sentence\": \"factorial(2) computes 2 * 1 and returns 2.\",\n            \"why\": \"Unwinding stack.\",\n            \"active\": [\"stack\"],\n            \"calloutRegion\": \"stack\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"2\"\n              }\n            ]\n          },\n          {\n            \"id\": \"ret_3\",\n            \"label\": \"Step 7\",\n            \"short\": \"Return 6\",\n            \"sentence\": \"factorial(3) computes 3 * 2 and returns 6.\",\n            \"why\": \"Final result ready.\",\n            \"active\": [\"stack\"],\n            \"calloutRegion\": \"stack\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"1\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Recursion builds up a stack of deferred multiplications until it hits the base case, then unwinds the results.",
+  "aha": {
+   "stateId": "base_case",
+   "observation": "When factorial(0) returns 1, the stacked calls resolve in reverse order."
+  },
+  "layout": {
+   "preset": "stepper",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.step",
+     "regions": "variant.regions",
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "factorial(3)",
+     "factorial(2)",
+     "factorial(1)",
+     "factorial(0)",
+     "Return 1",
+     "Return 2",
+     "Return 6"
+    ]
+   },
+   {
+    "id": "res",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "regions": [
+      {
+       "id": "stack",
+       "label": "Call Stack",
+       "kind": "list",
+       "values": [
+        "fact(3)",
+        "fact(2)",
+        "fact(1)",
+        "fact(0)"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "call_3",
+       "label": "Step 1",
+       "short": "fact(3)",
+       "sentence": "factorial(3) calls factorial(2).",
+       "why": "Waiting for multiplier.",
+       "active": [
+        "stack"
+       ],
+       "calloutRegion": "stack",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "call_2",
+       "label": "Step 2",
+       "short": "fact(2)",
+       "sentence": "factorial(2) calls factorial(1).",
+       "why": "Waiting for multiplier.",
+       "active": [
+        "stack"
+       ],
+       "calloutRegion": "stack",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "call_1",
+       "label": "Step 3",
+       "short": "fact(1)",
+       "sentence": "factorial(1) calls factorial(0).",
+       "why": "Waiting for multiplier.",
+       "active": [
+        "stack"
+       ],
+       "calloutRegion": "stack",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "base_case",
+       "label": "Step 4",
+       "short": "fact(0)",
+       "sentence": "factorial(0) reaches the base case and returns 1.",
+       "why": "Base case stops recursion.",
+       "active": [
+        "stack"
+       ],
+       "calloutRegion": "stack",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "ret_1",
+       "label": "Step 5",
+       "short": "Return 1",
+       "sentence": "factorial(1) computes 1 * 1 and returns 1.",
+       "why": "Unwinding stack.",
+       "active": [
+        "stack"
+       ],
+       "calloutRegion": "stack",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "ret_2",
+       "label": "Step 6",
+       "short": "Return 2",
+       "sentence": "factorial(2) computes 2 * 1 and returns 2.",
+       "why": "Unwinding stack.",
+       "active": [
+        "stack"
+       ],
+       "calloutRegion": "stack",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "ret_3",
+       "label": "Step 7",
+       "short": "Return 6",
+       "sentence": "factorial(3) computes 3 * 2 and returns 6.",
+       "why": "Final result ready.",
+       "active": [
+        "stack"
+       ],
+       "calloutRegion": "stack",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "1"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1108,
+  "output": 1457
+ },
+ "usd": 0.003975,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The stack list is static and no marks show the return values unwinding, so the drawing doesn't demonstrate the deferred multiplication and unwind mechanism."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The learner-driven index stepper holds at base_case (step 4) until the learner advances."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step index changes the active state, the depth readout and the callout sentence."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "Every state marks the same 'stack' region as active and the picture has no per-frame highlight, and the return values 1/2/6 exist only in sentence text, not in bound marks."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, callout sentences and control options all consistently name the factorial calls and returns."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth has one region and one readout, with no clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The depth sequence 1,2,3,4,3,2,1 and the arithmetic 1*1, 2*1, 3*2=6 are correct, and each value is placed once in the readout."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01717
+ }
+}

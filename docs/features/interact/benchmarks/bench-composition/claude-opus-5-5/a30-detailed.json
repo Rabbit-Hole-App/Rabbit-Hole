@@ -1,0 +1,758 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a30",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "Where do the out-of-fold predictions for the stacking model come from?",
+ "ts": "2026-11-14T22:34:52.930Z",
+ "ms": 51773,
+ "raw": "{\"story\":\"Eight training rows are split into folds. Each fold model trains on every other fold, then predicts only the held-out fold. That prediction fills those rows' out-of-fold (OOF) cells. After K fits, every row has one prediction from a model that never saw it. The meta-model then trains on those honest predictions.\",\"aha\":{\"stateId\":\"all-filled\",\"observation\":\"Every OOF cell is filled exactly once, by the single fold model that never trained on that row, so leaked rows stay at 0.\"},\"layout\":{\"preset\":\"stepper-pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"progress\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step (Previous / Next)\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"folds\",\"kind\":\"select\",\"label\":\"Number of folds K (N = 8 rows fixed)\",\"options\":[\"4 folds\",\"2 folds\"],\"default\":0,\"items\":\"data.variants\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step and 4 folds\"}],\"data\":{\"variants\":[{\"label\":\"4 folds\",\"regions\":[{\"id\":\"fold-1\",\"label\":\"Fold 1\",\"values\":[\"r1\",\"r2\"]},{\"id\":\"fold-2\",\"label\":\"Fold 2\",\"values\":[\"r3\",\"r4\"]},{\"id\":\"fold-3\",\"label\":\"Fold 3\",\"values\":[\"r5\",\"r6\"]},{\"id\":\"fold-4\",\"label\":\"Fold 4\",\"values\":[\"r7\",\"r8\"]},{\"id\":\"base\",\"label\":\"Fold model k (same base learner)\",\"actors\":[\"model 1\",\"model 2\",\"model 3\",\"model 4\"]},{\"id\":\"oof\",\"label\":\"OOF prediction column\",\"values\":[\"r1–r2: model 1\",\"r3–r4: model 2\",\"r5–r6: model 3\",\"r7–r8: model 4\"]},{\"id\":\"meta\",\"label\":\"Meta-model\",\"values\":[\"input: OOF column\",\"target: true labels\"]},{\"id\":\"test\",\"label\":\"Test rows\",\"values\":[\"unseen by all fits\"]}],\"links\":[{\"from\":\"fold-1\",\"to\":\"base\",\"label\":\"train or hold out\"},{\"from\":\"fold-2\",\"to\":\"base\",\"label\":\"train or hold out\"},{\"from\":\"fold-3\",\"to\":\"base\",\"label\":\"train or hold out\"},{\"from\":\"fold-4\",\"to\":\"base\",\"label\":\"train or hold out\"},{\"from\":\"base\",\"to\":\"oof\",\"label\":\"predict held-out fold\"},{\"from\":\"oof\",\"to\":\"meta\",\"label\":\"features\"},{\"from\":\"test\",\"to\":\"base\",\"label\":\"averaged predictions\"}],\"states\":[{\"id\":\"split\",\"label\":\"Split\",\"short\":\"Split\",\"active\":[\"fold-1\",\"fold-2\",\"fold-3\",\"fold-4\",\"oof\"],\"calloutRegion\":\"oof\",\"sentence\":\"The 8 training rows are split into 4 folds of 2 rows; the OOF column starts empty.\",\"why\":\"Folds decide which model is allowed to predict each row.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"0 of 4\"},{\"id\":\"train\",\"label\":\"Train rows per fit = N(K−1)/K\",\"value\":\"8×3/4 = 6\"},{\"id\":\"filled\",\"label\":\"OOF filled\",\"value\":\"0 / 8\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]},{\"id\":\"fit-1\",\"label\":\"Fit 1\",\"short\":\"Fit 1\",\"active\":[\"fold-2\",\"fold-3\",\"fold-4\",\"base\",\"oof\"],\"calloutRegion\":\"fold-1\",\"sentence\":\"Model 1 trains on folds 2–4 (6 rows), then predicts only held-out fold 1, filling r1–r2.\",\"why\":\"Model 1 never saw r1 or r2.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"1 of 4\"},{\"id\":\"train\",\"label\":\"Train rows per fit = N(K−1)/K\",\"value\":\"8×3/4 = 6\"},{\"id\":\"filled\",\"label\":\"OOF filled\",\"value\":\"2 / 8\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]},{\"id\":\"fit-2\",\"label\":\"Fit 2\",\"short\":\"Fit 2\",\"active\":[\"fold-1\",\"fold-3\",\"fold-4\",\"base\",\"oof\"],\"calloutRegion\":\"fold-2\",\"sentence\":\"Model 2 trains on folds 1, 3, 4 and predicts held-out fold 2, filling r3–r4.\",\"why\":\"Rows r1–r2 are now training data, but their OOF cells are already final.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"2 of 4\"},{\"id\":\"train\",\"label\":\"Train rows per fit = N(K−1)/K\",\"value\":\"8×3/4 = 6\"},{\"id\":\"filled\",\"label\":\"OOF filled\",\"value\":\"4 / 8\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]},{\"id\":\"fit-3\",\"label\":\"Fit 3\",\"short\":\"Fit 3\",\"active\":[\"fold-1\",\"fold-2\",\"fold-4\",\"base\",\"oof\"],\"calloutRegion\":\"fold-3\",\"sentence\":\"Model 3 trains on folds 1, 2, 4 and predicts held-out fold 3, filling r5–r6.\",\"why\":\"Each fit writes only to its own held-out rows.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"3 of 4\"},{\"id\":\"train\",\"label\":\"Train rows per fit = N(K−1)/K\",\"value\":\"8×3/4 = 6\"},{\"id\":\"filled\",\"label\":\"OOF filled\",\"value\":\"6 / 8\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]},{\"id\":\"all-filled\",\"label\":\"Fit 4: OOF complete\",\"short\":\"Fit 4\",\"active\":[\"fold-1\",\"fold-2\",\"fold-3\",\"base\",\"oof\"],\"calloutRegion\":\"oof\",\"sentence\":\"Model 4 predicts fold 4; all 8 OOF cells now come from models that never trained on them.\",\"why\":\"Each row is held out once and used for training K−1 = 3 times.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"4 of 4\"},{\"id\":\"train\",\"label\":\"Train rows per fit = N(K−1)/K\",\"value\":\"8×3/4 = 6\"},{\"id\":\"filled\",\"label\":\"OOF filled\",\"value\":\"8 / 8\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]},{\"id\":\"meta\",\"label\":\"Train meta-model\",\"short\":\"Meta\",\"active\":[\"oof\",\"meta\"],\"calloutRegion\":\"meta\",\"sentence\":\"The meta-model learns from the 8 OOF predictions and true labels, so it sees honest, unseen-data errors.\",\"why\":\"In-sample predictions would look too accurate and mislead the meta-model.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"4 of 4\"},{\"id\":\"filled\",\"label\":\"Meta training rows\",\"value\":\"8\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]},{\"id\":\"test\",\"label\":\"Predict test\",\"short\":\"Test\",\"active\":[\"test\",\"base\",\"meta\"],\"calloutRegion\":\"test\",\"sentence\":\"For test rows, the 4 fold models each predict; their average is the meta-model's input.\",\"why\":\"Test inputs match the OOF scale: predictions from models that never saw the row.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Models averaged\",\"value\":\"4\"},{\"id\":\"filled\",\"label\":\"Test prediction\",\"value\":\"mean of 4 → meta-model\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]}]},{\"label\":\"2 folds\",\"regions\":[{\"id\":\"fold-1\",\"label\":\"Fold 1\",\"values\":[\"r1\",\"r2\",\"r3\",\"r4\"]},{\"id\":\"fold-2\",\"label\":\"Fold 2\",\"values\":[\"r5\",\"r6\",\"r7\",\"r8\"]},{\"id\":\"base\",\"label\":\"Fold model k (same base learner)\",\"actors\":[\"model 1\",\"model 2\"]},{\"id\":\"oof\",\"label\":\"OOF prediction column\",\"values\":[\"r1–r4: model 1\",\"r5–r8: model 2\"]},{\"id\":\"meta\",\"label\":\"Meta-model\",\"values\":[\"input: OOF column\",\"target: true labels\"]},{\"id\":\"test\",\"label\":\"Test rows\",\"values\":[\"unseen by all fits\"]}],\"links\":[{\"from\":\"fold-1\",\"to\":\"base\",\"label\":\"train or hold out\"},{\"from\":\"fold-2\",\"to\":\"base\",\"label\":\"train or hold out\"},{\"from\":\"base\",\"to\":\"oof\",\"label\":\"predict held-out fold\"},{\"from\":\"oof\",\"to\":\"meta\",\"label\":\"features\"},{\"from\":\"test\",\"to\":\"base\",\"label\":\"averaged predictions\"}],\"states\":[{\"id\":\"split\",\"label\":\"Split\",\"short\":\"Split\",\"active\":[\"fold-1\",\"fold-2\",\"oof\"],\"calloutRegion\":\"oof\",\"sentence\":\"The 8 training rows are split into 2 folds of 4 rows; the OOF column starts empty.\",\"why\":\"Fewer folds mean each model trains on fewer rows.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"0 of 2\"},{\"id\":\"train\",\"label\":\"Train rows per fit = N(K−1)/K\",\"value\":\"8×1/2 = 4\"},{\"id\":\"filled\",\"label\":\"OOF filled\",\"value\":\"0 / 8\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]},{\"id\":\"fit-1\",\"label\":\"Fit 1\",\"short\":\"Fit 1\",\"active\":[\"fold-2\",\"base\",\"oof\"],\"calloutRegion\":\"fold-1\",\"sentence\":\"Model 1 trains on fold 2 (4 rows), then predicts held-out fold 1, filling r1–r4.\",\"why\":\"Model 1 never saw r1–r4.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"1 of 2\"},{\"id\":\"train\",\"label\":\"Train rows per fit = N(K−1)/K\",\"value\":\"8×1/2 = 4\"},{\"id\":\"filled\",\"label\":\"OOF filled\",\"value\":\"4 / 8\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]},{\"id\":\"all-filled\",\"label\":\"Fit 2: OOF complete\",\"short\":\"Fit 2\",\"active\":[\"fold-1\",\"base\",\"oof\"],\"calloutRegion\":\"oof\",\"sentence\":\"Model 2 predicts fold 2; all 8 OOF cells now come from models that never trained on them.\",\"why\":\"Same guarantee with K = 2, but each model learned from only 4 rows.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"2 of 2\"},{\"id\":\"train\",\"label\":\"Train rows per fit = N(K−1)/K\",\"value\":\"8×1/2 = 4\"},{\"id\":\"filled\",\"label\":\"OOF filled\",\"value\":\"8 / 8\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]},{\"id\":\"meta\",\"label\":\"Train meta-model\",\"short\":\"Meta\",\"active\":[\"oof\",\"meta\"],\"calloutRegion\":\"meta\",\"sentence\":\"The meta-model learns from the 8 OOF predictions and true labels, so it sees honest, unseen-data errors.\",\"why\":\"In-sample predictions would look too accurate and mislead the meta-model.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Fits done\",\"value\":\"2 of 2\"},{\"id\":\"filled\",\"label\":\"Meta training rows\",\"value\":\"8\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]},{\"id\":\"test\",\"label\":\"Predict test\",\"short\":\"Test\",\"active\":[\"test\",\"base\",\"meta\"],\"calloutRegion\":\"test\",\"sentence\":\"For test rows, the 2 fold models each predict; their average is the meta-model's input.\",\"why\":\"Test inputs match the OOF scale: predictions from models that never saw the row.\",\"readouts\":[{\"id\":\"fits\",\"label\":\"Models averaged\",\"value\":\"2\"},{\"id\":\"filled\",\"label\":\"Test prediction\",\"value\":\"mean of 2 → meta-model\"},{\"id\":\"leak\",\"label\":\"Leaked rows\",\"value\":\"0\"}]}]}]}}",
+ "composition": {
+  "story": "Eight training rows are split into folds. Each fold model trains on every other fold, then predicts only the held-out fold. That prediction fills those rows' out-of-fold (OOF) cells. After K fits, every row has one prediction from a model that never saw it. The meta-model then trains on those honest predictions.",
+  "aha": {
+   "stateId": "all-filled",
+   "observation": "Every OOF cell is filled exactly once, by the single fold model that never trained on that row, so leaked rows stay at 0."
+  },
+  "layout": {
+   "preset": "stepper-pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "progress",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step (Previous / Next)",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "folds",
+    "kind": "select",
+    "label": "Number of folds K (N = 8 rows fixed)",
+    "options": [
+     "4 folds",
+     "2 folds"
+    ],
+    "default": 0,
+    "items": "data.variants"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step and 4 folds"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "4 folds",
+     "regions": [
+      {
+       "id": "fold-1",
+       "label": "Fold 1",
+       "values": [
+        "r1",
+        "r2"
+       ]
+      },
+      {
+       "id": "fold-2",
+       "label": "Fold 2",
+       "values": [
+        "r3",
+        "r4"
+       ]
+      },
+      {
+       "id": "fold-3",
+       "label": "Fold 3",
+       "values": [
+        "r5",
+        "r6"
+       ]
+      },
+      {
+       "id": "fold-4",
+       "label": "Fold 4",
+       "values": [
+        "r7",
+        "r8"
+       ]
+      },
+      {
+       "id": "base",
+       "label": "Fold model k (same base learner)",
+       "actors": [
+        "model 1",
+        "model 2",
+        "model 3",
+        "model 4"
+       ]
+      },
+      {
+       "id": "oof",
+       "label": "OOF prediction column",
+       "values": [
+        "r1–r2: model 1",
+        "r3–r4: model 2",
+        "r5–r6: model 3",
+        "r7–r8: model 4"
+       ]
+      },
+      {
+       "id": "meta",
+       "label": "Meta-model",
+       "values": [
+        "input: OOF column",
+        "target: true labels"
+       ]
+      },
+      {
+       "id": "test",
+       "label": "Test rows",
+       "values": [
+        "unseen by all fits"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "fold-1",
+       "to": "base",
+       "label": "train or hold out"
+      },
+      {
+       "from": "fold-2",
+       "to": "base",
+       "label": "train or hold out"
+      },
+      {
+       "from": "fold-3",
+       "to": "base",
+       "label": "train or hold out"
+      },
+      {
+       "from": "fold-4",
+       "to": "base",
+       "label": "train or hold out"
+      },
+      {
+       "from": "base",
+       "to": "oof",
+       "label": "predict held-out fold"
+      },
+      {
+       "from": "oof",
+       "to": "meta",
+       "label": "features"
+      },
+      {
+       "from": "test",
+       "to": "base",
+       "label": "averaged predictions"
+      }
+     ],
+     "states": [
+      {
+       "id": "split",
+       "label": "Split",
+       "short": "Split",
+       "active": [
+        "fold-1",
+        "fold-2",
+        "fold-3",
+        "fold-4",
+        "oof"
+       ],
+       "calloutRegion": "oof",
+       "sentence": "The 8 training rows are split into 4 folds of 2 rows; the OOF column starts empty.",
+       "why": "Folds decide which model is allowed to predict each row.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "0 of 4"
+        },
+        {
+         "id": "train",
+         "label": "Train rows per fit = N(K−1)/K",
+         "value": "8×3/4 = 6"
+        },
+        {
+         "id": "filled",
+         "label": "OOF filled",
+         "value": "0 / 8"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "fit-1",
+       "label": "Fit 1",
+       "short": "Fit 1",
+       "active": [
+        "fold-2",
+        "fold-3",
+        "fold-4",
+        "base",
+        "oof"
+       ],
+       "calloutRegion": "fold-1",
+       "sentence": "Model 1 trains on folds 2–4 (6 rows), then predicts only held-out fold 1, filling r1–r2.",
+       "why": "Model 1 never saw r1 or r2.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "1 of 4"
+        },
+        {
+         "id": "train",
+         "label": "Train rows per fit = N(K−1)/K",
+         "value": "8×3/4 = 6"
+        },
+        {
+         "id": "filled",
+         "label": "OOF filled",
+         "value": "2 / 8"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "fit-2",
+       "label": "Fit 2",
+       "short": "Fit 2",
+       "active": [
+        "fold-1",
+        "fold-3",
+        "fold-4",
+        "base",
+        "oof"
+       ],
+       "calloutRegion": "fold-2",
+       "sentence": "Model 2 trains on folds 1, 3, 4 and predicts held-out fold 2, filling r3–r4.",
+       "why": "Rows r1–r2 are now training data, but their OOF cells are already final.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "2 of 4"
+        },
+        {
+         "id": "train",
+         "label": "Train rows per fit = N(K−1)/K",
+         "value": "8×3/4 = 6"
+        },
+        {
+         "id": "filled",
+         "label": "OOF filled",
+         "value": "4 / 8"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "fit-3",
+       "label": "Fit 3",
+       "short": "Fit 3",
+       "active": [
+        "fold-1",
+        "fold-2",
+        "fold-4",
+        "base",
+        "oof"
+       ],
+       "calloutRegion": "fold-3",
+       "sentence": "Model 3 trains on folds 1, 2, 4 and predicts held-out fold 3, filling r5–r6.",
+       "why": "Each fit writes only to its own held-out rows.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "3 of 4"
+        },
+        {
+         "id": "train",
+         "label": "Train rows per fit = N(K−1)/K",
+         "value": "8×3/4 = 6"
+        },
+        {
+         "id": "filled",
+         "label": "OOF filled",
+         "value": "6 / 8"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "all-filled",
+       "label": "Fit 4: OOF complete",
+       "short": "Fit 4",
+       "active": [
+        "fold-1",
+        "fold-2",
+        "fold-3",
+        "base",
+        "oof"
+       ],
+       "calloutRegion": "oof",
+       "sentence": "Model 4 predicts fold 4; all 8 OOF cells now come from models that never trained on them.",
+       "why": "Each row is held out once and used for training K−1 = 3 times.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "4 of 4"
+        },
+        {
+         "id": "train",
+         "label": "Train rows per fit = N(K−1)/K",
+         "value": "8×3/4 = 6"
+        },
+        {
+         "id": "filled",
+         "label": "OOF filled",
+         "value": "8 / 8"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "meta",
+       "label": "Train meta-model",
+       "short": "Meta",
+       "active": [
+        "oof",
+        "meta"
+       ],
+       "calloutRegion": "meta",
+       "sentence": "The meta-model learns from the 8 OOF predictions and true labels, so it sees honest, unseen-data errors.",
+       "why": "In-sample predictions would look too accurate and mislead the meta-model.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "4 of 4"
+        },
+        {
+         "id": "filled",
+         "label": "Meta training rows",
+         "value": "8"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "test",
+       "label": "Predict test",
+       "short": "Test",
+       "active": [
+        "test",
+        "base",
+        "meta"
+       ],
+       "calloutRegion": "test",
+       "sentence": "For test rows, the 4 fold models each predict; their average is the meta-model's input.",
+       "why": "Test inputs match the OOF scale: predictions from models that never saw the row.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Models averaged",
+         "value": "4"
+        },
+        {
+         "id": "filled",
+         "label": "Test prediction",
+         "value": "mean of 4 → meta-model"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "2 folds",
+     "regions": [
+      {
+       "id": "fold-1",
+       "label": "Fold 1",
+       "values": [
+        "r1",
+        "r2",
+        "r3",
+        "r4"
+       ]
+      },
+      {
+       "id": "fold-2",
+       "label": "Fold 2",
+       "values": [
+        "r5",
+        "r6",
+        "r7",
+        "r8"
+       ]
+      },
+      {
+       "id": "base",
+       "label": "Fold model k (same base learner)",
+       "actors": [
+        "model 1",
+        "model 2"
+       ]
+      },
+      {
+       "id": "oof",
+       "label": "OOF prediction column",
+       "values": [
+        "r1–r4: model 1",
+        "r5–r8: model 2"
+       ]
+      },
+      {
+       "id": "meta",
+       "label": "Meta-model",
+       "values": [
+        "input: OOF column",
+        "target: true labels"
+       ]
+      },
+      {
+       "id": "test",
+       "label": "Test rows",
+       "values": [
+        "unseen by all fits"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "fold-1",
+       "to": "base",
+       "label": "train or hold out"
+      },
+      {
+       "from": "fold-2",
+       "to": "base",
+       "label": "train or hold out"
+      },
+      {
+       "from": "base",
+       "to": "oof",
+       "label": "predict held-out fold"
+      },
+      {
+       "from": "oof",
+       "to": "meta",
+       "label": "features"
+      },
+      {
+       "from": "test",
+       "to": "base",
+       "label": "averaged predictions"
+      }
+     ],
+     "states": [
+      {
+       "id": "split",
+       "label": "Split",
+       "short": "Split",
+       "active": [
+        "fold-1",
+        "fold-2",
+        "oof"
+       ],
+       "calloutRegion": "oof",
+       "sentence": "The 8 training rows are split into 2 folds of 4 rows; the OOF column starts empty.",
+       "why": "Fewer folds mean each model trains on fewer rows.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "0 of 2"
+        },
+        {
+         "id": "train",
+         "label": "Train rows per fit = N(K−1)/K",
+         "value": "8×1/2 = 4"
+        },
+        {
+         "id": "filled",
+         "label": "OOF filled",
+         "value": "0 / 8"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "fit-1",
+       "label": "Fit 1",
+       "short": "Fit 1",
+       "active": [
+        "fold-2",
+        "base",
+        "oof"
+       ],
+       "calloutRegion": "fold-1",
+       "sentence": "Model 1 trains on fold 2 (4 rows), then predicts held-out fold 1, filling r1–r4.",
+       "why": "Model 1 never saw r1–r4.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "1 of 2"
+        },
+        {
+         "id": "train",
+         "label": "Train rows per fit = N(K−1)/K",
+         "value": "8×1/2 = 4"
+        },
+        {
+         "id": "filled",
+         "label": "OOF filled",
+         "value": "4 / 8"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "all-filled",
+       "label": "Fit 2: OOF complete",
+       "short": "Fit 2",
+       "active": [
+        "fold-1",
+        "base",
+        "oof"
+       ],
+       "calloutRegion": "oof",
+       "sentence": "Model 2 predicts fold 2; all 8 OOF cells now come from models that never trained on them.",
+       "why": "Same guarantee with K = 2, but each model learned from only 4 rows.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "2 of 2"
+        },
+        {
+         "id": "train",
+         "label": "Train rows per fit = N(K−1)/K",
+         "value": "8×1/2 = 4"
+        },
+        {
+         "id": "filled",
+         "label": "OOF filled",
+         "value": "8 / 8"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "meta",
+       "label": "Train meta-model",
+       "short": "Meta",
+       "active": [
+        "oof",
+        "meta"
+       ],
+       "calloutRegion": "meta",
+       "sentence": "The meta-model learns from the 8 OOF predictions and true labels, so it sees honest, unseen-data errors.",
+       "why": "In-sample predictions would look too accurate and mislead the meta-model.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Fits done",
+         "value": "2 of 2"
+        },
+        {
+         "id": "filled",
+         "label": "Meta training rows",
+         "value": "8"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "test",
+       "label": "Predict test",
+       "short": "Test",
+       "active": [
+        "test",
+        "base",
+        "meta"
+       ],
+       "calloutRegion": "test",
+       "sentence": "For test rows, the 2 fold models each predict; their average is the meta-model's input.",
+       "why": "Test inputs match the OOF scale: predictions from models that never saw the row.",
+       "readouts": [
+        {
+         "id": "fits",
+         "label": "Models averaged",
+         "value": "2"
+        },
+        {
+         "id": "filled",
+         "label": "Test prediction",
+         "value": "mean of 2 → meta-model"
+        },
+        {
+         "id": "leak",
+         "label": "Leaked rows",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3081,
+  "output": 6251
+ },
+ "usd": 0.137344,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of folds, fold models and the OOF column, with fits filling held-out cells one at a time, answers why each row's prediction comes from a model that never saw it."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'all-filled' (8/8 filled, 0 leaked) is a stepper state that holds until the learner presses Next to the meta and test states."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "Switching K between 4 and 2 changes the fold membership, the number of fits, the training rows per fit (6 versus 4) and the OOF assignments."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callouts, active highlights, links, the ghost of the previous state and the readouts all trace to the variant regions and states; the callout fold is sometimes missing from the active list, which is only a minor gap."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and the K control all refer to the same folds, fold models, OOF cells and meta-model."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At detailed depth, each state adds one formula readout, N(K−1)/K, plus small counters, which is a modest density for a stepper."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "8×3/4=6 and 8×1/2=4 are correct, the fills run 0/2/4/6/8 and the fit counts are right; the callouts locate while the readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.024606
+ }
+}

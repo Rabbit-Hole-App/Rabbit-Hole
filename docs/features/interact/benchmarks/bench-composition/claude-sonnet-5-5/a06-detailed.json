@@ -1,0 +1,804 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a06",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does KV caching speed up inference?",
+ "ts": "2026-11-14T22:22:14.289Z",
+ "ms": 42972,
+ "raw": "{\"story\":\"A language model writes one token at a time. Each new token must attend to every earlier token's keys and values. Compare two runs on \\\"The cat sat on the mat\\\". Without a cache, earlier keys and values are recomputed every step. With a KV cache, they are stored and reused, so only the new token is projected.\",\"aha\":{\"stateId\":\"s5\",\"observation\":\"With a KV cache, each new token adds one key/value projection and reuses the rest. Six tokens cost 6 projections instead of 18.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.regions\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons with the step rail; names kept when disabled at the first and last step\"},{\"id\":\"mode\",\"kind\":\"select\",\"label\":\"Inference mode\",\"options\":[\"No cache\",\"KV cache\"],\"default\":0,\"presentation\":\"Two-option selector that switches the run shown; step position is kept so the same step can be compared\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to step 1 with No cache selected\"}],\"data\":{\"variants\":[{\"label\":\"No cache\",\"regions\":[{\"id\":\"t1\",\"label\":\"Token 1\",\"kind\":\"token\",\"values\":[\"The\"]},{\"id\":\"t2\",\"label\":\"Token 2\",\"kind\":\"token\",\"values\":[\"cat\"]},{\"id\":\"t3\",\"label\":\"Token 3\",\"kind\":\"token\",\"values\":[\"sat\"]},{\"id\":\"t4\",\"label\":\"Token 4\",\"kind\":\"token\",\"values\":[\"on\"]},{\"id\":\"t5\",\"label\":\"Token 5\",\"kind\":\"token\",\"values\":[\"the\"]},{\"id\":\"t6\",\"label\":\"Token 6\",\"kind\":\"token\",\"values\":[\"mat\"]},{\"id\":\"kv\",\"label\":\"K/V (discarded each step)\",\"kind\":\"compute\",\"values\":[\"recomputed for every token\"]},{\"id\":\"q\",\"label\":\"Query (newest token)\",\"kind\":\"compute\",\"values\":[\"1 per step\"]},{\"id\":\"attn\",\"label\":\"Attention\",\"kind\":\"compute\",\"values\":[\"newest query over all K/V\"]},{\"id\":\"out\",\"label\":\"Next token\",\"kind\":\"output\",\"values\":[\"sampled from attention output\"]}],\"links\":[{\"from\":\"t1\",\"to\":\"kv\",\"label\":\"project all tokens\"},{\"from\":\"t6\",\"to\":\"q\",\"label\":\"newest token\"},{\"from\":\"kv\",\"to\":\"attn\",\"label\":\"keys, values\"},{\"from\":\"q\",\"to\":\"attn\",\"label\":\"query\"},{\"from\":\"attn\",\"to\":\"out\",\"label\":\"softmax, mix\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Prefill\",\"sentence\":\"Prefill: all 3 prompt tokens are projected to keys and values. Both modes do identical work here.\",\"why\":\"Starting point is the same for both runs.\",\"short\":\"Prefill 3 tokens\",\"calloutRegion\":\"kv\",\"active\":[\"t1\",\"t2\",\"t3\",\"kv\"],\"readouts\":[{\"id\":\"ctx\",\"label\":\"Tokens in context\",\"value\":\"3\"},{\"id\":\"new\",\"label\":\"K/V projected this step\",\"value\":\"3\"},{\"id\":\"reuse\",\"label\":\"K/V reused\",\"value\":\"0\"},{\"id\":\"cum\",\"label\":\"Cumulative projections\",\"value\":\"3\"},{\"id\":\"f\",\"label\":\"Running sum\",\"value\":\"3\"}]},{\"id\":\"s2\",\"label\":\"Token 4\",\"sentence\":\"Token 4 arrives. With no cache, keys and values for all 4 tokens are projected again.\",\"why\":\"Tokens 1 to 3 are recomputed even though nothing about them changed.\",\"short\":\"Recompute 4\",\"calloutRegion\":\"kv\",\"active\":[\"t1\",\"t2\",\"t3\",\"t4\",\"kv\",\"q\",\"attn\"],\"readouts\":[{\"id\":\"ctx\",\"label\":\"Tokens in context\",\"value\":\"4\"},{\"id\":\"new\",\"label\":\"K/V projected this step\",\"value\":\"4\"},{\"id\":\"reuse\",\"label\":\"K/V reused\",\"value\":\"0\"},{\"id\":\"cum\",\"label\":\"Cumulative projections\",\"value\":\"7\"},{\"id\":\"f\",\"label\":\"Running sum\",\"value\":\"3+4\"}]},{\"id\":\"s3\",\"label\":\"Token 5\",\"sentence\":\"Token 5 arrives. All 5 tokens are projected again, so the repeated work grows each step.\",\"why\":\"Per-step cost rises with context length.\",\"short\":\"Recompute 5\",\"calloutRegion\":\"kv\",\"active\":[\"t1\",\"t2\",\"t3\",\"t4\",\"t5\",\"kv\",\"q\",\"attn\"],\"readouts\":[{\"id\":\"ctx\",\"label\":\"Tokens in context\",\"value\":\"5\"},{\"id\":\"new\",\"label\":\"K/V projected this step\",\"value\":\"5\"},{\"id\":\"reuse\",\"label\":\"K/V reused\",\"value\":\"0\"},{\"id\":\"cum\",\"label\":\"Cumulative projections\",\"value\":\"12\"},{\"id\":\"f\",\"label\":\"Running sum\",\"value\":\"3+4+5\"}]},{\"id\":\"s4\",\"label\":\"Token 6\",\"sentence\":\"Token 6 arrives. All 6 tokens are projected again, though only one is new.\",\"why\":\"Five of the six projections repeat earlier results.\",\"short\":\"Recompute 6\",\"calloutRegion\":\"kv\",\"active\":[\"t1\",\"t2\",\"t3\",\"t4\",\"t5\",\"t6\",\"kv\",\"q\",\"attn\"],\"readouts\":[{\"id\":\"ctx\",\"label\":\"Tokens in context\",\"value\":\"6\"},{\"id\":\"new\",\"label\":\"K/V projected this step\",\"value\":\"6\"},{\"id\":\"reuse\",\"label\":\"K/V reused\",\"value\":\"0\"},{\"id\":\"cum\",\"label\":\"Cumulative projections\",\"value\":\"18\"},{\"id\":\"f\",\"label\":\"Running sum\",\"value\":\"3+4+5+6\"}]},{\"id\":\"s5\",\"label\":\"Total cost\",\"sentence\":\"Total without a cache: 18 key/value projections for 6 tokens. Switch to KV cache to compare.\",\"why\":\"This is the baseline total the cache will cut.\",\"short\":\"18 projections\",\"calloutRegion\":\"kv\",\"active\":[\"kv\",\"attn\",\"out\"],\"readouts\":[{\"id\":\"ctx\",\"label\":\"Tokens in context\",\"value\":\"6\"},{\"id\":\"new\",\"label\":\"K/V projected this step\",\"value\":\"6\"},{\"id\":\"reuse\",\"label\":\"K/V reused\",\"value\":\"0\"},{\"id\":\"cum\",\"label\":\"Cumulative projections\",\"value\":\"18\"},{\"id\":\"f\",\"label\":\"Running sum\",\"value\":\"3+4+5+6 = 18\"}]}]},{\"label\":\"KV cache\",\"regions\":[{\"id\":\"t1\",\"label\":\"Token 1\",\"kind\":\"token\",\"values\":[\"The\"]},{\"id\":\"t2\",\"label\":\"Token 2\",\"kind\":\"token\",\"values\":[\"cat\"]},{\"id\":\"t3\",\"label\":\"Token 3\",\"kind\":\"token\",\"values\":[\"sat\"]},{\"id\":\"t4\",\"label\":\"Token 4\",\"kind\":\"token\",\"values\":[\"on\"]},{\"id\":\"t5\",\"label\":\"Token 5\",\"kind\":\"token\",\"values\":[\"the\"]},{\"id\":\"t6\",\"label\":\"Token 6\",\"kind\":\"token\",\"values\":[\"mat\"]},{\"id\":\"kv\",\"label\":\"KV cache (stored rows)\",\"kind\":\"cache\",\"values\":[\"one K/V row per token, kept\"]},{\"id\":\"q\",\"label\":\"Query (newest token)\",\"kind\":\"compute\",\"values\":[\"1 per step\"]},{\"id\":\"attn\",\"label\":\"Attention\",\"kind\":\"compute\",\"values\":[\"newest query over all cached rows\"]},{\"id\":\"out\",\"label\":\"Next token\",\"kind\":\"output\",\"values\":[\"sampled from attention output\"]}],\"links\":[{\"from\":\"t6\",\"to\":\"kv\",\"label\":\"project new token only\"},{\"from\":\"t6\",\"to\":\"q\",\"label\":\"newest token\"},{\"from\":\"kv\",\"to\":\"attn\",\"label\":\"keys, values (reused)\"},{\"from\":\"q\",\"to\":\"attn\",\"label\":\"query\"},{\"from\":\"attn\",\"to\":\"out\",\"label\":\"softmax, mix\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Prefill\",\"sentence\":\"Prefill: all 3 prompt tokens are projected to keys and values and stored in the cache.\",\"why\":\"Same work as without a cache, but results are now kept.\",\"short\":\"Prefill 3 tokens\",\"calloutRegion\":\"kv\",\"active\":[\"t1\",\"t2\",\"t3\",\"kv\"],\"readouts\":[{\"id\":\"ctx\",\"label\":\"Tokens in context\",\"value\":\"3\"},{\"id\":\"new\",\"label\":\"K/V projected this step\",\"value\":\"3\"},{\"id\":\"reuse\",\"label\":\"K/V reused\",\"value\":\"0\"},{\"id\":\"cum\",\"label\":\"Cumulative projections\",\"value\":\"3\"},{\"id\":\"f\",\"label\":\"Running sum\",\"value\":\"3\"}]},{\"id\":\"s2\",\"label\":\"Token 4\",\"sentence\":\"Token 4 arrives. Only its key and value are projected; the 3 cached rows are reused.\",\"why\":\"Earlier tokens are read from the cache, not recomputed.\",\"short\":\"1 new, 3 reused\",\"calloutRegion\":\"kv\",\"active\":[\"t4\",\"kv\",\"q\",\"attn\"],\"readouts\":[{\"id\":\"ctx\",\"label\":\"Tokens in context\",\"value\":\"4\"},{\"id\":\"new\",\"label\":\"K/V projected this step\",\"value\":\"1\"},{\"id\":\"reuse\",\"label\":\"K/V reused\",\"value\":\"3\"},{\"id\":\"cum\",\"label\":\"Cumulative projections\",\"value\":\"4\"},{\"id\":\"f\",\"label\":\"Running sum\",\"value\":\"3+1\"}]},{\"id\":\"s3\",\"label\":\"Token 5\",\"sentence\":\"Token 5 arrives. One new key/value row is added and the 4 cached rows are reused.\",\"why\":\"Per-step projection cost stays constant at one.\",\"short\":\"1 new, 4 reused\",\"calloutRegion\":\"kv\",\"active\":[\"t5\",\"kv\",\"q\",\"attn\"],\"readouts\":[{\"id\":\"ctx\",\"label\":\"Tokens in context\",\"value\":\"5\"},{\"id\":\"new\",\"label\":\"K/V projected this step\",\"value\":\"1\"},{\"id\":\"reuse\",\"label\":\"K/V reused\",\"value\":\"4\"},{\"id\":\"cum\",\"label\":\"Cumulative projections\",\"value\":\"5\"},{\"id\":\"f\",\"label\":\"Running sum\",\"value\":\"3+1+1\"}]},{\"id\":\"s4\",\"label\":\"Token 6\",\"sentence\":\"Token 6 arrives. One new row is added; 5 cached rows are reused, so the step stays cheap.\",\"why\":\"Context grew, but projection work did not.\",\"short\":\"1 new, 5 reused\",\"calloutRegion\":\"kv\",\"active\":[\"t6\",\"kv\",\"q\",\"attn\"],\"readouts\":[{\"id\":\"ctx\",\"label\":\"Tokens in context\",\"value\":\"6\"},{\"id\":\"new\",\"label\":\"K/V projected this step\",\"value\":\"1\"},{\"id\":\"reuse\",\"label\":\"K/V reused\",\"value\":\"5\"},{\"id\":\"cum\",\"label\":\"Cumulative projections\",\"value\":\"6\"},{\"id\":\"f\",\"label\":\"Running sum\",\"value\":\"3+1+1+1\"}]},{\"id\":\"s5\",\"label\":\"Total cost\",\"sentence\":\"Total with a cache: 6 projections instead of 18. Attention still reads all 6 rows, and the cache uses memory.\",\"why\":\"The saving is in projection work; the cost is stored memory.\",\"short\":\"6 projections\",\"calloutRegion\":\"kv\",\"active\":[\"kv\",\"attn\",\"out\"],\"readouts\":[{\"id\":\"ctx\",\"label\":\"Tokens in context\",\"value\":\"6\"},{\"id\":\"new\",\"label\":\"K/V projected this step\",\"value\":\"1\"},{\"id\":\"reuse\",\"label\":\"K/V reused\",\"value\":\"5\"},{\"id\":\"cum\",\"label\":\"Cumulative projections\",\"value\":\"6 (vs 18)\"},{\"id\":\"f\",\"label\":\"Running sum\",\"value\":\"3+1+1+1 = 6\"}]}]}]}}",
+ "composition": {
+  "story": "A language model writes one token at a time. Each new token must attend to every earlier token's keys and values. Compare two runs on \"The cat sat on the mat\". Without a cache, earlier keys and values are recomputed every step. With a KV cache, they are stored and reused, so only the new token is projected.",
+  "aha": {
+   "stateId": "s5",
+   "observation": "With a KV cache, each new token adds one key/value projection and reuses the rest. Six tokens cost 6 projections instead of 18."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.regions"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons with the step rail; names kept when disabled at the first and last step"
+   },
+   {
+    "id": "mode",
+    "kind": "select",
+    "label": "Inference mode",
+    "options": [
+     "No cache",
+     "KV cache"
+    ],
+    "default": 0,
+    "presentation": "Two-option selector that switches the run shown; step position is kept so the same step can be compared"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to step 1 with No cache selected"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "No cache",
+     "regions": [
+      {
+       "id": "t1",
+       "label": "Token 1",
+       "kind": "token",
+       "values": [
+        "The"
+       ]
+      },
+      {
+       "id": "t2",
+       "label": "Token 2",
+       "kind": "token",
+       "values": [
+        "cat"
+       ]
+      },
+      {
+       "id": "t3",
+       "label": "Token 3",
+       "kind": "token",
+       "values": [
+        "sat"
+       ]
+      },
+      {
+       "id": "t4",
+       "label": "Token 4",
+       "kind": "token",
+       "values": [
+        "on"
+       ]
+      },
+      {
+       "id": "t5",
+       "label": "Token 5",
+       "kind": "token",
+       "values": [
+        "the"
+       ]
+      },
+      {
+       "id": "t6",
+       "label": "Token 6",
+       "kind": "token",
+       "values": [
+        "mat"
+       ]
+      },
+      {
+       "id": "kv",
+       "label": "K/V (discarded each step)",
+       "kind": "compute",
+       "values": [
+        "recomputed for every token"
+       ]
+      },
+      {
+       "id": "q",
+       "label": "Query (newest token)",
+       "kind": "compute",
+       "values": [
+        "1 per step"
+       ]
+      },
+      {
+       "id": "attn",
+       "label": "Attention",
+       "kind": "compute",
+       "values": [
+        "newest query over all K/V"
+       ]
+      },
+      {
+       "id": "out",
+       "label": "Next token",
+       "kind": "output",
+       "values": [
+        "sampled from attention output"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "t1",
+       "to": "kv",
+       "label": "project all tokens"
+      },
+      {
+       "from": "t6",
+       "to": "q",
+       "label": "newest token"
+      },
+      {
+       "from": "kv",
+       "to": "attn",
+       "label": "keys, values"
+      },
+      {
+       "from": "q",
+       "to": "attn",
+       "label": "query"
+      },
+      {
+       "from": "attn",
+       "to": "out",
+       "label": "softmax, mix"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Prefill",
+       "sentence": "Prefill: all 3 prompt tokens are projected to keys and values. Both modes do identical work here.",
+       "why": "Starting point is the same for both runs.",
+       "short": "Prefill 3 tokens",
+       "calloutRegion": "kv",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "kv"
+       ],
+       "readouts": [
+        {
+         "id": "ctx",
+         "label": "Tokens in context",
+         "value": "3"
+        },
+        {
+         "id": "new",
+         "label": "K/V projected this step",
+         "value": "3"
+        },
+        {
+         "id": "reuse",
+         "label": "K/V reused",
+         "value": "0"
+        },
+        {
+         "id": "cum",
+         "label": "Cumulative projections",
+         "value": "3"
+        },
+        {
+         "id": "f",
+         "label": "Running sum",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Token 4",
+       "sentence": "Token 4 arrives. With no cache, keys and values for all 4 tokens are projected again.",
+       "why": "Tokens 1 to 3 are recomputed even though nothing about them changed.",
+       "short": "Recompute 4",
+       "calloutRegion": "kv",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "kv",
+        "q",
+        "attn"
+       ],
+       "readouts": [
+        {
+         "id": "ctx",
+         "label": "Tokens in context",
+         "value": "4"
+        },
+        {
+         "id": "new",
+         "label": "K/V projected this step",
+         "value": "4"
+        },
+        {
+         "id": "reuse",
+         "label": "K/V reused",
+         "value": "0"
+        },
+        {
+         "id": "cum",
+         "label": "Cumulative projections",
+         "value": "7"
+        },
+        {
+         "id": "f",
+         "label": "Running sum",
+         "value": "3+4"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Token 5",
+       "sentence": "Token 5 arrives. All 5 tokens are projected again, so the repeated work grows each step.",
+       "why": "Per-step cost rises with context length.",
+       "short": "Recompute 5",
+       "calloutRegion": "kv",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "kv",
+        "q",
+        "attn"
+       ],
+       "readouts": [
+        {
+         "id": "ctx",
+         "label": "Tokens in context",
+         "value": "5"
+        },
+        {
+         "id": "new",
+         "label": "K/V projected this step",
+         "value": "5"
+        },
+        {
+         "id": "reuse",
+         "label": "K/V reused",
+         "value": "0"
+        },
+        {
+         "id": "cum",
+         "label": "Cumulative projections",
+         "value": "12"
+        },
+        {
+         "id": "f",
+         "label": "Running sum",
+         "value": "3+4+5"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Token 6",
+       "sentence": "Token 6 arrives. All 6 tokens are projected again, though only one is new.",
+       "why": "Five of the six projections repeat earlier results.",
+       "short": "Recompute 6",
+       "calloutRegion": "kv",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "t6",
+        "kv",
+        "q",
+        "attn"
+       ],
+       "readouts": [
+        {
+         "id": "ctx",
+         "label": "Tokens in context",
+         "value": "6"
+        },
+        {
+         "id": "new",
+         "label": "K/V projected this step",
+         "value": "6"
+        },
+        {
+         "id": "reuse",
+         "label": "K/V reused",
+         "value": "0"
+        },
+        {
+         "id": "cum",
+         "label": "Cumulative projections",
+         "value": "18"
+        },
+        {
+         "id": "f",
+         "label": "Running sum",
+         "value": "3+4+5+6"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Total cost",
+       "sentence": "Total without a cache: 18 key/value projections for 6 tokens. Switch to KV cache to compare.",
+       "why": "This is the baseline total the cache will cut.",
+       "short": "18 projections",
+       "calloutRegion": "kv",
+       "active": [
+        "kv",
+        "attn",
+        "out"
+       ],
+       "readouts": [
+        {
+         "id": "ctx",
+         "label": "Tokens in context",
+         "value": "6"
+        },
+        {
+         "id": "new",
+         "label": "K/V projected this step",
+         "value": "6"
+        },
+        {
+         "id": "reuse",
+         "label": "K/V reused",
+         "value": "0"
+        },
+        {
+         "id": "cum",
+         "label": "Cumulative projections",
+         "value": "18"
+        },
+        {
+         "id": "f",
+         "label": "Running sum",
+         "value": "3+4+5+6 = 18"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "KV cache",
+     "regions": [
+      {
+       "id": "t1",
+       "label": "Token 1",
+       "kind": "token",
+       "values": [
+        "The"
+       ]
+      },
+      {
+       "id": "t2",
+       "label": "Token 2",
+       "kind": "token",
+       "values": [
+        "cat"
+       ]
+      },
+      {
+       "id": "t3",
+       "label": "Token 3",
+       "kind": "token",
+       "values": [
+        "sat"
+       ]
+      },
+      {
+       "id": "t4",
+       "label": "Token 4",
+       "kind": "token",
+       "values": [
+        "on"
+       ]
+      },
+      {
+       "id": "t5",
+       "label": "Token 5",
+       "kind": "token",
+       "values": [
+        "the"
+       ]
+      },
+      {
+       "id": "t6",
+       "label": "Token 6",
+       "kind": "token",
+       "values": [
+        "mat"
+       ]
+      },
+      {
+       "id": "kv",
+       "label": "KV cache (stored rows)",
+       "kind": "cache",
+       "values": [
+        "one K/V row per token, kept"
+       ]
+      },
+      {
+       "id": "q",
+       "label": "Query (newest token)",
+       "kind": "compute",
+       "values": [
+        "1 per step"
+       ]
+      },
+      {
+       "id": "attn",
+       "label": "Attention",
+       "kind": "compute",
+       "values": [
+        "newest query over all cached rows"
+       ]
+      },
+      {
+       "id": "out",
+       "label": "Next token",
+       "kind": "output",
+       "values": [
+        "sampled from attention output"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "t6",
+       "to": "kv",
+       "label": "project new token only"
+      },
+      {
+       "from": "t6",
+       "to": "q",
+       "label": "newest token"
+      },
+      {
+       "from": "kv",
+       "to": "attn",
+       "label": "keys, values (reused)"
+      },
+      {
+       "from": "q",
+       "to": "attn",
+       "label": "query"
+      },
+      {
+       "from": "attn",
+       "to": "out",
+       "label": "softmax, mix"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Prefill",
+       "sentence": "Prefill: all 3 prompt tokens are projected to keys and values and stored in the cache.",
+       "why": "Same work as without a cache, but results are now kept.",
+       "short": "Prefill 3 tokens",
+       "calloutRegion": "kv",
+       "active": [
+        "t1",
+        "t2",
+        "t3",
+        "kv"
+       ],
+       "readouts": [
+        {
+         "id": "ctx",
+         "label": "Tokens in context",
+         "value": "3"
+        },
+        {
+         "id": "new",
+         "label": "K/V projected this step",
+         "value": "3"
+        },
+        {
+         "id": "reuse",
+         "label": "K/V reused",
+         "value": "0"
+        },
+        {
+         "id": "cum",
+         "label": "Cumulative projections",
+         "value": "3"
+        },
+        {
+         "id": "f",
+         "label": "Running sum",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Token 4",
+       "sentence": "Token 4 arrives. Only its key and value are projected; the 3 cached rows are reused.",
+       "why": "Earlier tokens are read from the cache, not recomputed.",
+       "short": "1 new, 3 reused",
+       "calloutRegion": "kv",
+       "active": [
+        "t4",
+        "kv",
+        "q",
+        "attn"
+       ],
+       "readouts": [
+        {
+         "id": "ctx",
+         "label": "Tokens in context",
+         "value": "4"
+        },
+        {
+         "id": "new",
+         "label": "K/V projected this step",
+         "value": "1"
+        },
+        {
+         "id": "reuse",
+         "label": "K/V reused",
+         "value": "3"
+        },
+        {
+         "id": "cum",
+         "label": "Cumulative projections",
+         "value": "4"
+        },
+        {
+         "id": "f",
+         "label": "Running sum",
+         "value": "3+1"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Token 5",
+       "sentence": "Token 5 arrives. One new key/value row is added and the 4 cached rows are reused.",
+       "why": "Per-step projection cost stays constant at one.",
+       "short": "1 new, 4 reused",
+       "calloutRegion": "kv",
+       "active": [
+        "t5",
+        "kv",
+        "q",
+        "attn"
+       ],
+       "readouts": [
+        {
+         "id": "ctx",
+         "label": "Tokens in context",
+         "value": "5"
+        },
+        {
+         "id": "new",
+         "label": "K/V projected this step",
+         "value": "1"
+        },
+        {
+         "id": "reuse",
+         "label": "K/V reused",
+         "value": "4"
+        },
+        {
+         "id": "cum",
+         "label": "Cumulative projections",
+         "value": "5"
+        },
+        {
+         "id": "f",
+         "label": "Running sum",
+         "value": "3+1+1"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Token 6",
+       "sentence": "Token 6 arrives. One new row is added; 5 cached rows are reused, so the step stays cheap.",
+       "why": "Context grew, but projection work did not.",
+       "short": "1 new, 5 reused",
+       "calloutRegion": "kv",
+       "active": [
+        "t6",
+        "kv",
+        "q",
+        "attn"
+       ],
+       "readouts": [
+        {
+         "id": "ctx",
+         "label": "Tokens in context",
+         "value": "6"
+        },
+        {
+         "id": "new",
+         "label": "K/V projected this step",
+         "value": "1"
+        },
+        {
+         "id": "reuse",
+         "label": "K/V reused",
+         "value": "5"
+        },
+        {
+         "id": "cum",
+         "label": "Cumulative projections",
+         "value": "6"
+        },
+        {
+         "id": "f",
+         "label": "Running sum",
+         "value": "3+1+1+1"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Total cost",
+       "sentence": "Total with a cache: 6 projections instead of 18. Attention still reads all 6 rows, and the cache uses memory.",
+       "why": "The saving is in projection work; the cost is stored memory.",
+       "short": "6 projections",
+       "calloutRegion": "kv",
+       "active": [
+        "kv",
+        "attn",
+        "out"
+       ],
+       "readouts": [
+        {
+         "id": "ctx",
+         "label": "Tokens in context",
+         "value": "6"
+        },
+        {
+         "id": "new",
+         "label": "K/V projected this step",
+         "value": "1"
+        },
+        {
+         "id": "reuse",
+         "label": "K/V reused",
+         "value": "5"
+        },
+        {
+         "id": "cum",
+         "label": "Cumulative projections",
+         "value": "6 (vs 18)"
+        },
+        {
+         "id": "f",
+         "label": "Running sum",
+         "value": "3+1+1+1 = 6"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3071,
+  "output": 6884
+ },
+ "usd": 0.074982,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of tokens, K/V (or cache), query and attention with active highlights answers one question: how many projections are needed with versus without a cache."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The scene is step-driven and ends on s5, which states the 18-versus-6 totals and holds until the learner changes step or mode."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "Switching the Inference mode changes the active regions, links and readouts (new 4/5/6 versus 1, reuse 0 versus 3/4/5), and the step control moves through the states."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Each part binds to declared data: the callout targets region kv with the state sentence, readouts come from state.readouts, the ghost uses previous.regions and the rail uses variant.states."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and the mode and step controls all use the same objects (tokens, K/V rows, cache, query), and the narrative matches the changing active sets."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The detailed depth carries five readouts, links, a ghost, a callout and a progress trace at once, which is dense for a standard comparison, and the running-sum readout partly repeats the cumulative one."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Every cumulative figure and running sum checks out (3, 7, 12, 18 versus 3, 4, 5, 6), but the totals 18 and 6 appear in both the sentence and the readouts, so the values are not placed only once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.021596
+ }
+}

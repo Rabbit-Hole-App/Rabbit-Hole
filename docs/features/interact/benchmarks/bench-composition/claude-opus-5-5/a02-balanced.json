@@ -1,0 +1,742 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a02",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does tokenization work?",
+ "ts": "2026-11-14T22:21:00.149Z",
+ "ms": 47101,
+ "raw": "{\"story\":\"A tokenizer splits a word into characters, then applies learned merge rules in a fixed rank order. Each rule joins one adjacent pair wherever it appears. When no rule applies, each piece is looked up for an integer ID. Compare \\\"lower\\\" with \\\"lowest\\\": both keep the shared piece \\\"low\\\" with the same ID; only the suffix differs.\",\"aha\":{\"stateId\":\"ids\",\"observation\":\"In both words, \\\"low\\\" becomes ID 312. Only the suffix changes: \\\"er\\\" is 263 and \\\"est\\\" is 478. Joining the pieces gives back the original text.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top row of state labels. The current state is highlighted, and completed states show the trace.\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Regions from left to right: input text, merge rules, current pieces, vocabulary, token IDs. Regions named in state.active are highlighted.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the active region. Says where the change happens and why.\"},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"},\"presentation\":\"Faint outline of the regions highlighted in the previous state, so the learner can see the before and after of each merge.\"},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Status line under the picture showing pieces, piece count, rules applied and the rejoined text. Each value appears here only.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons with fixed names. At the first and last states, the buttons are disabled but keep their names. Keyboard arrows work, and focus is visible.\"},{\"id\":\"word\",\"kind\":\"select\",\"label\":\"Input word\",\"options\":[\"lower\",\"lowest\"],\"default\":0,\"presentation\":\"Changes the input word, which changes the variant. It is the only parameter control. The merge rules and vocabulary stay the same.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first state with the word set to \\\"lower\\\".\"}],\"data\":{\"variants\":[{\"label\":\"lower\",\"regions\":[{\"id\":\"input\",\"label\":\"Input text\",\"values\":[\"lower\"]},{\"id\":\"merges\",\"label\":\"Merge rules (by rank)\",\"values\":[\"1: l+o→lo\",\"2: lo+w→low\",\"3: e+r→er\",\"4: e+s→es\",\"5: es+t→est\"]},{\"id\":\"pieces\",\"label\":\"Current pieces\",\"phases\":[\"l|o|w|e|r\",\"lo|w|e|r\",\"low|e|r\",\"low|er\"]},{\"id\":\"vocab\",\"label\":\"Vocabulary\",\"values\":[\"low=312\",\"er=263\",\"est=478\"]},{\"id\":\"ids\",\"label\":\"Token IDs\",\"values\":[\"312\",\"263\"]}],\"links\":[{\"from\":\"input\",\"to\":\"pieces\",\"label\":\"split\"},{\"from\":\"merges\",\"to\":\"pieces\",\"label\":\"apply rule\"},{\"from\":\"pieces\",\"to\":\"vocab\",\"label\":\"look up\"},{\"from\":\"vocab\",\"to\":\"ids\",\"label\":\"emit\"}],\"states\":[{\"id\":\"split\",\"label\":\"Split\",\"short\":\"1\",\"sentence\":\"The word \\\"lower\\\" is split into five single characters.\",\"why\":\"Merging starts from the smallest units, which are single characters.\",\"active\":[\"input\",\"pieces\"],\"calloutRegion\":\"pieces\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"l|o|w|e|r\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"5\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"0 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lower\"}]},{\"id\":\"r1\",\"label\":\"Rule 1\",\"short\":\"2\",\"sentence\":\"Rule 1 finds the pair l+o and joins it into lo.\",\"why\":\"Rules are tried in rank order, so the most frequent pair goes first.\",\"active\":[\"merges\",\"pieces\"],\"calloutRegion\":\"merges\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"lo|w|e|r\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"4\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"1 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lower\"}]},{\"id\":\"r2\",\"label\":\"Rule 2\",\"short\":\"3\",\"sentence\":\"Rule 2 joins lo+w into low, an earlier merge being reused.\",\"why\":\"Merges build on each other, so longer pieces grow from shorter ones.\",\"active\":[\"merges\",\"pieces\"],\"calloutRegion\":\"merges\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"low|e|r\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"3\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"2 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lower\"}]},{\"id\":\"r3\",\"label\":\"Rule 3\",\"short\":\"4\",\"sentence\":\"Rule 3 joins e+r into er.\",\"why\":\"The pair e+r appears here, so the rule fires.\",\"active\":[\"merges\",\"pieces\"],\"calloutRegion\":\"merges\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"low|er\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"2\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"3 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lower\"}]},{\"id\":\"stop\",\"label\":\"No match\",\"short\":\"5\",\"sentence\":\"Rules 4 and 5 find no e+s or es+t pair, so merging stops.\",\"why\":\"A rule changes the pieces only when its exact pair is present.\",\"active\":[\"merges\"],\"calloutRegion\":\"merges\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"low|er\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"2\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"3 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lower\"}]},{\"id\":\"ids\",\"label\":\"IDs\",\"short\":\"6\",\"sentence\":\"Each piece is looked up, so low becomes 312 and er becomes 263.\",\"why\":\"The model reads integer IDs, never raw letters.\",\"active\":[\"vocab\",\"ids\"],\"calloutRegion\":\"ids\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"low|er\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"2\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"3 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lower\"}]}]},{\"label\":\"lowest\",\"regions\":[{\"id\":\"input\",\"label\":\"Input text\",\"values\":[\"lowest\"]},{\"id\":\"merges\",\"label\":\"Merge rules (by rank)\",\"values\":[\"1: l+o→lo\",\"2: lo+w→low\",\"3: e+r→er\",\"4: e+s→es\",\"5: es+t→est\"]},{\"id\":\"pieces\",\"label\":\"Current pieces\",\"phases\":[\"l|o|w|e|s|t\",\"lo|w|e|s|t\",\"low|e|s|t\",\"low|es|t\",\"low|est\"]},{\"id\":\"vocab\",\"label\":\"Vocabulary\",\"values\":[\"low=312\",\"er=263\",\"est=478\"]},{\"id\":\"ids\",\"label\":\"Token IDs\",\"values\":[\"312\",\"478\"]}],\"links\":[{\"from\":\"input\",\"to\":\"pieces\",\"label\":\"split\"},{\"from\":\"merges\",\"to\":\"pieces\",\"label\":\"apply rule\"},{\"from\":\"pieces\",\"to\":\"vocab\",\"label\":\"look up\"},{\"from\":\"vocab\",\"to\":\"ids\",\"label\":\"emit\"}],\"states\":[{\"id\":\"split\",\"label\":\"Split\",\"short\":\"1\",\"sentence\":\"The word \\\"lowest\\\" is split into six single characters.\",\"why\":\"Merging starts from the smallest units, which are single characters.\",\"active\":[\"input\",\"pieces\"],\"calloutRegion\":\"pieces\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"l|o|w|e|s|t\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"6\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"0 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lowest\"}]},{\"id\":\"r1\",\"label\":\"Rule 1\",\"short\":\"2\",\"sentence\":\"Rule 1 joins l+o into lo, the same as in \\\"lower\\\".\",\"why\":\"The same rules run in the same order for every word.\",\"active\":[\"merges\",\"pieces\"],\"calloutRegion\":\"merges\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"lo|w|e|s|t\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"5\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"1 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lowest\"}]},{\"id\":\"r2\",\"label\":\"Rule 2\",\"short\":\"3\",\"sentence\":\"Rule 2 joins lo+w into low, making the shared prefix piece.\",\"why\":\"Shared spellings produce shared pieces.\",\"active\":[\"merges\",\"pieces\"],\"calloutRegion\":\"merges\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"low|e|s|t\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"4\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"2 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lowest\"}]},{\"id\":\"r3\",\"label\":\"Rule 3 skipped\",\"short\":\"4\",\"sentence\":\"Rule 3 finds no e+r pair, so nothing changes.\",\"why\":\"A rule fires only when its exact pair is present.\",\"active\":[\"merges\"],\"calloutRegion\":\"merges\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"low|e|s|t\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"4\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"2 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lowest\"}]},{\"id\":\"r4\",\"label\":\"Rule 4\",\"short\":\"5\",\"sentence\":\"Rule 4 joins e+s into es.\",\"why\":\"The suffix is now built from the pairs this word actually contains.\",\"active\":[\"merges\",\"pieces\"],\"calloutRegion\":\"merges\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"low|es|t\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"3\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"3 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lowest\"}]},{\"id\":\"r5\",\"label\":\"Rule 5\",\"short\":\"6\",\"sentence\":\"Rule 5 joins es+t into est, and no rules remain.\",\"why\":\"Merging ends after the last ranked rule.\",\"active\":[\"merges\",\"pieces\"],\"calloutRegion\":\"merges\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"low|est\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"2\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"4 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lowest\"}]},{\"id\":\"ids\",\"label\":\"IDs\",\"short\":\"7\",\"sentence\":\"Each piece is looked up: low is 312 again, and est is 478.\",\"why\":\"Shared pieces get identical IDs, so the model sees what related words have in common.\",\"active\":[\"vocab\",\"ids\"],\"calloutRegion\":\"ids\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"low|est\"},{\"id\":\"count\",\"label\":\"Piece count\",\"value\":\"2\"},{\"id\":\"applied\",\"label\":\"Rules applied\",\"value\":\"4 of 5\"},{\"id\":\"joined\",\"label\":\"Rejoined\",\"value\":\"lowest\"}]}]}]}}",
+ "composition": {
+  "story": "A tokenizer splits a word into characters, then applies learned merge rules in a fixed rank order. Each rule joins one adjacent pair wherever it appears. When no rule applies, each piece is looked up for an integer ID. Compare \"lower\" with \"lowest\": both keep the shared piece \"low\" with the same ID; only the suffix differs.",
+  "aha": {
+   "stateId": "ids",
+   "observation": "In both words, \"low\" becomes ID 312. Only the suffix changes: \"er\" is 263 and \"est\" is 478. Joining the pieces gives back the original text."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top row of state labels. The current state is highlighted, and completed states show the trace."
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Regions from left to right: input text, merge rules, current pieces, vocabulary, token IDs. Regions named in state.active are highlighted."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the active region. Says where the change happens and why."
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    },
+    "presentation": "Faint outline of the regions highlighted in the previous state, so the learner can see the before and after of each merge."
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Status line under the picture showing pieces, piece count, rules applied and the rejoined text. Each value appears here only."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons with fixed names. At the first and last states, the buttons are disabled but keep their names. Keyboard arrows work, and focus is visible."
+   },
+   {
+    "id": "word",
+    "kind": "select",
+    "label": "Input word",
+    "options": [
+     "lower",
+     "lowest"
+    ],
+    "default": 0,
+    "presentation": "Changes the input word, which changes the variant. It is the only parameter control. The merge rules and vocabulary stay the same."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first state with the word set to \"lower\"."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "lower",
+     "regions": [
+      {
+       "id": "input",
+       "label": "Input text",
+       "values": [
+        "lower"
+       ]
+      },
+      {
+       "id": "merges",
+       "label": "Merge rules (by rank)",
+       "values": [
+        "1: l+o→lo",
+        "2: lo+w→low",
+        "3: e+r→er",
+        "4: e+s→es",
+        "5: es+t→est"
+       ]
+      },
+      {
+       "id": "pieces",
+       "label": "Current pieces",
+       "phases": [
+        "l|o|w|e|r",
+        "lo|w|e|r",
+        "low|e|r",
+        "low|er"
+       ]
+      },
+      {
+       "id": "vocab",
+       "label": "Vocabulary",
+       "values": [
+        "low=312",
+        "er=263",
+        "est=478"
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "Token IDs",
+       "values": [
+        "312",
+        "263"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "input",
+       "to": "pieces",
+       "label": "split"
+      },
+      {
+       "from": "merges",
+       "to": "pieces",
+       "label": "apply rule"
+      },
+      {
+       "from": "pieces",
+       "to": "vocab",
+       "label": "look up"
+      },
+      {
+       "from": "vocab",
+       "to": "ids",
+       "label": "emit"
+      }
+     ],
+     "states": [
+      {
+       "id": "split",
+       "label": "Split",
+       "short": "1",
+       "sentence": "The word \"lower\" is split into five single characters.",
+       "why": "Merging starts from the smallest units, which are single characters.",
+       "active": [
+        "input",
+        "pieces"
+       ],
+       "calloutRegion": "pieces",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "l|o|w|e|r"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "5"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "0 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lower"
+        }
+       ]
+      },
+      {
+       "id": "r1",
+       "label": "Rule 1",
+       "short": "2",
+       "sentence": "Rule 1 finds the pair l+o and joins it into lo.",
+       "why": "Rules are tried in rank order, so the most frequent pair goes first.",
+       "active": [
+        "merges",
+        "pieces"
+       ],
+       "calloutRegion": "merges",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "lo|w|e|r"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "4"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "1 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lower"
+        }
+       ]
+      },
+      {
+       "id": "r2",
+       "label": "Rule 2",
+       "short": "3",
+       "sentence": "Rule 2 joins lo+w into low, an earlier merge being reused.",
+       "why": "Merges build on each other, so longer pieces grow from shorter ones.",
+       "active": [
+        "merges",
+        "pieces"
+       ],
+       "calloutRegion": "merges",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "low|e|r"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "3"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "2 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lower"
+        }
+       ]
+      },
+      {
+       "id": "r3",
+       "label": "Rule 3",
+       "short": "4",
+       "sentence": "Rule 3 joins e+r into er.",
+       "why": "The pair e+r appears here, so the rule fires.",
+       "active": [
+        "merges",
+        "pieces"
+       ],
+       "calloutRegion": "merges",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "low|er"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "2"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "3 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lower"
+        }
+       ]
+      },
+      {
+       "id": "stop",
+       "label": "No match",
+       "short": "5",
+       "sentence": "Rules 4 and 5 find no e+s or es+t pair, so merging stops.",
+       "why": "A rule changes the pieces only when its exact pair is present.",
+       "active": [
+        "merges"
+       ],
+       "calloutRegion": "merges",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "low|er"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "2"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "3 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lower"
+        }
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "IDs",
+       "short": "6",
+       "sentence": "Each piece is looked up, so low becomes 312 and er becomes 263.",
+       "why": "The model reads integer IDs, never raw letters.",
+       "active": [
+        "vocab",
+        "ids"
+       ],
+       "calloutRegion": "ids",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "low|er"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "2"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "3 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lower"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "lowest",
+     "regions": [
+      {
+       "id": "input",
+       "label": "Input text",
+       "values": [
+        "lowest"
+       ]
+      },
+      {
+       "id": "merges",
+       "label": "Merge rules (by rank)",
+       "values": [
+        "1: l+o→lo",
+        "2: lo+w→low",
+        "3: e+r→er",
+        "4: e+s→es",
+        "5: es+t→est"
+       ]
+      },
+      {
+       "id": "pieces",
+       "label": "Current pieces",
+       "phases": [
+        "l|o|w|e|s|t",
+        "lo|w|e|s|t",
+        "low|e|s|t",
+        "low|es|t",
+        "low|est"
+       ]
+      },
+      {
+       "id": "vocab",
+       "label": "Vocabulary",
+       "values": [
+        "low=312",
+        "er=263",
+        "est=478"
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "Token IDs",
+       "values": [
+        "312",
+        "478"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "input",
+       "to": "pieces",
+       "label": "split"
+      },
+      {
+       "from": "merges",
+       "to": "pieces",
+       "label": "apply rule"
+      },
+      {
+       "from": "pieces",
+       "to": "vocab",
+       "label": "look up"
+      },
+      {
+       "from": "vocab",
+       "to": "ids",
+       "label": "emit"
+      }
+     ],
+     "states": [
+      {
+       "id": "split",
+       "label": "Split",
+       "short": "1",
+       "sentence": "The word \"lowest\" is split into six single characters.",
+       "why": "Merging starts from the smallest units, which are single characters.",
+       "active": [
+        "input",
+        "pieces"
+       ],
+       "calloutRegion": "pieces",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "l|o|w|e|s|t"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "6"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "0 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lowest"
+        }
+       ]
+      },
+      {
+       "id": "r1",
+       "label": "Rule 1",
+       "short": "2",
+       "sentence": "Rule 1 joins l+o into lo, the same as in \"lower\".",
+       "why": "The same rules run in the same order for every word.",
+       "active": [
+        "merges",
+        "pieces"
+       ],
+       "calloutRegion": "merges",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "lo|w|e|s|t"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "5"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "1 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lowest"
+        }
+       ]
+      },
+      {
+       "id": "r2",
+       "label": "Rule 2",
+       "short": "3",
+       "sentence": "Rule 2 joins lo+w into low, making the shared prefix piece.",
+       "why": "Shared spellings produce shared pieces.",
+       "active": [
+        "merges",
+        "pieces"
+       ],
+       "calloutRegion": "merges",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "low|e|s|t"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "4"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "2 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lowest"
+        }
+       ]
+      },
+      {
+       "id": "r3",
+       "label": "Rule 3 skipped",
+       "short": "4",
+       "sentence": "Rule 3 finds no e+r pair, so nothing changes.",
+       "why": "A rule fires only when its exact pair is present.",
+       "active": [
+        "merges"
+       ],
+       "calloutRegion": "merges",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "low|e|s|t"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "4"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "2 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lowest"
+        }
+       ]
+      },
+      {
+       "id": "r4",
+       "label": "Rule 4",
+       "short": "5",
+       "sentence": "Rule 4 joins e+s into es.",
+       "why": "The suffix is now built from the pairs this word actually contains.",
+       "active": [
+        "merges",
+        "pieces"
+       ],
+       "calloutRegion": "merges",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "low|es|t"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "3"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "3 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lowest"
+        }
+       ]
+      },
+      {
+       "id": "r5",
+       "label": "Rule 5",
+       "short": "6",
+       "sentence": "Rule 5 joins es+t into est, and no rules remain.",
+       "why": "Merging ends after the last ranked rule.",
+       "active": [
+        "merges",
+        "pieces"
+       ],
+       "calloutRegion": "merges",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "low|est"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "2"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "4 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lowest"
+        }
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "IDs",
+       "short": "7",
+       "sentence": "Each piece is looked up: low is 312 again, and est is 478.",
+       "why": "Shared pieces get identical IDs, so the model sees what related words have in common.",
+       "active": [
+        "vocab",
+        "ids"
+       ],
+       "calloutRegion": "ids",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "low|est"
+        },
+        {
+         "id": "count",
+         "label": "Piece count",
+         "value": "2"
+        },
+        {
+         "id": "applied",
+         "label": "Rules applied",
+         "value": "4 of 5"
+        },
+        {
+         "id": "joined",
+         "label": "Rejoined",
+         "value": "lowest"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3067,
+  "output": 5848
+ },
+ "usd": 0.129228,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The pipeline from text through merges to IDs, compared across lower and lowest, answers how shared pieces get shared IDs."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state \"ids\" is the final state of both variants, and stepping is manual, so it holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The word select changes the pieces, the rule path (rule 3 skipped, rules 4 and 5 fired), the suffix ID and the counts, while the rules and vocabulary stay fixed."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callouts, highlights, ghosts and readouts all bind to state fields and declared regions and links, though the phase-to-state mapping is implicit."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, labels and readouts consistently name the same rules, pieces and IDs."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Balanced depth shows five purposeful regions, one callout and a four-value readout, within the density ceiling."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The piece counts, rules-applied counts and rejoined text are correct at every state, including the skipped rule, and each value appears once in the readouts."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.024164
+ }
+}

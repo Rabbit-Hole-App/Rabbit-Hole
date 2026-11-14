@@ -1,0 +1,408 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a38",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "explain k-means clustering with an example",
+ "ts": "2026-11-14T22:57:54.508Z",
+ "ms": 126753,
+ "raw": "{\n  \"story\": \"How does k-means find groups? Start with points P, Q, R, S, T, and U, plus Center A and Center B. Form Cluster A and Cluster B by assigning each point to its nearest center. Replace each center with its group's mean. Repeat until a final assignment changes nothing: the groups and their mean centers agree.\",\n  \"aha\": {\n    \"stateId\": \"stable\",\n    \"observation\": \"No point changes groups: each center is its group's mean, and every point is nearest that center.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states.algorithm-collection\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"state-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell and collection composition. Place the story and experiment instructions above the experiment. Keep progress on this rail. Highlight the selected state without implying elapsed time. Fixed inputs: one feature per point, two clusters, and initial centers taken from P and R. Distance is absolute feature difference; ties choose Cluster A. No empty clusters occur in this example. Different initial centers can produce different final groups. Parameter-control budget: zero, excluding navigation and Reset.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"point-and-center-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Show six equal-width point cells and two named center regions beneath them. Cell spacing does not represent distance. Point labels contain their fixed feature values, measured in feature units. Each region's phase array follows variant.states order and uses the selected index. Show membership with explicit Cluster A or Cluster B tags, reinforced by distinct styles. Highlight regions named by the active binding. Keep all region positions fixed. Center regions identify where; numeric center values appear only in the readouts.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Place this explanation above the picture and anchor its indicator to the named target. Reserve enough space for every state's text.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"center-and-cost-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show both center values and the before-to-after cost comparison beneath the picture. Render the status entry as a bound status line. Cost sums each point's squared distance from its assigned center. Both cost entries use the same assignments and centers as their respective states. Center units are feature units; cost units are squared feature units. Display exact integers or tenths, without rounding. A dash means assignments do not yet exist.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"K-means state\",\n      \"presentation\": \"Use Previous and Next buttons with those accessible names. Default to the first state. Bounds are the first and last states; increment is one. Disable boundary buttons without renaming them. Provide visible focus, keyboard activation, and Left/Right Arrow navigation. Every state persists until the learner acts. Reference captures must show stable.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state, original centers, and unassigned memberships. Provide visible focus and keyboard activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Six one-dimensional points, two clusters\",\n        \"regions\": [\n          {\n            \"id\": \"p\",\n            \"label\": \"P: 1\",\n            \"phases\": [\n              \"Unassigned\",\n              \"Cluster A\",\n              \"Cluster A\",\n              \"Cluster A\",\n              \"Cluster A\",\n              \"Cluster A\"\n            ]\n          },\n          {\n            \"id\": \"q\",\n            \"label\": \"Q: 2\",\n            \"phases\": [\n              \"Unassigned\",\n              \"Cluster A\",\n              \"Cluster A\",\n              \"Cluster A\",\n              \"Cluster A\",\n              \"Cluster A\"\n            ]\n          },\n          {\n            \"id\": \"r\",\n            \"label\": \"R: 3\",\n            \"phases\": [\n              \"Unassigned\",\n              \"Cluster B\",\n              \"Cluster B\",\n              \"Cluster A\",\n              \"Cluster A\",\n              \"Cluster A\"\n            ]\n          },\n          {\n            \"id\": \"s\",\n            \"label\": \"S: 8\",\n            \"phases\": [\n              \"Unassigned\",\n              \"Cluster B\",\n              \"Cluster B\",\n              \"Cluster B\",\n              \"Cluster B\",\n              \"Cluster B\"\n            ]\n          },\n          {\n            \"id\": \"t\",\n            \"label\": \"T: 9\",\n            \"phases\": [\n              \"Unassigned\",\n              \"Cluster B\",\n              \"Cluster B\",\n              \"Cluster B\",\n              \"Cluster B\",\n              \"Cluster B\"\n            ]\n          },\n          {\n            \"id\": \"u\",\n            \"label\": \"U: 10\",\n            \"phases\": [\n              \"Unassigned\",\n              \"Cluster B\",\n              \"Cluster B\",\n              \"Cluster B\",\n              \"Cluster B\",\n              \"Cluster B\"\n            ]\n          },\n          {\n            \"id\": \"center-a\",\n            \"label\": \"Center A\",\n            \"phases\": [\n              \"Initial seed\",\n              \"Held fixed during assignment\",\n              \"Updated to Cluster A mean\",\n              \"Held fixed during assignment\",\n              \"Updated to Cluster A mean\",\n              \"Unchanged Cluster A mean\"\n            ]\n          },\n          {\n            \"id\": \"center-b\",\n            \"label\": \"Center B\",\n            \"phases\": [\n              \"Initial seed\",\n              \"Held fixed during assignment\",\n              \"Updated to Cluster B mean\",\n              \"Held fixed during assignment\",\n              \"Updated to Cluster B mean\",\n              \"Unchanged Cluster B mean\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"seeds\",\n            \"label\": \"Choose centers\",\n            \"short\": \"Seed\",\n            \"sentence\": \"Begin with all points unassigned; Center A starts at P, and Center B starts at R.\",\n            \"why\": \"These nearby initial centers are fixed inputs, not the final group means.\",\n            \"active\": [\n              \"center-a\",\n              \"center-b\"\n            ],\n            \"calloutRegion\": \"center-b\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-value\",\n                \"label\": \"Center A · feature units\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"center-b-value\",\n                \"label\": \"Center B · feature units\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"cost\",\n                \"label\": \"Cost: before → after · squared feature units\",\n                \"value\": \"— → —\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Centers chosen; points unassigned.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"assign-first\",\n            \"label\": \"Assign nearest\",\n            \"short\": \"Assign\",\n            \"sentence\": \"Assign P and Q to Cluster A; assign R, S, T, and U to Cluster B.\",\n            \"why\": \"Q is equally near both initial centers, so the declared tie rule puts it in Cluster A.\",\n            \"active\": [\n              \"p\",\n              \"q\",\n              \"r\",\n              \"s\",\n              \"t\",\n              \"u\"\n            ],\n            \"calloutRegion\": \"q\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-value\",\n                \"label\": \"Center A · feature units\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"center-b-value\",\n                \"label\": \"Center B · feature units\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"cost\",\n                \"label\": \"Cost: before → after · squared feature units\",\n                \"value\": \"— → 111\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"First assignments established; centers held fixed.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"means-first\",\n            \"label\": \"Update means\",\n            \"short\": \"Average\",\n            \"sentence\": \"Keep memberships fixed and replace Center A and Center B with their respective group means.\",\n            \"why\": \"The mean minimizes squared-distance cost for a fixed group, so this update cannot increase that cost.\",\n            \"active\": [\n              \"center-a\",\n              \"center-b\"\n            ],\n            \"calloutRegion\": \"center-b\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-value\",\n                \"label\": \"Center A · feature units\",\n                \"value\": \"1.5\"\n              },\n              {\n                \"id\": \"center-b-value\",\n                \"label\": \"Center B · feature units\",\n                \"value\": \"7.5\"\n              },\n              {\n                \"id\": \"cost\",\n                \"label\": \"Cost: before → after · squared feature units\",\n                \"value\": \"111 → 29.5\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Centers updated; memberships held fixed.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"assign-again\",\n            \"label\": \"Reassign nearest\",\n            \"short\": \"Reassign\",\n            \"sentence\": \"R is now closer to Center A; every other point stays in its existing group.\",\n            \"why\": \"Hold centers fixed during reassignment; choosing the nearest center cannot increase squared-distance cost.\",\n            \"active\": [\n              \"r\"\n            ],\n            \"calloutRegion\": \"r\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-value\",\n                \"label\": \"Center A · feature units\",\n                \"value\": \"1.5\"\n              },\n              {\n                \"id\": \"center-b-value\",\n                \"label\": \"Center B · feature units\",\n                \"value\": \"7.5\"\n              },\n              {\n                \"id\": \"cost\",\n                \"label\": \"Cost: before → after · squared feature units\",\n                \"value\": \"29.5 → 11.5\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"R changes from Cluster B to Cluster A.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"means-again\",\n            \"label\": \"Update means again\",\n            \"short\": \"Average\",\n            \"sentence\": \"Recompute both centers from the new memberships, keeping those memberships fixed.\",\n            \"why\": \"Center A averages P, Q, and R; Center B averages S, T, and U.\",\n            \"active\": [\n              \"center-a\",\n              \"center-b\"\n            ],\n            \"calloutRegion\": \"center-a\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-value\",\n                \"label\": \"Center A · feature units\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"center-b-value\",\n                \"label\": \"Center B · feature units\",\n                \"value\": \"9\"\n              },\n              {\n                \"id\": \"cost\",\n                \"label\": \"Cost: before → after · squared feature units\",\n                \"value\": \"11.5 → 4\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Both centers now match their current group means.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"stable\",\n            \"label\": \"Check stability\",\n            \"short\": \"Stable\",\n            \"sentence\": \"Assign once more: every point stays in its group, so k-means stops for this example.\",\n            \"why\": \"Every point is nearest its center, and both centers are already their groups' means.\",\n            \"active\": [\n              \"p\",\n              \"q\",\n              \"r\",\n              \"s\",\n              \"t\",\n              \"u\"\n            ],\n            \"calloutRegion\": \"r\",\n            \"readouts\": [\n              {\n                \"id\": \"center-a-value\",\n                \"label\": \"Center A · feature units\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"center-b-value\",\n                \"label\": \"Center B · feature units\",\n                \"value\": \"9\"\n              },\n              {\n                \"id\": \"cost\",\n                \"label\": \"Cost: before → after · squared feature units\",\n                \"value\": \"4 → 4\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Converged: assignments and mean centers remain unchanged.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does k-means find groups? Start with points P, Q, R, S, T, and U, plus Center A and Center B. Form Cluster A and Cluster B by assigning each point to its nearest center. Replace each center with its group's mean. Repeat until a final assignment changes nothing: the groups and their mean centers agree.",
+  "aha": {
+   "stateId": "stable",
+   "observation": "No point changes groups: each center is its group's mean, and every point is nearest that center."
+  },
+  "layout": {
+   "preset": "stepper-states.algorithm-collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "state-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell and collection composition. Place the story and experiment instructions above the experiment. Keep progress on this rail. Highlight the selected state without implying elapsed time. Fixed inputs: one feature per point, two clusters, and initial centers taken from P and R. Distance is absolute feature difference; ties choose Cluster A. No empty clusters occur in this example. Different initial centers can produce different final groups. Parameter-control budget: zero, excluding navigation and Reset.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "point-and-center-picture",
+    "kind": "fixed-picture",
+    "presentation": "Show six equal-width point cells and two named center regions beneath them. Cell spacing does not represent distance. Point labels contain their fixed feature values, measured in feature units. Each region's phase array follows variant.states order and uses the selected index. Show membership with explicit Cluster A or Cluster B tags, reinforced by distinct styles. Highlight regions named by the active binding. Keep all region positions fixed. Center regions identify where; numeric center values appear only in the readouts.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Place this explanation above the picture and anchor its indicator to the named target. Reserve enough space for every state's text.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "center-and-cost-readouts",
+    "kind": "value-readout",
+    "presentation": "Show both center values and the before-to-after cost comparison beneath the picture. Render the status entry as a bound status line. Cost sums each point's squared distance from its assigned center. Both cost entries use the same assignments and centers as their respective states. Center units are feature units; cost units are squared feature units. Display exact integers or tenths, without rounding. A dash means assignments do not yet exist.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "K-means state",
+    "presentation": "Use Previous and Next buttons with those accessible names. Default to the first state. Bounds are the first and last states; increment is one. Disable boundary buttons without renaming them. Provide visible focus, keyboard activation, and Left/Right Arrow navigation. Every state persists until the learner acts. Reference captures must show stable."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state, original centers, and unassigned memberships. Provide visible focus and keyboard activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Six one-dimensional points, two clusters",
+     "regions": [
+      {
+       "id": "p",
+       "label": "P: 1",
+       "phases": [
+        "Unassigned",
+        "Cluster A",
+        "Cluster A",
+        "Cluster A",
+        "Cluster A",
+        "Cluster A"
+       ]
+      },
+      {
+       "id": "q",
+       "label": "Q: 2",
+       "phases": [
+        "Unassigned",
+        "Cluster A",
+        "Cluster A",
+        "Cluster A",
+        "Cluster A",
+        "Cluster A"
+       ]
+      },
+      {
+       "id": "r",
+       "label": "R: 3",
+       "phases": [
+        "Unassigned",
+        "Cluster B",
+        "Cluster B",
+        "Cluster A",
+        "Cluster A",
+        "Cluster A"
+       ]
+      },
+      {
+       "id": "s",
+       "label": "S: 8",
+       "phases": [
+        "Unassigned",
+        "Cluster B",
+        "Cluster B",
+        "Cluster B",
+        "Cluster B",
+        "Cluster B"
+       ]
+      },
+      {
+       "id": "t",
+       "label": "T: 9",
+       "phases": [
+        "Unassigned",
+        "Cluster B",
+        "Cluster B",
+        "Cluster B",
+        "Cluster B",
+        "Cluster B"
+       ]
+      },
+      {
+       "id": "u",
+       "label": "U: 10",
+       "phases": [
+        "Unassigned",
+        "Cluster B",
+        "Cluster B",
+        "Cluster B",
+        "Cluster B",
+        "Cluster B"
+       ]
+      },
+      {
+       "id": "center-a",
+       "label": "Center A",
+       "phases": [
+        "Initial seed",
+        "Held fixed during assignment",
+        "Updated to Cluster A mean",
+        "Held fixed during assignment",
+        "Updated to Cluster A mean",
+        "Unchanged Cluster A mean"
+       ]
+      },
+      {
+       "id": "center-b",
+       "label": "Center B",
+       "phases": [
+        "Initial seed",
+        "Held fixed during assignment",
+        "Updated to Cluster B mean",
+        "Held fixed during assignment",
+        "Updated to Cluster B mean",
+        "Unchanged Cluster B mean"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "seeds",
+       "label": "Choose centers",
+       "short": "Seed",
+       "sentence": "Begin with all points unassigned; Center A starts at P, and Center B starts at R.",
+       "why": "These nearby initial centers are fixed inputs, not the final group means.",
+       "active": [
+        "center-a",
+        "center-b"
+       ],
+       "calloutRegion": "center-b",
+       "readouts": [
+        {
+         "id": "center-a-value",
+         "label": "Center A · feature units",
+         "value": "1"
+        },
+        {
+         "id": "center-b-value",
+         "label": "Center B · feature units",
+         "value": "3"
+        },
+        {
+         "id": "cost",
+         "label": "Cost: before → after · squared feature units",
+         "value": "— → —"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Centers chosen; points unassigned."
+        }
+       ]
+      },
+      {
+       "id": "assign-first",
+       "label": "Assign nearest",
+       "short": "Assign",
+       "sentence": "Assign P and Q to Cluster A; assign R, S, T, and U to Cluster B.",
+       "why": "Q is equally near both initial centers, so the declared tie rule puts it in Cluster A.",
+       "active": [
+        "p",
+        "q",
+        "r",
+        "s",
+        "t",
+        "u"
+       ],
+       "calloutRegion": "q",
+       "readouts": [
+        {
+         "id": "center-a-value",
+         "label": "Center A · feature units",
+         "value": "1"
+        },
+        {
+         "id": "center-b-value",
+         "label": "Center B · feature units",
+         "value": "3"
+        },
+        {
+         "id": "cost",
+         "label": "Cost: before → after · squared feature units",
+         "value": "— → 111"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "First assignments established; centers held fixed."
+        }
+       ]
+      },
+      {
+       "id": "means-first",
+       "label": "Update means",
+       "short": "Average",
+       "sentence": "Keep memberships fixed and replace Center A and Center B with their respective group means.",
+       "why": "The mean minimizes squared-distance cost for a fixed group, so this update cannot increase that cost.",
+       "active": [
+        "center-a",
+        "center-b"
+       ],
+       "calloutRegion": "center-b",
+       "readouts": [
+        {
+         "id": "center-a-value",
+         "label": "Center A · feature units",
+         "value": "1.5"
+        },
+        {
+         "id": "center-b-value",
+         "label": "Center B · feature units",
+         "value": "7.5"
+        },
+        {
+         "id": "cost",
+         "label": "Cost: before → after · squared feature units",
+         "value": "111 → 29.5"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Centers updated; memberships held fixed."
+        }
+       ]
+      },
+      {
+       "id": "assign-again",
+       "label": "Reassign nearest",
+       "short": "Reassign",
+       "sentence": "R is now closer to Center A; every other point stays in its existing group.",
+       "why": "Hold centers fixed during reassignment; choosing the nearest center cannot increase squared-distance cost.",
+       "active": [
+        "r"
+       ],
+       "calloutRegion": "r",
+       "readouts": [
+        {
+         "id": "center-a-value",
+         "label": "Center A · feature units",
+         "value": "1.5"
+        },
+        {
+         "id": "center-b-value",
+         "label": "Center B · feature units",
+         "value": "7.5"
+        },
+        {
+         "id": "cost",
+         "label": "Cost: before → after · squared feature units",
+         "value": "29.5 → 11.5"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "R changes from Cluster B to Cluster A."
+        }
+       ]
+      },
+      {
+       "id": "means-again",
+       "label": "Update means again",
+       "short": "Average",
+       "sentence": "Recompute both centers from the new memberships, keeping those memberships fixed.",
+       "why": "Center A averages P, Q, and R; Center B averages S, T, and U.",
+       "active": [
+        "center-a",
+        "center-b"
+       ],
+       "calloutRegion": "center-a",
+       "readouts": [
+        {
+         "id": "center-a-value",
+         "label": "Center A · feature units",
+         "value": "2"
+        },
+        {
+         "id": "center-b-value",
+         "label": "Center B · feature units",
+         "value": "9"
+        },
+        {
+         "id": "cost",
+         "label": "Cost: before → after · squared feature units",
+         "value": "11.5 → 4"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Both centers now match their current group means."
+        }
+       ]
+      },
+      {
+       "id": "stable",
+       "label": "Check stability",
+       "short": "Stable",
+       "sentence": "Assign once more: every point stays in its group, so k-means stops for this example.",
+       "why": "Every point is nearest its center, and both centers are already their groups' means.",
+       "active": [
+        "p",
+        "q",
+        "r",
+        "s",
+        "t",
+        "u"
+       ],
+       "calloutRegion": "r",
+       "readouts": [
+        {
+         "id": "center-a-value",
+         "label": "Center A · feature units",
+         "value": "2"
+        },
+        {
+         "id": "center-b-value",
+         "label": "Center B · feature units",
+         "value": "9"
+        },
+        {
+         "id": "cost",
+         "label": "Cost: before → after · squared feature units",
+         "value": "4 → 4"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Converged: assignments and mean centers remain unchanged."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1535,
+  "output": 7326
+ },
+ "usd": 0.07346,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3eYjpiXR1Tc9yEfiQ64\"}"
+  },
+  "cardUsd": 0
+ }
+}

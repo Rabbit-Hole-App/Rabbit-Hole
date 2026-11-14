@@ -1,0 +1,321 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a04",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does RLHF work?",
+ "ts": "2026-11-14T22:21:14.482Z",
+ "ms": 19678,
+ "raw": "{\"story\":\"A language model writes fluent text but doesn't know what people prefer. Follow one prompt: the model drafts answers, humans rank them, a reward model learns those rankings, and then the reward model, not people, scores answers while reinforcement learning nudges the model toward higher scores.\",\"aha\":{\"stateId\":\"update\",\"observation\":\"Humans only train the scorer. The reward model then grades answers for them, so reinforcement learning can shift the policy toward preferred answers.\"},\"layout\":{\"preset\":\"stepper-pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons; arrow keys also move between steps\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first state\"}],\"data\":{\"variants\":[{\"label\":\"RLHF pipeline (one prompt, illustrative)\",\"regions\":[{\"id\":\"prompt\",\"label\":\"Prompt\",\"kind\":\"input\"},{\"id\":\"policy\",\"label\":\"Policy model\",\"kind\":\"model\"},{\"id\":\"answers\",\"label\":\"Candidate answers\",\"kind\":\"data\"},{\"id\":\"humans\",\"label\":\"Human ranking\",\"kind\":\"people\"},{\"id\":\"reward\",\"label\":\"Reward model\",\"kind\":\"model\"},{\"id\":\"update\",\"label\":\"RL update\",\"kind\":\"process\"}],\"links\":[{\"from\":\"prompt\",\"to\":\"policy\",\"label\":\"input\"},{\"from\":\"policy\",\"to\":\"answers\",\"label\":\"samples\"},{\"from\":\"answers\",\"to\":\"humans\",\"label\":\"compared\"},{\"from\":\"humans\",\"to\":\"reward\",\"label\":\"trains\"},{\"from\":\"reward\",\"to\":\"update\",\"label\":\"scores\"},{\"from\":\"update\",\"to\":\"policy\",\"label\":\"adjusts\"}],\"states\":[{\"id\":\"start\",\"label\":\"Pretrained policy\",\"sentence\":\"The pretrained policy model predicts fluent text, but nothing yet tells it which answers people prefer.\",\"short\":\"Start\",\"why\":\"This is the gap RLHF fills: fluent is not the same as preferred.\",\"calloutRegion\":\"policy\",\"active\":[\"prompt\",\"policy\"],\"readouts\":[{\"id\":\"scorer\",\"label\":\"Scorer\",\"value\":\"none\"},{\"id\":\"changed\",\"label\":\"Policy weights changed\",\"value\":\"no\"}]},{\"id\":\"sample\",\"label\":\"Sample answers\",\"sentence\":\"For one prompt, the policy model writes several different candidate answers.\",\"short\":\"Sample\",\"why\":\"Different samples give people something to compare.\",\"calloutRegion\":\"answers\",\"active\":[\"policy\",\"answers\"],\"readouts\":[{\"id\":\"scorer\",\"label\":\"Scorer\",\"value\":\"none\"},{\"id\":\"changed\",\"label\":\"Policy weights changed\",\"value\":\"no\"}]},{\"id\":\"rank\",\"label\":\"Humans rank\",\"sentence\":\"Human raters rank the candidate answers from best to worst. Comparing is easier than writing ideal answers.\",\"short\":\"Rank\",\"why\":\"Rankings are the only place human preference enters.\",\"calloutRegion\":\"humans\",\"active\":[\"answers\",\"humans\"],\"readouts\":[{\"id\":\"scorer\",\"label\":\"Scorer\",\"value\":\"humans\"},{\"id\":\"changed\",\"label\":\"Policy weights changed\",\"value\":\"no\"}]},{\"id\":\"learn\",\"label\":\"Train reward model\",\"sentence\":\"The reward model trains to give higher scores to answers that humans ranked higher.\",\"short\":\"Learn\",\"why\":\"Human judgment is now compressed into a model that can score any answer.\",\"calloutRegion\":\"reward\",\"active\":[\"humans\",\"reward\"],\"readouts\":[{\"id\":\"scorer\",\"label\":\"Scorer\",\"value\":\"humans, being copied\"},{\"id\":\"changed\",\"label\":\"Policy weights changed\",\"value\":\"no\"}]},{\"id\":\"update\",\"label\":\"Score and update\",\"sentence\":\"The reward model now scores new answers with no humans. The RL update shifts the policy toward higher-scoring answers.\",\"short\":\"Update\",\"why\":\"Automatic scoring is what lets reinforcement learning run on huge numbers of samples.\",\"calloutRegion\":\"update\",\"active\":[\"policy\",\"answers\",\"reward\",\"update\"],\"readouts\":[{\"id\":\"scorer\",\"label\":\"Scorer\",\"value\":\"reward model\"},{\"id\":\"changed\",\"label\":\"Policy weights changed\",\"value\":\"yes\"}]}]}]}}",
+ "composition": {
+  "story": "A language model writes fluent text but doesn't know what people prefer. Follow one prompt: the model drafts answers, humans rank them, a reward model learns those rankings, and then the reward model, not people, scores answers while reinforcement learning nudges the model toward higher scores.",
+  "aha": {
+   "stateId": "update",
+   "observation": "Humans only train the scorer. The reward model then grades answers for them, so reinforcement learning can shift the policy toward preferred answers."
+  },
+  "layout": {
+   "preset": "stepper-pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons; arrow keys also move between steps"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first state"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "RLHF pipeline (one prompt, illustrative)",
+     "regions": [
+      {
+       "id": "prompt",
+       "label": "Prompt",
+       "kind": "input"
+      },
+      {
+       "id": "policy",
+       "label": "Policy model",
+       "kind": "model"
+      },
+      {
+       "id": "answers",
+       "label": "Candidate answers",
+       "kind": "data"
+      },
+      {
+       "id": "humans",
+       "label": "Human ranking",
+       "kind": "people"
+      },
+      {
+       "id": "reward",
+       "label": "Reward model",
+       "kind": "model"
+      },
+      {
+       "id": "update",
+       "label": "RL update",
+       "kind": "process"
+      }
+     ],
+     "links": [
+      {
+       "from": "prompt",
+       "to": "policy",
+       "label": "input"
+      },
+      {
+       "from": "policy",
+       "to": "answers",
+       "label": "samples"
+      },
+      {
+       "from": "answers",
+       "to": "humans",
+       "label": "compared"
+      },
+      {
+       "from": "humans",
+       "to": "reward",
+       "label": "trains"
+      },
+      {
+       "from": "reward",
+       "to": "update",
+       "label": "scores"
+      },
+      {
+       "from": "update",
+       "to": "policy",
+       "label": "adjusts"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Pretrained policy",
+       "sentence": "The pretrained policy model predicts fluent text, but nothing yet tells it which answers people prefer.",
+       "short": "Start",
+       "why": "This is the gap RLHF fills: fluent is not the same as preferred.",
+       "calloutRegion": "policy",
+       "active": [
+        "prompt",
+        "policy"
+       ],
+       "readouts": [
+        {
+         "id": "scorer",
+         "label": "Scorer",
+         "value": "none"
+        },
+        {
+         "id": "changed",
+         "label": "Policy weights changed",
+         "value": "no"
+        }
+       ]
+      },
+      {
+       "id": "sample",
+       "label": "Sample answers",
+       "sentence": "For one prompt, the policy model writes several different candidate answers.",
+       "short": "Sample",
+       "why": "Different samples give people something to compare.",
+       "calloutRegion": "answers",
+       "active": [
+        "policy",
+        "answers"
+       ],
+       "readouts": [
+        {
+         "id": "scorer",
+         "label": "Scorer",
+         "value": "none"
+        },
+        {
+         "id": "changed",
+         "label": "Policy weights changed",
+         "value": "no"
+        }
+       ]
+      },
+      {
+       "id": "rank",
+       "label": "Humans rank",
+       "sentence": "Human raters rank the candidate answers from best to worst. Comparing is easier than writing ideal answers.",
+       "short": "Rank",
+       "why": "Rankings are the only place human preference enters.",
+       "calloutRegion": "humans",
+       "active": [
+        "answers",
+        "humans"
+       ],
+       "readouts": [
+        {
+         "id": "scorer",
+         "label": "Scorer",
+         "value": "humans"
+        },
+        {
+         "id": "changed",
+         "label": "Policy weights changed",
+         "value": "no"
+        }
+       ]
+      },
+      {
+       "id": "learn",
+       "label": "Train reward model",
+       "sentence": "The reward model trains to give higher scores to answers that humans ranked higher.",
+       "short": "Learn",
+       "why": "Human judgment is now compressed into a model that can score any answer.",
+       "calloutRegion": "reward",
+       "active": [
+        "humans",
+        "reward"
+       ],
+       "readouts": [
+        {
+         "id": "scorer",
+         "label": "Scorer",
+         "value": "humans, being copied"
+        },
+        {
+         "id": "changed",
+         "label": "Policy weights changed",
+         "value": "no"
+        }
+       ]
+      },
+      {
+       "id": "update",
+       "label": "Score and update",
+       "sentence": "The reward model now scores new answers with no humans. The RL update shifts the policy toward higher-scoring answers.",
+       "short": "Update",
+       "why": "Automatic scoring is what lets reinforcement learning run on huge numbers of samples.",
+       "calloutRegion": "update",
+       "active": [
+        "policy",
+        "answers",
+        "reward",
+        "update"
+       ],
+       "readouts": [
+        {
+         "id": "scorer",
+         "label": "Scorer",
+         "value": "reward model"
+        },
+        {
+         "id": "changed",
+         "label": "Policy weights changed",
+         "value": "yes"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3066,
+  "output": 2934
+ },
+ "usd": 0.035472,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed pipeline picture with links shows how human rankings train a reward model that then scores answers for the RL update."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'update' is the final step, and it holds there since navigation is manual via Previous/Next with no timer."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The sole control, the step index, changes the active regions, callout and readouts at every step, and a fixed walkthrough with no other parameter is appropriate."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active regions, callout target, text, reason and readouts all come from state fields, and the callout region ids match declared region ids."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, region labels, step labels and readouts consistently use policy model, reward model, human ranking and RL update."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth there are only two readouts and one callout with a small active subset, so no clutter is added."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The readouts progress correctly (scorer none, humans, copied, reward model; weights changed only at the update), and the callouts locate while the readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.016564
+ }
+}

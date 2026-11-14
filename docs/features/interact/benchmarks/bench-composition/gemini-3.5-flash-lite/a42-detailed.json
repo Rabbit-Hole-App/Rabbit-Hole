@@ -1,0 +1,349 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a42",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how are stack frames pushed and popped in recursion?",
+ "ts": "2026-11-14T22:23:38.446Z",
+ "ms": 4253,
+ "raw": "{\n  \"story\": \"Recursive calls push new activation frames onto the call stack, allocating local variables. Reaching the base case halts descent, and returning pops frames one by one while computing results.\",\n  \"aha\": {\n    \"stateId\": \"pop1\",\n    \"observation\": \"Base case reached, top frame starts popping and returning values downward.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Stack Step\",\n      \"options\": [\"push3\", \"push2\", \"push1\", \"base\", \"pop1\", \"pop2\", \"pop3\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset Stack\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Recursion Depth 3\",\n        \"regions\": [\n          {\n            \"id\": \"frame3\",\n            \"label\": \"Frame f(3)\",\n            \"kind\": \"stack-frame\",\n            \"values\": [\"n=3\", \"calc=3*f(2)\"]\n          },\n          {\n            \"id\": \"frame2\",\n            \"label\": \"Frame f(2)\",\n            \"kind\": \"stack-frame\",\n            \"values\": [\"n=2\", \"calc=2*f(1)\"]\n          },\n          {\n            \"id\": \"frame1\",\n            \"label\": \"Frame f(1)\",\n            \"kind\": \"stack-frame\",\n            \"values\": [\"n=1\", \"calc=1*f(0)\"]\n          },\n          {\n            \"id\": \"frame0\",\n            \"label\": \"Base f(0)\",\n            \"kind\": \"stack-frame\",\n            \"values\": [\"n=0\", \"return 1\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"push3\",\n            \"label\": \"Push f(3)\",\n            \"short\": \"f(3)\",\n            \"sentence\": \"Initial call pushes f(3) onto the stack.\",\n            \"why\": \"Allocates space for n=3.\",\n            \"active\": [\"frame3\"],\n            \"calloutRegion\": \"frame3\",\n            \"readouts\": [\n              {\"id\": \"depth\", \"label\": \"Stack Depth\", \"value\": \"1\"},\n              {\"id\": \"top\", \"label\": \"Top Frame\", \"value\": \"f(3)\"}\n            ]\n          },\n          {\n            \"id\": \"push2\",\n            \"label\": \"Push f(2)\",\n            \"short\": \"f(2)\",\n            \"sentence\": \"f(3) calls f(2), pushing a new frame.\",\n            \"why\": \"Allocates space for n=2.\",\n            \"active\": [\"frame3\", \"frame2\"],\n            \"calloutRegion\": \"frame2\",\n            \"readouts\": [\n              {\"id\": \"depth\", \"label\": \"Stack Depth\", \"value\": \"2\"},\n              {\"id\": \"top\", \"label\": \"Top Frame\", \"value\": \"f(2)\"}\n            ]\n          },\n          {\n            \"id\": \"push1\",\n            \"label\": \"Push f(1)\",\n            \"short\": \"f(1)\",\n            \"sentence\": \"f(2) calls f(1), pushing another frame.\",\n            \"why\": \"Allocates space for n=1.\",\n            \"active\": [\"frame3\", \"frame2\", \"frame1\"],\n            \"calloutRegion\": \"frame1\",\n            \"readouts\": [\n              {\"id\": \"depth\", \"label\": \"Stack Depth\", \"value\": \"3\"},\n              {\"id\": \"top\", \"label\": \"Top Frame\", \"value\": \"f(1)\"}\n            ]\n          },\n          {\n            \"id\": \"base\",\n            \"label\": \"Base Case\",\n            \"short\": \"f(0)\",\n            \"sentence\": \"f(1) calls f(0), hitting the base case.\",\n            \"why\": \"No more recursive calls; returns 1.\",\n            \"active\": [\"frame3\", \"frame2\", \"frame1\", \"frame0\"],\n            \"calloutRegion\": \"frame0\",\n            \"readouts\": [\n              {\"id\": \"depth\", \"label\": \"Stack Depth\", \"value\": \"4\"},\n              {\"id\": \"top\", \"label\": \"Top Frame\", \"value\": \"f(0)\"}\n            ]\n          },\n          {\n            \"id\": \"pop1\",\n            \"label\": \"Pop f(0)\",\n            \"short\": \"Pop 0\",\n            \"sentence\": \"Base case returns 1, popping f(0) off.\",\n            \"why\": \"Unwinds frame and computes 1*1.\",\n            \"active\": [\"frame3\", \"frame2\", \"frame1\"],\n            \"calloutRegion\": \"frame1\",\n            \"readouts\": [\n              {\"id\": \"depth\", \"label\": \"Stack Depth\", \"value\": \"3\"},\n              {\"id\": \"top\", \"label\": \"Top Frame\", \"value\": \"f(1)\"}\n            ]\n          },\n          {\n            \"id\": \"pop2\",\n            \"label\": \"Pop f(1)\",\n            \"short\": \"Pop 1\",\n            \"sentence\": \"f(1) completes and pops off the stack.\",\n            \"why\": \"Returns 1 to f(2), computing 2*1.\",\n            \"active\": [\"frame3\", \"frame2\"],\n            \"calloutRegion\": \"frame2\",\n            \"readouts\": [\n              {\"id\": \"depth\", \"label\": \"Stack Depth\", \"value\": \"2\"},\n              {\"id\": \"top\", \"label\": \"Top Frame\", \"value\": \"f(2)\"}\n            ]\n          },\n          {\n            \"id\": \"pop3\",\n            \"label\": \"Pop f(2)\",\n            \"short\": \"Pop 2\",\n            \"sentence\": \"f(2) completes and pops off the stack.\",\n            \"why\": \"Returns 2 to f(3), computing 3*2.\",\n            \"active\": [\"frame3\"],\n            \"calloutRegion\": \"frame3\",\n            \"readouts\": [\n              {\"id\": \"depth\", \"label\": \"Stack Depth\", \"value\": \"1\"},\n              {\"id\": \"top\", \"label\": \"Top Frame\", \"value\": \"f(3)\"}\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Recursive calls push new activation frames onto the call stack, allocating local variables. Reaching the base case halts descent, and returning pops frames one by one while computing results.",
+  "aha": {
+   "stateId": "pop1",
+   "observation": "Base case reached, top frame starts popping and returning values downward."
+  },
+  "layout": {
+   "preset": "stepper",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "completedBefore": "inputs.stepIndex"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Stack Step",
+    "options": [
+     "push3",
+     "push2",
+     "push1",
+     "base",
+     "pop1",
+     "pop2",
+     "pop3"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset Stack",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Recursion Depth 3",
+     "regions": [
+      {
+       "id": "frame3",
+       "label": "Frame f(3)",
+       "kind": "stack-frame",
+       "values": [
+        "n=3",
+        "calc=3*f(2)"
+       ]
+      },
+      {
+       "id": "frame2",
+       "label": "Frame f(2)",
+       "kind": "stack-frame",
+       "values": [
+        "n=2",
+        "calc=2*f(1)"
+       ]
+      },
+      {
+       "id": "frame1",
+       "label": "Frame f(1)",
+       "kind": "stack-frame",
+       "values": [
+        "n=1",
+        "calc=1*f(0)"
+       ]
+      },
+      {
+       "id": "frame0",
+       "label": "Base f(0)",
+       "kind": "stack-frame",
+       "values": [
+        "n=0",
+        "return 1"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "push3",
+       "label": "Push f(3)",
+       "short": "f(3)",
+       "sentence": "Initial call pushes f(3) onto the stack.",
+       "why": "Allocates space for n=3.",
+       "active": [
+        "frame3"
+       ],
+       "calloutRegion": "frame3",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "1"
+        },
+        {
+         "id": "top",
+         "label": "Top Frame",
+         "value": "f(3)"
+        }
+       ]
+      },
+      {
+       "id": "push2",
+       "label": "Push f(2)",
+       "short": "f(2)",
+       "sentence": "f(3) calls f(2), pushing a new frame.",
+       "why": "Allocates space for n=2.",
+       "active": [
+        "frame3",
+        "frame2"
+       ],
+       "calloutRegion": "frame2",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "2"
+        },
+        {
+         "id": "top",
+         "label": "Top Frame",
+         "value": "f(2)"
+        }
+       ]
+      },
+      {
+       "id": "push1",
+       "label": "Push f(1)",
+       "short": "f(1)",
+       "sentence": "f(2) calls f(1), pushing another frame.",
+       "why": "Allocates space for n=1.",
+       "active": [
+        "frame3",
+        "frame2",
+        "frame1"
+       ],
+       "calloutRegion": "frame1",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "3"
+        },
+        {
+         "id": "top",
+         "label": "Top Frame",
+         "value": "f(1)"
+        }
+       ]
+      },
+      {
+       "id": "base",
+       "label": "Base Case",
+       "short": "f(0)",
+       "sentence": "f(1) calls f(0), hitting the base case.",
+       "why": "No more recursive calls; returns 1.",
+       "active": [
+        "frame3",
+        "frame2",
+        "frame1",
+        "frame0"
+       ],
+       "calloutRegion": "frame0",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "4"
+        },
+        {
+         "id": "top",
+         "label": "Top Frame",
+         "value": "f(0)"
+        }
+       ]
+      },
+      {
+       "id": "pop1",
+       "label": "Pop f(0)",
+       "short": "Pop 0",
+       "sentence": "Base case returns 1, popping f(0) off.",
+       "why": "Unwinds frame and computes 1*1.",
+       "active": [
+        "frame3",
+        "frame2",
+        "frame1"
+       ],
+       "calloutRegion": "frame1",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "3"
+        },
+        {
+         "id": "top",
+         "label": "Top Frame",
+         "value": "f(1)"
+        }
+       ]
+      },
+      {
+       "id": "pop2",
+       "label": "Pop f(1)",
+       "short": "Pop 1",
+       "sentence": "f(1) completes and pops off the stack.",
+       "why": "Returns 1 to f(2), computing 2*1.",
+       "active": [
+        "frame3",
+        "frame2"
+       ],
+       "calloutRegion": "frame2",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "2"
+        },
+        {
+         "id": "top",
+         "label": "Top Frame",
+         "value": "f(2)"
+        }
+       ]
+      },
+      {
+       "id": "pop3",
+       "label": "Pop f(2)",
+       "short": "Pop 2",
+       "sentence": "f(2) completes and pops off the stack.",
+       "why": "Returns 2 to f(3), computing 3*2.",
+       "active": [
+        "frame3"
+       ],
+       "calloutRegion": "frame3",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "1"
+        },
+        {
+         "id": "top",
+         "label": "Top Frame",
+         "value": "f(3)"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1106,
+  "output": 1789
+ },
+ "usd": 0.004805,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "Stack frames appearing and disappearing show how the call stack grows to the base case and then unwinds."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The stepper is learner-driven with no timer, so the pop1 aha state holds until the learner changes the step."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "Each stepIndex value changes the active frames, callout and depth/top readouts, so every input gives different evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The active list, calloutRegion, sentence/why and readouts all trace to declared state and region fields."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, sentences and frame names consistently refer to f(n) pushes and pops, though the pop callout targets the new top frame."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "One stack region of at most four frames, with a callout and two readouts, adds the depth mechanism without clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The depths of 1-2-3-4-3-2-1, the top frames and the 1*1, 2*1 and 3*2 returns are all correct, and each value appears once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018202
+ }
+}

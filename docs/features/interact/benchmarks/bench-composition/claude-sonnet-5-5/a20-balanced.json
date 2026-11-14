@@ -1,0 +1,496 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a20",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how do the generator and discriminator in a GAN work together?",
+ "ts": "2026-11-14T22:26:40.157Z",
+ "ms": 21350,
+ "raw": "{\"story\":\"A generator turns random noise into fake samples. A discriminator sees real and fake samples and scores each as real. Its verdict trains both: the discriminator to separate them, the generator to fool it. Training settles near 0.5 when fakes look real.\",\"aha\":{\"stateId\":\"s8\",\"observation\":\"The generator never sees real data; it learns only from the discriminator's score, and fakes improve until the score on both is near 0.5.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"pic\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"prog\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"GAN training loop\",\"regions\":[{\"id\":\"noise\",\"label\":\"Noise z\",\"kind\":\"input\",\"values\":[\"random vector\"]},{\"id\":\"gen\",\"label\":\"Generator G\",\"kind\":\"actor\",\"actors\":[\"G\"]},{\"id\":\"fake\",\"label\":\"Fake sample\",\"kind\":\"data\"},{\"id\":\"real\",\"label\":\"Real sample\",\"kind\":\"data\"},{\"id\":\"disc\",\"label\":\"Discriminator D\",\"kind\":\"actor\",\"actors\":[\"D\"]},{\"id\":\"verdict\",\"label\":\"Score: P(real)\",\"kind\":\"output\",\"values\":[\"0 = fake\",\"1 = real\"]},{\"id\":\"dloss\",\"label\":\"D update\",\"kind\":\"feedback\",\"phases\":[\"learn to separate\"]},{\"id\":\"gloss\",\"label\":\"G update\",\"kind\":\"feedback\",\"phases\":[\"learn to fool D\"]}],\"links\":[{\"from\":\"noise\",\"to\":\"gen\",\"label\":\"input\"},{\"from\":\"gen\",\"to\":\"fake\",\"label\":\"makes\"},{\"from\":\"fake\",\"to\":\"disc\",\"label\":\"judged\"},{\"from\":\"real\",\"to\":\"disc\",\"label\":\"judged\"},{\"from\":\"disc\",\"to\":\"verdict\",\"label\":\"scores\"},{\"from\":\"verdict\",\"to\":\"dloss\",\"label\":\"error\"},{\"from\":\"verdict\",\"to\":\"gloss\",\"label\":\"error\"},{\"from\":\"dloss\",\"to\":\"disc\",\"label\":\"improves\"},{\"from\":\"gloss\",\"to\":\"gen\",\"label\":\"improves\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Noise in\",\"short\":\"Noise\",\"sentence\":\"Random noise z is the generator's only input at the start of each round.\",\"why\":\"G has no data yet, only noise to shape.\",\"active\":[\"noise\",\"gen\"],\"calloutRegion\":\"noise\",\"readouts\":[{\"id\":\"round\",\"label\":\"Round\",\"value\":\"1\"},{\"id\":\"dreal\",\"label\":\"D(real)\",\"value\":\"–\"},{\"id\":\"dfake\",\"label\":\"D(fake)\",\"value\":\"–\"}]},{\"id\":\"s2\",\"label\":\"Fake made\",\"short\":\"Fake\",\"sentence\":\"The generator maps noise to a fake sample, crude at first.\",\"why\":\"Early G weights are random, so fakes are easy to spot.\",\"active\":[\"gen\",\"fake\"],\"calloutRegion\":\"fake\",\"readouts\":[{\"id\":\"round\",\"label\":\"Round\",\"value\":\"1\"},{\"id\":\"dreal\",\"label\":\"D(real)\",\"value\":\"–\"},{\"id\":\"dfake\",\"label\":\"D(fake)\",\"value\":\"–\"}]},{\"id\":\"s3\",\"label\":\"Both judged\",\"short\":\"Judge\",\"sentence\":\"The discriminator receives a real sample and the fake, without being told which is which.\",\"why\":\"D must decide from the samples alone.\",\"active\":[\"real\",\"fake\",\"disc\"],\"calloutRegion\":\"disc\",\"readouts\":[{\"id\":\"round\",\"label\":\"Round\",\"value\":\"1\"},{\"id\":\"dreal\",\"label\":\"D(real)\",\"value\":\"–\"},{\"id\":\"dfake\",\"label\":\"D(fake)\",\"value\":\"–\"}]},{\"id\":\"s4\",\"label\":\"Scores out\",\"short\":\"Score\",\"sentence\":\"Early on, D easily scores the real sample high and the crude fake low.\",\"why\":\"Scores are P(real) from 0 to 1.\",\"active\":[\"disc\",\"verdict\"],\"calloutRegion\":\"verdict\",\"readouts\":[{\"id\":\"round\",\"label\":\"Round\",\"value\":\"1\"},{\"id\":\"dreal\",\"label\":\"D(real)\",\"value\":\"0.90\"},{\"id\":\"dfake\",\"label\":\"D(fake)\",\"value\":\"0.10\"}]},{\"id\":\"s5\",\"label\":\"D learns\",\"short\":\"D update\",\"sentence\":\"D's error on both samples updates D, so it separates real from fake even better.\",\"why\":\"D is rewarded for correct labels.\",\"active\":[\"verdict\",\"dloss\",\"disc\"],\"calloutRegion\":\"dloss\",\"readouts\":[{\"id\":\"round\",\"label\":\"Round\",\"value\":\"1\"},{\"id\":\"dreal\",\"label\":\"D(real)\",\"value\":\"0.95\"},{\"id\":\"dfake\",\"label\":\"D(fake)\",\"value\":\"0.05\"}]},{\"id\":\"s6\",\"label\":\"G learns\",\"short\":\"G update\",\"sentence\":\"The same score on the fake flows back to G, which shifts its output toward what D calls real.\",\"why\":\"G is rewarded when D(fake) rises, the opposite goal to D.\",\"active\":[\"verdict\",\"gloss\",\"gen\"],\"calloutRegion\":\"gloss\",\"readouts\":[{\"id\":\"round\",\"label\":\"Round\",\"value\":\"1\"},{\"id\":\"dreal\",\"label\":\"D(real)\",\"value\":\"0.95\"},{\"id\":\"dfake\",\"label\":\"D(fake)\",\"value\":\"0.05\"}]},{\"id\":\"s7\",\"label\":\"Repeat\",\"short\":\"Repeat\",\"sentence\":\"Over many rounds, G's fakes improve and D must sharpen to keep telling them apart.\",\"why\":\"Each side's progress raises the other's challenge.\",\"active\":[\"gen\",\"fake\",\"disc\",\"verdict\"],\"calloutRegion\":\"fake\",\"readouts\":[{\"id\":\"round\",\"label\":\"Round\",\"value\":\"1000\"},{\"id\":\"dreal\",\"label\":\"D(real)\",\"value\":\"0.70\"},{\"id\":\"dfake\",\"label\":\"D(fake)\",\"value\":\"0.35\"}]},{\"id\":\"s8\",\"label\":\"Balance\",\"short\":\"Balance\",\"sentence\":\"G learns only from D's score, never from real data; fakes now fool D about half the time.\",\"why\":\"D(real) and D(fake) both near 0.5 means D can no longer tell them apart.\",\"active\":[\"fake\",\"real\",\"disc\",\"verdict\"],\"calloutRegion\":\"verdict\",\"readouts\":[{\"id\":\"round\",\"label\":\"Round\",\"value\":\"10000\"},{\"id\":\"dreal\",\"label\":\"D(real)\",\"value\":\"0.52\"},{\"id\":\"dfake\",\"label\":\"D(fake)\",\"value\":\"0.48\"}]}]}]}}",
+ "composition": {
+  "story": "A generator turns random noise into fake samples. A discriminator sees real and fake samples and scores each as real. Its verdict trains both: the discriminator to separate them, the generator to fool it. Training settles near 0.5 when fakes look real.",
+  "aha": {
+   "stateId": "s8",
+   "observation": "The generator never sees real data; it learns only from the discriminator's score, and fakes improve until the score on both is near 0.5."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "GAN training loop",
+     "regions": [
+      {
+       "id": "noise",
+       "label": "Noise z",
+       "kind": "input",
+       "values": [
+        "random vector"
+       ]
+      },
+      {
+       "id": "gen",
+       "label": "Generator G",
+       "kind": "actor",
+       "actors": [
+        "G"
+       ]
+      },
+      {
+       "id": "fake",
+       "label": "Fake sample",
+       "kind": "data"
+      },
+      {
+       "id": "real",
+       "label": "Real sample",
+       "kind": "data"
+      },
+      {
+       "id": "disc",
+       "label": "Discriminator D",
+       "kind": "actor",
+       "actors": [
+        "D"
+       ]
+      },
+      {
+       "id": "verdict",
+       "label": "Score: P(real)",
+       "kind": "output",
+       "values": [
+        "0 = fake",
+        "1 = real"
+       ]
+      },
+      {
+       "id": "dloss",
+       "label": "D update",
+       "kind": "feedback",
+       "phases": [
+        "learn to separate"
+       ]
+      },
+      {
+       "id": "gloss",
+       "label": "G update",
+       "kind": "feedback",
+       "phases": [
+        "learn to fool D"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "noise",
+       "to": "gen",
+       "label": "input"
+      },
+      {
+       "from": "gen",
+       "to": "fake",
+       "label": "makes"
+      },
+      {
+       "from": "fake",
+       "to": "disc",
+       "label": "judged"
+      },
+      {
+       "from": "real",
+       "to": "disc",
+       "label": "judged"
+      },
+      {
+       "from": "disc",
+       "to": "verdict",
+       "label": "scores"
+      },
+      {
+       "from": "verdict",
+       "to": "dloss",
+       "label": "error"
+      },
+      {
+       "from": "verdict",
+       "to": "gloss",
+       "label": "error"
+      },
+      {
+       "from": "dloss",
+       "to": "disc",
+       "label": "improves"
+      },
+      {
+       "from": "gloss",
+       "to": "gen",
+       "label": "improves"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Noise in",
+       "short": "Noise",
+       "sentence": "Random noise z is the generator's only input at the start of each round.",
+       "why": "G has no data yet, only noise to shape.",
+       "active": [
+        "noise",
+        "gen"
+       ],
+       "calloutRegion": "noise",
+       "readouts": [
+        {
+         "id": "round",
+         "label": "Round",
+         "value": "1"
+        },
+        {
+         "id": "dreal",
+         "label": "D(real)",
+         "value": "–"
+        },
+        {
+         "id": "dfake",
+         "label": "D(fake)",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Fake made",
+       "short": "Fake",
+       "sentence": "The generator maps noise to a fake sample, crude at first.",
+       "why": "Early G weights are random, so fakes are easy to spot.",
+       "active": [
+        "gen",
+        "fake"
+       ],
+       "calloutRegion": "fake",
+       "readouts": [
+        {
+         "id": "round",
+         "label": "Round",
+         "value": "1"
+        },
+        {
+         "id": "dreal",
+         "label": "D(real)",
+         "value": "–"
+        },
+        {
+         "id": "dfake",
+         "label": "D(fake)",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Both judged",
+       "short": "Judge",
+       "sentence": "The discriminator receives a real sample and the fake, without being told which is which.",
+       "why": "D must decide from the samples alone.",
+       "active": [
+        "real",
+        "fake",
+        "disc"
+       ],
+       "calloutRegion": "disc",
+       "readouts": [
+        {
+         "id": "round",
+         "label": "Round",
+         "value": "1"
+        },
+        {
+         "id": "dreal",
+         "label": "D(real)",
+         "value": "–"
+        },
+        {
+         "id": "dfake",
+         "label": "D(fake)",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Scores out",
+       "short": "Score",
+       "sentence": "Early on, D easily scores the real sample high and the crude fake low.",
+       "why": "Scores are P(real) from 0 to 1.",
+       "active": [
+        "disc",
+        "verdict"
+       ],
+       "calloutRegion": "verdict",
+       "readouts": [
+        {
+         "id": "round",
+         "label": "Round",
+         "value": "1"
+        },
+        {
+         "id": "dreal",
+         "label": "D(real)",
+         "value": "0.90"
+        },
+        {
+         "id": "dfake",
+         "label": "D(fake)",
+         "value": "0.10"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "D learns",
+       "short": "D update",
+       "sentence": "D's error on both samples updates D, so it separates real from fake even better.",
+       "why": "D is rewarded for correct labels.",
+       "active": [
+        "verdict",
+        "dloss",
+        "disc"
+       ],
+       "calloutRegion": "dloss",
+       "readouts": [
+        {
+         "id": "round",
+         "label": "Round",
+         "value": "1"
+        },
+        {
+         "id": "dreal",
+         "label": "D(real)",
+         "value": "0.95"
+        },
+        {
+         "id": "dfake",
+         "label": "D(fake)",
+         "value": "0.05"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "G learns",
+       "short": "G update",
+       "sentence": "The same score on the fake flows back to G, which shifts its output toward what D calls real.",
+       "why": "G is rewarded when D(fake) rises, the opposite goal to D.",
+       "active": [
+        "verdict",
+        "gloss",
+        "gen"
+       ],
+       "calloutRegion": "gloss",
+       "readouts": [
+        {
+         "id": "round",
+         "label": "Round",
+         "value": "1"
+        },
+        {
+         "id": "dreal",
+         "label": "D(real)",
+         "value": "0.95"
+        },
+        {
+         "id": "dfake",
+         "label": "D(fake)",
+         "value": "0.05"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Repeat",
+       "short": "Repeat",
+       "sentence": "Over many rounds, G's fakes improve and D must sharpen to keep telling them apart.",
+       "why": "Each side's progress raises the other's challenge.",
+       "active": [
+        "gen",
+        "fake",
+        "disc",
+        "verdict"
+       ],
+       "calloutRegion": "fake",
+       "readouts": [
+        {
+         "id": "round",
+         "label": "Round",
+         "value": "1000"
+        },
+        {
+         "id": "dreal",
+         "label": "D(real)",
+         "value": "0.70"
+        },
+        {
+         "id": "dfake",
+         "label": "D(fake)",
+         "value": "0.35"
+        }
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "Balance",
+       "short": "Balance",
+       "sentence": "G learns only from D's score, never from real data; fakes now fool D about half the time.",
+       "why": "D(real) and D(fake) both near 0.5 means D can no longer tell them apart.",
+       "active": [
+        "fake",
+        "real",
+        "disc",
+        "verdict"
+       ],
+       "calloutRegion": "verdict",
+       "readouts": [
+        {
+         "id": "round",
+         "label": "Round",
+         "value": "10000"
+        },
+        {
+         "id": "dreal",
+         "label": "D(real)",
+         "value": "0.52"
+        },
+        {
+         "id": "dfake",
+         "label": "D(fake)",
+         "value": "0.48"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3077,
+  "output": 3403
+ },
+ "usd": 0.040184,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture with its links shows the G→fake→D→score→updates loop, answering how G learns without seeing real data, and s8 highlights fake, real, disc and verdict."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The stepper is learner-driven with no timer, and the aha state s8 is the final step, so it holds there until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single Step control changes the active regions, callout and readouts in every state (D(real) 0.90→0.95→0.70→0.52, D(fake) 0.10→0.05→0.35→0.48)."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The picture, ghost, callout, readouts and progress all bind to declared state, previous-state or variant fields, and each calloutRegion matches a declared region id."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The narrative sentences use the region labels (noise, generator, fake, discriminator, score, D/G update), and the step labels match the events shown."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each step highlights 2-4 regions on one fixed picture, with a ghost of the previous step and three readouts, which is moderate density with no clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The readouts are consistent across steps (0.90/0.10, 0.95/0.05, 0.70/0.35, 0.52/0.48), the round counts rise monotonically, and the callouts carry sentences while the readouts carry the numbers."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.014716
+ }
+}

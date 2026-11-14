@@ -1,0 +1,293 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "b-mitosis",
+ "set": "B",
+ "subject": "mitosis",
+ "depth": "balanced",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T22:24:30.174Z",
+ "ms": 3826,
+ "raw": "{\n  \"story\": \"Cells divide to grow and repair. Follow chromosomes through the five stages of mitosis to see how DNA splits evenly into two new nuclei.\",\n  \"aha\": {\n    \"stateId\": \"anaphase\",\n    \"observation\": \"Sister chromatids pull apart toward opposite poles, ensuring each new cell gets an identical set of chromosomes.\"\n  },\n  \"layout\": {\n    \"preset\": \"standard\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Mitosis Phase\",\n      \"options\": [\n        \"Prophase\",\n        \"Prometaphase\",\n        \"Metaphase\",\n        \"Anaphase\",\n        \"Telophase\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Mitosis Cycle\",\n        \"regions\": [\n          {\n            \"id\": \"chromosomes\",\n            \"label\": \"Chromosomes\",\n            \"kind\": \"dna\",\n            \"values\": [\"Condensed\", \"Aligned\", \"Separating\", \"Decondensing\"]\n          },\n          {\n            \"id\": \"spindle\",\n            \"label\": \"Spindle Fibers\",\n            \"kind\": \"protein\",\n            \"values\": [\"Forming\", \"Attached\", \"Pulling\", \"Disassembling\"]\n          },\n          {\n            \"id\": \"nucleus\",\n            \"label\": \"Nuclear Membrane\",\n            \"kind\": \"barrier\",\n            \"values\": [\"Intact\", \"Broken Down\", \"Reforming\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"prophase\",\n            \"label\": \"Prophase\",\n            \"short\": \"Condense\",\n            \"sentence\": \"Chromatin condenses into visible chromosomes while spindle fibers start to form outside the nucleus.\",\n            \"why\": \"DNA must compact tightly so it can move safely without tangling.\",\n            \"active\": [\"chromosomes\", \"spindle\"],\n            \"calloutRegion\": \"chromosomes\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Condensation\",\n                \"value\": \"High\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Membrane\",\n                \"value\": \"Intact\"\n              }\n            ]\n          },\n          {\n            \"id\": \"prometaphase\",\n            \"label\": \"Prometaphase\",\n            \"short\": \"Attach\",\n            \"sentence\": \"The nuclear envelope breaks down completely, allowing spindle fibers to attach to chromosome kinetochores.\",\n            \"why\": \"Fibers need direct physical access to move the chromosomes.\",\n            \"active\": [\"chromosomes\", \"spindle\", \"nucleus\"],\n            \"calloutRegion\": \"nucleus\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Condensation\",\n                \"value\": \"High\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Membrane\",\n                \"value\": \"Dissolved\"\n              }\n            ]\n          },\n          {\n            \"id\": \"metaphase\",\n            \"label\": \"Metaphase\",\n            \"short\": \"Align\",\n            \"sentence\": \"Chromosomes align neatly along the center of the cell at the metaphase plate.\",\n            \"why\": \"Central alignment ensures equal distribution before pulling begins.\",\n            \"active\": [\"chromosomes\", \"spindle\"],\n            \"calloutRegion\": \"chromosomes\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Alignment\",\n                \"value\": \"Center\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Tension\",\n                \"value\": \"Balanced\"\n              }\n            ]\n          },\n          {\n            \"id\": \"anaphase\",\n            \"label\": \"Anaphase\",\n            \"short\": \"Pull Apart\",\n            \"sentence\": \"Sister chromatids separate and are pulled toward opposite poles by shortening spindle fibers.\",\n            \"why\": \"This is the core separation step creating two identical sets of DNA.\",\n            \"active\": [\"chromosomes\", \"spindle\"],\n            \"calloutRegion\": \"chromosomes\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Separation\",\n                \"value\": \"Active\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Poles\",\n                \"value\": \"Moving\"\n              }\n            ]\n          },\n          {\n            \"id\": \"telophase\",\n            \"label\": \"Telophase\",\n            \"short\": \"Reform\",\n            \"sentence\": \"Two new nuclear envelopes reform around the separated sets of chromosomes as they decondense.\",\n            \"why\": \"The cell restores its resting compartments before final division.\",\n            \"active\": [\"chromosomes\", \"nucleus\"],\n            \"calloutRegion\": \"nucleus\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Nuclei\",\n                \"value\": \"Two\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Membrane\",\n                \"value\": \"Reformed\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Cells divide to grow and repair. Follow chromosomes through the five stages of mitosis to see how DNA splits evenly into two new nuclei.",
+  "aha": {
+   "stateId": "anaphase",
+   "observation": "Sister chromatids pull apart toward opposite poles, ensuring each new cell gets an identical set of chromosomes."
+  },
+  "layout": {
+   "preset": "standard",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Mitosis Phase",
+    "options": [
+     "Prophase",
+     "Prometaphase",
+     "Metaphase",
+     "Anaphase",
+     "Telophase"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Mitosis Cycle",
+     "regions": [
+      {
+       "id": "chromosomes",
+       "label": "Chromosomes",
+       "kind": "dna",
+       "values": [
+        "Condensed",
+        "Aligned",
+        "Separating",
+        "Decondensing"
+       ]
+      },
+      {
+       "id": "spindle",
+       "label": "Spindle Fibers",
+       "kind": "protein",
+       "values": [
+        "Forming",
+        "Attached",
+        "Pulling",
+        "Disassembling"
+       ]
+      },
+      {
+       "id": "nucleus",
+       "label": "Nuclear Membrane",
+       "kind": "barrier",
+       "values": [
+        "Intact",
+        "Broken Down",
+        "Reforming"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Condense",
+       "sentence": "Chromatin condenses into visible chromosomes while spindle fibers start to form outside the nucleus.",
+       "why": "DNA must compact tightly so it can move safely without tangling.",
+       "active": [
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Condensation",
+         "value": "High"
+        },
+        {
+         "id": "r2",
+         "label": "Membrane",
+         "value": "Intact"
+        }
+       ]
+      },
+      {
+       "id": "prometaphase",
+       "label": "Prometaphase",
+       "short": "Attach",
+       "sentence": "The nuclear envelope breaks down completely, allowing spindle fibers to attach to chromosome kinetochores.",
+       "why": "Fibers need direct physical access to move the chromosomes.",
+       "active": [
+        "chromosomes",
+        "spindle",
+        "nucleus"
+       ],
+       "calloutRegion": "nucleus",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Condensation",
+         "value": "High"
+        },
+        {
+         "id": "r2",
+         "label": "Membrane",
+         "value": "Dissolved"
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Align",
+       "sentence": "Chromosomes align neatly along the center of the cell at the metaphase plate.",
+       "why": "Central alignment ensures equal distribution before pulling begins.",
+       "active": [
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Alignment",
+         "value": "Center"
+        },
+        {
+         "id": "r2",
+         "label": "Tension",
+         "value": "Balanced"
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Pull Apart",
+       "sentence": "Sister chromatids separate and are pulled toward opposite poles by shortening spindle fibers.",
+       "why": "This is the core separation step creating two identical sets of DNA.",
+       "active": [
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Separation",
+         "value": "Active"
+        },
+        {
+         "id": "r2",
+         "label": "Poles",
+         "value": "Moving"
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Reform",
+       "sentence": "Two new nuclear envelopes reform around the separated sets of chromosomes as they decondense.",
+       "why": "The cell restores its resting compartments before final division.",
+       "active": [
+        "chromosomes",
+        "nucleus"
+       ],
+       "calloutRegion": "nucleus",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Nuclei",
+         "value": "Two"
+        },
+        {
+         "id": "r2",
+         "label": "Membrane",
+         "value": "Reformed"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1101,
+  "output": 1529
+ },
+ "usd": 0.004153,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The scene answers how DNA splits evenly, with chromosomes, spindle and nuclear membrane regions across the five mitosis phases, and anaphase marks the separation."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state (anaphase) is declared but is the 4th of 5 steps with no hold or gating, so the learner can pass through it and the scene doesn't pause there."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex parameter changes the active regions, callout target, sentence and readouts for each phase, so it directly drives the evidence."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The region values arrays (4, 4 and 3 entries) don't map to the 5 states, and nothing binds them to a state, so the 'Aligned' and 'Pulling' values have no declared source. Callout targets, active lists and readouts do bind to the state."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story's five stages match the control options and state labels, and the sentences name chromosomes, spindle fibers and the nuclear envelope, which match the region labels."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At the standard depth, each step has only two readouts, one callout and a few active regions, which supports comparing phases without clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "Readout values mostly restate the callout text (Intact/Dissolved/Reformed), and in prometaphase the nucleus is listed as an active region, which has an inconsistent mapping to the region values. Telophase's 'Nuclei: Two' is correct, but the duplicated values weaken placement."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.013922
+ }
+}

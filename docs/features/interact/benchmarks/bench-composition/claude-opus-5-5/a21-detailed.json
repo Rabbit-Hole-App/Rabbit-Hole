@@ -1,0 +1,646 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a21",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a decision tree split a two-feature dataset into regions?",
+ "ts": "2026-11-14T22:30:39.506Z",
+ "ms": 102724,
+ "raw": "{\"story\":\"A decision tree splits a fixed 10-point, two-feature plane greedily. At each node it scores every axis-aligned midpoint cut by weighted Gini impurity, keeps the lowest, and recurses into each side. Step through: x1 ≤ 5 wins the root, x2 ≤ 5.5 purifies the right box, leaving three rectangles. Finally, classify a new point.\",\"aha\":{\"stateId\":\"commit-right\",\"observation\":\"Each split cuts one existing box along one feature axis, so the three pure leaves are exactly three nested, axis-aligned rectangles with Gini 0.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top rail with short step names; current state's sentence is the status line beneath it.\"},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"},\"presentation\":\"Trace attached to the step rail, marking completed states.\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Left: x1–x2 plane (0–10 both axes, shared scale) with points, cuts and boxes. Right: tree nodes joined by labelled edges; box links connect leaves to rectangles.\"},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"},\"presentation\":\"Faded outline of the previous state's highlighted cut and boxes.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.short\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the active cut or box; says where only, without numbers.\"},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Panel below picture: counts, Gini formula, candidate cut, weighted Gini, gain; 3-decimal rounding.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"items\":\"variant.states\",\"label\":\"Step\",\"default\":0,\"presentation\":\"Previous / Next buttons, keep names when disabled at boundaries; arrow keys; visible focus.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first state\"}],\"data\":{\"variants\":[{\"label\":\"Gini, 10 points, midpoint thresholds, stop when pure\",\"regions\":[{\"id\":\"plane-all\",\"kind\":\"plane\",\"label\":\"Whole plane\",\"values\":[\"A(1,1)\",\"A(2,3)\",\"A(3,2)\",\"A(4,6)\",\"A(7,7)\",\"A(9,8)\",\"B(6,2)\",\"B(7,4)\",\"B(8,1)\",\"B(9,3)\"]},{\"id\":\"plane-left\",\"kind\":\"box\",\"label\":\"Box x1 ≤ 5\",\"values\":[\"A(1,1)\",\"A(2,3)\",\"A(3,2)\",\"A(4,6)\"]},{\"id\":\"plane-right\",\"kind\":\"box\",\"label\":\"Box x1 > 5\",\"values\":[\"B(6,2)\",\"B(7,4)\",\"B(8,1)\",\"B(9,3)\",\"A(7,7)\",\"A(9,8)\"]},{\"id\":\"plane-rl\",\"kind\":\"box\",\"label\":\"Box x1 > 5, x2 ≤ 5.5\",\"values\":[\"B(6,2)\",\"B(7,4)\",\"B(8,1)\",\"B(9,3)\"]},{\"id\":\"plane-rh\",\"kind\":\"box\",\"label\":\"Box x1 > 5, x2 > 5.5\",\"values\":[\"A(7,7)\",\"A(9,8)\"]},{\"id\":\"cut-trial\",\"kind\":\"cut\",\"label\":\"Trial cut\",\"values\":[\"x1 = 3.5\",\"x1 = 5\",\"x2 = 5\",\"x2 = 5.5\"]},{\"id\":\"cut-x1\",\"kind\":\"cut\",\"label\":\"Cut x1 = 5\",\"values\":[\"vertical, full height\"]},{\"id\":\"cut-x2\",\"kind\":\"cut\",\"label\":\"Cut x2 = 5.5\",\"values\":[\"horizontal, x1 > 5 only\"]},{\"id\":\"tree-root\",\"kind\":\"node\",\"label\":\"Root: x1 ≤ 5?\",\"values\":[\"10 pts\",\"A6 B4\",\"Gini 0.480\"]},{\"id\":\"tree-left\",\"kind\":\"leaf\",\"label\":\"Leaf → A\",\"values\":[\"4 pts\",\"A4 B0\",\"Gini 0\"]},{\"id\":\"tree-right\",\"kind\":\"node\",\"label\":\"Node: x2 ≤ 5.5?\",\"values\":[\"6 pts\",\"A2 B4\",\"Gini 0.444\"]},{\"id\":\"tree-rl\",\"kind\":\"leaf\",\"label\":\"Leaf → B\",\"values\":[\"4 pts\",\"A0 B4\",\"Gini 0\"]},{\"id\":\"tree-rh\",\"kind\":\"leaf\",\"label\":\"Leaf → A\",\"values\":[\"2 pts\",\"A2 B0\",\"Gini 0\"]},{\"id\":\"query\",\"kind\":\"point\",\"label\":\"New point (8, 6)\",\"values\":[\"x1 = 8 > 5\",\"x2 = 6 > 5.5\",\"→ A\"]}],\"links\":[{\"from\":\"tree-root\",\"to\":\"tree-left\",\"label\":\"x1 ≤ 5\"},{\"from\":\"tree-root\",\"to\":\"tree-right\",\"label\":\"x1 > 5\"},{\"from\":\"tree-right\",\"to\":\"tree-rl\",\"label\":\"x2 ≤ 5.5\"},{\"from\":\"tree-right\",\"to\":\"tree-rh\",\"label\":\"x2 > 5.5\"},{\"from\":\"tree-left\",\"to\":\"plane-left\",\"label\":\"box\"},{\"from\":\"tree-rl\",\"to\":\"plane-rl\",\"label\":\"box\"},{\"from\":\"tree-rh\",\"to\":\"plane-rh\",\"label\":\"box\"}],\"states\":[{\"id\":\"root\",\"label\":\"Root impurity\",\"short\":\"One region\",\"sentence\":\"All 10 points share one region: 6 A, 4 B. Gini = 1 − (0.6² + 0.4²) = 0.48.\",\"why\":\"Impurity measures how mixed the region is; splits must lower it.\",\"calloutRegion\":\"plane-all\",\"active\":[\"plane-all\",\"tree-root\"],\"readouts\":[{\"id\":\"node\",\"label\":\"Node\",\"value\":\"Root, 10 points\"},{\"id\":\"counts\",\"label\":\"Class counts\",\"value\":\"A 6 · B 4\"},{\"id\":\"gini\",\"label\":\"Node Gini = 1 − Σp²\",\"value\":\"1 − 0.36 − 0.16 = 0.480\"},{\"id\":\"candidates\",\"label\":\"Candidates\",\"value\":\"7 x1 + 7 x2 midpoints = 14\"},{\"id\":\"weighted\",\"label\":\"Weighted Gini = (nL/n)GL + (nR/n)GR\",\"value\":\"—\"},{\"id\":\"gain\",\"label\":\"Gain\",\"value\":\"—\"}]},{\"id\":\"try-x1-35\",\"label\":\"Try x1 = 3.5\",\"short\":\"Trial vertical cut\",\"sentence\":\"Trial cut x1 = 3.5 leaves a pure left side but a mixed right side; weighted Gini 0.343.\",\"why\":\"Every midpoint between sorted feature values is scored the same way.\",\"calloutRegion\":\"cut-trial\",\"active\":[\"plane-all\",\"cut-trial\",\"tree-root\"],\"readouts\":[{\"id\":\"node\",\"label\":\"Node\",\"value\":\"Root, 10 points\"},{\"id\":\"candidate\",\"label\":\"Candidate\",\"value\":\"x1 ≤ 3.5\"},{\"id\":\"children\",\"label\":\"Children\",\"value\":\"L 3A 0B (0) · R 3A 4B (0.490)\"},{\"id\":\"weighted\",\"label\":\"Weighted Gini\",\"value\":\"0.3·0 + 0.7·0.490 = 0.343\"},{\"id\":\"gain\",\"label\":\"Gain\",\"value\":\"0.480 − 0.343 = 0.137\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"x1 ≤ 3.5 (0.343)\"}]},{\"id\":\"try-x1-5\",\"label\":\"Try x1 = 5\",\"short\":\"Better vertical cut\",\"sentence\":\"Trial cut x1 = 5 isolates all four left A points; weighted Gini drops to 0.267, lowest of 14 candidates.\",\"why\":\"A larger pure side lowers the weighted average most.\",\"calloutRegion\":\"cut-trial\",\"active\":[\"plane-all\",\"cut-trial\",\"tree-root\"],\"readouts\":[{\"id\":\"node\",\"label\":\"Node\",\"value\":\"Root, 10 points\"},{\"id\":\"candidate\",\"label\":\"Candidate\",\"value\":\"x1 ≤ 5\"},{\"id\":\"children\",\"label\":\"Children\",\"value\":\"L 4A 0B (0) · R 2A 4B (0.444)\"},{\"id\":\"weighted\",\"label\":\"Weighted Gini\",\"value\":\"0.4·0 + 0.6·0.444 = 0.267\"},{\"id\":\"gain\",\"label\":\"Gain\",\"value\":\"0.480 − 0.267 = 0.213\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"x1 ≤ 5 (0.267)\"}]},{\"id\":\"try-x2-5\",\"label\":\"Try x2 = 5\",\"short\":\"Best horizontal cut\",\"sentence\":\"Best x2 cut, x2 = 5, scores 0.343; it loses to x1 = 5, so feature x1 wins the root.\",\"why\":\"Both features compete; the greedy rule keeps the single lowest score.\",\"calloutRegion\":\"cut-trial\",\"active\":[\"plane-all\",\"cut-trial\",\"tree-root\"],\"readouts\":[{\"id\":\"node\",\"label\":\"Node\",\"value\":\"Root, 10 points\"},{\"id\":\"candidate\",\"label\":\"Candidate\",\"value\":\"x2 ≤ 5\"},{\"id\":\"children\",\"label\":\"Children\",\"value\":\"Below 3A 4B (0.490) · Above 3A 0B (0)\"},{\"id\":\"weighted\",\"label\":\"Weighted Gini\",\"value\":\"0.7·0.490 + 0.3·0 = 0.343\"},{\"id\":\"gain\",\"label\":\"Gain\",\"value\":\"0.480 − 0.343 = 0.137\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"x1 ≤ 5 (0.267)\"}]},{\"id\":\"commit-root\",\"label\":\"Commit x1 ≤ 5\",\"short\":\"First cut fixed\",\"sentence\":\"The tree commits x1 ≤ 5: a vertical line splits the plane; the pure left box becomes a leaf.\",\"why\":\"A pure node needs no further split, so recursion stops there.\",\"calloutRegion\":\"cut-x1\",\"active\":[\"cut-x1\",\"plane-left\",\"plane-right\",\"tree-root\",\"tree-left\",\"tree-right\"],\"readouts\":[{\"id\":\"node\",\"label\":\"Node\",\"value\":\"Root, split on x1\"},{\"id\":\"children\",\"label\":\"Children\",\"value\":\"L 4A 0B (0) · R 2A 4B (0.444)\"},{\"id\":\"weighted\",\"label\":\"Weighted Gini\",\"value\":\"0.267\"},{\"id\":\"gain\",\"label\":\"Gain\",\"value\":\"0.213\"},{\"id\":\"leaves\",\"label\":\"Regions\",\"value\":\"2 boxes\"}]},{\"id\":\"try-right\",\"label\":\"Recurse right\",\"short\":\"Mixed right box\",\"sentence\":\"Recurse into the right box (2 A, 4 B, Gini 0.444). Cut x2 = 5.5 separates them perfectly: weighted Gini 0.\",\"why\":\"The same scan reruns using only the 6 points inside this box.\",\"calloutRegion\":\"plane-right\",\"active\":[\"plane-right\",\"cut-trial\",\"tree-right\"],\"readouts\":[{\"id\":\"node\",\"label\":\"Node\",\"value\":\"Right, 6 points\"},{\"id\":\"counts\",\"label\":\"Class counts\",\"value\":\"A 2 · B 4\"},{\"id\":\"gini\",\"label\":\"Node Gini\",\"value\":\"1 − 0.111 − 0.444 = 0.444\"},{\"id\":\"candidate\",\"label\":\"Candidate\",\"value\":\"x2 ≤ 5.5\"},{\"id\":\"children\",\"label\":\"Children\",\"value\":\"Below 0A 4B (0) · Above 2A 0B (0)\"},{\"id\":\"weighted\",\"label\":\"Weighted Gini\",\"value\":\"0.667·0 + 0.333·0 = 0\"},{\"id\":\"gain\",\"label\":\"Gain\",\"value\":\"0.444 − 0 = 0.444\"}]},{\"id\":\"commit-right\",\"label\":\"Three rectangles\",\"short\":\"Second cut, right box only\",\"sentence\":\"Committing x2 ≤ 5.5 cuts only the right box. Three pure leaves equal three axis-aligned rectangles.\",\"why\":\"Each split subdivides one existing box along one axis, never the whole plane.\",\"calloutRegion\":\"cut-x2\",\"active\":[\"cut-x1\",\"cut-x2\",\"plane-left\",\"plane-rl\",\"plane-rh\",\"tree-left\",\"tree-rl\",\"tree-rh\"],\"readouts\":[{\"id\":\"leaves\",\"label\":\"Regions\",\"value\":\"3 boxes = 3 leaves\"},{\"id\":\"weighted\",\"label\":\"Total weighted Gini\",\"value\":\"0.4·0 + 0.4·0 + 0.2·0 = 0\"},{\"id\":\"depth\",\"label\":\"Tree depth\",\"value\":\"2\"},{\"id\":\"gain\",\"label\":\"Total gain\",\"value\":\"0.480 − 0 = 0.480\"}]},{\"id\":\"classify\",\"label\":\"Classify (8, 6)\",\"short\":\"Query lands here\",\"sentence\":\"New point (8, 6) follows x1 > 5, then x2 > 5.5, landing in the upper-right box: class A.\",\"why\":\"Prediction is walking the tree, which equals finding the point's rectangle.\",\"calloutRegion\":\"query\",\"active\":[\"query\",\"plane-rh\",\"tree-root\",\"tree-right\",\"tree-rh\"],\"readouts\":[{\"id\":\"path\",\"label\":\"Path\",\"value\":\"x1 = 8 > 5 → x2 = 6 > 5.5\"},{\"id\":\"leaf\",\"label\":\"Leaf\",\"value\":\"A2 B0\"},{\"id\":\"prediction\",\"label\":\"Prediction\",\"value\":\"A\"}]}]}]}}",
+ "composition": {
+  "story": "A decision tree splits a fixed 10-point, two-feature plane greedily. At each node it scores every axis-aligned midpoint cut by weighted Gini impurity, keeps the lowest, and recurses into each side. Step through: x1 ≤ 5 wins the root, x2 ≤ 5.5 purifies the right box, leaving three rectangles. Finally, classify a new point.",
+  "aha": {
+   "stateId": "commit-right",
+   "observation": "Each split cuts one existing box along one feature axis, so the three pure leaves are exactly three nested, axis-aligned rectangles with Gini 0."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top rail with short step names; current state's sentence is the status line beneath it."
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    },
+    "presentation": "Trace attached to the step rail, marking completed states."
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Left: x1–x2 plane (0–10 both axes, shared scale) with points, cuts and boxes. Right: tree nodes joined by labelled edges; box links connect leaves to rectangles."
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    },
+    "presentation": "Faded outline of the previous state's highlighted cut and boxes."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.short",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the active cut or box; says where only, without numbers."
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Panel below picture: counts, Gini formula, candidate cut, weighted Gini, gain; 3-decimal rounding."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Step",
+    "default": 0,
+    "presentation": "Previous / Next buttons, keep names when disabled at boundaries; arrow keys; visible focus."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first state"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Gini, 10 points, midpoint thresholds, stop when pure",
+     "regions": [
+      {
+       "id": "plane-all",
+       "kind": "plane",
+       "label": "Whole plane",
+       "values": [
+        "A(1,1)",
+        "A(2,3)",
+        "A(3,2)",
+        "A(4,6)",
+        "A(7,7)",
+        "A(9,8)",
+        "B(6,2)",
+        "B(7,4)",
+        "B(8,1)",
+        "B(9,3)"
+       ]
+      },
+      {
+       "id": "plane-left",
+       "kind": "box",
+       "label": "Box x1 ≤ 5",
+       "values": [
+        "A(1,1)",
+        "A(2,3)",
+        "A(3,2)",
+        "A(4,6)"
+       ]
+      },
+      {
+       "id": "plane-right",
+       "kind": "box",
+       "label": "Box x1 > 5",
+       "values": [
+        "B(6,2)",
+        "B(7,4)",
+        "B(8,1)",
+        "B(9,3)",
+        "A(7,7)",
+        "A(9,8)"
+       ]
+      },
+      {
+       "id": "plane-rl",
+       "kind": "box",
+       "label": "Box x1 > 5, x2 ≤ 5.5",
+       "values": [
+        "B(6,2)",
+        "B(7,4)",
+        "B(8,1)",
+        "B(9,3)"
+       ]
+      },
+      {
+       "id": "plane-rh",
+       "kind": "box",
+       "label": "Box x1 > 5, x2 > 5.5",
+       "values": [
+        "A(7,7)",
+        "A(9,8)"
+       ]
+      },
+      {
+       "id": "cut-trial",
+       "kind": "cut",
+       "label": "Trial cut",
+       "values": [
+        "x1 = 3.5",
+        "x1 = 5",
+        "x2 = 5",
+        "x2 = 5.5"
+       ]
+      },
+      {
+       "id": "cut-x1",
+       "kind": "cut",
+       "label": "Cut x1 = 5",
+       "values": [
+        "vertical, full height"
+       ]
+      },
+      {
+       "id": "cut-x2",
+       "kind": "cut",
+       "label": "Cut x2 = 5.5",
+       "values": [
+        "horizontal, x1 > 5 only"
+       ]
+      },
+      {
+       "id": "tree-root",
+       "kind": "node",
+       "label": "Root: x1 ≤ 5?",
+       "values": [
+        "10 pts",
+        "A6 B4",
+        "Gini 0.480"
+       ]
+      },
+      {
+       "id": "tree-left",
+       "kind": "leaf",
+       "label": "Leaf → A",
+       "values": [
+        "4 pts",
+        "A4 B0",
+        "Gini 0"
+       ]
+      },
+      {
+       "id": "tree-right",
+       "kind": "node",
+       "label": "Node: x2 ≤ 5.5?",
+       "values": [
+        "6 pts",
+        "A2 B4",
+        "Gini 0.444"
+       ]
+      },
+      {
+       "id": "tree-rl",
+       "kind": "leaf",
+       "label": "Leaf → B",
+       "values": [
+        "4 pts",
+        "A0 B4",
+        "Gini 0"
+       ]
+      },
+      {
+       "id": "tree-rh",
+       "kind": "leaf",
+       "label": "Leaf → A",
+       "values": [
+        "2 pts",
+        "A2 B0",
+        "Gini 0"
+       ]
+      },
+      {
+       "id": "query",
+       "kind": "point",
+       "label": "New point (8, 6)",
+       "values": [
+        "x1 = 8 > 5",
+        "x2 = 6 > 5.5",
+        "→ A"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "tree-root",
+       "to": "tree-left",
+       "label": "x1 ≤ 5"
+      },
+      {
+       "from": "tree-root",
+       "to": "tree-right",
+       "label": "x1 > 5"
+      },
+      {
+       "from": "tree-right",
+       "to": "tree-rl",
+       "label": "x2 ≤ 5.5"
+      },
+      {
+       "from": "tree-right",
+       "to": "tree-rh",
+       "label": "x2 > 5.5"
+      },
+      {
+       "from": "tree-left",
+       "to": "plane-left",
+       "label": "box"
+      },
+      {
+       "from": "tree-rl",
+       "to": "plane-rl",
+       "label": "box"
+      },
+      {
+       "from": "tree-rh",
+       "to": "plane-rh",
+       "label": "box"
+      }
+     ],
+     "states": [
+      {
+       "id": "root",
+       "label": "Root impurity",
+       "short": "One region",
+       "sentence": "All 10 points share one region: 6 A, 4 B. Gini = 1 − (0.6² + 0.4²) = 0.48.",
+       "why": "Impurity measures how mixed the region is; splits must lower it.",
+       "calloutRegion": "plane-all",
+       "active": [
+        "plane-all",
+        "tree-root"
+       ],
+       "readouts": [
+        {
+         "id": "node",
+         "label": "Node",
+         "value": "Root, 10 points"
+        },
+        {
+         "id": "counts",
+         "label": "Class counts",
+         "value": "A 6 · B 4"
+        },
+        {
+         "id": "gini",
+         "label": "Node Gini = 1 − Σp²",
+         "value": "1 − 0.36 − 0.16 = 0.480"
+        },
+        {
+         "id": "candidates",
+         "label": "Candidates",
+         "value": "7 x1 + 7 x2 midpoints = 14"
+        },
+        {
+         "id": "weighted",
+         "label": "Weighted Gini = (nL/n)GL + (nR/n)GR",
+         "value": "—"
+        },
+        {
+         "id": "gain",
+         "label": "Gain",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "try-x1-35",
+       "label": "Try x1 = 3.5",
+       "short": "Trial vertical cut",
+       "sentence": "Trial cut x1 = 3.5 leaves a pure left side but a mixed right side; weighted Gini 0.343.",
+       "why": "Every midpoint between sorted feature values is scored the same way.",
+       "calloutRegion": "cut-trial",
+       "active": [
+        "plane-all",
+        "cut-trial",
+        "tree-root"
+       ],
+       "readouts": [
+        {
+         "id": "node",
+         "label": "Node",
+         "value": "Root, 10 points"
+        },
+        {
+         "id": "candidate",
+         "label": "Candidate",
+         "value": "x1 ≤ 3.5"
+        },
+        {
+         "id": "children",
+         "label": "Children",
+         "value": "L 3A 0B (0) · R 3A 4B (0.490)"
+        },
+        {
+         "id": "weighted",
+         "label": "Weighted Gini",
+         "value": "0.3·0 + 0.7·0.490 = 0.343"
+        },
+        {
+         "id": "gain",
+         "label": "Gain",
+         "value": "0.480 − 0.343 = 0.137"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "x1 ≤ 3.5 (0.343)"
+        }
+       ]
+      },
+      {
+       "id": "try-x1-5",
+       "label": "Try x1 = 5",
+       "short": "Better vertical cut",
+       "sentence": "Trial cut x1 = 5 isolates all four left A points; weighted Gini drops to 0.267, lowest of 14 candidates.",
+       "why": "A larger pure side lowers the weighted average most.",
+       "calloutRegion": "cut-trial",
+       "active": [
+        "plane-all",
+        "cut-trial",
+        "tree-root"
+       ],
+       "readouts": [
+        {
+         "id": "node",
+         "label": "Node",
+         "value": "Root, 10 points"
+        },
+        {
+         "id": "candidate",
+         "label": "Candidate",
+         "value": "x1 ≤ 5"
+        },
+        {
+         "id": "children",
+         "label": "Children",
+         "value": "L 4A 0B (0) · R 2A 4B (0.444)"
+        },
+        {
+         "id": "weighted",
+         "label": "Weighted Gini",
+         "value": "0.4·0 + 0.6·0.444 = 0.267"
+        },
+        {
+         "id": "gain",
+         "label": "Gain",
+         "value": "0.480 − 0.267 = 0.213"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "x1 ≤ 5 (0.267)"
+        }
+       ]
+      },
+      {
+       "id": "try-x2-5",
+       "label": "Try x2 = 5",
+       "short": "Best horizontal cut",
+       "sentence": "Best x2 cut, x2 = 5, scores 0.343; it loses to x1 = 5, so feature x1 wins the root.",
+       "why": "Both features compete; the greedy rule keeps the single lowest score.",
+       "calloutRegion": "cut-trial",
+       "active": [
+        "plane-all",
+        "cut-trial",
+        "tree-root"
+       ],
+       "readouts": [
+        {
+         "id": "node",
+         "label": "Node",
+         "value": "Root, 10 points"
+        },
+        {
+         "id": "candidate",
+         "label": "Candidate",
+         "value": "x2 ≤ 5"
+        },
+        {
+         "id": "children",
+         "label": "Children",
+         "value": "Below 3A 4B (0.490) · Above 3A 0B (0)"
+        },
+        {
+         "id": "weighted",
+         "label": "Weighted Gini",
+         "value": "0.7·0.490 + 0.3·0 = 0.343"
+        },
+        {
+         "id": "gain",
+         "label": "Gain",
+         "value": "0.480 − 0.343 = 0.137"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "x1 ≤ 5 (0.267)"
+        }
+       ]
+      },
+      {
+       "id": "commit-root",
+       "label": "Commit x1 ≤ 5",
+       "short": "First cut fixed",
+       "sentence": "The tree commits x1 ≤ 5: a vertical line splits the plane; the pure left box becomes a leaf.",
+       "why": "A pure node needs no further split, so recursion stops there.",
+       "calloutRegion": "cut-x1",
+       "active": [
+        "cut-x1",
+        "plane-left",
+        "plane-right",
+        "tree-root",
+        "tree-left",
+        "tree-right"
+       ],
+       "readouts": [
+        {
+         "id": "node",
+         "label": "Node",
+         "value": "Root, split on x1"
+        },
+        {
+         "id": "children",
+         "label": "Children",
+         "value": "L 4A 0B (0) · R 2A 4B (0.444)"
+        },
+        {
+         "id": "weighted",
+         "label": "Weighted Gini",
+         "value": "0.267"
+        },
+        {
+         "id": "gain",
+         "label": "Gain",
+         "value": "0.213"
+        },
+        {
+         "id": "leaves",
+         "label": "Regions",
+         "value": "2 boxes"
+        }
+       ]
+      },
+      {
+       "id": "try-right",
+       "label": "Recurse right",
+       "short": "Mixed right box",
+       "sentence": "Recurse into the right box (2 A, 4 B, Gini 0.444). Cut x2 = 5.5 separates them perfectly: weighted Gini 0.",
+       "why": "The same scan reruns using only the 6 points inside this box.",
+       "calloutRegion": "plane-right",
+       "active": [
+        "plane-right",
+        "cut-trial",
+        "tree-right"
+       ],
+       "readouts": [
+        {
+         "id": "node",
+         "label": "Node",
+         "value": "Right, 6 points"
+        },
+        {
+         "id": "counts",
+         "label": "Class counts",
+         "value": "A 2 · B 4"
+        },
+        {
+         "id": "gini",
+         "label": "Node Gini",
+         "value": "1 − 0.111 − 0.444 = 0.444"
+        },
+        {
+         "id": "candidate",
+         "label": "Candidate",
+         "value": "x2 ≤ 5.5"
+        },
+        {
+         "id": "children",
+         "label": "Children",
+         "value": "Below 0A 4B (0) · Above 2A 0B (0)"
+        },
+        {
+         "id": "weighted",
+         "label": "Weighted Gini",
+         "value": "0.667·0 + 0.333·0 = 0"
+        },
+        {
+         "id": "gain",
+         "label": "Gain",
+         "value": "0.444 − 0 = 0.444"
+        }
+       ]
+      },
+      {
+       "id": "commit-right",
+       "label": "Three rectangles",
+       "short": "Second cut, right box only",
+       "sentence": "Committing x2 ≤ 5.5 cuts only the right box. Three pure leaves equal three axis-aligned rectangles.",
+       "why": "Each split subdivides one existing box along one axis, never the whole plane.",
+       "calloutRegion": "cut-x2",
+       "active": [
+        "cut-x1",
+        "cut-x2",
+        "plane-left",
+        "plane-rl",
+        "plane-rh",
+        "tree-left",
+        "tree-rl",
+        "tree-rh"
+       ],
+       "readouts": [
+        {
+         "id": "leaves",
+         "label": "Regions",
+         "value": "3 boxes = 3 leaves"
+        },
+        {
+         "id": "weighted",
+         "label": "Total weighted Gini",
+         "value": "0.4·0 + 0.4·0 + 0.2·0 = 0"
+        },
+        {
+         "id": "depth",
+         "label": "Tree depth",
+         "value": "2"
+        },
+        {
+         "id": "gain",
+         "label": "Total gain",
+         "value": "0.480 − 0 = 0.480"
+        }
+       ]
+      },
+      {
+       "id": "classify",
+       "label": "Classify (8, 6)",
+       "short": "Query lands here",
+       "sentence": "New point (8, 6) follows x1 > 5, then x2 > 5.5, landing in the upper-right box: class A.",
+       "why": "Prediction is walking the tree, which equals finding the point's rectangle.",
+       "calloutRegion": "query",
+       "active": [
+        "query",
+        "plane-rh",
+        "tree-root",
+        "tree-right",
+        "tree-rh"
+       ],
+       "readouts": [
+        {
+         "id": "path",
+         "label": "Path",
+         "value": "x1 = 8 > 5 → x2 = 6 > 5.5"
+        },
+        {
+         "id": "leaf",
+         "label": "Leaf",
+         "value": "A2 B0"
+        },
+        {
+         "id": "prediction",
+         "label": "Prediction",
+         "value": "A"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3079,
+  "output": 11835
+ },
+ "usd": 0.249016,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "scorecard reply incomplete"
+  },
+  "cardUsd": 0
+ }
+}

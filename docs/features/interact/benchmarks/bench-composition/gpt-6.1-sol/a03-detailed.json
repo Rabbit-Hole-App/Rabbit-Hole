@@ -1,0 +1,400 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a03",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does RAG work?",
+ "ts": "2026-11-14T22:23:50.338Z",
+ "ms": 130426,
+ "raw": "{\n  \"story\": \"How does RAG answer using outside information? Start with a question and two fixed policy passages. Advance to compare retrieval scores, select evidence, and inspect the augmented prompt. At Grounded answer, compare the cited response with its source; that state stays visible until you act.\",\n  \"aha\": {\n    \"stateId\": \"grounded-answer\",\n    \"observation\": \"RAG supplies retrieved source text alongside the question, allowing the generated answer to cite evidence without updating model weights.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states/pipeline\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"pipeline-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell with story and instructions above the experiment. Keep progress and trace on this rail, without a clock. Parameter-control budget: zero; navigation and Reset are separate. Preserve readable labels at native width.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"rag-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical RAG pipeline arrangement with fixed topology and wrapped rows. Keep named regions and source text visible throughout. Region descriptions identify roles, not completed outputs. Highlight the bound active regions. Use shared, unscaled boxes; box size encodes no quantity.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor the explanation to the named active region. Identify where the mechanism occurs; leave measurements in readouts. Reserve enough label space for every state.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"evidence-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show bound values beneath the picture, wrapping text without truncation. Render Status as the final persistent row. Scores use exact distinct-token counts with no rounding. Both passages share the same query, tokenization, and score scale. Source identifiers connect quotations, prompt context, and citations.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"pipeline-step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"RAG pipeline navigation\",\n      \"presentation\": \"Buttons are named Previous and Next; ArrowLeft and ArrowRight operate them. Default: first state; increment: one state; bounds: first through last. Boundary buttons retain their names when disabled. Navigation changes active regions, explanations, evidence, and status. Every state persists until action, including Grounded answer. Provide visible keyboard focus. Reference captures show Grounded answer.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all fixed defaults. Support Enter and Space with visible keyboard focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"RAG with inspectable token-overlap retrieval\",\n        \"regions\": [\n          {\n            \"id\": \"question\",\n            \"label\": \"Question\",\n            \"values\": [\n              \"Is return shipping free for members?\"\n            ]\n          },\n          {\n            \"id\": \"returns\",\n            \"label\": \"Returns\",\n            \"values\": [\n              \"Return shipping is free for members.\"\n            ]\n          },\n          {\n            \"id\": \"outbound\",\n            \"label\": \"Outbound\",\n            \"values\": [\n              \"Outbound shipping is free for all customers.\"\n            ]\n          },\n          {\n            \"id\": \"retriever\",\n            \"label\": \"Retriever\",\n            \"values\": [\n              \"Rank stored passages against the question\"\n            ]\n          },\n          {\n            \"id\": \"context\",\n            \"label\": \"Retrieved context\",\n            \"values\": [\n              \"Selected source text\"\n            ]\n          },\n          {\n            \"id\": \"prompt\",\n            \"label\": \"Augmented prompt\",\n            \"values\": [\n              \"Instructions + question + retrieved context\"\n            ]\n          },\n          {\n            \"id\": \"generator\",\n            \"label\": \"Generator\",\n            \"values\": [\n              \"Generate from the augmented prompt\"\n            ]\n          },\n          {\n            \"id\": \"answer\",\n            \"label\": \"Answer\",\n            \"values\": [\n              \"Response with a source citation\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"question\",\n            \"to\": \"retriever\",\n            \"label\": \"search query\"\n          },\n          {\n            \"from\": \"returns\",\n            \"to\": \"retriever\",\n            \"label\": \"candidate passage\"\n          },\n          {\n            \"from\": \"outbound\",\n            \"to\": \"retriever\",\n            \"label\": \"candidate passage\"\n          },\n          {\n            \"from\": \"retriever\",\n            \"to\": \"context\",\n            \"label\": \"selected passage\"\n          },\n          {\n            \"from\": \"context\",\n            \"to\": \"prompt\",\n            \"label\": \"source text\"\n          },\n          {\n            \"from\": \"question\",\n            \"to\": \"prompt\",\n            \"label\": \"original question\"\n          },\n          {\n            \"from\": \"prompt\",\n            \"to\": \"generator\",\n            \"label\": \"model input\"\n          },\n          {\n            \"from\": \"generator\",\n            \"to\": \"answer\",\n            \"label\": \"generated response\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"question-ready\",\n            \"label\": \"Question and sources\",\n            \"short\": \"Ask\",\n            \"sentence\": \"The Question enters a pipeline connected to the Returns and Outbound passages.\",\n            \"why\": \"The stored passages provide external information that the Retriever can select before generation.\",\n            \"active\": [\n              \"question\",\n              \"returns\",\n              \"outbound\"\n            ],\n            \"calloutRegion\": \"question\",\n            \"readouts\": [\n              {\n                \"id\": \"fixed-inputs\",\n                \"label\": \"Fixed inputs\",\n                \"value\": \"The question and both passages remain unchanged throughout this example.\"\n              },\n              {\n                \"id\": \"retrieval-setting\",\n                \"label\": \"Retrieval setting\",\n                \"value\": \"Top-k = 1 passage; ties choose Returns before Outbound.\"\n              },\n              {\n                \"id\": \"assumptions\",\n                \"label\": \"Assumptions\",\n                \"value\": \"Use transparent lexical retrieval and a fixed illustrative generator; no browsing or training occurs.\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Inputs are ready; no passage has been selected or supplied to the Generator.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"rank-passages\",\n            \"label\": \"Score candidate passages\",\n            \"short\": \"Rank\",\n            \"sentence\": \"The Retriever compares shared question tokens with each candidate passage.\",\n            \"why\": \"This example uses inspectable token overlap; production retrievers often use embeddings, keyword search, or both.\",\n            \"active\": [\n              \"question\",\n              \"returns\",\n              \"outbound\",\n              \"retriever\"\n            ],\n            \"calloutRegion\": \"retriever\",\n            \"readouts\": [\n              {\n                \"id\": \"tokenization\",\n                \"label\": \"Tokenization T\",\n                \"value\": \"Lowercase, strip punctuation, split whitespace, remove {is, for, a, the}, and deduplicate tokens.\"\n              },\n              {\n                \"id\": \"score-rule\",\n                \"label\": \"Score rule\",\n                \"value\": \"s(d,q) = |T(d) ∩ T(q)|, measured in distinct tokens; higher scores rank first.\"\n              },\n              {\n                \"id\": \"returns-score\",\n                \"label\": \"Returns overlap → score\",\n                \"value\": \"{return, shipping, free, members} → 4 tokens\"\n              },\n              {\n                \"id\": \"outbound-score\",\n                \"label\": \"Outbound overlap → score\",\n                \"value\": \"{shipping, free} → 2 tokens\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Returns ranks above Outbound under the declared scoring rule.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"select-context\",\n            \"label\": \"Retrieve the best passage\",\n            \"short\": \"Retrieve\",\n            \"sentence\": \"The Retriever places Returns into Retrieved context and excludes Outbound.\",\n            \"why\": \"The selected passage directly addresses return shipping for members, rather than outbound shipping for customers.\",\n            \"active\": [\n              \"retriever\",\n              \"returns\",\n              \"context\"\n            ],\n            \"calloutRegion\": \"context\",\n            \"readouts\": [\n              {\n                \"id\": \"selection\",\n                \"label\": \"Selection\",\n                \"value\": \"argmax over passage scores → Returns\"\n              },\n              {\n                \"id\": \"selected-context\",\n                \"label\": \"Retrieved context [Returns]\",\n                \"value\": \"Return shipping is free for members.\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Retrieval has selected evidence; the Generator has not produced an answer.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"augment-prompt\",\n            \"label\": \"Build the augmented prompt\",\n            \"short\": \"Augment\",\n            \"sentence\": \"The Augmented prompt combines the original Question with Retrieved context and an instruction to cite its source.\",\n            \"why\": \"Retrieved text becomes part of the Generator's input, not an update to its weights.\",\n            \"active\": [\n              \"question\",\n              \"context\",\n              \"prompt\"\n            ],\n            \"calloutRegion\": \"prompt\",\n            \"readouts\": [\n              {\n                \"id\": \"model-input\",\n                \"label\": \"Generator input\",\n                \"value\": \"INSTRUCTION: Answer only from CONTEXT and cite its source; otherwise say you do not know.\\nQUESTION: Is return shipping free for members?\\nCONTEXT [Returns]: Return shipping is free for members.\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The augmented prompt is ready; Outbound is absent, and the Generator's weights remain unchanged.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"grounded-answer\",\n            \"label\": \"Grounded answer\",\n            \"short\": \"Answer\",\n            \"sentence\": \"The Generator produces an Answer whose citation points back to Returns through Retrieved context.\",\n            \"why\": \"Comparing the response with its supplied source makes the grounding visible; retrieval alone does not guarantee correctness.\",\n            \"active\": [\n              \"returns\",\n              \"context\",\n              \"generator\",\n              \"answer\"\n            ],\n            \"calloutRegion\": \"answer\",\n            \"readouts\": [\n              {\n                \"id\": \"source-evidence\",\n                \"label\": \"Supplied evidence [Returns]\",\n                \"value\": \"Return shipping is free for members.\"\n              },\n              {\n                \"id\": \"generated-answer\",\n                \"label\": \"Illustrative generated answer\",\n                \"value\": \"Yes—members receive free return shipping. [Returns]\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The supplied passage supports the cited answer; model weights were not updated.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does RAG answer using outside information? Start with a question and two fixed policy passages. Advance to compare retrieval scores, select evidence, and inspect the augmented prompt. At Grounded answer, compare the cited response with its source; that state stays visible until you act.",
+  "aha": {
+   "stateId": "grounded-answer",
+   "observation": "RAG supplies retrieved source text alongside the question, allowing the generated answer to cite evidence without updating model weights."
+  },
+  "layout": {
+   "preset": "stepper-states/pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "pipeline-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell with story and instructions above the experiment. Keep progress and trace on this rail, without a clock. Parameter-control budget: zero; navigation and Reset are separate. Preserve readable labels at native width.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "rag-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical RAG pipeline arrangement with fixed topology and wrapped rows. Keep named regions and source text visible throughout. Region descriptions identify roles, not completed outputs. Highlight the bound active regions. Use shared, unscaled boxes; box size encodes no quantity.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor the explanation to the named active region. Identify where the mechanism occurs; leave measurements in readouts. Reserve enough label space for every state.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "evidence-readouts",
+    "kind": "value-readout",
+    "presentation": "Show bound values beneath the picture, wrapping text without truncation. Render Status as the final persistent row. Scores use exact distinct-token counts with no rounding. Both passages share the same query, tokenization, and score scale. Source identifiers connect quotations, prompt context, and citations.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "pipeline-step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "RAG pipeline navigation",
+    "presentation": "Buttons are named Previous and Next; ArrowLeft and ArrowRight operate them. Default: first state; increment: one state; bounds: first through last. Boundary buttons retain their names when disabled. Navigation changes active regions, explanations, evidence, and status. Every state persists until action, including Grounded answer. Provide visible keyboard focus. Reference captures show Grounded answer."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all fixed defaults. Support Enter and Space with visible keyboard focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "RAG with inspectable token-overlap retrieval",
+     "regions": [
+      {
+       "id": "question",
+       "label": "Question",
+       "values": [
+        "Is return shipping free for members?"
+       ]
+      },
+      {
+       "id": "returns",
+       "label": "Returns",
+       "values": [
+        "Return shipping is free for members."
+       ]
+      },
+      {
+       "id": "outbound",
+       "label": "Outbound",
+       "values": [
+        "Outbound shipping is free for all customers."
+       ]
+      },
+      {
+       "id": "retriever",
+       "label": "Retriever",
+       "values": [
+        "Rank stored passages against the question"
+       ]
+      },
+      {
+       "id": "context",
+       "label": "Retrieved context",
+       "values": [
+        "Selected source text"
+       ]
+      },
+      {
+       "id": "prompt",
+       "label": "Augmented prompt",
+       "values": [
+        "Instructions + question + retrieved context"
+       ]
+      },
+      {
+       "id": "generator",
+       "label": "Generator",
+       "values": [
+        "Generate from the augmented prompt"
+       ]
+      },
+      {
+       "id": "answer",
+       "label": "Answer",
+       "values": [
+        "Response with a source citation"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "question",
+       "to": "retriever",
+       "label": "search query"
+      },
+      {
+       "from": "returns",
+       "to": "retriever",
+       "label": "candidate passage"
+      },
+      {
+       "from": "outbound",
+       "to": "retriever",
+       "label": "candidate passage"
+      },
+      {
+       "from": "retriever",
+       "to": "context",
+       "label": "selected passage"
+      },
+      {
+       "from": "context",
+       "to": "prompt",
+       "label": "source text"
+      },
+      {
+       "from": "question",
+       "to": "prompt",
+       "label": "original question"
+      },
+      {
+       "from": "prompt",
+       "to": "generator",
+       "label": "model input"
+      },
+      {
+       "from": "generator",
+       "to": "answer",
+       "label": "generated response"
+      }
+     ],
+     "states": [
+      {
+       "id": "question-ready",
+       "label": "Question and sources",
+       "short": "Ask",
+       "sentence": "The Question enters a pipeline connected to the Returns and Outbound passages.",
+       "why": "The stored passages provide external information that the Retriever can select before generation.",
+       "active": [
+        "question",
+        "returns",
+        "outbound"
+       ],
+       "calloutRegion": "question",
+       "readouts": [
+        {
+         "id": "fixed-inputs",
+         "label": "Fixed inputs",
+         "value": "The question and both passages remain unchanged throughout this example."
+        },
+        {
+         "id": "retrieval-setting",
+         "label": "Retrieval setting",
+         "value": "Top-k = 1 passage; ties choose Returns before Outbound."
+        },
+        {
+         "id": "assumptions",
+         "label": "Assumptions",
+         "value": "Use transparent lexical retrieval and a fixed illustrative generator; no browsing or training occurs."
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Inputs are ready; no passage has been selected or supplied to the Generator."
+        }
+       ]
+      },
+      {
+       "id": "rank-passages",
+       "label": "Score candidate passages",
+       "short": "Rank",
+       "sentence": "The Retriever compares shared question tokens with each candidate passage.",
+       "why": "This example uses inspectable token overlap; production retrievers often use embeddings, keyword search, or both.",
+       "active": [
+        "question",
+        "returns",
+        "outbound",
+        "retriever"
+       ],
+       "calloutRegion": "retriever",
+       "readouts": [
+        {
+         "id": "tokenization",
+         "label": "Tokenization T",
+         "value": "Lowercase, strip punctuation, split whitespace, remove {is, for, a, the}, and deduplicate tokens."
+        },
+        {
+         "id": "score-rule",
+         "label": "Score rule",
+         "value": "s(d,q) = |T(d) ∩ T(q)|, measured in distinct tokens; higher scores rank first."
+        },
+        {
+         "id": "returns-score",
+         "label": "Returns overlap → score",
+         "value": "{return, shipping, free, members} → 4 tokens"
+        },
+        {
+         "id": "outbound-score",
+         "label": "Outbound overlap → score",
+         "value": "{shipping, free} → 2 tokens"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Returns ranks above Outbound under the declared scoring rule."
+        }
+       ]
+      },
+      {
+       "id": "select-context",
+       "label": "Retrieve the best passage",
+       "short": "Retrieve",
+       "sentence": "The Retriever places Returns into Retrieved context and excludes Outbound.",
+       "why": "The selected passage directly addresses return shipping for members, rather than outbound shipping for customers.",
+       "active": [
+        "retriever",
+        "returns",
+        "context"
+       ],
+       "calloutRegion": "context",
+       "readouts": [
+        {
+         "id": "selection",
+         "label": "Selection",
+         "value": "argmax over passage scores → Returns"
+        },
+        {
+         "id": "selected-context",
+         "label": "Retrieved context [Returns]",
+         "value": "Return shipping is free for members."
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Retrieval has selected evidence; the Generator has not produced an answer."
+        }
+       ]
+      },
+      {
+       "id": "augment-prompt",
+       "label": "Build the augmented prompt",
+       "short": "Augment",
+       "sentence": "The Augmented prompt combines the original Question with Retrieved context and an instruction to cite its source.",
+       "why": "Retrieved text becomes part of the Generator's input, not an update to its weights.",
+       "active": [
+        "question",
+        "context",
+        "prompt"
+       ],
+       "calloutRegion": "prompt",
+       "readouts": [
+        {
+         "id": "model-input",
+         "label": "Generator input",
+         "value": "INSTRUCTION: Answer only from CONTEXT and cite its source; otherwise say you do not know.\nQUESTION: Is return shipping free for members?\nCONTEXT [Returns]: Return shipping is free for members."
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The augmented prompt is ready; Outbound is absent, and the Generator's weights remain unchanged."
+        }
+       ]
+      },
+      {
+       "id": "grounded-answer",
+       "label": "Grounded answer",
+       "short": "Answer",
+       "sentence": "The Generator produces an Answer whose citation points back to Returns through Retrieved context.",
+       "why": "Comparing the response with its supplied source makes the grounding visible; retrieval alone does not guarantee correctness.",
+       "active": [
+        "returns",
+        "context",
+        "generator",
+        "answer"
+       ],
+       "calloutRegion": "answer",
+       "readouts": [
+        {
+         "id": "source-evidence",
+         "label": "Supplied evidence [Returns]",
+         "value": "Return shipping is free for members."
+        },
+        {
+         "id": "generated-answer",
+         "label": "Illustrative generated answer",
+         "value": "Yes—members receive free return shipping. [Returns]"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The supplied passage supports the cited answer; model weights were not updated."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 6895
+ },
+ "usd": 0.069146,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The pipeline picture with scored passages, selected context, augmented prompt and cited answer shows how RAG answers from outside text without changing weights."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The Grounded answer state is the last state, has no timer, and persists until Previous or Reset is used, showing the source beside the cited answer."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There are no parameters by design, and the fixed question and passages are justified as a fixed comparison; navigation changes the active regions, evidence and status."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active highlights, callout targets, links and readouts all bind to declared state and variant fields (state.active, state.calloutRegion, state.readouts, variant.links)."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and controls consistently use Question, Returns, Outbound, Retriever, Retrieved context, Augmented prompt, Generator, Answer and Previous/Next."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The depth is detailed: the ranking state adds the scoring formula and counts, other states add a few readouts, and the layout stays uncluttered with fixed topology."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Query tokens are {return, shipping, free, members}, giving Returns a score of 4 and Outbound a score of 2 as stated, and the callouts locate regions while the readouts carry the quantities."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018632
+ }
+}

@@ -1,0 +1,228 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "b-tcp-handshake",
+ "set": "B",
+ "subject": "tcp-handshake",
+ "depth": "brief",
+ "request": "how does the TCP handshake work?",
+ "ts": "2026-11-14T23:07:04.847Z",
+ "ms": 65370,
+ "raw": "{\n  \"story\": \"How does TCP establish a connection? Begin with a disconnected client and a listening server. Deliver SYN, SYN-ACK, then ACK. Watch the server remain waiting until the final ACK arrives. Assume no packet loss or application data.\",\n  \"aha\": {\n    \"stateId\": \"ack-received\",\n    \"observation\": \"The final ACK confirms the server's SYN-ACK, allowing the server to enter ESTABLISHED.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states/protocol/brief\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"handshake-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with story and instructions above the experiment. Show ordered steps and highlight the active step. Keep progress on this rail. Steps represent delivered-message states, never elapsed time. Parameter-control budget: zero; navigation and reset are separate.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"connection-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical protocol arrangement: Client left, Server right, and Handshake message on their connecting wire. Keep geometry fixed and labels readable. Phase entries correspond to variant.states in order. Show only the selected phase and highlight Handshake message. Each snapshot follows message delivery and receiver processing; any reply may still be in transit. Use no animation or clock.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"message-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Place the explanation above the picture, anchored to Handshake message. Use text as the bound status line and reason as its explanation. Keep the callout clear of actor labels.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"endpoint-states\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place compact Client state and Server state readouts below the picture. These are categorical TCP states, not measurements. Report endpoint state values only here.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"handshake-step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Handshake step\",\n      \"presentation\": \"Provide Previous and Next buttons with those accessible names. Default to the first state; move one state per action. Bounds are the first and last states. Disable unavailable actions without renaming them. Every state persists until learner action, including the aha state. Provide visible focus and keyboard activation with Enter or Space. Reference captures show the aha state.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide visible focus and keyboard activation with Enter or Space.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"TCP three-way handshake\",\n        \"regions\": [\n          {\n            \"id\": \"client\",\n            \"label\": \"Client\",\n            \"actors\": [\n              \"Client\"\n            ]\n          },\n          {\n            \"id\": \"handshake-message\",\n            \"label\": \"Handshake message\",\n            \"phases\": [\n              \"No handshake message delivered\",\n              \"Client → Server: SYN\",\n              \"Server → Client: SYN-ACK\",\n              \"Client → Server: ACK\"\n            ]\n          },\n          {\n            \"id\": \"server\",\n            \"label\": \"Server\",\n            \"actors\": [\n              \"Server\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"client\",\n            \"to\": \"handshake-message\",\n            \"label\": \"Connection path\"\n          },\n          {\n            \"from\": \"handshake-message\",\n            \"to\": \"server\",\n            \"label\": \"Connection path\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"waiting\",\n            \"label\": \"Waiting\",\n            \"short\": \"Ready\",\n            \"sentence\": \"No handshake message has crossed the connection path.\",\n            \"why\": \"The client has not connected; the server is listening for a connection request.\",\n            \"active\": [\n              \"handshake-message\"\n            ],\n            \"calloutRegion\": \"handshake-message\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"CLOSED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"LISTEN\"\n              }\n            ]\n          },\n          {\n            \"id\": \"syn-received\",\n            \"label\": \"SYN received\",\n            \"short\": \"SYN\",\n            \"sentence\": \"The client's SYN has reached the server.\",\n            \"why\": \"SYN requests a connection and announces the client's starting sequence number; the server replies with SYN-ACK.\",\n            \"active\": [\n              \"handshake-message\"\n            ],\n            \"calloutRegion\": \"handshake-message\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"SYN-SENT\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"SYN-RECEIVED\"\n              }\n            ]\n          },\n          {\n            \"id\": \"syn-ack-received\",\n            \"label\": \"SYN-ACK received\",\n            \"short\": \"SYN-ACK\",\n            \"sentence\": \"The server's SYN-ACK has reached the client.\",\n            \"why\": \"SYN-ACK acknowledges the client's start and announces the server's starting sequence number; the client sends ACK.\",\n            \"active\": [\n              \"handshake-message\"\n            ],\n            \"calloutRegion\": \"handshake-message\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"SYN-RECEIVED\"\n              }\n            ]\n          },\n          {\n            \"id\": \"ack-received\",\n            \"label\": \"ACK received\",\n            \"short\": \"ACK\",\n            \"sentence\": \"The client's final ACK has reached the server.\",\n            \"why\": \"ACK acknowledges the server's starting sequence number; the server can now establish the connection.\",\n            \"active\": [\n              \"handshake-message\"\n            ],\n            \"calloutRegion\": \"handshake-message\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"ESTABLISHED\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does TCP establish a connection? Begin with a disconnected client and a listening server. Deliver SYN, SYN-ACK, then ACK. Watch the server remain waiting until the final ACK arrives. Assume no packet loss or application data.",
+  "aha": {
+   "stateId": "ack-received",
+   "observation": "The final ACK confirms the server's SYN-ACK, allowing the server to enter ESTABLISHED."
+  },
+  "layout": {
+   "preset": "stepper-states/protocol/brief",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "handshake-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with story and instructions above the experiment. Show ordered steps and highlight the active step. Keep progress on this rail. Steps represent delivered-message states, never elapsed time. Parameter-control budget: zero; navigation and reset are separate.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "connection-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical protocol arrangement: Client left, Server right, and Handshake message on their connecting wire. Keep geometry fixed and labels readable. Phase entries correspond to variant.states in order. Show only the selected phase and highlight Handshake message. Each snapshot follows message delivery and receiver processing; any reply may still be in transit. Use no animation or clock.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "message-callout",
+    "kind": "active-callout",
+    "presentation": "Place the explanation above the picture, anchored to Handshake message. Use text as the bound status line and reason as its explanation. Keep the callout clear of actor labels.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "endpoint-states",
+    "kind": "value-readout",
+    "presentation": "Place compact Client state and Server state readouts below the picture. These are categorical TCP states, not measurements. Report endpoint state values only here.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "handshake-step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Handshake step",
+    "presentation": "Provide Previous and Next buttons with those accessible names. Default to the first state; move one state per action. Bounds are the first and last states. Disable unavailable actions without renaming them. Every state persists until learner action, including the aha state. Provide visible focus and keyboard activation with Enter or Space. Reference captures show the aha state."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide visible focus and keyboard activation with Enter or Space."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "TCP three-way handshake",
+     "regions": [
+      {
+       "id": "client",
+       "label": "Client",
+       "actors": [
+        "Client"
+       ]
+      },
+      {
+       "id": "handshake-message",
+       "label": "Handshake message",
+       "phases": [
+        "No handshake message delivered",
+        "Client → Server: SYN",
+        "Server → Client: SYN-ACK",
+        "Client → Server: ACK"
+       ]
+      },
+      {
+       "id": "server",
+       "label": "Server",
+       "actors": [
+        "Server"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "client",
+       "to": "handshake-message",
+       "label": "Connection path"
+      },
+      {
+       "from": "handshake-message",
+       "to": "server",
+       "label": "Connection path"
+      }
+     ],
+     "states": [
+      {
+       "id": "waiting",
+       "label": "Waiting",
+       "short": "Ready",
+       "sentence": "No handshake message has crossed the connection path.",
+       "why": "The client has not connected; the server is listening for a connection request.",
+       "active": [
+        "handshake-message"
+       ],
+       "calloutRegion": "handshake-message",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "CLOSED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "LISTEN"
+        }
+       ]
+      },
+      {
+       "id": "syn-received",
+       "label": "SYN received",
+       "short": "SYN",
+       "sentence": "The client's SYN has reached the server.",
+       "why": "SYN requests a connection and announces the client's starting sequence number; the server replies with SYN-ACK.",
+       "active": [
+        "handshake-message"
+       ],
+       "calloutRegion": "handshake-message",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        }
+       ]
+      },
+      {
+       "id": "syn-ack-received",
+       "label": "SYN-ACK received",
+       "short": "SYN-ACK",
+       "sentence": "The server's SYN-ACK has reached the client.",
+       "why": "SYN-ACK acknowledges the client's start and announces the server's starting sequence number; the client sends ACK.",
+       "active": [
+        "handshake-message"
+       ],
+       "calloutRegion": "handshake-message",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        }
+       ]
+      },
+      {
+       "id": "ack-received",
+       "label": "ACK received",
+       "short": "ACK",
+       "sentence": "The client's final ACK has reached the server.",
+       "why": "ACK acknowledges the server's starting sequence number; the server can now establish the connection.",
+       "active": [
+        "handshake-message"
+       ],
+       "calloutRegion": "handshake-message",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "ESTABLISHED"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 3634
+ },
+ "usd": 0.036536,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3fFJFiTut9JKuoN1QLN\"}"
+  },
+  "cardUsd": 0
+ }
+}

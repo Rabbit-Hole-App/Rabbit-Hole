@@ -1,0 +1,212 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "b-mitosis",
+ "set": "B",
+ "subject": "mitosis",
+ "depth": "brief",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T23:08:48.600Z",
+ "ms": 78443,
+ "raw": "{\n  \"story\": \"Start with a cell whose DNA has already been copied. Choose Next to follow chromosomes A and B through mitosis. Compare the chromosome sets inside the final nuclei. This simplified animal cell assumes no chromosome loss or mutation; cell splitting is a separate process.\",\n  \"aha\": {\n    \"stateId\": \"telophase\",\n    \"observation\": \"Mitosis separates duplicated chromosomes into two nuclei containing matching chromosome sets.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"phase-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation and above the experiment. Show phase names with the selected phase highlighted.\",\n      \"bind\": {\n        \"active\": \"inputs.phase\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"phase-progress\",\n      \"kind\": \"progress\",\n      \"presentation\": \"Attach completed-state markers to the rail, not the cell picture. Progress counts states, never elapsed time.\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.phase\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"cell-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical fixed cell frame. Select Cell.phases by the active state ordinal. Keep its boundary and chromosome identities consistent. Use readable A and B labels, distinguished by shape as well as color. No animation or decorative movement. Capture telophase as the reference.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"phase-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside Cell without covering chromosomes. Identify the changing structure and explain its significance; leave numerical values to readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"evidence-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Below the picture, show the daughter-nucleus counter and a bound status line. Count newly enclosed daughter nuclei, excluding the original nucleus. Counts are exact integers.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"phase\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Mitosis phase\",\n      \"presentation\": \"Brief parameter-control budget: zero. Navigation uses Previous and Next. Default index: 0; bounds: 0–3; increment: 1. Selection changes the chromosome arrangement, nuclear membranes, callout, counter, and status. Keep boundary buttons named Previous and Next when disabled. Every state persists until learner action, including telophase. Provide accessible button names, visible keyboard focus, and Enter or Space activation.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore prophase and the default index. Provide visible keyboard focus and Enter or Space activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Mitosis: matching chromosome sets\",\n        \"regions\": [\n          {\n            \"id\": \"cell\",\n            \"label\": \"Cell\",\n            \"phases\": [\n              \"Early prophase: an intact nucleus contains condensed, duplicated chromosomes A and B, each drawn as joined sister copies.\",\n              \"Metaphase: the nuclear membrane is absent; duplicated A and B align at the cell's middle, with sister copies facing opposite sides.\",\n              \"Anaphase: sister copies are separated; matching groups containing A and B occupy opposite sides inside the unchanged cell boundary.\",\n              \"Telophase: nuclear membranes enclose the opposite chromosome groups; each nucleus contains A and B, and the cell boundary remains undivided.\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"prophase\",\n            \"label\": \"Prophase\",\n            \"short\": \"Chromosomes condense\",\n            \"sentence\": \"Inside the original nucleus, copied chromosomes condense into visible structures.\",\n            \"why\": \"Each chromosome already has joined sister copies because DNA replication happened before mitosis.\",\n            \"active\": [\n              \"cell\"\n            ],\n            \"calloutRegion\": \"cell\",\n            \"readouts\": [\n              {\n                \"id\": \"daughter-nuclei\",\n                \"label\": \"Daughter nuclei\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Copied chromosomes remain together.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"metaphase\",\n            \"label\": \"Metaphase\",\n            \"short\": \"Chromosomes align\",\n            \"sentence\": \"The nuclear membrane has broken down, and copied chromosomes align at the cell's middle.\",\n            \"why\": \"This arrangement positions sister copies for separation toward opposite sides.\",\n            \"active\": [\n              \"cell\"\n            ],\n            \"calloutRegion\": \"cell\",\n            \"readouts\": [\n              {\n                \"id\": \"daughter-nuclei\",\n                \"label\": \"Daughter nuclei\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Copied chromosomes are aligned.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"anaphase\",\n            \"label\": \"Anaphase\",\n            \"short\": \"Sister copies separate\",\n            \"sentence\": \"Sister copies separate toward opposite sides of the cell.\",\n            \"why\": \"Each side receives A and B rather than keeping joined copies together.\",\n            \"active\": [\n              \"cell\"\n            ],\n            \"calloutRegion\": \"cell\",\n            \"readouts\": [\n              {\n                \"id\": \"daughter-nuclei\",\n                \"label\": \"Daughter nuclei\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Matching chromosome sets are separated.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"telophase\",\n            \"label\": \"Telophase\",\n            \"short\": \"Nuclei reform\",\n            \"sentence\": \"New nuclear membranes enclose the separated chromosome sets.\",\n            \"why\": \"Both nuclei contain A and B, preserving the starting chromosome set.\",\n            \"active\": [\n              \"cell\"\n            ],\n            \"calloutRegion\": \"cell\",\n            \"readouts\": [\n              {\n                \"id\": \"daughter-nuclei\",\n                \"label\": \"Daughter nuclei\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Matching chromosome sets are enclosed.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Start with a cell whose DNA has already been copied. Choose Next to follow chromosomes A and B through mitosis. Compare the chromosome sets inside the final nuclei. This simplified animal cell assumes no chromosome loss or mutation; cell splitting is a separate process.",
+  "aha": {
+   "stateId": "telophase",
+   "observation": "Mitosis separates duplicated chromosomes into two nuclei containing matching chromosome sets."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "phase-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation and above the experiment. Show phase names with the selected phase highlighted.",
+    "bind": {
+     "active": "inputs.phase",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "phase-progress",
+    "kind": "progress",
+    "presentation": "Attach completed-state markers to the rail, not the cell picture. Progress counts states, never elapsed time.",
+    "bind": {
+     "completedBefore": "inputs.phase",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "cell-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical fixed cell frame. Select Cell.phases by the active state ordinal. Keep its boundary and chromosome identities consistent. Use readable A and B labels, distinguished by shape as well as color. No animation or decorative movement. Capture telophase as the reference.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "phase-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside Cell without covering chromosomes. Identify the changing structure and explain its significance; leave numerical values to readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "evidence-readouts",
+    "kind": "value-readout",
+    "presentation": "Below the picture, show the daughter-nucleus counter and a bound status line. Count newly enclosed daughter nuclei, excluding the original nucleus. Counts are exact integers.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "phase",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Mitosis phase",
+    "presentation": "Brief parameter-control budget: zero. Navigation uses Previous and Next. Default index: 0; bounds: 0–3; increment: 1. Selection changes the chromosome arrangement, nuclear membranes, callout, counter, and status. Keep boundary buttons named Previous and Next when disabled. Every state persists until learner action, including telophase. Provide accessible button names, visible keyboard focus, and Enter or Space activation."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore prophase and the default index. Provide visible keyboard focus and Enter or Space activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Mitosis: matching chromosome sets",
+     "regions": [
+      {
+       "id": "cell",
+       "label": "Cell",
+       "phases": [
+        "Early prophase: an intact nucleus contains condensed, duplicated chromosomes A and B, each drawn as joined sister copies.",
+        "Metaphase: the nuclear membrane is absent; duplicated A and B align at the cell's middle, with sister copies facing opposite sides.",
+        "Anaphase: sister copies are separated; matching groups containing A and B occupy opposite sides inside the unchanged cell boundary.",
+        "Telophase: nuclear membranes enclose the opposite chromosome groups; each nucleus contains A and B, and the cell boundary remains undivided."
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Chromosomes condense",
+       "sentence": "Inside the original nucleus, copied chromosomes condense into visible structures.",
+       "why": "Each chromosome already has joined sister copies because DNA replication happened before mitosis.",
+       "active": [
+        "cell"
+       ],
+       "calloutRegion": "cell",
+       "readouts": [
+        {
+         "id": "daughter-nuclei",
+         "label": "Daughter nuclei",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Copied chromosomes remain together."
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Chromosomes align",
+       "sentence": "The nuclear membrane has broken down, and copied chromosomes align at the cell's middle.",
+       "why": "This arrangement positions sister copies for separation toward opposite sides.",
+       "active": [
+        "cell"
+       ],
+       "calloutRegion": "cell",
+       "readouts": [
+        {
+         "id": "daughter-nuclei",
+         "label": "Daughter nuclei",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Copied chromosomes are aligned."
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Sister copies separate",
+       "sentence": "Sister copies separate toward opposite sides of the cell.",
+       "why": "Each side receives A and B rather than keeping joined copies together.",
+       "active": [
+        "cell"
+       ],
+       "calloutRegion": "cell",
+       "readouts": [
+        {
+         "id": "daughter-nuclei",
+         "label": "Daughter nuclei",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Matching chromosome sets are separated."
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Nuclei reform",
+       "sentence": "New nuclear membranes enclose the separated chromosome sets.",
+       "why": "Both nuclei contain A and B, preserving the starting chromosome set.",
+       "active": [
+        "cell"
+       ],
+       "calloutRegion": "cell",
+       "readouts": [
+        {
+         "id": "daughter-nuclei",
+         "label": "Daughter nuclei",
+         "value": "2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Matching chromosome sets are enclosed."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1532,
+  "output": 4113
+ },
+ "usd": 0.041324,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3fNxJeKK5jGU76uwjbz\"}"
+  },
+  "cardUsd": 0
+ }
+}

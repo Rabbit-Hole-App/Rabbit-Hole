@@ -1,0 +1,289 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a02",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does tokenization work?",
+ "ts": "2026-11-14T22:20:16.644Z",
+ "ms": 3575,
+ "raw": "{\n  \"story\": \"Text is broken down into smaller pieces called tokens. Algorithms map these pieces to numbers before processing begins.\",\n  \"aha\": {\n    \"stateId\": \"s3\",\n    \"observation\": \"Subwords and characters handle unseen vocabulary by splitting words into known units.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states.active\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\n        \"Raw Input\",\n        \"Normalization\",\n        \"Pre-tokenization\",\n        \"Model Split\",\n        \"ID Mapping\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Tokenization Pipeline\",\n        \"regions\": [\n          {\n            \"id\": \"r1\",\n            \"label\": \"Raw Text\",\n            \"kind\": \"box\",\n            \"values\": [\"Language Models love data.\"]\n          },\n          {\n            \"id\": \"r2\",\n            \"label\": \"Normalized Text\",\n            \"kind\": \"box\",\n            \"values\": [\"language models love data.\"]\n          },\n          {\n            \"id\": \"r3\",\n            \"label\": \"Split Words\",\n            \"kind\": \"box\",\n            \"values\": [\"language\", \"models\", \"love\", \"data.\"]\n          },\n          {\n            \"id\": \"r4\",\n            \"label\": \"Subword Tokens\",\n            \"kind\": \"box\",\n            \"values\": [\"language\", \"models\", \"love\", \"data\", \".\"]\n          },\n          {\n            \"id\": \"r5\",\n            \"label\": \"Token IDs\",\n            \"kind\": \"box\",\n            \"values\": [\"2769\", \"3905\", \"1829\", \"1258\", \"13\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"s0\",\n            \"label\": \"Input\",\n            \"short\": \"Raw\",\n            \"sentence\": \"Raw text enters the tokenizer pipeline directly from the user.\",\n            \"why\": \"Establishes the starting text string.\",\n            \"active\": [\"r1\"],\n            \"calloutRegion\": \"r1\",\n            \"readouts\": [\n              {\n                \"id\": \"ro1\",\n                \"label\": \"Length\",\n                \"value\": \"26 chars\"\n              }\n            ]\n          },\n          {\n            \"id\": \"s1\",\n            \"label\": \"Normalize\",\n            \"short\": \"Norm\",\n            \"sentence\": \"Text is stripped of extra whitespace and converted to lower case.\",\n            \"why\": \"Ensures uniform text formatting.\",\n            \"active\": [\"r2\"],\n            \"calloutRegion\": \"r2\",\n            \"readouts\": [\n              {\n                \"id\": \"ro2\",\n                \"label\": \"Case\",\n                \"value\": \"Lower\"\n              }\n            ]\n          },\n          {\n            \"id\": \"s2\",\n            \"label\": \"Pre-tokenize\",\n            \"short\": \"Split\",\n            \"sentence\": \"Spaces and punctuation split the string into initial word chunks.\",\n            \"why\": \"Isolates individual words.\",\n            \"active\": [\"r3\"],\n            \"calloutRegion\": \"r3\",\n            \"readouts\": [\n              {\n                \"id\": \"ro3\",\n                \"label\": \"Words\",\n                \"value\": \"4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"s3\",\n            \"label\": \"Model Split\",\n            \"short\": \"Subword\",\n            \"sentence\": \"BPE or WordPiece algorithms divide complex words into subwords.\",\n            \"why\": \"Prevents out-of-vocabulary errors.\",\n            \"active\": [\"r4\"],\n            \"calloutRegion\": \"r4\",\n            \"readouts\": [\n              {\n                \"id\": \"ro4\",\n                \"label\": \"Tokens\",\n                \"value\": \"5\"\n              }\n            ]\n          },\n          {\n            \"id\": \"s4\",\n            \"label\": \"Map IDs\",\n            \"short\": \"IDs\",\n            \"sentence\": \"Each token string is converted to a unique integer index.\",\n            \"why\": \"Prepares numerical inputs for the neural network.\",\n            \"active\": [\"r5\"],\n            \"calloutRegion\": \"r5\",\n            \"readouts\": [\n              {\n                \"id\": \"ro5\",\n                \"label\": \"Vocab Size\",\n                \"value\": \"50257\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Text is broken down into smaller pieces called tokens. Algorithms map these pieces to numbers before processing begins.",
+  "aha": {
+   "stateId": "s3",
+   "observation": "Subwords and characters handle unseen vocabulary by splitting words into known units."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "Raw Input",
+     "Normalization",
+     "Pre-tokenization",
+     "Model Split",
+     "ID Mapping"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Tokenization Pipeline",
+     "regions": [
+      {
+       "id": "r1",
+       "label": "Raw Text",
+       "kind": "box",
+       "values": [
+        "Language Models love data."
+       ]
+      },
+      {
+       "id": "r2",
+       "label": "Normalized Text",
+       "kind": "box",
+       "values": [
+        "language models love data."
+       ]
+      },
+      {
+       "id": "r3",
+       "label": "Split Words",
+       "kind": "box",
+       "values": [
+        "language",
+        "models",
+        "love",
+        "data."
+       ]
+      },
+      {
+       "id": "r4",
+       "label": "Subword Tokens",
+       "kind": "box",
+       "values": [
+        "language",
+        "models",
+        "love",
+        "data",
+        "."
+       ]
+      },
+      {
+       "id": "r5",
+       "label": "Token IDs",
+       "kind": "box",
+       "values": [
+        "2769",
+        "3905",
+        "1829",
+        "1258",
+        "13"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "Input",
+       "short": "Raw",
+       "sentence": "Raw text enters the tokenizer pipeline directly from the user.",
+       "why": "Establishes the starting text string.",
+       "active": [
+        "r1"
+       ],
+       "calloutRegion": "r1",
+       "readouts": [
+        {
+         "id": "ro1",
+         "label": "Length",
+         "value": "26 chars"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Normalize",
+       "short": "Norm",
+       "sentence": "Text is stripped of extra whitespace and converted to lower case.",
+       "why": "Ensures uniform text formatting.",
+       "active": [
+        "r2"
+       ],
+       "calloutRegion": "r2",
+       "readouts": [
+        {
+         "id": "ro2",
+         "label": "Case",
+         "value": "Lower"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Pre-tokenize",
+       "short": "Split",
+       "sentence": "Spaces and punctuation split the string into initial word chunks.",
+       "why": "Isolates individual words.",
+       "active": [
+        "r3"
+       ],
+       "calloutRegion": "r3",
+       "readouts": [
+        {
+         "id": "ro3",
+         "label": "Words",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Model Split",
+       "short": "Subword",
+       "sentence": "BPE or WordPiece algorithms divide complex words into subwords.",
+       "why": "Prevents out-of-vocabulary errors.",
+       "active": [
+        "r4"
+       ],
+       "calloutRegion": "r4",
+       "readouts": [
+        {
+         "id": "ro4",
+         "label": "Tokens",
+         "value": "5"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Map IDs",
+       "short": "IDs",
+       "sentence": "Each token string is converted to a unique integer index.",
+       "why": "Prepares numerical inputs for the neural network.",
+       "active": [
+        "r5"
+       ],
+       "calloutRegion": "r5",
+       "readouts": [
+        {
+         "id": "ro5",
+         "label": "Vocab Size",
+         "value": "50257"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1102,
+  "output": 1440
+ },
+ "usd": 0.003931,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "It shows a pipeline sequence, but the claimed question (how unseen words are handled) is not demonstrated, since no word is actually split into subwords."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state s3 is mid-sequence with s4 following, and the scene is learner-driven but not holding at a decisive state that shows the claim."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is the step index, which just selects a state; no input changes the evidence or experiment (the text is fixed)."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "Callouts and highlights bind to region ids, but the Vocab Size readout (50257) and the subword claim have no corresponding region data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The s3 narrative about dividing complex words into subwords conflicts with the region data, where whole words remain unchanged."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each step highlights one region with one readout, so it is uncluttered, though it offers little added mechanism."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The values check out: 26 chars, 4 words, and 5 tokens including the period; each readout appears once, and the callout text locates rather than quantifies."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01474
+ }
+}

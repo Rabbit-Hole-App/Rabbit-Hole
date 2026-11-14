@@ -1,0 +1,398 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a17",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "explain recursion",
+ "ts": "2026-11-14T22:25:41.477Z",
+ "ms": 22906,
+ "raw": "{\"story\":\"To compute factorial(4), each call asks a smaller copy, factorial(n−1), and waits. Calls stack up until factorial(1), the base case, answers directly without calling again. Then each waiting call finishes its multiplication as the answers return.\",\"aha\":{\"stateId\":\"s3\",\"observation\":\"factorial(1) is the base case: it answers 1 without calling again. That stops the stack growing, so the four waiting calls can finish.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"inputs.step\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"inputs.step\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"factorial(4)\",\"regions\":[{\"id\":\"f4\",\"label\":\"factorial(4) = 4 × factorial(3)\",\"kind\":\"call frame\",\"phases\":[\"not called\",\"waiting\",\"returned 24\"]},{\"id\":\"f3\",\"label\":\"factorial(3) = 3 × factorial(2)\",\"kind\":\"call frame\",\"phases\":[\"not called\",\"waiting\",\"returned 6\"]},{\"id\":\"f2\",\"label\":\"factorial(2) = 2 × factorial(1)\",\"kind\":\"call frame\",\"phases\":[\"not called\",\"waiting\",\"returned 2\"]},{\"id\":\"f1\",\"label\":\"factorial(1): base case\",\"kind\":\"call frame\",\"phases\":[\"not called\",\"answers 1 directly\",\"returned 1\"]}],\"links\":[{\"from\":\"f4\",\"to\":\"f3\",\"label\":\"calls\"},{\"from\":\"f3\",\"to\":\"f2\",\"label\":\"calls\"},{\"from\":\"f2\",\"to\":\"f1\",\"label\":\"calls\"}],\"states\":[{\"id\":\"s0\",\"label\":\"Call factorial(4)\",\"short\":\"Call 4\",\"sentence\":\"factorial(4) starts. It cannot answer yet, because it needs factorial(3).\",\"why\":\"The problem is reduced to a smaller copy of itself.\",\"active\":[\"f4\"],\"calloutRegion\":\"f4\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Open calls\",\"value\":\"1\"},{\"id\":\"ret\",\"label\":\"Last return\",\"value\":\"none\"}]},{\"id\":\"s1\",\"label\":\"Call factorial(3)\",\"short\":\"Call 3\",\"sentence\":\"factorial(4) waits while a new call, factorial(3), is stacked on top.\",\"why\":\"Each call keeps its own n and its pending multiplication.\",\"active\":[\"f4\",\"f3\"],\"calloutRegion\":\"f3\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Open calls\",\"value\":\"2\"},{\"id\":\"ret\",\"label\":\"Last return\",\"value\":\"none\"}]},{\"id\":\"s2\",\"label\":\"Call factorial(2)\",\"short\":\"Call 2\",\"sentence\":\"factorial(3) also waits, and factorial(2) is stacked on top of it.\",\"why\":\"The stack keeps growing while n is still above 1.\",\"active\":[\"f4\",\"f3\",\"f2\"],\"calloutRegion\":\"f2\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Open calls\",\"value\":\"3\"},{\"id\":\"ret\",\"label\":\"Last return\",\"value\":\"none\"}]},{\"id\":\"s3\",\"label\":\"Base case reached\",\"short\":\"Base case\",\"sentence\":\"factorial(1) needs no smaller copy. It answers 1 directly, so no further call is made.\",\"why\":\"The base case is what stops the recursion.\",\"active\":[\"f4\",\"f3\",\"f2\",\"f1\"],\"calloutRegion\":\"f1\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Open calls\",\"value\":\"4\"},{\"id\":\"ret\",\"label\":\"Last return\",\"value\":\"1 (ready)\"}]},{\"id\":\"s4\",\"label\":\"Return 1\",\"short\":\"Return 1\",\"sentence\":\"factorial(1) returns 1 and leaves the stack. factorial(2) can now compute 2 × 1.\",\"why\":\"Returning unwinds the stack one call at a time.\",\"active\":[\"f4\",\"f3\",\"f2\"],\"calloutRegion\":\"f2\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Open calls\",\"value\":\"3\"},{\"id\":\"ret\",\"label\":\"Last return\",\"value\":\"1\"}]},{\"id\":\"s5\",\"label\":\"Return 2\",\"short\":\"Return 2\",\"sentence\":\"factorial(2) finishes 2 × 1 and returns 2 to factorial(3).\",\"why\":\"Each answer is built from the answer below it.\",\"active\":[\"f4\",\"f3\"],\"calloutRegion\":\"f3\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Open calls\",\"value\":\"2\"},{\"id\":\"ret\",\"label\":\"Last return\",\"value\":\"2\"}]},{\"id\":\"s6\",\"label\":\"Return 6\",\"short\":\"Return 6\",\"sentence\":\"factorial(3) finishes 3 × 2 and returns 6 to factorial(4).\",\"why\":\"Only the first call is still waiting.\",\"active\":[\"f4\"],\"calloutRegion\":\"f4\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Open calls\",\"value\":\"1\"},{\"id\":\"ret\",\"label\":\"Last return\",\"value\":\"6\"}]},{\"id\":\"s7\",\"label\":\"Return 24\",\"short\":\"Return 24\",\"sentence\":\"factorial(4) finishes 4 × 6 and returns 24. The stack is empty.\",\"why\":\"The final answer came from the base case and the returns.\",\"active\":[],\"calloutRegion\":\"f4\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Open calls\",\"value\":\"0\"},{\"id\":\"ret\",\"label\":\"Last return\",\"value\":\"24\"}]}]}]}}",
+ "composition": {
+  "story": "To compute factorial(4), each call asks a smaller copy, factorial(n−1), and waits. Calls stack up until factorial(1), the base case, answers directly without calling again. Then each waiting call finishes its multiplication as the answers return.",
+  "aha": {
+   "stateId": "s3",
+   "observation": "factorial(1) is the base case: it answers 1 without calling again. That stops the stack growing, so the four waiting calls can finish."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "inputs.step"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "inputs.step"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "factorial(4)",
+     "regions": [
+      {
+       "id": "f4",
+       "label": "factorial(4) = 4 × factorial(3)",
+       "kind": "call frame",
+       "phases": [
+        "not called",
+        "waiting",
+        "returned 24"
+       ]
+      },
+      {
+       "id": "f3",
+       "label": "factorial(3) = 3 × factorial(2)",
+       "kind": "call frame",
+       "phases": [
+        "not called",
+        "waiting",
+        "returned 6"
+       ]
+      },
+      {
+       "id": "f2",
+       "label": "factorial(2) = 2 × factorial(1)",
+       "kind": "call frame",
+       "phases": [
+        "not called",
+        "waiting",
+        "returned 2"
+       ]
+      },
+      {
+       "id": "f1",
+       "label": "factorial(1): base case",
+       "kind": "call frame",
+       "phases": [
+        "not called",
+        "answers 1 directly",
+        "returned 1"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "f4",
+       "to": "f3",
+       "label": "calls"
+      },
+      {
+       "from": "f3",
+       "to": "f2",
+       "label": "calls"
+      },
+      {
+       "from": "f2",
+       "to": "f1",
+       "label": "calls"
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "Call factorial(4)",
+       "short": "Call 4",
+       "sentence": "factorial(4) starts. It cannot answer yet, because it needs factorial(3).",
+       "why": "The problem is reduced to a smaller copy of itself.",
+       "active": [
+        "f4"
+       ],
+       "calloutRegion": "f4",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Open calls",
+         "value": "1"
+        },
+        {
+         "id": "ret",
+         "label": "Last return",
+         "value": "none"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Call factorial(3)",
+       "short": "Call 3",
+       "sentence": "factorial(4) waits while a new call, factorial(3), is stacked on top.",
+       "why": "Each call keeps its own n and its pending multiplication.",
+       "active": [
+        "f4",
+        "f3"
+       ],
+       "calloutRegion": "f3",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Open calls",
+         "value": "2"
+        },
+        {
+         "id": "ret",
+         "label": "Last return",
+         "value": "none"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Call factorial(2)",
+       "short": "Call 2",
+       "sentence": "factorial(3) also waits, and factorial(2) is stacked on top of it.",
+       "why": "The stack keeps growing while n is still above 1.",
+       "active": [
+        "f4",
+        "f3",
+        "f2"
+       ],
+       "calloutRegion": "f2",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Open calls",
+         "value": "3"
+        },
+        {
+         "id": "ret",
+         "label": "Last return",
+         "value": "none"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Base case reached",
+       "short": "Base case",
+       "sentence": "factorial(1) needs no smaller copy. It answers 1 directly, so no further call is made.",
+       "why": "The base case is what stops the recursion.",
+       "active": [
+        "f4",
+        "f3",
+        "f2",
+        "f1"
+       ],
+       "calloutRegion": "f1",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Open calls",
+         "value": "4"
+        },
+        {
+         "id": "ret",
+         "label": "Last return",
+         "value": "1 (ready)"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Return 1",
+       "short": "Return 1",
+       "sentence": "factorial(1) returns 1 and leaves the stack. factorial(2) can now compute 2 × 1.",
+       "why": "Returning unwinds the stack one call at a time.",
+       "active": [
+        "f4",
+        "f3",
+        "f2"
+       ],
+       "calloutRegion": "f2",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Open calls",
+         "value": "3"
+        },
+        {
+         "id": "ret",
+         "label": "Last return",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Return 2",
+       "short": "Return 2",
+       "sentence": "factorial(2) finishes 2 × 1 and returns 2 to factorial(3).",
+       "why": "Each answer is built from the answer below it.",
+       "active": [
+        "f4",
+        "f3"
+       ],
+       "calloutRegion": "f3",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Open calls",
+         "value": "2"
+        },
+        {
+         "id": "ret",
+         "label": "Last return",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Return 6",
+       "short": "Return 6",
+       "sentence": "factorial(3) finishes 3 × 2 and returns 6 to factorial(4).",
+       "why": "Only the first call is still waiting.",
+       "active": [
+        "f4"
+       ],
+       "calloutRegion": "f4",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Open calls",
+         "value": "1"
+        },
+        {
+         "id": "ret",
+         "label": "Last return",
+         "value": "6"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Return 24",
+       "short": "Return 24",
+       "sentence": "factorial(4) finishes 4 × 6 and returns 24. The stack is empty.",
+       "why": "The final answer came from the base case and the returns.",
+       "active": [],
+       "calloutRegion": "f4",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Open calls",
+         "value": "0"
+        },
+        {
+         "id": "ret",
+         "label": "Last return",
+         "value": "24"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3064,
+  "output": 3530
+ },
+ "usd": 0.041428,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The stacked call frames and links for factorial(4) show how the base case stops the recursion and lets the returns unwind."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s3 is reached by the learner's Step control, and nothing auto-advances past it."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only parameter, Step, changes the active frames, the callout target and the readouts, and the single fixed example is appropriate for a walkthrough."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The picture, ghost, callout, readouts and progress rail all bind to declared variant, state or input fields."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, sentences and frame labels all refer to the same factorial calls, base case and returns."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Four frames and two readouts, with one active region per state, add the stack mechanism without clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The open-call counts go 1,2,3,4,3,2,1,0 and the returns 1,2,6,24 are correct, with the readouts giving the numbers and the callout only locating the frame."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.017066
+ }
+}

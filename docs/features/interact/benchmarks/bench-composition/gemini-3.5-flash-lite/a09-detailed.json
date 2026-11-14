@@ -1,0 +1,254 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a09",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does the water cycle work?",
+ "ts": "2026-11-14T22:20:46.463Z",
+ "ms": 3215,
+ "raw": "{\n  \"story\": \"Water moves endlessly through Earth. It evaporates from oceans, condenses into clouds, and precipitates back down.\",\n  \"aha\": {\n    \"stateId\": \"precip\",\n    \"observation\": \"Precipitation returns condensed atmospheric water back to the surface, completing the planetary loop.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-vertical\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"completedBefore\": \"state.id\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Cycle Step\",\n      \"options\": [\n        \"Evaporation\",\n        \"Condensation\",\n        \"Precipitation\",\n        \"Collection\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset Cycle\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Water Cycle Process\",\n        \"regions\": [\n          {\n            \"id\": \"ocean\",\n            \"label\": \"Ocean Source\",\n            \"kind\": \"reservoir\",\n            \"values\": [\"96.5% water\"]\n          },\n          {\n            \"id\": \"sun\",\n            \"label\": \"Solar Energy\",\n            \"kind\": \"energy\",\n            \"values\": [\"Heat flux\"]\n          },\n          {\n            \"id\": \"clouds\",\n            \"label\": \"Atmosphere\",\n            \"kind\": \"vapor\",\n            \"values\": [\"Condensate\"]\n          },\n          {\n            \"id\": \"land\",\n            \"label\": \"Surface Runoff\",\n            \"kind\": \"ground\",\n            \"values\": [\"Aquifer recharge\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"evap\",\n            \"label\": \"Evaporation\",\n            \"short\": \"Evap\",\n            \"sentence\": \"Solar heat converts liquid ocean water into invisible water vapor.\",\n            \"why\": \"Energy input drives phase change from liquid to gas.\",\n            \"active\": [\"ocean\", \"sun\"],\n            \"calloutRegion\": \"ocean\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Phase\",\n                \"value\": \"Liquid to Gas\"\n              }\n            ]\n          },\n          {\n            \"id\": \"cond\",\n            \"label\": \"Condensation\",\n            \"short\": \"Cond\",\n            \"sentence\": \"Warm vapor rises, cools, and clusters around particles to form clouds.\",\n            \"why\": \"Lower atmospheric temperatures trigger droplet formation.\",\n            \"active\": [\"clouds\"],\n            \"calloutRegion\": \"clouds\",\n            \"readouts\": [\n              {\n                \"id\": \"r2\",\n                \"label\": \"Phase\",\n                \"value\": \"Gas to Liquid\"\n              }\n            ]\n          },\n          {\n            \"id\": \"precip\",\n            \"label\": \"Precipitation\",\n            \"short\": \"Precip\",\n            \"sentence\": \"Heavy droplets overcome updrafts and fall as rain, snow, or sleet.\",\n            \"why\": \"Droplet mass exceeds cloud support capacity.\",\n            \"active\": [\"clouds\", \"land\"],\n            \"calloutRegion\": \"land\",\n            \"readouts\": [\n              {\n                \"id\": \"r3\",\n                \"label\": \"Phase\",\n                \"value\": \"Downward Flux\"\n              }\n            ]\n          },\n          {\n            \"id\": \"collect\",\n            \"label\": \"Collection\",\n            \"short\": \"Collect\",\n            \"sentence\": \"Water flows across terrain into rivers and returns to oceans.\",\n            \"why\": \"Gravity pulls surface water toward base level elevations.\",\n            \"active\": [\"land\", \"ocean\"],\n            \"calloutRegion\": \"ocean\",\n            \"readouts\": [\n              {\n                \"id\": \"r4\",\n                \"label\": \"Phase\",\n                \"value\": \"Surface Runoff\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Water moves endlessly through Earth. It evaporates from oceans, condenses into clouds, and precipitates back down.",
+  "aha": {
+   "stateId": "precip",
+   "observation": "Precipitation returns condensed atmospheric water back to the surface, completing the planetary loop."
+  },
+  "layout": {
+   "preset": "stepper-vertical",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "completedBefore": "state.id"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Cycle Step",
+    "options": [
+     "Evaporation",
+     "Condensation",
+     "Precipitation",
+     "Collection"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset Cycle",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Water Cycle Process",
+     "regions": [
+      {
+       "id": "ocean",
+       "label": "Ocean Source",
+       "kind": "reservoir",
+       "values": [
+        "96.5% water"
+       ]
+      },
+      {
+       "id": "sun",
+       "label": "Solar Energy",
+       "kind": "energy",
+       "values": [
+        "Heat flux"
+       ]
+      },
+      {
+       "id": "clouds",
+       "label": "Atmosphere",
+       "kind": "vapor",
+       "values": [
+        "Condensate"
+       ]
+      },
+      {
+       "id": "land",
+       "label": "Surface Runoff",
+       "kind": "ground",
+       "values": [
+        "Aquifer recharge"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "evap",
+       "label": "Evaporation",
+       "short": "Evap",
+       "sentence": "Solar heat converts liquid ocean water into invisible water vapor.",
+       "why": "Energy input drives phase change from liquid to gas.",
+       "active": [
+        "ocean",
+        "sun"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Phase",
+         "value": "Liquid to Gas"
+        }
+       ]
+      },
+      {
+       "id": "cond",
+       "label": "Condensation",
+       "short": "Cond",
+       "sentence": "Warm vapor rises, cools, and clusters around particles to form clouds.",
+       "why": "Lower atmospheric temperatures trigger droplet formation.",
+       "active": [
+        "clouds"
+       ],
+       "calloutRegion": "clouds",
+       "readouts": [
+        {
+         "id": "r2",
+         "label": "Phase",
+         "value": "Gas to Liquid"
+        }
+       ]
+      },
+      {
+       "id": "precip",
+       "label": "Precipitation",
+       "short": "Precip",
+       "sentence": "Heavy droplets overcome updrafts and fall as rain, snow, or sleet.",
+       "why": "Droplet mass exceeds cloud support capacity.",
+       "active": [
+        "clouds",
+        "land"
+       ],
+       "calloutRegion": "land",
+       "readouts": [
+        {
+         "id": "r3",
+         "label": "Phase",
+         "value": "Downward Flux"
+        }
+       ]
+      },
+      {
+       "id": "collect",
+       "label": "Collection",
+       "short": "Collect",
+       "sentence": "Water flows across terrain into rivers and returns to oceans.",
+       "why": "Gravity pulls surface water toward base level elevations.",
+       "active": [
+        "land",
+        "ocean"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "r4",
+         "label": "Phase",
+         "value": "Surface Runoff"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1103,
+  "output": 1229
+ },
+ "usd": 0.003404,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture's regions (ocean, sun, clouds, land) highlighted per state show the water cycle sequence, though the 'one clear question' is only implied."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state is precip (index 2), but the card is learner-driven and has no hold or pause on that state; stepping continues to Collection, so nothing holds it at the aha."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex control changes the active regions, callout, sentence and readout in every state."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout, readout and progress parts all bind to declared variant, state or input fields, and each calloutRegion refers to a declared region id."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story and control options name the same four events, and the sentences refer to ocean, clouds and land regions that exist. The story says 'precipitates' while the label says 'Precipitation', which is a minor mismatch."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At the detailed depth there is one picture, one callout and one readout per step, with a modest count of regions and no clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The readouts are qualitative phase labels with no quantities. The 'Downward Flux' readout is odd, and the ocean region value '96.5% water' is a static fact rather than a computed one. The ocean is the callout target in two states, and the ocean's value also appears in the region data, so the same fa"
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012498
+ }
+}

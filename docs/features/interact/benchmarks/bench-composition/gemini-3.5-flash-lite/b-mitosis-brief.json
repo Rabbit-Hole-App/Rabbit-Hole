@@ -1,0 +1,228 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "b-mitosis",
+ "set": "B",
+ "subject": "mitosis",
+ "depth": "brief",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T22:24:26.380Z",
+ "ms": 2980,
+ "raw": "{\n  \"story\": \"Mitosis replicates a cell into two identical daughter nuclei through distinct chromosomal phases.\",\n  \"aha\": {\n    \"stateId\": \"anaphase\",\n    \"observation\": \"Sister chromatids pull apart toward opposite poles.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states.active\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\",\n        \"values\": \"variant.states.why\"\n      }\n    },\n    {\n      \"id\": \"reads\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Mitosis Step\",\n      \"options\": [\n        \"prophase\",\n        \"metaphase\",\n        \"anaphase\",\n        \"telophase\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Mitosis Cycle\",\n        \"regions\": [\n          {\n            \"id\": \"nucleus\",\n            \"label\": \"Nucleus\",\n            \"phases\": [\n              \"condensing\",\n              \"aligned\",\n              \"separating\",\n              \"divided\"\n            ]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"prophase\",\n            \"label\": \"Prophase\",\n            \"short\": \"Condense\",\n            \"sentence\": \"Chromatin condenses into visible chromosomes inside the nucleus.\",\n            \"why\": \"DNA packs tightly for safe movement.\",\n            \"active\": [\"nucleus\"],\n            \"calloutRegion\": \"nucleus\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Phase\",\n                \"value\": \"1 of 4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"metaphase\",\n            \"label\": \"Metaphase\",\n            \"short\": \"Align\",\n            \"sentence\": \"Chromosomes line up along the cell equator.\",\n            \"why\": \"Ensures equal distribution.\",\n            \"active\": [\"nucleus\"],\n            \"calloutRegion\": \"nucleus\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Phase\",\n                \"value\": \"2 of 4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"anaphase\",\n            \"label\": \"Anaphase\",\n            \"short\": \"Pull\",\n            \"sentence\": \"Sister chromatids pull apart toward opposite poles.\",\n            \"why\": \"Separates duplicate DNA copies.\",\n            \"active\": [\"nucleus\"],\n            \"calloutRegion\": \"nucleus\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Phase\",\n                \"value\": \"3 of 4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"telophase\",\n            \"label\": \"Telophase\",\n            \"short\": \"Form\",\n            \"sentence\": \"Two new nuclear envelopes form around the separated sets.\",\n            \"why\": \"Completes nuclear division.\",\n            \"active\": [\"nucleus\"],\n            \"calloutRegion\": \"nucleus\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Phase\",\n                \"value\": \"4 of 4\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Mitosis replicates a cell into two identical daughter nuclei through distinct chromosomal phases.",
+  "aha": {
+   "stateId": "anaphase",
+   "observation": "Sister chromatids pull apart toward opposite poles."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence",
+     "values": "variant.states.why"
+    }
+   },
+   {
+    "id": "reads",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Mitosis Step",
+    "options": [
+     "prophase",
+     "metaphase",
+     "anaphase",
+     "telophase"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Mitosis Cycle",
+     "regions": [
+      {
+       "id": "nucleus",
+       "label": "Nucleus",
+       "phases": [
+        "condensing",
+        "aligned",
+        "separating",
+        "divided"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Condense",
+       "sentence": "Chromatin condenses into visible chromosomes inside the nucleus.",
+       "why": "DNA packs tightly for safe movement.",
+       "active": [
+        "nucleus"
+       ],
+       "calloutRegion": "nucleus",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Phase",
+         "value": "1 of 4"
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Align",
+       "sentence": "Chromosomes line up along the cell equator.",
+       "why": "Ensures equal distribution.",
+       "active": [
+        "nucleus"
+       ],
+       "calloutRegion": "nucleus",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Phase",
+         "value": "2 of 4"
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Pull",
+       "sentence": "Sister chromatids pull apart toward opposite poles.",
+       "why": "Separates duplicate DNA copies.",
+       "active": [
+        "nucleus"
+       ],
+       "calloutRegion": "nucleus",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Phase",
+         "value": "3 of 4"
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Form",
+       "sentence": "Two new nuclear envelopes form around the separated sets.",
+       "why": "Completes nuclear division.",
+       "active": [
+        "nucleus"
+       ],
+       "calloutRegion": "nucleus",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Phase",
+         "value": "4 of 4"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1101,
+  "output": 1094
+ },
+ "usd": 0.003066,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture's single nucleus region steps through condensing, aligned, separating and divided, which answers how chromosomes get split into two nuclei."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state is anaphase, but the stepper starts at an unspecified index and has no hold at anaphase, so the learner can step past the decisive state without it being held."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex control changes the active state, the picture phase, the callout text and the readout, so each input changes the evidence shown."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The callout and readout bind to declared state fields, but the single region has only a phase label with no geometry for chromatids, poles or envelopes, so the \"pull apart\" evidence is not tied to any declared data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The control options, state labels, sentences and readouts all use the same four phase names in the same order."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth shows one changing region, one callout and one readout, with no clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The phase readouts of 1 to 4 of 4 match the step order, and the callout text carries the explanation while the readout carries only the count."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.010974
+ }
+}

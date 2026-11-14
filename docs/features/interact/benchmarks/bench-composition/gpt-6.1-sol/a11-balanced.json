@@ -1,0 +1,412 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a11",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does the TCP handshake work?",
+ "ts": "2026-11-14T22:31:16.691Z",
+ "ms": 93461,
+ "raw": "{\n  \"story\": \"How does TCP establish a connection? Start with a closed client and listening server; assume no loss, reordering, or payload. Follow SYN, SYN-ACK, and ACK, comparing endpoint states. Each endpoint needs its own SYN acknowledged; the final ACK gives the server that evidence.\",\n  \"aha\": {\n    \"stateId\": \"both-established\",\n    \"observation\": \"The final ACK confirms receipt of the server's SYN; both endpoints now have acknowledgments of their own SYNs.\"\n  },\n  \"layout\": {\n    \"preset\": \"protocol\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"handshake-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell with story and instructions above the experiment. Keep all five state labels visible.\",\n      \"bind\": {\n        \"active\": \"inputs.step\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"handshake-trace\",\n      \"kind\": \"progress\",\n      \"presentation\": \"Integrate completed-state markers into the step rail. This represents discrete states, never elapsed time.\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.step\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"endpoint-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use fixed Client and Server lanes with three ordered message rows. Links determine direction. Highlight active regions; muted routes are reference guides, not transmissions.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"endpoint-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Pair Client and Server readouts on shared rows: connection state, then acknowledgment evidence. Put Status underneath. Wrap labels without shrinking text.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the named region without covering routes. Identify where the evidence changes; keep connection-state values exclusively in readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.short\",\n        \"reason\": \"state.why\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"presentation\": \"Parameter-control budget: zero; navigation is separate. Use Previous and Next, retaining disabled boundary labels. Default zero; bounds zero through four; increment one. Provide visible focus and keyboard operation. Every state persists until navigation, including the aha state. Reference captures show that state.\",\n      \"items\": \"variant.states\",\n      \"label\": \"Handshake state\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide visible focus and keyboard activation.\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Client-initiated TCP handshake\",\n        \"regions\": [\n          {\n            \"id\": \"client\",\n            \"label\": \"Client\",\n            \"actors\": [\n              \"Active opener\"\n            ]\n          },\n          {\n            \"id\": \"server\",\n            \"label\": \"Server\",\n            \"actors\": [\n              \"Listening endpoint\"\n            ]\n          },\n          {\n            \"id\": \"syn\",\n            \"label\": \"SYN\",\n            \"values\": [\n              \"Client's connection request\"\n            ]\n          },\n          {\n            \"id\": \"syn-ack\",\n            \"label\": \"SYN-ACK\",\n            \"values\": [\n              \"Acknowledgment plus server's SYN\"\n            ]\n          },\n          {\n            \"id\": \"ack\",\n            \"label\": \"ACK\",\n            \"values\": [\n              \"Acknowledgment of server's SYN\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"client\",\n            \"to\": \"syn\",\n            \"label\": \"Send\"\n          },\n          {\n            \"from\": \"syn\",\n            \"to\": \"server\",\n            \"label\": \"Receive\"\n          },\n          {\n            \"from\": \"server\",\n            \"to\": \"syn-ack\",\n            \"label\": \"Send\"\n          },\n          {\n            \"from\": \"syn-ack\",\n            \"to\": \"client\",\n            \"label\": \"Receive\"\n          },\n          {\n            \"from\": \"client\",\n            \"to\": \"ack\",\n            \"label\": \"Send\"\n          },\n          {\n            \"from\": \"ack\",\n            \"to\": \"server\",\n            \"label\": \"Receive\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"ready\",\n            \"label\": \"Ready\",\n            \"short\": \"Client begins the exchange\",\n            \"sentence\": \"The server is listening; the client has not sent SYN.\",\n            \"why\": \"The client actively opens this connection. The server waits for an incoming request.\",\n            \"active\": [\n              \"client\",\n              \"server\"\n            ],\n            \"calloutRegion\": \"client\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"CLOSED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"LISTEN\"\n              },\n              {\n                \"id\": \"client-evidence\",\n                \"label\": \"Client's own SYN acknowledgment\",\n                \"value\": \"Not received\"\n              },\n              {\n                \"id\": \"server-evidence\",\n                \"label\": \"Server's own SYN acknowledgment\",\n                \"value\": \"Not received\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"No handshake messages have been sent.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"syn-sent\",\n            \"label\": \"SYN sent\",\n            \"short\": \"SYN travels to Server\",\n            \"sentence\": \"The client sends SYN; the server has not received it yet.\",\n            \"why\": \"SYN starts the exchange, but sending a request does not establish that the peer received it.\",\n            \"active\": [\n              \"client\",\n              \"syn\"\n            ],\n            \"calloutRegion\": \"syn\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"SYN-SENT\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"LISTEN\"\n              },\n              {\n                \"id\": \"client-evidence\",\n                \"label\": \"Client's own SYN acknowledgment\",\n                \"value\": \"Not received\"\n              },\n              {\n                \"id\": \"server-evidence\",\n                \"label\": \"Server's own SYN acknowledgment\",\n                \"value\": \"Not received\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"SYN is in transit from Client to Server.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"syn-ack-sent\",\n            \"label\": \"SYN-ACK sent\",\n            \"short\": \"Server replies with SYN-ACK\",\n            \"sentence\": \"The server receives SYN and sends SYN-ACK; the client has not received the reply yet.\",\n            \"why\": \"SYN-ACK acknowledges the client's SYN and introduces the server's own SYN. The server still needs acknowledgment of its SYN.\",\n            \"active\": [\n              \"server\",\n              \"syn-ack\"\n            ],\n            \"calloutRegion\": \"syn-ack\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"SYN-SENT\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"SYN-RECEIVED\"\n              },\n              {\n                \"id\": \"client-evidence\",\n                \"label\": \"Client's own SYN acknowledgment\",\n                \"value\": \"Not received\"\n              },\n              {\n                \"id\": \"server-evidence\",\n                \"label\": \"Server's own SYN acknowledgment\",\n                \"value\": \"Not received\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"SYN-ACK is in transit from Server to Client.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"ack-sent\",\n            \"label\": \"ACK sent\",\n            \"short\": \"Client sends the final ACK\",\n            \"sentence\": \"The client receives SYN-ACK and sends ACK; the server has not received that ACK yet.\",\n            \"why\": \"The client now has acknowledgment of its own SYN. Compare the endpoints: the server still lacks the corresponding evidence.\",\n            \"active\": [\n              \"client\",\n              \"ack\"\n            ],\n            \"calloutRegion\": \"ack\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"SYN-RECEIVED\"\n              },\n              {\n                \"id\": \"client-evidence\",\n                \"label\": \"Client's own SYN acknowledgment\",\n                \"value\": \"Received\"\n              },\n              {\n                \"id\": \"server-evidence\",\n                \"label\": \"Server's own SYN acknowledgment\",\n                \"value\": \"Not received\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"ACK is in transit; only Client has finished establishing the connection.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"both-established\",\n            \"label\": \"ACK received\",\n            \"short\": \"Server receives the missing evidence\",\n            \"sentence\": \"The server receives the final ACK; both endpoints have finished establishing the connection.\",\n            \"why\": \"The final ACK acknowledges the server's SYN. Each endpoint has now received acknowledgment of its own SYN.\",\n            \"active\": [\n              \"client\",\n              \"server\",\n              \"ack\"\n            ],\n            \"calloutRegion\": \"server\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"client-evidence\",\n                \"label\": \"Client's own SYN acknowledgment\",\n                \"value\": \"Received\"\n              },\n              {\n                \"id\": \"server-evidence\",\n                \"label\": \"Server's own SYN acknowledgment\",\n                \"value\": \"Received\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Both endpoints have the acknowledgment needed to establish the connection.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does TCP establish a connection? Start with a closed client and listening server; assume no loss, reordering, or payload. Follow SYN, SYN-ACK, and ACK, comparing endpoint states. Each endpoint needs its own SYN acknowledged; the final ACK gives the server that evidence.",
+  "aha": {
+   "stateId": "both-established",
+   "observation": "The final ACK confirms receipt of the server's SYN; both endpoints now have acknowledgments of their own SYNs."
+  },
+  "layout": {
+   "preset": "protocol",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "handshake-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell with story and instructions above the experiment. Keep all five state labels visible.",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "handshake-trace",
+    "kind": "progress",
+    "presentation": "Integrate completed-state markers into the step rail. This represents discrete states, never elapsed time.",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "endpoint-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use fixed Client and Server lanes with three ordered message rows. Links determine direction. Highlight active regions; muted routes are reference guides, not transmissions.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "endpoint-evidence",
+    "kind": "value-readout",
+    "presentation": "Pair Client and Server readouts on shared rows: connection state, then acknowledgment evidence. Put Status underneath. Wrap labels without shrinking text.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the named region without covering routes. Identify where the evidence changes; keep connection-state values exclusively in readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.short",
+     "reason": "state.why"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "presentation": "Parameter-control budget: zero; navigation is separate. Use Previous and Next, retaining disabled boundary labels. Default zero; bounds zero through four; increment one. Provide visible focus and keyboard operation. Every state persists until navigation, including the aha state. Reference captures show that state.",
+    "items": "variant.states",
+    "label": "Handshake state"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "presentation": "Restore the first state and all defaults. Provide visible focus and keyboard activation.",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Client-initiated TCP handshake",
+     "regions": [
+      {
+       "id": "client",
+       "label": "Client",
+       "actors": [
+        "Active opener"
+       ]
+      },
+      {
+       "id": "server",
+       "label": "Server",
+       "actors": [
+        "Listening endpoint"
+       ]
+      },
+      {
+       "id": "syn",
+       "label": "SYN",
+       "values": [
+        "Client's connection request"
+       ]
+      },
+      {
+       "id": "syn-ack",
+       "label": "SYN-ACK",
+       "values": [
+        "Acknowledgment plus server's SYN"
+       ]
+      },
+      {
+       "id": "ack",
+       "label": "ACK",
+       "values": [
+        "Acknowledgment of server's SYN"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "client",
+       "to": "syn",
+       "label": "Send"
+      },
+      {
+       "from": "syn",
+       "to": "server",
+       "label": "Receive"
+      },
+      {
+       "from": "server",
+       "to": "syn-ack",
+       "label": "Send"
+      },
+      {
+       "from": "syn-ack",
+       "to": "client",
+       "label": "Receive"
+      },
+      {
+       "from": "client",
+       "to": "ack",
+       "label": "Send"
+      },
+      {
+       "from": "ack",
+       "to": "server",
+       "label": "Receive"
+      }
+     ],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Ready",
+       "short": "Client begins the exchange",
+       "sentence": "The server is listening; the client has not sent SYN.",
+       "why": "The client actively opens this connection. The server waits for an incoming request.",
+       "active": [
+        "client",
+        "server"
+       ],
+       "calloutRegion": "client",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "CLOSED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "client-evidence",
+         "label": "Client's own SYN acknowledgment",
+         "value": "Not received"
+        },
+        {
+         "id": "server-evidence",
+         "label": "Server's own SYN acknowledgment",
+         "value": "Not received"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "No handshake messages have been sent."
+        }
+       ]
+      },
+      {
+       "id": "syn-sent",
+       "label": "SYN sent",
+       "short": "SYN travels to Server",
+       "sentence": "The client sends SYN; the server has not received it yet.",
+       "why": "SYN starts the exchange, but sending a request does not establish that the peer received it.",
+       "active": [
+        "client",
+        "syn"
+       ],
+       "calloutRegion": "syn",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "client-evidence",
+         "label": "Client's own SYN acknowledgment",
+         "value": "Not received"
+        },
+        {
+         "id": "server-evidence",
+         "label": "Server's own SYN acknowledgment",
+         "value": "Not received"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "SYN is in transit from Client to Server."
+        }
+       ]
+      },
+      {
+       "id": "syn-ack-sent",
+       "label": "SYN-ACK sent",
+       "short": "Server replies with SYN-ACK",
+       "sentence": "The server receives SYN and sends SYN-ACK; the client has not received the reply yet.",
+       "why": "SYN-ACK acknowledges the client's SYN and introduces the server's own SYN. The server still needs acknowledgment of its SYN.",
+       "active": [
+        "server",
+        "syn-ack"
+       ],
+       "calloutRegion": "syn-ack",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "client-evidence",
+         "label": "Client's own SYN acknowledgment",
+         "value": "Not received"
+        },
+        {
+         "id": "server-evidence",
+         "label": "Server's own SYN acknowledgment",
+         "value": "Not received"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "SYN-ACK is in transit from Server to Client."
+        }
+       ]
+      },
+      {
+       "id": "ack-sent",
+       "label": "ACK sent",
+       "short": "Client sends the final ACK",
+       "sentence": "The client receives SYN-ACK and sends ACK; the server has not received that ACK yet.",
+       "why": "The client now has acknowledgment of its own SYN. Compare the endpoints: the server still lacks the corresponding evidence.",
+       "active": [
+        "client",
+        "ack"
+       ],
+       "calloutRegion": "ack",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "client-evidence",
+         "label": "Client's own SYN acknowledgment",
+         "value": "Received"
+        },
+        {
+         "id": "server-evidence",
+         "label": "Server's own SYN acknowledgment",
+         "value": "Not received"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "ACK is in transit; only Client has finished establishing the connection."
+        }
+       ]
+      },
+      {
+       "id": "both-established",
+       "label": "ACK received",
+       "short": "Server receives the missing evidence",
+       "sentence": "The server receives the final ACK; both endpoints have finished establishing the connection.",
+       "why": "The final ACK acknowledges the server's SYN. Each endpoint has now received acknowledgment of its own SYN.",
+       "active": [
+        "client",
+        "server",
+        "ack"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "client-evidence",
+         "label": "Client's own SYN acknowledgment",
+         "value": "Received"
+        },
+        {
+         "id": "server-evidence",
+         "label": "Server's own SYN acknowledgment",
+         "value": "Received"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Both endpoints have the acknowledgment needed to establish the connection."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 5488
+ },
+ "usd": 0.055076,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "Client/server lanes with SYN, SYN-ACK and ACK message rows plus paired state and evidence readouts show how the three-way handshake establishes the connection."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The both-established aha is the final state, and every state persists until the learner navigates."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There is no parameter, which is justified as a fixed protocol comparison, and each step changes active regions, readouts and callout."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, readouts and callout all bind to variant states, links, regions and state fields, and the link endpoints resolve to declared regions."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, regions and the Previous/Next and Reset controls consistently name the client, server, SYN, SYN-ACK and ACK events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Standard depth is served by the paired client/server readouts as a comparison, with a single changing picture and no extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "TCP states and acknowledgment evidence are correct at every step including the first and last, and the callout locates the change while the readouts hold the values."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.02088
+ }
+}

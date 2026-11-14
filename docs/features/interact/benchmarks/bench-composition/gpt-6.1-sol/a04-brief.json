@@ -1,0 +1,272 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a04",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does RLHF work?",
+ "ts": "2026-11-14T22:23:38.008Z",
+ "ms": 84959,
+ "raw": "{\n  \"story\": \"How does RLHF turn human feedback into model behavior? Start with two answers from an instruction-tuned Answer model. Follow Human ranking into Reward model training. Advance to Reward-guided update to see how learned reward changes the Answer model. Use Previous and Next to inspect each state.\",\n  \"aha\": {\n    \"stateId\": \"reward-guided-update\",\n    \"observation\": \"Human rankings train a reward model; reinforcement learning uses its scores to make higher-reward answers more likely.\"\n  },\n  \"layout\": {\n    \"preset\": \"approved-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"training-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation and instructions. Show the active state and completed trace here, not inside the picture.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"training-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical pipeline arrangement with fixed named regions and wrapped labels. Change one region's highlight at a time. Keep every region stationary.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor to the highlighted region. Explain its role without duplicating readout values.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"training-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place below the picture. Reserve the last row for bound status. These categorical readouts use no units, numerical scales, or rounding.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"training-state\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Training state\",\n      \"presentation\": \"Provide Previous and Next with accessible names, visible focus, and keyboard operation. Preserve names when disabled at boundaries. Default to the first state. Bounds are the first and last states; each action advances one state. Every state persists until another action. Capture Reward-guided update as the reference state.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Support keyboard activation and visible focus. Brief parameter-control budget: zero. Navigation and Reset are separate from that budget.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Brief RLHF: one illustrative preference\",\n        \"regions\": [\n          {\n            \"id\": \"answer-model\",\n            \"label\": \"Answer model\",\n            \"values\": [\n              \"Prompt: Explain rain to a child.\",\n              \"Answer A: Water falls from clouds.\",\n              \"Answer B: Hydrometeors precipitate.\"\n            ]\n          },\n          {\n            \"id\": \"human-ranking\",\n            \"label\": \"Human ranking\",\n            \"actors\": [\n              \"Human reviewer\"\n            ]\n          },\n          {\n            \"id\": \"reward-model\",\n            \"label\": \"Reward model\",\n            \"actors\": [\n              \"Learned preference scorer\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"answer-model\",\n            \"to\": \"human-ranking\",\n            \"label\": \"Answers for comparison\"\n          },\n          {\n            \"from\": \"human-ranking\",\n            \"to\": \"reward-model\",\n            \"label\": \"Ranking used for training\"\n          },\n          {\n            \"from\": \"reward-model\",\n            \"to\": \"answer-model\",\n            \"label\": \"Reward used for reinforcement learning\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"generate-answers\",\n            \"label\": \"Generate answers\",\n            \"short\": \"Generate\",\n            \"sentence\": \"The instruction-tuned Answer model generates two candidate answers to the same prompt.\",\n            \"why\": \"The prompt and candidate answers stay fixed throughout this simplified example.\",\n            \"active\": [\n              \"answer-model\"\n            ],\n            \"calloutRegion\": \"answer-model\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Candidates available; human feedback not collected.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"collect-ranking\",\n            \"label\": \"Collect human ranking\",\n            \"short\": \"Rank\",\n            \"sentence\": \"The human reviewer compares the candidates for clarity to a child.\",\n            \"why\": \"This fixed, illustrative preference supplies training feedback; the Answer model has not changed.\",\n            \"active\": [\n              \"human-ranking\"\n            ],\n            \"calloutRegion\": \"human-ranking\",\n            \"readouts\": [\n              {\n                \"id\": \"human-preference\",\n                \"label\": \"Human preference\",\n                \"value\": \"Answer A preferred over Answer B.\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Human ranking collected; Answer model unchanged.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"train-reward-model\",\n            \"label\": \"Train reward model\",\n            \"short\": \"Learn reward\",\n            \"sentence\": \"The Reward model learns to predict human rankings, providing a scoring signal for reinforcement learning.\",\n            \"why\": \"Real training uses many comparisons; this illustration assumes the Reward model reproduces the example preference.\",\n            \"active\": [\n              \"reward-model\"\n            ],\n            \"calloutRegion\": \"reward-model\",\n            \"readouts\": [\n              {\n                \"id\": \"predicted-reward\",\n                \"label\": \"Predicted reward order\",\n                \"value\": \"Answer A above Answer B.\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Reward model trained; Answer model unchanged.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"reward-guided-update\",\n            \"label\": \"Reward-guided update\",\n            \"short\": \"Update\",\n            \"sentence\": \"Reinforcement learning updates the Answer model using Reward model scores rather than another human vote.\",\n            \"why\": \"The illustrated update increases the likelihood of the higher-reward answer; learned reward remains an imperfect proxy for human preferences.\",\n            \"active\": [\n              \"answer-model\"\n            ],\n            \"calloutRegion\": \"answer-model\",\n            \"readouts\": [\n              {\n                \"id\": \"update-signal\",\n                \"label\": \"Update signal\",\n                \"value\": \"Reward model scores, learned from Human ranking.\"\n              },\n              {\n                \"id\": \"model-change\",\n                \"label\": \"Compared with before the update\",\n                \"value\": \"Answer A is now more likely.\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Reward-guided update complete; held for inspection.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does RLHF turn human feedback into model behavior? Start with two answers from an instruction-tuned Answer model. Follow Human ranking into Reward model training. Advance to Reward-guided update to see how learned reward changes the Answer model. Use Previous and Next to inspect each state.",
+  "aha": {
+   "stateId": "reward-guided-update",
+   "observation": "Human rankings train a reward model; reinforcement learning uses its scores to make higher-reward answers more likely."
+  },
+  "layout": {
+   "preset": "approved-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "training-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation and instructions. Show the active state and completed trace here, not inside the picture.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "training-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical pipeline arrangement with fixed named regions and wrapped labels. Change one region's highlight at a time. Keep every region stationary.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor to the highlighted region. Explain its role without duplicating readout values.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "training-evidence",
+    "kind": "value-readout",
+    "presentation": "Place below the picture. Reserve the last row for bound status. These categorical readouts use no units, numerical scales, or rounding.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "training-state",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Training state",
+    "presentation": "Provide Previous and Next with accessible names, visible focus, and keyboard operation. Preserve names when disabled at boundaries. Default to the first state. Bounds are the first and last states; each action advances one state. Every state persists until another action. Capture Reward-guided update as the reference state."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Support keyboard activation and visible focus. Brief parameter-control budget: zero. Navigation and Reset are separate from that budget."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Brief RLHF: one illustrative preference",
+     "regions": [
+      {
+       "id": "answer-model",
+       "label": "Answer model",
+       "values": [
+        "Prompt: Explain rain to a child.",
+        "Answer A: Water falls from clouds.",
+        "Answer B: Hydrometeors precipitate."
+       ]
+      },
+      {
+       "id": "human-ranking",
+       "label": "Human ranking",
+       "actors": [
+        "Human reviewer"
+       ]
+      },
+      {
+       "id": "reward-model",
+       "label": "Reward model",
+       "actors": [
+        "Learned preference scorer"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "answer-model",
+       "to": "human-ranking",
+       "label": "Answers for comparison"
+      },
+      {
+       "from": "human-ranking",
+       "to": "reward-model",
+       "label": "Ranking used for training"
+      },
+      {
+       "from": "reward-model",
+       "to": "answer-model",
+       "label": "Reward used for reinforcement learning"
+      }
+     ],
+     "states": [
+      {
+       "id": "generate-answers",
+       "label": "Generate answers",
+       "short": "Generate",
+       "sentence": "The instruction-tuned Answer model generates two candidate answers to the same prompt.",
+       "why": "The prompt and candidate answers stay fixed throughout this simplified example.",
+       "active": [
+        "answer-model"
+       ],
+       "calloutRegion": "answer-model",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Candidates available; human feedback not collected."
+        }
+       ]
+      },
+      {
+       "id": "collect-ranking",
+       "label": "Collect human ranking",
+       "short": "Rank",
+       "sentence": "The human reviewer compares the candidates for clarity to a child.",
+       "why": "This fixed, illustrative preference supplies training feedback; the Answer model has not changed.",
+       "active": [
+        "human-ranking"
+       ],
+       "calloutRegion": "human-ranking",
+       "readouts": [
+        {
+         "id": "human-preference",
+         "label": "Human preference",
+         "value": "Answer A preferred over Answer B."
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Human ranking collected; Answer model unchanged."
+        }
+       ]
+      },
+      {
+       "id": "train-reward-model",
+       "label": "Train reward model",
+       "short": "Learn reward",
+       "sentence": "The Reward model learns to predict human rankings, providing a scoring signal for reinforcement learning.",
+       "why": "Real training uses many comparisons; this illustration assumes the Reward model reproduces the example preference.",
+       "active": [
+        "reward-model"
+       ],
+       "calloutRegion": "reward-model",
+       "readouts": [
+        {
+         "id": "predicted-reward",
+         "label": "Predicted reward order",
+         "value": "Answer A above Answer B."
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Reward model trained; Answer model unchanged."
+        }
+       ]
+      },
+      {
+       "id": "reward-guided-update",
+       "label": "Reward-guided update",
+       "short": "Update",
+       "sentence": "Reinforcement learning updates the Answer model using Reward model scores rather than another human vote.",
+       "why": "The illustrated update increases the likelihood of the higher-reward answer; learned reward remains an imperfect proxy for human preferences.",
+       "active": [
+        "answer-model"
+       ],
+       "calloutRegion": "answer-model",
+       "readouts": [
+        {
+         "id": "update-signal",
+         "label": "Update signal",
+         "value": "Reward model scores, learned from Human ranking."
+        },
+        {
+         "id": "model-change",
+         "label": "Compared with before the update",
+         "value": "Answer A is now more likely."
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Reward-guided update complete; held for inspection."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1532,
+  "output": 4324
+ },
+ "usd": 0.043434,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture's Answer model, Human ranking and Reward model regions with three labeled links answer how human feedback becomes model behavior, with the highlight moving through each step."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The reward-guided-update state is the reference state, and its status readout says \"held for inspection\", so it persists until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The brief budget allows zero parameters, and the only control, the state index, changes the active region, callout and readouts in every state."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Highlights bind to state.active, links to variant.links, the callout to calloutRegion, sentence and why, and the readouts to state.readouts, all declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, region labels, state names and Previous/Next controls all use the same terms (Answer model, Human ranking, Reward model, Reward-guided update)."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The picture is a fixed three-region layout where only one highlight changes at a time, and the readouts stay to one to three short rows, which suits brief depth."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "There are no numeric values, and the categorical readouts are consistent with each other (A preferred, reward order A above B, A now more likely); the callout explains the role while the readouts hold the outcomes."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01283
+ }
+}

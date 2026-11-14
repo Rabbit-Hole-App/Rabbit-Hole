@@ -1,0 +1,454 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "b-merge-sort",
+ "set": "B",
+ "subject": "merge-sort",
+ "depth": "balanced",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T23:05:59.972Z",
+ "ms": 167352,
+ "raw": "{\n  \"story\": \"Start with an unsorted list, then split it into single-item runs. Merge sorted runs by repeatedly taking their smaller front item. Watch the final output grow while remaining sorted; when one run empties, append the other. Use Previous and Next to inspect each choice.\",\n  \"aha\": {\n    \"stateId\": \"complete\",\n    \"observation\": \"Choosing the smaller front of two sorted runs preserves output order; repeated merges therefore sort the entire list.\"\n  },\n  \"layout\": {\n    \"preset\": \"approved-card/stepper-states/algorithm-collection\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"step-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation and instructions. Wrap step labels without shrinking text. Keep progress on this rail, with the selected state highlighted. Every state persists until the learner acts. Reference captures show complete.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"merge-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical algorithm collection arrangement: Input, halves, singletons, then sorted runs. Group the final four cells into Left sorted run and Right sorted run. Preserve declared cell order within each group. Initial view highlights Input; other regions remain muted and legible as reference states. Highlight active regions without moving cells. Links distinguish splitting from merging. Reserve label space in every row. Use equal-width cells; position encodes sequence, not magnitude. Inputs are fixed, distinct, unitless integers; sort ascending. Earlier rows remain visible for comparison, so no previous-state ghost is needed.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-part\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor text to the target region. The callout identifies where, without repeating numeric values. Render reason as the bound status line below the readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.short\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"merge-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place below the picture. Output prefix records the top-level merge only; earlier merges appear in the fixed picture. Picture highlights identify the front candidates used for the displayed output addition. Comparisons count cumulative front-value comparisons across all merges. Comparing two available fronts adds one; appending an exhausted run's remainder adds none. Counts are exact integers.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Merge sort state\",\n      \"presentation\": \"Navigation budget: one index control; parameter-control budget: zero. Show Previous and Next with those accessible names, retaining their names when disabled at boundaries. Default to the first state; bounds are the first and last states; increment one state. Provide visible focus and keyboard activation. Never advance automatically.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and fixed input defaults. Provide visible focus; Enter and Space activate the focused button.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Four-item merge sort\",\n        \"regions\": [\n          {\n            \"id\": \"input\",\n            \"label\": \"Input\",\n            \"values\": [\"8\", \"3\", \"6\", \"2\"]\n          },\n          {\n            \"id\": \"left-half\",\n            \"label\": \"Left half\",\n            \"values\": [\"8\", \"3\"]\n          },\n          {\n            \"id\": \"right-half\",\n            \"label\": \"Right half\",\n            \"values\": [\"6\", \"2\"]\n          },\n          {\n            \"id\": \"left-singleton-a\",\n            \"label\": \"Left singleton A\",\n            \"values\": [\"8\"]\n          },\n          {\n            \"id\": \"left-singleton-b\",\n            \"label\": \"Left singleton B\",\n            \"values\": [\"3\"]\n          },\n          {\n            \"id\": \"right-singleton-a\",\n            \"label\": \"Right singleton A\",\n            \"values\": [\"6\"]\n          },\n          {\n            \"id\": \"right-singleton-b\",\n            \"label\": \"Right singleton B\",\n            \"values\": [\"2\"]\n          },\n          {\n            \"id\": \"left-first\",\n            \"label\": \"Left sorted run · first\",\n            \"values\": [\"3\"]\n          },\n          {\n            \"id\": \"left-second\",\n            \"label\": \"Left sorted run · second\",\n            \"values\": [\"8\"]\n          },\n          {\n            \"id\": \"right-first\",\n            \"label\": \"Right sorted run · first\",\n            \"values\": [\"2\"]\n          },\n          {\n            \"id\": \"right-second\",\n            \"label\": \"Right sorted run · second\",\n            \"values\": [\"6\"]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"input\",\n            \"to\": \"left-half\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"input\",\n            \"to\": \"right-half\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"left-half\",\n            \"to\": \"left-singleton-a\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"left-half\",\n            \"to\": \"left-singleton-b\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"right-half\",\n            \"to\": \"right-singleton-a\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"right-half\",\n            \"to\": \"right-singleton-b\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"left-singleton-b\",\n            \"to\": \"left-first\",\n            \"label\": \"merge\"\n          },\n          {\n            \"from\": \"left-singleton-a\",\n            \"to\": \"left-second\",\n            \"label\": \"merge\"\n          },\n          {\n            \"from\": \"right-singleton-b\",\n            \"to\": \"right-first\",\n            \"label\": \"merge\"\n          },\n          {\n            \"from\": \"right-singleton-a\",\n            \"to\": \"right-second\",\n            \"label\": \"merge\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"start\",\n            \"label\": \"Unsorted input\",\n            \"short\": \"Input\",\n            \"sentence\": \"Begin with the fixed unsorted input.\",\n            \"why\": \"The Input is unsorted; splitting creates smaller sorting problems without changing any values.\",\n            \"active\": [\"input\"],\n            \"calloutRegion\": \"input\",\n            \"readouts\": [\n              {\n                \"id\": \"output\",\n                \"label\": \"Output prefix\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Front comparisons\",\n                \"value\": \"0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"split-halves\",\n            \"label\": \"Split into halves\",\n            \"short\": \"Left half\",\n            \"sentence\": \"Divide the Input into Left half and Right half.\",\n            \"why\": \"Both halves preserve input order; each must be split again before merging.\",\n            \"active\": [\"left-half\", \"right-half\"],\n            \"calloutRegion\": \"left-half\",\n            \"readouts\": [\n              {\n                \"id\": \"output\",\n                \"label\": \"Output prefix\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Front comparisons\",\n                \"value\": \"0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"singletons\",\n            \"label\": \"Reach singletons\",\n            \"short\": \"Left singleton A\",\n            \"sentence\": \"Split each half into singleton runs.\",\n            \"why\": \"Every singleton is already sorted, giving merge sort its base case.\",\n            \"active\": [\n              \"left-singleton-a\",\n              \"left-singleton-b\",\n              \"right-singleton-a\",\n              \"right-singleton-b\"\n            ],\n            \"calloutRegion\": \"left-singleton-a\",\n            \"readouts\": [\n              {\n                \"id\": \"output\",\n                \"label\": \"Output prefix\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Front comparisons\",\n                \"value\": \"0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"merge-left\",\n            \"label\": \"Merge left pair\",\n            \"short\": \"Left sorted run · first\",\n            \"sentence\": \"Merge the left singleton pair into a sorted run.\",\n            \"why\": \"Compare the singleton fronts, place the smaller first, then append the remaining singleton.\",\n            \"active\": [\n              \"left-singleton-a\",\n              \"left-singleton-b\",\n              \"left-first\",\n              \"left-second\"\n            ],\n            \"calloutRegion\": \"left-first\",\n            \"readouts\": [\n              {\n                \"id\": \"output\",\n                \"label\": \"Output prefix\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Front comparisons\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"merge-right\",\n            \"label\": \"Merge right pair\",\n            \"short\": \"Right sorted run · first\",\n            \"sentence\": \"Merge the right singleton pair into a sorted run.\",\n            \"why\": \"The same rule creates the Right sorted run; both runs are now ready for the final merge.\",\n            \"active\": [\n              \"right-singleton-a\",\n              \"right-singleton-b\",\n              \"right-first\",\n              \"right-second\"\n            ],\n            \"calloutRegion\": \"right-first\",\n            \"readouts\": [\n              {\n                \"id\": \"output\",\n                \"label\": \"Output prefix\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Front comparisons\",\n                \"value\": \"2\"\n              }\n            ]\n          },\n          {\n            \"id\": \"take-right-first\",\n            \"label\": \"Choose right front\",\n            \"short\": \"Right sorted run · first\",\n            \"sentence\": \"Compare both run fronts and start the output with the smaller.\",\n            \"why\": \"The right front is smaller; choosing it starts a sorted output prefix.\",\n            \"active\": [\"left-first\", \"right-first\"],\n            \"calloutRegion\": \"right-first\",\n            \"readouts\": [\n              {\n                \"id\": \"output\",\n                \"label\": \"Output prefix\",\n                \"value\": \"[2]\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Front comparisons\",\n                \"value\": \"3\"\n              }\n            ]\n          },\n          {\n            \"id\": \"take-left-first\",\n            \"label\": \"Choose left front\",\n            \"short\": \"Left sorted run · first\",\n            \"sentence\": \"Advance the right front and compare again.\",\n            \"why\": \"Skip the consumed right first cell; the left front is now smaller, preserving output order.\",\n            \"active\": [\"left-first\", \"right-second\"],\n            \"calloutRegion\": \"left-first\",\n            \"readouts\": [\n              {\n                \"id\": \"output\",\n                \"label\": \"Output prefix\",\n                \"value\": \"[2, 3]\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Front comparisons\",\n                \"value\": \"4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"take-right-second\",\n            \"label\": \"Choose right remainder\",\n            \"short\": \"Right sorted run · second\",\n            \"sentence\": \"Compare the remaining fronts and extend the sorted prefix.\",\n            \"why\": \"Skip both consumed first cells; the right front is smaller, so the output remains sorted.\",\n            \"active\": [\"left-second\", \"right-second\"],\n            \"calloutRegion\": \"right-second\",\n            \"readouts\": [\n              {\n                \"id\": \"output\",\n                \"label\": \"Output prefix\",\n                \"value\": \"[2, 3, 6]\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Front comparisons\",\n                \"value\": \"5\"\n              }\n            ]\n          },\n          {\n            \"id\": \"complete\",\n            \"label\": \"Append and finish\",\n            \"short\": \"Left sorted run · second\",\n            \"sentence\": \"The output contains every input item in nondecreasing order.\",\n            \"why\": \"The right run is empty; append the left remainder without comparing, completing the sorted output.\",\n            \"active\": [\"left-second\"],\n            \"calloutRegion\": \"left-second\",\n            \"readouts\": [\n              {\n                \"id\": \"output\",\n                \"label\": \"Output prefix\",\n                \"value\": \"[2, 3, 6, 8]\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Front comparisons\",\n                \"value\": \"5\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Start with an unsorted list, then split it into single-item runs. Merge sorted runs by repeatedly taking their smaller front item. Watch the final output grow while remaining sorted; when one run empties, append the other. Use Previous and Next to inspect each choice.",
+  "aha": {
+   "stateId": "complete",
+   "observation": "Choosing the smaller front of two sorted runs preserves output order; repeated merges therefore sort the entire list."
+  },
+  "layout": {
+   "preset": "approved-card/stepper-states/algorithm-collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "step-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation and instructions. Wrap step labels without shrinking text. Keep progress on this rail, with the selected state highlighted. Every state persists until the learner acts. Reference captures show complete.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "merge-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical algorithm collection arrangement: Input, halves, singletons, then sorted runs. Group the final four cells into Left sorted run and Right sorted run. Preserve declared cell order within each group. Initial view highlights Input; other regions remain muted and legible as reference states. Highlight active regions without moving cells. Links distinguish splitting from merging. Reserve label space in every row. Use equal-width cells; position encodes sequence, not magnitude. Inputs are fixed, distinct, unitless integers; sort ascending. Earlier rows remain visible for comparison, so no previous-state ghost is needed.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-part",
+    "kind": "active-callout",
+    "presentation": "Anchor text to the target region. The callout identifies where, without repeating numeric values. Render reason as the bound status line below the readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.short",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "merge-readouts",
+    "kind": "value-readout",
+    "presentation": "Place below the picture. Output prefix records the top-level merge only; earlier merges appear in the fixed picture. Picture highlights identify the front candidates used for the displayed output addition. Comparisons count cumulative front-value comparisons across all merges. Comparing two available fronts adds one; appending an exhausted run's remainder adds none. Counts are exact integers.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Merge sort state",
+    "presentation": "Navigation budget: one index control; parameter-control budget: zero. Show Previous and Next with those accessible names, retaining their names when disabled at boundaries. Default to the first state; bounds are the first and last states; increment one state. Provide visible focus and keyboard activation. Never advance automatically."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and fixed input defaults. Provide visible focus; Enter and Space activate the focused button."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Four-item merge sort",
+     "regions": [
+      {
+       "id": "input",
+       "label": "Input",
+       "values": [
+        "8",
+        "3",
+        "6",
+        "2"
+       ]
+      },
+      {
+       "id": "left-half",
+       "label": "Left half",
+       "values": [
+        "8",
+        "3"
+       ]
+      },
+      {
+       "id": "right-half",
+       "label": "Right half",
+       "values": [
+        "6",
+        "2"
+       ]
+      },
+      {
+       "id": "left-singleton-a",
+       "label": "Left singleton A",
+       "values": [
+        "8"
+       ]
+      },
+      {
+       "id": "left-singleton-b",
+       "label": "Left singleton B",
+       "values": [
+        "3"
+       ]
+      },
+      {
+       "id": "right-singleton-a",
+       "label": "Right singleton A",
+       "values": [
+        "6"
+       ]
+      },
+      {
+       "id": "right-singleton-b",
+       "label": "Right singleton B",
+       "values": [
+        "2"
+       ]
+      },
+      {
+       "id": "left-first",
+       "label": "Left sorted run · first",
+       "values": [
+        "3"
+       ]
+      },
+      {
+       "id": "left-second",
+       "label": "Left sorted run · second",
+       "values": [
+        "8"
+       ]
+      },
+      {
+       "id": "right-first",
+       "label": "Right sorted run · first",
+       "values": [
+        "2"
+       ]
+      },
+      {
+       "id": "right-second",
+       "label": "Right sorted run · second",
+       "values": [
+        "6"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "input",
+       "to": "left-half",
+       "label": "split"
+      },
+      {
+       "from": "input",
+       "to": "right-half",
+       "label": "split"
+      },
+      {
+       "from": "left-half",
+       "to": "left-singleton-a",
+       "label": "split"
+      },
+      {
+       "from": "left-half",
+       "to": "left-singleton-b",
+       "label": "split"
+      },
+      {
+       "from": "right-half",
+       "to": "right-singleton-a",
+       "label": "split"
+      },
+      {
+       "from": "right-half",
+       "to": "right-singleton-b",
+       "label": "split"
+      },
+      {
+       "from": "left-singleton-b",
+       "to": "left-first",
+       "label": "merge"
+      },
+      {
+       "from": "left-singleton-a",
+       "to": "left-second",
+       "label": "merge"
+      },
+      {
+       "from": "right-singleton-b",
+       "to": "right-first",
+       "label": "merge"
+      },
+      {
+       "from": "right-singleton-a",
+       "to": "right-second",
+       "label": "merge"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Unsorted input",
+       "short": "Input",
+       "sentence": "Begin with the fixed unsorted input.",
+       "why": "The Input is unsorted; splitting creates smaller sorting problems without changing any values.",
+       "active": [
+        "input"
+       ],
+       "calloutRegion": "input",
+       "readouts": [
+        {
+         "id": "output",
+         "label": "Output prefix",
+         "value": "Empty"
+        },
+        {
+         "id": "comparisons",
+         "label": "Front comparisons",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "split-halves",
+       "label": "Split into halves",
+       "short": "Left half",
+       "sentence": "Divide the Input into Left half and Right half.",
+       "why": "Both halves preserve input order; each must be split again before merging.",
+       "active": [
+        "left-half",
+        "right-half"
+       ],
+       "calloutRegion": "left-half",
+       "readouts": [
+        {
+         "id": "output",
+         "label": "Output prefix",
+         "value": "Empty"
+        },
+        {
+         "id": "comparisons",
+         "label": "Front comparisons",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "singletons",
+       "label": "Reach singletons",
+       "short": "Left singleton A",
+       "sentence": "Split each half into singleton runs.",
+       "why": "Every singleton is already sorted, giving merge sort its base case.",
+       "active": [
+        "left-singleton-a",
+        "left-singleton-b",
+        "right-singleton-a",
+        "right-singleton-b"
+       ],
+       "calloutRegion": "left-singleton-a",
+       "readouts": [
+        {
+         "id": "output",
+         "label": "Output prefix",
+         "value": "Empty"
+        },
+        {
+         "id": "comparisons",
+         "label": "Front comparisons",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "merge-left",
+       "label": "Merge left pair",
+       "short": "Left sorted run · first",
+       "sentence": "Merge the left singleton pair into a sorted run.",
+       "why": "Compare the singleton fronts, place the smaller first, then append the remaining singleton.",
+       "active": [
+        "left-singleton-a",
+        "left-singleton-b",
+        "left-first",
+        "left-second"
+       ],
+       "calloutRegion": "left-first",
+       "readouts": [
+        {
+         "id": "output",
+         "label": "Output prefix",
+         "value": "Empty"
+        },
+        {
+         "id": "comparisons",
+         "label": "Front comparisons",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "merge-right",
+       "label": "Merge right pair",
+       "short": "Right sorted run · first",
+       "sentence": "Merge the right singleton pair into a sorted run.",
+       "why": "The same rule creates the Right sorted run; both runs are now ready for the final merge.",
+       "active": [
+        "right-singleton-a",
+        "right-singleton-b",
+        "right-first",
+        "right-second"
+       ],
+       "calloutRegion": "right-first",
+       "readouts": [
+        {
+         "id": "output",
+         "label": "Output prefix",
+         "value": "Empty"
+        },
+        {
+         "id": "comparisons",
+         "label": "Front comparisons",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "take-right-first",
+       "label": "Choose right front",
+       "short": "Right sorted run · first",
+       "sentence": "Compare both run fronts and start the output with the smaller.",
+       "why": "The right front is smaller; choosing it starts a sorted output prefix.",
+       "active": [
+        "left-first",
+        "right-first"
+       ],
+       "calloutRegion": "right-first",
+       "readouts": [
+        {
+         "id": "output",
+         "label": "Output prefix",
+         "value": "[2]"
+        },
+        {
+         "id": "comparisons",
+         "label": "Front comparisons",
+         "value": "3"
+        }
+       ]
+      },
+      {
+       "id": "take-left-first",
+       "label": "Choose left front",
+       "short": "Left sorted run · first",
+       "sentence": "Advance the right front and compare again.",
+       "why": "Skip the consumed right first cell; the left front is now smaller, preserving output order.",
+       "active": [
+        "left-first",
+        "right-second"
+       ],
+       "calloutRegion": "left-first",
+       "readouts": [
+        {
+         "id": "output",
+         "label": "Output prefix",
+         "value": "[2, 3]"
+        },
+        {
+         "id": "comparisons",
+         "label": "Front comparisons",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "take-right-second",
+       "label": "Choose right remainder",
+       "short": "Right sorted run · second",
+       "sentence": "Compare the remaining fronts and extend the sorted prefix.",
+       "why": "Skip both consumed first cells; the right front is smaller, so the output remains sorted.",
+       "active": [
+        "left-second",
+        "right-second"
+       ],
+       "calloutRegion": "right-second",
+       "readouts": [
+        {
+         "id": "output",
+         "label": "Output prefix",
+         "value": "[2, 3, 6]"
+        },
+        {
+         "id": "comparisons",
+         "label": "Front comparisons",
+         "value": "5"
+        }
+       ]
+      },
+      {
+       "id": "complete",
+       "label": "Append and finish",
+       "short": "Left sorted run · second",
+       "sentence": "The output contains every input item in nondecreasing order.",
+       "why": "The right run is empty; append the left remainder without comparing, completing the sorted output.",
+       "active": [
+        "left-second"
+       ],
+       "calloutRegion": "left-second",
+       "readouts": [
+        {
+         "id": "output",
+         "label": "Output prefix",
+         "value": "[2, 3, 6, 8]"
+        },
+        {
+         "id": "comparisons",
+         "label": "Front comparisons",
+         "value": "5"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1532,
+  "output": 8800
+ },
+ "usd": 0.088194,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3fAWoszKaR7bK3ftepn\"}"
+  },
+  "cardUsd": 0
+ }
+}

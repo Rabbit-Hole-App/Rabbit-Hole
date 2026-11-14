@@ -1,0 +1,253 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a35",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does k-means clustering work?",
+ "ts": "2026-11-14T22:23:00.851Z",
+ "ms": 3346,
+ "raw": "{\n  \"story\": \"K-means partitions data into k groups by iteratively assigning points to the nearest centroid and updating centroid positions until convergence.\",\n  \"aha\": {\n    \"stateId\": \"step-3\",\n    \"observation\": \"Centroids shift toward the center of their assigned points in each iteration until stability.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"ghost\",\n      \"kind\": \"previous-state-ghost\",\n      \"bind\": {\n        \"regions\": \"previous.active\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Algorithm Step\",\n      \"options\": [\n        \"Init\",\n        \"Assign\",\n        \"Update\",\n        \"Converge\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"K-Means 2D\",\n        \"regions\": [\n          {\n            \"id\": \"c1\",\n            \"label\": \"Centroid A\",\n            \"kind\": \"centroid\",\n            \"values\": [\"x:2, y:2\"]\n          },\n          {\n            \"id\": \"c2\",\n            \"label\": \"Centroid B\",\n            \"kind\": \"centroid\",\n            \"values\": [\"x:8, y:8\"]\n          },\n          {\n            \"id\": \"points\",\n            \"label\": \"Data Points\",\n            \"kind\": \"cluster\",\n            \"values\": [\"10 points\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"step-0\",\n            \"label\": \"Initialization\",\n            \"short\": \"Init\",\n            \"sentence\": \"Place initial centroids randomly in the feature space.\",\n            \"why\": \"Starting positions set the baseline for distance calculations.\",\n            \"active\": [\"c1\", \"c2\"],\n            \"calloutRegion\": \"c1\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Iteration\",\n                \"value\": \"0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-1\",\n            \"label\": \"Assignment\",\n            \"short\": \"Assign\",\n            \"sentence\": \"Assign each data point to its closest centroid.\",\n            \"why\": \"Voronoi regions form around each centroid based on Euclidean distance.\",\n            \"active\": [\"points\"],\n            \"calloutRegion\": \"points\",\n            \"readouts\": [\n              {\n                \"id\": \"r2\",\n                \"label\": \"Assigned\",\n                \"value\": \"10/10\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-2\",\n            \"label\": \"Update\",\n            \"short\": \"Update\",\n            \"sentence\": \"Move centroids to the mean coordinates of their assigned points.\",\n            \"why\": \"Centroids recalculate to minimize intra-cluster variance.\",\n            \"active\": [\"c1\", \"c2\"],\n            \"calloutRegion\": \"c1\",\n            \"readouts\": [\n              {\n                \"id\": \"r3\",\n                \"label\": \"Shift\",\n                \"value\": \"1.2 units\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-3\",\n            \"label\": \"Convergence\",\n            \"short\": \"Converge\",\n            \"sentence\": \"Repeat assignment and update until centroid positions no longer change.\",\n            \"why\": \"The algorithm stabilizes when cluster assignments remain identical.\",\n            \"active\": [\"c1\", \"c2\", \"points\"],\n            \"calloutRegion\": \"c2\",\n            \"readouts\": [\n              {\n                \"id\": \"r4\",\n                \"label\": \"Status\",\n                \"value\": \"Converged\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "K-means partitions data into k groups by iteratively assigning points to the nearest centroid and updating centroid positions until convergence.",
+  "aha": {
+   "stateId": "step-3",
+   "observation": "Centroids shift toward the center of their assigned points in each iteration until stability."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Algorithm Step",
+    "options": [
+     "Init",
+     "Assign",
+     "Update",
+     "Converge"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "K-Means 2D",
+     "regions": [
+      {
+       "id": "c1",
+       "label": "Centroid A",
+       "kind": "centroid",
+       "values": [
+        "x:2, y:2"
+       ]
+      },
+      {
+       "id": "c2",
+       "label": "Centroid B",
+       "kind": "centroid",
+       "values": [
+        "x:8, y:8"
+       ]
+      },
+      {
+       "id": "points",
+       "label": "Data Points",
+       "kind": "cluster",
+       "values": [
+        "10 points"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "step-0",
+       "label": "Initialization",
+       "short": "Init",
+       "sentence": "Place initial centroids randomly in the feature space.",
+       "why": "Starting positions set the baseline for distance calculations.",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "calloutRegion": "c1",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Iteration",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "step-1",
+       "label": "Assignment",
+       "short": "Assign",
+       "sentence": "Assign each data point to its closest centroid.",
+       "why": "Voronoi regions form around each centroid based on Euclidean distance.",
+       "active": [
+        "points"
+       ],
+       "calloutRegion": "points",
+       "readouts": [
+        {
+         "id": "r2",
+         "label": "Assigned",
+         "value": "10/10"
+        }
+       ]
+      },
+      {
+       "id": "step-2",
+       "label": "Update",
+       "short": "Update",
+       "sentence": "Move centroids to the mean coordinates of their assigned points.",
+       "why": "Centroids recalculate to minimize intra-cluster variance.",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "calloutRegion": "c1",
+       "readouts": [
+        {
+         "id": "r3",
+         "label": "Shift",
+         "value": "1.2 units"
+        }
+       ]
+      },
+      {
+       "id": "step-3",
+       "label": "Convergence",
+       "short": "Converge",
+       "sentence": "Repeat assignment and update until centroid positions no longer change.",
+       "why": "The algorithm stabilizes when cluster assignments remain identical.",
+       "active": [
+        "c1",
+        "c2",
+        "points"
+       ],
+       "calloutRegion": "c2",
+       "readouts": [
+        {
+         "id": "r4",
+         "label": "Status",
+         "value": "Converged"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1104,
+  "output": 1251
+ },
+ "usd": 0.003459,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture with centroid and point-cluster regions across four states shows how K-means iterates assign/update to converge, answering one clear question."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha is on step-3, but the stepper is user-driven with no explicit hold at the decisive state, and the \"Converged\" readout is a bare status label rather than a held convergence visual."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex control changes the active regions, callout, and readouts per state, so each step changes the evidence shown."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "Active regions, callout and readouts bind to state fields, but the regions carry only static values such as \"x:2, y:2\" and \"10 points\". Nothing declares the point coordinates, cluster assignments or the shifted centroid positions, so the ghost and the 1.2 shift have no data source."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, callouts and the controls' Init/Assign/Update/Converge options consistently name centroids, points and the same events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The scene has one picture, one callout and one readout per state, which is a modest density with no clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The centroid values are static (A at 2,2 and B at 8,8) even in the update and converge states, and the 1.2-unit shift cannot be verified or tied to any coordinates. The aha claims centroids shift until stable, but step-3 shows no final position or zero shift."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011998
+ }
+}

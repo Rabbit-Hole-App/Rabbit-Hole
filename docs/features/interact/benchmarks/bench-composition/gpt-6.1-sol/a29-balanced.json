@@ -1,0 +1,216 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a29",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "What happens to the training weights after AdaBoost gets one example wrong?",
+ "ts": "2026-11-14T22:48:51.354Z",
+ "ms": 89133,
+ "raw": "{\n  \"story\": \"For standard binary AdaBoost, start with four equally weighted examples and a learning rate of one. A fixed weak learner correctly classifies A, B, and C but misses D. Advance to the normalized weight update. D gains influence, correctly classified examples lose influence, and total weight stays one.\",\n  \"aha\": {\n    \"stateId\": \"normalized-update\",\n    \"observation\": \"The misclassified example gains normalized weight, giving it more influence when fitting the next weak learner.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"update-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell with explanation and navigation instructions above the experiment. Show two discrete states, never elapsed time. Parameter-control budget: zero; navigation and reset are separate. Keep progress on this rail. Reference captures show the aha state.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"training-examples\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical algorithm/collection arrangement: four fixed example regions in one row. Keep names, actual labels, predictions, and correctness visible. Bind emphasis to active region IDs. Predictions remain fixed throughout the update.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"weight-comparison\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place an aligned weight table below the picture, matching example names. Initially show starting weights; afterward show before → after in each example row. This persistent comparison replaces a previous-state ghost. Weights are dimensionless, share the range zero to one, and use exact fractions without rounding. Compute updates from the displayed predictions using standard binary AdaBoost and the declared learning rate. Keep all numerical evidence here.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"active-example-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor text beside the target region without covering labels. Callout text identifies the affected example, not numerical values. Render reason as the bound status line below the experiment.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"update-state\",\n      \"kind\": \"index\",\n      \"label\": \"Training-weight update\",\n      \"items\": \"variant.states\",\n      \"presentation\": \"Use Previous and Next, retaining those names when disabled at boundaries. Default to the first state; bounds are the first and last states. Each action changes the index by one. Every state persists until the learner acts, including the aha state. Provide accessible names, visible focus, and keyboard operation.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide an accessible name, visible focus, and keyboard operation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"One binary AdaBoost weight update\",\n        \"regions\": [\n          {\n            \"id\": \"A\",\n            \"label\": \"A\",\n            \"values\": [\n              \"Actual: positive\",\n              \"Predicted: positive\",\n              \"Correct\"\n            ]\n          },\n          {\n            \"id\": \"B\",\n            \"label\": \"B\",\n            \"values\": [\n              \"Actual: negative\",\n              \"Predicted: negative\",\n              \"Correct\"\n            ]\n          },\n          {\n            \"id\": \"C\",\n            \"label\": \"C\",\n            \"values\": [\n              \"Actual: positive\",\n              \"Predicted: positive\",\n              \"Correct\"\n            ]\n          },\n          {\n            \"id\": \"D\",\n            \"label\": \"D\",\n            \"values\": [\n              \"Actual: negative\",\n              \"Predicted: positive\",\n              \"Misclassified\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"equal-weights\",\n            \"label\": \"Before update\",\n            \"short\": \"Equal weights\",\n            \"sentence\": \"D is the missed example; its training weight initially matches those of correctly classified A, B, and C.\",\n            \"why\": \"The weak learner has finished predicting; these are the weights before AdaBoost updates them.\",\n            \"active\": [\n              \"A\",\n              \"B\",\n              \"C\",\n              \"D\"\n            ],\n            \"calloutRegion\": \"D\",\n            \"readouts\": [\n              {\n                \"id\": \"weight-A\",\n                \"label\": \"A weight\",\n                \"value\": \"1/4\"\n              },\n              {\n                \"id\": \"weight-B\",\n                \"label\": \"B weight\",\n                \"value\": \"1/4\"\n              },\n              {\n                \"id\": \"weight-C\",\n                \"label\": \"C weight\",\n                \"value\": \"1/4\"\n              },\n              {\n                \"id\": \"weight-D\",\n                \"label\": \"D weight\",\n                \"value\": \"1/4\"\n              },\n              {\n                \"id\": \"total-weight\",\n                \"label\": \"Total normalized weight\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"normalized-update\",\n            \"label\": \"After update\",\n            \"short\": \"D gains influence\",\n            \"sentence\": \"D gains influence; correctly classified A, B, and C lose influence.\",\n            \"why\": \"AdaBoost increases the missed example’s relative weight and renormalizes; the next weak learner trains using these updated weights.\",\n            \"active\": [\n              \"D\"\n            ],\n            \"calloutRegion\": \"D\",\n            \"readouts\": [\n              {\n                \"id\": \"weight-A\",\n                \"label\": \"A weight: before → after\",\n                \"value\": \"1/4 → 1/6\"\n              },\n              {\n                \"id\": \"weight-B\",\n                \"label\": \"B weight: before → after\",\n                \"value\": \"1/4 → 1/6\"\n              },\n              {\n                \"id\": \"weight-C\",\n                \"label\": \"C weight: before → after\",\n                \"value\": \"1/4 → 1/6\"\n              },\n              {\n                \"id\": \"weight-D\",\n                \"label\": \"D weight: before → after\",\n                \"value\": \"1/4 → 1/2\"\n              },\n              {\n                \"id\": \"total-weight\",\n                \"label\": \"Total normalized weight\",\n                \"value\": \"1\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "For standard binary AdaBoost, start with four equally weighted examples and a learning rate of one. A fixed weak learner correctly classifies A, B, and C but misses D. Advance to the normalized weight update. D gains influence, correctly classified examples lose influence, and total weight stays one.",
+  "aha": {
+   "stateId": "normalized-update",
+   "observation": "The misclassified example gains normalized weight, giving it more influence when fitting the next weak learner."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "update-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell with explanation and navigation instructions above the experiment. Show two discrete states, never elapsed time. Parameter-control budget: zero; navigation and reset are separate. Keep progress on this rail. Reference captures show the aha state.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "training-examples",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical algorithm/collection arrangement: four fixed example regions in one row. Keep names, actual labels, predictions, and correctness visible. Bind emphasis to active region IDs. Predictions remain fixed throughout the update.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "weight-comparison",
+    "kind": "value-readout",
+    "presentation": "Place an aligned weight table below the picture, matching example names. Initially show starting weights; afterward show before → after in each example row. This persistent comparison replaces a previous-state ghost. Weights are dimensionless, share the range zero to one, and use exact fractions without rounding. Compute updates from the displayed predictions using standard binary AdaBoost and the declared learning rate. Keep all numerical evidence here.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "active-example-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor text beside the target region without covering labels. Callout text identifies the affected example, not numerical values. Render reason as the bound status line below the experiment.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "update-state",
+    "kind": "index",
+    "label": "Training-weight update",
+    "items": "variant.states",
+    "presentation": "Use Previous and Next, retaining those names when disabled at boundaries. Default to the first state; bounds are the first and last states. Each action changes the index by one. Every state persists until the learner acts, including the aha state. Provide accessible names, visible focus, and keyboard operation."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide an accessible name, visible focus, and keyboard operation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "One binary AdaBoost weight update",
+     "regions": [
+      {
+       "id": "A",
+       "label": "A",
+       "values": [
+        "Actual: positive",
+        "Predicted: positive",
+        "Correct"
+       ]
+      },
+      {
+       "id": "B",
+       "label": "B",
+       "values": [
+        "Actual: negative",
+        "Predicted: negative",
+        "Correct"
+       ]
+      },
+      {
+       "id": "C",
+       "label": "C",
+       "values": [
+        "Actual: positive",
+        "Predicted: positive",
+        "Correct"
+       ]
+      },
+      {
+       "id": "D",
+       "label": "D",
+       "values": [
+        "Actual: negative",
+        "Predicted: positive",
+        "Misclassified"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "equal-weights",
+       "label": "Before update",
+       "short": "Equal weights",
+       "sentence": "D is the missed example; its training weight initially matches those of correctly classified A, B, and C.",
+       "why": "The weak learner has finished predicting; these are the weights before AdaBoost updates them.",
+       "active": [
+        "A",
+        "B",
+        "C",
+        "D"
+       ],
+       "calloutRegion": "D",
+       "readouts": [
+        {
+         "id": "weight-A",
+         "label": "A weight",
+         "value": "1/4"
+        },
+        {
+         "id": "weight-B",
+         "label": "B weight",
+         "value": "1/4"
+        },
+        {
+         "id": "weight-C",
+         "label": "C weight",
+         "value": "1/4"
+        },
+        {
+         "id": "weight-D",
+         "label": "D weight",
+         "value": "1/4"
+        },
+        {
+         "id": "total-weight",
+         "label": "Total normalized weight",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "normalized-update",
+       "label": "After update",
+       "short": "D gains influence",
+       "sentence": "D gains influence; correctly classified A, B, and C lose influence.",
+       "why": "AdaBoost increases the missed example’s relative weight and renormalizes; the next weak learner trains using these updated weights.",
+       "active": [
+        "D"
+       ],
+       "calloutRegion": "D",
+       "readouts": [
+        {
+         "id": "weight-A",
+         "label": "A weight: before → after",
+         "value": "1/4 → 1/6"
+        },
+        {
+         "id": "weight-B",
+         "label": "B weight: before → after",
+         "value": "1/4 → 1/6"
+        },
+        {
+         "id": "weight-C",
+         "label": "C weight: before → after",
+         "value": "1/4 → 1/6"
+        },
+        {
+         "id": "weight-D",
+         "label": "D weight: before → after",
+         "value": "1/4 → 1/2"
+        },
+        {
+         "id": "total-weight",
+         "label": "Total normalized weight",
+         "value": "1"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1540,
+  "output": 4844
+ },
+ "usd": 0.04865,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3drhYvDbBed3nErus62\"}"
+  },
+  "cardUsd": 0
+ }
+}

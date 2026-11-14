@@ -1,0 +1,678 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a27",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "How does a transformer turn the words in a sentence into embeddings?",
+ "ts": "2026-11-14T22:29:17.598Z",
+ "ms": 44332,
+ "raw": "{\"story\":\"A transformer never reads words directly. It splits the sentence into tokens, turns each token into an ID, and uses the ID to pick one row of a learned table. Then it adds a position vector. Follow \\\"the cat saw the dog\\\": the repeated word \\\"the\\\" starts identical but ends up different.\",\"aha\":{\"stateId\":\"add\",\"observation\":\"Both 'the' tokens copy the same table row, but adding different position vectors gives them different input embeddings.\"},\"layout\":{\"preset\":\"stepper-pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons; the step rail shows the current state\"},{\"id\":\"size\",\"kind\":\"select\",\"label\":\"Embedding size\",\"options\":[\"Toy: d=4, vocab 8\",\"Real scale: d=512, vocab 50,000\"],\"default\":0,\"presentation\":\"Selects the variant. It changes the table size and the vector length in the readouts.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to step 1 and the toy size\"}],\"data\":{\"variants\":[{\"label\":\"Toy: d=4, vocab 8\",\"regions\":[{\"id\":\"sentence\",\"label\":\"Sentence\",\"values\":[\"the\",\"cat\",\"saw\",\"the\",\"dog\"]},{\"id\":\"tokens\",\"label\":\"Tokens\",\"values\":[\"the\",\"cat\",\"saw\",\"the\",\"dog\"]},{\"id\":\"ids\",\"label\":\"Token IDs\",\"values\":[\"0\",\"1\",\"2\",\"0\",\"3\"]},{\"id\":\"table\",\"label\":\"Embedding table E (8×4)\",\"values\":[\"row 0: the\",\"row 1: cat\",\"row 2: saw\",\"row 3: dog\"]},{\"id\":\"tokvec\",\"label\":\"Token vectors\",\"values\":[\"E[0]\",\"E[1]\",\"E[2]\",\"E[0]\",\"E[3]\"]},{\"id\":\"pos\",\"label\":\"Position vectors\",\"values\":[\"PE(0)\",\"PE(1)\",\"PE(2)\",\"PE(3)\",\"PE(4)\"]},{\"id\":\"input\",\"label\":\"Input embeddings (5×4)\",\"values\":[\"x0\",\"x1\",\"x2\",\"x3\",\"x4\"]}],\"links\":[{\"from\":\"sentence\",\"to\":\"tokens\",\"label\":\"split\"},{\"from\":\"tokens\",\"to\":\"ids\",\"label\":\"vocabulary\"},{\"from\":\"ids\",\"to\":\"table\",\"label\":\"row index\"},{\"from\":\"table\",\"to\":\"tokvec\",\"label\":\"copy row\"},{\"from\":\"tokvec\",\"to\":\"input\",\"label\":\"+\"},{\"from\":\"pos\",\"to\":\"input\",\"label\":\"+\"}],\"states\":[{\"id\":\"sentence\",\"label\":\"Sentence\",\"short\":\"Text\",\"sentence\":\"The input is five words. The word 'the' appears twice, at positions 0 and 3.\",\"why\":\"Text is not numbers, so the model must convert each word.\",\"active\":[\"sentence\"],\"calloutRegion\":\"sentence\",\"readouts\":[{\"id\":\"n\",\"label\":\"Words\",\"value\":\"5\"},{\"id\":\"rep\",\"label\":\"Repeated word\",\"value\":\"'the' at 0 and 3\"}]},{\"id\":\"tokens\",\"label\":\"Split into tokens\",\"short\":\"Tokens\",\"sentence\":\"A tokenizer cuts the text into tokens. Here each word is one token, so there are five.\",\"why\":\"Tokens are the units the model's vocabulary knows.\",\"active\":[\"tokens\"],\"calloutRegion\":\"tokens\",\"readouts\":[{\"id\":\"n\",\"label\":\"Tokens\",\"value\":\"5\"},{\"id\":\"v\",\"label\":\"Vocabulary size V\",\"value\":\"8\"}]},{\"id\":\"ids\",\"label\":\"Tokens to IDs\",\"short\":\"IDs\",\"sentence\":\"Each token is looked up in the vocabulary and becomes an integer ID. Both 'the' tokens get ID 0.\",\"why\":\"An ID is only a row number, with no meaning yet.\",\"active\":[\"ids\"],\"calloutRegion\":\"ids\",\"readouts\":[{\"id\":\"ids\",\"label\":\"IDs\",\"value\":\"0 1 2 0 3\"},{\"id\":\"u\",\"label\":\"Distinct IDs\",\"value\":\"4\"}]},{\"id\":\"lookup\",\"label\":\"Pick table rows\",\"short\":\"Lookup\",\"sentence\":\"Each ID selects one row of the learned table E. Row 0 is copied for both 'the' tokens.\",\"why\":\"Training tunes the table values. Lookup only copies a row.\",\"active\":[\"ids\",\"table\",\"tokvec\"],\"calloutRegion\":\"table\",\"readouts\":[{\"id\":\"shape\",\"label\":\"Table size\",\"value\":\"8×4 = 32 numbers\"},{\"id\":\"e0\",\"label\":\"E[0] (the)\",\"value\":\"[0.2, -0.5, 0.1, 0.7]\"}]},{\"id\":\"position\",\"label\":\"Make position vectors\",\"short\":\"Position\",\"sentence\":\"The row says nothing about word order. So each position gets its own vector, PE(pos), from sines and cosines.\",\"why\":\"Position 0 and position 3 get different vectors.\",\"active\":[\"pos\"],\"calloutRegion\":\"pos\",\"readouts\":[{\"id\":\"p0\",\"label\":\"PE(0)\",\"value\":\"[0, 1, 0, 1]\"},{\"id\":\"p3\",\"label\":\"PE(3)\",\"value\":\"[0.14, -0.99, 0.03, 1.00]\"}]},{\"id\":\"add\",\"label\":\"Add: input embeddings\",\"short\":\"Add\",\"sentence\":\"Input x_i = E[id_i] + PE(i). Both 'the' tokens start from E[0] but end with different vectors.\",\"why\":\"The same word is now told apart by where it sits.\",\"active\":[\"tokvec\",\"pos\",\"input\"],\"calloutRegion\":\"input\",\"readouts\":[{\"id\":\"x0\",\"label\":\"x0 = E[0]+PE(0)\",\"value\":\"[0.20, 0.50, 0.10, 1.70]\"},{\"id\":\"x3\",\"label\":\"x3 = E[0]+PE(3)\",\"value\":\"[0.34, -1.49, 0.13, 1.70]\"},{\"id\":\"same\",\"label\":\"Same table row?\",\"value\":\"yes, row 0\"}]}]},{\"label\":\"Real scale: d=512, vocab 50,000\",\"regions\":[{\"id\":\"sentence\",\"label\":\"Sentence\",\"values\":[\"the\",\"cat\",\"saw\",\"the\",\"dog\"]},{\"id\":\"tokens\",\"label\":\"Tokens\",\"values\":[\"the\",\"cat\",\"saw\",\"the\",\"dog\"]},{\"id\":\"ids\",\"label\":\"Token IDs\",\"values\":[\"row r1\",\"row r2\",\"row r3\",\"row r1\",\"row r4\"]},{\"id\":\"table\",\"label\":\"Embedding table E (50,000×512)\",\"values\":[\"one row per token\",\"512 learned numbers each\"]},{\"id\":\"tokvec\",\"label\":\"Token vectors\",\"values\":[\"E[r1]\",\"E[r2]\",\"E[r3]\",\"E[r1]\",\"E[r4]\"]},{\"id\":\"pos\",\"label\":\"Position vectors\",\"values\":[\"PE(0)\",\"PE(1)\",\"PE(2)\",\"PE(3)\",\"PE(4)\"]},{\"id\":\"input\",\"label\":\"Input embeddings (5×512)\",\"values\":[\"x0\",\"x1\",\"x2\",\"x3\",\"x4\"]}],\"links\":[{\"from\":\"sentence\",\"to\":\"tokens\",\"label\":\"split\"},{\"from\":\"tokens\",\"to\":\"ids\",\"label\":\"vocabulary\"},{\"from\":\"ids\",\"to\":\"table\",\"label\":\"row index\"},{\"from\":\"table\",\"to\":\"tokvec\",\"label\":\"copy row\"},{\"from\":\"tokvec\",\"to\":\"input\",\"label\":\"+\"},{\"from\":\"pos\",\"to\":\"input\",\"label\":\"+\"}],\"states\":[{\"id\":\"sentence\",\"label\":\"Sentence\",\"short\":\"Text\",\"sentence\":\"The input is five words. The word 'the' appears twice, at positions 0 and 3.\",\"why\":\"Text is not numbers, so the model must convert each word.\",\"active\":[\"sentence\"],\"calloutRegion\":\"sentence\",\"readouts\":[{\"id\":\"n\",\"label\":\"Words\",\"value\":\"5\"},{\"id\":\"rep\",\"label\":\"Repeated word\",\"value\":\"'the' at 0 and 3\"}]},{\"id\":\"tokens\",\"label\":\"Split into tokens\",\"short\":\"Tokens\",\"sentence\":\"A tokenizer cuts the text into tokens. Real tokenizers may split rare words, but here there are five tokens.\",\"why\":\"Tokens are the units the model's vocabulary knows.\",\"active\":[\"tokens\"],\"calloutRegion\":\"tokens\",\"readouts\":[{\"id\":\"n\",\"label\":\"Tokens\",\"value\":\"5\"},{\"id\":\"v\",\"label\":\"Vocabulary size V\",\"value\":\"50,000\"}]},{\"id\":\"ids\",\"label\":\"Tokens to IDs\",\"short\":\"IDs\",\"sentence\":\"Each token becomes an integer ID, which is a row number. Both 'the' tokens share one ID.\",\"why\":\"An ID is only a row number, with no meaning yet.\",\"active\":[\"ids\"],\"calloutRegion\":\"ids\",\"readouts\":[{\"id\":\"u\",\"label\":\"Distinct IDs\",\"value\":\"4 of 5 tokens\"},{\"id\":\"range\",\"label\":\"ID range\",\"value\":\"0 to 49,999\"}]},{\"id\":\"lookup\",\"label\":\"Pick table rows\",\"short\":\"Lookup\",\"sentence\":\"Each ID selects one 512-number row of the learned table E. The shared ID copies one row twice.\",\"why\":\"Training tunes the table values. Lookup only copies a row.\",\"active\":[\"ids\",\"table\",\"tokvec\"],\"calloutRegion\":\"table\",\"readouts\":[{\"id\":\"shape\",\"label\":\"Table size\",\"value\":\"50,000×512 = 25,600,000 numbers\"},{\"id\":\"len\",\"label\":\"Numbers per token\",\"value\":\"512\"}]},{\"id\":\"position\",\"label\":\"Make position vectors\",\"short\":\"Position\",\"sentence\":\"Rows ignore word order, so each position gets a 512-number vector PE(pos) built from sines and cosines.\",\"why\":\"Position 0 and position 3 get different vectors.\",\"active\":[\"pos\"],\"calloutRegion\":\"pos\",\"readouts\":[{\"id\":\"p0\",\"label\":\"PE(0), first pair\",\"value\":\"(0, 1)\"},{\"id\":\"p3\",\"label\":\"PE(3), first pair\",\"value\":\"(0.14, -0.99)\"}]},{\"id\":\"add\",\"label\":\"Add: input embeddings\",\"short\":\"Add\",\"sentence\":\"Input x_i = E[id_i] + PE(i). Both 'the' tokens share a table row but get different position vectors.\",\"why\":\"The same word is now told apart by where it sits.\",\"active\":[\"tokvec\",\"pos\",\"input\"],\"calloutRegion\":\"input\",\"readouts\":[{\"id\":\"size\",\"label\":\"Input matrix\",\"value\":\"5×512 = 2,560 numbers\"},{\"id\":\"diff\",\"label\":\"x3 − x0, first pair\",\"value\":\"(+0.14, −1.99)\"},{\"id\":\"same\",\"label\":\"Same table row?\",\"value\":\"yes, one shared row\"}]}]}]}}",
+ "composition": {
+  "story": "A transformer never reads words directly. It splits the sentence into tokens, turns each token into an ID, and uses the ID to pick one row of a learned table. Then it adds a position vector. Follow \"the cat saw the dog\": the repeated word \"the\" starts identical but ends up different.",
+  "aha": {
+   "stateId": "add",
+   "observation": "Both 'the' tokens copy the same table row, but adding different position vectors gives them different input embeddings."
+  },
+  "layout": {
+   "preset": "stepper-pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons; the step rail shows the current state"
+   },
+   {
+    "id": "size",
+    "kind": "select",
+    "label": "Embedding size",
+    "options": [
+     "Toy: d=4, vocab 8",
+     "Real scale: d=512, vocab 50,000"
+    ],
+    "default": 0,
+    "presentation": "Selects the variant. It changes the table size and the vector length in the readouts."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to step 1 and the toy size"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Toy: d=4, vocab 8",
+     "regions": [
+      {
+       "id": "sentence",
+       "label": "Sentence",
+       "values": [
+        "the",
+        "cat",
+        "saw",
+        "the",
+        "dog"
+       ]
+      },
+      {
+       "id": "tokens",
+       "label": "Tokens",
+       "values": [
+        "the",
+        "cat",
+        "saw",
+        "the",
+        "dog"
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "Token IDs",
+       "values": [
+        "0",
+        "1",
+        "2",
+        "0",
+        "3"
+       ]
+      },
+      {
+       "id": "table",
+       "label": "Embedding table E (8×4)",
+       "values": [
+        "row 0: the",
+        "row 1: cat",
+        "row 2: saw",
+        "row 3: dog"
+       ]
+      },
+      {
+       "id": "tokvec",
+       "label": "Token vectors",
+       "values": [
+        "E[0]",
+        "E[1]",
+        "E[2]",
+        "E[0]",
+        "E[3]"
+       ]
+      },
+      {
+       "id": "pos",
+       "label": "Position vectors",
+       "values": [
+        "PE(0)",
+        "PE(1)",
+        "PE(2)",
+        "PE(3)",
+        "PE(4)"
+       ]
+      },
+      {
+       "id": "input",
+       "label": "Input embeddings (5×4)",
+       "values": [
+        "x0",
+        "x1",
+        "x2",
+        "x3",
+        "x4"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "sentence",
+       "to": "tokens",
+       "label": "split"
+      },
+      {
+       "from": "tokens",
+       "to": "ids",
+       "label": "vocabulary"
+      },
+      {
+       "from": "ids",
+       "to": "table",
+       "label": "row index"
+      },
+      {
+       "from": "table",
+       "to": "tokvec",
+       "label": "copy row"
+      },
+      {
+       "from": "tokvec",
+       "to": "input",
+       "label": "+"
+      },
+      {
+       "from": "pos",
+       "to": "input",
+       "label": "+"
+      }
+     ],
+     "states": [
+      {
+       "id": "sentence",
+       "label": "Sentence",
+       "short": "Text",
+       "sentence": "The input is five words. The word 'the' appears twice, at positions 0 and 3.",
+       "why": "Text is not numbers, so the model must convert each word.",
+       "active": [
+        "sentence"
+       ],
+       "calloutRegion": "sentence",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Words",
+         "value": "5"
+        },
+        {
+         "id": "rep",
+         "label": "Repeated word",
+         "value": "'the' at 0 and 3"
+        }
+       ]
+      },
+      {
+       "id": "tokens",
+       "label": "Split into tokens",
+       "short": "Tokens",
+       "sentence": "A tokenizer cuts the text into tokens. Here each word is one token, so there are five.",
+       "why": "Tokens are the units the model's vocabulary knows.",
+       "active": [
+        "tokens"
+       ],
+       "calloutRegion": "tokens",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Tokens",
+         "value": "5"
+        },
+        {
+         "id": "v",
+         "label": "Vocabulary size V",
+         "value": "8"
+        }
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "Tokens to IDs",
+       "short": "IDs",
+       "sentence": "Each token is looked up in the vocabulary and becomes an integer ID. Both 'the' tokens get ID 0.",
+       "why": "An ID is only a row number, with no meaning yet.",
+       "active": [
+        "ids"
+       ],
+       "calloutRegion": "ids",
+       "readouts": [
+        {
+         "id": "ids",
+         "label": "IDs",
+         "value": "0 1 2 0 3"
+        },
+        {
+         "id": "u",
+         "label": "Distinct IDs",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "lookup",
+       "label": "Pick table rows",
+       "short": "Lookup",
+       "sentence": "Each ID selects one row of the learned table E. Row 0 is copied for both 'the' tokens.",
+       "why": "Training tunes the table values. Lookup only copies a row.",
+       "active": [
+        "ids",
+        "table",
+        "tokvec"
+       ],
+       "calloutRegion": "table",
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Table size",
+         "value": "8×4 = 32 numbers"
+        },
+        {
+         "id": "e0",
+         "label": "E[0] (the)",
+         "value": "[0.2, -0.5, 0.1, 0.7]"
+        }
+       ]
+      },
+      {
+       "id": "position",
+       "label": "Make position vectors",
+       "short": "Position",
+       "sentence": "The row says nothing about word order. So each position gets its own vector, PE(pos), from sines and cosines.",
+       "why": "Position 0 and position 3 get different vectors.",
+       "active": [
+        "pos"
+       ],
+       "calloutRegion": "pos",
+       "readouts": [
+        {
+         "id": "p0",
+         "label": "PE(0)",
+         "value": "[0, 1, 0, 1]"
+        },
+        {
+         "id": "p3",
+         "label": "PE(3)",
+         "value": "[0.14, -0.99, 0.03, 1.00]"
+        }
+       ]
+      },
+      {
+       "id": "add",
+       "label": "Add: input embeddings",
+       "short": "Add",
+       "sentence": "Input x_i = E[id_i] + PE(i). Both 'the' tokens start from E[0] but end with different vectors.",
+       "why": "The same word is now told apart by where it sits.",
+       "active": [
+        "tokvec",
+        "pos",
+        "input"
+       ],
+       "calloutRegion": "input",
+       "readouts": [
+        {
+         "id": "x0",
+         "label": "x0 = E[0]+PE(0)",
+         "value": "[0.20, 0.50, 0.10, 1.70]"
+        },
+        {
+         "id": "x3",
+         "label": "x3 = E[0]+PE(3)",
+         "value": "[0.34, -1.49, 0.13, 1.70]"
+        },
+        {
+         "id": "same",
+         "label": "Same table row?",
+         "value": "yes, row 0"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Real scale: d=512, vocab 50,000",
+     "regions": [
+      {
+       "id": "sentence",
+       "label": "Sentence",
+       "values": [
+        "the",
+        "cat",
+        "saw",
+        "the",
+        "dog"
+       ]
+      },
+      {
+       "id": "tokens",
+       "label": "Tokens",
+       "values": [
+        "the",
+        "cat",
+        "saw",
+        "the",
+        "dog"
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "Token IDs",
+       "values": [
+        "row r1",
+        "row r2",
+        "row r3",
+        "row r1",
+        "row r4"
+       ]
+      },
+      {
+       "id": "table",
+       "label": "Embedding table E (50,000×512)",
+       "values": [
+        "one row per token",
+        "512 learned numbers each"
+       ]
+      },
+      {
+       "id": "tokvec",
+       "label": "Token vectors",
+       "values": [
+        "E[r1]",
+        "E[r2]",
+        "E[r3]",
+        "E[r1]",
+        "E[r4]"
+       ]
+      },
+      {
+       "id": "pos",
+       "label": "Position vectors",
+       "values": [
+        "PE(0)",
+        "PE(1)",
+        "PE(2)",
+        "PE(3)",
+        "PE(4)"
+       ]
+      },
+      {
+       "id": "input",
+       "label": "Input embeddings (5×512)",
+       "values": [
+        "x0",
+        "x1",
+        "x2",
+        "x3",
+        "x4"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "sentence",
+       "to": "tokens",
+       "label": "split"
+      },
+      {
+       "from": "tokens",
+       "to": "ids",
+       "label": "vocabulary"
+      },
+      {
+       "from": "ids",
+       "to": "table",
+       "label": "row index"
+      },
+      {
+       "from": "table",
+       "to": "tokvec",
+       "label": "copy row"
+      },
+      {
+       "from": "tokvec",
+       "to": "input",
+       "label": "+"
+      },
+      {
+       "from": "pos",
+       "to": "input",
+       "label": "+"
+      }
+     ],
+     "states": [
+      {
+       "id": "sentence",
+       "label": "Sentence",
+       "short": "Text",
+       "sentence": "The input is five words. The word 'the' appears twice, at positions 0 and 3.",
+       "why": "Text is not numbers, so the model must convert each word.",
+       "active": [
+        "sentence"
+       ],
+       "calloutRegion": "sentence",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Words",
+         "value": "5"
+        },
+        {
+         "id": "rep",
+         "label": "Repeated word",
+         "value": "'the' at 0 and 3"
+        }
+       ]
+      },
+      {
+       "id": "tokens",
+       "label": "Split into tokens",
+       "short": "Tokens",
+       "sentence": "A tokenizer cuts the text into tokens. Real tokenizers may split rare words, but here there are five tokens.",
+       "why": "Tokens are the units the model's vocabulary knows.",
+       "active": [
+        "tokens"
+       ],
+       "calloutRegion": "tokens",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Tokens",
+         "value": "5"
+        },
+        {
+         "id": "v",
+         "label": "Vocabulary size V",
+         "value": "50,000"
+        }
+       ]
+      },
+      {
+       "id": "ids",
+       "label": "Tokens to IDs",
+       "short": "IDs",
+       "sentence": "Each token becomes an integer ID, which is a row number. Both 'the' tokens share one ID.",
+       "why": "An ID is only a row number, with no meaning yet.",
+       "active": [
+        "ids"
+       ],
+       "calloutRegion": "ids",
+       "readouts": [
+        {
+         "id": "u",
+         "label": "Distinct IDs",
+         "value": "4 of 5 tokens"
+        },
+        {
+         "id": "range",
+         "label": "ID range",
+         "value": "0 to 49,999"
+        }
+       ]
+      },
+      {
+       "id": "lookup",
+       "label": "Pick table rows",
+       "short": "Lookup",
+       "sentence": "Each ID selects one 512-number row of the learned table E. The shared ID copies one row twice.",
+       "why": "Training tunes the table values. Lookup only copies a row.",
+       "active": [
+        "ids",
+        "table",
+        "tokvec"
+       ],
+       "calloutRegion": "table",
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Table size",
+         "value": "50,000×512 = 25,600,000 numbers"
+        },
+        {
+         "id": "len",
+         "label": "Numbers per token",
+         "value": "512"
+        }
+       ]
+      },
+      {
+       "id": "position",
+       "label": "Make position vectors",
+       "short": "Position",
+       "sentence": "Rows ignore word order, so each position gets a 512-number vector PE(pos) built from sines and cosines.",
+       "why": "Position 0 and position 3 get different vectors.",
+       "active": [
+        "pos"
+       ],
+       "calloutRegion": "pos",
+       "readouts": [
+        {
+         "id": "p0",
+         "label": "PE(0), first pair",
+         "value": "(0, 1)"
+        },
+        {
+         "id": "p3",
+         "label": "PE(3), first pair",
+         "value": "(0.14, -0.99)"
+        }
+       ]
+      },
+      {
+       "id": "add",
+       "label": "Add: input embeddings",
+       "short": "Add",
+       "sentence": "Input x_i = E[id_i] + PE(i). Both 'the' tokens share a table row but get different position vectors.",
+       "why": "The same word is now told apart by where it sits.",
+       "active": [
+        "tokvec",
+        "pos",
+        "input"
+       ],
+       "calloutRegion": "input",
+       "readouts": [
+        {
+         "id": "size",
+         "label": "Input matrix",
+         "value": "5×512 = 2,560 numbers"
+        },
+        {
+         "id": "diff",
+         "label": "x3 − x0, first pair",
+         "value": "(+0.14, −1.99)"
+        },
+        {
+         "id": "same",
+         "label": "Same table row?",
+         "value": "yes, one shared row"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3080,
+  "output": 6987
+ },
+ "usd": 0.07603,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture answers how two identical 'the' tokens become different, by showing the shared row E[0] and the different PE vectors feeding the input embeddings."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The add state is the final step and the stepper only advances on the learner's Previous/Next action, so it holds at the aha."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step index changes the active regions and readouts, and the size select changes the table size, vector length and readout values (e.g. 32 vs 25.6M numbers)."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlights, callouts and readouts bind to state.active, state.calloutRegion and state.readouts, and the links and ghost bind to variant.links and previous.regions, all declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The narrative, state labels, region names and rail items all use the same terms (tokens, IDs, table rows, position vectors, input embeddings) and each step matches its active regions."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each step highlights a small set of regions and the add step adds a formula with a two-vector comparison, which stays within the detailed density ceiling."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "I recomputed x0, x3, PE(3), x3−x0, 8×4=32, 50,000×512=25.6M and 5×512=2,560 and all are correct; callouts locate while readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.023384
+ }
+}

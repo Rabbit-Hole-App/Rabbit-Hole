@@ -1,0 +1,249 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a17",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "explain recursion",
+ "ts": "2026-11-14T22:21:24.087Z",
+ "ms": 3002,
+ "raw": "{\n  \"story\": \"Watch how a recursive function steps down to a base case, then unwinds to solve the full problem.\",\n  \"aha\": {\n    \"stateId\": \"base\",\n    \"observation\": \"When the base case is hit, the function stops descending and returns the absolute value 1.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Recursion Step\",\n      \"options\": [\"Start\", \"Descend 1\", \"Descend 2\", \"Base Case\", \"Unwind 2\", \"Unwind 1\", \"Done\"]\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Factorial of 3\",\n        \"regions\": [\n          {\n            \"id\": \"stack\",\n            \"label\": \"Call Stack\",\n            \"kind\": \"container\",\n            \"values\": [\"factorial(3)\", \"factorial(2)\", \"factorial(1)\"]\n          },\n          {\n            \"id\": \"result\",\n            \"label\": \"Return Value\",\n            \"kind\": \"value\",\n            \"values\": [\"?\", \"?\", \"1\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"start\",\n            \"label\": \"Initial Call\",\n            \"short\": \"f(3)\",\n            \"sentence\": \"factorial(3) calls factorial(2) multiplying by 3.\",\n            \"why\": \"Entering the first recursive layer.\",\n            \"active\": [\"stack\"],\n            \"calloutRegion\": \"stack\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"val\",\n                \"label\": \"Current Result\",\n                \"value\": \"Pending\"\n              }\n            ]\n          },\n          {\n            \"id\": \"desc1\",\n            \"label\": \"Descend 1\",\n            \"short\": \"f(2)\",\n            \"sentence\": \"factorial(2) calls factorial(1) multiplying by 2.\",\n            \"why\": \"Pushing another frame onto the stack.\",\n            \"active\": [\"stack\"],\n            \"calloutRegion\": \"stack\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"val\",\n                \"label\": \"Current Result\",\n                \"value\": \"Pending\"\n              }\n            ]\n          },\n          {\n            \"id\": \"base\",\n            \"label\": \"Base Case\",\n            \"short\": \"f(1)\",\n            \"sentence\": \"factorial(1) hits the base case and returns 1 immediately.\",\n            \"why\": \"Base case reached; stops further recursion.\",\n            \"active\": [\"result\"],\n            \"calloutRegion\": \"result\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"val\",\n                \"label\": \"Current Result\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"done\",\n            \"label\": \"Complete\",\n            \"short\": \"6\",\n            \"sentence\": \"All frames return, yielding the final product 6.\",\n            \"why\": \"Unwinding complete.\",\n            \"active\": [\"result\"],\n            \"calloutRegion\": \"result\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Stack Depth\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"val\",\n                \"label\": \"Current Result\",\n                \"value\": \"6\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Watch how a recursive function steps down to a base case, then unwinds to solve the full problem.",
+  "aha": {
+   "stateId": "base",
+   "observation": "When the base case is hit, the function stops descending and returns the absolute value 1."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Recursion Step",
+    "options": [
+     "Start",
+     "Descend 1",
+     "Descend 2",
+     "Base Case",
+     "Unwind 2",
+     "Unwind 1",
+     "Done"
+    ]
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Factorial of 3",
+     "regions": [
+      {
+       "id": "stack",
+       "label": "Call Stack",
+       "kind": "container",
+       "values": [
+        "factorial(3)",
+        "factorial(2)",
+        "factorial(1)"
+       ]
+      },
+      {
+       "id": "result",
+       "label": "Return Value",
+       "kind": "value",
+       "values": [
+        "?",
+        "?",
+        "1"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Initial Call",
+       "short": "f(3)",
+       "sentence": "factorial(3) calls factorial(2) multiplying by 3.",
+       "why": "Entering the first recursive layer.",
+       "active": [
+        "stack"
+       ],
+       "calloutRegion": "stack",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "1"
+        },
+        {
+         "id": "val",
+         "label": "Current Result",
+         "value": "Pending"
+        }
+       ]
+      },
+      {
+       "id": "desc1",
+       "label": "Descend 1",
+       "short": "f(2)",
+       "sentence": "factorial(2) calls factorial(1) multiplying by 2.",
+       "why": "Pushing another frame onto the stack.",
+       "active": [
+        "stack"
+       ],
+       "calloutRegion": "stack",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "2"
+        },
+        {
+         "id": "val",
+         "label": "Current Result",
+         "value": "Pending"
+        }
+       ]
+      },
+      {
+       "id": "base",
+       "label": "Base Case",
+       "short": "f(1)",
+       "sentence": "factorial(1) hits the base case and returns 1 immediately.",
+       "why": "Base case reached; stops further recursion.",
+       "active": [
+        "result"
+       ],
+       "calloutRegion": "result",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "3"
+        },
+        {
+         "id": "val",
+         "label": "Current Result",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "done",
+       "label": "Complete",
+       "short": "6",
+       "sentence": "All frames return, yielding the final product 6.",
+       "why": "Unwinding complete.",
+       "active": [
+        "result"
+       ],
+       "calloutRegion": "result",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack Depth",
+         "value": "0"
+        },
+        {
+         "id": "val",
+         "label": "Current Result",
+         "value": "6"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1098,
+  "output": 1202
+ },
+ "usd": 0.003335,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The call stack and return-value regions with the base-case state show the descent ending at factorial(1) returning 1."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The base state exists, but the control's seven options map to only four defined states, so holding at the aha is not reliable."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The stepIndex control changes the active region and readouts, but three of its options have no matching state, so many inputs change nothing meaningful."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "Region values are static and not tied to the state, and the final result 6 has no bound region value."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The control names Descend 2, Unwind 2 and Unwind 1 but the states are start, desc1, base and done, so the story, labels and controls disagree."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The scene is uncluttered, but it omits the multiplication on unwind that would be the mechanism for the standard depth."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The final value 6 and the depths are correct, but the static '?' and '1' region values are repeated at every step and duplicate the readouts."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.016006
+ }
+}

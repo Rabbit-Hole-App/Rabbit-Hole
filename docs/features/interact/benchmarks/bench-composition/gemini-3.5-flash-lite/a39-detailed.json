@@ -1,0 +1,303 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a39",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a bill become law in the United States?",
+ "ts": "2026-11-14T22:23:20.213Z",
+ "ms": 3833,
+ "raw": "{\n  \"story\": \"A bill travels from initial proposal through committee review, floor debate, and presidential signature to become law.\",\n  \"aha\": {\n    \"stateId\": \"sign\",\n    \"observation\": \"Only after presidential approval or a successful veto override does the bill finally become official law.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Legislative Step\",\n      \"options\": [\n        \"Introduce\",\n        \"Committee\",\n        \"Floor Debate\",\n        \"Second Chamber\",\n        \"Conference\",\n        \"Presidential Action\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Restart\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"US Legislative Process\",\n        \"regions\": [\n          {\n            \"id\": \"house\",\n            \"label\": \"House of Representatives\",\n            \"kind\": \"chamber\"\n          },\n          {\n            \"id\": \"senate\",\n            \"label\": \"Senate\",\n            \"kind\": \"chamber\"\n          },\n          {\n            \"id\": \"whitehouse\",\n            \"label\": \"White House\",\n            \"kind\": \"executive\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"intro\",\n            \"label\": \"Introduction\",\n            \"short\": \"Step 1\",\n            \"sentence\": \"A representative introduces the bill.\",\n            \"why\": \"Bills start their journey in the hopper of either chamber.\",\n            \"active\": [\"house\"],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Stage\",\n                \"value\": \"Introduction\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Progress\",\n                \"value\": \"17%\"\n              }\n            ]\n          },\n          {\n            \"id\": \"committee\",\n            \"label\": \"Committee\",\n            \"short\": \"Step 2\",\n            \"sentence\": \"Committees review and amend the bill.\",\n            \"why\": \"Experts examine details and hold hearings.\",\n            \"active\": [\"house\", \"senate\"],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Stage\",\n                \"value\": \"Committee Review\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Progress\",\n                \"value\": \"33%\"\n              }\n            ]\n          },\n          {\n            \"id\": \"floor\",\n            \"label\": \"Floor Debate\",\n            \"short\": \"Step 3\",\n            \"sentence\": \"The chamber debates and votes on passage.\",\n            \"why\": \"Amendments are added and final chamber approval is tested.\",\n            \"active\": [\"house\"],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Stage\",\n                \"value\": \"Floor Vote\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Progress\",\n                \"value\": \"50%\"\n              }\n            ]\n          },\n          {\n            \"id\": \"second\",\n            \"label\": \"Second Chamber\",\n            \"short\": \"Step 4\",\n            \"sentence\": \"The bill passes through the second chamber.\",\n            \"why\": \"Both House and Senate must pass identical text.\",\n            \"active\": [\"senate\"],\n            \"calloutRegion\": \"senate\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Stage\",\n                \"value\": \"Second Chamber\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Progress\",\n                \"value\": \"67%\"\n              }\n            ]\n          },\n          {\n            \"id\": \"conf\",\n            \"label\": \"Conference\",\n            \"short\": \"Step 5\",\n            \"sentence\": \"A conference committee reconciles differences.\",\n            \"why\": \"Resolves discrepancies between House and Senate versions.\",\n            \"active\": [\"house\", \"senate\"],\n            \"calloutRegion\": \"senate\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Stage\",\n                \"value\": \"Conference\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Progress\",\n                \"value\": \"83%\"\n              }\n            ]\n          },\n          {\n            \"id\": \"sign\",\n            \"label\": \"Presidential Action\",\n            \"short\": \"Step 6\",\n            \"sentence\": \"The President signs the bill into law.\",\n            \"why\": \"Final executive check completes the legislative enactment.\",\n            \"active\": [\"whitehouse\"],\n            \"calloutRegion\": \"whitehouse\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Stage\",\n                \"value\": \"Enacted Law\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Progress\",\n                \"value\": \"100%\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "A bill travels from initial proposal through committee review, floor debate, and presidential signature to become law.",
+  "aha": {
+   "stateId": "sign",
+   "observation": "Only after presidential approval or a successful veto override does the bill finally become official law."
+  },
+  "layout": {
+   "preset": "stepper",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Legislative Step",
+    "options": [
+     "Introduce",
+     "Committee",
+     "Floor Debate",
+     "Second Chamber",
+     "Conference",
+     "Presidential Action"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Restart"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "US Legislative Process",
+     "regions": [
+      {
+       "id": "house",
+       "label": "House of Representatives",
+       "kind": "chamber"
+      },
+      {
+       "id": "senate",
+       "label": "Senate",
+       "kind": "chamber"
+      },
+      {
+       "id": "whitehouse",
+       "label": "White House",
+       "kind": "executive"
+      }
+     ],
+     "states": [
+      {
+       "id": "intro",
+       "label": "Introduction",
+       "short": "Step 1",
+       "sentence": "A representative introduces the bill.",
+       "why": "Bills start their journey in the hopper of either chamber.",
+       "active": [
+        "house"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Stage",
+         "value": "Introduction"
+        },
+        {
+         "id": "r2",
+         "label": "Progress",
+         "value": "17%"
+        }
+       ]
+      },
+      {
+       "id": "committee",
+       "label": "Committee",
+       "short": "Step 2",
+       "sentence": "Committees review and amend the bill.",
+       "why": "Experts examine details and hold hearings.",
+       "active": [
+        "house",
+        "senate"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Stage",
+         "value": "Committee Review"
+        },
+        {
+         "id": "r2",
+         "label": "Progress",
+         "value": "33%"
+        }
+       ]
+      },
+      {
+       "id": "floor",
+       "label": "Floor Debate",
+       "short": "Step 3",
+       "sentence": "The chamber debates and votes on passage.",
+       "why": "Amendments are added and final chamber approval is tested.",
+       "active": [
+        "house"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Stage",
+         "value": "Floor Vote"
+        },
+        {
+         "id": "r2",
+         "label": "Progress",
+         "value": "50%"
+        }
+       ]
+      },
+      {
+       "id": "second",
+       "label": "Second Chamber",
+       "short": "Step 4",
+       "sentence": "The bill passes through the second chamber.",
+       "why": "Both House and Senate must pass identical text.",
+       "active": [
+        "senate"
+       ],
+       "calloutRegion": "senate",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Stage",
+         "value": "Second Chamber"
+        },
+        {
+         "id": "r2",
+         "label": "Progress",
+         "value": "67%"
+        }
+       ]
+      },
+      {
+       "id": "conf",
+       "label": "Conference",
+       "short": "Step 5",
+       "sentence": "A conference committee reconciles differences.",
+       "why": "Resolves discrepancies between House and Senate versions.",
+       "active": [
+        "house",
+        "senate"
+       ],
+       "calloutRegion": "senate",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Stage",
+         "value": "Conference"
+        },
+        {
+         "id": "r2",
+         "label": "Progress",
+         "value": "83%"
+        }
+       ]
+      },
+      {
+       "id": "sign",
+       "label": "Presidential Action",
+       "short": "Step 6",
+       "sentence": "The President signs the bill into law.",
+       "why": "Final executive check completes the legislative enactment.",
+       "active": [
+        "whitehouse"
+       ],
+       "calloutRegion": "whitehouse",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Stage",
+         "value": "Enacted Law"
+        },
+        {
+         "id": "r2",
+         "label": "Progress",
+         "value": "100%"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1107,
+  "output": 1579
+ },
+ "usd": 0.00428,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The three-region picture highlights where the bill sits at each step, answering \"how does a bill become law\", though only coarsely."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'sign' is the final step of a learner-driven stepper, so it holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "stepIndex changes the active regions, callout target, readouts and progress for each step."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Rail, picture, callout, readout and progress all bind to declared variant/state/inputs fields."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The aha text mentions a veto override that no state, region or control represents, and conference highlights both chambers while the callout points only at the Senate."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "Detailed depth adds no comparison, formula or count beyond the overview, just the same highlight plus stage and progress readouts."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Progress values of 17, 33, 50, 67, 83 and 100% match n/6 for each step, and the callouts only locate while the readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.0164
+ }
+}

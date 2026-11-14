@@ -1,0 +1,475 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a30",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "Where do the out-of-fold predictions for the stacking model come from?",
+ "ts": "2026-11-14T22:29:54.130Z",
+ "ms": 26562,
+ "raw": "{\"story\":\"Stacking needs base-model predictions on rows the model never trained on. Split 100 training rows into 5 folds. Each round trains the base model on four folds and predicts the fifth. Together, those held-out predictions form the out-of-fold column.\",\"aha\":{\"stateId\":\"s7\",\"observation\":\"Each out-of-fold prediction comes from a base model that never saw that row. Five held-out slices together form the column the meta-model trains on.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"state.id\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"presentation\":\"Previous / Next buttons; keyboard arrow keys; names kept when disabled at ends\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Restores step 1\"}],\"data\":{\"variants\":[{\"label\":\"5-fold out-of-fold predictions, 100 training rows\",\"regions\":[{\"id\":\"f1\",\"label\":\"Fold 1\",\"kind\":\"fold\",\"values\":[\"rows 1–20\"]},{\"id\":\"f2\",\"label\":\"Fold 2\",\"kind\":\"fold\",\"values\":[\"rows 21–40\"]},{\"id\":\"f3\",\"label\":\"Fold 3\",\"kind\":\"fold\",\"values\":[\"rows 41–60\"]},{\"id\":\"f4\",\"label\":\"Fold 4\",\"kind\":\"fold\",\"values\":[\"rows 61–80\"]},{\"id\":\"f5\",\"label\":\"Fold 5\",\"kind\":\"fold\",\"values\":[\"rows 81–100\"]},{\"id\":\"base\",\"label\":\"Base model\",\"kind\":\"model\",\"phases\":[\"train on 4 folds\",\"predict held-out fold\"]},{\"id\":\"oof\",\"label\":\"Out-of-fold column\",\"kind\":\"column\",\"values\":[\"100 slots, filled 20 per round\"]},{\"id\":\"meta\",\"label\":\"Meta-model\",\"kind\":\"model\",\"phases\":[\"fit on OOF column and labels\"]}],\"links\":[{\"from\":\"f1\",\"to\":\"base\",\"label\":\"train\"},{\"from\":\"f2\",\"to\":\"base\",\"label\":\"train\"},{\"from\":\"f3\",\"to\":\"base\",\"label\":\"train\"},{\"from\":\"f4\",\"to\":\"base\",\"label\":\"train\"},{\"from\":\"f5\",\"to\":\"base\",\"label\":\"train\"},{\"from\":\"base\",\"to\":\"oof\",\"label\":\"predict held-out\"},{\"from\":\"oof\",\"to\":\"meta\",\"label\":\"features\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Split\",\"short\":\"Split\",\"sentence\":\"The 100 training rows are split into five folds of 20 rows each.\",\"why\":\"Every row belongs to exactly one fold, so each gets held out exactly once.\",\"calloutRegion\":\"f1\",\"active\":[\"f1\",\"f2\",\"f3\",\"f4\",\"f5\"],\"readouts\":[{\"id\":\"train\",\"label\":\"Rows per fit\",\"value\":\"—\"},{\"id\":\"hold\",\"label\":\"Held-out rows\",\"value\":\"0\"},{\"id\":\"oof\",\"label\":\"OOF filled\",\"value\":\"0 / 100\"}]},{\"id\":\"s2\",\"label\":\"Round 1 fit\",\"short\":\"R1 fit\",\"sentence\":\"Round 1 holds out fold 1 and trains the base model on folds 2–5.\",\"why\":\"Held-out rows must stay out of training, or predictions on them would be optimistic.\",\"calloutRegion\":\"base\",\"active\":[\"f2\",\"f3\",\"f4\",\"f5\",\"base\"],\"readouts\":[{\"id\":\"train\",\"label\":\"Rows per fit\",\"value\":\"4 × 20 = 80\"},{\"id\":\"hold\",\"label\":\"Held-out rows\",\"value\":\"20 (fold 1)\"},{\"id\":\"oof\",\"label\":\"OOF filled\",\"value\":\"0 / 100\"}]},{\"id\":\"s3\",\"label\":\"Round 1 predict\",\"short\":\"R1 pred\",\"sentence\":\"The model predicts fold 1, which it never saw. Those 20 predictions fill the first slots.\",\"why\":\"This is the first slice of honest, out-of-sample predictions.\",\"calloutRegion\":\"oof\",\"active\":[\"f1\",\"base\",\"oof\"],\"readouts\":[{\"id\":\"train\",\"label\":\"Rows per fit\",\"value\":\"80\"},{\"id\":\"hold\",\"label\":\"Held-out rows\",\"value\":\"20 (fold 1)\"},{\"id\":\"oof\",\"label\":\"OOF filled\",\"value\":\"20 / 100\"}]},{\"id\":\"s4\",\"label\":\"Round 2\",\"short\":\"R2\",\"sentence\":\"Round 2 holds out fold 2, trains a fresh base model on folds 1, 3, 4, 5, and predicts fold 2.\",\"why\":\"A new fit each round keeps the held-out fold unseen by the model that predicts it.\",\"calloutRegion\":\"f2\",\"active\":[\"f1\",\"f3\",\"f4\",\"f5\",\"base\",\"f2\",\"oof\"],\"readouts\":[{\"id\":\"train\",\"label\":\"Rows per fit\",\"value\":\"80\"},{\"id\":\"hold\",\"label\":\"Held-out rows\",\"value\":\"20 (fold 2)\"},{\"id\":\"oof\",\"label\":\"OOF filled\",\"value\":\"40 / 100\"}]},{\"id\":\"s5\",\"label\":\"Rounds 3–4\",\"short\":\"R3–4\",\"sentence\":\"Rounds 3 and 4 repeat the same procedure, holding out folds 3 and 4 in turn.\",\"why\":\"Each round adds 20 new out-of-fold predictions without overwriting earlier ones.\",\"calloutRegion\":\"oof\",\"active\":[\"f3\",\"f4\",\"base\",\"oof\"],\"readouts\":[{\"id\":\"train\",\"label\":\"Rows per fit\",\"value\":\"80\"},{\"id\":\"hold\",\"label\":\"Held-out rows\",\"value\":\"20 (folds 3, 4)\"},{\"id\":\"oof\",\"label\":\"OOF filled\",\"value\":\"80 / 100\"}]},{\"id\":\"s6\",\"label\":\"Round 5\",\"short\":\"R5\",\"sentence\":\"Round 5 holds out fold 5 and fills the last 20 slots. All 100 rows now have a prediction.\",\"why\":\"Five rounds times 20 held-out rows covers every training row exactly once.\",\"calloutRegion\":\"f5\",\"active\":[\"f1\",\"f2\",\"f3\",\"f4\",\"base\",\"f5\",\"oof\"],\"readouts\":[{\"id\":\"train\",\"label\":\"Rows per fit\",\"value\":\"80\"},{\"id\":\"hold\",\"label\":\"Held-out rows\",\"value\":\"20 (fold 5)\"},{\"id\":\"oof\",\"label\":\"OOF filled\",\"value\":\"100 / 100\"}]},{\"id\":\"s7\",\"label\":\"Meta-model fit\",\"short\":\"Meta fit\",\"sentence\":\"The completed column becomes the meta-model's input. Each value came from a model that never saw that row.\",\"why\":\"Honest inputs let the meta-model learn how far to trust the base model.\",\"calloutRegion\":\"meta\",\"active\":[\"oof\",\"meta\"],\"readouts\":[{\"id\":\"train\",\"label\":\"Base fits total\",\"value\":\"5 × 80 rows\"},{\"id\":\"hold\",\"label\":\"Rows predicted by a model that saw them\",\"value\":\"0\"},{\"id\":\"oof\",\"label\":\"OOF filled\",\"value\":\"100 / 100\"}]}]}]}}",
+ "composition": {
+  "story": "Stacking needs base-model predictions on rows the model never trained on. Split 100 training rows into 5 folds. Each round trains the base model on four folds and predicts the fifth. Together, those held-out predictions form the out-of-fold column.",
+  "aha": {
+   "stateId": "s7",
+   "observation": "Each out-of-fold prediction comes from a base model that never saw that row. Five held-out slices together form the column the meta-model trains on."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "state.id",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "presentation": "Previous / Next buttons; keyboard arrow keys; names kept when disabled at ends"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restores step 1"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "5-fold out-of-fold predictions, 100 training rows",
+     "regions": [
+      {
+       "id": "f1",
+       "label": "Fold 1",
+       "kind": "fold",
+       "values": [
+        "rows 1–20"
+       ]
+      },
+      {
+       "id": "f2",
+       "label": "Fold 2",
+       "kind": "fold",
+       "values": [
+        "rows 21–40"
+       ]
+      },
+      {
+       "id": "f3",
+       "label": "Fold 3",
+       "kind": "fold",
+       "values": [
+        "rows 41–60"
+       ]
+      },
+      {
+       "id": "f4",
+       "label": "Fold 4",
+       "kind": "fold",
+       "values": [
+        "rows 61–80"
+       ]
+      },
+      {
+       "id": "f5",
+       "label": "Fold 5",
+       "kind": "fold",
+       "values": [
+        "rows 81–100"
+       ]
+      },
+      {
+       "id": "base",
+       "label": "Base model",
+       "kind": "model",
+       "phases": [
+        "train on 4 folds",
+        "predict held-out fold"
+       ]
+      },
+      {
+       "id": "oof",
+       "label": "Out-of-fold column",
+       "kind": "column",
+       "values": [
+        "100 slots, filled 20 per round"
+       ]
+      },
+      {
+       "id": "meta",
+       "label": "Meta-model",
+       "kind": "model",
+       "phases": [
+        "fit on OOF column and labels"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "f1",
+       "to": "base",
+       "label": "train"
+      },
+      {
+       "from": "f2",
+       "to": "base",
+       "label": "train"
+      },
+      {
+       "from": "f3",
+       "to": "base",
+       "label": "train"
+      },
+      {
+       "from": "f4",
+       "to": "base",
+       "label": "train"
+      },
+      {
+       "from": "f5",
+       "to": "base",
+       "label": "train"
+      },
+      {
+       "from": "base",
+       "to": "oof",
+       "label": "predict held-out"
+      },
+      {
+       "from": "oof",
+       "to": "meta",
+       "label": "features"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Split",
+       "short": "Split",
+       "sentence": "The 100 training rows are split into five folds of 20 rows each.",
+       "why": "Every row belongs to exactly one fold, so each gets held out exactly once.",
+       "calloutRegion": "f1",
+       "active": [
+        "f1",
+        "f2",
+        "f3",
+        "f4",
+        "f5"
+       ],
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Rows per fit",
+         "value": "—"
+        },
+        {
+         "id": "hold",
+         "label": "Held-out rows",
+         "value": "0"
+        },
+        {
+         "id": "oof",
+         "label": "OOF filled",
+         "value": "0 / 100"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Round 1 fit",
+       "short": "R1 fit",
+       "sentence": "Round 1 holds out fold 1 and trains the base model on folds 2–5.",
+       "why": "Held-out rows must stay out of training, or predictions on them would be optimistic.",
+       "calloutRegion": "base",
+       "active": [
+        "f2",
+        "f3",
+        "f4",
+        "f5",
+        "base"
+       ],
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Rows per fit",
+         "value": "4 × 20 = 80"
+        },
+        {
+         "id": "hold",
+         "label": "Held-out rows",
+         "value": "20 (fold 1)"
+        },
+        {
+         "id": "oof",
+         "label": "OOF filled",
+         "value": "0 / 100"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Round 1 predict",
+       "short": "R1 pred",
+       "sentence": "The model predicts fold 1, which it never saw. Those 20 predictions fill the first slots.",
+       "why": "This is the first slice of honest, out-of-sample predictions.",
+       "calloutRegion": "oof",
+       "active": [
+        "f1",
+        "base",
+        "oof"
+       ],
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Rows per fit",
+         "value": "80"
+        },
+        {
+         "id": "hold",
+         "label": "Held-out rows",
+         "value": "20 (fold 1)"
+        },
+        {
+         "id": "oof",
+         "label": "OOF filled",
+         "value": "20 / 100"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Round 2",
+       "short": "R2",
+       "sentence": "Round 2 holds out fold 2, trains a fresh base model on folds 1, 3, 4, 5, and predicts fold 2.",
+       "why": "A new fit each round keeps the held-out fold unseen by the model that predicts it.",
+       "calloutRegion": "f2",
+       "active": [
+        "f1",
+        "f3",
+        "f4",
+        "f5",
+        "base",
+        "f2",
+        "oof"
+       ],
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Rows per fit",
+         "value": "80"
+        },
+        {
+         "id": "hold",
+         "label": "Held-out rows",
+         "value": "20 (fold 2)"
+        },
+        {
+         "id": "oof",
+         "label": "OOF filled",
+         "value": "40 / 100"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Rounds 3–4",
+       "short": "R3–4",
+       "sentence": "Rounds 3 and 4 repeat the same procedure, holding out folds 3 and 4 in turn.",
+       "why": "Each round adds 20 new out-of-fold predictions without overwriting earlier ones.",
+       "calloutRegion": "oof",
+       "active": [
+        "f3",
+        "f4",
+        "base",
+        "oof"
+       ],
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Rows per fit",
+         "value": "80"
+        },
+        {
+         "id": "hold",
+         "label": "Held-out rows",
+         "value": "20 (folds 3, 4)"
+        },
+        {
+         "id": "oof",
+         "label": "OOF filled",
+         "value": "80 / 100"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Round 5",
+       "short": "R5",
+       "sentence": "Round 5 holds out fold 5 and fills the last 20 slots. All 100 rows now have a prediction.",
+       "why": "Five rounds times 20 held-out rows covers every training row exactly once.",
+       "calloutRegion": "f5",
+       "active": [
+        "f1",
+        "f2",
+        "f3",
+        "f4",
+        "base",
+        "f5",
+        "oof"
+       ],
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Rows per fit",
+         "value": "80"
+        },
+        {
+         "id": "hold",
+         "label": "Held-out rows",
+         "value": "20 (fold 5)"
+        },
+        {
+         "id": "oof",
+         "label": "OOF filled",
+         "value": "100 / 100"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Meta-model fit",
+       "short": "Meta fit",
+       "sentence": "The completed column becomes the meta-model's input. Each value came from a model that never saw that row.",
+       "why": "Honest inputs let the meta-model learn how far to trust the base model.",
+       "calloutRegion": "meta",
+       "active": [
+        "oof",
+        "meta"
+       ],
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Base fits total",
+         "value": "5 × 80 rows"
+        },
+        {
+         "id": "hold",
+         "label": "Rows predicted by a model that saw them",
+         "value": "0"
+        },
+        {
+         "id": "oof",
+         "label": "OOF filled",
+         "value": "100 / 100"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3081,
+  "output": 4089
+ },
+ "usd": 0.047052,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of five folds, the base model, the OOF column and the meta-model, with train and predict links, answers how every row gets an out-of-sample prediction."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s7 is the final step of a user-driven stepper, and it shows the full OOF column feeding the meta-model with 0 rows predicted by a model that saw them."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single Step control changes the active regions and readouts in every state, so it is the experiment parameter and the outcomes differ from step to step."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "Most parts trace to declared state, but s4 and s6 list the held-out fold and the oof region as active alongside the training folds, and s2 omits the held-out fold 1 from active, so the highlights do not cleanly match the roles named in the sentences."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "Story, step labels, callout targets and readouts all refer to the same folds, rounds, base model, OOF column and meta-model."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "Seven states, each with a callout, ghost and three readouts over eight regions, plus the s5 grouping of two rounds in one state, go beyond what a detailed scene needs."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The numbers check out: 4 × 20 = 80 rows per fit, 20 slots added per round, running totals of 20, 40, 80 and 100, and 5 × 80 base fits in total."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.014898
+ }
+}

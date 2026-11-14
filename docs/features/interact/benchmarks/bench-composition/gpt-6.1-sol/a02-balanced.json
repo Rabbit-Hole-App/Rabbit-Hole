@@ -1,0 +1,333 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a02",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does tokenization work?",
+ "ts": "2026-11-14T22:22:03.836Z",
+ "ms": 110776,
+ "raw": "{\n  \"story\": \"Start with cats! and a tiny teaching vocabulary. Advance through matching pieces, watching each selection add its vocabulary ID. Compare the reconstructed text with the unchanged input: a word need not correspond to one token.\",\n  \"aha\": {\n    \"stateId\": \"complete\",\n    \"observation\": \"A word can span multiple vocabulary tokens, while decoding their IDs reconstructs the original text exactly.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"tokenization-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the canonical algorithm/collection rail within the approved card shell. Keep progress and completed trace here. Reference capture shows complete.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"input-and-vocabulary\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Keep the input above a fixed row of named vocabulary entries. Place Rules above the experiment. Highlight bound active regions without animation.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"matching-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor to the selected region. Identify the matching operation here; report numeric values only in readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"tokenization-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Use aligned labeled rows, ending with Status. Derive readouts from selected entries. IDs are fixed teaching keys, not measurements. Counts use whole tokens without rounding. Text preserves exact characters.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Tokenization step\",\n      \"presentation\": \"Balanced parameter-control budget: zero; navigation uses this index and Reset. Show Previous and Next, retaining names when disabled. Default to the first state; bounds are the declared states; increment by one state. Navigation changes highlights, emitted IDs, remaining text, and reconstruction. Every state persists until learner action, including complete. Provide visible focus and keyboard operation.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state, empty output, and all defaults. Provide visible focus and keyboard operation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Exact-match teaching tokenizer\",\n        \"regions\": [\n          {\n            \"id\": \"rules\",\n            \"label\": \"Rules\",\n            \"values\": [\n              \"Illustrative tokenizer and IDs, not a production model.\",\n              \"Choose the longest vocabulary match at the remaining text's start.\",\n              \"Preserve every character; unsupported characters stop tokenization.\"\n            ]\n          },\n          {\n            \"id\": \"input\",\n            \"label\": \"Input\",\n            \"values\": [\n              \"cats!\"\n            ]\n          },\n          {\n            \"id\": \"cat-entry\",\n            \"label\": \"cat entry\",\n            \"values\": [\n              \"cat\"\n            ]\n          },\n          {\n            \"id\": \"s-entry\",\n            \"label\": \"s entry\",\n            \"values\": [\n              \"s\"\n            ]\n          },\n          {\n            \"id\": \"punctuation-entry\",\n            \"label\": \"! entry\",\n            \"values\": [\n              \"!\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"ready\",\n            \"label\": \"Read input\",\n            \"short\": \"Input\",\n            \"sentence\": \"Begin at the start of Input.\",\n            \"why\": \"The vocabulary contains cat, s, and !, but not cats. The input remains visible throughout the experiment.\",\n            \"active\": [\n              \"input\"\n            ],\n            \"calloutRegion\": \"input\",\n            \"readouts\": [\n              {\n                \"id\": \"emitted-ids\",\n                \"label\": \"Emitted token IDs\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"remaining-text\",\n                \"label\": \"Unconsumed text\",\n                \"value\": \"cats!\"\n              },\n              {\n                \"id\": \"decoded-prefix\",\n                \"label\": \"Decoded prefix\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"token-count\",\n                \"label\": \"Emitted token count\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Ready to match the input prefix.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"matched-cat\",\n            \"label\": \"Match cat\",\n            \"short\": \"cat\",\n            \"sentence\": \"Select the cat entry and emit its vocabulary ID.\",\n            \"why\": \"This entry matches the longest available prefix. Its characters become the decoded prefix; the unmatched suffix remains.\",\n            \"active\": [\n              \"cat-entry\"\n            ],\n            \"calloutRegion\": \"cat-entry\",\n            \"readouts\": [\n              {\n                \"id\": \"emitted-ids\",\n                \"label\": \"Emitted token IDs\",\n                \"value\": \"17\"\n              },\n              {\n                \"id\": \"remaining-text\",\n                \"label\": \"Unconsumed text\",\n                \"value\": \"s!\"\n              },\n              {\n                \"id\": \"decoded-prefix\",\n                \"label\": \"Decoded prefix\",\n                \"value\": \"cat\"\n              },\n              {\n                \"id\": \"token-count\",\n                \"label\": \"Emitted token count\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The decoded prefix plus unconsumed text still equals Input.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"matched-s\",\n            \"label\": \"Match s\",\n            \"short\": \"s\",\n            \"sentence\": \"Select the s entry and append its vocabulary ID.\",\n            \"why\": \"The word continues in a separate vocabulary piece. Decoding the emitted IDs joins their pieces without adding spaces.\",\n            \"active\": [\n              \"s-entry\"\n            ],\n            \"calloutRegion\": \"s-entry\",\n            \"readouts\": [\n              {\n                \"id\": \"emitted-ids\",\n                \"label\": \"Emitted token IDs\",\n                \"value\": \"17, 42\"\n              },\n              {\n                \"id\": \"remaining-text\",\n                \"label\": \"Unconsumed text\",\n                \"value\": \"!\"\n              },\n              {\n                \"id\": \"decoded-prefix\",\n                \"label\": \"Decoded prefix\",\n                \"value\": \"cats\"\n              },\n              {\n                \"id\": \"token-count\",\n                \"label\": \"Emitted token count\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The word is reconstructed; punctuation remains unconsumed.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"complete\",\n            \"label\": \"Match punctuation\",\n            \"short\": \"!\",\n            \"sentence\": \"Select the ! entry to finish tokenizing Input.\",\n            \"why\": \"Compare Decoded prefix with Input. The word used multiple vocabulary pieces, yet decoding preserves the complete original text.\",\n            \"active\": [\n              \"input\",\n              \"cat-entry\",\n              \"s-entry\",\n              \"punctuation-entry\"\n            ],\n            \"calloutRegion\": \"punctuation-entry\",\n            \"readouts\": [\n              {\n                \"id\": \"emitted-ids\",\n                \"label\": \"Emitted token IDs\",\n                \"value\": \"17, 42, 9\"\n              },\n              {\n                \"id\": \"remaining-text\",\n                \"label\": \"Unconsumed text\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"decoded-prefix\",\n                \"label\": \"Decoded prefix\",\n                \"value\": \"cats!\"\n              },\n              {\n                \"id\": \"token-count\",\n                \"label\": \"Emitted token count\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Complete: decoded text exactly matches Input.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Start with cats! and a tiny teaching vocabulary. Advance through matching pieces, watching each selection add its vocabulary ID. Compare the reconstructed text with the unchanged input: a word need not correspond to one token.",
+  "aha": {
+   "stateId": "complete",
+   "observation": "A word can span multiple vocabulary tokens, while decoding their IDs reconstructs the original text exactly."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "tokenization-rail",
+    "kind": "step-rail",
+    "presentation": "Use the canonical algorithm/collection rail within the approved card shell. Keep progress and completed trace here. Reference capture shows complete.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "input-and-vocabulary",
+    "kind": "fixed-picture",
+    "presentation": "Keep the input above a fixed row of named vocabulary entries. Place Rules above the experiment. Highlight bound active regions without animation.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "matching-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor to the selected region. Identify the matching operation here; report numeric values only in readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "tokenization-evidence",
+    "kind": "value-readout",
+    "presentation": "Use aligned labeled rows, ending with Status. Derive readouts from selected entries. IDs are fixed teaching keys, not measurements. Counts use whole tokens without rounding. Text preserves exact characters.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Tokenization step",
+    "presentation": "Balanced parameter-control budget: zero; navigation uses this index and Reset. Show Previous and Next, retaining names when disabled. Default to the first state; bounds are the declared states; increment by one state. Navigation changes highlights, emitted IDs, remaining text, and reconstruction. Every state persists until learner action, including complete. Provide visible focus and keyboard operation."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state, empty output, and all defaults. Provide visible focus and keyboard operation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Exact-match teaching tokenizer",
+     "regions": [
+      {
+       "id": "rules",
+       "label": "Rules",
+       "values": [
+        "Illustrative tokenizer and IDs, not a production model.",
+        "Choose the longest vocabulary match at the remaining text's start.",
+        "Preserve every character; unsupported characters stop tokenization."
+       ]
+      },
+      {
+       "id": "input",
+       "label": "Input",
+       "values": [
+        "cats!"
+       ]
+      },
+      {
+       "id": "cat-entry",
+       "label": "cat entry",
+       "values": [
+        "cat"
+       ]
+      },
+      {
+       "id": "s-entry",
+       "label": "s entry",
+       "values": [
+        "s"
+       ]
+      },
+      {
+       "id": "punctuation-entry",
+       "label": "! entry",
+       "values": [
+        "!"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Read input",
+       "short": "Input",
+       "sentence": "Begin at the start of Input.",
+       "why": "The vocabulary contains cat, s, and !, but not cats. The input remains visible throughout the experiment.",
+       "active": [
+        "input"
+       ],
+       "calloutRegion": "input",
+       "readouts": [
+        {
+         "id": "emitted-ids",
+         "label": "Emitted token IDs",
+         "value": "Empty"
+        },
+        {
+         "id": "remaining-text",
+         "label": "Unconsumed text",
+         "value": "cats!"
+        },
+        {
+         "id": "decoded-prefix",
+         "label": "Decoded prefix",
+         "value": "Empty"
+        },
+        {
+         "id": "token-count",
+         "label": "Emitted token count",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Ready to match the input prefix."
+        }
+       ]
+      },
+      {
+       "id": "matched-cat",
+       "label": "Match cat",
+       "short": "cat",
+       "sentence": "Select the cat entry and emit its vocabulary ID.",
+       "why": "This entry matches the longest available prefix. Its characters become the decoded prefix; the unmatched suffix remains.",
+       "active": [
+        "cat-entry"
+       ],
+       "calloutRegion": "cat-entry",
+       "readouts": [
+        {
+         "id": "emitted-ids",
+         "label": "Emitted token IDs",
+         "value": "17"
+        },
+        {
+         "id": "remaining-text",
+         "label": "Unconsumed text",
+         "value": "s!"
+        },
+        {
+         "id": "decoded-prefix",
+         "label": "Decoded prefix",
+         "value": "cat"
+        },
+        {
+         "id": "token-count",
+         "label": "Emitted token count",
+         "value": "1"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The decoded prefix plus unconsumed text still equals Input."
+        }
+       ]
+      },
+      {
+       "id": "matched-s",
+       "label": "Match s",
+       "short": "s",
+       "sentence": "Select the s entry and append its vocabulary ID.",
+       "why": "The word continues in a separate vocabulary piece. Decoding the emitted IDs joins their pieces without adding spaces.",
+       "active": [
+        "s-entry"
+       ],
+       "calloutRegion": "s-entry",
+       "readouts": [
+        {
+         "id": "emitted-ids",
+         "label": "Emitted token IDs",
+         "value": "17, 42"
+        },
+        {
+         "id": "remaining-text",
+         "label": "Unconsumed text",
+         "value": "!"
+        },
+        {
+         "id": "decoded-prefix",
+         "label": "Decoded prefix",
+         "value": "cats"
+        },
+        {
+         "id": "token-count",
+         "label": "Emitted token count",
+         "value": "2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The word is reconstructed; punctuation remains unconsumed."
+        }
+       ]
+      },
+      {
+       "id": "complete",
+       "label": "Match punctuation",
+       "short": "!",
+       "sentence": "Select the ! entry to finish tokenizing Input.",
+       "why": "Compare Decoded prefix with Input. The word used multiple vocabulary pieces, yet decoding preserves the complete original text.",
+       "active": [
+        "input",
+        "cat-entry",
+        "s-entry",
+        "punctuation-entry"
+       ],
+       "calloutRegion": "punctuation-entry",
+       "readouts": [
+        {
+         "id": "emitted-ids",
+         "label": "Emitted token IDs",
+         "value": "17, 42, 9"
+        },
+        {
+         "id": "remaining-text",
+         "label": "Unconsumed text",
+         "value": "Empty"
+        },
+        {
+         "id": "decoded-prefix",
+         "label": "Decoded prefix",
+         "value": "cats!"
+        },
+        {
+         "id": "token-count",
+         "label": "Emitted token count",
+         "value": "3"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Complete: decoded text exactly matches Input."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1532,
+  "output": 5430
+ },
+ "usd": 0.054494,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The drawing asks whether a word must be one token, and it shows the input over the cat, s and ! vocabulary entries, with highlights, emitted IDs and a decoded prefix demonstrating that cats! splits into three pieces and decodes exactly."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The complete state is the final state, with IDs 17, 42, 9 and decoded cats! equal to the input, and the control text says every state persists until learner action."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The zero-parameter budget is justified as a fixed comparison, and the step index changes the highlights, emitted IDs, remaining text and reconstruction in each state."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlights bind to state.active over declared regions, the callout binds to calloutRegion, sentence and why, and the readouts bind to state.readouts; all of these exist in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels and callouts consistently name Input, the cat, s and ! entries, and the emitted IDs, and these match the changing regions and readouts."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The picture is one input row over a fixed vocabulary row with a single callout and five aligned readout rows, and the Rules region supplies the mechanism without extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The IDs, remaining text, decoded prefixes and counts of 0 to 3 are all correct at every state, and the numbers appear only in the readouts while the callouts just locate and explain."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018438
+ }
+}

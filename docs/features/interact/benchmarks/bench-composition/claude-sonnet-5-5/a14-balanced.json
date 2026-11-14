@@ -1,0 +1,493 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a14",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a hash table work?",
+ "ts": "2026-11-14T22:25:01.081Z",
+ "ms": 28037,
+ "raw": "{\"story\":\"A hash table turns a key into a bucket number, so it jumps straight to one bucket instead of scanning everything. Watch apple, banana and cherry go in. Cherry collides with apple, so they share a bucket. Then look up cherry and see how few entries get checked.\",\"aha\":{\"stateId\":\"s8\",\"observation\":\"Looking up cherry went straight to bucket 1 and compared only two entries. Banana and the other buckets were never touched.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons with keyboard arrows; names stay visible when disabled at the ends.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the empty table, step 1.\"}],\"data\":{\"variants\":[{\"label\":\"Toy hash table: 4 buckets, chaining. Assumed fixed hashes: apple→1, banana→3, cherry→1 (hash mod 4).\",\"regions\":[{\"id\":\"key\",\"label\":\"Current key\",\"kind\":\"input\",\"values\":[\"key\"]},{\"id\":\"hash\",\"label\":\"Hash function\",\"kind\":\"function\",\"values\":[\"hash(key) mod 4\"]},{\"id\":\"b0\",\"label\":\"Bucket 0\",\"kind\":\"bucket\"},{\"id\":\"b1\",\"label\":\"Bucket 1\",\"kind\":\"bucket\"},{\"id\":\"b2\",\"label\":\"Bucket 2\",\"kind\":\"bucket\"},{\"id\":\"b3\",\"label\":\"Bucket 3\",\"kind\":\"bucket\"},{\"id\":\"e-apple\",\"label\":\"apple entry\",\"kind\":\"entry\",\"values\":[\"apple\"]},{\"id\":\"e-banana\",\"label\":\"banana entry\",\"kind\":\"entry\",\"values\":[\"banana\"]},{\"id\":\"e-cherry\",\"label\":\"cherry entry\",\"kind\":\"entry\",\"values\":[\"cherry\"]}],\"links\":[{\"from\":\"key\",\"to\":\"hash\",\"label\":\"key in\"},{\"from\":\"hash\",\"to\":\"b0\",\"label\":\"0\"},{\"from\":\"hash\",\"to\":\"b1\",\"label\":\"1\"},{\"from\":\"hash\",\"to\":\"b2\",\"label\":\"2\"},{\"from\":\"hash\",\"to\":\"b3\",\"label\":\"3\"},{\"from\":\"b1\",\"to\":\"e-apple\",\"label\":\"first\"},{\"from\":\"e-apple\",\"to\":\"e-cherry\",\"label\":\"next\"},{\"from\":\"b3\",\"to\":\"e-banana\",\"label\":\"first\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Empty table\",\"short\":\"Empty\",\"sentence\":\"The table is four empty buckets. Each bucket can hold a short chain of entries.\",\"why\":\"Buckets are the only places a key can ever be stored.\",\"active\":[\"b0\",\"b1\",\"b2\",\"b3\"],\"calloutRegion\":\"b0\",\"readouts\":[{\"id\":\"stored\",\"label\":\"Entries stored\",\"value\":\"0\"},{\"id\":\"idx\",\"label\":\"Bucket index\",\"value\":\"none\"},{\"id\":\"cmp\",\"label\":\"Entries compared\",\"value\":\"0\"}]},{\"id\":\"s2\",\"label\":\"Insert apple\",\"short\":\"Insert apple\",\"sentence\":\"Insert apple: the hash function maps it to 1, so apple is stored in bucket 1.\",\"why\":\"The key itself decides the bucket, with no searching.\",\"active\":[\"key\",\"hash\",\"b1\",\"e-apple\"],\"calloutRegion\":\"hash\",\"readouts\":[{\"id\":\"stored\",\"label\":\"Entries stored\",\"value\":\"1\"},{\"id\":\"idx\",\"label\":\"Bucket index\",\"value\":\"1\"},{\"id\":\"cmp\",\"label\":\"Entries compared\",\"value\":\"0\"}]},{\"id\":\"s3\",\"label\":\"Insert banana\",\"short\":\"Insert banana\",\"sentence\":\"Insert banana: it hashes to 3 and goes into bucket 3, which was empty.\",\"why\":\"Different keys usually land in different buckets.\",\"active\":[\"key\",\"hash\",\"b3\",\"e-banana\"],\"calloutRegion\":\"b3\",\"readouts\":[{\"id\":\"stored\",\"label\":\"Entries stored\",\"value\":\"2\"},{\"id\":\"idx\",\"label\":\"Bucket index\",\"value\":\"3\"},{\"id\":\"cmp\",\"label\":\"Entries compared\",\"value\":\"0\"}]},{\"id\":\"s4\",\"label\":\"Cherry collides\",\"short\":\"Collision\",\"sentence\":\"Insert cherry: it also hashes to 1, but bucket 1 already holds apple. This is a collision.\",\"why\":\"Two keys can share a hash index, so buckets must hold more than one entry.\",\"active\":[\"key\",\"hash\",\"b1\",\"e-apple\"],\"calloutRegion\":\"b1\",\"readouts\":[{\"id\":\"stored\",\"label\":\"Entries stored\",\"value\":\"2\"},{\"id\":\"idx\",\"label\":\"Bucket index\",\"value\":\"1 (occupied)\"},{\"id\":\"cmp\",\"label\":\"Entries compared\",\"value\":\"0\"}]},{\"id\":\"s5\",\"label\":\"Chain cherry\",\"short\":\"Chain\",\"sentence\":\"Cherry is linked after apple in bucket 1. The bucket now holds a chain of two entries.\",\"why\":\"Chaining resolves the collision without moving other buckets.\",\"active\":[\"b1\",\"e-apple\",\"e-cherry\"],\"calloutRegion\":\"e-cherry\",\"readouts\":[{\"id\":\"stored\",\"label\":\"Entries stored\",\"value\":\"3\"},{\"id\":\"idx\",\"label\":\"Bucket index\",\"value\":\"1\"},{\"id\":\"cmp\",\"label\":\"Entries compared\",\"value\":\"0\"}]},{\"id\":\"s6\",\"label\":\"Lookup cherry\",\"short\":\"Lookup\",\"sentence\":\"Look up cherry: hash it again to get 1. Jump directly to bucket 1.\",\"why\":\"The same key always gives the same index, so the search starts at one bucket.\",\"active\":[\"key\",\"hash\",\"b1\"],\"calloutRegion\":\"hash\",\"readouts\":[{\"id\":\"stored\",\"label\":\"Entries stored\",\"value\":\"3\"},{\"id\":\"idx\",\"label\":\"Bucket index\",\"value\":\"1\"},{\"id\":\"cmp\",\"label\":\"Entries compared\",\"value\":\"0\"}]},{\"id\":\"s7\",\"label\":\"Compare apple\",\"short\":\"Compare 1\",\"sentence\":\"The first entry in bucket 1 is apple. It does not equal cherry, so move to the next entry.\",\"why\":\"Within a bucket, the table compares actual keys to find the match.\",\"active\":[\"b1\",\"e-apple\"],\"calloutRegion\":\"e-apple\",\"readouts\":[{\"id\":\"stored\",\"label\":\"Entries stored\",\"value\":\"3\"},{\"id\":\"idx\",\"label\":\"Bucket index\",\"value\":\"1\"},{\"id\":\"cmp\",\"label\":\"Entries compared\",\"value\":\"1 of 3\"}]},{\"id\":\"s8\",\"label\":\"Match cherry\",\"short\":\"Match\",\"sentence\":\"The next entry is cherry, which matches. The lookup ends having touched one bucket and two entries.\",\"why\":\"Banana and buckets 0, 2 and 3 were never examined, so lookup cost stays small.\",\"active\":[\"b1\",\"e-cherry\"],\"calloutRegion\":\"e-cherry\",\"readouts\":[{\"id\":\"stored\",\"label\":\"Entries stored\",\"value\":\"3\"},{\"id\":\"idx\",\"label\":\"Bucket index\",\"value\":\"1\"},{\"id\":\"cmp\",\"label\":\"Entries compared\",\"value\":\"2 of 3\"},{\"id\":\"touched\",\"label\":\"Buckets touched\",\"value\":\"1 of 4\"}]}]}]}}",
+ "composition": {
+  "story": "A hash table turns a key into a bucket number, so it jumps straight to one bucket instead of scanning everything. Watch apple, banana and cherry go in. Cherry collides with apple, so they share a bucket. Then look up cherry and see how few entries get checked.",
+  "aha": {
+   "stateId": "s8",
+   "observation": "Looking up cherry went straight to bucket 1 and compared only two entries. Banana and the other buckets were never touched."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons with keyboard arrows; names stay visible when disabled at the ends."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the empty table, step 1."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Toy hash table: 4 buckets, chaining. Assumed fixed hashes: apple→1, banana→3, cherry→1 (hash mod 4).",
+     "regions": [
+      {
+       "id": "key",
+       "label": "Current key",
+       "kind": "input",
+       "values": [
+        "key"
+       ]
+      },
+      {
+       "id": "hash",
+       "label": "Hash function",
+       "kind": "function",
+       "values": [
+        "hash(key) mod 4"
+       ]
+      },
+      {
+       "id": "b0",
+       "label": "Bucket 0",
+       "kind": "bucket"
+      },
+      {
+       "id": "b1",
+       "label": "Bucket 1",
+       "kind": "bucket"
+      },
+      {
+       "id": "b2",
+       "label": "Bucket 2",
+       "kind": "bucket"
+      },
+      {
+       "id": "b3",
+       "label": "Bucket 3",
+       "kind": "bucket"
+      },
+      {
+       "id": "e-apple",
+       "label": "apple entry",
+       "kind": "entry",
+       "values": [
+        "apple"
+       ]
+      },
+      {
+       "id": "e-banana",
+       "label": "banana entry",
+       "kind": "entry",
+       "values": [
+        "banana"
+       ]
+      },
+      {
+       "id": "e-cherry",
+       "label": "cherry entry",
+       "kind": "entry",
+       "values": [
+        "cherry"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "key",
+       "to": "hash",
+       "label": "key in"
+      },
+      {
+       "from": "hash",
+       "to": "b0",
+       "label": "0"
+      },
+      {
+       "from": "hash",
+       "to": "b1",
+       "label": "1"
+      },
+      {
+       "from": "hash",
+       "to": "b2",
+       "label": "2"
+      },
+      {
+       "from": "hash",
+       "to": "b3",
+       "label": "3"
+      },
+      {
+       "from": "b1",
+       "to": "e-apple",
+       "label": "first"
+      },
+      {
+       "from": "e-apple",
+       "to": "e-cherry",
+       "label": "next"
+      },
+      {
+       "from": "b3",
+       "to": "e-banana",
+       "label": "first"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Empty table",
+       "short": "Empty",
+       "sentence": "The table is four empty buckets. Each bucket can hold a short chain of entries.",
+       "why": "Buckets are the only places a key can ever be stored.",
+       "active": [
+        "b0",
+        "b1",
+        "b2",
+        "b3"
+       ],
+       "calloutRegion": "b0",
+       "readouts": [
+        {
+         "id": "stored",
+         "label": "Entries stored",
+         "value": "0"
+        },
+        {
+         "id": "idx",
+         "label": "Bucket index",
+         "value": "none"
+        },
+        {
+         "id": "cmp",
+         "label": "Entries compared",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Insert apple",
+       "short": "Insert apple",
+       "sentence": "Insert apple: the hash function maps it to 1, so apple is stored in bucket 1.",
+       "why": "The key itself decides the bucket, with no searching.",
+       "active": [
+        "key",
+        "hash",
+        "b1",
+        "e-apple"
+       ],
+       "calloutRegion": "hash",
+       "readouts": [
+        {
+         "id": "stored",
+         "label": "Entries stored",
+         "value": "1"
+        },
+        {
+         "id": "idx",
+         "label": "Bucket index",
+         "value": "1"
+        },
+        {
+         "id": "cmp",
+         "label": "Entries compared",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Insert banana",
+       "short": "Insert banana",
+       "sentence": "Insert banana: it hashes to 3 and goes into bucket 3, which was empty.",
+       "why": "Different keys usually land in different buckets.",
+       "active": [
+        "key",
+        "hash",
+        "b3",
+        "e-banana"
+       ],
+       "calloutRegion": "b3",
+       "readouts": [
+        {
+         "id": "stored",
+         "label": "Entries stored",
+         "value": "2"
+        },
+        {
+         "id": "idx",
+         "label": "Bucket index",
+         "value": "3"
+        },
+        {
+         "id": "cmp",
+         "label": "Entries compared",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Cherry collides",
+       "short": "Collision",
+       "sentence": "Insert cherry: it also hashes to 1, but bucket 1 already holds apple. This is a collision.",
+       "why": "Two keys can share a hash index, so buckets must hold more than one entry.",
+       "active": [
+        "key",
+        "hash",
+        "b1",
+        "e-apple"
+       ],
+       "calloutRegion": "b1",
+       "readouts": [
+        {
+         "id": "stored",
+         "label": "Entries stored",
+         "value": "2"
+        },
+        {
+         "id": "idx",
+         "label": "Bucket index",
+         "value": "1 (occupied)"
+        },
+        {
+         "id": "cmp",
+         "label": "Entries compared",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Chain cherry",
+       "short": "Chain",
+       "sentence": "Cherry is linked after apple in bucket 1. The bucket now holds a chain of two entries.",
+       "why": "Chaining resolves the collision without moving other buckets.",
+       "active": [
+        "b1",
+        "e-apple",
+        "e-cherry"
+       ],
+       "calloutRegion": "e-cherry",
+       "readouts": [
+        {
+         "id": "stored",
+         "label": "Entries stored",
+         "value": "3"
+        },
+        {
+         "id": "idx",
+         "label": "Bucket index",
+         "value": "1"
+        },
+        {
+         "id": "cmp",
+         "label": "Entries compared",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Lookup cherry",
+       "short": "Lookup",
+       "sentence": "Look up cherry: hash it again to get 1. Jump directly to bucket 1.",
+       "why": "The same key always gives the same index, so the search starts at one bucket.",
+       "active": [
+        "key",
+        "hash",
+        "b1"
+       ],
+       "calloutRegion": "hash",
+       "readouts": [
+        {
+         "id": "stored",
+         "label": "Entries stored",
+         "value": "3"
+        },
+        {
+         "id": "idx",
+         "label": "Bucket index",
+         "value": "1"
+        },
+        {
+         "id": "cmp",
+         "label": "Entries compared",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Compare apple",
+       "short": "Compare 1",
+       "sentence": "The first entry in bucket 1 is apple. It does not equal cherry, so move to the next entry.",
+       "why": "Within a bucket, the table compares actual keys to find the match.",
+       "active": [
+        "b1",
+        "e-apple"
+       ],
+       "calloutRegion": "e-apple",
+       "readouts": [
+        {
+         "id": "stored",
+         "label": "Entries stored",
+         "value": "3"
+        },
+        {
+         "id": "idx",
+         "label": "Bucket index",
+         "value": "1"
+        },
+        {
+         "id": "cmp",
+         "label": "Entries compared",
+         "value": "1 of 3"
+        }
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "Match cherry",
+       "short": "Match",
+       "sentence": "The next entry is cherry, which matches. The lookup ends having touched one bucket and two entries.",
+       "why": "Banana and buckets 0, 2 and 3 were never examined, so lookup cost stays small.",
+       "active": [
+        "b1",
+        "e-cherry"
+       ],
+       "calloutRegion": "e-cherry",
+       "readouts": [
+        {
+         "id": "stored",
+         "label": "Entries stored",
+         "value": "3"
+        },
+        {
+         "id": "idx",
+         "label": "Bucket index",
+         "value": "1"
+        },
+        {
+         "id": "cmp",
+         "label": "Entries compared",
+         "value": "2 of 3"
+        },
+        {
+         "id": "touched",
+         "label": "Buckets touched",
+         "value": "1 of 4"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3067,
+  "output": 4345
+ },
+ "usd": 0.049584,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The question is why a hash lookup is cheap. The key→hash→bucket links and the apple→cherry chain in bucket 1 show it, and the s8 readouts (1 of 4 buckets, 2 of 3 entries) demonstrate it."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha is the final state s8 (Match cherry), and it has no timer or auto-advance. It holds until the learner acts, since Step is a manual Previous/Next index."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is Step, which walks a fixed script. There is no parameter such as bucket count, key or hash, and the fixed comparison is not justified beyond the toy-table label, so nothing changes the experiment."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callout targets, active highlights, ghost regions and readouts all trace to declared region ids or state fields, and the links are declared in variant.links. The hash mapping is declared in the variant label."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, sentences and readouts consistently name apple, banana, cherry, bucket 1 and the collision and lookup events. The Step and Reset controls match the stepper."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The picture carries the key, the hash function, four buckets and three entries, and every state adds a callout, a ghost and three or four readouts. This is more than one changing region for a balanced depth and has no tiered comparison, so it is cluttered."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The counts are correct at the end (2 of 3 entries, 1 of 4 buckets). The s7 readout of '1 of 3' is questionable, though, because the actual cost is at most 2. Information is also repeated across the sentence, the why text and the readouts, e.g. the bucket and entry counts in the s8 sentence and again"
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.016254
+ }
+}

@@ -1,0 +1,320 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a19",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a volcano erupt?",
+ "ts": "2026-11-14T22:26:10.422Z",
+ "ms": 20968,
+ "raw": "{\"story\":\"Magma sits deep under high pressure with gas dissolved in it. As it rises, pressure drops and the gas forms bubbles that swell. Step through four states to see the gas share of volume grow until it blasts the magma out.\",\"aha\":{\"stateId\":\"erupt\",\"observation\":\"As magma rises and pressure falls from 130 to 0.1 MPa, gas grows to about 90% of its volume and blasts it out.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Explosive volcano (illustrative values)\",\"regions\":[{\"id\":\"chamber\",\"label\":\"Magma chamber\",\"kind\":\"reservoir\",\"values\":[\"about 5 km deep\",\"130 MPa\"]},{\"id\":\"conduit\",\"label\":\"Conduit\",\"kind\":\"channel\",\"values\":[\"magma path to surface\"]},{\"id\":\"bubbles\",\"label\":\"Gas bubbles\",\"kind\":\"gas\",\"phases\":[\"dissolved\",\"small\",\"large\",\"fragmenting\"]},{\"id\":\"vent\",\"label\":\"Vent\",\"kind\":\"opening\",\"values\":[\"surface, 0.1 MPa\"]},{\"id\":\"plume\",\"label\":\"Ash plume\",\"kind\":\"ejecta\",\"values\":[\"ash and gas\"]}],\"links\":[{\"from\":\"chamber\",\"to\":\"conduit\",\"label\":\"magma rises\"},{\"from\":\"conduit\",\"to\":\"vent\",\"label\":\"pressure drops\"},{\"from\":\"vent\",\"to\":\"plume\",\"label\":\"blast out\"}],\"states\":[{\"id\":\"store\",\"label\":\"Magma stored\",\"short\":\"Stored\",\"sentence\":\"Deep in the magma chamber, high pressure keeps the gas dissolved in the liquid rock.\",\"why\":\"At 130 MPa the gas stays dissolved, so no bubbles exist yet.\",\"calloutRegion\":\"chamber\",\"active\":[\"chamber\"],\"readouts\":[{\"id\":\"depth\",\"label\":\"Magma depth\",\"value\":\"5 km\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"130 MPa\"},{\"id\":\"gas\",\"label\":\"Gas share of volume\",\"value\":\"0%\"}]},{\"id\":\"rise\",\"label\":\"Magma rises\",\"short\":\"Rises\",\"sentence\":\"Buoyant magma pushes up the conduit. Pressure around it falls, and the first gas bubbles appear.\",\"why\":\"Lower pressure means the dissolved gas can no longer stay in the liquid.\",\"calloutRegion\":\"conduit\",\"active\":[\"chamber\",\"conduit\",\"bubbles\"],\"readouts\":[{\"id\":\"depth\",\"label\":\"Magma depth\",\"value\":\"3 km\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"80 MPa\"},{\"id\":\"gas\",\"label\":\"Gas share of volume\",\"value\":\"5%\"}]},{\"id\":\"grow\",\"label\":\"Bubbles swell\",\"short\":\"Swell\",\"sentence\":\"Near the surface the bubbles expand sharply. The frothy magma takes up far more room and speeds up.\",\"why\":\"Gas volume rises as pressure drops, so the mixture accelerates upward.\",\"calloutRegion\":\"bubbles\",\"active\":[\"conduit\",\"bubbles\"],\"readouts\":[{\"id\":\"depth\",\"label\":\"Magma depth\",\"value\":\"1 km\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"25 MPa\"},{\"id\":\"gas\",\"label\":\"Gas share of volume\",\"value\":\"60%\"}]},{\"id\":\"erupt\",\"label\":\"Eruption\",\"short\":\"Erupt\",\"sentence\":\"Bubbles take over and shatter the magma into ash. The gas blasts it out of the vent as a plume.\",\"why\":\"At about 90% gas, the magma fragments and the expanding gas drives the eruption.\",\"calloutRegion\":\"vent\",\"active\":[\"bubbles\",\"vent\",\"plume\"],\"readouts\":[{\"id\":\"depth\",\"label\":\"Magma depth\",\"value\":\"0 km\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"0.1 MPa\"},{\"id\":\"gas\",\"label\":\"Gas share of volume\",\"value\":\"90%\"}]}]}]}}",
+ "composition": {
+  "story": "Magma sits deep under high pressure with gas dissolved in it. As it rises, pressure drops and the gas forms bubbles that swell. Step through four states to see the gas share of volume grow until it blasts the magma out.",
+  "aha": {
+   "stateId": "erupt",
+   "observation": "As magma rises and pressure falls from 130 to 0.1 MPa, gas grows to about 90% of its volume and blasts it out."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Explosive volcano (illustrative values)",
+     "regions": [
+      {
+       "id": "chamber",
+       "label": "Magma chamber",
+       "kind": "reservoir",
+       "values": [
+        "about 5 km deep",
+        "130 MPa"
+       ]
+      },
+      {
+       "id": "conduit",
+       "label": "Conduit",
+       "kind": "channel",
+       "values": [
+        "magma path to surface"
+       ]
+      },
+      {
+       "id": "bubbles",
+       "label": "Gas bubbles",
+       "kind": "gas",
+       "phases": [
+        "dissolved",
+        "small",
+        "large",
+        "fragmenting"
+       ]
+      },
+      {
+       "id": "vent",
+       "label": "Vent",
+       "kind": "opening",
+       "values": [
+        "surface, 0.1 MPa"
+       ]
+      },
+      {
+       "id": "plume",
+       "label": "Ash plume",
+       "kind": "ejecta",
+       "values": [
+        "ash and gas"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "chamber",
+       "to": "conduit",
+       "label": "magma rises"
+      },
+      {
+       "from": "conduit",
+       "to": "vent",
+       "label": "pressure drops"
+      },
+      {
+       "from": "vent",
+       "to": "plume",
+       "label": "blast out"
+      }
+     ],
+     "states": [
+      {
+       "id": "store",
+       "label": "Magma stored",
+       "short": "Stored",
+       "sentence": "Deep in the magma chamber, high pressure keeps the gas dissolved in the liquid rock.",
+       "why": "At 130 MPa the gas stays dissolved, so no bubbles exist yet.",
+       "calloutRegion": "chamber",
+       "active": [
+        "chamber"
+       ],
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Magma depth",
+         "value": "5 km"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "130 MPa"
+        },
+        {
+         "id": "gas",
+         "label": "Gas share of volume",
+         "value": "0%"
+        }
+       ]
+      },
+      {
+       "id": "rise",
+       "label": "Magma rises",
+       "short": "Rises",
+       "sentence": "Buoyant magma pushes up the conduit. Pressure around it falls, and the first gas bubbles appear.",
+       "why": "Lower pressure means the dissolved gas can no longer stay in the liquid.",
+       "calloutRegion": "conduit",
+       "active": [
+        "chamber",
+        "conduit",
+        "bubbles"
+       ],
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Magma depth",
+         "value": "3 km"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "80 MPa"
+        },
+        {
+         "id": "gas",
+         "label": "Gas share of volume",
+         "value": "5%"
+        }
+       ]
+      },
+      {
+       "id": "grow",
+       "label": "Bubbles swell",
+       "short": "Swell",
+       "sentence": "Near the surface the bubbles expand sharply. The frothy magma takes up far more room and speeds up.",
+       "why": "Gas volume rises as pressure drops, so the mixture accelerates upward.",
+       "calloutRegion": "bubbles",
+       "active": [
+        "conduit",
+        "bubbles"
+       ],
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Magma depth",
+         "value": "1 km"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "25 MPa"
+        },
+        {
+         "id": "gas",
+         "label": "Gas share of volume",
+         "value": "60%"
+        }
+       ]
+      },
+      {
+       "id": "erupt",
+       "label": "Eruption",
+       "short": "Erupt",
+       "sentence": "Bubbles take over and shatter the magma into ash. The gas blasts it out of the vent as a plume.",
+       "why": "At about 90% gas, the magma fragments and the expanding gas drives the eruption.",
+       "calloutRegion": "vent",
+       "active": [
+        "bubbles",
+        "vent",
+        "plume"
+       ],
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Magma depth",
+         "value": "0 km"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "0.1 MPa"
+        },
+        {
+         "id": "gas",
+         "label": "Gas share of volume",
+         "value": "90%"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 3278
+ },
+ "usd": 0.038916,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of chamber, conduit, bubbles, vent and plume with pressure and gas-share readouts shows how falling pressure grows gas until eruption."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The scene is a learner-driven stepper, so the erupt state (90% gas, vent and plume active) stays until the learner steps or resets."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The Step index changes the active regions, callout, and the depth, pressure and gas readouts at each state."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, ghost, callout and readouts bind to declared variant.states, regions, links and previous.active fields."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, callouts and controls consistently name magma, bubbles, pressure, vent and plume across the four steps."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth the scene has one callout and three readouts per step, and no extra formulas or clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The pressures roughly match lithostatic values for the depths (about 127 MPa at 5 km), the gas share rises monotonically, and the callouts explain while the readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.016856
+ }
+}

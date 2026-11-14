@@ -1,0 +1,302 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a26",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does cross-validation detect overfitting?",
+ "ts": "2026-11-14T22:46:19.492Z",
+ "ms": 109672,
+ "raw": "{\n  \"story\": \"Can a perfect training fit still overfit? Split labeled examples into equal folds. Refit simple and flexible models on the training folds, then test the untouched fold. Repeat with each fold held out. Compare training and cross-validation errors using identical splits.\",\n  \"aha\": {\n    \"stateId\": \"cv-comparison\",\n    \"observation\": \"The flexible model fits training perfectly but performs worse on held-out examples, exposing overfitting across identical splits.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"fold-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation, above the experiment. Use state short labels. Keep progress and trace exclusively in this rail.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"cross-validation-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical algorithm/collection arrangement within the approved shell. Arrange folds in one row and models below. Keep region positions fixed. During fold states, highlighted folds are held out; unhighlighted folds supply training examples. Setup highlights nothing; comparison highlights both models. Bind all visible labels and contents to regions. Reserve readable label space at native width.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"error-comparison\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Use two columns, one per model, with training above held-out results. Fold values show incorrect predictions divided by evaluated examples. Summary values are percentages computed from those same counts. Average training rates across fits; pool held-out counts across folds. Equal fold sizes make pooled held-out error equal mean fold error. All percentages are exact; no rounding is required. Keep numerical results here, not in callouts.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor to the named region without covering labels. Use the sentence as the bound status line and the reason as mechanism explanation. Identify where evidence comes from without repeating numerical results.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Cross-validation step\",\n      \"presentation\": \"Navigation budget: one index control; parameter-control budget: zero. Provide Previous and Next, retaining their names when disabled. Default to the first state. Bounds are the first and last states; increment is one state. Every state persists until learner action, including cv-comparison. No autoplay or fabricated clock. Provide visible focus, accessible names, and keyboard operation. Reference captures show cv-comparison.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Keep the illustrative folds, capacities, and outcomes unchanged. Provide visible focus and keyboard operation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Three-fold classification: fixed model capacities\",\n        \"regions\": [\n          {\n            \"id\": \"fold-a\",\n            \"label\": \"Fold A\",\n            \"values\": [\n              \"20 examples\"\n            ]\n          },\n          {\n            \"id\": \"fold-b\",\n            \"label\": \"Fold B\",\n            \"values\": [\n              \"20 examples\"\n            ]\n          },\n          {\n            \"id\": \"fold-c\",\n            \"label\": \"Fold C\",\n            \"values\": [\n              \"20 examples\"\n            ]\n          },\n          {\n            \"id\": \"simple-model\",\n            \"label\": \"Simple model\",\n            \"values\": [\n              \"Lower capacity\",\n              \"Refit for every split\"\n            ]\n          },\n          {\n            \"id\": \"flexible-model\",\n            \"label\": \"Flexible model\",\n            \"values\": [\n              \"Higher capacity\",\n              \"Refit for every split\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"fixed-folds\",\n            \"label\": \"Prepare fixed folds\",\n            \"short\": \"Setup\",\n            \"sentence\": \"The fixed, disjoint folds will rotate between training and held-out roles.\",\n            \"why\": \"Assume independent, same-distribution examples; fixed illustrative outcomes compare capacities on identical splits without tuning on held-out labels.\",\n            \"active\": [],\n            \"calloutRegion\": \"fold-a\",\n            \"readouts\": [\n              {\n                \"id\": \"simple-training\",\n                \"label\": \"Simple · training errors\",\n                \"value\": \"Not fitted\"\n              },\n              {\n                \"id\": \"flexible-training\",\n                \"label\": \"Flexible · training errors\",\n                \"value\": \"Not fitted\"\n              },\n              {\n                \"id\": \"simple-held-out\",\n                \"label\": \"Simple · held-out errors\",\n                \"value\": \"Not tested\"\n              },\n              {\n                \"id\": \"flexible-held-out\",\n                \"label\": \"Flexible · held-out errors\",\n                \"value\": \"Not tested\"\n              }\n            ]\n          },\n          {\n            \"id\": \"hold-out-a\",\n            \"label\": \"Fit on B and C; test on A\",\n            \"short\": \"Test A\",\n            \"sentence\": \"Fold A is held out; both models are evaluated on its untouched examples.\",\n            \"why\": \"Both models train from scratch on Folds B and C; Fold A labels never enter fitting.\",\n            \"active\": [\n              \"fold-a\"\n            ],\n            \"calloutRegion\": \"fold-a\",\n            \"readouts\": [\n              {\n                \"id\": \"simple-training\",\n                \"label\": \"Simple · training errors\",\n                \"value\": \"4 / 40\"\n              },\n              {\n                \"id\": \"flexible-training\",\n                \"label\": \"Flexible · training errors\",\n                \"value\": \"0 / 40\"\n              },\n              {\n                \"id\": \"simple-held-out\",\n                \"label\": \"Simple · held-out errors\",\n                \"value\": \"2 / 20\"\n              },\n              {\n                \"id\": \"flexible-held-out\",\n                \"label\": \"Flexible · held-out errors\",\n                \"value\": \"6 / 20\"\n              }\n            ]\n          },\n          {\n            \"id\": \"hold-out-b\",\n            \"label\": \"Fit on A and C; test on B\",\n            \"short\": \"Test B\",\n            \"sentence\": \"Fold B is now held out; the flexible model again makes more held-out mistakes despite fitting training perfectly.\",\n            \"why\": \"Both models restart from scratch; held-out examples cannot influence fitting or preprocessing.\",\n            \"active\": [\n              \"fold-b\"\n            ],\n            \"calloutRegion\": \"fold-b\",\n            \"readouts\": [\n              {\n                \"id\": \"simple-training\",\n                \"label\": \"Simple · training errors\",\n                \"value\": \"4 / 40\"\n              },\n              {\n                \"id\": \"flexible-training\",\n                \"label\": \"Flexible · training errors\",\n                \"value\": \"0 / 40\"\n              },\n              {\n                \"id\": \"simple-held-out\",\n                \"label\": \"Simple · held-out errors\",\n                \"value\": \"3 / 20\"\n              },\n              {\n                \"id\": \"flexible-held-out\",\n                \"label\": \"Flexible · held-out errors\",\n                \"value\": \"7 / 20\"\n              }\n            ]\n          },\n          {\n            \"id\": \"hold-out-c\",\n            \"label\": \"Fit on A and B; test on C\",\n            \"short\": \"Test C\",\n            \"sentence\": \"Fold C supplies the final held-out predictions; every example has now been tested without participating in its own fit.\",\n            \"why\": \"Capacities and the scoring rule remain fixed, so rotating held-out examples tests generalization rather than changing the experiment.\",\n            \"active\": [\n              \"fold-c\"\n            ],\n            \"calloutRegion\": \"fold-c\",\n            \"readouts\": [\n              {\n                \"id\": \"simple-training\",\n                \"label\": \"Simple · training errors\",\n                \"value\": \"4 / 40\"\n              },\n              {\n                \"id\": \"flexible-training\",\n                \"label\": \"Flexible · training errors\",\n                \"value\": \"0 / 40\"\n              },\n              {\n                \"id\": \"simple-held-out\",\n                \"label\": \"Simple · held-out errors\",\n                \"value\": \"1 / 20\"\n              },\n              {\n                \"id\": \"flexible-held-out\",\n                \"label\": \"Flexible · held-out errors\",\n                \"value\": \"5 / 20\"\n              }\n            ]\n          },\n          {\n            \"id\": \"cv-comparison\",\n            \"label\": \"Compare cross-validation errors\",\n            \"short\": \"Compare\",\n            \"sentence\": \"The flexible model's perfect training fit fails to generalize as well as the simple model.\",\n            \"why\": \"Equal folds allow pooling held-out errors; the training advantage reverses on unseen examples.\",\n            \"active\": [\n              \"simple-model\",\n              \"flexible-model\"\n            ],\n            \"calloutRegion\": \"flexible-model\",\n            \"readouts\": [\n              {\n                \"id\": \"simple-training\",\n                \"label\": \"Simple · mean training error\",\n                \"value\": \"10%\"\n              },\n              {\n                \"id\": \"flexible-training\",\n                \"label\": \"Flexible · mean training error\",\n                \"value\": \"0%\"\n              },\n              {\n                \"id\": \"simple-held-out\",\n                \"label\": \"Simple · cross-validation error\",\n                \"value\": \"10%\"\n              },\n              {\n                \"id\": \"flexible-held-out\",\n                \"label\": \"Flexible · cross-validation error\",\n                \"value\": \"30%\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Can a perfect training fit still overfit? Split labeled examples into equal folds. Refit simple and flexible models on the training folds, then test the untouched fold. Repeat with each fold held out. Compare training and cross-validation errors using identical splits.",
+  "aha": {
+   "stateId": "cv-comparison",
+   "observation": "The flexible model fits training perfectly but performs worse on held-out examples, exposing overfitting across identical splits."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "fold-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation, above the experiment. Use state short labels. Keep progress and trace exclusively in this rail.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "cross-validation-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical algorithm/collection arrangement within the approved shell. Arrange folds in one row and models below. Keep region positions fixed. During fold states, highlighted folds are held out; unhighlighted folds supply training examples. Setup highlights nothing; comparison highlights both models. Bind all visible labels and contents to regions. Reserve readable label space at native width.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "error-comparison",
+    "kind": "value-readout",
+    "presentation": "Use two columns, one per model, with training above held-out results. Fold values show incorrect predictions divided by evaluated examples. Summary values are percentages computed from those same counts. Average training rates across fits; pool held-out counts across folds. Equal fold sizes make pooled held-out error equal mean fold error. All percentages are exact; no rounding is required. Keep numerical results here, not in callouts.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor to the named region without covering labels. Use the sentence as the bound status line and the reason as mechanism explanation. Identify where evidence comes from without repeating numerical results.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Cross-validation step",
+    "presentation": "Navigation budget: one index control; parameter-control budget: zero. Provide Previous and Next, retaining their names when disabled. Default to the first state. Bounds are the first and last states; increment is one state. Every state persists until learner action, including cv-comparison. No autoplay or fabricated clock. Provide visible focus, accessible names, and keyboard operation. Reference captures show cv-comparison."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Keep the illustrative folds, capacities, and outcomes unchanged. Provide visible focus and keyboard operation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Three-fold classification: fixed model capacities",
+     "regions": [
+      {
+       "id": "fold-a",
+       "label": "Fold A",
+       "values": [
+        "20 examples"
+       ]
+      },
+      {
+       "id": "fold-b",
+       "label": "Fold B",
+       "values": [
+        "20 examples"
+       ]
+      },
+      {
+       "id": "fold-c",
+       "label": "Fold C",
+       "values": [
+        "20 examples"
+       ]
+      },
+      {
+       "id": "simple-model",
+       "label": "Simple model",
+       "values": [
+        "Lower capacity",
+        "Refit for every split"
+       ]
+      },
+      {
+       "id": "flexible-model",
+       "label": "Flexible model",
+       "values": [
+        "Higher capacity",
+        "Refit for every split"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "fixed-folds",
+       "label": "Prepare fixed folds",
+       "short": "Setup",
+       "sentence": "The fixed, disjoint folds will rotate between training and held-out roles.",
+       "why": "Assume independent, same-distribution examples; fixed illustrative outcomes compare capacities on identical splits without tuning on held-out labels.",
+       "active": [],
+       "calloutRegion": "fold-a",
+       "readouts": [
+        {
+         "id": "simple-training",
+         "label": "Simple · training errors",
+         "value": "Not fitted"
+        },
+        {
+         "id": "flexible-training",
+         "label": "Flexible · training errors",
+         "value": "Not fitted"
+        },
+        {
+         "id": "simple-held-out",
+         "label": "Simple · held-out errors",
+         "value": "Not tested"
+        },
+        {
+         "id": "flexible-held-out",
+         "label": "Flexible · held-out errors",
+         "value": "Not tested"
+        }
+       ]
+      },
+      {
+       "id": "hold-out-a",
+       "label": "Fit on B and C; test on A",
+       "short": "Test A",
+       "sentence": "Fold A is held out; both models are evaluated on its untouched examples.",
+       "why": "Both models train from scratch on Folds B and C; Fold A labels never enter fitting.",
+       "active": [
+        "fold-a"
+       ],
+       "calloutRegion": "fold-a",
+       "readouts": [
+        {
+         "id": "simple-training",
+         "label": "Simple · training errors",
+         "value": "4 / 40"
+        },
+        {
+         "id": "flexible-training",
+         "label": "Flexible · training errors",
+         "value": "0 / 40"
+        },
+        {
+         "id": "simple-held-out",
+         "label": "Simple · held-out errors",
+         "value": "2 / 20"
+        },
+        {
+         "id": "flexible-held-out",
+         "label": "Flexible · held-out errors",
+         "value": "6 / 20"
+        }
+       ]
+      },
+      {
+       "id": "hold-out-b",
+       "label": "Fit on A and C; test on B",
+       "short": "Test B",
+       "sentence": "Fold B is now held out; the flexible model again makes more held-out mistakes despite fitting training perfectly.",
+       "why": "Both models restart from scratch; held-out examples cannot influence fitting or preprocessing.",
+       "active": [
+        "fold-b"
+       ],
+       "calloutRegion": "fold-b",
+       "readouts": [
+        {
+         "id": "simple-training",
+         "label": "Simple · training errors",
+         "value": "4 / 40"
+        },
+        {
+         "id": "flexible-training",
+         "label": "Flexible · training errors",
+         "value": "0 / 40"
+        },
+        {
+         "id": "simple-held-out",
+         "label": "Simple · held-out errors",
+         "value": "3 / 20"
+        },
+        {
+         "id": "flexible-held-out",
+         "label": "Flexible · held-out errors",
+         "value": "7 / 20"
+        }
+       ]
+      },
+      {
+       "id": "hold-out-c",
+       "label": "Fit on A and B; test on C",
+       "short": "Test C",
+       "sentence": "Fold C supplies the final held-out predictions; every example has now been tested without participating in its own fit.",
+       "why": "Capacities and the scoring rule remain fixed, so rotating held-out examples tests generalization rather than changing the experiment.",
+       "active": [
+        "fold-c"
+       ],
+       "calloutRegion": "fold-c",
+       "readouts": [
+        {
+         "id": "simple-training",
+         "label": "Simple · training errors",
+         "value": "4 / 40"
+        },
+        {
+         "id": "flexible-training",
+         "label": "Flexible · training errors",
+         "value": "0 / 40"
+        },
+        {
+         "id": "simple-held-out",
+         "label": "Simple · held-out errors",
+         "value": "1 / 20"
+        },
+        {
+         "id": "flexible-held-out",
+         "label": "Flexible · held-out errors",
+         "value": "5 / 20"
+        }
+       ]
+      },
+      {
+       "id": "cv-comparison",
+       "label": "Compare cross-validation errors",
+       "short": "Compare",
+       "sentence": "The flexible model's perfect training fit fails to generalize as well as the simple model.",
+       "why": "Equal folds allow pooling held-out errors; the training advantage reverses on unseen examples.",
+       "active": [
+        "simple-model",
+        "flexible-model"
+       ],
+       "calloutRegion": "flexible-model",
+       "readouts": [
+        {
+         "id": "simple-training",
+         "label": "Simple · mean training error",
+         "value": "10%"
+        },
+        {
+         "id": "flexible-training",
+         "label": "Flexible · mean training error",
+         "value": "0%"
+        },
+        {
+         "id": "simple-held-out",
+         "label": "Simple · cross-validation error",
+         "value": "10%"
+        },
+        {
+         "id": "flexible-held-out",
+         "label": "Flexible · cross-validation error",
+         "value": "30%"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1535,
+  "output": 5744
+ },
+ "usd": 0.05764,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3dfWRPc8NjVp2j629EG\"}"
+  },
+  "cardUsd": 0
+ }
+}

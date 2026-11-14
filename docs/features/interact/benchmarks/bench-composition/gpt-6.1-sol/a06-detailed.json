@@ -1,0 +1,331 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a06",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does KV caching speed up inference?",
+ "ts": "2026-11-14T22:26:25.389Z",
+ "ms": 147312,
+ "raw": "{\n  \"story\": \"Why does KV caching speed up inference? Start with a shared prompt, then advance Uncached K/V and Cached K/V through decoding. Compare rebuilding history with reusing the KV cache. The Newest query still reads every context position, and both paths produce the same Next token.\",\n  \"aha\": {\n    \"stateId\": \"decode-e\",\n    \"observation\": \"Cached K/V avoids rebuilding history, while the Newest query still reads every position and both paths produce the same Next token.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"decode-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell and algorithm/collection composition. Keep progress on this rail. Above the experiment, show: Use Previous or Next to compare decoding passes.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"kv-comparison\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Place fixed assumptions above matched Uncached K/V and Cached K/V rows. Align corresponding token positions on a shared categorical scale. Select each region's phase using the state index; values remain fixed. Highlight only active regions. Reference captures show decode-e. Never animate or automatically advance.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"mechanism-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Place the explanation above the experiment, anchored to the named target. Identify the mechanism without duplicating numerical readouts.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"work-and-status\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Stack labeled readouts below the picture. Display exact integer counts without rounding. Each measurement appears here only. Render the final entry as the bound status line.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Decoding state\",\n      \"presentation\": \"Navigation budget: one index control and Reset. Parameter-control budget: zero. Default index 0; bounds 0 through 2; increment 1. Use Previous and Next, retaining their names when disabled at boundaries. Support Left/Right arrows, keyboard activation, accessible names, and visible focus. Every state persists until learner action, including decode-e.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore index 0 and all fixed defaults. Support Enter and Space, an accessible name, and visible keyboard focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Shared prefill followed by two decoding passes\",\n        \"regions\": [\n          {\n            \"id\": \"fixed-assumptions\",\n            \"label\": \"Fixed assumptions\",\n            \"values\": [\n              \"K = key; V = value; q = newest query.\",\n              \"Batch one; one head; one layer; causal attention; identical arithmetic; no eviction.\",\n              \"Counts measure projected K/V vectors, excluding queries, attention arithmetic, and other transformer work.\"\n            ]\n          },\n          {\n            \"id\": \"token-stream\",\n            \"label\": \"Fixed token stream\",\n            \"values\": [\n              \"Prompt: A B C\",\n              \"Assumed greedy continuation: D E F\",\n              \"Each pass consumes the previous prediction and predicts the following token.\"\n            ]\n          },\n          {\n            \"id\": \"uncached-kv\",\n            \"label\": \"Uncached K/V\",\n            \"phases\": [\n              \"Build (K_A,V_A), (K_B,V_B), (K_C,V_C).\",\n              \"Rebuild A–C; build (K_D,V_D).\",\n              \"Rebuild A–D; build (K_E,V_E).\"\n            ]\n          },\n          {\n            \"id\": \"cached-kv\",\n            \"label\": \"Cached K/V\",\n            \"phases\": [\n              \"Build (K_A,V_A), (K_B,V_B), (K_C,V_C).\",\n              \"Reuse A–C; build only (K_D,V_D).\",\n              \"Reuse A–D; build only (K_E,V_E).\"\n            ]\n          },\n          {\n            \"id\": \"kv-cache\",\n            \"label\": \"KV cache\",\n            \"phases\": [\n              \"Store (K_A,V_A), (K_B,V_B), (K_C,V_C).\",\n              \"Retain A–C; append (K_D,V_D).\",\n              \"Retain A–D; append (K_E,V_E).\"\n            ]\n          },\n          {\n            \"id\": \"newest-query\",\n            \"label\": \"Newest query\",\n            \"phases\": [\n              \"Both paths: q_C scores K_A…K_C and combines V_A…V_C.\",\n              \"Both paths: q_D scores K_A…K_D and combines V_A…V_D.\",\n              \"Both paths: q_E scores K_A…K_E and combines V_A…V_E.\"\n            ]\n          },\n          {\n            \"id\": \"next-token\",\n            \"label\": \"Next token\",\n            \"phases\": [\n              \"Both paths predict D.\",\n              \"Both paths predict E.\",\n              \"Both paths predict F.\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"cached-kv\",\n            \"to\": \"kv-cache\",\n            \"label\": \"Append newly computed K/V\"\n          },\n          {\n            \"from\": \"kv-cache\",\n            \"to\": \"cached-kv\",\n            \"label\": \"Reuse retained K/V on later passes\"\n          },\n          {\n            \"from\": \"uncached-kv\",\n            \"to\": \"newest-query\",\n            \"label\": \"Recomputed history\"\n          },\n          {\n            \"from\": \"kv-cache\",\n            \"to\": \"newest-query\",\n            \"label\": \"Retained history\"\n          },\n          {\n            \"from\": \"newest-query\",\n            \"to\": \"next-token\",\n            \"label\": \"Same attention inputs and downstream computation\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"prefill\",\n            \"label\": \"Prefill A–C\",\n            \"short\": \"Shared initial work\",\n            \"sentence\": \"Uncached K/V and Cached K/V build the prompt identically; the KV cache retains the cached path's results.\",\n            \"why\": \"Both paths compute one key and one value per prompt token. The picture shows only the newest query, not every prefill query.\",\n            \"active\": [\n              \"kv-cache\"\n            ],\n            \"calloutRegion\": \"kv-cache\",\n            \"readouts\": [\n              {\n                \"id\": \"pass-work\",\n                \"label\": \"K/V vectors this pass · Uncached / Cached\",\n                \"value\": \"6 / 6\"\n              },\n              {\n                \"id\": \"attention-positions\",\n                \"label\": \"Positions read by Newest query · both paths\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"cache-size\",\n                \"label\": \"KV cache retained · vectors\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Shared prefill complete; retained history is ready for reuse.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"decode-d\",\n            \"label\": \"Decode D\",\n            \"short\": \"First reuse\",\n            \"sentence\": \"Cached K/V reuses the prompt entries and appends D; Uncached K/V rebuilds the entire prefix.\",\n            \"why\": \"Previously computed keys and values cannot change under causal attention. The Newest query still uses every available key and value.\",\n            \"active\": [\n              \"cached-kv\",\n              \"kv-cache\"\n            ],\n            \"calloutRegion\": \"cached-kv\",\n            \"readouts\": [\n              {\n                \"id\": \"pass-work\",\n                \"label\": \"K/V vectors this pass · Uncached / Cached\",\n                \"value\": \"8 / 2\"\n              },\n              {\n                \"id\": \"attention-positions\",\n                \"label\": \"Positions read by Newest query · both paths\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"cache-size\",\n                \"label\": \"KV cache retained · vectors\",\n                \"value\": \"8\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"History is reused, not removed from attention; persistent storage grows.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"decode-e\",\n            \"label\": \"Decode E\",\n            \"short\": \"Aha: avoid rebuilding history\",\n            \"sentence\": \"Uncached K/V rebuilds earlier tokens; Cached K/V reuses their entries and projects only the current token.\",\n            \"why\": \"For context length L, uncached work is 2L K/V vectors; cached decoding needs two. The Newest query still reads the complete history.\",\n            \"active\": [\n              \"uncached-kv\",\n              \"cached-kv\"\n            ],\n            \"calloutRegion\": \"cached-kv\",\n            \"readouts\": [\n              {\n                \"id\": \"pass-work\",\n                \"label\": \"K/V vectors this pass · Uncached / Cached\",\n                \"value\": \"10 / 2\"\n              },\n              {\n                \"id\": \"attention-positions\",\n                \"label\": \"Positions read by Newest query · both paths\",\n                \"value\": \"5\"\n              },\n              {\n                \"id\": \"cache-size\",\n                \"label\": \"KV cache retained · vectors\",\n                \"value\": \"10\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Less repeated K/V work, identical continuation, additional storage; these counts are not an overall latency multiplier.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Why does KV caching speed up inference? Start with a shared prompt, then advance Uncached K/V and Cached K/V through decoding. Compare rebuilding history with reusing the KV cache. The Newest query still reads every context position, and both paths produce the same Next token.",
+  "aha": {
+   "stateId": "decode-e",
+   "observation": "Cached K/V avoids rebuilding history, while the Newest query still reads every position and both paths produce the same Next token."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "decode-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell and algorithm/collection composition. Keep progress on this rail. Above the experiment, show: Use Previous or Next to compare decoding passes.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "kv-comparison",
+    "kind": "fixed-picture",
+    "presentation": "Place fixed assumptions above matched Uncached K/V and Cached K/V rows. Align corresponding token positions on a shared categorical scale. Select each region's phase using the state index; values remain fixed. Highlight only active regions. Reference captures show decode-e. Never animate or automatically advance.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "mechanism-callout",
+    "kind": "active-callout",
+    "presentation": "Place the explanation above the experiment, anchored to the named target. Identify the mechanism without duplicating numerical readouts.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "work-and-status",
+    "kind": "value-readout",
+    "presentation": "Stack labeled readouts below the picture. Display exact integer counts without rounding. Each measurement appears here only. Render the final entry as the bound status line.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Decoding state",
+    "presentation": "Navigation budget: one index control and Reset. Parameter-control budget: zero. Default index 0; bounds 0 through 2; increment 1. Use Previous and Next, retaining their names when disabled at boundaries. Support Left/Right arrows, keyboard activation, accessible names, and visible focus. Every state persists until learner action, including decode-e."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore index 0 and all fixed defaults. Support Enter and Space, an accessible name, and visible keyboard focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Shared prefill followed by two decoding passes",
+     "regions": [
+      {
+       "id": "fixed-assumptions",
+       "label": "Fixed assumptions",
+       "values": [
+        "K = key; V = value; q = newest query.",
+        "Batch one; one head; one layer; causal attention; identical arithmetic; no eviction.",
+        "Counts measure projected K/V vectors, excluding queries, attention arithmetic, and other transformer work."
+       ]
+      },
+      {
+       "id": "token-stream",
+       "label": "Fixed token stream",
+       "values": [
+        "Prompt: A B C",
+        "Assumed greedy continuation: D E F",
+        "Each pass consumes the previous prediction and predicts the following token."
+       ]
+      },
+      {
+       "id": "uncached-kv",
+       "label": "Uncached K/V",
+       "phases": [
+        "Build (K_A,V_A), (K_B,V_B), (K_C,V_C).",
+        "Rebuild A–C; build (K_D,V_D).",
+        "Rebuild A–D; build (K_E,V_E)."
+       ]
+      },
+      {
+       "id": "cached-kv",
+       "label": "Cached K/V",
+       "phases": [
+        "Build (K_A,V_A), (K_B,V_B), (K_C,V_C).",
+        "Reuse A–C; build only (K_D,V_D).",
+        "Reuse A–D; build only (K_E,V_E)."
+       ]
+      },
+      {
+       "id": "kv-cache",
+       "label": "KV cache",
+       "phases": [
+        "Store (K_A,V_A), (K_B,V_B), (K_C,V_C).",
+        "Retain A–C; append (K_D,V_D).",
+        "Retain A–D; append (K_E,V_E)."
+       ]
+      },
+      {
+       "id": "newest-query",
+       "label": "Newest query",
+       "phases": [
+        "Both paths: q_C scores K_A…K_C and combines V_A…V_C.",
+        "Both paths: q_D scores K_A…K_D and combines V_A…V_D.",
+        "Both paths: q_E scores K_A…K_E and combines V_A…V_E."
+       ]
+      },
+      {
+       "id": "next-token",
+       "label": "Next token",
+       "phases": [
+        "Both paths predict D.",
+        "Both paths predict E.",
+        "Both paths predict F."
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "cached-kv",
+       "to": "kv-cache",
+       "label": "Append newly computed K/V"
+      },
+      {
+       "from": "kv-cache",
+       "to": "cached-kv",
+       "label": "Reuse retained K/V on later passes"
+      },
+      {
+       "from": "uncached-kv",
+       "to": "newest-query",
+       "label": "Recomputed history"
+      },
+      {
+       "from": "kv-cache",
+       "to": "newest-query",
+       "label": "Retained history"
+      },
+      {
+       "from": "newest-query",
+       "to": "next-token",
+       "label": "Same attention inputs and downstream computation"
+      }
+     ],
+     "states": [
+      {
+       "id": "prefill",
+       "label": "Prefill A–C",
+       "short": "Shared initial work",
+       "sentence": "Uncached K/V and Cached K/V build the prompt identically; the KV cache retains the cached path's results.",
+       "why": "Both paths compute one key and one value per prompt token. The picture shows only the newest query, not every prefill query.",
+       "active": [
+        "kv-cache"
+       ],
+       "calloutRegion": "kv-cache",
+       "readouts": [
+        {
+         "id": "pass-work",
+         "label": "K/V vectors this pass · Uncached / Cached",
+         "value": "6 / 6"
+        },
+        {
+         "id": "attention-positions",
+         "label": "Positions read by Newest query · both paths",
+         "value": "3"
+        },
+        {
+         "id": "cache-size",
+         "label": "KV cache retained · vectors",
+         "value": "6"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Shared prefill complete; retained history is ready for reuse."
+        }
+       ]
+      },
+      {
+       "id": "decode-d",
+       "label": "Decode D",
+       "short": "First reuse",
+       "sentence": "Cached K/V reuses the prompt entries and appends D; Uncached K/V rebuilds the entire prefix.",
+       "why": "Previously computed keys and values cannot change under causal attention. The Newest query still uses every available key and value.",
+       "active": [
+        "cached-kv",
+        "kv-cache"
+       ],
+       "calloutRegion": "cached-kv",
+       "readouts": [
+        {
+         "id": "pass-work",
+         "label": "K/V vectors this pass · Uncached / Cached",
+         "value": "8 / 2"
+        },
+        {
+         "id": "attention-positions",
+         "label": "Positions read by Newest query · both paths",
+         "value": "4"
+        },
+        {
+         "id": "cache-size",
+         "label": "KV cache retained · vectors",
+         "value": "8"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "History is reused, not removed from attention; persistent storage grows."
+        }
+       ]
+      },
+      {
+       "id": "decode-e",
+       "label": "Decode E",
+       "short": "Aha: avoid rebuilding history",
+       "sentence": "Uncached K/V rebuilds earlier tokens; Cached K/V reuses their entries and projects only the current token.",
+       "why": "For context length L, uncached work is 2L K/V vectors; cached decoding needs two. The Newest query still reads the complete history.",
+       "active": [
+        "uncached-kv",
+        "cached-kv"
+       ],
+       "calloutRegion": "cached-kv",
+       "readouts": [
+        {
+         "id": "pass-work",
+         "label": "K/V vectors this pass · Uncached / Cached",
+         "value": "10 / 2"
+        },
+        {
+         "id": "attention-positions",
+         "label": "Positions read by Newest query · both paths",
+         "value": "5"
+        },
+        {
+         "id": "cache-size",
+         "label": "KV cache retained · vectors",
+         "value": "10"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Less repeated K/V work, identical continuation, additional storage; these counts are not an overall latency multiplier."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1535,
+  "output": 7770
+ },
+ "usd": 0.0779,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The matched Uncached/Cached K/V rows with aligned token positions show that cached decoding reuses history while the newest query still reads all positions, which answers why KV caching speeds up inference."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state decode-e is the final index, and every state persists until the learner acts with no auto-advance."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There are no parameters, but the single step index changes context length and the readouts (6/6, 8/2, 10/2; positions 3, 4, 5), and the fixed comparison is justified."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active regions, the callout target, the sentence and why text, and the readouts all come from the declared state fields and variant regions and links."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and the Decoding state/Previous/Next controls consistently name Uncached K/V, Cached K/V, KV cache, Newest query and Next token."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At detailed depth each state highlights only one or two regions, adds the 2L-versus-2 count formula and one row per path, and does not exceed the mitosis density ceiling."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The counts check out independently (2×context uncached versus 2 cached, positions read = context, cache = 2×context), and readouts hold the quantities while the callout only locates the mechanism."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018818
+ }
+}

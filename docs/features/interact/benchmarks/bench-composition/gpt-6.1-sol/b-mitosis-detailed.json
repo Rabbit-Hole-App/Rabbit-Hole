@@ -1,0 +1,414 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "b-mitosis",
+ "set": "B",
+ "subject": "mitosis",
+ "depth": "detailed",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T23:11:19.976Z",
+ "ms": 133712,
+ "raw": "{\n  \"story\": \"This simplified diploid animal cell has two homologous pairs; DNA replication is complete, and segregation is error-free. Follow the labeled chromosomes from condensation to two nuclei. Compare each daughter set with the starting reference to see what mitosis preserves. Use Previous and Next; every state waits for you.\",\n  \"aha\": {\n    \"stateId\": \"telophase\",\n    \"observation\": \"Mitosis separates sister chromatids into two nuclei, each preserving the starting chromosome number and identities.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states-cycle\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"stage-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with story and instructions above the experiment. Keep stage progression on this rail, not inside the picture.\",\n      \"bind\": {\n        \"active\": \"inputs.stage\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"mitosis-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical mitosis cycle arrangement and shared scale throughout. Region phases correspond positionally to variant.states. Keep the starting reference distinct from the experimental cell. A/B identify homologous pairs; superscripts m/p identify maternal/paternal chromosomes. Keep chromosome labels visible; phase descriptions specify picture states, not additional captions.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-part\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the selected region without covering chromosomes. Identify the mechanism here; reserve numerical measurements for the readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"chromosome-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place compact comparison rows beneath the picture, followed by the bound status line. Arrows compare the starting nucleus with the explicitly named current scope. C counts chromosomes; k counts chromatids per chromosome; D counts DNA molecules. Joined sisters count as one chromosome until separation. Each chromatid contains one double-stranded DNA molecule. Compute D = C × k from the selected state; all counts are exact integers, without rounding.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stage\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Mitosis stage\",\n      \"presentation\": \"Navigation uses Previous and Next, retaining those names when disabled at boundaries. Default: prophase; bounds: first through last state; increment: one state. The index selects biological states, never elapsed time. Every state persists until another learner action, including telophase. Parameter-control budget: zero, excluding navigation and Reset. Provide accessible names, visible focus, and keyboard operation.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore prophase and all defaults. Provide visible focus and keyboard operation. Reference captures must select and hold telophase.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Detailed mitosis — diploid animal cell\",\n        \"regions\": [\n          {\n            \"id\": \"starting-reference\",\n            \"label\": \"Starting nucleus · reference\",\n            \"values\": [\n              \"Aᵐ: joined sister chromatids\",\n              \"Aᵖ: joined sister chromatids\",\n              \"Bᵐ: joined sister chromatids\",\n              \"Bᵖ: joined sister chromatids\"\n            ]\n          },\n          {\n            \"id\": \"cell-boundary\",\n            \"label\": \"Cell boundary\",\n            \"phases\": [\n              \"Intact; surrounds the original nucleus\",\n              \"Intact; surrounds chromosomes and spindle\",\n              \"Intact; surrounds chromosomes and spindle\",\n              \"Intact; surrounds both separating chromosome sets\",\n              \"Intact; surrounds both daughter nuclei\"\n            ]\n          },\n          {\n            \"id\": \"original-envelope\",\n            \"label\": \"Original nuclear envelope\",\n            \"phases\": [\n              \"Present around condensed chromosomes\",\n              \"Disassembled\",\n              \"Disassembled\",\n              \"Disassembled\",\n              \"Absent; replaced by daughter nuclear envelopes\"\n            ]\n          },\n          {\n            \"id\": \"spindle\",\n            \"label\": \"Spindle\",\n            \"phases\": [\n              \"Forms between opposite poles outside the original envelope\",\n              \"Attaches sister kinetochores toward opposite poles\",\n              \"Opposite attachments hold sister pairs at the equator\",\n              \"Pulls separated sister chromosomes toward opposite poles\",\n              \"Disassembles as daughter nuclear envelopes form\"\n            ]\n          },\n          {\n            \"id\": \"chromosome-am\",\n            \"label\": \"Aᵐ\",\n            \"phases\": [\n              \"Condensed, joined sister pair inside the original envelope\",\n              \"Joined sister pair attaching to opposite spindle poles\",\n              \"Joined sister pair at the equator\",\n              \"Separated sisters; an Aᵐ chromosome approaches each pole\",\n              \"An unduplicated Aᵐ chromosome decondenses inside each daughter nucleus\"\n            ]\n          },\n          {\n            \"id\": \"chromosome-ap\",\n            \"label\": \"Aᵖ\",\n            \"phases\": [\n              \"Condensed, joined sister pair inside the original envelope\",\n              \"Joined sister pair attaching to opposite spindle poles\",\n              \"Joined sister pair at the equator\",\n              \"Separated sisters; an Aᵖ chromosome approaches each pole\",\n              \"An unduplicated Aᵖ chromosome decondenses inside each daughter nucleus\"\n            ]\n          },\n          {\n            \"id\": \"chromosome-bm\",\n            \"label\": \"Bᵐ\",\n            \"phases\": [\n              \"Condensed, joined sister pair inside the original envelope\",\n              \"Joined sister pair attaching to opposite spindle poles\",\n              \"Joined sister pair at the equator\",\n              \"Separated sisters; a Bᵐ chromosome approaches each pole\",\n              \"An unduplicated Bᵐ chromosome decondenses inside each daughter nucleus\"\n            ]\n          },\n          {\n            \"id\": \"chromosome-bp\",\n            \"label\": \"Bᵖ\",\n            \"phases\": [\n              \"Condensed, joined sister pair inside the original envelope\",\n              \"Joined sister pair attaching to opposite spindle poles\",\n              \"Joined sister pair at the equator\",\n              \"Separated sisters; a Bᵖ chromosome approaches each pole\",\n              \"An unduplicated Bᵖ chromosome decondenses inside each daughter nucleus\"\n            ]\n          },\n          {\n            \"id\": \"left-nucleus\",\n            \"label\": \"Left daughter nucleus\",\n            \"phases\": [\n              \"Absent\",\n              \"Absent\",\n              \"Absent\",\n              \"Absent; chromosome set approaching the left pole\",\n              \"Envelope encloses unduplicated Aᵐ, Aᵖ, Bᵐ, and Bᵖ\"\n            ]\n          },\n          {\n            \"id\": \"right-nucleus\",\n            \"label\": \"Right daughter nucleus\",\n            \"phases\": [\n              \"Absent\",\n              \"Absent\",\n              \"Absent\",\n              \"Absent; chromosome set approaching the right pole\",\n              \"Envelope encloses unduplicated Aᵐ, Aᵖ, Bᵐ, and Bᵖ\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"prophase\",\n            \"label\": \"Prophase\",\n            \"short\": \"Condense\",\n            \"sentence\": \"Chromosomes condense, making their joined sister chromatids easier to distinguish.\",\n            \"why\": \"Replication happened before mitosis; the starting reference preserves these chromosome identities for the final comparison.\",\n            \"active\": [\n              \"chromosome-am\",\n              \"chromosome-ap\",\n              \"chromosome-bm\",\n              \"chromosome-bp\"\n            ],\n            \"calloutRegion\": \"chromosome-am\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-comparison\",\n                \"label\": \"Chromosomes · starting nucleus → whole cell\",\n                \"value\": \"4 → 4\"\n              },\n              {\n                \"id\": \"dna-comparison\",\n                \"label\": \"DNA molecules · starting nucleus → whole cell\",\n                \"value\": \"8 → 8\"\n              },\n              {\n                \"id\": \"chromatids\",\n                \"label\": \"Chromatids per current chromosome, k\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"count-rule\",\n                \"label\": \"Computed count rule\",\n                \"value\": \"D = C × k\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Sister chromatids remain joined; the spindle is forming.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"prometaphase\",\n            \"label\": \"Prometaphase\",\n            \"short\": \"Attach\",\n            \"sentence\": \"The original nuclear envelope breaks down, allowing spindle fibers to attach to chromosome kinetochores.\",\n            \"why\": \"Attachments orient sister chromatids toward opposite poles, preparing matching chromosome sets for separation.\",\n            \"active\": [\n              \"original-envelope\",\n              \"spindle\"\n            ],\n            \"calloutRegion\": \"spindle\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-comparison\",\n                \"label\": \"Chromosomes · starting nucleus → whole cell\",\n                \"value\": \"4 → 4\"\n              },\n              {\n                \"id\": \"dna-comparison\",\n                \"label\": \"DNA molecules · starting nucleus → whole cell\",\n                \"value\": \"8 → 8\"\n              },\n              {\n                \"id\": \"chromatids\",\n                \"label\": \"Chromatids per current chromosome, k\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"count-rule\",\n                \"label\": \"Computed count rule\",\n                \"value\": \"D = C × k\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The original envelope is open; spindle attachments are forming.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"metaphase\",\n            \"label\": \"Metaphase\",\n            \"short\": \"Align\",\n            \"sentence\": \"Joined sister pairs align at the cell equator, with sister kinetochores attached toward opposite spindle poles.\",\n            \"why\": \"This orientation lets separation send a copy of every labeled chromosome toward each pole.\",\n            \"active\": [\n              \"spindle\",\n              \"chromosome-am\",\n              \"chromosome-ap\",\n              \"chromosome-bm\",\n              \"chromosome-bp\"\n            ],\n            \"calloutRegion\": \"chromosome-am\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-comparison\",\n                \"label\": \"Chromosomes · starting nucleus → whole cell\",\n                \"value\": \"4 → 4\"\n              },\n              {\n                \"id\": \"dna-comparison\",\n                \"label\": \"DNA molecules · starting nucleus → whole cell\",\n                \"value\": \"8 → 8\"\n              },\n              {\n                \"id\": \"chromatids\",\n                \"label\": \"Chromatids per current chromosome, k\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"count-rule\",\n                \"label\": \"Computed count rule\",\n                \"value\": \"D = C × k\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"All sister pairs are aligned with opposite-pole attachments.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"anaphase\",\n            \"label\": \"Anaphase\",\n            \"short\": \"Separate\",\n            \"sentence\": \"Sister chromatids separate; each becomes an individual chromosome moving toward its attached spindle pole.\",\n            \"why\": \"The whole-cell chromosome count rises because sisters are now counted separately; no additional DNA replication occurs.\",\n            \"active\": [\n              \"chromosome-am\",\n              \"chromosome-ap\",\n              \"chromosome-bm\",\n              \"chromosome-bp\",\n              \"spindle\"\n            ],\n            \"calloutRegion\": \"chromosome-am\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-comparison\",\n                \"label\": \"Chromosomes · starting nucleus → whole cell\",\n                \"value\": \"4 → 8\"\n              },\n              {\n                \"id\": \"dna-comparison\",\n                \"label\": \"DNA molecules · starting nucleus → whole cell\",\n                \"value\": \"8 → 8\"\n              },\n              {\n                \"id\": \"chromatids\",\n                \"label\": \"Chromatids per current chromosome, k\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"count-rule\",\n                \"label\": \"Computed count rule\",\n                \"value\": \"D = C × k\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Matching chromosome identities are separating toward opposite poles.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"telophase\",\n            \"label\": \"Telophase\",\n            \"short\": \"Enclose\",\n            \"sentence\": \"New nuclear envelopes enclose matching chromosome sets, while chromosomes decondense and the spindle disassembles.\",\n            \"why\": \"Each daughter nucleus matches the starting chromosome identities and number, but its chromosomes no longer contain joined sister copies.\",\n            \"active\": [\n              \"starting-reference\",\n              \"left-nucleus\",\n              \"right-nucleus\"\n            ],\n            \"calloutRegion\": \"left-nucleus\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-comparison\",\n                \"label\": \"Chromosomes · starting nucleus → each daughter nucleus\",\n                \"value\": \"4 → 4\"\n              },\n              {\n                \"id\": \"dna-comparison\",\n                \"label\": \"DNA molecules · starting nucleus → each daughter nucleus\",\n                \"value\": \"8 → 4\"\n              },\n              {\n                \"id\": \"chromatids\",\n                \"label\": \"Chromatids per current chromosome, k\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"count-rule\",\n                \"label\": \"Computed count rule\",\n                \"value\": \"D = C × k\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Mitosis produces matching nuclei; cytokinesis divides the cell and is not shown.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "This simplified diploid animal cell has two homologous pairs; DNA replication is complete, and segregation is error-free. Follow the labeled chromosomes from condensation to two nuclei. Compare each daughter set with the starting reference to see what mitosis preserves. Use Previous and Next; every state waits for you.",
+  "aha": {
+   "stateId": "telophase",
+   "observation": "Mitosis separates sister chromatids into two nuclei, each preserving the starting chromosome number and identities."
+  },
+  "layout": {
+   "preset": "stepper-states-cycle",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "stage-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with story and instructions above the experiment. Keep stage progression on this rail, not inside the picture.",
+    "bind": {
+     "active": "inputs.stage",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "mitosis-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical mitosis cycle arrangement and shared scale throughout. Region phases correspond positionally to variant.states. Keep the starting reference distinct from the experimental cell. A/B identify homologous pairs; superscripts m/p identify maternal/paternal chromosomes. Keep chromosome labels visible; phase descriptions specify picture states, not additional captions.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-part",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the selected region without covering chromosomes. Identify the mechanism here; reserve numerical measurements for the readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "chromosome-evidence",
+    "kind": "value-readout",
+    "presentation": "Place compact comparison rows beneath the picture, followed by the bound status line. Arrows compare the starting nucleus with the explicitly named current scope. C counts chromosomes; k counts chromatids per chromosome; D counts DNA molecules. Joined sisters count as one chromosome until separation. Each chromatid contains one double-stranded DNA molecule. Compute D = C × k from the selected state; all counts are exact integers, without rounding.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stage",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Mitosis stage",
+    "presentation": "Navigation uses Previous and Next, retaining those names when disabled at boundaries. Default: prophase; bounds: first through last state; increment: one state. The index selects biological states, never elapsed time. Every state persists until another learner action, including telophase. Parameter-control budget: zero, excluding navigation and Reset. Provide accessible names, visible focus, and keyboard operation."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore prophase and all defaults. Provide visible focus and keyboard operation. Reference captures must select and hold telophase."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Detailed mitosis — diploid animal cell",
+     "regions": [
+      {
+       "id": "starting-reference",
+       "label": "Starting nucleus · reference",
+       "values": [
+        "Aᵐ: joined sister chromatids",
+        "Aᵖ: joined sister chromatids",
+        "Bᵐ: joined sister chromatids",
+        "Bᵖ: joined sister chromatids"
+       ]
+      },
+      {
+       "id": "cell-boundary",
+       "label": "Cell boundary",
+       "phases": [
+        "Intact; surrounds the original nucleus",
+        "Intact; surrounds chromosomes and spindle",
+        "Intact; surrounds chromosomes and spindle",
+        "Intact; surrounds both separating chromosome sets",
+        "Intact; surrounds both daughter nuclei"
+       ]
+      },
+      {
+       "id": "original-envelope",
+       "label": "Original nuclear envelope",
+       "phases": [
+        "Present around condensed chromosomes",
+        "Disassembled",
+        "Disassembled",
+        "Disassembled",
+        "Absent; replaced by daughter nuclear envelopes"
+       ]
+      },
+      {
+       "id": "spindle",
+       "label": "Spindle",
+       "phases": [
+        "Forms between opposite poles outside the original envelope",
+        "Attaches sister kinetochores toward opposite poles",
+        "Opposite attachments hold sister pairs at the equator",
+        "Pulls separated sister chromosomes toward opposite poles",
+        "Disassembles as daughter nuclear envelopes form"
+       ]
+      },
+      {
+       "id": "chromosome-am",
+       "label": "Aᵐ",
+       "phases": [
+        "Condensed, joined sister pair inside the original envelope",
+        "Joined sister pair attaching to opposite spindle poles",
+        "Joined sister pair at the equator",
+        "Separated sisters; an Aᵐ chromosome approaches each pole",
+        "An unduplicated Aᵐ chromosome decondenses inside each daughter nucleus"
+       ]
+      },
+      {
+       "id": "chromosome-ap",
+       "label": "Aᵖ",
+       "phases": [
+        "Condensed, joined sister pair inside the original envelope",
+        "Joined sister pair attaching to opposite spindle poles",
+        "Joined sister pair at the equator",
+        "Separated sisters; an Aᵖ chromosome approaches each pole",
+        "An unduplicated Aᵖ chromosome decondenses inside each daughter nucleus"
+       ]
+      },
+      {
+       "id": "chromosome-bm",
+       "label": "Bᵐ",
+       "phases": [
+        "Condensed, joined sister pair inside the original envelope",
+        "Joined sister pair attaching to opposite spindle poles",
+        "Joined sister pair at the equator",
+        "Separated sisters; a Bᵐ chromosome approaches each pole",
+        "An unduplicated Bᵐ chromosome decondenses inside each daughter nucleus"
+       ]
+      },
+      {
+       "id": "chromosome-bp",
+       "label": "Bᵖ",
+       "phases": [
+        "Condensed, joined sister pair inside the original envelope",
+        "Joined sister pair attaching to opposite spindle poles",
+        "Joined sister pair at the equator",
+        "Separated sisters; a Bᵖ chromosome approaches each pole",
+        "An unduplicated Bᵖ chromosome decondenses inside each daughter nucleus"
+       ]
+      },
+      {
+       "id": "left-nucleus",
+       "label": "Left daughter nucleus",
+       "phases": [
+        "Absent",
+        "Absent",
+        "Absent",
+        "Absent; chromosome set approaching the left pole",
+        "Envelope encloses unduplicated Aᵐ, Aᵖ, Bᵐ, and Bᵖ"
+       ]
+      },
+      {
+       "id": "right-nucleus",
+       "label": "Right daughter nucleus",
+       "phases": [
+        "Absent",
+        "Absent",
+        "Absent",
+        "Absent; chromosome set approaching the right pole",
+        "Envelope encloses unduplicated Aᵐ, Aᵖ, Bᵐ, and Bᵖ"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Condense",
+       "sentence": "Chromosomes condense, making their joined sister chromatids easier to distinguish.",
+       "why": "Replication happened before mitosis; the starting reference preserves these chromosome identities for the final comparison.",
+       "active": [
+        "chromosome-am",
+        "chromosome-ap",
+        "chromosome-bm",
+        "chromosome-bp"
+       ],
+       "calloutRegion": "chromosome-am",
+       "readouts": [
+        {
+         "id": "chromosome-comparison",
+         "label": "Chromosomes · starting nucleus → whole cell",
+         "value": "4 → 4"
+        },
+        {
+         "id": "dna-comparison",
+         "label": "DNA molecules · starting nucleus → whole cell",
+         "value": "8 → 8"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids per current chromosome, k",
+         "value": "2"
+        },
+        {
+         "id": "count-rule",
+         "label": "Computed count rule",
+         "value": "D = C × k"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Sister chromatids remain joined; the spindle is forming."
+        }
+       ]
+      },
+      {
+       "id": "prometaphase",
+       "label": "Prometaphase",
+       "short": "Attach",
+       "sentence": "The original nuclear envelope breaks down, allowing spindle fibers to attach to chromosome kinetochores.",
+       "why": "Attachments orient sister chromatids toward opposite poles, preparing matching chromosome sets for separation.",
+       "active": [
+        "original-envelope",
+        "spindle"
+       ],
+       "calloutRegion": "spindle",
+       "readouts": [
+        {
+         "id": "chromosome-comparison",
+         "label": "Chromosomes · starting nucleus → whole cell",
+         "value": "4 → 4"
+        },
+        {
+         "id": "dna-comparison",
+         "label": "DNA molecules · starting nucleus → whole cell",
+         "value": "8 → 8"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids per current chromosome, k",
+         "value": "2"
+        },
+        {
+         "id": "count-rule",
+         "label": "Computed count rule",
+         "value": "D = C × k"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The original envelope is open; spindle attachments are forming."
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Align",
+       "sentence": "Joined sister pairs align at the cell equator, with sister kinetochores attached toward opposite spindle poles.",
+       "why": "This orientation lets separation send a copy of every labeled chromosome toward each pole.",
+       "active": [
+        "spindle",
+        "chromosome-am",
+        "chromosome-ap",
+        "chromosome-bm",
+        "chromosome-bp"
+       ],
+       "calloutRegion": "chromosome-am",
+       "readouts": [
+        {
+         "id": "chromosome-comparison",
+         "label": "Chromosomes · starting nucleus → whole cell",
+         "value": "4 → 4"
+        },
+        {
+         "id": "dna-comparison",
+         "label": "DNA molecules · starting nucleus → whole cell",
+         "value": "8 → 8"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids per current chromosome, k",
+         "value": "2"
+        },
+        {
+         "id": "count-rule",
+         "label": "Computed count rule",
+         "value": "D = C × k"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "All sister pairs are aligned with opposite-pole attachments."
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Separate",
+       "sentence": "Sister chromatids separate; each becomes an individual chromosome moving toward its attached spindle pole.",
+       "why": "The whole-cell chromosome count rises because sisters are now counted separately; no additional DNA replication occurs.",
+       "active": [
+        "chromosome-am",
+        "chromosome-ap",
+        "chromosome-bm",
+        "chromosome-bp",
+        "spindle"
+       ],
+       "calloutRegion": "chromosome-am",
+       "readouts": [
+        {
+         "id": "chromosome-comparison",
+         "label": "Chromosomes · starting nucleus → whole cell",
+         "value": "4 → 8"
+        },
+        {
+         "id": "dna-comparison",
+         "label": "DNA molecules · starting nucleus → whole cell",
+         "value": "8 → 8"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids per current chromosome, k",
+         "value": "1"
+        },
+        {
+         "id": "count-rule",
+         "label": "Computed count rule",
+         "value": "D = C × k"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Matching chromosome identities are separating toward opposite poles."
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Enclose",
+       "sentence": "New nuclear envelopes enclose matching chromosome sets, while chromosomes decondense and the spindle disassembles.",
+       "why": "Each daughter nucleus matches the starting chromosome identities and number, but its chromosomes no longer contain joined sister copies.",
+       "active": [
+        "starting-reference",
+        "left-nucleus",
+        "right-nucleus"
+       ],
+       "calloutRegion": "left-nucleus",
+       "readouts": [
+        {
+         "id": "chromosome-comparison",
+         "label": "Chromosomes · starting nucleus → each daughter nucleus",
+         "value": "4 → 4"
+        },
+        {
+         "id": "dna-comparison",
+         "label": "DNA molecules · starting nucleus → each daughter nucleus",
+         "value": "8 → 4"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids per current chromosome, k",
+         "value": "1"
+        },
+        {
+         "id": "count-rule",
+         "label": "Computed count rule",
+         "value": "D = C × k"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Mitosis produces matching nuclei; cytokinesis divides the cell and is not shown."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 7821
+ },
+ "usd": 0.078406,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3fa77mA1KsBEeYRAv2k\"}"
+  },
+  "cardUsd": 0
+ }
+}

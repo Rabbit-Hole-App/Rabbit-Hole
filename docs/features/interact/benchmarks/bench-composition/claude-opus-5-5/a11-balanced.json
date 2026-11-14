@@ -1,0 +1,676 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a11",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does the TCP handshake work?",
+ "ts": "2026-11-14T22:25:18.382Z",
+ "ms": 38557,
+ "raw": "{\"story\":\"A client and server each pick a starting sequence number. The client sends SYN, the server answers SYN-ACK, and the client returns ACK. Watch the ack numbers: each side acknowledges the other's number plus one. After three segments, both sides have proven they received each other's starting number, so the connection is established in both directions.\",\"aha\":{\"stateId\":\"ack\",\"observation\":\"Each ACK equals the other side's initial sequence number plus one, so three segments confirm both directions.\"},\"layout\":{\"preset\":\"protocol\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Handshake step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons; names stay visible when disabled at the first and last steps\"},{\"id\":\"isn\",\"kind\":\"select\",\"label\":\"Initial sequence numbers\",\"options\":[\"Client 100 / Server 300\",\"Client 4000 / Server 9000\"],\"default\":0,\"presentation\":\"Switches variant; shows that ack = other side's ISN + 1 for any starting numbers\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first step and the default sequence numbers\"}],\"data\":{\"variants\":[{\"label\":\"Client 100 / Server 300\",\"regions\":[{\"id\":\"client\",\"label\":\"Client\",\"kind\":\"actor\",\"phases\":[\"CLOSED\",\"SYN-SENT\",\"ESTABLISHED\"]},{\"id\":\"server\",\"label\":\"Server\",\"kind\":\"actor\",\"phases\":[\"LISTEN\",\"SYN-RECEIVED\",\"ESTABLISHED\"]},{\"id\":\"seg-syn\",\"label\":\"SYN\",\"kind\":\"segment\",\"values\":[\"seq=100\"]},{\"id\":\"seg-synack\",\"label\":\"SYN-ACK\",\"kind\":\"segment\",\"values\":[\"seq=300\",\"ack=101\"]},{\"id\":\"seg-ack\",\"label\":\"ACK\",\"kind\":\"segment\",\"values\":[\"ack=301\"]}],\"links\":[{\"from\":\"client\",\"to\":\"server\",\"label\":\"SYN seq=100\"},{\"from\":\"server\",\"to\":\"client\",\"label\":\"SYN-ACK seq=300 ack=101\"},{\"from\":\"client\",\"to\":\"server\",\"label\":\"ACK ack=301\"}],\"states\":[{\"id\":\"start\",\"label\":\"Start\",\"short\":\"Start\",\"sentence\":\"The server waits in LISTEN. The client has picked starting number 100 but has sent nothing yet.\",\"why\":\"Each side picks its own starting number.\",\"active\":[\"client\",\"server\"],\"calloutRegion\":\"client\",\"readouts\":[{\"id\":\"c\",\"label\":\"Client state\",\"value\":\"CLOSED\"},{\"id\":\"s\",\"label\":\"Server state\",\"value\":\"LISTEN\"},{\"id\":\"cisn\",\"label\":\"Client ISN\",\"value\":\"100\"},{\"id\":\"sisn\",\"label\":\"Server ISN\",\"value\":\"—\"},{\"id\":\"ack\",\"label\":\"Last ack sent\",\"value\":\"—\"}]},{\"id\":\"syn\",\"label\":\"SYN\",\"short\":\"SYN\",\"sentence\":\"The client sends SYN with seq=100 and enters SYN-SENT.\",\"why\":\"SYN tells the server which number the client is starting from.\",\"active\":[\"client\",\"seg-syn\"],\"calloutRegion\":\"seg-syn\",\"readouts\":[{\"id\":\"c\",\"label\":\"Client state\",\"value\":\"SYN-SENT\"},{\"id\":\"s\",\"label\":\"Server state\",\"value\":\"LISTEN\"},{\"id\":\"cisn\",\"label\":\"Client ISN\",\"value\":\"100\"},{\"id\":\"sisn\",\"label\":\"Server ISN\",\"value\":\"—\"},{\"id\":\"ack\",\"label\":\"Last ack sent\",\"value\":\"—\"}]},{\"id\":\"synack\",\"label\":\"SYN-ACK\",\"short\":\"SYN-ACK\",\"sentence\":\"The server replies with seq=300 and ack=101, then enters SYN-RECEIVED.\",\"why\":\"ack=101 means 'I got 100; send 101 next.'\",\"active\":[\"server\",\"seg-synack\"],\"calloutRegion\":\"seg-synack\",\"readouts\":[{\"id\":\"c\",\"label\":\"Client state\",\"value\":\"SYN-SENT\"},{\"id\":\"s\",\"label\":\"Server state\",\"value\":\"SYN-RECEIVED\"},{\"id\":\"cisn\",\"label\":\"Client ISN\",\"value\":\"100\"},{\"id\":\"sisn\",\"label\":\"Server ISN\",\"value\":\"300\"},{\"id\":\"ack\",\"label\":\"Last ack sent\",\"value\":\"101 = 100 + 1\"}]},{\"id\":\"ack\",\"label\":\"ACK\",\"short\":\"ACK\",\"sentence\":\"The client sends ack=301, confirming the server's number. Both starting numbers have now been confirmed.\",\"why\":\"Each ack is the other side's ISN + 1.\",\"active\":[\"client\",\"seg-ack\"],\"calloutRegion\":\"seg-ack\",\"readouts\":[{\"id\":\"c\",\"label\":\"Client state\",\"value\":\"ESTABLISHED\"},{\"id\":\"s\",\"label\":\"Server state\",\"value\":\"SYN-RECEIVED\"},{\"id\":\"cisn\",\"label\":\"Client ISN\",\"value\":\"100\"},{\"id\":\"sisn\",\"label\":\"Server ISN\",\"value\":\"300\"},{\"id\":\"ack\",\"label\":\"Last ack sent\",\"value\":\"301 = 300 + 1\"}]},{\"id\":\"established\",\"label\":\"Established\",\"short\":\"Open\",\"sentence\":\"The server receives the ACK, and both sides are ESTABLISHED. Data starts at 101 from the client and 301 from the server.\",\"why\":\"Each side's data continues from its own ISN + 1.\",\"active\":[\"client\",\"server\"],\"calloutRegion\":\"server\",\"readouts\":[{\"id\":\"c\",\"label\":\"Client state\",\"value\":\"ESTABLISHED\"},{\"id\":\"s\",\"label\":\"Server state\",\"value\":\"ESTABLISHED\"},{\"id\":\"cisn\",\"label\":\"Client ISN\",\"value\":\"100\"},{\"id\":\"sisn\",\"label\":\"Server ISN\",\"value\":\"300\"},{\"id\":\"ack\",\"label\":\"Last ack sent\",\"value\":\"301 = 300 + 1\"}]}]},{\"label\":\"Client 4000 / Server 9000\",\"regions\":[{\"id\":\"client\",\"label\":\"Client\",\"kind\":\"actor\",\"phases\":[\"CLOSED\",\"SYN-SENT\",\"ESTABLISHED\"]},{\"id\":\"server\",\"label\":\"Server\",\"kind\":\"actor\",\"phases\":[\"LISTEN\",\"SYN-RECEIVED\",\"ESTABLISHED\"]},{\"id\":\"seg-syn\",\"label\":\"SYN\",\"kind\":\"segment\",\"values\":[\"seq=4000\"]},{\"id\":\"seg-synack\",\"label\":\"SYN-ACK\",\"kind\":\"segment\",\"values\":[\"seq=9000\",\"ack=4001\"]},{\"id\":\"seg-ack\",\"label\":\"ACK\",\"kind\":\"segment\",\"values\":[\"ack=9001\"]}],\"links\":[{\"from\":\"client\",\"to\":\"server\",\"label\":\"SYN seq=4000\"},{\"from\":\"server\",\"to\":\"client\",\"label\":\"SYN-ACK seq=9000 ack=4001\"},{\"from\":\"client\",\"to\":\"server\",\"label\":\"ACK ack=9001\"}],\"states\":[{\"id\":\"start\",\"label\":\"Start\",\"short\":\"Start\",\"sentence\":\"The server waits in LISTEN. The client has picked starting number 4000 but has sent nothing yet.\",\"why\":\"Each side picks its own starting number.\",\"active\":[\"client\",\"server\"],\"calloutRegion\":\"client\",\"readouts\":[{\"id\":\"c\",\"label\":\"Client state\",\"value\":\"CLOSED\"},{\"id\":\"s\",\"label\":\"Server state\",\"value\":\"LISTEN\"},{\"id\":\"cisn\",\"label\":\"Client ISN\",\"value\":\"4000\"},{\"id\":\"sisn\",\"label\":\"Server ISN\",\"value\":\"—\"},{\"id\":\"ack\",\"label\":\"Last ack sent\",\"value\":\"—\"}]},{\"id\":\"syn\",\"label\":\"SYN\",\"short\":\"SYN\",\"sentence\":\"The client sends SYN with seq=4000 and enters SYN-SENT.\",\"why\":\"SYN tells the server which number the client is starting from.\",\"active\":[\"client\",\"seg-syn\"],\"calloutRegion\":\"seg-syn\",\"readouts\":[{\"id\":\"c\",\"label\":\"Client state\",\"value\":\"SYN-SENT\"},{\"id\":\"s\",\"label\":\"Server state\",\"value\":\"LISTEN\"},{\"id\":\"cisn\",\"label\":\"Client ISN\",\"value\":\"4000\"},{\"id\":\"sisn\",\"label\":\"Server ISN\",\"value\":\"—\"},{\"id\":\"ack\",\"label\":\"Last ack sent\",\"value\":\"—\"}]},{\"id\":\"synack\",\"label\":\"SYN-ACK\",\"short\":\"SYN-ACK\",\"sentence\":\"The server replies with seq=9000 and ack=4001, then enters SYN-RECEIVED.\",\"why\":\"ack=4001 means 'I got 4000; send 4001 next.'\",\"active\":[\"server\",\"seg-synack\"],\"calloutRegion\":\"seg-synack\",\"readouts\":[{\"id\":\"c\",\"label\":\"Client state\",\"value\":\"SYN-SENT\"},{\"id\":\"s\",\"label\":\"Server state\",\"value\":\"SYN-RECEIVED\"},{\"id\":\"cisn\",\"label\":\"Client ISN\",\"value\":\"4000\"},{\"id\":\"sisn\",\"label\":\"Server ISN\",\"value\":\"9000\"},{\"id\":\"ack\",\"label\":\"Last ack sent\",\"value\":\"4001 = 4000 + 1\"}]},{\"id\":\"ack\",\"label\":\"ACK\",\"short\":\"ACK\",\"sentence\":\"The client sends ack=9001, confirming the server's number. Both starting numbers have now been confirmed.\",\"why\":\"Each ack is the other side's ISN + 1.\",\"active\":[\"client\",\"seg-ack\"],\"calloutRegion\":\"seg-ack\",\"readouts\":[{\"id\":\"c\",\"label\":\"Client state\",\"value\":\"ESTABLISHED\"},{\"id\":\"s\",\"label\":\"Server state\",\"value\":\"SYN-RECEIVED\"},{\"id\":\"cisn\",\"label\":\"Client ISN\",\"value\":\"4000\"},{\"id\":\"sisn\",\"label\":\"Server ISN\",\"value\":\"9000\"},{\"id\":\"ack\",\"label\":\"Last ack sent\",\"value\":\"9001 = 9000 + 1\"}]},{\"id\":\"established\",\"label\":\"Established\",\"short\":\"Open\",\"sentence\":\"The server receives the ACK, and both sides are ESTABLISHED. Data starts at 4001 from the client and 9001 from the server.\",\"why\":\"Each side's data continues from its own ISN + 1.\",\"active\":[\"client\",\"server\"],\"calloutRegion\":\"server\",\"readouts\":[{\"id\":\"c\",\"label\":\"Client state\",\"value\":\"ESTABLISHED\"},{\"id\":\"s\",\"label\":\"Server state\",\"value\":\"ESTABLISHED\"},{\"id\":\"cisn\",\"label\":\"Client ISN\",\"value\":\"4000\"},{\"id\":\"sisn\",\"label\":\"Server ISN\",\"value\":\"9000\"},{\"id\":\"ack\",\"label\":\"Last ack sent\",\"value\":\"9001 = 9000 + 1\"}]}]}]}}",
+ "composition": {
+  "story": "A client and server each pick a starting sequence number. The client sends SYN, the server answers SYN-ACK, and the client returns ACK. Watch the ack numbers: each side acknowledges the other's number plus one. After three segments, both sides have proven they received each other's starting number, so the connection is established in both directions.",
+  "aha": {
+   "stateId": "ack",
+   "observation": "Each ACK equals the other side's initial sequence number plus one, so three segments confirm both directions."
+  },
+  "layout": {
+   "preset": "protocol",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Handshake step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons; names stay visible when disabled at the first and last steps"
+   },
+   {
+    "id": "isn",
+    "kind": "select",
+    "label": "Initial sequence numbers",
+    "options": [
+     "Client 100 / Server 300",
+     "Client 4000 / Server 9000"
+    ],
+    "default": 0,
+    "presentation": "Switches variant; shows that ack = other side's ISN + 1 for any starting numbers"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first step and the default sequence numbers"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Client 100 / Server 300",
+     "regions": [
+      {
+       "id": "client",
+       "label": "Client",
+       "kind": "actor",
+       "phases": [
+        "CLOSED",
+        "SYN-SENT",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "server",
+       "label": "Server",
+       "kind": "actor",
+       "phases": [
+        "LISTEN",
+        "SYN-RECEIVED",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "seg-syn",
+       "label": "SYN",
+       "kind": "segment",
+       "values": [
+        "seq=100"
+       ]
+      },
+      {
+       "id": "seg-synack",
+       "label": "SYN-ACK",
+       "kind": "segment",
+       "values": [
+        "seq=300",
+        "ack=101"
+       ]
+      },
+      {
+       "id": "seg-ack",
+       "label": "ACK",
+       "kind": "segment",
+       "values": [
+        "ack=301"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "client",
+       "to": "server",
+       "label": "SYN seq=100"
+      },
+      {
+       "from": "server",
+       "to": "client",
+       "label": "SYN-ACK seq=300 ack=101"
+      },
+      {
+       "from": "client",
+       "to": "server",
+       "label": "ACK ack=301"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start",
+       "short": "Start",
+       "sentence": "The server waits in LISTEN. The client has picked starting number 100 but has sent nothing yet.",
+       "why": "Each side picks its own starting number.",
+       "active": [
+        "client",
+        "server"
+       ],
+       "calloutRegion": "client",
+       "readouts": [
+        {
+         "id": "c",
+         "label": "Client state",
+         "value": "CLOSED"
+        },
+        {
+         "id": "s",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "cisn",
+         "label": "Client ISN",
+         "value": "100"
+        },
+        {
+         "id": "sisn",
+         "label": "Server ISN",
+         "value": "—"
+        },
+        {
+         "id": "ack",
+         "label": "Last ack sent",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "syn",
+       "label": "SYN",
+       "short": "SYN",
+       "sentence": "The client sends SYN with seq=100 and enters SYN-SENT.",
+       "why": "SYN tells the server which number the client is starting from.",
+       "active": [
+        "client",
+        "seg-syn"
+       ],
+       "calloutRegion": "seg-syn",
+       "readouts": [
+        {
+         "id": "c",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "s",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "cisn",
+         "label": "Client ISN",
+         "value": "100"
+        },
+        {
+         "id": "sisn",
+         "label": "Server ISN",
+         "value": "—"
+        },
+        {
+         "id": "ack",
+         "label": "Last ack sent",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "synack",
+       "label": "SYN-ACK",
+       "short": "SYN-ACK",
+       "sentence": "The server replies with seq=300 and ack=101, then enters SYN-RECEIVED.",
+       "why": "ack=101 means 'I got 100; send 101 next.'",
+       "active": [
+        "server",
+        "seg-synack"
+       ],
+       "calloutRegion": "seg-synack",
+       "readouts": [
+        {
+         "id": "c",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "s",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "cisn",
+         "label": "Client ISN",
+         "value": "100"
+        },
+        {
+         "id": "sisn",
+         "label": "Server ISN",
+         "value": "300"
+        },
+        {
+         "id": "ack",
+         "label": "Last ack sent",
+         "value": "101 = 100 + 1"
+        }
+       ]
+      },
+      {
+       "id": "ack",
+       "label": "ACK",
+       "short": "ACK",
+       "sentence": "The client sends ack=301, confirming the server's number. Both starting numbers have now been confirmed.",
+       "why": "Each ack is the other side's ISN + 1.",
+       "active": [
+        "client",
+        "seg-ack"
+       ],
+       "calloutRegion": "seg-ack",
+       "readouts": [
+        {
+         "id": "c",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "s",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "cisn",
+         "label": "Client ISN",
+         "value": "100"
+        },
+        {
+         "id": "sisn",
+         "label": "Server ISN",
+         "value": "300"
+        },
+        {
+         "id": "ack",
+         "label": "Last ack sent",
+         "value": "301 = 300 + 1"
+        }
+       ]
+      },
+      {
+       "id": "established",
+       "label": "Established",
+       "short": "Open",
+       "sentence": "The server receives the ACK, and both sides are ESTABLISHED. Data starts at 101 from the client and 301 from the server.",
+       "why": "Each side's data continues from its own ISN + 1.",
+       "active": [
+        "client",
+        "server"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "c",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "s",
+         "label": "Server state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "cisn",
+         "label": "Client ISN",
+         "value": "100"
+        },
+        {
+         "id": "sisn",
+         "label": "Server ISN",
+         "value": "300"
+        },
+        {
+         "id": "ack",
+         "label": "Last ack sent",
+         "value": "301 = 300 + 1"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Client 4000 / Server 9000",
+     "regions": [
+      {
+       "id": "client",
+       "label": "Client",
+       "kind": "actor",
+       "phases": [
+        "CLOSED",
+        "SYN-SENT",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "server",
+       "label": "Server",
+       "kind": "actor",
+       "phases": [
+        "LISTEN",
+        "SYN-RECEIVED",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "seg-syn",
+       "label": "SYN",
+       "kind": "segment",
+       "values": [
+        "seq=4000"
+       ]
+      },
+      {
+       "id": "seg-synack",
+       "label": "SYN-ACK",
+       "kind": "segment",
+       "values": [
+        "seq=9000",
+        "ack=4001"
+       ]
+      },
+      {
+       "id": "seg-ack",
+       "label": "ACK",
+       "kind": "segment",
+       "values": [
+        "ack=9001"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "client",
+       "to": "server",
+       "label": "SYN seq=4000"
+      },
+      {
+       "from": "server",
+       "to": "client",
+       "label": "SYN-ACK seq=9000 ack=4001"
+      },
+      {
+       "from": "client",
+       "to": "server",
+       "label": "ACK ack=9001"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start",
+       "short": "Start",
+       "sentence": "The server waits in LISTEN. The client has picked starting number 4000 but has sent nothing yet.",
+       "why": "Each side picks its own starting number.",
+       "active": [
+        "client",
+        "server"
+       ],
+       "calloutRegion": "client",
+       "readouts": [
+        {
+         "id": "c",
+         "label": "Client state",
+         "value": "CLOSED"
+        },
+        {
+         "id": "s",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "cisn",
+         "label": "Client ISN",
+         "value": "4000"
+        },
+        {
+         "id": "sisn",
+         "label": "Server ISN",
+         "value": "—"
+        },
+        {
+         "id": "ack",
+         "label": "Last ack sent",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "syn",
+       "label": "SYN",
+       "short": "SYN",
+       "sentence": "The client sends SYN with seq=4000 and enters SYN-SENT.",
+       "why": "SYN tells the server which number the client is starting from.",
+       "active": [
+        "client",
+        "seg-syn"
+       ],
+       "calloutRegion": "seg-syn",
+       "readouts": [
+        {
+         "id": "c",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "s",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "cisn",
+         "label": "Client ISN",
+         "value": "4000"
+        },
+        {
+         "id": "sisn",
+         "label": "Server ISN",
+         "value": "—"
+        },
+        {
+         "id": "ack",
+         "label": "Last ack sent",
+         "value": "—"
+        }
+       ]
+      },
+      {
+       "id": "synack",
+       "label": "SYN-ACK",
+       "short": "SYN-ACK",
+       "sentence": "The server replies with seq=9000 and ack=4001, then enters SYN-RECEIVED.",
+       "why": "ack=4001 means 'I got 4000; send 4001 next.'",
+       "active": [
+        "server",
+        "seg-synack"
+       ],
+       "calloutRegion": "seg-synack",
+       "readouts": [
+        {
+         "id": "c",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "s",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "cisn",
+         "label": "Client ISN",
+         "value": "4000"
+        },
+        {
+         "id": "sisn",
+         "label": "Server ISN",
+         "value": "9000"
+        },
+        {
+         "id": "ack",
+         "label": "Last ack sent",
+         "value": "4001 = 4000 + 1"
+        }
+       ]
+      },
+      {
+       "id": "ack",
+       "label": "ACK",
+       "short": "ACK",
+       "sentence": "The client sends ack=9001, confirming the server's number. Both starting numbers have now been confirmed.",
+       "why": "Each ack is the other side's ISN + 1.",
+       "active": [
+        "client",
+        "seg-ack"
+       ],
+       "calloutRegion": "seg-ack",
+       "readouts": [
+        {
+         "id": "c",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "s",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "cisn",
+         "label": "Client ISN",
+         "value": "4000"
+        },
+        {
+         "id": "sisn",
+         "label": "Server ISN",
+         "value": "9000"
+        },
+        {
+         "id": "ack",
+         "label": "Last ack sent",
+         "value": "9001 = 9000 + 1"
+        }
+       ]
+      },
+      {
+       "id": "established",
+       "label": "Established",
+       "short": "Open",
+       "sentence": "The server receives the ACK, and both sides are ESTABLISHED. Data starts at 4001 from the client and 9001 from the server.",
+       "why": "Each side's data continues from its own ISN + 1.",
+       "active": [
+        "client",
+        "server"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "c",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "s",
+         "label": "Server state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "cisn",
+         "label": "Client ISN",
+         "value": "4000"
+        },
+        {
+         "id": "sisn",
+         "label": "Server ISN",
+         "value": "9000"
+        },
+        {
+         "id": "ack",
+         "label": "Last ack sent",
+         "value": "9001 = 9000 + 1"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3070,
+  "output": 5127
+ },
+ "usd": 0.11482,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture shows client, server and three segments with seq/ack values, answering why each ack is the other side's ISN+1 and what the three segments confirm."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state \"ack\" is the fourth of five steps and there is a further \"established\" step after it. The card does not hold at the aha, because the learner steps past it with Next and nothing pauses there."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The ISN select swaps in different numbers, so every seq, ack and readout changes. This shows the +1 rule holds for any starting values; the step control changes the active evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail binds to variant.states, the picture to regions and links, and the callout to state.calloutRegion, sentence and why. The ghost binds to previous.active and the readouts to state.readouts; all are declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, segment labels, readout labels and the Handshake step control all use Client, Server, SYN, SYN-SENT, SYN-ACK and ACK consistently."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The chosen depth shows one active pair of regions per step. The readouts contain the ISN+1 count at the key steps, with no extra clutter beyond that."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "All arithmetic is correct in both variants, with data starting at ISN+1. The callout locates the active region and the readouts quantify, though the sentence also repeats the numbers."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01806
+ }
+}

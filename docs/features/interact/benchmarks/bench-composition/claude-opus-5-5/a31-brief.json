@@ -1,0 +1,364 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a31",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "How does Bayesian optimization decide which setting to try next?",
+ "ts": "2026-11-14T22:35:38.033Z",
+ "ms": 36038,
+ "raw": "{\"story\":\"Six candidate settings sit in a row. Two have been tried. A surrogate model guesses each untried setting's score with uncertainty. It then rates each setting by guess plus uncertainty. Step forward and watch the next try go to x6, the most uncertain setting, not to the spot beside the best result. Trying x6 shrinks its uncertainty, and the pick moves.\",\"aha\":{\"stateId\":\"pick\",\"observation\":\"x6 gets the top rating (0.87) because its uncertainty is large. That beats x5, the best result tried so far, so x6 is tried next.\"},\"layout\":{\"preset\":\"stepper-collection\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top rail with five named steps; the active step is highlighted\"},{\"id\":\"row\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"active\":\"state.active\",\"links\":\"variant.links\"},\"presentation\":\"One row of six candidate cells, x1 to x6. Each cell shows its value for the current state.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the active cell and shows where the change happens\"},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Readouts below the row: best result tried, next setting, rating rule\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"items\":\"variant.states\",\"label\":\"Step\",\"default\":0,\"presentation\":\"Previous and Next buttons that keep their names when disabled at either end. Keyboard operable, with visible focus.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Goes back to the first step\"}],\"data\":{\"variants\":[{\"label\":\"Six candidate settings; rating = predicted score + 1 standard deviation (scores 0–1, two decimals)\",\"regions\":[{\"id\":\"x1\",\"label\":\"x1\",\"kind\":\"cell\",\"values\":[\"untried\",\"0.55 ± 0.20\",\"rating 0.75\",\"rating 0.75\",\"rating 0.75\"]},{\"id\":\"x2\",\"label\":\"x2\",\"kind\":\"cell\",\"values\":[\"tried: 0.60\",\"0.60 ± 0.02\",\"rating 0.62\",\"rating 0.62\",\"rating 0.62\"]},{\"id\":\"x3\",\"label\":\"x3\",\"kind\":\"cell\",\"values\":[\"untried\",\"0.64 ± 0.15\",\"rating 0.79\",\"rating 0.79\",\"rating 0.79\"]},{\"id\":\"x4\",\"label\":\"x4\",\"kind\":\"cell\",\"values\":[\"untried\",\"0.66 ± 0.18\",\"rating 0.84\",\"rating 0.84\",\"rating 0.83 · next\"]},{\"id\":\"x5\",\"label\":\"x5\",\"kind\":\"cell\",\"values\":[\"tried: 0.70 best\",\"0.70 ± 0.02\",\"rating 0.72\",\"rating 0.72\",\"rating 0.72\"]},{\"id\":\"x6\",\"label\":\"x6\",\"kind\":\"cell\",\"values\":[\"untried\",\"0.62 ± 0.25\",\"rating 0.87\",\"rating 0.87 · pick\",\"tried: 0.58\"]}],\"links\":[],\"states\":[{\"id\":\"observed\",\"label\":\"Tried so far\",\"short\":\"Tried\",\"sentence\":\"Only x2 and x5 have been tried. The model knows nothing measured about the other four settings.\",\"active\":[\"x2\",\"x5\"],\"calloutRegion\":\"x5\",\"why\":\"Real evaluations are expensive, so there are only a few.\",\"readouts\":[{\"id\":\"best\",\"label\":\"Best result tried\",\"value\":\"x5 = 0.70\"},{\"id\":\"next\",\"label\":\"Next setting\",\"value\":\"not chosen\"},{\"id\":\"rule\",\"label\":\"Rating rule\",\"value\":\"guess + uncertainty\"}]},{\"id\":\"surrogate\",\"label\":\"Model guesses\",\"short\":\"Guess\",\"sentence\":\"The surrogate model guesses a score for every setting. Settings far from tried points get wider uncertainty.\",\"active\":[\"x1\",\"x3\",\"x4\",\"x6\"],\"calloutRegion\":\"x6\",\"why\":\"x6 is farthest from any tried point, so it is the least known.\",\"readouts\":[{\"id\":\"best\",\"label\":\"Best result tried\",\"value\":\"x5 = 0.70\"},{\"id\":\"next\",\"label\":\"Next setting\",\"value\":\"not chosen\"},{\"id\":\"rule\",\"label\":\"Rating rule\",\"value\":\"guess + uncertainty\"}]},{\"id\":\"score\",\"label\":\"Rate each setting\",\"short\":\"Rate\",\"sentence\":\"Each setting's rating is its guess plus its uncertainty. This rewards both a promising guess and missing knowledge.\",\"active\":[\"x1\",\"x2\",\"x3\",\"x4\",\"x5\",\"x6\"],\"calloutRegion\":\"x4\",\"why\":\"Rating balances exploiting good guesses against exploring unknowns.\",\"readouts\":[{\"id\":\"best\",\"label\":\"Best result tried\",\"value\":\"x5 = 0.70\"},{\"id\":\"next\",\"label\":\"Next setting\",\"value\":\"not chosen\"},{\"id\":\"rule\",\"label\":\"Rating rule\",\"value\":\"guess + uncertainty\"}]},{\"id\":\"pick\",\"label\":\"Pick the top rating\",\"short\":\"Pick\",\"sentence\":\"x6 has the highest rating, so it is tried next, even though x5 holds the best result so far.\",\"active\":[\"x6\"],\"calloutRegion\":\"x6\",\"why\":\"High uncertainty means x6 could be much better than its guess.\",\"readouts\":[{\"id\":\"best\",\"label\":\"Best result tried\",\"value\":\"x5 = 0.70\"},{\"id\":\"next\",\"label\":\"Next setting\",\"value\":\"x6 (rating 0.87)\"},{\"id\":\"rule\",\"label\":\"Rating rule\",\"value\":\"guess + uncertainty\"}]},{\"id\":\"update\",\"label\":\"Try and update\",\"short\":\"Update\",\"sentence\":\"Trying x6 removes its uncertainty. Its rating drops, so x4 now has the top rating for the next try.\",\"active\":[\"x6\",\"x4\"],\"calloutRegion\":\"x4\",\"why\":\"Each measurement reshapes the guesses, so the next pick moves.\",\"readouts\":[{\"id\":\"best\",\"label\":\"Best result tried\",\"value\":\"x5 = 0.70\"},{\"id\":\"next\",\"label\":\"Next setting\",\"value\":\"x4 (rating 0.83)\"},{\"id\":\"rule\",\"label\":\"Rating rule\",\"value\":\"guess + uncertainty\"}]}]}]}}",
+ "composition": {
+  "story": "Six candidate settings sit in a row. Two have been tried. A surrogate model guesses each untried setting's score with uncertainty. It then rates each setting by guess plus uncertainty. Step forward and watch the next try go to x6, the most uncertain setting, not to the spot beside the best result. Trying x6 shrinks its uncertainty, and the pick moves.",
+  "aha": {
+   "stateId": "pick",
+   "observation": "x6 gets the top rating (0.87) because its uncertainty is large. That beats x5, the best result tried so far, so x6 is tried next."
+  },
+  "layout": {
+   "preset": "stepper-collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top rail with five named steps; the active step is highlighted"
+   },
+   {
+    "id": "row",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "active": "state.active",
+     "links": "variant.links"
+    },
+    "presentation": "One row of six candidate cells, x1 to x6. Each cell shows its value for the current state."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the active cell and shows where the change happens"
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Readouts below the row: best result tried, next setting, rating rule"
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Step",
+    "default": 0,
+    "presentation": "Previous and Next buttons that keep their names when disabled at either end. Keyboard operable, with visible focus."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Goes back to the first step"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Six candidate settings; rating = predicted score + 1 standard deviation (scores 0–1, two decimals)",
+     "regions": [
+      {
+       "id": "x1",
+       "label": "x1",
+       "kind": "cell",
+       "values": [
+        "untried",
+        "0.55 ± 0.20",
+        "rating 0.75",
+        "rating 0.75",
+        "rating 0.75"
+       ]
+      },
+      {
+       "id": "x2",
+       "label": "x2",
+       "kind": "cell",
+       "values": [
+        "tried: 0.60",
+        "0.60 ± 0.02",
+        "rating 0.62",
+        "rating 0.62",
+        "rating 0.62"
+       ]
+      },
+      {
+       "id": "x3",
+       "label": "x3",
+       "kind": "cell",
+       "values": [
+        "untried",
+        "0.64 ± 0.15",
+        "rating 0.79",
+        "rating 0.79",
+        "rating 0.79"
+       ]
+      },
+      {
+       "id": "x4",
+       "label": "x4",
+       "kind": "cell",
+       "values": [
+        "untried",
+        "0.66 ± 0.18",
+        "rating 0.84",
+        "rating 0.84",
+        "rating 0.83 · next"
+       ]
+      },
+      {
+       "id": "x5",
+       "label": "x5",
+       "kind": "cell",
+       "values": [
+        "tried: 0.70 best",
+        "0.70 ± 0.02",
+        "rating 0.72",
+        "rating 0.72",
+        "rating 0.72"
+       ]
+      },
+      {
+       "id": "x6",
+       "label": "x6",
+       "kind": "cell",
+       "values": [
+        "untried",
+        "0.62 ± 0.25",
+        "rating 0.87",
+        "rating 0.87 · pick",
+        "tried: 0.58"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "observed",
+       "label": "Tried so far",
+       "short": "Tried",
+       "sentence": "Only x2 and x5 have been tried. The model knows nothing measured about the other four settings.",
+       "active": [
+        "x2",
+        "x5"
+       ],
+       "calloutRegion": "x5",
+       "why": "Real evaluations are expensive, so there are only a few.",
+       "readouts": [
+        {
+         "id": "best",
+         "label": "Best result tried",
+         "value": "x5 = 0.70"
+        },
+        {
+         "id": "next",
+         "label": "Next setting",
+         "value": "not chosen"
+        },
+        {
+         "id": "rule",
+         "label": "Rating rule",
+         "value": "guess + uncertainty"
+        }
+       ]
+      },
+      {
+       "id": "surrogate",
+       "label": "Model guesses",
+       "short": "Guess",
+       "sentence": "The surrogate model guesses a score for every setting. Settings far from tried points get wider uncertainty.",
+       "active": [
+        "x1",
+        "x3",
+        "x4",
+        "x6"
+       ],
+       "calloutRegion": "x6",
+       "why": "x6 is farthest from any tried point, so it is the least known.",
+       "readouts": [
+        {
+         "id": "best",
+         "label": "Best result tried",
+         "value": "x5 = 0.70"
+        },
+        {
+         "id": "next",
+         "label": "Next setting",
+         "value": "not chosen"
+        },
+        {
+         "id": "rule",
+         "label": "Rating rule",
+         "value": "guess + uncertainty"
+        }
+       ]
+      },
+      {
+       "id": "score",
+       "label": "Rate each setting",
+       "short": "Rate",
+       "sentence": "Each setting's rating is its guess plus its uncertainty. This rewards both a promising guess and missing knowledge.",
+       "active": [
+        "x1",
+        "x2",
+        "x3",
+        "x4",
+        "x5",
+        "x6"
+       ],
+       "calloutRegion": "x4",
+       "why": "Rating balances exploiting good guesses against exploring unknowns.",
+       "readouts": [
+        {
+         "id": "best",
+         "label": "Best result tried",
+         "value": "x5 = 0.70"
+        },
+        {
+         "id": "next",
+         "label": "Next setting",
+         "value": "not chosen"
+        },
+        {
+         "id": "rule",
+         "label": "Rating rule",
+         "value": "guess + uncertainty"
+        }
+       ]
+      },
+      {
+       "id": "pick",
+       "label": "Pick the top rating",
+       "short": "Pick",
+       "sentence": "x6 has the highest rating, so it is tried next, even though x5 holds the best result so far.",
+       "active": [
+        "x6"
+       ],
+       "calloutRegion": "x6",
+       "why": "High uncertainty means x6 could be much better than its guess.",
+       "readouts": [
+        {
+         "id": "best",
+         "label": "Best result tried",
+         "value": "x5 = 0.70"
+        },
+        {
+         "id": "next",
+         "label": "Next setting",
+         "value": "x6 (rating 0.87)"
+        },
+        {
+         "id": "rule",
+         "label": "Rating rule",
+         "value": "guess + uncertainty"
+        }
+       ]
+      },
+      {
+       "id": "update",
+       "label": "Try and update",
+       "short": "Update",
+       "sentence": "Trying x6 removes its uncertainty. Its rating drops, so x4 now has the top rating for the next try.",
+       "active": [
+        "x6",
+        "x4"
+       ],
+       "calloutRegion": "x4",
+       "why": "Each measurement reshapes the guesses, so the next pick moves.",
+       "readouts": [
+        {
+         "id": "best",
+         "label": "Best result tried",
+         "value": "x5 = 0.70"
+        },
+        {
+         "id": "next",
+         "label": "Next setting",
+         "value": "x4 (rating 0.83)"
+        },
+        {
+         "id": "rule",
+         "label": "Rating rule",
+         "value": "guess + uncertainty"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3077,
+  "output": 4089
+ },
+ "usd": 0.094088,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The row of six cells with ratings shows that the high-uncertainty x6 outranks the best-tried x5, answering why the next try is not beside the best result."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The pick state holds with x6 at 0.87 and the next setting readout until the learner presses Next, since stepping is user-driven."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is step navigation with no parameter; although each step changes the evidence, no input alters the experiment or outcome."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callouts, active cells and readouts all trace to regions, state.active, calloutRegion and state.readouts, with x6 and x4 highlighted at the pick and update steps."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step names, and readouts all refer to the same settings x1 to x6 and the same events (tried, guess, rate, pick, update)."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "A single row of six cells with one changing region per step and three readouts is a light overview-level load."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The ratings equal guess plus uncertainty, but x4 shifts from 0.84 to 0.83 in the update step with no stated reason, and the next-setting readout repeats the rating that is already in the cell."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018242
+ }
+}

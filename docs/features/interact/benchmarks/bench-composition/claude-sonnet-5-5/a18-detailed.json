@@ -1,0 +1,553 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a18",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a four-stroke car engine work?",
+ "ts": "2026-11-14T22:26:15.350Z",
+ "ms": 33577,
+ "raw": "{\"story\":\"Step through one cycle of a single cylinder. Watch the piston, the two valves and the spark plug. Intake, compression, power and exhaust take two full crankshaft turns, 720 degrees. Only the power stroke pushes the crankshaft. The other three strokes use its momentum. Then the cycle repeats.\",\"aha\":{\"stateId\":\"cycle\",\"observation\":\"One cycle takes two crankshaft turns (720°), and only one of the four strokes, the power stroke, delivers work.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons; step index selects a state, not a clock\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Single cylinder, 10:1 compression ratio (500 cc at bottom, 50 cc at top)\",\"regions\":[{\"id\":\"cylinder-gas\",\"label\":\"Cylinder gas\",\"kind\":\"chamber\",\"values\":[\"Volume 50 cc at top dead centre\",\"Volume 500 cc at bottom dead centre\",\"Compression ratio 500 / 50 = 10:1\"]},{\"id\":\"piston\",\"label\":\"Piston\",\"kind\":\"actor\",\"values\":[\"Top dead centre (TDC)\",\"Bottom dead centre (BDC)\",\"Stroke = 450 cc of swept volume\"]},{\"id\":\"intake-valve\",\"label\":\"Intake valve\",\"kind\":\"actor\",\"phases\":[\"Open during intake\",\"Closed otherwise\"]},{\"id\":\"exhaust-valve\",\"label\":\"Exhaust valve\",\"kind\":\"actor\",\"phases\":[\"Open during exhaust\",\"Closed otherwise\"]},{\"id\":\"spark-plug\",\"label\":\"Spark plug\",\"kind\":\"actor\",\"phases\":[\"Fires once at 360°\",\"Idle otherwise\"]},{\"id\":\"crankshaft\",\"label\":\"Crankshaft\",\"kind\":\"actor\",\"values\":[\"Turns 180° per stroke\",\"720° per cycle\"]}],\"links\":[{\"from\":\"intake-valve\",\"to\":\"cylinder-gas\",\"label\":\"air and fuel in\"},{\"from\":\"spark-plug\",\"to\":\"cylinder-gas\",\"label\":\"ignites mixture\"},{\"from\":\"cylinder-gas\",\"to\":\"piston\",\"label\":\"gas pressure pushes\"},{\"from\":\"piston\",\"to\":\"crankshaft\",\"label\":\"rod turns crank\"},{\"from\":\"cylinder-gas\",\"to\":\"exhaust-valve\",\"label\":\"burnt gas out\"}],\"states\":[{\"id\":\"ready\",\"label\":\"Ready\",\"sentence\":\"The piston sits at top dead centre with both valves closed. The crankshaft is at 0°, and the cycle is about to begin.\",\"short\":\"Start at top\",\"why\":\"Starting position fixes the reference: 0° crank angle and the smallest cylinder volume.\",\"calloutRegion\":\"piston\",\"active\":[\"piston\",\"crankshaft\"],\"readouts\":[{\"id\":\"angle\",\"label\":\"Crank angle\",\"value\":\"0°\"},{\"id\":\"piston\",\"label\":\"Piston\",\"value\":\"TDC, moving down next\"},{\"id\":\"valves\",\"label\":\"Valves\",\"value\":\"Intake closed, exhaust closed\"},{\"id\":\"volume\",\"label\":\"Cylinder volume\",\"value\":\"50 cc\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"about 1 bar\"},{\"id\":\"work\",\"label\":\"Work strokes done\",\"value\":\"0 of 1\"}]},{\"id\":\"intake\",\"label\":\"1 Intake\",\"sentence\":\"The intake valve opens and the piston moves down. Falling pressure draws air and fuel into the growing cylinder.\",\"short\":\"Intake stroke\",\"why\":\"Volume grows from 50 to 500 cc, so outside air and fuel flow in.\",\"calloutRegion\":\"intake-valve\",\"active\":[\"intake-valve\",\"piston\",\"cylinder-gas\",\"crankshaft\"],\"readouts\":[{\"id\":\"angle\",\"label\":\"Crank angle\",\"value\":\"0° to 180°\"},{\"id\":\"piston\",\"label\":\"Piston\",\"value\":\"TDC to BDC\"},{\"id\":\"valves\",\"label\":\"Valves\",\"value\":\"Intake open, exhaust closed\"},{\"id\":\"volume\",\"label\":\"Cylinder volume\",\"value\":\"50 to 500 cc\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"slightly below 1 bar\"},{\"id\":\"work\",\"label\":\"Work strokes done\",\"value\":\"0 of 1\"}]},{\"id\":\"compression\",\"label\":\"2 Compression\",\"sentence\":\"Both valves close and the piston rises. The mixture is squeezed into one tenth of its volume, so it heats and pressurises.\",\"short\":\"Compression stroke\",\"why\":\"Volume falls 500 to 50 cc, a 10:1 squeeze, which raises pressure and temperature.\",\"calloutRegion\":\"cylinder-gas\",\"active\":[\"piston\",\"cylinder-gas\",\"crankshaft\"],\"readouts\":[{\"id\":\"angle\",\"label\":\"Crank angle\",\"value\":\"180° to 360°\"},{\"id\":\"piston\",\"label\":\"Piston\",\"value\":\"BDC to TDC\"},{\"id\":\"valves\",\"label\":\"Valves\",\"value\":\"Intake closed, exhaust closed\"},{\"id\":\"volume\",\"label\":\"Cylinder volume\",\"value\":\"500 to 50 cc\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"rises to about 15 bar\"},{\"id\":\"work\",\"label\":\"Work strokes done\",\"value\":\"0 of 1\"}]},{\"id\":\"spark\",\"label\":\"Spark\",\"sentence\":\"Near top dead centre the spark plug fires. The compressed mixture burns quickly and pressure jumps while volume is smallest.\",\"short\":\"Ignition\",\"why\":\"Burning in the smallest volume gives peak pressure, the force that will push the piston.\",\"calloutRegion\":\"spark-plug\",\"active\":[\"spark-plug\",\"cylinder-gas\",\"piston\"],\"readouts\":[{\"id\":\"angle\",\"label\":\"Crank angle\",\"value\":\"360°\"},{\"id\":\"piston\",\"label\":\"Piston\",\"value\":\"TDC\"},{\"id\":\"valves\",\"label\":\"Valves\",\"value\":\"Intake closed, exhaust closed\"},{\"id\":\"volume\",\"label\":\"Cylinder volume\",\"value\":\"50 cc\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"peaks at about 50 bar\"},{\"id\":\"work\",\"label\":\"Work strokes done\",\"value\":\"0 of 1\"}]},{\"id\":\"power\",\"label\":\"3 Power\",\"sentence\":\"Hot expanding gas pushes the piston down. The connecting rod turns the crankshaft, the only stroke that delivers work.\",\"short\":\"Power stroke\",\"why\":\"Gas pressure pushes the piston and the rod turns the crankshaft. This is the only work-producing stroke.\",\"calloutRegion\":\"piston\",\"active\":[\"piston\",\"cylinder-gas\",\"crankshaft\"],\"readouts\":[{\"id\":\"angle\",\"label\":\"Crank angle\",\"value\":\"360° to 540°\"},{\"id\":\"piston\",\"label\":\"Piston\",\"value\":\"TDC to BDC\"},{\"id\":\"valves\",\"label\":\"Valves\",\"value\":\"Intake closed, exhaust closed\"},{\"id\":\"volume\",\"label\":\"Cylinder volume\",\"value\":\"50 to 500 cc\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"falls from 50 bar to about 4 bar\"},{\"id\":\"work\",\"label\":\"Work strokes done\",\"value\":\"1 of 1\"}]},{\"id\":\"exhaust\",\"label\":\"4 Exhaust\",\"sentence\":\"The exhaust valve opens and the rising piston pushes burnt gas out. The cylinder is cleared for fresh air.\",\"short\":\"Exhaust stroke\",\"why\":\"Volume shrinks from 500 to 50 cc, which expels the burnt gas through the exhaust valve.\",\"calloutRegion\":\"exhaust-valve\",\"active\":[\"exhaust-valve\",\"piston\",\"cylinder-gas\",\"crankshaft\"],\"readouts\":[{\"id\":\"angle\",\"label\":\"Crank angle\",\"value\":\"540° to 720°\"},{\"id\":\"piston\",\"label\":\"Piston\",\"value\":\"BDC to TDC\"},{\"id\":\"valves\",\"label\":\"Valves\",\"value\":\"Intake closed, exhaust open\"},{\"id\":\"volume\",\"label\":\"Cylinder volume\",\"value\":\"500 to 50 cc\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"about 1 bar, venting\"},{\"id\":\"work\",\"label\":\"Work strokes done\",\"value\":\"1 of 1\"}]},{\"id\":\"cycle\",\"label\":\"Cycle complete\",\"sentence\":\"Four strokes took 720°, two crankshaft turns, with one power stroke. The flywheel's momentum carries the other three strokes.\",\"short\":\"One work stroke in 720°\",\"why\":\"Four strokes of 180° each make 720°. Only one stroke delivered work, and the crank has returned to start.\",\"calloutRegion\":\"crankshaft\",\"active\":[\"crankshaft\",\"piston\",\"intake-valve\",\"exhaust-valve\",\"spark-plug\",\"cylinder-gas\"],\"readouts\":[{\"id\":\"angle\",\"label\":\"Crank angle\",\"value\":\"720° = 2 turns\"},{\"id\":\"piston\",\"label\":\"Piston\",\"value\":\"4 strokes, back at TDC\"},{\"id\":\"valves\",\"label\":\"Valves\",\"value\":\"Intake opens next\"},{\"id\":\"volume\",\"label\":\"Cylinder volume\",\"value\":\"50 cc, ratio 10:1\"},{\"id\":\"pressure\",\"label\":\"Pressure\",\"value\":\"about 1 bar\"},{\"id\":\"work\",\"label\":\"Work strokes done\",\"value\":\"1 of 4 strokes\"}]}]}]}}",
+ "composition": {
+  "story": "Step through one cycle of a single cylinder. Watch the piston, the two valves and the spark plug. Intake, compression, power and exhaust take two full crankshaft turns, 720 degrees. Only the power stroke pushes the crankshaft. The other three strokes use its momentum. Then the cycle repeats.",
+  "aha": {
+   "stateId": "cycle",
+   "observation": "One cycle takes two crankshaft turns (720°), and only one of the four strokes, the power stroke, delivers work."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons; step index selects a state, not a clock"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Single cylinder, 10:1 compression ratio (500 cc at bottom, 50 cc at top)",
+     "regions": [
+      {
+       "id": "cylinder-gas",
+       "label": "Cylinder gas",
+       "kind": "chamber",
+       "values": [
+        "Volume 50 cc at top dead centre",
+        "Volume 500 cc at bottom dead centre",
+        "Compression ratio 500 / 50 = 10:1"
+       ]
+      },
+      {
+       "id": "piston",
+       "label": "Piston",
+       "kind": "actor",
+       "values": [
+        "Top dead centre (TDC)",
+        "Bottom dead centre (BDC)",
+        "Stroke = 450 cc of swept volume"
+       ]
+      },
+      {
+       "id": "intake-valve",
+       "label": "Intake valve",
+       "kind": "actor",
+       "phases": [
+        "Open during intake",
+        "Closed otherwise"
+       ]
+      },
+      {
+       "id": "exhaust-valve",
+       "label": "Exhaust valve",
+       "kind": "actor",
+       "phases": [
+        "Open during exhaust",
+        "Closed otherwise"
+       ]
+      },
+      {
+       "id": "spark-plug",
+       "label": "Spark plug",
+       "kind": "actor",
+       "phases": [
+        "Fires once at 360°",
+        "Idle otherwise"
+       ]
+      },
+      {
+       "id": "crankshaft",
+       "label": "Crankshaft",
+       "kind": "actor",
+       "values": [
+        "Turns 180° per stroke",
+        "720° per cycle"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "intake-valve",
+       "to": "cylinder-gas",
+       "label": "air and fuel in"
+      },
+      {
+       "from": "spark-plug",
+       "to": "cylinder-gas",
+       "label": "ignites mixture"
+      },
+      {
+       "from": "cylinder-gas",
+       "to": "piston",
+       "label": "gas pressure pushes"
+      },
+      {
+       "from": "piston",
+       "to": "crankshaft",
+       "label": "rod turns crank"
+      },
+      {
+       "from": "cylinder-gas",
+       "to": "exhaust-valve",
+       "label": "burnt gas out"
+      }
+     ],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Ready",
+       "sentence": "The piston sits at top dead centre with both valves closed. The crankshaft is at 0°, and the cycle is about to begin.",
+       "short": "Start at top",
+       "why": "Starting position fixes the reference: 0° crank angle and the smallest cylinder volume.",
+       "calloutRegion": "piston",
+       "active": [
+        "piston",
+        "crankshaft"
+       ],
+       "readouts": [
+        {
+         "id": "angle",
+         "label": "Crank angle",
+         "value": "0°"
+        },
+        {
+         "id": "piston",
+         "label": "Piston",
+         "value": "TDC, moving down next"
+        },
+        {
+         "id": "valves",
+         "label": "Valves",
+         "value": "Intake closed, exhaust closed"
+        },
+        {
+         "id": "volume",
+         "label": "Cylinder volume",
+         "value": "50 cc"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "about 1 bar"
+        },
+        {
+         "id": "work",
+         "label": "Work strokes done",
+         "value": "0 of 1"
+        }
+       ]
+      },
+      {
+       "id": "intake",
+       "label": "1 Intake",
+       "sentence": "The intake valve opens and the piston moves down. Falling pressure draws air and fuel into the growing cylinder.",
+       "short": "Intake stroke",
+       "why": "Volume grows from 50 to 500 cc, so outside air and fuel flow in.",
+       "calloutRegion": "intake-valve",
+       "active": [
+        "intake-valve",
+        "piston",
+        "cylinder-gas",
+        "crankshaft"
+       ],
+       "readouts": [
+        {
+         "id": "angle",
+         "label": "Crank angle",
+         "value": "0° to 180°"
+        },
+        {
+         "id": "piston",
+         "label": "Piston",
+         "value": "TDC to BDC"
+        },
+        {
+         "id": "valves",
+         "label": "Valves",
+         "value": "Intake open, exhaust closed"
+        },
+        {
+         "id": "volume",
+         "label": "Cylinder volume",
+         "value": "50 to 500 cc"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "slightly below 1 bar"
+        },
+        {
+         "id": "work",
+         "label": "Work strokes done",
+         "value": "0 of 1"
+        }
+       ]
+      },
+      {
+       "id": "compression",
+       "label": "2 Compression",
+       "sentence": "Both valves close and the piston rises. The mixture is squeezed into one tenth of its volume, so it heats and pressurises.",
+       "short": "Compression stroke",
+       "why": "Volume falls 500 to 50 cc, a 10:1 squeeze, which raises pressure and temperature.",
+       "calloutRegion": "cylinder-gas",
+       "active": [
+        "piston",
+        "cylinder-gas",
+        "crankshaft"
+       ],
+       "readouts": [
+        {
+         "id": "angle",
+         "label": "Crank angle",
+         "value": "180° to 360°"
+        },
+        {
+         "id": "piston",
+         "label": "Piston",
+         "value": "BDC to TDC"
+        },
+        {
+         "id": "valves",
+         "label": "Valves",
+         "value": "Intake closed, exhaust closed"
+        },
+        {
+         "id": "volume",
+         "label": "Cylinder volume",
+         "value": "500 to 50 cc"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "rises to about 15 bar"
+        },
+        {
+         "id": "work",
+         "label": "Work strokes done",
+         "value": "0 of 1"
+        }
+       ]
+      },
+      {
+       "id": "spark",
+       "label": "Spark",
+       "sentence": "Near top dead centre the spark plug fires. The compressed mixture burns quickly and pressure jumps while volume is smallest.",
+       "short": "Ignition",
+       "why": "Burning in the smallest volume gives peak pressure, the force that will push the piston.",
+       "calloutRegion": "spark-plug",
+       "active": [
+        "spark-plug",
+        "cylinder-gas",
+        "piston"
+       ],
+       "readouts": [
+        {
+         "id": "angle",
+         "label": "Crank angle",
+         "value": "360°"
+        },
+        {
+         "id": "piston",
+         "label": "Piston",
+         "value": "TDC"
+        },
+        {
+         "id": "valves",
+         "label": "Valves",
+         "value": "Intake closed, exhaust closed"
+        },
+        {
+         "id": "volume",
+         "label": "Cylinder volume",
+         "value": "50 cc"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "peaks at about 50 bar"
+        },
+        {
+         "id": "work",
+         "label": "Work strokes done",
+         "value": "0 of 1"
+        }
+       ]
+      },
+      {
+       "id": "power",
+       "label": "3 Power",
+       "sentence": "Hot expanding gas pushes the piston down. The connecting rod turns the crankshaft, the only stroke that delivers work.",
+       "short": "Power stroke",
+       "why": "Gas pressure pushes the piston and the rod turns the crankshaft. This is the only work-producing stroke.",
+       "calloutRegion": "piston",
+       "active": [
+        "piston",
+        "cylinder-gas",
+        "crankshaft"
+       ],
+       "readouts": [
+        {
+         "id": "angle",
+         "label": "Crank angle",
+         "value": "360° to 540°"
+        },
+        {
+         "id": "piston",
+         "label": "Piston",
+         "value": "TDC to BDC"
+        },
+        {
+         "id": "valves",
+         "label": "Valves",
+         "value": "Intake closed, exhaust closed"
+        },
+        {
+         "id": "volume",
+         "label": "Cylinder volume",
+         "value": "50 to 500 cc"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "falls from 50 bar to about 4 bar"
+        },
+        {
+         "id": "work",
+         "label": "Work strokes done",
+         "value": "1 of 1"
+        }
+       ]
+      },
+      {
+       "id": "exhaust",
+       "label": "4 Exhaust",
+       "sentence": "The exhaust valve opens and the rising piston pushes burnt gas out. The cylinder is cleared for fresh air.",
+       "short": "Exhaust stroke",
+       "why": "Volume shrinks from 500 to 50 cc, which expels the burnt gas through the exhaust valve.",
+       "calloutRegion": "exhaust-valve",
+       "active": [
+        "exhaust-valve",
+        "piston",
+        "cylinder-gas",
+        "crankshaft"
+       ],
+       "readouts": [
+        {
+         "id": "angle",
+         "label": "Crank angle",
+         "value": "540° to 720°"
+        },
+        {
+         "id": "piston",
+         "label": "Piston",
+         "value": "BDC to TDC"
+        },
+        {
+         "id": "valves",
+         "label": "Valves",
+         "value": "Intake closed, exhaust open"
+        },
+        {
+         "id": "volume",
+         "label": "Cylinder volume",
+         "value": "500 to 50 cc"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "about 1 bar, venting"
+        },
+        {
+         "id": "work",
+         "label": "Work strokes done",
+         "value": "1 of 1"
+        }
+       ]
+      },
+      {
+       "id": "cycle",
+       "label": "Cycle complete",
+       "sentence": "Four strokes took 720°, two crankshaft turns, with one power stroke. The flywheel's momentum carries the other three strokes.",
+       "short": "One work stroke in 720°",
+       "why": "Four strokes of 180° each make 720°. Only one stroke delivered work, and the crank has returned to start.",
+       "calloutRegion": "crankshaft",
+       "active": [
+        "crankshaft",
+        "piston",
+        "intake-valve",
+        "exhaust-valve",
+        "spark-plug",
+        "cylinder-gas"
+       ],
+       "readouts": [
+        {
+         "id": "angle",
+         "label": "Crank angle",
+         "value": "720° = 2 turns"
+        },
+        {
+         "id": "piston",
+         "label": "Piston",
+         "value": "4 strokes, back at TDC"
+        },
+        {
+         "id": "valves",
+         "label": "Valves",
+         "value": "Intake opens next"
+        },
+        {
+         "id": "volume",
+         "label": "Cylinder volume",
+         "value": "50 cc, ratio 10:1"
+        },
+        {
+         "id": "pressure",
+         "label": "Pressure",
+         "value": "about 1 bar"
+        },
+        {
+         "id": "work",
+         "label": "Work strokes done",
+         "value": "1 of 4 strokes"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3072,
+  "output": 5534
+ },
+ "usd": 0.061484,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture answers why one four-stroke cycle takes 720° with a single work stroke, using piston, valve, spark and crank regions linked by gas pressure."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'cycle' is the final step; it is step-indexed, not timed, so it holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single step control changes the active regions, callout and readouts for each stroke, so every input changes the evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callouts target declared regions, active lists and links reference declared region ids, the ghost uses previous.active, and readouts come from state.readouts."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels and readouts consistently name the piston, intake and exhaust valves, spark plug and crankshaft, and the strokes in the same order."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "Each state carries six readouts plus a callout, a ghost, links and a progress rail, and the spark state adds an extra step. That is heavier than a detailed scene needs, and the final state's 'Work strokes done 1 of 4 strokes' mixes units."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The numbers are mostly right (50 to 500 cc, 10:1, 4×180°=720°, 450 cc swept). However, the work readout says '1 of 1' while the final state says '1 of 4 strokes', and the sentences repeat the readouts' volume and angle values, so values are not placed once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01684
+ }
+}

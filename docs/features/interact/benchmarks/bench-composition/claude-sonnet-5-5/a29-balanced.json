@@ -1,0 +1,725 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a29",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "What happens to the training weights after AdaBoost gets one example wrong?",
+ "ts": "2026-11-14T22:30:01.055Z",
+ "ms": 41064,
+ "raw": "{\"story\":\"AdaBoost starts with equal weights on every training example. A weak learner misses one. We measure its weighted error, turn that into a vote strength, shrink the weights of correct examples, grow the missed one, then renormalize. The missed example ends up holding half of all weight.\",\"aha\":{\"stateId\":\"normalize\",\"observation\":\"After renormalizing, the single missed example holds 0.50 of the total weight, up from 0.20, while each correct example drops to 0.125.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"inputs.step\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.regions\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"inputs.step\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next\"},{\"id\":\"examples\",\"kind\":\"select\",\"label\":\"Training set size\",\"options\":[\"5 examples\",\"3 examples\"],\"default\":0,\"presentation\":\"Changes how many examples share the weight; the missed one still ends at 0.50.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"5 examples\",\"regions\":[{\"id\":\"ex1\",\"label\":\"x1 (correct)\",\"kind\":\"example\",\"values\":[\"0.20\",\"0.20\",\"0.20\",\"0.20\",\"0.10\",\"0.125\"]},{\"id\":\"ex2\",\"label\":\"x2 (correct)\",\"kind\":\"example\",\"values\":[\"0.20\",\"0.20\",\"0.20\",\"0.20\",\"0.10\",\"0.125\"]},{\"id\":\"ex3\",\"label\":\"x3 (missed)\",\"kind\":\"example\",\"values\":[\"0.20\",\"0.20\",\"0.20\",\"0.20\",\"0.40\",\"0.50\"]},{\"id\":\"ex4\",\"label\":\"x4 (correct)\",\"kind\":\"example\",\"values\":[\"0.20\",\"0.20\",\"0.20\",\"0.20\",\"0.10\",\"0.125\"]},{\"id\":\"ex5\",\"label\":\"x5 (correct)\",\"kind\":\"example\",\"values\":[\"0.20\",\"0.20\",\"0.20\",\"0.20\",\"0.10\",\"0.125\"]},{\"id\":\"learner\",\"label\":\"Weak learner h1\",\"kind\":\"actor\",\"actors\":[\"h1\"]},{\"id\":\"error\",\"label\":\"Weighted error ε\",\"kind\":\"measure\",\"values\":[\"0.20\"]},{\"id\":\"alpha\",\"label\":\"Vote strength α\",\"kind\":\"measure\",\"values\":[\"0.69\"]},{\"id\":\"total\",\"label\":\"Total weight\",\"kind\":\"measure\",\"values\":[\"1.00\",\"1.00\",\"1.00\",\"1.00\",\"0.80\",\"1.00\"]}],\"links\":[{\"from\":\"learner\",\"to\":\"ex3\",\"label\":\"misclassifies\"},{\"from\":\"ex3\",\"to\":\"error\",\"label\":\"adds its weight\"},{\"from\":\"error\",\"to\":\"alpha\",\"label\":\"sets\"},{\"from\":\"alpha\",\"to\":\"total\",\"label\":\"rescales\"}],\"states\":[{\"id\":\"start\",\"label\":\"Equal weights\",\"sentence\":\"Five training examples start with the same weight, so each one counts equally.\",\"short\":\"Equal start\",\"why\":\"AdaBoost has no reason yet to favor any example.\",\"active\":[\"ex1\",\"ex2\",\"ex3\",\"ex4\",\"ex5\"],\"calloutRegion\":\"ex3\",\"readouts\":[{\"id\":\"w3\",\"label\":\"Weight of x3\",\"value\":\"0.20\"},{\"id\":\"wc\",\"label\":\"Weight of each correct\",\"value\":\"0.20\"},{\"id\":\"tot\",\"label\":\"Total\",\"value\":\"1.00\"}]},{\"id\":\"predict\",\"label\":\"h1 misses x3\",\"sentence\":\"The first weak learner classifies four examples correctly and gets x3 wrong.\",\"short\":\"One mistake\",\"why\":\"Only the mistake matters for the update that follows.\",\"active\":[\"learner\",\"ex3\"],\"calloutRegion\":\"learner\",\"readouts\":[{\"id\":\"w3\",\"label\":\"Weight of x3\",\"value\":\"0.20\"},{\"id\":\"miss\",\"label\":\"Examples missed\",\"value\":\"1 of 5\"}]},{\"id\":\"error\",\"label\":\"Weighted error\",\"sentence\":\"Weighted error ε adds up the weights of the missed examples only.\",\"short\":\"Measure ε\",\"why\":\"A miss on a heavy example would cost more than on a light one.\",\"active\":[\"ex3\",\"error\"],\"calloutRegion\":\"error\",\"readouts\":[{\"id\":\"eps\",\"label\":\"ε\",\"value\":\"0.20\"}]},{\"id\":\"vote\",\"label\":\"Vote strength\",\"sentence\":\"A low error earns h1 a positive vote α, which also sets the two update factors.\",\"short\":\"Compute α\",\"why\":\"α = ½·ln((1−ε)/ε); wrong examples scale by e^α, correct by e^−α.\",\"active\":[\"error\",\"alpha\"],\"calloutRegion\":\"alpha\",\"readouts\":[{\"id\":\"alpha\",\"label\":\"α\",\"value\":\"0.69\"},{\"id\":\"fw\",\"label\":\"Factor, missed\",\"value\":\"×2.0\"},{\"id\":\"fc\",\"label\":\"Factor, correct\",\"value\":\"×0.5\"}]},{\"id\":\"rescale\",\"label\":\"Rescale weights\",\"sentence\":\"Correct examples are multiplied down and the missed one is multiplied up, so the total no longer equals one.\",\"short\":\"Scale\",\"why\":\"Missed x3 doubles while the four correct examples halve.\",\"active\":[\"ex1\",\"ex2\",\"ex3\",\"ex4\",\"ex5\",\"total\"],\"calloutRegion\":\"total\",\"readouts\":[{\"id\":\"w3\",\"label\":\"Weight of x3\",\"value\":\"0.40\"},{\"id\":\"wc\",\"label\":\"Weight of each correct\",\"value\":\"0.10\"},{\"id\":\"tot\",\"label\":\"Total\",\"value\":\"0.80\"}]},{\"id\":\"normalize\",\"label\":\"Normalize\",\"sentence\":\"Dividing every weight by 0.80 restores a total of one and leaves x3 holding half of it.\",\"short\":\"Normalize\",\"why\":\"Normalizing keeps the weights a distribution; the ratio of x3 to each correct example is 4 to 1.\",\"active\":[\"ex1\",\"ex2\",\"ex3\",\"ex4\",\"ex5\",\"total\"],\"calloutRegion\":\"ex3\",\"readouts\":[{\"id\":\"w3\",\"label\":\"Weight of x3\",\"value\":\"0.50 (was 0.20)\"},{\"id\":\"wc\",\"label\":\"Weight of each correct\",\"value\":\"0.125 (was 0.20)\"},{\"id\":\"tot\",\"label\":\"Total\",\"value\":\"1.00\"}]}]},{\"label\":\"3 examples\",\"regions\":[{\"id\":\"ex1\",\"label\":\"x1 (correct)\",\"kind\":\"example\",\"values\":[\"0.33\",\"0.33\",\"0.33\",\"0.33\",\"0.24\",\"0.25\"]},{\"id\":\"ex2\",\"label\":\"x2 (correct)\",\"kind\":\"example\",\"values\":[\"0.33\",\"0.33\",\"0.33\",\"0.33\",\"0.24\",\"0.25\"]},{\"id\":\"ex3\",\"label\":\"x3 (missed)\",\"kind\":\"example\",\"values\":[\"0.33\",\"0.33\",\"0.33\",\"0.33\",\"0.47\",\"0.50\"]},{\"id\":\"learner\",\"label\":\"Weak learner h1\",\"kind\":\"actor\",\"actors\":[\"h1\"]},{\"id\":\"error\",\"label\":\"Weighted error ε\",\"kind\":\"measure\",\"values\":[\"0.33\"]},{\"id\":\"alpha\",\"label\":\"Vote strength α\",\"kind\":\"measure\",\"values\":[\"0.35\"]},{\"id\":\"total\",\"label\":\"Total weight\",\"kind\":\"measure\",\"values\":[\"1.00\",\"1.00\",\"1.00\",\"1.00\",\"0.94\",\"1.00\"]}],\"links\":[{\"from\":\"learner\",\"to\":\"ex3\",\"label\":\"misclassifies\"},{\"from\":\"ex3\",\"to\":\"error\",\"label\":\"adds its weight\"},{\"from\":\"error\",\"to\":\"alpha\",\"label\":\"sets\"},{\"from\":\"alpha\",\"to\":\"total\",\"label\":\"rescales\"}],\"states\":[{\"id\":\"start\",\"label\":\"Equal weights\",\"sentence\":\"Three training examples start with the same weight, so each one counts equally.\",\"short\":\"Equal start\",\"why\":\"AdaBoost has no reason yet to favor any example.\",\"active\":[\"ex1\",\"ex2\",\"ex3\"],\"calloutRegion\":\"ex3\",\"readouts\":[{\"id\":\"w3\",\"label\":\"Weight of x3\",\"value\":\"0.33\"},{\"id\":\"wc\",\"label\":\"Weight of each correct\",\"value\":\"0.33\"},{\"id\":\"tot\",\"label\":\"Total\",\"value\":\"1.00\"}]},{\"id\":\"predict\",\"label\":\"h1 misses x3\",\"sentence\":\"The first weak learner classifies two examples correctly and gets x3 wrong.\",\"short\":\"One mistake\",\"why\":\"Only the mistake matters for the update that follows.\",\"active\":[\"learner\",\"ex3\"],\"calloutRegion\":\"learner\",\"readouts\":[{\"id\":\"w3\",\"label\":\"Weight of x3\",\"value\":\"0.33\"},{\"id\":\"miss\",\"label\":\"Examples missed\",\"value\":\"1 of 3\"}]},{\"id\":\"error\",\"label\":\"Weighted error\",\"sentence\":\"Weighted error ε adds up the weights of the missed examples only.\",\"short\":\"Measure ε\",\"why\":\"A miss on a heavy example would cost more than on a light one.\",\"active\":[\"ex3\",\"error\"],\"calloutRegion\":\"error\",\"readouts\":[{\"id\":\"eps\",\"label\":\"ε\",\"value\":\"0.33\"}]},{\"id\":\"vote\",\"label\":\"Vote strength\",\"sentence\":\"A modest error earns h1 a smaller vote α, which also sets the two update factors.\",\"short\":\"Compute α\",\"why\":\"α = ½·ln((1−ε)/ε); wrong examples scale by e^α, correct by e^−α.\",\"active\":[\"error\",\"alpha\"],\"calloutRegion\":\"alpha\",\"readouts\":[{\"id\":\"alpha\",\"label\":\"α\",\"value\":\"0.35\"},{\"id\":\"fw\",\"label\":\"Factor, missed\",\"value\":\"×1.41\"},{\"id\":\"fc\",\"label\":\"Factor, correct\",\"value\":\"×0.71\"}]},{\"id\":\"rescale\",\"label\":\"Rescale weights\",\"sentence\":\"Correct examples are multiplied down and the missed one is multiplied up, so the total no longer equals one.\",\"short\":\"Scale\",\"why\":\"Values are rounded to two decimals, so shown parts may differ from the total by 0.01.\",\"active\":[\"ex1\",\"ex2\",\"ex3\",\"total\"],\"calloutRegion\":\"total\",\"readouts\":[{\"id\":\"w3\",\"label\":\"Weight of x3\",\"value\":\"0.47\"},{\"id\":\"wc\",\"label\":\"Weight of each correct\",\"value\":\"0.24\"},{\"id\":\"tot\",\"label\":\"Total\",\"value\":\"0.94\"}]},{\"id\":\"normalize\",\"label\":\"Normalize\",\"sentence\":\"Dividing every weight by 0.94 restores a total of one and leaves x3 holding half of it.\",\"short\":\"Normalize\",\"why\":\"The missed example reaches 0.50 again: the update gives it exactly half the weight.\",\"active\":[\"ex1\",\"ex2\",\"ex3\",\"total\"],\"calloutRegion\":\"ex3\",\"readouts\":[{\"id\":\"w3\",\"label\":\"Weight of x3\",\"value\":\"0.50 (was 0.33)\"},{\"id\":\"wc\",\"label\":\"Weight of each correct\",\"value\":\"0.25 (was 0.33)\"},{\"id\":\"tot\",\"label\":\"Total\",\"value\":\"1.00\"}]}]}]}}",
+ "composition": {
+  "story": "AdaBoost starts with equal weights on every training example. A weak learner misses one. We measure its weighted error, turn that into a vote strength, shrink the weights of correct examples, grow the missed one, then renormalize. The missed example ends up holding half of all weight.",
+  "aha": {
+   "stateId": "normalize",
+   "observation": "After renormalizing, the single missed example holds 0.50 of the total weight, up from 0.20, while each correct example drops to 0.125."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "inputs.step"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.regions"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "inputs.step"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "examples",
+    "kind": "select",
+    "label": "Training set size",
+    "options": [
+     "5 examples",
+     "3 examples"
+    ],
+    "default": 0,
+    "presentation": "Changes how many examples share the weight; the missed one still ends at 0.50."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "5 examples",
+     "regions": [
+      {
+       "id": "ex1",
+       "label": "x1 (correct)",
+       "kind": "example",
+       "values": [
+        "0.20",
+        "0.20",
+        "0.20",
+        "0.20",
+        "0.10",
+        "0.125"
+       ]
+      },
+      {
+       "id": "ex2",
+       "label": "x2 (correct)",
+       "kind": "example",
+       "values": [
+        "0.20",
+        "0.20",
+        "0.20",
+        "0.20",
+        "0.10",
+        "0.125"
+       ]
+      },
+      {
+       "id": "ex3",
+       "label": "x3 (missed)",
+       "kind": "example",
+       "values": [
+        "0.20",
+        "0.20",
+        "0.20",
+        "0.20",
+        "0.40",
+        "0.50"
+       ]
+      },
+      {
+       "id": "ex4",
+       "label": "x4 (correct)",
+       "kind": "example",
+       "values": [
+        "0.20",
+        "0.20",
+        "0.20",
+        "0.20",
+        "0.10",
+        "0.125"
+       ]
+      },
+      {
+       "id": "ex5",
+       "label": "x5 (correct)",
+       "kind": "example",
+       "values": [
+        "0.20",
+        "0.20",
+        "0.20",
+        "0.20",
+        "0.10",
+        "0.125"
+       ]
+      },
+      {
+       "id": "learner",
+       "label": "Weak learner h1",
+       "kind": "actor",
+       "actors": [
+        "h1"
+       ]
+      },
+      {
+       "id": "error",
+       "label": "Weighted error ε",
+       "kind": "measure",
+       "values": [
+        "0.20"
+       ]
+      },
+      {
+       "id": "alpha",
+       "label": "Vote strength α",
+       "kind": "measure",
+       "values": [
+        "0.69"
+       ]
+      },
+      {
+       "id": "total",
+       "label": "Total weight",
+       "kind": "measure",
+       "values": [
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "0.80",
+        "1.00"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "learner",
+       "to": "ex3",
+       "label": "misclassifies"
+      },
+      {
+       "from": "ex3",
+       "to": "error",
+       "label": "adds its weight"
+      },
+      {
+       "from": "error",
+       "to": "alpha",
+       "label": "sets"
+      },
+      {
+       "from": "alpha",
+       "to": "total",
+       "label": "rescales"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Equal weights",
+       "sentence": "Five training examples start with the same weight, so each one counts equally.",
+       "short": "Equal start",
+       "why": "AdaBoost has no reason yet to favor any example.",
+       "active": [
+        "ex1",
+        "ex2",
+        "ex3",
+        "ex4",
+        "ex5"
+       ],
+       "calloutRegion": "ex3",
+       "readouts": [
+        {
+         "id": "w3",
+         "label": "Weight of x3",
+         "value": "0.20"
+        },
+        {
+         "id": "wc",
+         "label": "Weight of each correct",
+         "value": "0.20"
+        },
+        {
+         "id": "tot",
+         "label": "Total",
+         "value": "1.00"
+        }
+       ]
+      },
+      {
+       "id": "predict",
+       "label": "h1 misses x3",
+       "sentence": "The first weak learner classifies four examples correctly and gets x3 wrong.",
+       "short": "One mistake",
+       "why": "Only the mistake matters for the update that follows.",
+       "active": [
+        "learner",
+        "ex3"
+       ],
+       "calloutRegion": "learner",
+       "readouts": [
+        {
+         "id": "w3",
+         "label": "Weight of x3",
+         "value": "0.20"
+        },
+        {
+         "id": "miss",
+         "label": "Examples missed",
+         "value": "1 of 5"
+        }
+       ]
+      },
+      {
+       "id": "error",
+       "label": "Weighted error",
+       "sentence": "Weighted error ε adds up the weights of the missed examples only.",
+       "short": "Measure ε",
+       "why": "A miss on a heavy example would cost more than on a light one.",
+       "active": [
+        "ex3",
+        "error"
+       ],
+       "calloutRegion": "error",
+       "readouts": [
+        {
+         "id": "eps",
+         "label": "ε",
+         "value": "0.20"
+        }
+       ]
+      },
+      {
+       "id": "vote",
+       "label": "Vote strength",
+       "sentence": "A low error earns h1 a positive vote α, which also sets the two update factors.",
+       "short": "Compute α",
+       "why": "α = ½·ln((1−ε)/ε); wrong examples scale by e^α, correct by e^−α.",
+       "active": [
+        "error",
+        "alpha"
+       ],
+       "calloutRegion": "alpha",
+       "readouts": [
+        {
+         "id": "alpha",
+         "label": "α",
+         "value": "0.69"
+        },
+        {
+         "id": "fw",
+         "label": "Factor, missed",
+         "value": "×2.0"
+        },
+        {
+         "id": "fc",
+         "label": "Factor, correct",
+         "value": "×0.5"
+        }
+       ]
+      },
+      {
+       "id": "rescale",
+       "label": "Rescale weights",
+       "sentence": "Correct examples are multiplied down and the missed one is multiplied up, so the total no longer equals one.",
+       "short": "Scale",
+       "why": "Missed x3 doubles while the four correct examples halve.",
+       "active": [
+        "ex1",
+        "ex2",
+        "ex3",
+        "ex4",
+        "ex5",
+        "total"
+       ],
+       "calloutRegion": "total",
+       "readouts": [
+        {
+         "id": "w3",
+         "label": "Weight of x3",
+         "value": "0.40"
+        },
+        {
+         "id": "wc",
+         "label": "Weight of each correct",
+         "value": "0.10"
+        },
+        {
+         "id": "tot",
+         "label": "Total",
+         "value": "0.80"
+        }
+       ]
+      },
+      {
+       "id": "normalize",
+       "label": "Normalize",
+       "sentence": "Dividing every weight by 0.80 restores a total of one and leaves x3 holding half of it.",
+       "short": "Normalize",
+       "why": "Normalizing keeps the weights a distribution; the ratio of x3 to each correct example is 4 to 1.",
+       "active": [
+        "ex1",
+        "ex2",
+        "ex3",
+        "ex4",
+        "ex5",
+        "total"
+       ],
+       "calloutRegion": "ex3",
+       "readouts": [
+        {
+         "id": "w3",
+         "label": "Weight of x3",
+         "value": "0.50 (was 0.20)"
+        },
+        {
+         "id": "wc",
+         "label": "Weight of each correct",
+         "value": "0.125 (was 0.20)"
+        },
+        {
+         "id": "tot",
+         "label": "Total",
+         "value": "1.00"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "3 examples",
+     "regions": [
+      {
+       "id": "ex1",
+       "label": "x1 (correct)",
+       "kind": "example",
+       "values": [
+        "0.33",
+        "0.33",
+        "0.33",
+        "0.33",
+        "0.24",
+        "0.25"
+       ]
+      },
+      {
+       "id": "ex2",
+       "label": "x2 (correct)",
+       "kind": "example",
+       "values": [
+        "0.33",
+        "0.33",
+        "0.33",
+        "0.33",
+        "0.24",
+        "0.25"
+       ]
+      },
+      {
+       "id": "ex3",
+       "label": "x3 (missed)",
+       "kind": "example",
+       "values": [
+        "0.33",
+        "0.33",
+        "0.33",
+        "0.33",
+        "0.47",
+        "0.50"
+       ]
+      },
+      {
+       "id": "learner",
+       "label": "Weak learner h1",
+       "kind": "actor",
+       "actors": [
+        "h1"
+       ]
+      },
+      {
+       "id": "error",
+       "label": "Weighted error ε",
+       "kind": "measure",
+       "values": [
+        "0.33"
+       ]
+      },
+      {
+       "id": "alpha",
+       "label": "Vote strength α",
+       "kind": "measure",
+       "values": [
+        "0.35"
+       ]
+      },
+      {
+       "id": "total",
+       "label": "Total weight",
+       "kind": "measure",
+       "values": [
+        "1.00",
+        "1.00",
+        "1.00",
+        "1.00",
+        "0.94",
+        "1.00"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "learner",
+       "to": "ex3",
+       "label": "misclassifies"
+      },
+      {
+       "from": "ex3",
+       "to": "error",
+       "label": "adds its weight"
+      },
+      {
+       "from": "error",
+       "to": "alpha",
+       "label": "sets"
+      },
+      {
+       "from": "alpha",
+       "to": "total",
+       "label": "rescales"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Equal weights",
+       "sentence": "Three training examples start with the same weight, so each one counts equally.",
+       "short": "Equal start",
+       "why": "AdaBoost has no reason yet to favor any example.",
+       "active": [
+        "ex1",
+        "ex2",
+        "ex3"
+       ],
+       "calloutRegion": "ex3",
+       "readouts": [
+        {
+         "id": "w3",
+         "label": "Weight of x3",
+         "value": "0.33"
+        },
+        {
+         "id": "wc",
+         "label": "Weight of each correct",
+         "value": "0.33"
+        },
+        {
+         "id": "tot",
+         "label": "Total",
+         "value": "1.00"
+        }
+       ]
+      },
+      {
+       "id": "predict",
+       "label": "h1 misses x3",
+       "sentence": "The first weak learner classifies two examples correctly and gets x3 wrong.",
+       "short": "One mistake",
+       "why": "Only the mistake matters for the update that follows.",
+       "active": [
+        "learner",
+        "ex3"
+       ],
+       "calloutRegion": "learner",
+       "readouts": [
+        {
+         "id": "w3",
+         "label": "Weight of x3",
+         "value": "0.33"
+        },
+        {
+         "id": "miss",
+         "label": "Examples missed",
+         "value": "1 of 3"
+        }
+       ]
+      },
+      {
+       "id": "error",
+       "label": "Weighted error",
+       "sentence": "Weighted error ε adds up the weights of the missed examples only.",
+       "short": "Measure ε",
+       "why": "A miss on a heavy example would cost more than on a light one.",
+       "active": [
+        "ex3",
+        "error"
+       ],
+       "calloutRegion": "error",
+       "readouts": [
+        {
+         "id": "eps",
+         "label": "ε",
+         "value": "0.33"
+        }
+       ]
+      },
+      {
+       "id": "vote",
+       "label": "Vote strength",
+       "sentence": "A modest error earns h1 a smaller vote α, which also sets the two update factors.",
+       "short": "Compute α",
+       "why": "α = ½·ln((1−ε)/ε); wrong examples scale by e^α, correct by e^−α.",
+       "active": [
+        "error",
+        "alpha"
+       ],
+       "calloutRegion": "alpha",
+       "readouts": [
+        {
+         "id": "alpha",
+         "label": "α",
+         "value": "0.35"
+        },
+        {
+         "id": "fw",
+         "label": "Factor, missed",
+         "value": "×1.41"
+        },
+        {
+         "id": "fc",
+         "label": "Factor, correct",
+         "value": "×0.71"
+        }
+       ]
+      },
+      {
+       "id": "rescale",
+       "label": "Rescale weights",
+       "sentence": "Correct examples are multiplied down and the missed one is multiplied up, so the total no longer equals one.",
+       "short": "Scale",
+       "why": "Values are rounded to two decimals, so shown parts may differ from the total by 0.01.",
+       "active": [
+        "ex1",
+        "ex2",
+        "ex3",
+        "total"
+       ],
+       "calloutRegion": "total",
+       "readouts": [
+        {
+         "id": "w3",
+         "label": "Weight of x3",
+         "value": "0.47"
+        },
+        {
+         "id": "wc",
+         "label": "Weight of each correct",
+         "value": "0.24"
+        },
+        {
+         "id": "tot",
+         "label": "Total",
+         "value": "0.94"
+        }
+       ]
+      },
+      {
+       "id": "normalize",
+       "label": "Normalize",
+       "sentence": "Dividing every weight by 0.94 restores a total of one and leaves x3 holding half of it.",
+       "short": "Normalize",
+       "why": "The missed example reaches 0.50 again: the update gives it exactly half the weight.",
+       "active": [
+        "ex1",
+        "ex2",
+        "ex3",
+        "total"
+       ],
+       "calloutRegion": "ex3",
+       "readouts": [
+        {
+         "id": "w3",
+         "label": "Weight of x3",
+         "value": "0.50 (was 0.33)"
+        },
+        {
+         "id": "wc",
+         "label": "Weight of each correct",
+         "value": "0.25 (was 0.33)"
+        },
+        {
+         "id": "tot",
+         "label": "Total",
+         "value": "1.00"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3082,
+  "output": 6618
+ },
+ "usd": 0.072344,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The drawing answers why the missed example ends at half the weight, using example bars, the learner, ε, α and the total linked by arrows."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The normalize state is the final step and stays put until the learner moves, with the 0.50 vs 0.20 readout shown."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "Switching between 5 and 3 examples changes ε, α, the factors and the weights, while the missed example still ends at 0.50, which shows the invariant."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callouts, readouts, ghosts and links all bind to declared regions and state fields, and the active ids exist in each variant."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, region labels and the Step control all use the same x3, h1, ε, α and total terms in the same order."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Six steps each add one mechanism element, and the formula appears once, in the vote step. The scene is balanced and under the mitosis ceiling."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Both variants check out: for 5 examples ε=0.2, α=0.69, 0.40/0.10 totals 0.80 and normalizes to 0.50/0.125; for 3 examples α=0.35, 0.47/0.24 totals 0.94 and normalizes to 0.50/0.25."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.022362
+ }
+}

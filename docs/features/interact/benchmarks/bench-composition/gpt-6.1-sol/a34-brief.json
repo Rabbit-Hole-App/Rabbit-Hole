@@ -1,0 +1,228 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a34",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does public-key encryption work?",
+ "ts": "2026-11-14T22:53:29.899Z",
+ "ms": 83074,
+ "raw": "{\n  \"story\": \"How can a sender encrypt a message without sharing a secret first? Start with readable text, encrypt with the receiver’s public key, then compare decryption attempts. Only the matching private key recovers the message. Assume secure encryption and an uncompromised private key; ciphertext is schematic.\",\n  \"aha\": {\n    \"stateId\": \"private-decrypt\",\n    \"observation\": \"Sharing the public key enables encryption without enabling feasible decryption; the matching private key recovers the original message.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"steps\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with story and navigation instructions above the experiment. Keep step labels readable; progress belongs on this rail.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"encryption-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Keep all regions stationary, with readable labels at native width. Highlight only Message; show its contents exclusively in the readout. Reference captures show private-decrypt.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"message-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside Message without covering labels. Identify the active operation and explain its mechanism; leave message contents in the readout.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"message-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show Message contents in one stable location. Render Status as the bound status line beneath it. Preserve identical text for the original and recovered plaintext.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"state\",\n      \"kind\": \"index\",\n      \"label\": \"Previous / Next\",\n      \"items\": \"variant.states\",\n      \"presentation\": \"Previous and Next move one state, defaulting to the first state. Bounds are the first and last states; increment is one. Disable boundary buttons while retaining their names. Every state persists until the learner acts, including private-decrypt. Parameter-control budget: zero; navigation and reset are separate. Provide accessible button names, visible focus, and Enter or Space activation.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide visible focus and keyboard activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Public-key encryption\",\n        \"regions\": [\n          {\n            \"id\": \"public-key\",\n            \"label\": \"Public key\",\n            \"values\": [\n              \"Shared with anyone\",\n              \"Belongs to Receiver\"\n            ]\n          },\n          {\n            \"id\": \"message\",\n            \"label\": \"Message\",\n            \"actors\": [\n              \"Sender\",\n              \"Receiver\"\n            ]\n          },\n          {\n            \"id\": \"private-key\",\n            \"label\": \"Private key\",\n            \"values\": [\n              \"Kept secret by Receiver\",\n              \"Matches Public key\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"public-key\",\n            \"to\": \"message\",\n            \"label\": \"Used for encryption\"\n          },\n          {\n            \"from\": \"private-key\",\n            \"to\": \"message\",\n            \"label\": \"Used for decryption\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"plaintext\",\n            \"label\": \"Start\",\n            \"short\": \"Readable message\",\n            \"sentence\": \"Message starts with Sender.\",\n            \"why\": \"Receiver creates a matching key pair, shares Public key, and keeps Private key secret.\",\n            \"active\": [\n              \"message\"\n            ],\n            \"calloutRegion\": \"message\",\n            \"readouts\": [\n              {\n                \"id\": \"contents\",\n                \"label\": \"Message contents\",\n                \"value\": \"MEET AT NOON\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Plaintext ready for encryption\"\n              }\n            ]\n          },\n          {\n            \"id\": \"public-encrypt\",\n            \"label\": \"Encrypt\",\n            \"short\": \"Use Public key\",\n            \"sentence\": \"Sender encrypts Message with Public key.\",\n            \"why\": \"Sender needs Receiver’s public key, not Receiver’s private key. The resulting ciphertext can travel over an observable channel.\",\n            \"active\": [\n              \"message\"\n            ],\n            \"calloutRegion\": \"message\",\n            \"readouts\": [\n              {\n                \"id\": \"contents\",\n                \"label\": \"Message contents\",\n                \"value\": \"Schematic ciphertext\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Encrypted; original text concealed\"\n              }\n            ]\n          },\n          {\n            \"id\": \"public-attempt\",\n            \"label\": \"Try Public key\",\n            \"short\": \"Ciphertext stays concealed\",\n            \"sentence\": \"Compare decryption using only Public key.\",\n            \"why\": \"Under our assumptions, Public key and the ciphertext do not provide a feasible way to recover the original message.\",\n            \"active\": [\n              \"message\"\n            ],\n            \"calloutRegion\": \"message\",\n            \"readouts\": [\n              {\n                \"id\": \"contents\",\n                \"label\": \"Message contents\",\n                \"value\": \"Schematic ciphertext\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Public key alone cannot feasibly recover plaintext\"\n              }\n            ]\n          },\n          {\n            \"id\": \"private-decrypt\",\n            \"label\": \"Use Private key\",\n            \"short\": \"Original message recovered\",\n            \"sentence\": \"Receiver decrypts Message with Private key.\",\n            \"why\": \"The matching Private key enables decryption. Sharing Public key did not require sharing the secret needed to recover Message.\",\n            \"active\": [\n              \"message\"\n            ],\n            \"calloutRegion\": \"message\",\n            \"readouts\": [\n              {\n                \"id\": \"contents\",\n                \"label\": \"Message contents\",\n                \"value\": \"MEET AT NOON\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Private key recovered the original plaintext\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How can a sender encrypt a message without sharing a secret first? Start with readable text, encrypt with the receiver’s public key, then compare decryption attempts. Only the matching private key recovers the message. Assume secure encryption and an uncompromised private key; ciphertext is schematic.",
+  "aha": {
+   "stateId": "private-decrypt",
+   "observation": "Sharing the public key enables encryption without enabling feasible decryption; the matching private key recovers the original message."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "steps",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with story and navigation instructions above the experiment. Keep step labels readable; progress belongs on this rail.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "encryption-picture",
+    "kind": "fixed-picture",
+    "presentation": "Keep all regions stationary, with readable labels at native width. Highlight only Message; show its contents exclusively in the readout. Reference captures show private-decrypt.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "message-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside Message without covering labels. Identify the active operation and explain its mechanism; leave message contents in the readout.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "message-evidence",
+    "kind": "value-readout",
+    "presentation": "Show Message contents in one stable location. Render Status as the bound status line beneath it. Preserve identical text for the original and recovered plaintext.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "state",
+    "kind": "index",
+    "label": "Previous / Next",
+    "items": "variant.states",
+    "presentation": "Previous and Next move one state, defaulting to the first state. Bounds are the first and last states; increment is one. Disable boundary buttons while retaining their names. Every state persists until the learner acts, including private-decrypt. Parameter-control budget: zero; navigation and reset are separate. Provide accessible button names, visible focus, and Enter or Space activation."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide visible focus and keyboard activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Public-key encryption",
+     "regions": [
+      {
+       "id": "public-key",
+       "label": "Public key",
+       "values": [
+        "Shared with anyone",
+        "Belongs to Receiver"
+       ]
+      },
+      {
+       "id": "message",
+       "label": "Message",
+       "actors": [
+        "Sender",
+        "Receiver"
+       ]
+      },
+      {
+       "id": "private-key",
+       "label": "Private key",
+       "values": [
+        "Kept secret by Receiver",
+        "Matches Public key"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "public-key",
+       "to": "message",
+       "label": "Used for encryption"
+      },
+      {
+       "from": "private-key",
+       "to": "message",
+       "label": "Used for decryption"
+      }
+     ],
+     "states": [
+      {
+       "id": "plaintext",
+       "label": "Start",
+       "short": "Readable message",
+       "sentence": "Message starts with Sender.",
+       "why": "Receiver creates a matching key pair, shares Public key, and keeps Private key secret.",
+       "active": [
+        "message"
+       ],
+       "calloutRegion": "message",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Message contents",
+         "value": "MEET AT NOON"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Plaintext ready for encryption"
+        }
+       ]
+      },
+      {
+       "id": "public-encrypt",
+       "label": "Encrypt",
+       "short": "Use Public key",
+       "sentence": "Sender encrypts Message with Public key.",
+       "why": "Sender needs Receiver’s public key, not Receiver’s private key. The resulting ciphertext can travel over an observable channel.",
+       "active": [
+        "message"
+       ],
+       "calloutRegion": "message",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Message contents",
+         "value": "Schematic ciphertext"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Encrypted; original text concealed"
+        }
+       ]
+      },
+      {
+       "id": "public-attempt",
+       "label": "Try Public key",
+       "short": "Ciphertext stays concealed",
+       "sentence": "Compare decryption using only Public key.",
+       "why": "Under our assumptions, Public key and the ciphertext do not provide a feasible way to recover the original message.",
+       "active": [
+        "message"
+       ],
+       "calloutRegion": "message",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Message contents",
+         "value": "Schematic ciphertext"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Public key alone cannot feasibly recover plaintext"
+        }
+       ]
+      },
+      {
+       "id": "private-decrypt",
+       "label": "Use Private key",
+       "short": "Original message recovered",
+       "sentence": "Receiver decrypts Message with Private key.",
+       "why": "The matching Private key enables decryption. Sharing Public key did not require sharing the secret needed to recover Message.",
+       "active": [
+        "message"
+       ],
+       "calloutRegion": "message",
+       "readouts": [
+        {
+         "id": "contents",
+         "label": "Message contents",
+         "value": "MEET AT NOON"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Private key recovered the original plaintext"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 4059
+ },
+ "usd": 0.040786,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3eDE6GgykdAAp4d86Uu\"}"
+  },
+  "cardUsd": 0
+ }
+}

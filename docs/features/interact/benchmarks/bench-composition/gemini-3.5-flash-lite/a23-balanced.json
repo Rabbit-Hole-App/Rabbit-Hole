@@ -1,0 +1,242 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a23",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a decision tree search for the best threshold on one feature?",
+ "ts": "2026-11-14T22:21:54.244Z",
+ "ms": 3465,
+ "raw": "{\n  \"story\": \"The algorithm evaluates every unique feature value as a potential split threshold. It calculates the impurity drop for each split point, selecting the value that maximizes information gain to partition the data cleanly.\",\n  \"aha\": {\n    \"stateId\": \"eval-optimal\",\n    \"observation\": \"The threshold with the highest impurity reduction is chosen as the optimal split point.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"values\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Search Step\",\n      \"options\": [\n        \"Sort values\",\n        \"Test threshold 2.0\",\n        \"Test threshold 4.5\",\n        \"Select optimal\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Threshold Search\",\n        \"regions\": [\n          {\n            \"id\": \"feature-array\",\n            \"label\": \"Sorted Feature Values\",\n            \"values\": [\"1.0\", \"2.0\", \"3.5\", \"4.5\", \"6.0\"]\n          },\n          {\n            \"id\": \"split-metrics\",\n            \"label\": \"Impurity Scores\",\n            \"values\": [\"Gini: 0.48\", \"Gini: 0.35\", \"Gini: 0.20\", \"Gini: 0.12\", \"Gini: 0.40\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"sort-vals\",\n            \"label\": \"Sort\",\n            \"short\": \"Sort\",\n            \"sentence\": \"Feature values are sorted in ascending order to test intervals between them.\",\n            \"why\": \"Ordering makes midpoint calculations straightforward.\",\n            \"active\": [\"feature-array\"],\n            \"calloutRegion\": \"feature-array\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Candidate Count\",\n                \"value\": \"4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"test-first\",\n            \"label\": \"Test 2.0\",\n            \"short\": \"Test 2.0\",\n            \"sentence\": \"Testing threshold at 2.0 splits the dataset into left and right subsets.\",\n            \"why\": \"Evaluates Gini impurity for the resulting node groups.\",\n            \"active\": [\"feature-array\", \"split-metrics\"],\n            \"calloutRegion\": \"split-metrics\",\n            \"readouts\": [\n              {\n                \"id\": \"r2\",\n                \"label\": \"Current Gini\",\n                \"value\": \"0.35\"\n              }\n            ]\n          },\n          {\n            \"id\": \"test-opt\",\n            \"label\": \"Test 4.5\",\n            \"short\": \"Test 4.5\",\n            \"sentence\": \"Testing threshold at 4.5 yields a significant drop in impurity.\",\n            \"why\": \"Separates classes with high purity on both sides.\",\n            \"active\": [\"feature-array\", \"split-metrics\"],\n            \"calloutRegion\": \"split-metrics\",\n            \"readouts\": [\n              {\n                \"id\": \"r3\",\n                \"label\": \"Current Gini\",\n                \"value\": \"0.12\"\n              }\n            ]\n          },\n          {\n            \"id\": \"eval-optimal\",\n            \"label\": \"Optimal\",\n            \"short\": \"Optimal\",\n            \"sentence\": \"Threshold 4.5 is selected because it produces the minimum impurity score.\",\n            \"why\": \"Maximizes information gain for the decision tree node.\",\n            \"active\": [\"split-metrics\"],\n            \"calloutRegion\": \"split-metrics\",\n            \"readouts\": [\n              {\n                \"id\": \"r4\",\n                \"label\": \"Best Threshold\",\n                \"value\": \"4.5\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "The algorithm evaluates every unique feature value as a potential split threshold. It calculates the impurity drop for each split point, selecting the value that maximizes information gain to partition the data cleanly.",
+  "aha": {
+   "stateId": "eval-optimal",
+   "observation": "The threshold with the highest impurity reduction is chosen as the optimal split point."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "values": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Search Step",
+    "options": [
+     "Sort values",
+     "Test threshold 2.0",
+     "Test threshold 4.5",
+     "Select optimal"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Threshold Search",
+     "regions": [
+      {
+       "id": "feature-array",
+       "label": "Sorted Feature Values",
+       "values": [
+        "1.0",
+        "2.0",
+        "3.5",
+        "4.5",
+        "6.0"
+       ]
+      },
+      {
+       "id": "split-metrics",
+       "label": "Impurity Scores",
+       "values": [
+        "Gini: 0.48",
+        "Gini: 0.35",
+        "Gini: 0.20",
+        "Gini: 0.12",
+        "Gini: 0.40"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "sort-vals",
+       "label": "Sort",
+       "short": "Sort",
+       "sentence": "Feature values are sorted in ascending order to test intervals between them.",
+       "why": "Ordering makes midpoint calculations straightforward.",
+       "active": [
+        "feature-array"
+       ],
+       "calloutRegion": "feature-array",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Candidate Count",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "test-first",
+       "label": "Test 2.0",
+       "short": "Test 2.0",
+       "sentence": "Testing threshold at 2.0 splits the dataset into left and right subsets.",
+       "why": "Evaluates Gini impurity for the resulting node groups.",
+       "active": [
+        "feature-array",
+        "split-metrics"
+       ],
+       "calloutRegion": "split-metrics",
+       "readouts": [
+        {
+         "id": "r2",
+         "label": "Current Gini",
+         "value": "0.35"
+        }
+       ]
+      },
+      {
+       "id": "test-opt",
+       "label": "Test 4.5",
+       "short": "Test 4.5",
+       "sentence": "Testing threshold at 4.5 yields a significant drop in impurity.",
+       "why": "Separates classes with high purity on both sides.",
+       "active": [
+        "feature-array",
+        "split-metrics"
+       ],
+       "calloutRegion": "split-metrics",
+       "readouts": [
+        {
+         "id": "r3",
+         "label": "Current Gini",
+         "value": "0.12"
+        }
+       ]
+      },
+      {
+       "id": "eval-optimal",
+       "label": "Optimal",
+       "short": "Optimal",
+       "sentence": "Threshold 4.5 is selected because it produces the minimum impurity score.",
+       "why": "Maximizes information gain for the decision tree node.",
+       "active": [
+        "split-metrics"
+       ],
+       "calloutRegion": "split-metrics",
+       "readouts": [
+        {
+         "id": "r4",
+         "label": "Best Threshold",
+         "value": "4.5"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1110,
+  "output": 1262
+ },
+ "usd": 0.003488,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture shows sorted values and Gini scores so the learner can see that 4.5 gives the lowest impurity, which answers which threshold is best."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state eval-optimal is the final step of a learner-driven index stepper, so it holds until the learner acts."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is the step index, which advances the narrative and changes readouts but is not a parameter of the experiment, and no fixed-comparison rationale is given."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The callout and readouts bind to state fields, but the five Gini scores are not mapped to specific thresholds, and the active regions highlight whole regions rather than the specific score being tested."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "Step labels, story sentences and control options consistently name sorting, thresholds 2.0 and 4.5, and the selection of the optimal split."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The scene is uncluttered but adds no comparison or formula or count, so the balanced depth adds little mechanism beyond the overview."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "Candidate Count says 4 while five scores are listed, the last score at value 6.0 has no valid right split, and the midpoint talk conflicts with data-value thresholds; Gini numbers are also shown in both the region and the readouts."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01774
+ }
+}

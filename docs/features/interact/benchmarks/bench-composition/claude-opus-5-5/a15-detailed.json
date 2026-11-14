@@ -1,0 +1,577 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a15",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T22:27:36.860Z",
+ "ms": 68067,
+ "raw": "{\"story\":\"Merge sort sorts eight numbers by halving them until each run holds one item, then merging sorted runs back up. Step through splits and merges; watch the comparison counter. The final state shows every merge level touches all eight items once across log₂8 = 3 levels, so total work is n·log₂n — here 17 comparisons, exactly the worst-case bound.\",\"aha\":{\"stateId\":\"s9-final\",\"observation\":\"Each of the three merge levels touches all 8 items once, so the total is about n·log₂n. These 17 comparisons equal the worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1.\"},\"layout\":{\"preset\":\"stepper-vertical\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top row above the picture, with short step labels. The status line below shows state.sentence. The rail also serves as the progress trace.\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Recursion tree drawn as array-cell rows: split rows go down, then merge rows go back up. Active rows are highlighted and links show split/merge arrows.\"},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"},\"presentation\":\"Faint outline of the rows that were active in the previous step.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.short\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the active row. It says where the work happens; counts appear only in the readouts.\"},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Panel under the picture: comparisons in this step, running total, merge levels done, and the fixed worst-case bound for n=8.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons keep their names when disabled at either end. Left and Right arrow keys also work, with visible focus. States 1–9 are logical steps, not clock time.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step\",\"presentation\":\"Returns to s1-start. The input is fixed at 38 27 43 3 9 82 10 5, so there is no parameter control.\"}],\"data\":{\"variants\":[{\"label\":\"Input 38 27 43 3 9 82 10 5 (n = 8, fixed)\",\"regions\":[{\"id\":\"r-input\",\"label\":\"Input array\",\"kind\":\"cells\",\"values\":[\"38\",\"27\",\"43\",\"3\",\"9\",\"82\",\"10\",\"5\"]},{\"id\":\"r-split1\",\"label\":\"Split level 1: two runs of 4\",\"kind\":\"cells\",\"values\":[\"38 27 43 3\",\"9 82 10 5\"]},{\"id\":\"r-split2\",\"label\":\"Split level 2: four runs of 2\",\"kind\":\"cells\",\"values\":[\"38 27\",\"43 3\",\"9 82\",\"10 5\"]},{\"id\":\"r-split3\",\"label\":\"Split level 3: eight runs of 1\",\"kind\":\"cells\",\"values\":[\"38\",\"27\",\"43\",\"3\",\"9\",\"82\",\"10\",\"5\"]},{\"id\":\"r-merge1\",\"label\":\"Merge level 1: sorted pairs\",\"kind\":\"cells\",\"values\":[\"27 38\",\"3 43\",\"9 82\",\"5 10\"]},{\"id\":\"r-merge2-left\",\"label\":\"Merge level 2: left run\",\"kind\":\"cells\",\"values\":[\"3 27 38 43\"]},{\"id\":\"r-merge2-right\",\"label\":\"Merge level 2: right run\",\"kind\":\"cells\",\"values\":[\"5 9 10 82\"]},{\"id\":\"r-merge3\",\"label\":\"Merge level 3: sorted output\",\"kind\":\"cells\",\"values\":[\"3 5 9 10 27 38 43 82\"]}],\"links\":[{\"from\":\"r-input\",\"to\":\"r-split1\",\"label\":\"split\"},{\"from\":\"r-split1\",\"to\":\"r-split2\",\"label\":\"split\"},{\"from\":\"r-split2\",\"to\":\"r-split3\",\"label\":\"split\"},{\"from\":\"r-split3\",\"to\":\"r-merge1\",\"label\":\"merge\"},{\"from\":\"r-merge1\",\"to\":\"r-merge2-left\",\"label\":\"merge\"},{\"from\":\"r-merge1\",\"to\":\"r-merge2-right\",\"label\":\"merge\"},{\"from\":\"r-merge2-left\",\"to\":\"r-merge3\",\"label\":\"merge\"},{\"from\":\"r-merge2-right\",\"to\":\"r-merge3\",\"label\":\"merge\"}],\"states\":[{\"id\":\"s1-start\",\"label\":\"Start\",\"short\":\"Unsorted input\",\"active\":[\"r-input\"],\"calloutRegion\":\"r-input\",\"sentence\":\"Merge sort begins with eight unsorted numbers. It will split them down, then merge sorted runs back up.\",\"why\":\"Nothing is ordered yet.\",\"readouts\":[{\"id\":\"step-cmp\",\"label\":\"Comparisons this step\",\"value\":\"0\"},{\"id\":\"total-cmp\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"levels\",\"label\":\"Merge levels done (of log₂8 = 3)\",\"value\":\"0\"},{\"id\":\"bound\",\"label\":\"Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1\",\"value\":\"17\"}]},{\"id\":\"s2-split1\",\"label\":\"Split halves\",\"short\":\"Halve the array\",\"active\":[\"r-split1\"],\"calloutRegion\":\"r-split1\",\"sentence\":\"Cut the array into a left half and a right half. Splitting only picks a midpoint and compares nothing.\",\"why\":\"The midpoint index is n/2; values are not inspected.\",\"readouts\":[{\"id\":\"step-cmp\",\"label\":\"Comparisons this step\",\"value\":\"0\"},{\"id\":\"total-cmp\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"levels\",\"label\":\"Merge levels done (of log₂8 = 3)\",\"value\":\"0\"},{\"id\":\"bound\",\"label\":\"Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1\",\"value\":\"17\"}]},{\"id\":\"s3-split2\",\"label\":\"Split quarters\",\"short\":\"Halve each half\",\"active\":[\"r-split2\"],\"calloutRegion\":\"r-split2\",\"sentence\":\"Halve each run again. Every halving adds one level to the tree.\",\"why\":\"Run length goes from 4 to 2.\",\"readouts\":[{\"id\":\"step-cmp\",\"label\":\"Comparisons this step\",\"value\":\"0\"},{\"id\":\"total-cmp\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"levels\",\"label\":\"Merge levels done (of log₂8 = 3)\",\"value\":\"0\"},{\"id\":\"bound\",\"label\":\"Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1\",\"value\":\"17\"}]},{\"id\":\"s4-split3\",\"label\":\"Single items\",\"short\":\"Runs of one\",\"active\":[\"r-split3\"],\"calloutRegion\":\"r-split3\",\"sentence\":\"Every run now holds one item, and a single item is already sorted. Halving eight down to one took log₂8 levels.\",\"why\":\"Base case: a run of length 1 needs no work.\",\"readouts\":[{\"id\":\"step-cmp\",\"label\":\"Comparisons this step\",\"value\":\"0\"},{\"id\":\"total-cmp\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"levels\",\"label\":\"Merge levels done (of log₂8 = 3)\",\"value\":\"0\"},{\"id\":\"bound\",\"label\":\"Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1\",\"value\":\"17\"}]},{\"id\":\"s5-merge1\",\"label\":\"Merge pairs\",\"short\":\"Merge neighbours\",\"active\":[\"r-merge1\"],\"calloutRegion\":\"r-merge1\",\"sentence\":\"Merge neighbouring singles. One comparison per pair puts the smaller item first.\",\"why\":\"Merging two runs of length 1 needs at most 1 comparison.\",\"readouts\":[{\"id\":\"step-cmp\",\"label\":\"Comparisons this step\",\"value\":\"4\"},{\"id\":\"total-cmp\",\"label\":\"Comparisons so far\",\"value\":\"4\"},{\"id\":\"levels\",\"label\":\"Merge levels done (of log₂8 = 3)\",\"value\":\"1\"},{\"id\":\"bound\",\"label\":\"Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1\",\"value\":\"17\"}]},{\"id\":\"s6-merge2-left\",\"label\":\"Merge left\",\"short\":\"Merge 27 38 with 3 43\",\"active\":[\"r-merge1\",\"r-merge2-left\"],\"calloutRegion\":\"r-merge2-left\",\"sentence\":\"Compare the two front items and move the smaller one out: 3, then 27, then 38. Then 43 copies over.\",\"why\":\"Merging runs of length a and b needs at most a+b−1 comparisons.\",\"readouts\":[{\"id\":\"step-cmp\",\"label\":\"Comparisons this step\",\"value\":\"3\"},{\"id\":\"total-cmp\",\"label\":\"Comparisons so far\",\"value\":\"7\"},{\"id\":\"levels\",\"label\":\"Merge levels done (of log₂8 = 3)\",\"value\":\"1\"},{\"id\":\"bound\",\"label\":\"Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1\",\"value\":\"17\"}]},{\"id\":\"s7-merge2-right\",\"label\":\"Merge right\",\"short\":\"Merge 9 82 with 5 10\",\"active\":[\"r-merge1\",\"r-merge2-right\"],\"calloutRegion\":\"r-merge2-right\",\"sentence\":\"Same rule on the right side: 5, 9 and 10 leave by comparison. Then 82 copies over without one.\",\"why\":\"Once one run empties, the rest copies with no comparisons.\",\"readouts\":[{\"id\":\"step-cmp\",\"label\":\"Comparisons this step\",\"value\":\"3\"},{\"id\":\"total-cmp\",\"label\":\"Comparisons so far\",\"value\":\"10\"},{\"id\":\"levels\",\"label\":\"Merge levels done (of log₂8 = 3)\",\"value\":\"2\"},{\"id\":\"bound\",\"label\":\"Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1\",\"value\":\"17\"}]},{\"id\":\"s8-merge3-mid\",\"label\":\"Final merge\",\"short\":\"Fronts: 27 vs 82 next\",\"active\":[\"r-merge2-left\",\"r-merge2-right\",\"r-merge3\"],\"calloutRegion\":\"r-merge3\",\"sentence\":\"Final merge: 3, 5, 9 and 10 have left the runs. The left front, 27, now waits against 82.\",\"why\":\"Each comparison moves exactly one item to the output.\",\"readouts\":[{\"id\":\"step-cmp\",\"label\":\"Comparisons this step\",\"value\":\"4\"},{\"id\":\"total-cmp\",\"label\":\"Comparisons so far\",\"value\":\"14\"},{\"id\":\"levels\",\"label\":\"Merge levels done (of log₂8 = 3)\",\"value\":\"2\"},{\"id\":\"bound\",\"label\":\"Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1\",\"value\":\"17\"}]},{\"id\":\"s9-final\",\"label\":\"Sorted\",\"short\":\"Fully sorted output\",\"active\":[\"r-merge3\"],\"calloutRegion\":\"r-merge3\",\"sentence\":\"Sorted. Each merge level touched all eight items once, and halving made three levels, so the work is about n·log₂n.\",\"why\":\"Per level ≤ n−1 comparisons, times log₂n levels; this input hits the bound.\",\"readouts\":[{\"id\":\"step-cmp\",\"label\":\"Comparisons this step\",\"value\":\"3\"},{\"id\":\"total-cmp\",\"label\":\"Comparisons so far\",\"value\":\"17\"},{\"id\":\"levels\",\"label\":\"Merge levels done (of log₂8 = 3)\",\"value\":\"3\"},{\"id\":\"bound\",\"label\":\"Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1\",\"value\":\"17\"}]}]}]}}",
+ "composition": {
+  "story": "Merge sort sorts eight numbers by halving them until each run holds one item, then merging sorted runs back up. Step through splits and merges; watch the comparison counter. The final state shows every merge level touches all eight items once across log₂8 = 3 levels, so total work is n·log₂n — here 17 comparisons, exactly the worst-case bound.",
+  "aha": {
+   "stateId": "s9-final",
+   "observation": "Each of the three merge levels touches all 8 items once, so the total is about n·log₂n. These 17 comparisons equal the worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1."
+  },
+  "layout": {
+   "preset": "stepper-vertical",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top row above the picture, with short step labels. The status line below shows state.sentence. The rail also serves as the progress trace."
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Recursion tree drawn as array-cell rows: split rows go down, then merge rows go back up. Active rows are highlighted and links show split/merge arrows."
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    },
+    "presentation": "Faint outline of the rows that were active in the previous step."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.short",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the active row. It says where the work happens; counts appear only in the readouts."
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Panel under the picture: comparisons in this step, running total, merge levels done, and the fixed worst-case bound for n=8."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons keep their names when disabled at either end. Left and Right arrow keys also work, with visible focus. States 1–9 are logical steps, not clock time."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step",
+    "presentation": "Returns to s1-start. The input is fixed at 38 27 43 3 9 82 10 5, so there is no parameter control."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Input 38 27 43 3 9 82 10 5 (n = 8, fixed)",
+     "regions": [
+      {
+       "id": "r-input",
+       "label": "Input array",
+       "kind": "cells",
+       "values": [
+        "38",
+        "27",
+        "43",
+        "3",
+        "9",
+        "82",
+        "10",
+        "5"
+       ]
+      },
+      {
+       "id": "r-split1",
+       "label": "Split level 1: two runs of 4",
+       "kind": "cells",
+       "values": [
+        "38 27 43 3",
+        "9 82 10 5"
+       ]
+      },
+      {
+       "id": "r-split2",
+       "label": "Split level 2: four runs of 2",
+       "kind": "cells",
+       "values": [
+        "38 27",
+        "43 3",
+        "9 82",
+        "10 5"
+       ]
+      },
+      {
+       "id": "r-split3",
+       "label": "Split level 3: eight runs of 1",
+       "kind": "cells",
+       "values": [
+        "38",
+        "27",
+        "43",
+        "3",
+        "9",
+        "82",
+        "10",
+        "5"
+       ]
+      },
+      {
+       "id": "r-merge1",
+       "label": "Merge level 1: sorted pairs",
+       "kind": "cells",
+       "values": [
+        "27 38",
+        "3 43",
+        "9 82",
+        "5 10"
+       ]
+      },
+      {
+       "id": "r-merge2-left",
+       "label": "Merge level 2: left run",
+       "kind": "cells",
+       "values": [
+        "3 27 38 43"
+       ]
+      },
+      {
+       "id": "r-merge2-right",
+       "label": "Merge level 2: right run",
+       "kind": "cells",
+       "values": [
+        "5 9 10 82"
+       ]
+      },
+      {
+       "id": "r-merge3",
+       "label": "Merge level 3: sorted output",
+       "kind": "cells",
+       "values": [
+        "3 5 9 10 27 38 43 82"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "r-input",
+       "to": "r-split1",
+       "label": "split"
+      },
+      {
+       "from": "r-split1",
+       "to": "r-split2",
+       "label": "split"
+      },
+      {
+       "from": "r-split2",
+       "to": "r-split3",
+       "label": "split"
+      },
+      {
+       "from": "r-split3",
+       "to": "r-merge1",
+       "label": "merge"
+      },
+      {
+       "from": "r-merge1",
+       "to": "r-merge2-left",
+       "label": "merge"
+      },
+      {
+       "from": "r-merge1",
+       "to": "r-merge2-right",
+       "label": "merge"
+      },
+      {
+       "from": "r-merge2-left",
+       "to": "r-merge3",
+       "label": "merge"
+      },
+      {
+       "from": "r-merge2-right",
+       "to": "r-merge3",
+       "label": "merge"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1-start",
+       "label": "Start",
+       "short": "Unsorted input",
+       "active": [
+        "r-input"
+       ],
+       "calloutRegion": "r-input",
+       "sentence": "Merge sort begins with eight unsorted numbers. It will split them down, then merge sorted runs back up.",
+       "why": "Nothing is ordered yet.",
+       "readouts": [
+        {
+         "id": "step-cmp",
+         "label": "Comparisons this step",
+         "value": "0"
+        },
+        {
+         "id": "total-cmp",
+         "label": "Comparisons so far",
+         "value": "0"
+        },
+        {
+         "id": "levels",
+         "label": "Merge levels done (of log₂8 = 3)",
+         "value": "0"
+        },
+        {
+         "id": "bound",
+         "label": "Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1",
+         "value": "17"
+        }
+       ]
+      },
+      {
+       "id": "s2-split1",
+       "label": "Split halves",
+       "short": "Halve the array",
+       "active": [
+        "r-split1"
+       ],
+       "calloutRegion": "r-split1",
+       "sentence": "Cut the array into a left half and a right half. Splitting only picks a midpoint and compares nothing.",
+       "why": "The midpoint index is n/2; values are not inspected.",
+       "readouts": [
+        {
+         "id": "step-cmp",
+         "label": "Comparisons this step",
+         "value": "0"
+        },
+        {
+         "id": "total-cmp",
+         "label": "Comparisons so far",
+         "value": "0"
+        },
+        {
+         "id": "levels",
+         "label": "Merge levels done (of log₂8 = 3)",
+         "value": "0"
+        },
+        {
+         "id": "bound",
+         "label": "Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1",
+         "value": "17"
+        }
+       ]
+      },
+      {
+       "id": "s3-split2",
+       "label": "Split quarters",
+       "short": "Halve each half",
+       "active": [
+        "r-split2"
+       ],
+       "calloutRegion": "r-split2",
+       "sentence": "Halve each run again. Every halving adds one level to the tree.",
+       "why": "Run length goes from 4 to 2.",
+       "readouts": [
+        {
+         "id": "step-cmp",
+         "label": "Comparisons this step",
+         "value": "0"
+        },
+        {
+         "id": "total-cmp",
+         "label": "Comparisons so far",
+         "value": "0"
+        },
+        {
+         "id": "levels",
+         "label": "Merge levels done (of log₂8 = 3)",
+         "value": "0"
+        },
+        {
+         "id": "bound",
+         "label": "Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1",
+         "value": "17"
+        }
+       ]
+      },
+      {
+       "id": "s4-split3",
+       "label": "Single items",
+       "short": "Runs of one",
+       "active": [
+        "r-split3"
+       ],
+       "calloutRegion": "r-split3",
+       "sentence": "Every run now holds one item, and a single item is already sorted. Halving eight down to one took log₂8 levels.",
+       "why": "Base case: a run of length 1 needs no work.",
+       "readouts": [
+        {
+         "id": "step-cmp",
+         "label": "Comparisons this step",
+         "value": "0"
+        },
+        {
+         "id": "total-cmp",
+         "label": "Comparisons so far",
+         "value": "0"
+        },
+        {
+         "id": "levels",
+         "label": "Merge levels done (of log₂8 = 3)",
+         "value": "0"
+        },
+        {
+         "id": "bound",
+         "label": "Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1",
+         "value": "17"
+        }
+       ]
+      },
+      {
+       "id": "s5-merge1",
+       "label": "Merge pairs",
+       "short": "Merge neighbours",
+       "active": [
+        "r-merge1"
+       ],
+       "calloutRegion": "r-merge1",
+       "sentence": "Merge neighbouring singles. One comparison per pair puts the smaller item first.",
+       "why": "Merging two runs of length 1 needs at most 1 comparison.",
+       "readouts": [
+        {
+         "id": "step-cmp",
+         "label": "Comparisons this step",
+         "value": "4"
+        },
+        {
+         "id": "total-cmp",
+         "label": "Comparisons so far",
+         "value": "4"
+        },
+        {
+         "id": "levels",
+         "label": "Merge levels done (of log₂8 = 3)",
+         "value": "1"
+        },
+        {
+         "id": "bound",
+         "label": "Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1",
+         "value": "17"
+        }
+       ]
+      },
+      {
+       "id": "s6-merge2-left",
+       "label": "Merge left",
+       "short": "Merge 27 38 with 3 43",
+       "active": [
+        "r-merge1",
+        "r-merge2-left"
+       ],
+       "calloutRegion": "r-merge2-left",
+       "sentence": "Compare the two front items and move the smaller one out: 3, then 27, then 38. Then 43 copies over.",
+       "why": "Merging runs of length a and b needs at most a+b−1 comparisons.",
+       "readouts": [
+        {
+         "id": "step-cmp",
+         "label": "Comparisons this step",
+         "value": "3"
+        },
+        {
+         "id": "total-cmp",
+         "label": "Comparisons so far",
+         "value": "7"
+        },
+        {
+         "id": "levels",
+         "label": "Merge levels done (of log₂8 = 3)",
+         "value": "1"
+        },
+        {
+         "id": "bound",
+         "label": "Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1",
+         "value": "17"
+        }
+       ]
+      },
+      {
+       "id": "s7-merge2-right",
+       "label": "Merge right",
+       "short": "Merge 9 82 with 5 10",
+       "active": [
+        "r-merge1",
+        "r-merge2-right"
+       ],
+       "calloutRegion": "r-merge2-right",
+       "sentence": "Same rule on the right side: 5, 9 and 10 leave by comparison. Then 82 copies over without one.",
+       "why": "Once one run empties, the rest copies with no comparisons.",
+       "readouts": [
+        {
+         "id": "step-cmp",
+         "label": "Comparisons this step",
+         "value": "3"
+        },
+        {
+         "id": "total-cmp",
+         "label": "Comparisons so far",
+         "value": "10"
+        },
+        {
+         "id": "levels",
+         "label": "Merge levels done (of log₂8 = 3)",
+         "value": "2"
+        },
+        {
+         "id": "bound",
+         "label": "Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1",
+         "value": "17"
+        }
+       ]
+      },
+      {
+       "id": "s8-merge3-mid",
+       "label": "Final merge",
+       "short": "Fronts: 27 vs 82 next",
+       "active": [
+        "r-merge2-left",
+        "r-merge2-right",
+        "r-merge3"
+       ],
+       "calloutRegion": "r-merge3",
+       "sentence": "Final merge: 3, 5, 9 and 10 have left the runs. The left front, 27, now waits against 82.",
+       "why": "Each comparison moves exactly one item to the output.",
+       "readouts": [
+        {
+         "id": "step-cmp",
+         "label": "Comparisons this step",
+         "value": "4"
+        },
+        {
+         "id": "total-cmp",
+         "label": "Comparisons so far",
+         "value": "14"
+        },
+        {
+         "id": "levels",
+         "label": "Merge levels done (of log₂8 = 3)",
+         "value": "2"
+        },
+        {
+         "id": "bound",
+         "label": "Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1",
+         "value": "17"
+        }
+       ]
+      },
+      {
+       "id": "s9-final",
+       "label": "Sorted",
+       "short": "Fully sorted output",
+       "active": [
+        "r-merge3"
+       ],
+       "calloutRegion": "r-merge3",
+       "sentence": "Sorted. Each merge level touched all eight items once, and halving made three levels, so the work is about n·log₂n.",
+       "why": "Per level ≤ n−1 comparisons, times log₂n levels; this input hits the bound.",
+       "readouts": [
+        {
+         "id": "step-cmp",
+         "label": "Comparisons this step",
+         "value": "3"
+        },
+        {
+         "id": "total-cmp",
+         "label": "Comparisons so far",
+         "value": "17"
+        },
+        {
+         "id": "levels",
+         "label": "Merge levels done (of log₂8 = 3)",
+         "value": "3"
+        },
+        {
+         "id": "bound",
+         "label": "Worst-case bound n⌈log₂n⌉−2^⌈log₂n⌉+1",
+         "value": "17"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3067,
+  "output": 8088
+ },
+ "usd": 0.174028,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The recursion-tree rows with split and merge links answer why merge sort costs n·log₂n, via 3 levels each touching all 8 items."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s9-final is the last step; stepping is user-driven (not timed), so it holds there with the sorted row active and 17=17 shown."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only control is the step index, which changes the active rows and readouts; the fixed input is explicitly justified as no parameter."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Highlights come from state.active, the ghost from previous.active, the callout from calloutRegion/short/why, and the readouts from state.readouts, all declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The narrative, step labels, region labels and readouts consistently name the same splits, merges, runs and levels."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Detailed depth adds the merge-by-merge comparison counts and the bound formula, and only the active rows are highlighted at a time, so the density stays tolerable."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": ""
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.025248
+ }
+}

@@ -1,0 +1,409 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a08",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does the human heart pump blood?",
+ "ts": "2026-11-14T22:22:54.053Z",
+ "ms": 30061,
+ "raw": "{\"story\":\"The heart is two pumps side by side. Each beat, the atria top up the ventricles, the ventricles squeeze, and four one-way valves open and close with pressure. Watch the left ventricle's pressure overtake the aorta's. That is the moment blood is pushed out.\",\"aha\":{\"stateId\":\"ejection\",\"observation\":\"Blood leaves only when ventricular pressure rises above artery pressure. That opens the outflow valves, while the closed inlet valves stop any backflow.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"One heartbeat (resting adult, approximate pressures)\",\"regions\":[{\"id\":\"right-atrium\",\"label\":\"Right atrium\",\"values\":[\"receives blood from body\"]},{\"id\":\"right-ventricle\",\"label\":\"Right ventricle\",\"values\":[\"pumps to lungs\"]},{\"id\":\"left-atrium\",\"label\":\"Left atrium\",\"values\":[\"receives blood from lungs\"]},{\"id\":\"left-ventricle\",\"label\":\"Left ventricle\",\"values\":[\"pumps to body\"]},{\"id\":\"tricuspid-valve\",\"label\":\"Tricuspid valve\",\"phases\":[\"open\",\"closed\"]},{\"id\":\"pulmonary-valve\",\"label\":\"Pulmonary valve\",\"phases\":[\"open\",\"closed\"]},{\"id\":\"mitral-valve\",\"label\":\"Mitral valve\",\"phases\":[\"open\",\"closed\"]},{\"id\":\"aortic-valve\",\"label\":\"Aortic valve\",\"phases\":[\"open\",\"closed\"]},{\"id\":\"lungs\",\"label\":\"Lungs\",\"values\":[\"pick up oxygen\"]},{\"id\":\"body\",\"label\":\"Body\",\"values\":[\"uses oxygen\"]}],\"links\":[{\"from\":\"body\",\"to\":\"right-atrium\",\"label\":\"oxygen-poor blood\"},{\"from\":\"right-atrium\",\"to\":\"right-ventricle\"},{\"from\":\"right-ventricle\",\"to\":\"lungs\",\"label\":\"to lungs\"},{\"from\":\"lungs\",\"to\":\"left-atrium\",\"label\":\"oxygen-rich blood\"},{\"from\":\"left-atrium\",\"to\":\"left-ventricle\"},{\"from\":\"left-ventricle\",\"to\":\"body\",\"label\":\"to body\"}],\"states\":[{\"id\":\"filling\",\"label\":\"Filling\",\"short\":\"Fill\",\"sentence\":\"Blood drains from both atria through open mitral and tricuspid valves into the relaxed ventricles.\",\"why\":\"Atrial pressure is higher than ventricular pressure, so the inlet valves stay open.\",\"calloutRegion\":\"mitral-valve\",\"active\":[\"right-atrium\",\"left-atrium\",\"tricuspid-valve\",\"mitral-valve\",\"right-ventricle\",\"left-ventricle\"],\"readouts\":[{\"id\":\"lv\",\"label\":\"Left ventricle pressure\",\"value\":\"≈5 mmHg\"},{\"id\":\"ao\",\"label\":\"Aorta pressure\",\"value\":\"≈80 mmHg\"},{\"id\":\"valves\",\"label\":\"Open valves\",\"value\":\"Mitral, tricuspid\"}]},{\"id\":\"atria\",\"label\":\"Atria squeeze\",\"short\":\"Atria\",\"sentence\":\"The atria contract and push the last blood into the ventricles, topping them up.\",\"why\":\"A small pressure rise in the atria finishes filling the ventricles.\",\"calloutRegion\":\"left-atrium\",\"active\":[\"right-atrium\",\"left-atrium\",\"right-ventricle\",\"left-ventricle\",\"tricuspid-valve\",\"mitral-valve\"],\"readouts\":[{\"id\":\"lv\",\"label\":\"Left ventricle pressure\",\"value\":\"≈10 mmHg\"},{\"id\":\"ao\",\"label\":\"Aorta pressure\",\"value\":\"≈80 mmHg\"},{\"id\":\"valves\",\"label\":\"Open valves\",\"value\":\"Mitral, tricuspid\"}]},{\"id\":\"pressure\",\"label\":\"Pressure builds\",\"short\":\"Build\",\"sentence\":\"The ventricles begin to squeeze. Pressure rises and shuts the mitral and tricuspid valves, but nothing leaves yet.\",\"why\":\"Ventricular pressure exceeds atrial pressure but is still below artery pressure, so all four valves are closed.\",\"calloutRegion\":\"left-ventricle\",\"active\":[\"left-ventricle\",\"right-ventricle\",\"mitral-valve\",\"tricuspid-valve\"],\"readouts\":[{\"id\":\"lv\",\"label\":\"Left ventricle pressure\",\"value\":\"10 → 80 mmHg\"},{\"id\":\"ao\",\"label\":\"Aorta pressure\",\"value\":\"≈80 mmHg\"},{\"id\":\"valves\",\"label\":\"Open valves\",\"value\":\"None\"}]},{\"id\":\"ejection\",\"label\":\"Ejection\",\"short\":\"Eject\",\"sentence\":\"Ventricular pressure passes artery pressure. The aortic and pulmonary valves open and blood surges to the body and lungs.\",\"why\":\"Blood moves from higher to lower pressure; the closed inlet valves force it out the only open way.\",\"calloutRegion\":\"aortic-valve\",\"active\":[\"left-ventricle\",\"right-ventricle\",\"aortic-valve\",\"pulmonary-valve\",\"body\",\"lungs\"],\"readouts\":[{\"id\":\"lv\",\"label\":\"Left ventricle pressure\",\"value\":\"≈120 mmHg\"},{\"id\":\"ao\",\"label\":\"Aorta pressure\",\"value\":\"≈120 mmHg\"},{\"id\":\"valves\",\"label\":\"Open valves\",\"value\":\"Aortic, pulmonary\"}]},{\"id\":\"relax\",\"label\":\"Relaxation\",\"short\":\"Relax\",\"sentence\":\"The ventricles relax. Pressure falls below the arteries, the outflow valves snap shut, and the atria begin refilling.\",\"why\":\"Closed outflow valves stop blood flowing backward, so the heart is ready to fill again.\",\"calloutRegion\":\"aortic-valve\",\"active\":[\"aortic-valve\",\"pulmonary-valve\",\"left-ventricle\",\"right-ventricle\",\"left-atrium\",\"right-atrium\"],\"readouts\":[{\"id\":\"lv\",\"label\":\"Left ventricle pressure\",\"value\":\"120 → 5 mmHg\"},{\"id\":\"ao\",\"label\":\"Aorta pressure\",\"value\":\"≈80 mmHg\"},{\"id\":\"valves\",\"label\":\"Open valves\",\"value\":\"None, then mitral and tricuspid\"}]}]}]}}",
+ "composition": {
+  "story": "The heart is two pumps side by side. Each beat, the atria top up the ventricles, the ventricles squeeze, and four one-way valves open and close with pressure. Watch the left ventricle's pressure overtake the aorta's. That is the moment blood is pushed out.",
+  "aha": {
+   "stateId": "ejection",
+   "observation": "Blood leaves only when ventricular pressure rises above artery pressure. That opens the outflow valves, while the closed inlet valves stop any backflow."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "One heartbeat (resting adult, approximate pressures)",
+     "regions": [
+      {
+       "id": "right-atrium",
+       "label": "Right atrium",
+       "values": [
+        "receives blood from body"
+       ]
+      },
+      {
+       "id": "right-ventricle",
+       "label": "Right ventricle",
+       "values": [
+        "pumps to lungs"
+       ]
+      },
+      {
+       "id": "left-atrium",
+       "label": "Left atrium",
+       "values": [
+        "receives blood from lungs"
+       ]
+      },
+      {
+       "id": "left-ventricle",
+       "label": "Left ventricle",
+       "values": [
+        "pumps to body"
+       ]
+      },
+      {
+       "id": "tricuspid-valve",
+       "label": "Tricuspid valve",
+       "phases": [
+        "open",
+        "closed"
+       ]
+      },
+      {
+       "id": "pulmonary-valve",
+       "label": "Pulmonary valve",
+       "phases": [
+        "open",
+        "closed"
+       ]
+      },
+      {
+       "id": "mitral-valve",
+       "label": "Mitral valve",
+       "phases": [
+        "open",
+        "closed"
+       ]
+      },
+      {
+       "id": "aortic-valve",
+       "label": "Aortic valve",
+       "phases": [
+        "open",
+        "closed"
+       ]
+      },
+      {
+       "id": "lungs",
+       "label": "Lungs",
+       "values": [
+        "pick up oxygen"
+       ]
+      },
+      {
+       "id": "body",
+       "label": "Body",
+       "values": [
+        "uses oxygen"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "body",
+       "to": "right-atrium",
+       "label": "oxygen-poor blood"
+      },
+      {
+       "from": "right-atrium",
+       "to": "right-ventricle"
+      },
+      {
+       "from": "right-ventricle",
+       "to": "lungs",
+       "label": "to lungs"
+      },
+      {
+       "from": "lungs",
+       "to": "left-atrium",
+       "label": "oxygen-rich blood"
+      },
+      {
+       "from": "left-atrium",
+       "to": "left-ventricle"
+      },
+      {
+       "from": "left-ventricle",
+       "to": "body",
+       "label": "to body"
+      }
+     ],
+     "states": [
+      {
+       "id": "filling",
+       "label": "Filling",
+       "short": "Fill",
+       "sentence": "Blood drains from both atria through open mitral and tricuspid valves into the relaxed ventricles.",
+       "why": "Atrial pressure is higher than ventricular pressure, so the inlet valves stay open.",
+       "calloutRegion": "mitral-valve",
+       "active": [
+        "right-atrium",
+        "left-atrium",
+        "tricuspid-valve",
+        "mitral-valve",
+        "right-ventricle",
+        "left-ventricle"
+       ],
+       "readouts": [
+        {
+         "id": "lv",
+         "label": "Left ventricle pressure",
+         "value": "≈5 mmHg"
+        },
+        {
+         "id": "ao",
+         "label": "Aorta pressure",
+         "value": "≈80 mmHg"
+        },
+        {
+         "id": "valves",
+         "label": "Open valves",
+         "value": "Mitral, tricuspid"
+        }
+       ]
+      },
+      {
+       "id": "atria",
+       "label": "Atria squeeze",
+       "short": "Atria",
+       "sentence": "The atria contract and push the last blood into the ventricles, topping them up.",
+       "why": "A small pressure rise in the atria finishes filling the ventricles.",
+       "calloutRegion": "left-atrium",
+       "active": [
+        "right-atrium",
+        "left-atrium",
+        "right-ventricle",
+        "left-ventricle",
+        "tricuspid-valve",
+        "mitral-valve"
+       ],
+       "readouts": [
+        {
+         "id": "lv",
+         "label": "Left ventricle pressure",
+         "value": "≈10 mmHg"
+        },
+        {
+         "id": "ao",
+         "label": "Aorta pressure",
+         "value": "≈80 mmHg"
+        },
+        {
+         "id": "valves",
+         "label": "Open valves",
+         "value": "Mitral, tricuspid"
+        }
+       ]
+      },
+      {
+       "id": "pressure",
+       "label": "Pressure builds",
+       "short": "Build",
+       "sentence": "The ventricles begin to squeeze. Pressure rises and shuts the mitral and tricuspid valves, but nothing leaves yet.",
+       "why": "Ventricular pressure exceeds atrial pressure but is still below artery pressure, so all four valves are closed.",
+       "calloutRegion": "left-ventricle",
+       "active": [
+        "left-ventricle",
+        "right-ventricle",
+        "mitral-valve",
+        "tricuspid-valve"
+       ],
+       "readouts": [
+        {
+         "id": "lv",
+         "label": "Left ventricle pressure",
+         "value": "10 → 80 mmHg"
+        },
+        {
+         "id": "ao",
+         "label": "Aorta pressure",
+         "value": "≈80 mmHg"
+        },
+        {
+         "id": "valves",
+         "label": "Open valves",
+         "value": "None"
+        }
+       ]
+      },
+      {
+       "id": "ejection",
+       "label": "Ejection",
+       "short": "Eject",
+       "sentence": "Ventricular pressure passes artery pressure. The aortic and pulmonary valves open and blood surges to the body and lungs.",
+       "why": "Blood moves from higher to lower pressure; the closed inlet valves force it out the only open way.",
+       "calloutRegion": "aortic-valve",
+       "active": [
+        "left-ventricle",
+        "right-ventricle",
+        "aortic-valve",
+        "pulmonary-valve",
+        "body",
+        "lungs"
+       ],
+       "readouts": [
+        {
+         "id": "lv",
+         "label": "Left ventricle pressure",
+         "value": "≈120 mmHg"
+        },
+        {
+         "id": "ao",
+         "label": "Aorta pressure",
+         "value": "≈120 mmHg"
+        },
+        {
+         "id": "valves",
+         "label": "Open valves",
+         "value": "Aortic, pulmonary"
+        }
+       ]
+      },
+      {
+       "id": "relax",
+       "label": "Relaxation",
+       "short": "Relax",
+       "sentence": "The ventricles relax. Pressure falls below the arteries, the outflow valves snap shut, and the atria begin refilling.",
+       "why": "Closed outflow valves stop blood flowing backward, so the heart is ready to fill again.",
+       "calloutRegion": "aortic-valve",
+       "active": [
+        "aortic-valve",
+        "pulmonary-valve",
+        "left-ventricle",
+        "right-ventricle",
+        "left-atrium",
+        "right-atrium"
+       ],
+       "readouts": [
+        {
+         "id": "lv",
+         "label": "Left ventricle pressure",
+         "value": "120 → 5 mmHg"
+        },
+        {
+         "id": "ao",
+         "label": "Aorta pressure",
+         "value": "≈80 mmHg"
+        },
+        {
+         "id": "valves",
+         "label": "Open valves",
+         "value": "None, then mitral and tricuspid"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3070,
+  "output": 4610
+ },
+ "usd": 0.05224,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture, links and LV vs aorta pressure readouts across steps answer \"when does blood leave the ventricle?\", with the aortic/pulmonary valves highlighted at ejection."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The stepper is learner-driven (index control), so the ejection state holds until the learner advances; the ejection state carries the aha sentence and open outflow valves."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only parameter is Step, and each index value changes the active regions, callout and pressure/valve readouts, so the stepped comparison is meaningful."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Rail, picture, callout, ghost and readouts each bind to declared state or variant fields (state.active, calloutRegion, readouts, previous.active), and the callout regions exist in the regions list."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and step labels consistently name the atria, ventricles, and the four valves, and the Step control matches the rail."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Balanced depth adds a pressure comparison (LV vs aorta) and the open-valve list per step without extra clutter, staying well under the mitosis density ceiling."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The ejection readouts show LV ≈120 and aorta ≈120 (and 80 vs 80 at pressure build), so the numbers never show LV exceeding the aorta as the story claims; the relax valves value \"None, then mitral and tricuspid\" is also muddled and duplicates the callout's valve naming."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018218
+ }
+}

@@ -1,0 +1,313 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "b-merge-sort",
+ "set": "B",
+ "subject": "merge-sort",
+ "depth": "brief",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T23:03:12.094Z",
+ "ms": 82516,
+ "raw": "{\n  \"story\": \"Start with Input [4, 1, 3, 2]. Split into Left and Right, then single values. Merge those into sorted halves. Compare their fronts: Right’s 2 goes before Left’s 4. Repeating this rule builds sorted Output [1, 2, 3, 4]. Use Next and Previous to inspect each state.\",\n  \"aha\": {\n    \"stateId\": \"compare-fronts\",\n    \"observation\": \"Merging sorted groups requires comparing only their front values, because each front is its group’s smallest remaining value.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"step-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell and canonical algorithm/collection composition. Place story and instructions above the experiment. Keep progress on this rail. Parameter-control budget: zero, excluding navigation and Reset.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"sorting-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Show only the active snapshot as one highlighted row; inactive snapshots remain hidden. Preserve group order and readable label space. Group labels name Input, Left, Right, and Output; brackets delimit groups. Empty brackets mean exhausted groups. Assume ascending numerical order with this fixed, distinct-integer input. Use no animation.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor to the active row without covering values. Identify the relevant group in words; do not repeat numerical values.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"status\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place one bound status line below the picture. Keep its location fixed throughout navigation.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Sorting step\",\n      \"presentation\": \"Use Previous and Next buttons. Default to the first state; bounds are the first and last states; increment by one state. Retain button names when disabled at boundaries. Every state persists until learner action, including compare-fronts. Reference captures show compare-fronts. Provide visible focus, keyboard activation, and Left/Right arrow navigation. The index represents a state, not time.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide visible focus and Enter or Space activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Merge sort: fixed input\",\n        \"regions\": [\n          {\n            \"id\": \"row-input\",\n            \"label\": \"Sorting row\",\n            \"values\": [\n              \"Input: [4, 1, 3, 2]\"\n            ]\n          },\n          {\n            \"id\": \"row-halves\",\n            \"label\": \"Sorting row\",\n            \"values\": [\n              \"Left: [4, 1]\",\n              \"Right: [3, 2]\"\n            ]\n          },\n          {\n            \"id\": \"row-singletons\",\n            \"label\": \"Sorting row\",\n            \"values\": [\n              \"Left: [4] [1]\",\n              \"Right: [3] [2]\"\n            ]\n          },\n          {\n            \"id\": \"row-sorted-halves\",\n            \"label\": \"Sorting row\",\n            \"values\": [\n              \"Output: []\",\n              \"Left: [1, 4]\",\n              \"Right: [2, 3]\"\n            ]\n          },\n          {\n            \"id\": \"row-compare-fronts\",\n            \"label\": \"Sorting row\",\n            \"values\": [\n              \"Output: [1]\",\n              \"Left: [4]\",\n              \"Right: [2, 3]\"\n            ]\n          },\n          {\n            \"id\": \"row-take-right\",\n            \"label\": \"Sorting row\",\n            \"values\": [\n              \"Output: [1, 2]\",\n              \"Left: [4]\",\n              \"Right: [3]\"\n            ]\n          },\n          {\n            \"id\": \"row-right-empty\",\n            \"label\": \"Sorting row\",\n            \"values\": [\n              \"Output: [1, 2, 3]\",\n              \"Left: [4]\",\n              \"Right: []\"\n            ]\n          },\n          {\n            \"id\": \"row-complete\",\n            \"label\": \"Sorting row\",\n            \"values\": [\n              \"Output: [1, 2, 3, 4]\",\n              \"Left: []\",\n              \"Right: []\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"input\",\n            \"label\": \"Unsorted input\",\n            \"short\": \"Input\",\n            \"sentence\": \"Input is not yet sorted.\",\n            \"why\": \"Merge sort first splits the input, then merges sorted groups.\",\n            \"active\": [\n              \"row-input\"\n            ],\n            \"calloutRegion\": \"row-input\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Ready to split\"\n              }\n            ]\n          },\n          {\n            \"id\": \"split-halves\",\n            \"label\": \"Split into halves\",\n            \"short\": \"Halves\",\n            \"sentence\": \"Split Input into Left and Right without rearranging their values.\",\n            \"why\": \"Each half becomes a smaller sorting problem.\",\n            \"active\": [\n              \"row-halves\"\n            ],\n            \"calloutRegion\": \"row-halves\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Splitting\"\n              }\n            ]\n          },\n          {\n            \"id\": \"singletons\",\n            \"label\": \"Split to single values\",\n            \"short\": \"Singles\",\n            \"sentence\": \"Split Left and Right again into single-value groups.\",\n            \"why\": \"Every single-value group is already sorted.\",\n            \"active\": [\n              \"row-singletons\"\n            ],\n            \"calloutRegion\": \"row-singletons\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Smallest groups are sorted\"\n              }\n            ]\n          },\n          {\n            \"id\": \"sorted-halves\",\n            \"label\": \"Merge within each half\",\n            \"short\": \"Merge pairs\",\n            \"sentence\": \"Merge each adjacent pair of single-value groups, taking the smaller front first.\",\n            \"why\": \"Left and Right are now sorted groups, ready for the final merge into Output.\",\n            \"active\": [\n              \"row-sorted-halves\"\n            ],\n            \"calloutRegion\": \"row-sorted-halves\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Sorted halves ready\"\n              }\n            ]\n          },\n          {\n            \"id\": \"compare-fronts\",\n            \"label\": \"Compare the remaining fronts\",\n            \"short\": \"Compare\",\n            \"sentence\": \"Left’s first value has entered Output; Right now has the smaller front.\",\n            \"why\": \"Each group is sorted, so only their front values can be next.\",\n            \"active\": [\n              \"row-compare-fronts\"\n            ],\n            \"calloutRegion\": \"row-compare-fronts\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Next choice: Right’s front\"\n              }\n            ]\n          },\n          {\n            \"id\": \"take-right\",\n            \"label\": \"Take Right’s smaller front\",\n            \"short\": \"Take Right\",\n            \"sentence\": \"Append Right’s smaller front to Output, leaving Left unchanged.\",\n            \"why\": \"Choosing the smaller front keeps Output sorted.\",\n            \"active\": [\n              \"row-take-right\"\n            ],\n            \"calloutRegion\": \"row-take-right\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Output remains sorted\"\n              }\n            ]\n          },\n          {\n            \"id\": \"right-empty\",\n            \"label\": \"Repeat the comparison\",\n            \"short\": \"Repeat\",\n            \"sentence\": \"Right again has the smaller front; append it to Output.\",\n            \"why\": \"Right is now empty, so Left’s remaining values can be appended directly.\",\n            \"active\": [\n              \"row-right-empty\"\n            ],\n            \"calloutRegion\": \"row-right-empty\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Right exhausted\"\n              }\n            ]\n          },\n          {\n            \"id\": \"complete\",\n            \"label\": \"Finish the merge\",\n            \"short\": \"Sorted\",\n            \"sentence\": \"Append Left’s remaining value to complete Output.\",\n            \"why\": \"Repeatedly taking the smaller front has combined the sorted halves into one sorted result.\",\n            \"active\": [\n              \"row-complete\"\n            ],\n            \"calloutRegion\": \"row-complete\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Output sorted; merge complete\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Start with Input [4, 1, 3, 2]. Split into Left and Right, then single values. Merge those into sorted halves. Compare their fronts: Right’s 2 goes before Left’s 4. Repeating this rule builds sorted Output [1, 2, 3, 4]. Use Next and Previous to inspect each state.",
+  "aha": {
+   "stateId": "compare-fronts",
+   "observation": "Merging sorted groups requires comparing only their front values, because each front is its group’s smallest remaining value."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "step-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell and canonical algorithm/collection composition. Place story and instructions above the experiment. Keep progress on this rail. Parameter-control budget: zero, excluding navigation and Reset.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "sorting-picture",
+    "kind": "fixed-picture",
+    "presentation": "Show only the active snapshot as one highlighted row; inactive snapshots remain hidden. Preserve group order and readable label space. Group labels name Input, Left, Right, and Output; brackets delimit groups. Empty brackets mean exhausted groups. Assume ascending numerical order with this fixed, distinct-integer input. Use no animation.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor to the active row without covering values. Identify the relevant group in words; do not repeat numerical values.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "status",
+    "kind": "value-readout",
+    "presentation": "Place one bound status line below the picture. Keep its location fixed throughout navigation.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Sorting step",
+    "presentation": "Use Previous and Next buttons. Default to the first state; bounds are the first and last states; increment by one state. Retain button names when disabled at boundaries. Every state persists until learner action, including compare-fronts. Reference captures show compare-fronts. Provide visible focus, keyboard activation, and Left/Right arrow navigation. The index represents a state, not time."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide visible focus and Enter or Space activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Merge sort: fixed input",
+     "regions": [
+      {
+       "id": "row-input",
+       "label": "Sorting row",
+       "values": [
+        "Input: [4, 1, 3, 2]"
+       ]
+      },
+      {
+       "id": "row-halves",
+       "label": "Sorting row",
+       "values": [
+        "Left: [4, 1]",
+        "Right: [3, 2]"
+       ]
+      },
+      {
+       "id": "row-singletons",
+       "label": "Sorting row",
+       "values": [
+        "Left: [4] [1]",
+        "Right: [3] [2]"
+       ]
+      },
+      {
+       "id": "row-sorted-halves",
+       "label": "Sorting row",
+       "values": [
+        "Output: []",
+        "Left: [1, 4]",
+        "Right: [2, 3]"
+       ]
+      },
+      {
+       "id": "row-compare-fronts",
+       "label": "Sorting row",
+       "values": [
+        "Output: [1]",
+        "Left: [4]",
+        "Right: [2, 3]"
+       ]
+      },
+      {
+       "id": "row-take-right",
+       "label": "Sorting row",
+       "values": [
+        "Output: [1, 2]",
+        "Left: [4]",
+        "Right: [3]"
+       ]
+      },
+      {
+       "id": "row-right-empty",
+       "label": "Sorting row",
+       "values": [
+        "Output: [1, 2, 3]",
+        "Left: [4]",
+        "Right: []"
+       ]
+      },
+      {
+       "id": "row-complete",
+       "label": "Sorting row",
+       "values": [
+        "Output: [1, 2, 3, 4]",
+        "Left: []",
+        "Right: []"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "input",
+       "label": "Unsorted input",
+       "short": "Input",
+       "sentence": "Input is not yet sorted.",
+       "why": "Merge sort first splits the input, then merges sorted groups.",
+       "active": [
+        "row-input"
+       ],
+       "calloutRegion": "row-input",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Ready to split"
+        }
+       ]
+      },
+      {
+       "id": "split-halves",
+       "label": "Split into halves",
+       "short": "Halves",
+       "sentence": "Split Input into Left and Right without rearranging their values.",
+       "why": "Each half becomes a smaller sorting problem.",
+       "active": [
+        "row-halves"
+       ],
+       "calloutRegion": "row-halves",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Splitting"
+        }
+       ]
+      },
+      {
+       "id": "singletons",
+       "label": "Split to single values",
+       "short": "Singles",
+       "sentence": "Split Left and Right again into single-value groups.",
+       "why": "Every single-value group is already sorted.",
+       "active": [
+        "row-singletons"
+       ],
+       "calloutRegion": "row-singletons",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Smallest groups are sorted"
+        }
+       ]
+      },
+      {
+       "id": "sorted-halves",
+       "label": "Merge within each half",
+       "short": "Merge pairs",
+       "sentence": "Merge each adjacent pair of single-value groups, taking the smaller front first.",
+       "why": "Left and Right are now sorted groups, ready for the final merge into Output.",
+       "active": [
+        "row-sorted-halves"
+       ],
+       "calloutRegion": "row-sorted-halves",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Sorted halves ready"
+        }
+       ]
+      },
+      {
+       "id": "compare-fronts",
+       "label": "Compare the remaining fronts",
+       "short": "Compare",
+       "sentence": "Left’s first value has entered Output; Right now has the smaller front.",
+       "why": "Each group is sorted, so only their front values can be next.",
+       "active": [
+        "row-compare-fronts"
+       ],
+       "calloutRegion": "row-compare-fronts",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Next choice: Right’s front"
+        }
+       ]
+      },
+      {
+       "id": "take-right",
+       "label": "Take Right’s smaller front",
+       "short": "Take Right",
+       "sentence": "Append Right’s smaller front to Output, leaving Left unchanged.",
+       "why": "Choosing the smaller front keeps Output sorted.",
+       "active": [
+        "row-take-right"
+       ],
+       "calloutRegion": "row-take-right",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Output remains sorted"
+        }
+       ]
+      },
+      {
+       "id": "right-empty",
+       "label": "Repeat the comparison",
+       "short": "Repeat",
+       "sentence": "Right again has the smaller front; append it to Output.",
+       "why": "Right is now empty, so Left’s remaining values can be appended directly.",
+       "active": [
+        "row-right-empty"
+       ],
+       "calloutRegion": "row-right-empty",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Right exhausted"
+        }
+       ]
+      },
+      {
+       "id": "complete",
+       "label": "Finish the merge",
+       "short": "Sorted",
+       "sentence": "Append Left’s remaining value to complete Output.",
+       "why": "Repeatedly taking the smaller front has combined the sorted halves into one sorted result.",
+       "active": [
+        "row-complete"
+       ],
+       "calloutRegion": "row-complete",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Output sorted; merge complete"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1532,
+  "output": 4715
+ },
+ "usd": 0.047344,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3ex9ZcUDCZ1cXbL4cQP\"}"
+  },
+  "cardUsd": 0
+ }
+}

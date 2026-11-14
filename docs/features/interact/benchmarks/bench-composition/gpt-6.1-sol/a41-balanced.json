@@ -1,0 +1,382 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a41",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "what happens on the stack when a function calls itself?",
+ "ts": "2026-11-14T23:00:15.806Z",
+ "ms": 100716,
+ "raw": "{\n  \"story\": \"How can a function call itself without losing its place? Step through sum, which adds its local input to a recursive result. Watch separate frames accumulate, then disappear. Compare the original frame before and after its child returns: its local input survives unchanged.\",\n  \"aha\": {\n    \"stateId\": \"resume-a\",\n    \"observation\": \"Each recursive call owns a separate frame; returning removes the newest frame and resumes its caller with preserved locals.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"state-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place explanation and instructions above the experiment. Function: sum(n) returns 0 when n = 0; otherwise it returns n + sum(n − 1). Fixed input: sum(2). Assume synchronous calls, integer locals, no optimization, and no errors. The external caller is omitted. Balanced parameter-control budget: zero, excluding navigation and Reset. The rail tracks discrete states, never elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"stack-slots\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Arrange fixed stack slots vertically in declared order, newest position above oldest. Highlighted slots contain live frames; unhighlighted slots are empty. Slot outlines remain visible for comparison. The anchored callout identifies the executing or returning frame.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"frame-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the named frame without covering slot labels. Identify where execution changes; keep numerical values in readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"frame-values\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Align frame rows with their matching stack slots. The return row holds the latest returned value, or none before any return. The final row is the bound status line. Locals and returns are exact, unitless integers without rounding. Each local belongs only to its named frame.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stack-state\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Call stack state\",\n      \"presentation\": \"Default to the first state. Previous and Next change stack occupancy, frame execution, locals, and returned-value evidence. Preserve their names when disabled at boundaries. Every state persists until learner action, including resume-a. Use visible focus and keyboard-operable buttons. Reference captures show resume-a.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and fixed-input defaults. Provide an accessible name, visible focus, and keyboard operation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Recursive sum with separate stack frames\",\n        \"regions\": [\n          {\n            \"id\": \"frame-c\",\n            \"label\": \"Frame C\",\n            \"values\": []\n          },\n          {\n            \"id\": \"frame-b\",\n            \"label\": \"Frame B\",\n            \"values\": []\n          },\n          {\n            \"id\": \"frame-a\",\n            \"label\": \"Frame A\",\n            \"values\": []\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"ready\",\n            \"label\": \"Before entry\",\n            \"short\": \"Stack empty\",\n            \"sentence\": \"Frame A will occupy the bottom slot.\",\n            \"why\": \"A function call creates a frame containing its local input and a place to resume.\",\n            \"active\": [],\n            \"calloutRegion\": \"frame-a\",\n            \"readouts\": [\n              {\n                \"id\": \"frame-c\",\n                \"label\": \"Frame C\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"frame-b\",\n                \"label\": \"Frame B\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"frame-a\",\n                \"label\": \"Frame A\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"None\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Ready to enter\"\n              }\n            ]\n          },\n          {\n            \"id\": \"enter-a\",\n            \"label\": \"Enter original call\",\n            \"short\": \"A executes\",\n            \"sentence\": \"Frame A executes the original call.\",\n            \"why\": \"Its input is not the base case, so it must call sum again before completing its addition.\",\n            \"active\": [\n              \"frame-a\"\n            ],\n            \"calloutRegion\": \"frame-a\",\n            \"readouts\": [\n              {\n                \"id\": \"frame-c\",\n                \"label\": \"Frame C\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"frame-b\",\n                \"label\": \"Frame B\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"frame-a\",\n                \"label\": \"Frame A\",\n                \"value\": \"n = 2; executing\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"None\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Original call running\"\n              }\n            ]\n          },\n          {\n            \"id\": \"enter-b\",\n            \"label\": \"Call recursively\",\n            \"short\": \"A waits; B executes\",\n            \"sentence\": \"Frame B executes while Frame A waits.\",\n            \"why\": \"The recursive call receives a smaller input in a new frame; Frame A's local input does not change.\",\n            \"active\": [\n              \"frame-a\",\n              \"frame-b\"\n            ],\n            \"calloutRegion\": \"frame-b\",\n            \"readouts\": [\n              {\n                \"id\": \"frame-c\",\n                \"label\": \"Frame C\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"frame-b\",\n                \"label\": \"Frame B\",\n                \"value\": \"n = 1; executing\"\n              },\n              {\n                \"id\": \"frame-a\",\n                \"label\": \"Frame A\",\n                \"value\": \"n = 2; waiting to add child result\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"None\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Recursive child running\"\n              }\n            ]\n          },\n          {\n            \"id\": \"base-case\",\n            \"label\": \"Reach base case\",\n            \"short\": \"A and B wait; C executes\",\n            \"sentence\": \"Frame C reaches the base case.\",\n            \"why\": \"Frame C makes no further call; the waiting callers retain their separate local inputs.\",\n            \"active\": [\n              \"frame-a\",\n              \"frame-b\",\n              \"frame-c\"\n            ],\n            \"calloutRegion\": \"frame-c\",\n            \"readouts\": [\n              {\n                \"id\": \"frame-c\",\n                \"label\": \"Frame C\",\n                \"value\": \"n = 0; base case\"\n              },\n              {\n                \"id\": \"frame-b\",\n                \"label\": \"Frame B\",\n                \"value\": \"n = 1; waiting to add child result\"\n              },\n              {\n                \"id\": \"frame-a\",\n                \"label\": \"Frame A\",\n                \"value\": \"n = 2; waiting to add child result\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"None\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Base case ready to return\"\n              }\n            ]\n          },\n          {\n            \"id\": \"resume-b\",\n            \"label\": \"Return to middle call\",\n            \"short\": \"C removed; B resumes\",\n            \"sentence\": \"Frame B resumes after Frame C returns.\",\n            \"why\": \"The newest frame is removed first; Frame B can now add its preserved input to the returned value.\",\n            \"active\": [\n              \"frame-a\",\n              \"frame-b\"\n            ],\n            \"calloutRegion\": \"frame-b\",\n            \"readouts\": [\n              {\n                \"id\": \"frame-c\",\n                \"label\": \"Frame C\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"frame-b\",\n                \"label\": \"Frame B\",\n                \"value\": \"n = 1; resumed at addition\"\n              },\n              {\n                \"id\": \"frame-a\",\n                \"label\": \"Frame A\",\n                \"value\": \"n = 2; waiting to add child result\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Middle caller resumed\"\n              }\n            ]\n          },\n          {\n            \"id\": \"resume-a\",\n            \"label\": \"Return to original call\",\n            \"short\": \"B removed; A resumes\",\n            \"sentence\": \"Frame A resumes with its original local input.\",\n            \"why\": \"Compare the original entry: Frame A's input survived both recursive calls, while each child frame was removed after returning.\",\n            \"active\": [\n              \"frame-a\"\n            ],\n            \"calloutRegion\": \"frame-a\",\n            \"readouts\": [\n              {\n                \"id\": \"frame-c\",\n                \"label\": \"Frame C\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"frame-b\",\n                \"label\": \"Frame B\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"frame-a\",\n                \"label\": \"Frame A\",\n                \"value\": \"n = 2; resumed at addition\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Original caller resumed; local preserved\"\n              }\n            ]\n          },\n          {\n            \"id\": \"finished\",\n            \"label\": \"Finish\",\n            \"short\": \"A removed; result returned\",\n            \"sentence\": \"Frame A returns to the external caller.\",\n            \"why\": \"Its addition is complete, so its frame is removed; no sum frames remain.\",\n            \"active\": [],\n            \"calloutRegion\": \"frame-a\",\n            \"readouts\": [\n              {\n                \"id\": \"frame-c\",\n                \"label\": \"Frame C\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"frame-b\",\n                \"label\": \"Frame B\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"frame-a\",\n                \"label\": \"Frame A\",\n                \"value\": \"Empty\"\n              },\n              {\n                \"id\": \"returned\",\n                \"label\": \"Latest returned value\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Complete; stack empty\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How can a function call itself without losing its place? Step through sum, which adds its local input to a recursive result. Watch separate frames accumulate, then disappear. Compare the original frame before and after its child returns: its local input survives unchanged.",
+  "aha": {
+   "stateId": "resume-a",
+   "observation": "Each recursive call owns a separate frame; returning removes the newest frame and resumes its caller with preserved locals."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "state-rail",
+    "kind": "step-rail",
+    "presentation": "Place explanation and instructions above the experiment. Function: sum(n) returns 0 when n = 0; otherwise it returns n + sum(n − 1). Fixed input: sum(2). Assume synchronous calls, integer locals, no optimization, and no errors. The external caller is omitted. Balanced parameter-control budget: zero, excluding navigation and Reset. The rail tracks discrete states, never elapsed time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "stack-slots",
+    "kind": "fixed-picture",
+    "presentation": "Arrange fixed stack slots vertically in declared order, newest position above oldest. Highlighted slots contain live frames; unhighlighted slots are empty. Slot outlines remain visible for comparison. The anchored callout identifies the executing or returning frame.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "frame-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the named frame without covering slot labels. Identify where execution changes; keep numerical values in readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "frame-values",
+    "kind": "value-readout",
+    "presentation": "Align frame rows with their matching stack slots. The return row holds the latest returned value, or none before any return. The final row is the bound status line. Locals and returns are exact, unitless integers without rounding. Each local belongs only to its named frame.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stack-state",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Call stack state",
+    "presentation": "Default to the first state. Previous and Next change stack occupancy, frame execution, locals, and returned-value evidence. Preserve their names when disabled at boundaries. Every state persists until learner action, including resume-a. Use visible focus and keyboard-operable buttons. Reference captures show resume-a."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and fixed-input defaults. Provide an accessible name, visible focus, and keyboard operation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Recursive sum with separate stack frames",
+     "regions": [
+      {
+       "id": "frame-c",
+       "label": "Frame C",
+       "values": []
+      },
+      {
+       "id": "frame-b",
+       "label": "Frame B",
+       "values": []
+      },
+      {
+       "id": "frame-a",
+       "label": "Frame A",
+       "values": []
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Before entry",
+       "short": "Stack empty",
+       "sentence": "Frame A will occupy the bottom slot.",
+       "why": "A function call creates a frame containing its local input and a place to resume.",
+       "active": [],
+       "calloutRegion": "frame-a",
+       "readouts": [
+        {
+         "id": "frame-c",
+         "label": "Frame C",
+         "value": "Empty"
+        },
+        {
+         "id": "frame-b",
+         "label": "Frame B",
+         "value": "Empty"
+        },
+        {
+         "id": "frame-a",
+         "label": "Frame A",
+         "value": "Empty"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "None"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Ready to enter"
+        }
+       ]
+      },
+      {
+       "id": "enter-a",
+       "label": "Enter original call",
+       "short": "A executes",
+       "sentence": "Frame A executes the original call.",
+       "why": "Its input is not the base case, so it must call sum again before completing its addition.",
+       "active": [
+        "frame-a"
+       ],
+       "calloutRegion": "frame-a",
+       "readouts": [
+        {
+         "id": "frame-c",
+         "label": "Frame C",
+         "value": "Empty"
+        },
+        {
+         "id": "frame-b",
+         "label": "Frame B",
+         "value": "Empty"
+        },
+        {
+         "id": "frame-a",
+         "label": "Frame A",
+         "value": "n = 2; executing"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "None"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Original call running"
+        }
+       ]
+      },
+      {
+       "id": "enter-b",
+       "label": "Call recursively",
+       "short": "A waits; B executes",
+       "sentence": "Frame B executes while Frame A waits.",
+       "why": "The recursive call receives a smaller input in a new frame; Frame A's local input does not change.",
+       "active": [
+        "frame-a",
+        "frame-b"
+       ],
+       "calloutRegion": "frame-b",
+       "readouts": [
+        {
+         "id": "frame-c",
+         "label": "Frame C",
+         "value": "Empty"
+        },
+        {
+         "id": "frame-b",
+         "label": "Frame B",
+         "value": "n = 1; executing"
+        },
+        {
+         "id": "frame-a",
+         "label": "Frame A",
+         "value": "n = 2; waiting to add child result"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "None"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Recursive child running"
+        }
+       ]
+      },
+      {
+       "id": "base-case",
+       "label": "Reach base case",
+       "short": "A and B wait; C executes",
+       "sentence": "Frame C reaches the base case.",
+       "why": "Frame C makes no further call; the waiting callers retain their separate local inputs.",
+       "active": [
+        "frame-a",
+        "frame-b",
+        "frame-c"
+       ],
+       "calloutRegion": "frame-c",
+       "readouts": [
+        {
+         "id": "frame-c",
+         "label": "Frame C",
+         "value": "n = 0; base case"
+        },
+        {
+         "id": "frame-b",
+         "label": "Frame B",
+         "value": "n = 1; waiting to add child result"
+        },
+        {
+         "id": "frame-a",
+         "label": "Frame A",
+         "value": "n = 2; waiting to add child result"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "None"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Base case ready to return"
+        }
+       ]
+      },
+      {
+       "id": "resume-b",
+       "label": "Return to middle call",
+       "short": "C removed; B resumes",
+       "sentence": "Frame B resumes after Frame C returns.",
+       "why": "The newest frame is removed first; Frame B can now add its preserved input to the returned value.",
+       "active": [
+        "frame-a",
+        "frame-b"
+       ],
+       "calloutRegion": "frame-b",
+       "readouts": [
+        {
+         "id": "frame-c",
+         "label": "Frame C",
+         "value": "Empty"
+        },
+        {
+         "id": "frame-b",
+         "label": "Frame B",
+         "value": "n = 1; resumed at addition"
+        },
+        {
+         "id": "frame-a",
+         "label": "Frame A",
+         "value": "n = 2; waiting to add child result"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Middle caller resumed"
+        }
+       ]
+      },
+      {
+       "id": "resume-a",
+       "label": "Return to original call",
+       "short": "B removed; A resumes",
+       "sentence": "Frame A resumes with its original local input.",
+       "why": "Compare the original entry: Frame A's input survived both recursive calls, while each child frame was removed after returning.",
+       "active": [
+        "frame-a"
+       ],
+       "calloutRegion": "frame-a",
+       "readouts": [
+        {
+         "id": "frame-c",
+         "label": "Frame C",
+         "value": "Empty"
+        },
+        {
+         "id": "frame-b",
+         "label": "Frame B",
+         "value": "Empty"
+        },
+        {
+         "id": "frame-a",
+         "label": "Frame A",
+         "value": "n = 2; resumed at addition"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "1"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Original caller resumed; local preserved"
+        }
+       ]
+      },
+      {
+       "id": "finished",
+       "label": "Finish",
+       "short": "A removed; result returned",
+       "sentence": "Frame A returns to the external caller.",
+       "why": "Its addition is complete, so its frame is removed; no sum frames remain.",
+       "active": [],
+       "calloutRegion": "frame-a",
+       "readouts": [
+        {
+         "id": "frame-c",
+         "label": "Frame C",
+         "value": "Empty"
+        },
+        {
+         "id": "frame-b",
+         "label": "Frame B",
+         "value": "Empty"
+        },
+        {
+         "id": "frame-a",
+         "label": "Frame A",
+         "value": "Empty"
+        },
+        {
+         "id": "returned",
+         "label": "Latest returned value",
+         "value": "3"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Complete; stack empty"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1537,
+  "output": 5647
+ },
+ "usd": 0.056674,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3ej9ntPtqmqhMsNWxvy\"}"
+  },
+  "cardUsd": 0
+ }
+}

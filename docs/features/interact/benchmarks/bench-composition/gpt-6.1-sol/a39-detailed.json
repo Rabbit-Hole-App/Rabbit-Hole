@@ -1,0 +1,872 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a39",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a bill become law in the United States?",
+ "ts": "2026-11-14T22:58:34.647Z",
+ "ms": 156831,
+ "raw": "{\n  \"story\": \"How does a bill become law in the United States? Follow a House bill through committee, both chambers, and a presidential veto. Compare adjacent House override totals. The final state reveals why a veto does not always stop a bill.\",\n  \"aha\": {\n    \"stateId\": \"outcome\",\n    \"observation\": \"Congress can enact a vetoed bill without presidential signature, but each chamber must separately reach its two-thirds override threshold.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"legislative-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell and canonical protocol composition. Place explanation and instructions above the experiment. Arrange the rail in two readable rows. Highlight the active state; keep all progress on this rail. Start at the first state. Every state persists until navigation. Reference captures show aha.stateId with the default parameter.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"legislative-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Keep named regions and links stationary across states and variants. Highlight only bound active regions. Preserve label space at native width. Use no animation or clock. This ordinary House-origin bill assumes quorums, completed debate, fixed membership, and no abstentions. All members vote whenever a vote occurs. Committee approval and initial passage are fixed. Presidential inaction is explained, not timed.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor the callout to its named region. Identify the current action and explain its mechanism. Keep numeric results exclusively in readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"legislative-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Detailed parameter budget: one select, excluding navigation and Reset. Show status as a bound full-width status line. Vote counts are exact. Floor rounds down; ceiling rounds up. Ordinary passage uses floor(n ÷ 2) + 1; override uses ceil(2n ÷ 3). Here, n counts members voting. Compute thresholds and deficits from the same fixed electorates and selected House override total. Compare counts directly, without graphical scales.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Legislative state\",\n      \"presentation\": \"Provide Previous and Next buttons, retaining their names when disabled. Default to the first state. Bounds are first through last; increment one state. A step index denotes a state, never elapsed time. Use accessible names, visible focus, and keyboard activation.\"\n    },\n    {\n      \"id\": \"houseOverride\",\n      \"kind\": \"select\",\n      \"label\": \"House override yes votes\",\n      \"options\": [\n        \"290 yes\",\n        \"289 yes\"\n      ],\n      \"presentation\": \"Select the variant with the matching label. Default to 290 yes. Options differ by one yes vote, changing the override evidence and outcome. Preserve the current state when switching variants. Senate override support stays fixed when its vote occurs. Provide keyboard selection and visible focus.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and the default House override selection. Provide keyboard activation and visible focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"290 yes\",\n        \"regions\": [\n          {\n            \"id\": \"bill\",\n            \"label\": \"Bill text\",\n            \"values\": [\n              \"Both chambers must approve identical text\"\n            ]\n          },\n          {\n            \"id\": \"committee\",\n            \"label\": \"House committee\",\n            \"actors\": [\n              \"Committee members\"\n            ]\n          },\n          {\n            \"id\": \"house\",\n            \"label\": \"House\",\n            \"actors\": [\n              \"House of Representatives\"\n            ]\n          },\n          {\n            \"id\": \"senate\",\n            \"label\": \"Senate\",\n            \"actors\": [\n              \"Senators\"\n            ]\n          },\n          {\n            \"id\": \"president\",\n            \"label\": \"President\",\n            \"actors\": [\n              \"President of the United States\"\n            ]\n          },\n          {\n            \"id\": \"law\",\n            \"label\": \"Law\",\n            \"phases\": [\n              \"Enacted\"\n            ]\n          },\n          {\n            \"id\": \"blocked\",\n            \"label\": \"Not enacted\",\n            \"phases\": [\n              \"Veto sustained\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"bill\",\n            \"to\": \"committee\",\n            \"label\": \"Referral\"\n          },\n          {\n            \"from\": \"committee\",\n            \"to\": \"house\",\n            \"label\": \"Report\"\n          },\n          {\n            \"from\": \"house\",\n            \"to\": \"senate\",\n            \"label\": \"Pass bill\"\n          },\n          {\n            \"from\": \"senate\",\n            \"to\": \"house\",\n            \"label\": \"Return amendments\"\n          },\n          {\n            \"from\": \"house\",\n            \"to\": \"president\",\n            \"label\": \"Present identical text\"\n          },\n          {\n            \"from\": \"president\",\n            \"to\": \"law\",\n            \"label\": \"Sign\"\n          },\n          {\n            \"from\": \"president\",\n            \"to\": \"house\",\n            \"label\": \"Return veto\"\n          },\n          {\n            \"from\": \"senate\",\n            \"to\": \"law\",\n            \"label\": \"Complete override\"\n          },\n          {\n            \"from\": \"house\",\n            \"to\": \"blocked\",\n            \"label\": \"Override fails\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"introduced\",\n            \"label\": \"Introduction\",\n            \"short\": \"Introduce\",\n            \"sentence\": \"A representative introduces Bill text in House, and the bill is referred to House committee.\",\n            \"why\": \"This example starts in House; most bills may originate in either chamber, but revenue bills must originate in House.\",\n            \"active\": [\n              \"bill\",\n              \"house\",\n              \"committee\"\n            ],\n            \"calloutRegion\": \"bill\",\n            \"readouts\": [\n              {\n                \"id\": \"electorates\",\n                \"label\": \"Fixed voting membership\",\n                \"value\": \"House: 435 members; Senate: 100 members\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Introduced; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"committee\",\n            \"label\": \"Committee review\",\n            \"short\": \"Committee\",\n            \"sentence\": \"House committee reviews Bill text and reports it for House consideration.\",\n            \"why\": \"Committees can investigate, hold hearings, amend bills, or decline to advance them; this example assumes a favorable report.\",\n            \"active\": [\n              \"committee\"\n            ],\n            \"calloutRegion\": \"committee\",\n            \"readouts\": [\n              {\n                \"id\": \"text\",\n                \"label\": \"Reported Bill text\",\n                \"value\": \"Original version\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Reported for consideration; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"house-passage\",\n            \"label\": \"House passage\",\n            \"short\": \"House passes\",\n            \"sentence\": \"House passes the original Bill text and sends it to Senate.\",\n            \"why\": \"Ordinary passage requires a majority of votes cast, assuming a quorum; this model excludes abstentions and procedural barriers.\",\n            \"active\": [\n              \"house\"\n            ],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"yes\",\n                \"label\": \"House yes votes\",\n                \"value\": \"230 votes\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"House passage threshold\",\n                \"value\": \"floor(435 ÷ 2) + 1 = 218 votes\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"House approved original text; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"senate-amendment\",\n            \"label\": \"Senate revision\",\n            \"short\": \"Senate revises\",\n            \"sentence\": \"After committee consideration, Senate amends Bill text and passes its revised version.\",\n            \"why\": \"House approval of the original text does not approve Senate amendments; the chambers have not yet agreed on identical text.\",\n            \"active\": [\n              \"senate\",\n              \"bill\"\n            ],\n            \"calloutRegion\": \"senate\",\n            \"readouts\": [\n              {\n                \"id\": \"texts\",\n                \"label\": \"Approved text comparison\",\n                \"value\": \"House: original; Senate: revised\"\n              },\n              {\n                \"id\": \"yes\",\n                \"label\": \"Senate yes votes\",\n                \"value\": \"60 votes\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"Senate passage threshold\",\n                \"value\": \"floor(100 ÷ 2) + 1 = 51 votes\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Different texts approved; not ready for President\"\n              }\n            ]\n          },\n          {\n            \"id\": \"house-agreement\",\n            \"label\": \"Identical text\",\n            \"short\": \"House agrees\",\n            \"sentence\": \"House agrees to Senate amendments, so both chambers have approved identical Bill text.\",\n            \"why\": \"Chambers can exchange amendments or use a conference committee; any final compromise still requires approval by both chambers.\",\n            \"active\": [\n              \"house\",\n              \"bill\"\n            ],\n            \"calloutRegion\": \"bill\",\n            \"readouts\": [\n              {\n                \"id\": \"texts\",\n                \"label\": \"Approved text comparison\",\n                \"value\": \"House: revised; Senate: revised\"\n              },\n              {\n                \"id\": \"yes\",\n                \"label\": \"House concurrence yes votes\",\n                \"value\": \"230 votes\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"House concurrence threshold\",\n                \"value\": \"floor(435 ÷ 2) + 1 = 218 votes\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Identical text approved; not yet law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"presented\",\n            \"label\": \"Presentment\",\n            \"short\": \"Present\",\n            \"sentence\": \"The identical Bill text is enrolled and presented to President, whose signature would make it law.\",\n            \"why\": \"After ten days excluding Sundays, inaction enacts it unless congressional adjournment prevents return; that exception produces a pocket veto.\",\n            \"active\": [\n              \"bill\",\n              \"president\"\n            ],\n            \"calloutRegion\": \"president\",\n            \"readouts\": [\n              {\n                \"id\": \"text\",\n                \"label\": \"Enrolled Bill text\",\n                \"value\": \"Revised version approved by both chambers\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Awaiting presidential action\"\n              }\n            ]\n          },\n          {\n            \"id\": \"veto\",\n            \"label\": \"Presidential veto\",\n            \"short\": \"Veto\",\n            \"sentence\": \"President vetoes Bill text and returns it with objections to House, where it originated.\",\n            \"why\": \"Congress may reconsider the same bill; overriding requires two-thirds of members voting in each chamber, with a quorum present.\",\n            \"active\": [\n              \"president\",\n              \"house\"\n            ],\n            \"calloutRegion\": \"president\",\n            \"readouts\": [\n              {\n                \"id\": \"signature\",\n                \"label\": \"Presidential signature\",\n                \"value\": \"Absent\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Veto returned; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"house-override\",\n            \"label\": \"House override vote\",\n            \"short\": \"House override\",\n            \"sentence\": \"House reaches its override threshold and sends Bill text with the objections to Senate.\",\n            \"why\": \"A simple majority is insufficient for an override; the required fraction is evaluated separately in each chamber.\",\n            \"active\": [\n              \"house\"\n            ],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"yes\",\n                \"label\": \"House override yes votes\",\n                \"value\": \"290 votes\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"House override threshold\",\n                \"value\": \"ceil(2 × 435 ÷ 3) = 290 votes\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"House threshold met; Senate override still required\"\n              }\n            ]\n          },\n          {\n            \"id\": \"senate-override\",\n            \"label\": \"Senate override vote\",\n            \"short\": \"Senate override\",\n            \"sentence\": \"Senate also reaches its override threshold, completing enactment despite the veto.\",\n            \"why\": \"House and Senate votes cannot be pooled; each chamber must independently satisfy the constitutional requirement.\",\n            \"active\": [\n              \"senate\",\n              \"law\"\n            ],\n            \"calloutRegion\": \"senate\",\n            \"readouts\": [\n              {\n                \"id\": \"yes\",\n                \"label\": \"Senate override yes votes\",\n                \"value\": \"67 votes\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"Senate override threshold\",\n                \"value\": \"ceil(2 × 100 ÷ 3) = 67 votes\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Both override thresholds met; bill becomes law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"outcome\",\n            \"label\": \"Final evidence\",\n            \"short\": \"Outcome\",\n            \"sentence\": \"Bill text is Law without President signing because House and Senate each completed a valid override.\",\n            \"why\": \"Change House override yes votes to compare the neighboring total; passage depends on both chamber thresholds, not their combined support.\",\n            \"active\": [\n              \"house\",\n              \"senate\",\n              \"law\"\n            ],\n            \"calloutRegion\": \"law\",\n            \"readouts\": [\n              {\n                \"id\": \"house\",\n                \"label\": \"House override: yes / required\",\n                \"value\": \"290 / 290 votes — met\"\n              },\n              {\n                \"id\": \"senate\",\n                \"label\": \"Senate override: yes / required\",\n                \"value\": \"67 / 67 votes — met\"\n              },\n              {\n                \"id\": \"signature\",\n                \"label\": \"Presidential signature\",\n                \"value\": \"Absent\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Law — veto overridden\"\n              }\n            ]\n          }\n        ]\n      },\n      {\n        \"label\": \"289 yes\",\n        \"regions\": [\n          {\n            \"id\": \"bill\",\n            \"label\": \"Bill text\",\n            \"values\": [\n              \"Both chambers must approve identical text\"\n            ]\n          },\n          {\n            \"id\": \"committee\",\n            \"label\": \"House committee\",\n            \"actors\": [\n              \"Committee members\"\n            ]\n          },\n          {\n            \"id\": \"house\",\n            \"label\": \"House\",\n            \"actors\": [\n              \"House of Representatives\"\n            ]\n          },\n          {\n            \"id\": \"senate\",\n            \"label\": \"Senate\",\n            \"actors\": [\n              \"Senators\"\n            ]\n          },\n          {\n            \"id\": \"president\",\n            \"label\": \"President\",\n            \"actors\": [\n              \"President of the United States\"\n            ]\n          },\n          {\n            \"id\": \"law\",\n            \"label\": \"Law\",\n            \"phases\": [\n              \"Enacted\"\n            ]\n          },\n          {\n            \"id\": \"blocked\",\n            \"label\": \"Not enacted\",\n            \"phases\": [\n              \"Veto sustained\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"bill\",\n            \"to\": \"committee\",\n            \"label\": \"Referral\"\n          },\n          {\n            \"from\": \"committee\",\n            \"to\": \"house\",\n            \"label\": \"Report\"\n          },\n          {\n            \"from\": \"house\",\n            \"to\": \"senate\",\n            \"label\": \"Pass bill\"\n          },\n          {\n            \"from\": \"senate\",\n            \"to\": \"house\",\n            \"label\": \"Return amendments\"\n          },\n          {\n            \"from\": \"house\",\n            \"to\": \"president\",\n            \"label\": \"Present identical text\"\n          },\n          {\n            \"from\": \"president\",\n            \"to\": \"law\",\n            \"label\": \"Sign\"\n          },\n          {\n            \"from\": \"president\",\n            \"to\": \"house\",\n            \"label\": \"Return veto\"\n          },\n          {\n            \"from\": \"senate\",\n            \"to\": \"law\",\n            \"label\": \"Complete override\"\n          },\n          {\n            \"from\": \"house\",\n            \"to\": \"blocked\",\n            \"label\": \"Override fails\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"introduced\",\n            \"label\": \"Introduction\",\n            \"short\": \"Introduce\",\n            \"sentence\": \"A representative introduces Bill text in House, and the bill is referred to House committee.\",\n            \"why\": \"This example starts in House; most bills may originate in either chamber, but revenue bills must originate in House.\",\n            \"active\": [\n              \"bill\",\n              \"house\",\n              \"committee\"\n            ],\n            \"calloutRegion\": \"bill\",\n            \"readouts\": [\n              {\n                \"id\": \"electorates\",\n                \"label\": \"Fixed voting membership\",\n                \"value\": \"House: 435 members; Senate: 100 members\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Introduced; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"committee\",\n            \"label\": \"Committee review\",\n            \"short\": \"Committee\",\n            \"sentence\": \"House committee reviews Bill text and reports it for House consideration.\",\n            \"why\": \"Committees can investigate, hold hearings, amend bills, or decline to advance them; this example assumes a favorable report.\",\n            \"active\": [\n              \"committee\"\n            ],\n            \"calloutRegion\": \"committee\",\n            \"readouts\": [\n              {\n                \"id\": \"text\",\n                \"label\": \"Reported Bill text\",\n                \"value\": \"Original version\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Reported for consideration; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"house-passage\",\n            \"label\": \"House passage\",\n            \"short\": \"House passes\",\n            \"sentence\": \"House passes the original Bill text and sends it to Senate.\",\n            \"why\": \"Ordinary passage requires a majority of votes cast, assuming a quorum; this model excludes abstentions and procedural barriers.\",\n            \"active\": [\n              \"house\"\n            ],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"yes\",\n                \"label\": \"House yes votes\",\n                \"value\": \"230 votes\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"House passage threshold\",\n                \"value\": \"floor(435 ÷ 2) + 1 = 218 votes\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"House approved original text; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"senate-amendment\",\n            \"label\": \"Senate revision\",\n            \"short\": \"Senate revises\",\n            \"sentence\": \"After committee consideration, Senate amends Bill text and passes its revised version.\",\n            \"why\": \"House approval of the original text does not approve Senate amendments; the chambers have not yet agreed on identical text.\",\n            \"active\": [\n              \"senate\",\n              \"bill\"\n            ],\n            \"calloutRegion\": \"senate\",\n            \"readouts\": [\n              {\n                \"id\": \"texts\",\n                \"label\": \"Approved text comparison\",\n                \"value\": \"House: original; Senate: revised\"\n              },\n              {\n                \"id\": \"yes\",\n                \"label\": \"Senate yes votes\",\n                \"value\": \"60 votes\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"Senate passage threshold\",\n                \"value\": \"floor(100 ÷ 2) + 1 = 51 votes\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Different texts approved; not ready for President\"\n              }\n            ]\n          },\n          {\n            \"id\": \"house-agreement\",\n            \"label\": \"Identical text\",\n            \"short\": \"House agrees\",\n            \"sentence\": \"House agrees to Senate amendments, so both chambers have approved identical Bill text.\",\n            \"why\": \"Chambers can exchange amendments or use a conference committee; any final compromise still requires approval by both chambers.\",\n            \"active\": [\n              \"house\",\n              \"bill\"\n            ],\n            \"calloutRegion\": \"bill\",\n            \"readouts\": [\n              {\n                \"id\": \"texts\",\n                \"label\": \"Approved text comparison\",\n                \"value\": \"House: revised; Senate: revised\"\n              },\n              {\n                \"id\": \"yes\",\n                \"label\": \"House concurrence yes votes\",\n                \"value\": \"230 votes\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"House concurrence threshold\",\n                \"value\": \"floor(435 ÷ 2) + 1 = 218 votes\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Identical text approved; not yet law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"presented\",\n            \"label\": \"Presentment\",\n            \"short\": \"Present\",\n            \"sentence\": \"The identical Bill text is enrolled and presented to President, whose signature would make it law.\",\n            \"why\": \"After ten days excluding Sundays, inaction enacts it unless congressional adjournment prevents return; that exception produces a pocket veto.\",\n            \"active\": [\n              \"bill\",\n              \"president\"\n            ],\n            \"calloutRegion\": \"president\",\n            \"readouts\": [\n              {\n                \"id\": \"text\",\n                \"label\": \"Enrolled Bill text\",\n                \"value\": \"Revised version approved by both chambers\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Awaiting presidential action\"\n              }\n            ]\n          },\n          {\n            \"id\": \"veto\",\n            \"label\": \"Presidential veto\",\n            \"short\": \"Veto\",\n            \"sentence\": \"President vetoes Bill text and returns it with objections to House, where it originated.\",\n            \"why\": \"Congress may reconsider the same bill; overriding requires two-thirds of members voting in each chamber, with a quorum present.\",\n            \"active\": [\n              \"president\",\n              \"house\"\n            ],\n            \"calloutRegion\": \"president\",\n            \"readouts\": [\n              {\n                \"id\": \"signature\",\n                \"label\": \"Presidential signature\",\n                \"value\": \"Absent\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Veto returned; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"house-override\",\n            \"label\": \"House override vote\",\n            \"short\": \"House override\",\n            \"sentence\": \"House falls short of its override threshold, so the veto stands.\",\n            \"why\": \"A large majority can still fall below the required fraction; unused Senate support cannot repair a failed House override.\",\n            \"active\": [\n              \"house\",\n              \"blocked\"\n            ],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"yes\",\n                \"label\": \"House override yes votes\",\n                \"value\": \"289 votes\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"House override threshold\",\n                \"value\": \"ceil(2 × 435 ÷ 3) = 290 votes\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"House threshold missed; veto sustained\"\n              }\n            ]\n          },\n          {\n            \"id\": \"senate-override\",\n            \"label\": \"Senate checkpoint\",\n            \"short\": \"Senate blocked\",\n            \"sentence\": \"Senate receives no override referral because House did not first override the veto.\",\n            \"why\": \"This is a procedural checkpoint, not a fabricated Senate vote; hypothetical Senate support is not counted as an action.\",\n            \"active\": [\n              \"house\",\n              \"blocked\"\n            ],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"senate\",\n                \"label\": \"Senate override vote\",\n                \"value\": \"Not held\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Override stopped in originating chamber\"\n              }\n            ]\n          },\n          {\n            \"id\": \"outcome\",\n            \"label\": \"Final evidence\",\n            \"short\": \"Outcome\",\n            \"sentence\": \"Bill text is Not enacted because House failed its separate override requirement.\",\n            \"why\": \"Change House override yes votes to compare the neighboring total; only satisfying both chamber thresholds can overcome this veto.\",\n            \"active\": [\n              \"house\",\n              \"blocked\"\n            ],\n            \"calloutRegion\": \"blocked\",\n            \"readouts\": [\n              {\n                \"id\": \"house\",\n                \"label\": \"House override: yes / required\",\n                \"value\": \"289 / 290 votes — not met\"\n              },\n              {\n                \"id\": \"senate\",\n                \"label\": \"Senate override vote\",\n                \"value\": \"Not held\"\n              },\n              {\n                \"id\": \"signature\",\n                \"label\": \"Presidential signature\",\n                \"value\": \"Absent\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Not enacted — veto sustained\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does a bill become law in the United States? Follow a House bill through committee, both chambers, and a presidential veto. Compare adjacent House override totals. The final state reveals why a veto does not always stop a bill.",
+  "aha": {
+   "stateId": "outcome",
+   "observation": "Congress can enact a vetoed bill without presidential signature, but each chamber must separately reach its two-thirds override threshold."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "legislative-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell and canonical protocol composition. Place explanation and instructions above the experiment. Arrange the rail in two readable rows. Highlight the active state; keep all progress on this rail. Start at the first state. Every state persists until navigation. Reference captures show aha.stateId with the default parameter.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "legislative-picture",
+    "kind": "fixed-picture",
+    "presentation": "Keep named regions and links stationary across states and variants. Highlight only bound active regions. Preserve label space at native width. Use no animation or clock. This ordinary House-origin bill assumes quorums, completed debate, fixed membership, and no abstentions. All members vote whenever a vote occurs. Committee approval and initial passage are fixed. Presidential inaction is explained, not timed.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor the callout to its named region. Identify the current action and explain its mechanism. Keep numeric results exclusively in readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "legislative-readouts",
+    "kind": "value-readout",
+    "presentation": "Detailed parameter budget: one select, excluding navigation and Reset. Show status as a bound full-width status line. Vote counts are exact. Floor rounds down; ceiling rounds up. Ordinary passage uses floor(n ÷ 2) + 1; override uses ceil(2n ÷ 3). Here, n counts members voting. Compute thresholds and deficits from the same fixed electorates and selected House override total. Compare counts directly, without graphical scales.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Legislative state",
+    "presentation": "Provide Previous and Next buttons, retaining their names when disabled. Default to the first state. Bounds are first through last; increment one state. A step index denotes a state, never elapsed time. Use accessible names, visible focus, and keyboard activation."
+   },
+   {
+    "id": "houseOverride",
+    "kind": "select",
+    "label": "House override yes votes",
+    "options": [
+     "290 yes",
+     "289 yes"
+    ],
+    "presentation": "Select the variant with the matching label. Default to 290 yes. Options differ by one yes vote, changing the override evidence and outcome. Preserve the current state when switching variants. Senate override support stays fixed when its vote occurs. Provide keyboard selection and visible focus."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and the default House override selection. Provide keyboard activation and visible focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "290 yes",
+     "regions": [
+      {
+       "id": "bill",
+       "label": "Bill text",
+       "values": [
+        "Both chambers must approve identical text"
+       ]
+      },
+      {
+       "id": "committee",
+       "label": "House committee",
+       "actors": [
+        "Committee members"
+       ]
+      },
+      {
+       "id": "house",
+       "label": "House",
+       "actors": [
+        "House of Representatives"
+       ]
+      },
+      {
+       "id": "senate",
+       "label": "Senate",
+       "actors": [
+        "Senators"
+       ]
+      },
+      {
+       "id": "president",
+       "label": "President",
+       "actors": [
+        "President of the United States"
+       ]
+      },
+      {
+       "id": "law",
+       "label": "Law",
+       "phases": [
+        "Enacted"
+       ]
+      },
+      {
+       "id": "blocked",
+       "label": "Not enacted",
+       "phases": [
+        "Veto sustained"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "bill",
+       "to": "committee",
+       "label": "Referral"
+      },
+      {
+       "from": "committee",
+       "to": "house",
+       "label": "Report"
+      },
+      {
+       "from": "house",
+       "to": "senate",
+       "label": "Pass bill"
+      },
+      {
+       "from": "senate",
+       "to": "house",
+       "label": "Return amendments"
+      },
+      {
+       "from": "house",
+       "to": "president",
+       "label": "Present identical text"
+      },
+      {
+       "from": "president",
+       "to": "law",
+       "label": "Sign"
+      },
+      {
+       "from": "president",
+       "to": "house",
+       "label": "Return veto"
+      },
+      {
+       "from": "senate",
+       "to": "law",
+       "label": "Complete override"
+      },
+      {
+       "from": "house",
+       "to": "blocked",
+       "label": "Override fails"
+      }
+     ],
+     "states": [
+      {
+       "id": "introduced",
+       "label": "Introduction",
+       "short": "Introduce",
+       "sentence": "A representative introduces Bill text in House, and the bill is referred to House committee.",
+       "why": "This example starts in House; most bills may originate in either chamber, but revenue bills must originate in House.",
+       "active": [
+        "bill",
+        "house",
+        "committee"
+       ],
+       "calloutRegion": "bill",
+       "readouts": [
+        {
+         "id": "electorates",
+         "label": "Fixed voting membership",
+         "value": "House: 435 members; Senate: 100 members"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Introduced; not law"
+        }
+       ]
+      },
+      {
+       "id": "committee",
+       "label": "Committee review",
+       "short": "Committee",
+       "sentence": "House committee reviews Bill text and reports it for House consideration.",
+       "why": "Committees can investigate, hold hearings, amend bills, or decline to advance them; this example assumes a favorable report.",
+       "active": [
+        "committee"
+       ],
+       "calloutRegion": "committee",
+       "readouts": [
+        {
+         "id": "text",
+         "label": "Reported Bill text",
+         "value": "Original version"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Reported for consideration; not law"
+        }
+       ]
+      },
+      {
+       "id": "house-passage",
+       "label": "House passage",
+       "short": "House passes",
+       "sentence": "House passes the original Bill text and sends it to Senate.",
+       "why": "Ordinary passage requires a majority of votes cast, assuming a quorum; this model excludes abstentions and procedural barriers.",
+       "active": [
+        "house"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "yes",
+         "label": "House yes votes",
+         "value": "230 votes"
+        },
+        {
+         "id": "threshold",
+         "label": "House passage threshold",
+         "value": "floor(435 ÷ 2) + 1 = 218 votes"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "House approved original text; not law"
+        }
+       ]
+      },
+      {
+       "id": "senate-amendment",
+       "label": "Senate revision",
+       "short": "Senate revises",
+       "sentence": "After committee consideration, Senate amends Bill text and passes its revised version.",
+       "why": "House approval of the original text does not approve Senate amendments; the chambers have not yet agreed on identical text.",
+       "active": [
+        "senate",
+        "bill"
+       ],
+       "calloutRegion": "senate",
+       "readouts": [
+        {
+         "id": "texts",
+         "label": "Approved text comparison",
+         "value": "House: original; Senate: revised"
+        },
+        {
+         "id": "yes",
+         "label": "Senate yes votes",
+         "value": "60 votes"
+        },
+        {
+         "id": "threshold",
+         "label": "Senate passage threshold",
+         "value": "floor(100 ÷ 2) + 1 = 51 votes"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Different texts approved; not ready for President"
+        }
+       ]
+      },
+      {
+       "id": "house-agreement",
+       "label": "Identical text",
+       "short": "House agrees",
+       "sentence": "House agrees to Senate amendments, so both chambers have approved identical Bill text.",
+       "why": "Chambers can exchange amendments or use a conference committee; any final compromise still requires approval by both chambers.",
+       "active": [
+        "house",
+        "bill"
+       ],
+       "calloutRegion": "bill",
+       "readouts": [
+        {
+         "id": "texts",
+         "label": "Approved text comparison",
+         "value": "House: revised; Senate: revised"
+        },
+        {
+         "id": "yes",
+         "label": "House concurrence yes votes",
+         "value": "230 votes"
+        },
+        {
+         "id": "threshold",
+         "label": "House concurrence threshold",
+         "value": "floor(435 ÷ 2) + 1 = 218 votes"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Identical text approved; not yet law"
+        }
+       ]
+      },
+      {
+       "id": "presented",
+       "label": "Presentment",
+       "short": "Present",
+       "sentence": "The identical Bill text is enrolled and presented to President, whose signature would make it law.",
+       "why": "After ten days excluding Sundays, inaction enacts it unless congressional adjournment prevents return; that exception produces a pocket veto.",
+       "active": [
+        "bill",
+        "president"
+       ],
+       "calloutRegion": "president",
+       "readouts": [
+        {
+         "id": "text",
+         "label": "Enrolled Bill text",
+         "value": "Revised version approved by both chambers"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Awaiting presidential action"
+        }
+       ]
+      },
+      {
+       "id": "veto",
+       "label": "Presidential veto",
+       "short": "Veto",
+       "sentence": "President vetoes Bill text and returns it with objections to House, where it originated.",
+       "why": "Congress may reconsider the same bill; overriding requires two-thirds of members voting in each chamber, with a quorum present.",
+       "active": [
+        "president",
+        "house"
+       ],
+       "calloutRegion": "president",
+       "readouts": [
+        {
+         "id": "signature",
+         "label": "Presidential signature",
+         "value": "Absent"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Veto returned; not law"
+        }
+       ]
+      },
+      {
+       "id": "house-override",
+       "label": "House override vote",
+       "short": "House override",
+       "sentence": "House reaches its override threshold and sends Bill text with the objections to Senate.",
+       "why": "A simple majority is insufficient for an override; the required fraction is evaluated separately in each chamber.",
+       "active": [
+        "house"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "yes",
+         "label": "House override yes votes",
+         "value": "290 votes"
+        },
+        {
+         "id": "threshold",
+         "label": "House override threshold",
+         "value": "ceil(2 × 435 ÷ 3) = 290 votes"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "House threshold met; Senate override still required"
+        }
+       ]
+      },
+      {
+       "id": "senate-override",
+       "label": "Senate override vote",
+       "short": "Senate override",
+       "sentence": "Senate also reaches its override threshold, completing enactment despite the veto.",
+       "why": "House and Senate votes cannot be pooled; each chamber must independently satisfy the constitutional requirement.",
+       "active": [
+        "senate",
+        "law"
+       ],
+       "calloutRegion": "senate",
+       "readouts": [
+        {
+         "id": "yes",
+         "label": "Senate override yes votes",
+         "value": "67 votes"
+        },
+        {
+         "id": "threshold",
+         "label": "Senate override threshold",
+         "value": "ceil(2 × 100 ÷ 3) = 67 votes"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Both override thresholds met; bill becomes law"
+        }
+       ]
+      },
+      {
+       "id": "outcome",
+       "label": "Final evidence",
+       "short": "Outcome",
+       "sentence": "Bill text is Law without President signing because House and Senate each completed a valid override.",
+       "why": "Change House override yes votes to compare the neighboring total; passage depends on both chamber thresholds, not their combined support.",
+       "active": [
+        "house",
+        "senate",
+        "law"
+       ],
+       "calloutRegion": "law",
+       "readouts": [
+        {
+         "id": "house",
+         "label": "House override: yes / required",
+         "value": "290 / 290 votes — met"
+        },
+        {
+         "id": "senate",
+         "label": "Senate override: yes / required",
+         "value": "67 / 67 votes — met"
+        },
+        {
+         "id": "signature",
+         "label": "Presidential signature",
+         "value": "Absent"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Law — veto overridden"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "289 yes",
+     "regions": [
+      {
+       "id": "bill",
+       "label": "Bill text",
+       "values": [
+        "Both chambers must approve identical text"
+       ]
+      },
+      {
+       "id": "committee",
+       "label": "House committee",
+       "actors": [
+        "Committee members"
+       ]
+      },
+      {
+       "id": "house",
+       "label": "House",
+       "actors": [
+        "House of Representatives"
+       ]
+      },
+      {
+       "id": "senate",
+       "label": "Senate",
+       "actors": [
+        "Senators"
+       ]
+      },
+      {
+       "id": "president",
+       "label": "President",
+       "actors": [
+        "President of the United States"
+       ]
+      },
+      {
+       "id": "law",
+       "label": "Law",
+       "phases": [
+        "Enacted"
+       ]
+      },
+      {
+       "id": "blocked",
+       "label": "Not enacted",
+       "phases": [
+        "Veto sustained"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "bill",
+       "to": "committee",
+       "label": "Referral"
+      },
+      {
+       "from": "committee",
+       "to": "house",
+       "label": "Report"
+      },
+      {
+       "from": "house",
+       "to": "senate",
+       "label": "Pass bill"
+      },
+      {
+       "from": "senate",
+       "to": "house",
+       "label": "Return amendments"
+      },
+      {
+       "from": "house",
+       "to": "president",
+       "label": "Present identical text"
+      },
+      {
+       "from": "president",
+       "to": "law",
+       "label": "Sign"
+      },
+      {
+       "from": "president",
+       "to": "house",
+       "label": "Return veto"
+      },
+      {
+       "from": "senate",
+       "to": "law",
+       "label": "Complete override"
+      },
+      {
+       "from": "house",
+       "to": "blocked",
+       "label": "Override fails"
+      }
+     ],
+     "states": [
+      {
+       "id": "introduced",
+       "label": "Introduction",
+       "short": "Introduce",
+       "sentence": "A representative introduces Bill text in House, and the bill is referred to House committee.",
+       "why": "This example starts in House; most bills may originate in either chamber, but revenue bills must originate in House.",
+       "active": [
+        "bill",
+        "house",
+        "committee"
+       ],
+       "calloutRegion": "bill",
+       "readouts": [
+        {
+         "id": "electorates",
+         "label": "Fixed voting membership",
+         "value": "House: 435 members; Senate: 100 members"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Introduced; not law"
+        }
+       ]
+      },
+      {
+       "id": "committee",
+       "label": "Committee review",
+       "short": "Committee",
+       "sentence": "House committee reviews Bill text and reports it for House consideration.",
+       "why": "Committees can investigate, hold hearings, amend bills, or decline to advance them; this example assumes a favorable report.",
+       "active": [
+        "committee"
+       ],
+       "calloutRegion": "committee",
+       "readouts": [
+        {
+         "id": "text",
+         "label": "Reported Bill text",
+         "value": "Original version"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Reported for consideration; not law"
+        }
+       ]
+      },
+      {
+       "id": "house-passage",
+       "label": "House passage",
+       "short": "House passes",
+       "sentence": "House passes the original Bill text and sends it to Senate.",
+       "why": "Ordinary passage requires a majority of votes cast, assuming a quorum; this model excludes abstentions and procedural barriers.",
+       "active": [
+        "house"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "yes",
+         "label": "House yes votes",
+         "value": "230 votes"
+        },
+        {
+         "id": "threshold",
+         "label": "House passage threshold",
+         "value": "floor(435 ÷ 2) + 1 = 218 votes"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "House approved original text; not law"
+        }
+       ]
+      },
+      {
+       "id": "senate-amendment",
+       "label": "Senate revision",
+       "short": "Senate revises",
+       "sentence": "After committee consideration, Senate amends Bill text and passes its revised version.",
+       "why": "House approval of the original text does not approve Senate amendments; the chambers have not yet agreed on identical text.",
+       "active": [
+        "senate",
+        "bill"
+       ],
+       "calloutRegion": "senate",
+       "readouts": [
+        {
+         "id": "texts",
+         "label": "Approved text comparison",
+         "value": "House: original; Senate: revised"
+        },
+        {
+         "id": "yes",
+         "label": "Senate yes votes",
+         "value": "60 votes"
+        },
+        {
+         "id": "threshold",
+         "label": "Senate passage threshold",
+         "value": "floor(100 ÷ 2) + 1 = 51 votes"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Different texts approved; not ready for President"
+        }
+       ]
+      },
+      {
+       "id": "house-agreement",
+       "label": "Identical text",
+       "short": "House agrees",
+       "sentence": "House agrees to Senate amendments, so both chambers have approved identical Bill text.",
+       "why": "Chambers can exchange amendments or use a conference committee; any final compromise still requires approval by both chambers.",
+       "active": [
+        "house",
+        "bill"
+       ],
+       "calloutRegion": "bill",
+       "readouts": [
+        {
+         "id": "texts",
+         "label": "Approved text comparison",
+         "value": "House: revised; Senate: revised"
+        },
+        {
+         "id": "yes",
+         "label": "House concurrence yes votes",
+         "value": "230 votes"
+        },
+        {
+         "id": "threshold",
+         "label": "House concurrence threshold",
+         "value": "floor(435 ÷ 2) + 1 = 218 votes"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Identical text approved; not yet law"
+        }
+       ]
+      },
+      {
+       "id": "presented",
+       "label": "Presentment",
+       "short": "Present",
+       "sentence": "The identical Bill text is enrolled and presented to President, whose signature would make it law.",
+       "why": "After ten days excluding Sundays, inaction enacts it unless congressional adjournment prevents return; that exception produces a pocket veto.",
+       "active": [
+        "bill",
+        "president"
+       ],
+       "calloutRegion": "president",
+       "readouts": [
+        {
+         "id": "text",
+         "label": "Enrolled Bill text",
+         "value": "Revised version approved by both chambers"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Awaiting presidential action"
+        }
+       ]
+      },
+      {
+       "id": "veto",
+       "label": "Presidential veto",
+       "short": "Veto",
+       "sentence": "President vetoes Bill text and returns it with objections to House, where it originated.",
+       "why": "Congress may reconsider the same bill; overriding requires two-thirds of members voting in each chamber, with a quorum present.",
+       "active": [
+        "president",
+        "house"
+       ],
+       "calloutRegion": "president",
+       "readouts": [
+        {
+         "id": "signature",
+         "label": "Presidential signature",
+         "value": "Absent"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Veto returned; not law"
+        }
+       ]
+      },
+      {
+       "id": "house-override",
+       "label": "House override vote",
+       "short": "House override",
+       "sentence": "House falls short of its override threshold, so the veto stands.",
+       "why": "A large majority can still fall below the required fraction; unused Senate support cannot repair a failed House override.",
+       "active": [
+        "house",
+        "blocked"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "yes",
+         "label": "House override yes votes",
+         "value": "289 votes"
+        },
+        {
+         "id": "threshold",
+         "label": "House override threshold",
+         "value": "ceil(2 × 435 ÷ 3) = 290 votes"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "House threshold missed; veto sustained"
+        }
+       ]
+      },
+      {
+       "id": "senate-override",
+       "label": "Senate checkpoint",
+       "short": "Senate blocked",
+       "sentence": "Senate receives no override referral because House did not first override the veto.",
+       "why": "This is a procedural checkpoint, not a fabricated Senate vote; hypothetical Senate support is not counted as an action.",
+       "active": [
+        "house",
+        "blocked"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "senate",
+         "label": "Senate override vote",
+         "value": "Not held"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Override stopped in originating chamber"
+        }
+       ]
+      },
+      {
+       "id": "outcome",
+       "label": "Final evidence",
+       "short": "Outcome",
+       "sentence": "Bill text is Not enacted because House failed its separate override requirement.",
+       "why": "Change House override yes votes to compare the neighboring total; only satisfying both chamber thresholds can overcome this veto.",
+       "active": [
+        "house",
+        "blocked"
+       ],
+       "calloutRegion": "blocked",
+       "readouts": [
+        {
+         "id": "house",
+         "label": "House override: yes / required",
+         "value": "289 / 290 votes — not met"
+        },
+        {
+         "id": "senate",
+         "label": "Senate override vote",
+         "value": "Not held"
+        },
+        {
+         "id": "signature",
+         "label": "Presidential signature",
+         "value": "Absent"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Not enacted — veto sustained"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1538,
+  "output": 10185
+ },
+ "usd": 0.102056,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3ebgy9kRLdrMVtjZRAn\"}"
+  },
+  "cardUsd": 0
+ }
+}

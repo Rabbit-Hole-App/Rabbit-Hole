@@ -1,0 +1,377 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a10",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does photosynthesis work?",
+ "ts": "2026-11-14T22:23:21.370Z",
+ "ms": 18374,
+ "raw": "{\"story\":\"A leaf turns light into sugar in two linked stages. First, light splits water in the thylakoid and charges ATP and NADPH, releasing oxygen. Then the Calvin cycle spends those carriers to build sugar from carbon dioxide.\",\"aha\":{\"stateId\":\"s5\",\"observation\":\"Light's energy is not stored directly: ATP and NADPH carry it from the light reactions to the Calvin cycle, which locks it into sugar.\"},\"layout\":{\"preset\":\"pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Photosynthesis in a chloroplast\",\"regions\":[{\"id\":\"sunlight\",\"label\":\"Sunlight\",\"kind\":\"input\",\"values\":[\"light energy\"]},{\"id\":\"water\",\"label\":\"Water (H2O)\",\"kind\":\"input\",\"values\":[\"from roots\"]},{\"id\":\"co2\",\"label\":\"Carbon dioxide (CO2)\",\"kind\":\"input\",\"values\":[\"from air\"]},{\"id\":\"thylakoid\",\"label\":\"Light reactions (thylakoid)\",\"kind\":\"stage\",\"phases\":[\"absorb light\",\"split water\"]},{\"id\":\"carriers\",\"label\":\"ATP and NADPH\",\"kind\":\"carrier\",\"values\":[\"energy carriers\"]},{\"id\":\"calvin\",\"label\":\"Calvin cycle (stroma)\",\"kind\":\"stage\",\"phases\":[\"fix CO2\",\"build sugar\"]},{\"id\":\"oxygen\",\"label\":\"Oxygen (O2)\",\"kind\":\"output\",\"values\":[\"released to air\"]},{\"id\":\"sugar\",\"label\":\"Sugar (glucose)\",\"kind\":\"output\",\"values\":[\"stored energy\"]}],\"links\":[{\"from\":\"sunlight\",\"to\":\"thylakoid\",\"label\":\"energy\"},{\"from\":\"water\",\"to\":\"thylakoid\",\"label\":\"electrons\"},{\"from\":\"thylakoid\",\"to\":\"oxygen\",\"label\":\"by-product\"},{\"from\":\"thylakoid\",\"to\":\"carriers\",\"label\":\"charges\"},{\"from\":\"carriers\",\"to\":\"calvin\",\"label\":\"power\"},{\"from\":\"co2\",\"to\":\"calvin\",\"label\":\"carbon\"},{\"from\":\"calvin\",\"to\":\"sugar\",\"label\":\"builds\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Inputs\",\"short\":\"Inputs\",\"sentence\":\"Three inputs arrive at the chloroplast: sunlight, water from the roots, and carbon dioxide from the air.\",\"why\":\"Everything the leaf makes comes from these three inputs.\",\"active\":[\"sunlight\",\"water\",\"co2\"],\"calloutRegion\":\"sunlight\",\"readouts\":[{\"id\":\"inputs\",\"label\":\"Inputs present\",\"value\":\"3 of 3\"},{\"id\":\"sugar\",\"label\":\"Sugar made\",\"value\":\"none yet\"}]},{\"id\":\"s2\",\"label\":\"Light splits water\",\"short\":\"Split water\",\"sentence\":\"In the thylakoid, light energy splits water. Its oxygen is released as a by-product.\",\"why\":\"This is where the oxygen we breathe comes from.\",\"active\":[\"sunlight\",\"water\",\"thylakoid\",\"oxygen\"],\"calloutRegion\":\"thylakoid\",\"readouts\":[{\"id\":\"o2\",\"label\":\"Oxygen\",\"value\":\"released\"},{\"id\":\"sugar\",\"label\":\"Sugar made\",\"value\":\"none yet\"}]},{\"id\":\"s3\",\"label\":\"Carriers charged\",\"short\":\"Charge\",\"sentence\":\"Energy from the split water charges two carrier molecules: ATP and NADPH.\",\"why\":\"Light cannot reach the sugar-building step, so carriers deliver its energy.\",\"active\":[\"thylakoid\",\"carriers\"],\"calloutRegion\":\"carriers\",\"readouts\":[{\"id\":\"carriers\",\"label\":\"Carriers\",\"value\":\"charged\"},{\"id\":\"sugar\",\"label\":\"Sugar made\",\"value\":\"none yet\"}]},{\"id\":\"s4\",\"label\":\"Calvin cycle\",\"short\":\"Fix CO2\",\"sentence\":\"In the stroma, the Calvin cycle attaches carbon dioxide to carbon chains, powered by the charged carriers.\",\"why\":\"Carriers are spent here, turning loose CO2 into building blocks.\",\"active\":[\"carriers\",\"co2\",\"calvin\"],\"calloutRegion\":\"calvin\",\"readouts\":[{\"id\":\"carriers\",\"label\":\"Carriers\",\"value\":\"being spent\"},{\"id\":\"sugar\",\"label\":\"Sugar made\",\"value\":\"building\"}]},{\"id\":\"s5\",\"label\":\"Sugar stores energy\",\"short\":\"Sugar\",\"sentence\":\"The Calvin cycle outputs sugar. Light energy is now stored in its chemical bonds.\",\"why\":\"Light energy moved through carriers into sugar; oxygen came from water, carbon from CO2.\",\"active\":[\"calvin\",\"sugar\"],\"calloutRegion\":\"sugar\",\"readouts\":[{\"id\":\"sugar\",\"label\":\"Sugar made\",\"value\":\"stored\"},{\"id\":\"carriers\",\"label\":\"Carriers\",\"value\":\"spent, recycled\"}]}]}]}}",
+ "composition": {
+  "story": "A leaf turns light into sugar in two linked stages. First, light splits water in the thylakoid and charges ATP and NADPH, releasing oxygen. Then the Calvin cycle spends those carriers to build sugar from carbon dioxide.",
+  "aha": {
+   "stateId": "s5",
+   "observation": "Light's energy is not stored directly: ATP and NADPH carry it from the light reactions to the Calvin cycle, which locks it into sugar."
+  },
+  "layout": {
+   "preset": "pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Photosynthesis in a chloroplast",
+     "regions": [
+      {
+       "id": "sunlight",
+       "label": "Sunlight",
+       "kind": "input",
+       "values": [
+        "light energy"
+       ]
+      },
+      {
+       "id": "water",
+       "label": "Water (H2O)",
+       "kind": "input",
+       "values": [
+        "from roots"
+       ]
+      },
+      {
+       "id": "co2",
+       "label": "Carbon dioxide (CO2)",
+       "kind": "input",
+       "values": [
+        "from air"
+       ]
+      },
+      {
+       "id": "thylakoid",
+       "label": "Light reactions (thylakoid)",
+       "kind": "stage",
+       "phases": [
+        "absorb light",
+        "split water"
+       ]
+      },
+      {
+       "id": "carriers",
+       "label": "ATP and NADPH",
+       "kind": "carrier",
+       "values": [
+        "energy carriers"
+       ]
+      },
+      {
+       "id": "calvin",
+       "label": "Calvin cycle (stroma)",
+       "kind": "stage",
+       "phases": [
+        "fix CO2",
+        "build sugar"
+       ]
+      },
+      {
+       "id": "oxygen",
+       "label": "Oxygen (O2)",
+       "kind": "output",
+       "values": [
+        "released to air"
+       ]
+      },
+      {
+       "id": "sugar",
+       "label": "Sugar (glucose)",
+       "kind": "output",
+       "values": [
+        "stored energy"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "sunlight",
+       "to": "thylakoid",
+       "label": "energy"
+      },
+      {
+       "from": "water",
+       "to": "thylakoid",
+       "label": "electrons"
+      },
+      {
+       "from": "thylakoid",
+       "to": "oxygen",
+       "label": "by-product"
+      },
+      {
+       "from": "thylakoid",
+       "to": "carriers",
+       "label": "charges"
+      },
+      {
+       "from": "carriers",
+       "to": "calvin",
+       "label": "power"
+      },
+      {
+       "from": "co2",
+       "to": "calvin",
+       "label": "carbon"
+      },
+      {
+       "from": "calvin",
+       "to": "sugar",
+       "label": "builds"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Inputs",
+       "short": "Inputs",
+       "sentence": "Three inputs arrive at the chloroplast: sunlight, water from the roots, and carbon dioxide from the air.",
+       "why": "Everything the leaf makes comes from these three inputs.",
+       "active": [
+        "sunlight",
+        "water",
+        "co2"
+       ],
+       "calloutRegion": "sunlight",
+       "readouts": [
+        {
+         "id": "inputs",
+         "label": "Inputs present",
+         "value": "3 of 3"
+        },
+        {
+         "id": "sugar",
+         "label": "Sugar made",
+         "value": "none yet"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Light splits water",
+       "short": "Split water",
+       "sentence": "In the thylakoid, light energy splits water. Its oxygen is released as a by-product.",
+       "why": "This is where the oxygen we breathe comes from.",
+       "active": [
+        "sunlight",
+        "water",
+        "thylakoid",
+        "oxygen"
+       ],
+       "calloutRegion": "thylakoid",
+       "readouts": [
+        {
+         "id": "o2",
+         "label": "Oxygen",
+         "value": "released"
+        },
+        {
+         "id": "sugar",
+         "label": "Sugar made",
+         "value": "none yet"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Carriers charged",
+       "short": "Charge",
+       "sentence": "Energy from the split water charges two carrier molecules: ATP and NADPH.",
+       "why": "Light cannot reach the sugar-building step, so carriers deliver its energy.",
+       "active": [
+        "thylakoid",
+        "carriers"
+       ],
+       "calloutRegion": "carriers",
+       "readouts": [
+        {
+         "id": "carriers",
+         "label": "Carriers",
+         "value": "charged"
+        },
+        {
+         "id": "sugar",
+         "label": "Sugar made",
+         "value": "none yet"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Calvin cycle",
+       "short": "Fix CO2",
+       "sentence": "In the stroma, the Calvin cycle attaches carbon dioxide to carbon chains, powered by the charged carriers.",
+       "why": "Carriers are spent here, turning loose CO2 into building blocks.",
+       "active": [
+        "carriers",
+        "co2",
+        "calvin"
+       ],
+       "calloutRegion": "calvin",
+       "readouts": [
+        {
+         "id": "carriers",
+         "label": "Carriers",
+         "value": "being spent"
+        },
+        {
+         "id": "sugar",
+         "label": "Sugar made",
+         "value": "building"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Sugar stores energy",
+       "short": "Sugar",
+       "sentence": "The Calvin cycle outputs sugar. Light energy is now stored in its chemical bonds.",
+       "why": "Light energy moved through carriers into sugar; oxygen came from water, carbon from CO2.",
+       "active": [
+        "calvin",
+        "sugar"
+       ],
+       "calloutRegion": "sugar",
+       "readouts": [
+        {
+         "id": "sugar",
+         "label": "Sugar made",
+         "value": "stored"
+        },
+        {
+         "id": "carriers",
+         "label": "Carriers",
+         "value": "spent, recycled"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 3127
+ },
+ "usd": 0.037406,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of regions and links shows how light energy flows via ATP/NADPH into sugar, answering one clear question."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s5 is the final step of a learner-driven index with no timer, so it holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There is no parameter, only a Step index, but each step changes the active regions, callout and readouts; a fixed sequence is justified for a mechanism walkthrough."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Each part binds to declared data: the rail and trace to the states, the picture to regions, links and active, the callout to calloutRegion, sentence and why, and the readouts to state.readouts."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, region labels, state sentences and Step control all use the same names (thylakoid, carriers, Calvin cycle, sugar)."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth each state shows a small active subset with two readouts and no extra formula or clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The qualitative readouts are consistent with each state, such as 3 of 3 inputs, sugar 'none yet' until s4, and 'stored' at s5, and each value appears only once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018164
+ }
+}

@@ -1,0 +1,543 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a28",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "How does a transformer turn scores into a guess for the next word?",
+ "ts": "2026-11-14T22:29:10.057Z",
+ "ms": 24813,
+ "raw": "{\"story\":\"After \\\"The cat sat on the\\\", the model scores three candidate words. Softmax exponentiates each score, divides by the total so the shares sum to 1, and the largest share becomes the guess. A temperature control sharpens or softens that split.\",\"aha\":{\"stateId\":\"guess\",\"observation\":\"Softmax turns raw scores into shares that sum to 1. The highest score gets the biggest share, so 'mat' is the guess.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\"},{\"id\":\"temperature\",\"kind\":\"select\",\"label\":\"Temperature\",\"options\":[\"Temperature 1.0\",\"Temperature 0.5\"],\"default\":0,\"presentation\":\"Lower temperature widens the gap between scores before softmax; the default is 1.0.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Temperature 1.0\",\"regions\":[{\"id\":\"context\",\"label\":\"Context: The cat sat on the\",\"kind\":\"input\"},{\"id\":\"mat\",\"label\":\"mat\",\"kind\":\"candidate\",\"values\":[\"score 2.0\",\"exp 7.39\",\"share 0.665\"]},{\"id\":\"sofa\",\"label\":\"sofa\",\"kind\":\"candidate\",\"values\":[\"score 1.0\",\"exp 2.72\",\"share 0.245\"]},{\"id\":\"moon\",\"label\":\"moon\",\"kind\":\"candidate\",\"values\":[\"score 0.0\",\"exp 1.00\",\"share 0.090\"]},{\"id\":\"total\",\"label\":\"Total of exp values\",\"kind\":\"normalizer\",\"values\":[\"11.11\"]},{\"id\":\"guess\",\"label\":\"Next-word guess\",\"kind\":\"output\",\"values\":[\"mat\"]}],\"links\":[{\"from\":\"context\",\"to\":\"mat\",\"label\":\"scores\"},{\"from\":\"context\",\"to\":\"sofa\"},{\"from\":\"context\",\"to\":\"moon\"},{\"from\":\"mat\",\"to\":\"guess\",\"label\":\"largest share\"}],\"states\":[{\"id\":\"scores\",\"label\":\"Scores\",\"sentence\":\"The model gives each candidate word a raw score, called a logit.\",\"why\":\"Raw scores can be any size or sign, so they are not yet probabilities.\",\"short\":\"Raw scores\",\"calloutRegion\":\"mat\",\"active\":[\"context\",\"mat\",\"sofa\",\"moon\"],\"readouts\":[{\"id\":\"r-mat\",\"label\":\"mat score\",\"value\":\"2.0\"},{\"id\":\"r-sofa\",\"label\":\"sofa score\",\"value\":\"1.0\"},{\"id\":\"r-moon\",\"label\":\"moon score\",\"value\":\"0.0\"}]},{\"id\":\"exp\",\"label\":\"Exponentiate\",\"sentence\":\"Softmax raises e to each score, making every value positive and stretching the gaps.\",\"why\":\"Positive values can be compared as shares.\",\"short\":\"Exponentiate\",\"calloutRegion\":\"sofa\",\"active\":[\"mat\",\"sofa\",\"moon\"],\"readouts\":[{\"id\":\"e-mat\",\"label\":\"mat exp\",\"value\":\"7.39\"},{\"id\":\"e-sofa\",\"label\":\"sofa exp\",\"value\":\"2.72\"},{\"id\":\"e-moon\",\"label\":\"moon exp\",\"value\":\"1.00\"}]},{\"id\":\"normalize\",\"label\":\"Divide by total\",\"sentence\":\"Each exponentiated value is divided by their total, 11.11, giving shares.\",\"why\":\"Dividing by the total forces the shares to sum to 1.\",\"short\":\"Normalize\",\"calloutRegion\":\"total\",\"active\":[\"mat\",\"sofa\",\"moon\",\"total\"],\"readouts\":[{\"id\":\"p-mat\",\"label\":\"mat share\",\"value\":\"0.665\"},{\"id\":\"p-sofa\",\"label\":\"sofa share\",\"value\":\"0.245\"},{\"id\":\"p-moon\",\"label\":\"moon share\",\"value\":\"0.090\"},{\"id\":\"p-sum\",\"label\":\"sum\",\"value\":\"1.000\"}]},{\"id\":\"guess\",\"label\":\"Pick the guess\",\"sentence\":\"The word with the largest share, mat, becomes the guess.\",\"why\":\"The highest score stays the highest share after softmax.\",\"short\":\"Guess\",\"calloutRegion\":\"guess\",\"active\":[\"mat\",\"guess\"],\"readouts\":[{\"id\":\"g-word\",\"label\":\"guess\",\"value\":\"mat\"},{\"id\":\"g-p\",\"label\":\"probability\",\"value\":\"66.5%\"}]}]},{\"label\":\"Temperature 0.5\",\"regions\":[{\"id\":\"context\",\"label\":\"Context: The cat sat on the\",\"kind\":\"input\"},{\"id\":\"mat\",\"label\":\"mat\",\"kind\":\"candidate\",\"values\":[\"score 2.0\",\"exp 54.60\",\"share 0.867\"]},{\"id\":\"sofa\",\"label\":\"sofa\",\"kind\":\"candidate\",\"values\":[\"score 1.0\",\"exp 7.39\",\"share 0.117\"]},{\"id\":\"moon\",\"label\":\"moon\",\"kind\":\"candidate\",\"values\":[\"score 0.0\",\"exp 1.00\",\"share 0.016\"]},{\"id\":\"total\",\"label\":\"Total of exp values\",\"kind\":\"normalizer\",\"values\":[\"62.99\"]},{\"id\":\"guess\",\"label\":\"Next-word guess\",\"kind\":\"output\",\"values\":[\"mat\"]}],\"links\":[{\"from\":\"context\",\"to\":\"mat\",\"label\":\"scores\"},{\"from\":\"context\",\"to\":\"sofa\"},{\"from\":\"context\",\"to\":\"moon\"},{\"from\":\"mat\",\"to\":\"guess\",\"label\":\"largest share\"}],\"states\":[{\"id\":\"scores\",\"label\":\"Scores\",\"sentence\":\"The model gives each candidate word a raw score. Temperature 0.5 will divide each by 0.5.\",\"why\":\"Raw scores can be any size or sign, so they are not yet probabilities.\",\"short\":\"Raw scores\",\"calloutRegion\":\"mat\",\"active\":[\"context\",\"mat\",\"sofa\",\"moon\"],\"readouts\":[{\"id\":\"r-mat\",\"label\":\"mat score\",\"value\":\"2.0\"},{\"id\":\"r-sofa\",\"label\":\"sofa score\",\"value\":\"1.0\"},{\"id\":\"r-moon\",\"label\":\"moon score\",\"value\":\"0.0\"}]},{\"id\":\"exp\",\"label\":\"Exponentiate\",\"sentence\":\"Scores are doubled, then exponentiated. The gaps stretch far more than at temperature 1.0.\",\"why\":\"A lower temperature sharpens the differences between candidates.\",\"short\":\"Exponentiate\",\"calloutRegion\":\"sofa\",\"active\":[\"mat\",\"sofa\",\"moon\"],\"readouts\":[{\"id\":\"e-mat\",\"label\":\"mat exp\",\"value\":\"54.60\"},{\"id\":\"e-sofa\",\"label\":\"sofa exp\",\"value\":\"7.39\"},{\"id\":\"e-moon\",\"label\":\"moon exp\",\"value\":\"1.00\"}]},{\"id\":\"normalize\",\"label\":\"Divide by total\",\"sentence\":\"Each exponentiated value is divided by their total, 62.99, giving shares.\",\"why\":\"Dividing by the total forces the shares to sum to 1.\",\"short\":\"Normalize\",\"calloutRegion\":\"total\",\"active\":[\"mat\",\"sofa\",\"moon\",\"total\"],\"readouts\":[{\"id\":\"p-mat\",\"label\":\"mat share\",\"value\":\"0.867\"},{\"id\":\"p-sofa\",\"label\":\"sofa share\",\"value\":\"0.117\"},{\"id\":\"p-moon\",\"label\":\"moon share\",\"value\":\"0.016\"},{\"id\":\"p-sum\",\"label\":\"sum\",\"value\":\"1.000\"}]},{\"id\":\"guess\",\"label\":\"Pick the guess\",\"sentence\":\"The word with the largest share, mat, becomes the guess, now with more confidence.\",\"why\":\"The highest score stays the highest share after softmax.\",\"short\":\"Guess\",\"calloutRegion\":\"guess\",\"active\":[\"mat\",\"guess\"],\"readouts\":[{\"id\":\"g-word\",\"label\":\"guess\",\"value\":\"mat\"},{\"id\":\"g-p\",\"label\":\"probability\",\"value\":\"86.7%\"}]}]}]}}",
+ "composition": {
+  "story": "After \"The cat sat on the\", the model scores three candidate words. Softmax exponentiates each score, divides by the total so the shares sum to 1, and the largest share becomes the guess. A temperature control sharpens or softens that split.",
+  "aha": {
+   "stateId": "guess",
+   "observation": "Softmax turns raw scores into shares that sum to 1. The highest score gets the biggest share, so 'mat' is the guess."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states"
+   },
+   {
+    "id": "temperature",
+    "kind": "select",
+    "label": "Temperature",
+    "options": [
+     "Temperature 1.0",
+     "Temperature 0.5"
+    ],
+    "default": 0,
+    "presentation": "Lower temperature widens the gap between scores before softmax; the default is 1.0."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Temperature 1.0",
+     "regions": [
+      {
+       "id": "context",
+       "label": "Context: The cat sat on the",
+       "kind": "input"
+      },
+      {
+       "id": "mat",
+       "label": "mat",
+       "kind": "candidate",
+       "values": [
+        "score 2.0",
+        "exp 7.39",
+        "share 0.665"
+       ]
+      },
+      {
+       "id": "sofa",
+       "label": "sofa",
+       "kind": "candidate",
+       "values": [
+        "score 1.0",
+        "exp 2.72",
+        "share 0.245"
+       ]
+      },
+      {
+       "id": "moon",
+       "label": "moon",
+       "kind": "candidate",
+       "values": [
+        "score 0.0",
+        "exp 1.00",
+        "share 0.090"
+       ]
+      },
+      {
+       "id": "total",
+       "label": "Total of exp values",
+       "kind": "normalizer",
+       "values": [
+        "11.11"
+       ]
+      },
+      {
+       "id": "guess",
+       "label": "Next-word guess",
+       "kind": "output",
+       "values": [
+        "mat"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "context",
+       "to": "mat",
+       "label": "scores"
+      },
+      {
+       "from": "context",
+       "to": "sofa"
+      },
+      {
+       "from": "context",
+       "to": "moon"
+      },
+      {
+       "from": "mat",
+       "to": "guess",
+       "label": "largest share"
+      }
+     ],
+     "states": [
+      {
+       "id": "scores",
+       "label": "Scores",
+       "sentence": "The model gives each candidate word a raw score, called a logit.",
+       "why": "Raw scores can be any size or sign, so they are not yet probabilities.",
+       "short": "Raw scores",
+       "calloutRegion": "mat",
+       "active": [
+        "context",
+        "mat",
+        "sofa",
+        "moon"
+       ],
+       "readouts": [
+        {
+         "id": "r-mat",
+         "label": "mat score",
+         "value": "2.0"
+        },
+        {
+         "id": "r-sofa",
+         "label": "sofa score",
+         "value": "1.0"
+        },
+        {
+         "id": "r-moon",
+         "label": "moon score",
+         "value": "0.0"
+        }
+       ]
+      },
+      {
+       "id": "exp",
+       "label": "Exponentiate",
+       "sentence": "Softmax raises e to each score, making every value positive and stretching the gaps.",
+       "why": "Positive values can be compared as shares.",
+       "short": "Exponentiate",
+       "calloutRegion": "sofa",
+       "active": [
+        "mat",
+        "sofa",
+        "moon"
+       ],
+       "readouts": [
+        {
+         "id": "e-mat",
+         "label": "mat exp",
+         "value": "7.39"
+        },
+        {
+         "id": "e-sofa",
+         "label": "sofa exp",
+         "value": "2.72"
+        },
+        {
+         "id": "e-moon",
+         "label": "moon exp",
+         "value": "1.00"
+        }
+       ]
+      },
+      {
+       "id": "normalize",
+       "label": "Divide by total",
+       "sentence": "Each exponentiated value is divided by their total, 11.11, giving shares.",
+       "why": "Dividing by the total forces the shares to sum to 1.",
+       "short": "Normalize",
+       "calloutRegion": "total",
+       "active": [
+        "mat",
+        "sofa",
+        "moon",
+        "total"
+       ],
+       "readouts": [
+        {
+         "id": "p-mat",
+         "label": "mat share",
+         "value": "0.665"
+        },
+        {
+         "id": "p-sofa",
+         "label": "sofa share",
+         "value": "0.245"
+        },
+        {
+         "id": "p-moon",
+         "label": "moon share",
+         "value": "0.090"
+        },
+        {
+         "id": "p-sum",
+         "label": "sum",
+         "value": "1.000"
+        }
+       ]
+      },
+      {
+       "id": "guess",
+       "label": "Pick the guess",
+       "sentence": "The word with the largest share, mat, becomes the guess.",
+       "why": "The highest score stays the highest share after softmax.",
+       "short": "Guess",
+       "calloutRegion": "guess",
+       "active": [
+        "mat",
+        "guess"
+       ],
+       "readouts": [
+        {
+         "id": "g-word",
+         "label": "guess",
+         "value": "mat"
+        },
+        {
+         "id": "g-p",
+         "label": "probability",
+         "value": "66.5%"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Temperature 0.5",
+     "regions": [
+      {
+       "id": "context",
+       "label": "Context: The cat sat on the",
+       "kind": "input"
+      },
+      {
+       "id": "mat",
+       "label": "mat",
+       "kind": "candidate",
+       "values": [
+        "score 2.0",
+        "exp 54.60",
+        "share 0.867"
+       ]
+      },
+      {
+       "id": "sofa",
+       "label": "sofa",
+       "kind": "candidate",
+       "values": [
+        "score 1.0",
+        "exp 7.39",
+        "share 0.117"
+       ]
+      },
+      {
+       "id": "moon",
+       "label": "moon",
+       "kind": "candidate",
+       "values": [
+        "score 0.0",
+        "exp 1.00",
+        "share 0.016"
+       ]
+      },
+      {
+       "id": "total",
+       "label": "Total of exp values",
+       "kind": "normalizer",
+       "values": [
+        "62.99"
+       ]
+      },
+      {
+       "id": "guess",
+       "label": "Next-word guess",
+       "kind": "output",
+       "values": [
+        "mat"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "context",
+       "to": "mat",
+       "label": "scores"
+      },
+      {
+       "from": "context",
+       "to": "sofa"
+      },
+      {
+       "from": "context",
+       "to": "moon"
+      },
+      {
+       "from": "mat",
+       "to": "guess",
+       "label": "largest share"
+      }
+     ],
+     "states": [
+      {
+       "id": "scores",
+       "label": "Scores",
+       "sentence": "The model gives each candidate word a raw score. Temperature 0.5 will divide each by 0.5.",
+       "why": "Raw scores can be any size or sign, so they are not yet probabilities.",
+       "short": "Raw scores",
+       "calloutRegion": "mat",
+       "active": [
+        "context",
+        "mat",
+        "sofa",
+        "moon"
+       ],
+       "readouts": [
+        {
+         "id": "r-mat",
+         "label": "mat score",
+         "value": "2.0"
+        },
+        {
+         "id": "r-sofa",
+         "label": "sofa score",
+         "value": "1.0"
+        },
+        {
+         "id": "r-moon",
+         "label": "moon score",
+         "value": "0.0"
+        }
+       ]
+      },
+      {
+       "id": "exp",
+       "label": "Exponentiate",
+       "sentence": "Scores are doubled, then exponentiated. The gaps stretch far more than at temperature 1.0.",
+       "why": "A lower temperature sharpens the differences between candidates.",
+       "short": "Exponentiate",
+       "calloutRegion": "sofa",
+       "active": [
+        "mat",
+        "sofa",
+        "moon"
+       ],
+       "readouts": [
+        {
+         "id": "e-mat",
+         "label": "mat exp",
+         "value": "54.60"
+        },
+        {
+         "id": "e-sofa",
+         "label": "sofa exp",
+         "value": "7.39"
+        },
+        {
+         "id": "e-moon",
+         "label": "moon exp",
+         "value": "1.00"
+        }
+       ]
+      },
+      {
+       "id": "normalize",
+       "label": "Divide by total",
+       "sentence": "Each exponentiated value is divided by their total, 62.99, giving shares.",
+       "why": "Dividing by the total forces the shares to sum to 1.",
+       "short": "Normalize",
+       "calloutRegion": "total",
+       "active": [
+        "mat",
+        "sofa",
+        "moon",
+        "total"
+       ],
+       "readouts": [
+        {
+         "id": "p-mat",
+         "label": "mat share",
+         "value": "0.867"
+        },
+        {
+         "id": "p-sofa",
+         "label": "sofa share",
+         "value": "0.117"
+        },
+        {
+         "id": "p-moon",
+         "label": "moon share",
+         "value": "0.016"
+        },
+        {
+         "id": "p-sum",
+         "label": "sum",
+         "value": "1.000"
+        }
+       ]
+      },
+      {
+       "id": "guess",
+       "label": "Pick the guess",
+       "sentence": "The word with the largest share, mat, becomes the guess, now with more confidence.",
+       "why": "The highest score stays the highest share after softmax.",
+       "short": "Guess",
+       "calloutRegion": "guess",
+       "active": [
+        "mat",
+        "guess"
+       ],
+       "readouts": [
+        {
+         "id": "g-word",
+         "label": "guess",
+         "value": "mat"
+        },
+        {
+         "id": "g-p",
+         "label": "probability",
+         "value": "86.7%"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3077,
+  "output": 4225
+ },
+ "usd": 0.048404,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture answers how raw scores become shares and a guess, using candidate regions with score, exp and share values, a total region, and a link from mat to the guess."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state is the final 'guess' step of a stepper, so it holds there until the learner acts, with no timer to move it on."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "Switching temperature changes the exp values, total, shares and confidence (66.5% vs 86.7%), and the sentences change to match."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callout targets, ghost and readouts bind to declared regions, states and previous.active, and all the numbers trace to the variant data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels and sentences name the same objects (scores, exponentiate, total, shares, guess) and the temperature control matches the variants."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth uses 3 candidates, 4 steps and 2-4 readouts per step, and the temperature comparison adds mechanism without clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "All values check out (7.39/2.72/1.00 total 11.11; 54.60/7.39/1.00 total 62.99; shares sum to 1), but the same numbers are placed twice, in the region values and again in the readouts, and the totals also appear in the sentences."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.020334
+ }
+}

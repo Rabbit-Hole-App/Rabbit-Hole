@@ -1,0 +1,877 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a27",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "How does a transformer turn the words in a sentence into embeddings?",
+ "ts": "2026-11-14T22:33:31.330Z",
+ "ms": 75158,
+ "raw": "{\"story\":\"A sentence is split into tokens. Each token becomes an ID, and the ID picks one row from a learned table E. The word \\\"the\\\" appears twice and gets the same row both times. Adding a position vector P[i] separates them: x_i = E[id_i] + P[i]. Turn positions off and the two vectors become identical again.\",\"aha\":{\"stateId\":\"s-compare\",\"observation\":\"Both copies of 'the' copy the same row E[5]. Only the added position vector separates x₀ from x₄, by a distance of 1.82.\"},\"layout\":{\"preset\":\"pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"top rail with step names; completed steps marked as trace\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"left-to-right pipeline: text → tokens → IDs → table/row → +P → x → X → layer\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"anchored to the active region; says where, not values\"},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"},\"presentation\":\"faint outline of the previous step's regions\"},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"below picture; formulas and computed counts, 2-decimal rounding\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons; names kept when disabled at ends\"},{\"id\":\"positions\",\"kind\":\"select\",\"label\":\"Positional encoding\",\"options\":[\"Sinusoidal positions\",\"No positions\"],\"default\":0,\"presentation\":\"selects variant; changes P and x values and the distance readout\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"returns to step 1 with sinusoidal positions\"}],\"data\":{\"variants\":[{\"label\":\"Sinusoidal positions\",\"regions\":[{\"id\":\"r-text\",\"label\":\"Sentence\",\"values\":[\"the cat sat on the mat\"]},{\"id\":\"r-tokens\",\"label\":\"Tokens\",\"values\":[\"the\",\"cat\",\"sat\",\"on\",\"the\",\"mat\"]},{\"id\":\"r-ids\",\"label\":\"Token IDs\",\"values\":[\"5\",\"12\",\"31\",\"8\",\"5\",\"19\"]},{\"id\":\"r-table\",\"label\":\"Embedding table E (50 × 4)\",\"values\":[\"row 5: the\",\"row 8: on\",\"row 12: cat\",\"row 19: mat\",\"row 31: sat\"]},{\"id\":\"r-row\",\"label\":\"Row E[5]\",\"values\":[\"0.20\",\"-0.10\",\"0.40\",\"0.00\"]},{\"id\":\"r-pos0\",\"label\":\"P[0]\",\"values\":[\"0.00\",\"1.00\",\"0.00\",\"1.00\"]},{\"id\":\"r-pos4\",\"label\":\"P[4]\",\"values\":[\"-0.76\",\"-0.65\",\"0.04\",\"1.00\"]},{\"id\":\"r-x0\",\"label\":\"x₀ = E[5] + P[0]\",\"values\":[\"0.20\",\"0.90\",\"0.40\",\"1.00\"]},{\"id\":\"r-x4\",\"label\":\"x₄ = E[5] + P[4]\",\"values\":[\"-0.56\",\"-0.75\",\"0.44\",\"1.00\"]},{\"id\":\"r-X\",\"label\":\"Input matrix X (6 × 4)\",\"values\":[\"x₀ the\",\"x₁ cat\",\"x₂ sat\",\"x₃ on\",\"x₄ the\",\"x₅ mat\"]},{\"id\":\"r-layer\",\"label\":\"Transformer layer 1\",\"values\":[\"self-attention\",\"feed-forward\"]}],\"links\":[{\"from\":\"r-text\",\"to\":\"r-tokens\",\"label\":\"tokenize\"},{\"from\":\"r-tokens\",\"to\":\"r-ids\",\"label\":\"vocab index\"},{\"from\":\"r-ids\",\"to\":\"r-table\",\"label\":\"select row\"},{\"from\":\"r-table\",\"to\":\"r-row\",\"label\":\"copy\"},{\"from\":\"r-row\",\"to\":\"r-x0\",\"label\":\"+\"},{\"from\":\"r-pos0\",\"to\":\"r-x0\",\"label\":\"+\"},{\"from\":\"r-row\",\"to\":\"r-x4\",\"label\":\"+\"},{\"from\":\"r-pos4\",\"to\":\"r-x4\",\"label\":\"+\"},{\"from\":\"r-x0\",\"to\":\"r-X\",\"label\":\"row 0\"},{\"from\":\"r-x4\",\"to\":\"r-X\",\"label\":\"row 4\"},{\"from\":\"r-X\",\"to\":\"r-layer\",\"label\":\"input\"}],\"states\":[{\"id\":\"s-text\",\"label\":\"Sentence\",\"short\":\"Text\",\"active\":[\"r-text\"],\"calloutRegion\":\"r-text\",\"sentence\":\"The input is plain text. The model cannot do arithmetic on letters, so it needs numbers.\",\"why\":\"Starting point\",\"readouts\":[{\"id\":\"assume\",\"label\":\"Assumptions\",\"value\":\"toy vocab 50, d_model 4, no √d scaling, 2 decimals\"},{\"id\":\"words\",\"label\":\"Words\",\"value\":\"6\"}]},{\"id\":\"s-tokens\",\"label\":\"Tokenize\",\"short\":\"Tokens\",\"active\":[\"r-tokens\"],\"calloutRegion\":\"r-tokens\",\"sentence\":\"A tokenizer splits the text into tokens. In this toy example, each word is one token.\",\"why\":\"Units the model indexes\",\"readouts\":[{\"id\":\"count\",\"label\":\"Token count\",\"value\":\"6\"}]},{\"id\":\"s-ids\",\"label\":\"Token IDs\",\"short\":\"IDs\",\"active\":[\"r-ids\"],\"calloutRegion\":\"r-ids\",\"sentence\":\"Each token is replaced by its vocabulary index. Both copies of 'the' map to ID 5.\",\"why\":\"Same word gives the same ID\",\"readouts\":[{\"id\":\"distinct\",\"label\":\"Distinct IDs\",\"value\":\"5 of 6 tokens\"}]},{\"id\":\"s-lookup\",\"label\":\"Row lookup\",\"short\":\"E[id]\",\"active\":[\"r-table\",\"r-row\"],\"calloutRegion\":\"r-row\",\"sentence\":\"ID 5 selects row 5 of the learned table E. The lookup simply copies that row.\",\"why\":\"Embedding = table lookup\",\"readouts\":[{\"id\":\"formula\",\"label\":\"Formula\",\"value\":\"e = E[id]\"},{\"id\":\"size\",\"label\":\"Toy table size\",\"value\":\"50 × 4 = 200 learned numbers\"},{\"id\":\"real\",\"label\":\"GPT-2 scale\",\"value\":\"50,257 × 768 = 38,597,376\"}]},{\"id\":\"s-same\",\"label\":\"Same word, same row\",\"short\":\"Repeat\",\"active\":[\"r-ids\",\"r-row\"],\"calloutRegion\":\"r-ids\",\"sentence\":\"'the' at position 4 also has ID 5, so it copies the same row E[5].\",\"why\":\"Lookup ignores order\",\"readouts\":[{\"id\":\"gap\",\"label\":\"‖E[5] − E[5]‖\",\"value\":\"0.00\"}]},{\"id\":\"s-pos\",\"label\":\"Position vectors\",\"short\":\"P[i]\",\"active\":[\"r-pos0\",\"r-pos4\"],\"calloutRegion\":\"r-pos4\",\"sentence\":\"A sinusoidal vector P[i] is computed for each position i, so P[0] and P[4] differ.\",\"why\":\"Order enters here\",\"readouts\":[{\"id\":\"pe\",\"label\":\"Formula\",\"value\":\"P[i,2k]=sin(i/10000^(2k/4)), P[i,2k+1]=cos(same)\"}]},{\"id\":\"s-compare\",\"label\":\"Add position\",\"short\":\"Aha\",\"active\":[\"r-x0\",\"r-x4\"],\"calloutRegion\":\"r-x4\",\"sentence\":\"Adding P gives x₀ and x₄. The word is the same, but the input vectors now differ.\",\"why\":\"Position separates repeated words\",\"readouts\":[{\"id\":\"sum\",\"label\":\"Formula\",\"value\":\"x_i = E[id_i] + P[i]\"},{\"id\":\"dist\",\"label\":\"‖x₀ − x₄‖\",\"value\":\"1.82\"}]},{\"id\":\"s-stack\",\"label\":\"Stack into X\",\"short\":\"X\",\"active\":[\"r-X\"],\"calloutRegion\":\"r-X\",\"sentence\":\"The six input vectors stack into matrix X, with one row per token.\",\"why\":\"Batch for the layer\",\"readouts\":[{\"id\":\"shape\",\"label\":\"Shape\",\"value\":\"6 × 4 = 24 numbers\"}]},{\"id\":\"s-layer\",\"label\":\"Into layer 1\",\"short\":\"Layer\",\"active\":[\"r-layer\"],\"calloutRegion\":\"r-layer\",\"sentence\":\"X enters layer 1. There, attention mixes the rows into contextual embeddings.\",\"why\":\"Context comes after input embedding\",\"readouts\":[{\"id\":\"out\",\"label\":\"Output shape\",\"value\":\"6 × 4 (unchanged)\"}]}]},{\"label\":\"No positions\",\"regions\":[{\"id\":\"r-text\",\"label\":\"Sentence\",\"values\":[\"the cat sat on the mat\"]},{\"id\":\"r-tokens\",\"label\":\"Tokens\",\"values\":[\"the\",\"cat\",\"sat\",\"on\",\"the\",\"mat\"]},{\"id\":\"r-ids\",\"label\":\"Token IDs\",\"values\":[\"5\",\"12\",\"31\",\"8\",\"5\",\"19\"]},{\"id\":\"r-table\",\"label\":\"Embedding table E (50 × 4)\",\"values\":[\"row 5: the\",\"row 8: on\",\"row 12: cat\",\"row 19: mat\",\"row 31: sat\"]},{\"id\":\"r-row\",\"label\":\"Row E[5]\",\"values\":[\"0.20\",\"-0.10\",\"0.40\",\"0.00\"]},{\"id\":\"r-pos0\",\"label\":\"P[0] (off)\",\"values\":[\"0.00\",\"0.00\",\"0.00\",\"0.00\"]},{\"id\":\"r-pos4\",\"label\":\"P[4] (off)\",\"values\":[\"0.00\",\"0.00\",\"0.00\",\"0.00\"]},{\"id\":\"r-x0\",\"label\":\"x₀ = E[5]\",\"values\":[\"0.20\",\"-0.10\",\"0.40\",\"0.00\"]},{\"id\":\"r-x4\",\"label\":\"x₄ = E[5]\",\"values\":[\"0.20\",\"-0.10\",\"0.40\",\"0.00\"]},{\"id\":\"r-X\",\"label\":\"Input matrix X (6 × 4)\",\"values\":[\"x₀ the\",\"x₁ cat\",\"x₂ sat\",\"x₃ on\",\"x₄ the\",\"x₅ mat\"]},{\"id\":\"r-layer\",\"label\":\"Transformer layer 1\",\"values\":[\"self-attention\",\"feed-forward\"]}],\"links\":[{\"from\":\"r-text\",\"to\":\"r-tokens\",\"label\":\"tokenize\"},{\"from\":\"r-tokens\",\"to\":\"r-ids\",\"label\":\"vocab index\"},{\"from\":\"r-ids\",\"to\":\"r-table\",\"label\":\"select row\"},{\"from\":\"r-table\",\"to\":\"r-row\",\"label\":\"copy\"},{\"from\":\"r-row\",\"to\":\"r-x0\",\"label\":\"+\"},{\"from\":\"r-pos0\",\"to\":\"r-x0\",\"label\":\"+\"},{\"from\":\"r-row\",\"to\":\"r-x4\",\"label\":\"+\"},{\"from\":\"r-pos4\",\"to\":\"r-x4\",\"label\":\"+\"},{\"from\":\"r-x0\",\"to\":\"r-X\",\"label\":\"row 0\"},{\"from\":\"r-x4\",\"to\":\"r-X\",\"label\":\"row 4\"},{\"from\":\"r-X\",\"to\":\"r-layer\",\"label\":\"input\"}],\"states\":[{\"id\":\"s-text\",\"label\":\"Sentence\",\"short\":\"Text\",\"active\":[\"r-text\"],\"calloutRegion\":\"r-text\",\"sentence\":\"The input is plain text. The model cannot do arithmetic on letters, so it needs numbers.\",\"why\":\"Starting point\",\"readouts\":[{\"id\":\"assume\",\"label\":\"Assumptions\",\"value\":\"toy vocab 50, d_model 4, positions off, 2 decimals\"},{\"id\":\"words\",\"label\":\"Words\",\"value\":\"6\"}]},{\"id\":\"s-tokens\",\"label\":\"Tokenize\",\"short\":\"Tokens\",\"active\":[\"r-tokens\"],\"calloutRegion\":\"r-tokens\",\"sentence\":\"A tokenizer splits the text into tokens. In this toy example, each word is one token.\",\"why\":\"Units the model indexes\",\"readouts\":[{\"id\":\"count\",\"label\":\"Token count\",\"value\":\"6\"}]},{\"id\":\"s-ids\",\"label\":\"Token IDs\",\"short\":\"IDs\",\"active\":[\"r-ids\"],\"calloutRegion\":\"r-ids\",\"sentence\":\"Each token is replaced by its vocabulary index. Both copies of 'the' map to ID 5.\",\"why\":\"Same word gives the same ID\",\"readouts\":[{\"id\":\"distinct\",\"label\":\"Distinct IDs\",\"value\":\"5 of 6 tokens\"}]},{\"id\":\"s-lookup\",\"label\":\"Row lookup\",\"short\":\"E[id]\",\"active\":[\"r-table\",\"r-row\"],\"calloutRegion\":\"r-row\",\"sentence\":\"ID 5 selects row 5 of the learned table E. The lookup simply copies that row.\",\"why\":\"Embedding = table lookup\",\"readouts\":[{\"id\":\"formula\",\"label\":\"Formula\",\"value\":\"e = E[id]\"},{\"id\":\"size\",\"label\":\"Toy table size\",\"value\":\"50 × 4 = 200 learned numbers\"},{\"id\":\"real\",\"label\":\"GPT-2 scale\",\"value\":\"50,257 × 768 = 38,597,376\"}]},{\"id\":\"s-same\",\"label\":\"Same word, same row\",\"short\":\"Repeat\",\"active\":[\"r-ids\",\"r-row\"],\"calloutRegion\":\"r-ids\",\"sentence\":\"'the' at position 4 also has ID 5, so it copies the same row E[5].\",\"why\":\"Lookup ignores order\",\"readouts\":[{\"id\":\"gap\",\"label\":\"‖E[5] − E[5]‖\",\"value\":\"0.00\"}]},{\"id\":\"s-pos\",\"label\":\"Position vectors\",\"short\":\"P[i]\",\"active\":[\"r-pos0\",\"r-pos4\"],\"calloutRegion\":\"r-pos4\",\"sentence\":\"Positional encoding is switched off, so P[0] and P[4] are both all zeros.\",\"why\":\"No order signal\",\"readouts\":[{\"id\":\"pe\",\"label\":\"Formula\",\"value\":\"P[i] = 0 for every i\"}]},{\"id\":\"s-compare\",\"label\":\"Add position\",\"short\":\"Aha\",\"active\":[\"r-x0\",\"r-x4\"],\"calloutRegion\":\"r-x4\",\"sentence\":\"Without positions, x₀ equals x₄. Attention cannot tell the two copies of 'the' apart.\",\"why\":\"Lookup alone loses word order\",\"readouts\":[{\"id\":\"sum\",\"label\":\"Formula\",\"value\":\"x_i = E[id_i] + 0\"},{\"id\":\"dist\",\"label\":\"‖x₀ − x₄‖\",\"value\":\"0.00\"}]},{\"id\":\"s-stack\",\"label\":\"Stack into X\",\"short\":\"X\",\"active\":[\"r-X\"],\"calloutRegion\":\"r-X\",\"sentence\":\"The six input vectors stack into matrix X. Rows 0 and 4 are identical.\",\"why\":\"Batch for the layer\",\"readouts\":[{\"id\":\"shape\",\"label\":\"Shape\",\"value\":\"6 × 4 = 24 numbers\"}]},{\"id\":\"s-layer\",\"label\":\"Into layer 1\",\"short\":\"Layer\",\"active\":[\"r-layer\"],\"calloutRegion\":\"r-layer\",\"sentence\":\"X enters layer 1. Without position vectors, attention treats the sentence as an unordered set.\",\"why\":\"Context comes after input embedding\",\"readouts\":[{\"id\":\"out\",\"label\":\"Output shape\",\"value\":\"6 × 4 (unchanged)\"}]}]}]}}",
+ "composition": {
+  "story": "A sentence is split into tokens. Each token becomes an ID, and the ID picks one row from a learned table E. The word \"the\" appears twice and gets the same row both times. Adding a position vector P[i] separates them: x_i = E[id_i] + P[i]. Turn positions off and the two vectors become identical again.",
+  "aha": {
+   "stateId": "s-compare",
+   "observation": "Both copies of 'the' copy the same row E[5]. Only the added position vector separates x₀ from x₄, by a distance of 1.82."
+  },
+  "layout": {
+   "preset": "pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "top rail with step names; completed steps marked as trace"
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "left-to-right pipeline: text → tokens → IDs → table/row → +P → x → X → layer"
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "anchored to the active region; says where, not values"
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    },
+    "presentation": "faint outline of the previous step's regions"
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "below picture; formulas and computed counts, 2-decimal rounding"
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons; names kept when disabled at ends"
+   },
+   {
+    "id": "positions",
+    "kind": "select",
+    "label": "Positional encoding",
+    "options": [
+     "Sinusoidal positions",
+     "No positions"
+    ],
+    "default": 0,
+    "presentation": "selects variant; changes P and x values and the distance readout"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "returns to step 1 with sinusoidal positions"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Sinusoidal positions",
+     "regions": [
+      {
+       "id": "r-text",
+       "label": "Sentence",
+       "values": [
+        "the cat sat on the mat"
+       ]
+      },
+      {
+       "id": "r-tokens",
+       "label": "Tokens",
+       "values": [
+        "the",
+        "cat",
+        "sat",
+        "on",
+        "the",
+        "mat"
+       ]
+      },
+      {
+       "id": "r-ids",
+       "label": "Token IDs",
+       "values": [
+        "5",
+        "12",
+        "31",
+        "8",
+        "5",
+        "19"
+       ]
+      },
+      {
+       "id": "r-table",
+       "label": "Embedding table E (50 × 4)",
+       "values": [
+        "row 5: the",
+        "row 8: on",
+        "row 12: cat",
+        "row 19: mat",
+        "row 31: sat"
+       ]
+      },
+      {
+       "id": "r-row",
+       "label": "Row E[5]",
+       "values": [
+        "0.20",
+        "-0.10",
+        "0.40",
+        "0.00"
+       ]
+      },
+      {
+       "id": "r-pos0",
+       "label": "P[0]",
+       "values": [
+        "0.00",
+        "1.00",
+        "0.00",
+        "1.00"
+       ]
+      },
+      {
+       "id": "r-pos4",
+       "label": "P[4]",
+       "values": [
+        "-0.76",
+        "-0.65",
+        "0.04",
+        "1.00"
+       ]
+      },
+      {
+       "id": "r-x0",
+       "label": "x₀ = E[5] + P[0]",
+       "values": [
+        "0.20",
+        "0.90",
+        "0.40",
+        "1.00"
+       ]
+      },
+      {
+       "id": "r-x4",
+       "label": "x₄ = E[5] + P[4]",
+       "values": [
+        "-0.56",
+        "-0.75",
+        "0.44",
+        "1.00"
+       ]
+      },
+      {
+       "id": "r-X",
+       "label": "Input matrix X (6 × 4)",
+       "values": [
+        "x₀ the",
+        "x₁ cat",
+        "x₂ sat",
+        "x₃ on",
+        "x₄ the",
+        "x₅ mat"
+       ]
+      },
+      {
+       "id": "r-layer",
+       "label": "Transformer layer 1",
+       "values": [
+        "self-attention",
+        "feed-forward"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "r-text",
+       "to": "r-tokens",
+       "label": "tokenize"
+      },
+      {
+       "from": "r-tokens",
+       "to": "r-ids",
+       "label": "vocab index"
+      },
+      {
+       "from": "r-ids",
+       "to": "r-table",
+       "label": "select row"
+      },
+      {
+       "from": "r-table",
+       "to": "r-row",
+       "label": "copy"
+      },
+      {
+       "from": "r-row",
+       "to": "r-x0",
+       "label": "+"
+      },
+      {
+       "from": "r-pos0",
+       "to": "r-x0",
+       "label": "+"
+      },
+      {
+       "from": "r-row",
+       "to": "r-x4",
+       "label": "+"
+      },
+      {
+       "from": "r-pos4",
+       "to": "r-x4",
+       "label": "+"
+      },
+      {
+       "from": "r-x0",
+       "to": "r-X",
+       "label": "row 0"
+      },
+      {
+       "from": "r-x4",
+       "to": "r-X",
+       "label": "row 4"
+      },
+      {
+       "from": "r-X",
+       "to": "r-layer",
+       "label": "input"
+      }
+     ],
+     "states": [
+      {
+       "id": "s-text",
+       "label": "Sentence",
+       "short": "Text",
+       "active": [
+        "r-text"
+       ],
+       "calloutRegion": "r-text",
+       "sentence": "The input is plain text. The model cannot do arithmetic on letters, so it needs numbers.",
+       "why": "Starting point",
+       "readouts": [
+        {
+         "id": "assume",
+         "label": "Assumptions",
+         "value": "toy vocab 50, d_model 4, no √d scaling, 2 decimals"
+        },
+        {
+         "id": "words",
+         "label": "Words",
+         "value": "6"
+        }
+       ]
+      },
+      {
+       "id": "s-tokens",
+       "label": "Tokenize",
+       "short": "Tokens",
+       "active": [
+        "r-tokens"
+       ],
+       "calloutRegion": "r-tokens",
+       "sentence": "A tokenizer splits the text into tokens. In this toy example, each word is one token.",
+       "why": "Units the model indexes",
+       "readouts": [
+        {
+         "id": "count",
+         "label": "Token count",
+         "value": "6"
+        }
+       ]
+      },
+      {
+       "id": "s-ids",
+       "label": "Token IDs",
+       "short": "IDs",
+       "active": [
+        "r-ids"
+       ],
+       "calloutRegion": "r-ids",
+       "sentence": "Each token is replaced by its vocabulary index. Both copies of 'the' map to ID 5.",
+       "why": "Same word gives the same ID",
+       "readouts": [
+        {
+         "id": "distinct",
+         "label": "Distinct IDs",
+         "value": "5 of 6 tokens"
+        }
+       ]
+      },
+      {
+       "id": "s-lookup",
+       "label": "Row lookup",
+       "short": "E[id]",
+       "active": [
+        "r-table",
+        "r-row"
+       ],
+       "calloutRegion": "r-row",
+       "sentence": "ID 5 selects row 5 of the learned table E. The lookup simply copies that row.",
+       "why": "Embedding = table lookup",
+       "readouts": [
+        {
+         "id": "formula",
+         "label": "Formula",
+         "value": "e = E[id]"
+        },
+        {
+         "id": "size",
+         "label": "Toy table size",
+         "value": "50 × 4 = 200 learned numbers"
+        },
+        {
+         "id": "real",
+         "label": "GPT-2 scale",
+         "value": "50,257 × 768 = 38,597,376"
+        }
+       ]
+      },
+      {
+       "id": "s-same",
+       "label": "Same word, same row",
+       "short": "Repeat",
+       "active": [
+        "r-ids",
+        "r-row"
+       ],
+       "calloutRegion": "r-ids",
+       "sentence": "'the' at position 4 also has ID 5, so it copies the same row E[5].",
+       "why": "Lookup ignores order",
+       "readouts": [
+        {
+         "id": "gap",
+         "label": "‖E[5] − E[5]‖",
+         "value": "0.00"
+        }
+       ]
+      },
+      {
+       "id": "s-pos",
+       "label": "Position vectors",
+       "short": "P[i]",
+       "active": [
+        "r-pos0",
+        "r-pos4"
+       ],
+       "calloutRegion": "r-pos4",
+       "sentence": "A sinusoidal vector P[i] is computed for each position i, so P[0] and P[4] differ.",
+       "why": "Order enters here",
+       "readouts": [
+        {
+         "id": "pe",
+         "label": "Formula",
+         "value": "P[i,2k]=sin(i/10000^(2k/4)), P[i,2k+1]=cos(same)"
+        }
+       ]
+      },
+      {
+       "id": "s-compare",
+       "label": "Add position",
+       "short": "Aha",
+       "active": [
+        "r-x0",
+        "r-x4"
+       ],
+       "calloutRegion": "r-x4",
+       "sentence": "Adding P gives x₀ and x₄. The word is the same, but the input vectors now differ.",
+       "why": "Position separates repeated words",
+       "readouts": [
+        {
+         "id": "sum",
+         "label": "Formula",
+         "value": "x_i = E[id_i] + P[i]"
+        },
+        {
+         "id": "dist",
+         "label": "‖x₀ − x₄‖",
+         "value": "1.82"
+        }
+       ]
+      },
+      {
+       "id": "s-stack",
+       "label": "Stack into X",
+       "short": "X",
+       "active": [
+        "r-X"
+       ],
+       "calloutRegion": "r-X",
+       "sentence": "The six input vectors stack into matrix X, with one row per token.",
+       "why": "Batch for the layer",
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Shape",
+         "value": "6 × 4 = 24 numbers"
+        }
+       ]
+      },
+      {
+       "id": "s-layer",
+       "label": "Into layer 1",
+       "short": "Layer",
+       "active": [
+        "r-layer"
+       ],
+       "calloutRegion": "r-layer",
+       "sentence": "X enters layer 1. There, attention mixes the rows into contextual embeddings.",
+       "why": "Context comes after input embedding",
+       "readouts": [
+        {
+         "id": "out",
+         "label": "Output shape",
+         "value": "6 × 4 (unchanged)"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "No positions",
+     "regions": [
+      {
+       "id": "r-text",
+       "label": "Sentence",
+       "values": [
+        "the cat sat on the mat"
+       ]
+      },
+      {
+       "id": "r-tokens",
+       "label": "Tokens",
+       "values": [
+        "the",
+        "cat",
+        "sat",
+        "on",
+        "the",
+        "mat"
+       ]
+      },
+      {
+       "id": "r-ids",
+       "label": "Token IDs",
+       "values": [
+        "5",
+        "12",
+        "31",
+        "8",
+        "5",
+        "19"
+       ]
+      },
+      {
+       "id": "r-table",
+       "label": "Embedding table E (50 × 4)",
+       "values": [
+        "row 5: the",
+        "row 8: on",
+        "row 12: cat",
+        "row 19: mat",
+        "row 31: sat"
+       ]
+      },
+      {
+       "id": "r-row",
+       "label": "Row E[5]",
+       "values": [
+        "0.20",
+        "-0.10",
+        "0.40",
+        "0.00"
+       ]
+      },
+      {
+       "id": "r-pos0",
+       "label": "P[0] (off)",
+       "values": [
+        "0.00",
+        "0.00",
+        "0.00",
+        "0.00"
+       ]
+      },
+      {
+       "id": "r-pos4",
+       "label": "P[4] (off)",
+       "values": [
+        "0.00",
+        "0.00",
+        "0.00",
+        "0.00"
+       ]
+      },
+      {
+       "id": "r-x0",
+       "label": "x₀ = E[5]",
+       "values": [
+        "0.20",
+        "-0.10",
+        "0.40",
+        "0.00"
+       ]
+      },
+      {
+       "id": "r-x4",
+       "label": "x₄ = E[5]",
+       "values": [
+        "0.20",
+        "-0.10",
+        "0.40",
+        "0.00"
+       ]
+      },
+      {
+       "id": "r-X",
+       "label": "Input matrix X (6 × 4)",
+       "values": [
+        "x₀ the",
+        "x₁ cat",
+        "x₂ sat",
+        "x₃ on",
+        "x₄ the",
+        "x₅ mat"
+       ]
+      },
+      {
+       "id": "r-layer",
+       "label": "Transformer layer 1",
+       "values": [
+        "self-attention",
+        "feed-forward"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "r-text",
+       "to": "r-tokens",
+       "label": "tokenize"
+      },
+      {
+       "from": "r-tokens",
+       "to": "r-ids",
+       "label": "vocab index"
+      },
+      {
+       "from": "r-ids",
+       "to": "r-table",
+       "label": "select row"
+      },
+      {
+       "from": "r-table",
+       "to": "r-row",
+       "label": "copy"
+      },
+      {
+       "from": "r-row",
+       "to": "r-x0",
+       "label": "+"
+      },
+      {
+       "from": "r-pos0",
+       "to": "r-x0",
+       "label": "+"
+      },
+      {
+       "from": "r-row",
+       "to": "r-x4",
+       "label": "+"
+      },
+      {
+       "from": "r-pos4",
+       "to": "r-x4",
+       "label": "+"
+      },
+      {
+       "from": "r-x0",
+       "to": "r-X",
+       "label": "row 0"
+      },
+      {
+       "from": "r-x4",
+       "to": "r-X",
+       "label": "row 4"
+      },
+      {
+       "from": "r-X",
+       "to": "r-layer",
+       "label": "input"
+      }
+     ],
+     "states": [
+      {
+       "id": "s-text",
+       "label": "Sentence",
+       "short": "Text",
+       "active": [
+        "r-text"
+       ],
+       "calloutRegion": "r-text",
+       "sentence": "The input is plain text. The model cannot do arithmetic on letters, so it needs numbers.",
+       "why": "Starting point",
+       "readouts": [
+        {
+         "id": "assume",
+         "label": "Assumptions",
+         "value": "toy vocab 50, d_model 4, positions off, 2 decimals"
+        },
+        {
+         "id": "words",
+         "label": "Words",
+         "value": "6"
+        }
+       ]
+      },
+      {
+       "id": "s-tokens",
+       "label": "Tokenize",
+       "short": "Tokens",
+       "active": [
+        "r-tokens"
+       ],
+       "calloutRegion": "r-tokens",
+       "sentence": "A tokenizer splits the text into tokens. In this toy example, each word is one token.",
+       "why": "Units the model indexes",
+       "readouts": [
+        {
+         "id": "count",
+         "label": "Token count",
+         "value": "6"
+        }
+       ]
+      },
+      {
+       "id": "s-ids",
+       "label": "Token IDs",
+       "short": "IDs",
+       "active": [
+        "r-ids"
+       ],
+       "calloutRegion": "r-ids",
+       "sentence": "Each token is replaced by its vocabulary index. Both copies of 'the' map to ID 5.",
+       "why": "Same word gives the same ID",
+       "readouts": [
+        {
+         "id": "distinct",
+         "label": "Distinct IDs",
+         "value": "5 of 6 tokens"
+        }
+       ]
+      },
+      {
+       "id": "s-lookup",
+       "label": "Row lookup",
+       "short": "E[id]",
+       "active": [
+        "r-table",
+        "r-row"
+       ],
+       "calloutRegion": "r-row",
+       "sentence": "ID 5 selects row 5 of the learned table E. The lookup simply copies that row.",
+       "why": "Embedding = table lookup",
+       "readouts": [
+        {
+         "id": "formula",
+         "label": "Formula",
+         "value": "e = E[id]"
+        },
+        {
+         "id": "size",
+         "label": "Toy table size",
+         "value": "50 × 4 = 200 learned numbers"
+        },
+        {
+         "id": "real",
+         "label": "GPT-2 scale",
+         "value": "50,257 × 768 = 38,597,376"
+        }
+       ]
+      },
+      {
+       "id": "s-same",
+       "label": "Same word, same row",
+       "short": "Repeat",
+       "active": [
+        "r-ids",
+        "r-row"
+       ],
+       "calloutRegion": "r-ids",
+       "sentence": "'the' at position 4 also has ID 5, so it copies the same row E[5].",
+       "why": "Lookup ignores order",
+       "readouts": [
+        {
+         "id": "gap",
+         "label": "‖E[5] − E[5]‖",
+         "value": "0.00"
+        }
+       ]
+      },
+      {
+       "id": "s-pos",
+       "label": "Position vectors",
+       "short": "P[i]",
+       "active": [
+        "r-pos0",
+        "r-pos4"
+       ],
+       "calloutRegion": "r-pos4",
+       "sentence": "Positional encoding is switched off, so P[0] and P[4] are both all zeros.",
+       "why": "No order signal",
+       "readouts": [
+        {
+         "id": "pe",
+         "label": "Formula",
+         "value": "P[i] = 0 for every i"
+        }
+       ]
+      },
+      {
+       "id": "s-compare",
+       "label": "Add position",
+       "short": "Aha",
+       "active": [
+        "r-x0",
+        "r-x4"
+       ],
+       "calloutRegion": "r-x4",
+       "sentence": "Without positions, x₀ equals x₄. Attention cannot tell the two copies of 'the' apart.",
+       "why": "Lookup alone loses word order",
+       "readouts": [
+        {
+         "id": "sum",
+         "label": "Formula",
+         "value": "x_i = E[id_i] + 0"
+        },
+        {
+         "id": "dist",
+         "label": "‖x₀ − x₄‖",
+         "value": "0.00"
+        }
+       ]
+      },
+      {
+       "id": "s-stack",
+       "label": "Stack into X",
+       "short": "X",
+       "active": [
+        "r-X"
+       ],
+       "calloutRegion": "r-X",
+       "sentence": "The six input vectors stack into matrix X. Rows 0 and 4 are identical.",
+       "why": "Batch for the layer",
+       "readouts": [
+        {
+         "id": "shape",
+         "label": "Shape",
+         "value": "6 × 4 = 24 numbers"
+        }
+       ]
+      },
+      {
+       "id": "s-layer",
+       "label": "Into layer 1",
+       "short": "Layer",
+       "active": [
+        "r-layer"
+       ],
+       "calloutRegion": "r-layer",
+       "sentence": "X enters layer 1. Without position vectors, attention treats the sentence as an unordered set.",
+       "why": "Context comes after input embedding",
+       "readouts": [
+        {
+         "id": "out",
+         "label": "Output shape",
+         "value": "6 × 4 (unchanged)"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3080,
+  "output": 9249
+ },
+ "usd": 0.1973,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The pipeline answers why two copies of 'the' differ, using the shared E[5] row, the P[0] and P[4] vectors, and the resulting x₀ and x₄."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The s-compare state is the aha and the scene is stepped by the learner with no timer, so it holds there until the learner moves on."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The positions select changes P, x₀, x₄ and the distance (1.82 vs 0.00), and the step control changes the active regions."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Highlights, callouts, ghosts and readouts all bind to the declared state.active, calloutRegion, previous.active and readouts, and each region has data values."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The narrative, region labels, link labels and the Step and Positional encoding controls all name the same tokens, rows, vectors and events, and the no-positions text matches its own variant data."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each step activates one or two regions, and the detailed depth adds formulas and counts (the P formula, the table-size counts) without exceeding the density ceiling."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": ""
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.02746
+ }
+}

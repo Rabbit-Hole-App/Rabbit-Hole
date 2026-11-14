@@ -1,0 +1,493 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a16",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "explain the OSI model of networking",
+ "ts": "2026-11-14T22:25:33.080Z",
+ "ms": 25316,
+ "raw": "{\"story\":\"A message leaves an app and must cross a network. The OSI model splits that trip into seven layers. Going down, each layer wraps the data in its own header. At the receiver, each layer peels off only its own header, in reverse.\",\"aha\":{\"stateId\":\"s8\",\"observation\":\"Each layer adds or reads only its own header and treats everything above it as payload, so the receiver unwraps in exact reverse order.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Sending a message through the seven OSI layers\",\"regions\":[{\"id\":\"l7\",\"label\":\"7 Application\",\"values\":[\"User data\",\"HTTP, SMTP\"]},{\"id\":\"l6\",\"label\":\"6 Presentation\",\"values\":[\"Encoding, encryption\"]},{\"id\":\"l5\",\"label\":\"5 Session\",\"values\":[\"Dialog control\"]},{\"id\":\"l4\",\"label\":\"4 Transport\",\"values\":[\"Segment\",\"Ports, TCP/UDP\"]},{\"id\":\"l3\",\"label\":\"3 Network\",\"values\":[\"Packet\",\"IP addresses\"]},{\"id\":\"l2\",\"label\":\"2 Data Link\",\"values\":[\"Frame\",\"MAC addresses\"]},{\"id\":\"l1\",\"label\":\"1 Physical\",\"values\":[\"Bits\",\"Signals\"]},{\"id\":\"wire\",\"label\":\"Wire to receiver\",\"values\":[\"Cable, Wi-Fi\"]}],\"links\":[{\"from\":\"l7\",\"to\":\"l6\",\"label\":\"data down\"},{\"from\":\"l6\",\"to\":\"l5\",\"label\":\"+ header\"},{\"from\":\"l5\",\"to\":\"l4\",\"label\":\"+ header\"},{\"from\":\"l4\",\"to\":\"l3\",\"label\":\"+ ports\"},{\"from\":\"l3\",\"to\":\"l2\",\"label\":\"+ IP\"},{\"from\":\"l2\",\"to\":\"l1\",\"label\":\"+ MAC\"},{\"from\":\"l1\",\"to\":\"wire\",\"label\":\"bits\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Application\",\"short\":\"App\",\"sentence\":\"The application creates the data to send, such as a web request. No wrapping has happened yet.\",\"why\":\"Every trip starts as plain user data.\",\"active\":[\"l7\"],\"calloutRegion\":\"l7\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Data\"},{\"id\":\"hdr\",\"label\":\"Headers added\",\"value\":\"0\"},{\"id\":\"dir\",\"label\":\"Direction\",\"value\":\"Down\"}]},{\"id\":\"s2\",\"label\":\"Presentation\",\"short\":\"Pres\",\"sentence\":\"Presentation encodes and encrypts the data into a shared format, then adds its header.\",\"why\":\"Both ends must agree on how to read the data.\",\"active\":[\"l7\",\"l6\"],\"calloutRegion\":\"l6\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Data\"},{\"id\":\"hdr\",\"label\":\"Headers added\",\"value\":\"1\"},{\"id\":\"dir\",\"label\":\"Direction\",\"value\":\"Down\"}]},{\"id\":\"s3\",\"label\":\"Session\",\"short\":\"Sess\",\"sentence\":\"Session adds a header that tracks which conversation this data belongs to.\",\"why\":\"It keeps dialogs open, ordered and resumable.\",\"active\":[\"l7\",\"l6\",\"l5\"],\"calloutRegion\":\"l5\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Data\"},{\"id\":\"hdr\",\"label\":\"Headers added\",\"value\":\"2\"},{\"id\":\"dir\",\"label\":\"Direction\",\"value\":\"Down\"}]},{\"id\":\"s4\",\"label\":\"Transport\",\"short\":\"Trans\",\"sentence\":\"Transport splits the data into segments and adds a header with port numbers.\",\"why\":\"Ports name the program that should receive each segment.\",\"active\":[\"l7\",\"l6\",\"l5\",\"l4\"],\"calloutRegion\":\"l4\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Segment\"},{\"id\":\"hdr\",\"label\":\"Headers added\",\"value\":\"3\"},{\"id\":\"dir\",\"label\":\"Direction\",\"value\":\"Down\"}]},{\"id\":\"s5\",\"label\":\"Network\",\"short\":\"Net\",\"sentence\":\"Network wraps each segment in a packet with source and destination IP addresses.\",\"why\":\"IP addresses let routers choose a path between networks.\",\"active\":[\"l7\",\"l6\",\"l5\",\"l4\",\"l3\"],\"calloutRegion\":\"l3\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Packet\"},{\"id\":\"hdr\",\"label\":\"Headers added\",\"value\":\"4\"},{\"id\":\"dir\",\"label\":\"Direction\",\"value\":\"Down\"}]},{\"id\":\"s6\",\"label\":\"Data Link\",\"short\":\"Link\",\"sentence\":\"Data Link wraps the packet in a frame with MAC addresses for the next hop.\",\"why\":\"MAC addresses move the frame across one local link.\",\"active\":[\"l7\",\"l6\",\"l5\",\"l4\",\"l3\",\"l2\"],\"calloutRegion\":\"l2\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Frame\"},{\"id\":\"hdr\",\"label\":\"Headers added\",\"value\":\"5\"},{\"id\":\"dir\",\"label\":\"Direction\",\"value\":\"Down\"}]},{\"id\":\"s7\",\"label\":\"Physical\",\"short\":\"Phys\",\"sentence\":\"Physical turns the whole frame into bits and sends them as signals onto the wire.\",\"why\":\"Only here does anything actually travel.\",\"active\":[\"l7\",\"l6\",\"l5\",\"l4\",\"l3\",\"l2\",\"l1\",\"wire\"],\"calloutRegion\":\"l1\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Bits\"},{\"id\":\"hdr\",\"label\":\"Headers added\",\"value\":\"5\"},{\"id\":\"dir\",\"label\":\"Direction\",\"value\":\"Out\"}]},{\"id\":\"s8\",\"label\":\"Receiver unwraps\",\"short\":\"Unwrap\",\"sentence\":\"The receiver peels layers in reverse. Each layer reads only its own header, then passes the payload up.\",\"why\":\"Layers stay independent: each talks only to its peer layer.\",\"active\":[\"l1\",\"l2\",\"l3\",\"l4\",\"l5\",\"l6\",\"l7\"],\"calloutRegion\":\"l7\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Data restored\"},{\"id\":\"hdr\",\"label\":\"Headers left\",\"value\":\"0\"},{\"id\":\"dir\",\"label\":\"Direction\",\"value\":\"Up\"}]}]}]}}",
+ "composition": {
+  "story": "A message leaves an app and must cross a network. The OSI model splits that trip into seven layers. Going down, each layer wraps the data in its own header. At the receiver, each layer peels off only its own header, in reverse.",
+  "aha": {
+   "stateId": "s8",
+   "observation": "Each layer adds or reads only its own header and treats everything above it as payload, so the receiver unwraps in exact reverse order."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Sending a message through the seven OSI layers",
+     "regions": [
+      {
+       "id": "l7",
+       "label": "7 Application",
+       "values": [
+        "User data",
+        "HTTP, SMTP"
+       ]
+      },
+      {
+       "id": "l6",
+       "label": "6 Presentation",
+       "values": [
+        "Encoding, encryption"
+       ]
+      },
+      {
+       "id": "l5",
+       "label": "5 Session",
+       "values": [
+        "Dialog control"
+       ]
+      },
+      {
+       "id": "l4",
+       "label": "4 Transport",
+       "values": [
+        "Segment",
+        "Ports, TCP/UDP"
+       ]
+      },
+      {
+       "id": "l3",
+       "label": "3 Network",
+       "values": [
+        "Packet",
+        "IP addresses"
+       ]
+      },
+      {
+       "id": "l2",
+       "label": "2 Data Link",
+       "values": [
+        "Frame",
+        "MAC addresses"
+       ]
+      },
+      {
+       "id": "l1",
+       "label": "1 Physical",
+       "values": [
+        "Bits",
+        "Signals"
+       ]
+      },
+      {
+       "id": "wire",
+       "label": "Wire to receiver",
+       "values": [
+        "Cable, Wi-Fi"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "l7",
+       "to": "l6",
+       "label": "data down"
+      },
+      {
+       "from": "l6",
+       "to": "l5",
+       "label": "+ header"
+      },
+      {
+       "from": "l5",
+       "to": "l4",
+       "label": "+ header"
+      },
+      {
+       "from": "l4",
+       "to": "l3",
+       "label": "+ ports"
+      },
+      {
+       "from": "l3",
+       "to": "l2",
+       "label": "+ IP"
+      },
+      {
+       "from": "l2",
+       "to": "l1",
+       "label": "+ MAC"
+      },
+      {
+       "from": "l1",
+       "to": "wire",
+       "label": "bits"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Application",
+       "short": "App",
+       "sentence": "The application creates the data to send, such as a web request. No wrapping has happened yet.",
+       "why": "Every trip starts as plain user data.",
+       "active": [
+        "l7"
+       ],
+       "calloutRegion": "l7",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Data"
+        },
+        {
+         "id": "hdr",
+         "label": "Headers added",
+         "value": "0"
+        },
+        {
+         "id": "dir",
+         "label": "Direction",
+         "value": "Down"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Presentation",
+       "short": "Pres",
+       "sentence": "Presentation encodes and encrypts the data into a shared format, then adds its header.",
+       "why": "Both ends must agree on how to read the data.",
+       "active": [
+        "l7",
+        "l6"
+       ],
+       "calloutRegion": "l6",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Data"
+        },
+        {
+         "id": "hdr",
+         "label": "Headers added",
+         "value": "1"
+        },
+        {
+         "id": "dir",
+         "label": "Direction",
+         "value": "Down"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Session",
+       "short": "Sess",
+       "sentence": "Session adds a header that tracks which conversation this data belongs to.",
+       "why": "It keeps dialogs open, ordered and resumable.",
+       "active": [
+        "l7",
+        "l6",
+        "l5"
+       ],
+       "calloutRegion": "l5",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Data"
+        },
+        {
+         "id": "hdr",
+         "label": "Headers added",
+         "value": "2"
+        },
+        {
+         "id": "dir",
+         "label": "Direction",
+         "value": "Down"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Transport",
+       "short": "Trans",
+       "sentence": "Transport splits the data into segments and adds a header with port numbers.",
+       "why": "Ports name the program that should receive each segment.",
+       "active": [
+        "l7",
+        "l6",
+        "l5",
+        "l4"
+       ],
+       "calloutRegion": "l4",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Segment"
+        },
+        {
+         "id": "hdr",
+         "label": "Headers added",
+         "value": "3"
+        },
+        {
+         "id": "dir",
+         "label": "Direction",
+         "value": "Down"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Network",
+       "short": "Net",
+       "sentence": "Network wraps each segment in a packet with source and destination IP addresses.",
+       "why": "IP addresses let routers choose a path between networks.",
+       "active": [
+        "l7",
+        "l6",
+        "l5",
+        "l4",
+        "l3"
+       ],
+       "calloutRegion": "l3",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Packet"
+        },
+        {
+         "id": "hdr",
+         "label": "Headers added",
+         "value": "4"
+        },
+        {
+         "id": "dir",
+         "label": "Direction",
+         "value": "Down"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Data Link",
+       "short": "Link",
+       "sentence": "Data Link wraps the packet in a frame with MAC addresses for the next hop.",
+       "why": "MAC addresses move the frame across one local link.",
+       "active": [
+        "l7",
+        "l6",
+        "l5",
+        "l4",
+        "l3",
+        "l2"
+       ],
+       "calloutRegion": "l2",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Frame"
+        },
+        {
+         "id": "hdr",
+         "label": "Headers added",
+         "value": "5"
+        },
+        {
+         "id": "dir",
+         "label": "Direction",
+         "value": "Down"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Physical",
+       "short": "Phys",
+       "sentence": "Physical turns the whole frame into bits and sends them as signals onto the wire.",
+       "why": "Only here does anything actually travel.",
+       "active": [
+        "l7",
+        "l6",
+        "l5",
+        "l4",
+        "l3",
+        "l2",
+        "l1",
+        "wire"
+       ],
+       "calloutRegion": "l1",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Bits"
+        },
+        {
+         "id": "hdr",
+         "label": "Headers added",
+         "value": "5"
+        },
+        {
+         "id": "dir",
+         "label": "Direction",
+         "value": "Out"
+        }
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "Receiver unwraps",
+       "short": "Unwrap",
+       "sentence": "The receiver peels layers in reverse. Each layer reads only its own header, then passes the payload up.",
+       "why": "Layers stay independent: each talks only to its peer layer.",
+       "active": [
+        "l1",
+        "l2",
+        "l3",
+        "l4",
+        "l5",
+        "l6",
+        "l7"
+       ],
+       "calloutRegion": "l7",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Data restored"
+        },
+        {
+         "id": "hdr",
+         "label": "Headers left",
+         "value": "0"
+        },
+        {
+         "id": "dir",
+         "label": "Direction",
+         "value": "Up"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 3897
+ },
+ "usd": 0.045106,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The layered stack with header-labelled links shows how data is wrapped going down and peeled in reverse at the receiver."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "It is an untimed stepper, and s8, where the receiver unwraps, is the aha state and holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The Step control changes the active regions, the callout and the readouts (unit, headers, direction) at every step."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlights, callout, readouts, ghost and links all bind to declared state and variant fields."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, link labels and region names all use the same layer and header terms."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth there is one cumulative stack, one callout and three readouts, which is not cluttered."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The header counts 0 to 5, the unit names and the headers left at 0 are correct, and the callout locates while the readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01855
+ }
+}

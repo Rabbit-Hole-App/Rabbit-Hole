@@ -1,0 +1,232 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a44",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "Explain post entries to cash",
+ "ts": "2026-11-14T22:23:51.014Z",
+ "ms": 3049,
+ "raw": "{\n  \"story\": \"Follow the journey of a journal entry as it gets posted into the general ledger and updates the cash account balance.\",\n  \"aha\": {\n    \"stateId\": \"post\",\n    \"observation\": \"Posting moves the verified debit or credit directly into the cash ledger, immediately shifting the running balance.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\n        \"Draft\",\n        \"Verify\",\n        \"Post\",\n        \"Balance\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Standard Variant\",\n        \"regions\": [\n          {\n            \"id\": \"journal\",\n            \"label\": \"Journal Entry\",\n            \"kind\": \"log\",\n            \"values\": [\"Debit Cash 500\", \"Credit AR 500\"]\n          },\n          {\n            \"id\": \"ledger\",\n            \"label\": \"Cash Ledger\",\n            \"kind\": \"account\",\n            \"values\": [\"1200\", \"1700\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"draft\",\n            \"label\": \"Draft\",\n            \"sentence\": \"Create the initial journal entry.\",\n            \"why\": \"Transaction is recorded first in the journal before touching any ledger.\",\n            \"active\": [\"journal\"],\n            \"calloutRegion\": \"journal\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Entry Status\",\n                \"value\": \"Unposted\"\n              }\n            ]\n          },\n          {\n            \"id\": \"verify\",\n            \"label\": \"Verify\",\n            \"sentence\": \"Confirm debits equal credits.\",\n            \"why\": \"Double-check the math and accounts before final posting.\",\n            \"active\": [\"journal\"],\n            \"calloutRegion\": \"journal\",\n            \"readouts\": [\n              {\n                \"id\": \"r2\",\n                \"label\": \"Balance Check\",\n                \"value\": \"Balanced\"\n              }\n            ]\n          },\n          {\n            \"id\": \"post\",\n            \"label\": \"Post\",\n            \"sentence\": \"Transfer the entry to the cash ledger.\",\n            \"why\": \"Posting moves data from the journal to the specific ledger account.\",\n            \"active\": [\"ledger\"],\n            \"calloutRegion\": \"ledger\",\n            \"readouts\": [\n              {\n                \"id\": \"r3\",\n                \"label\": \"Posted Amount\",\n                \"value\": \"+500 USD\"\n              }\n            ]\n          },\n          {\n            \"id\": \"balance\",\n            \"label\": \"Balance\",\n            \"sentence\": \"Calculate the final cash total.\",\n            \"why\": \"The new ledger total reflects all posted entries.\",\n            \"active\": [\"ledger\"],\n            \"calloutRegion\": \"ledger\",\n            \"readouts\": [\n              {\n                \"id\": \"r4\",\n                \"label\": \"Ending Cash\",\n                \"value\": \"1700 USD\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Follow the journey of a journal entry as it gets posted into the general ledger and updates the cash account balance.",
+  "aha": {
+   "stateId": "post",
+   "observation": "Posting moves the verified debit or credit directly into the cash ledger, immediately shifting the running balance."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "Draft",
+     "Verify",
+     "Post",
+     "Balance"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Standard Variant",
+     "regions": [
+      {
+       "id": "journal",
+       "label": "Journal Entry",
+       "kind": "log",
+       "values": [
+        "Debit Cash 500",
+        "Credit AR 500"
+       ]
+      },
+      {
+       "id": "ledger",
+       "label": "Cash Ledger",
+       "kind": "account",
+       "values": [
+        "1200",
+        "1700"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "draft",
+       "label": "Draft",
+       "sentence": "Create the initial journal entry.",
+       "why": "Transaction is recorded first in the journal before touching any ledger.",
+       "active": [
+        "journal"
+       ],
+       "calloutRegion": "journal",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Entry Status",
+         "value": "Unposted"
+        }
+       ]
+      },
+      {
+       "id": "verify",
+       "label": "Verify",
+       "sentence": "Confirm debits equal credits.",
+       "why": "Double-check the math and accounts before final posting.",
+       "active": [
+        "journal"
+       ],
+       "calloutRegion": "journal",
+       "readouts": [
+        {
+         "id": "r2",
+         "label": "Balance Check",
+         "value": "Balanced"
+        }
+       ]
+      },
+      {
+       "id": "post",
+       "label": "Post",
+       "sentence": "Transfer the entry to the cash ledger.",
+       "why": "Posting moves data from the journal to the specific ledger account.",
+       "active": [
+        "ledger"
+       ],
+       "calloutRegion": "ledger",
+       "readouts": [
+        {
+         "id": "r3",
+         "label": "Posted Amount",
+         "value": "+500 USD"
+        }
+       ]
+      },
+      {
+       "id": "balance",
+       "label": "Balance",
+       "sentence": "Calculate the final cash total.",
+       "why": "The new ledger total reflects all posted entries.",
+       "active": [
+        "ledger"
+       ],
+       "calloutRegion": "ledger",
+       "readouts": [
+        {
+         "id": "r4",
+         "label": "Ending Cash",
+         "value": "1700 USD"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1101,
+  "output": 1091
+ },
+ "usd": 0.003058,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The journal and ledger regions with the post step highlighting the ledger show how an entry moves into the cash account, though the drawing is only labeled regions and values."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state \"post\" is a middle step that is not held as a final state; the stepper continues to Balance where the running balance actually shifts, so the aha is split across two steps."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is a step index (plus reset) that navigates a fixed narrative; no parameter alters evidence or the experiment, and no fixed-comparison justification is given."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout, readout and progress all bind to declared variant states, regions, state.active, calloutRegion and readouts."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, callouts and the Journal Entry and Cash Ledger regions consistently name the same entry, posting and balance events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At the balanced depth there are two regions with one active at a time and one readout per state, which is compact and uncluttered."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The arithmetic is consistent (1200+500=1700), but the ledger values 1200 and 1700 are unlabeled, and 500 and 1700 appear in both the picture and the readouts, so values are duplicated rather than placed once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01363
+ }
+}

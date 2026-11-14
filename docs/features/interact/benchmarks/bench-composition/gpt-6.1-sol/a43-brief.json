@@ -1,0 +1,360 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a43",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "explain the call stack and the base case in a recursive factorial",
+ "ts": "2026-11-14T23:01:49.176Z",
+ "ms": 92863,
+ "raw": "{\n  \"story\": \"Why does recursive factorial stop calling itself? Follow the stack as each call waits for a smaller input. The base case returns without another call. Then the waiting calls finish, and their frames leave the stack.\",\n  \"aha\": {\n    \"stateId\": \"base-case\",\n    \"observation\": \"The base case returns 1 without another call, stopping stack growth and allowing waiting calls to finish.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"steps\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell and algorithm composition. Keep explanation and instructions above the experiment. Show compact step labels and highlight the current state. The rail owns progress; its index is not elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"call-stack\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Arrange fixed stack slots vertically, newest above oldest. Highlighted slots are live frames; muted slots are inactive references, not stack contents. Each transition adds or removes at most one live frame. Keep frame names readable in every state.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"current-frame\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the current frame without covering another slot. Identify its action; leave calculated values in the readouts. At completion, anchor beside the original frame's inactive slot.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"stack-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show live-frame count, evaluation, and status below the picture. Count highlighted frames; calculate returns from the same fixed input. Use exact integers, with frames as the count unit and no rounding. Assume nonnegative integer inputs, one frame per call, and no tail-call optimization. Fix the starting argument at three; define zero factorial as one. A returning frame leaves before its caller resumes.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"label\": \"Recursion step\",\n      \"items\": \"variant.states\",\n      \"presentation\": \"Use Previous and Next, retaining those names when disabled at boundaries. Default to the first state; advance one state per action. Bounds are the first and last listed states. Every state persists until learner action, including base-case. Reference captures show base-case. Provide accessible names, visible focus, and keyboard operation. Parameter-control budget: zero; navigation and reset are separate.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide an accessible name, visible focus, and keyboard operation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Recursive factorial: fixed starting argument\",\n        \"regions\": [\n          {\n            \"id\": \"frame-zero\",\n            \"label\": \"factorial(0)\",\n            \"values\": [\n              \"Base case\"\n            ]\n          },\n          {\n            \"id\": \"frame-one\",\n            \"label\": \"factorial(1)\",\n            \"values\": [\n              \"Recursive case\"\n            ]\n          },\n          {\n            \"id\": \"frame-two\",\n            \"label\": \"factorial(2)\",\n            \"values\": [\n              \"Recursive case\"\n            ]\n          },\n          {\n            \"id\": \"frame-three\",\n            \"label\": \"factorial(3)\",\n            \"values\": [\n              \"Recursive case\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"start\",\n            \"label\": \"Enter the original call\",\n            \"short\": \"Start\",\n            \"sentence\": \"The original call gets a stack frame to remember its argument and unfinished work.\",\n            \"why\": \"A recursive case must obtain the smaller call's return before multiplying.\",\n            \"active\": [\n              \"frame-three\"\n            ],\n            \"calloutRegion\": \"frame-three\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames\",\n                \"value\": \"1 frame\"\n              },\n              {\n                \"id\": \"evaluation\",\n                \"label\": \"Evaluation\",\n                \"value\": \"Waiting for the smaller call\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Original call entered\"\n              }\n            ]\n          },\n          {\n            \"id\": \"push-two\",\n            \"label\": \"Push the next call\",\n            \"short\": \"Push\",\n            \"sentence\": \"The smaller call gets a new frame above its waiting caller.\",\n            \"why\": \"The caller stays on the stack because its multiplication is unfinished.\",\n            \"active\": [\n              \"frame-three\",\n              \"frame-two\"\n            ],\n            \"calloutRegion\": \"frame-two\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames\",\n                \"value\": \"2 frames\"\n              },\n              {\n                \"id\": \"evaluation\",\n                \"label\": \"Evaluation\",\n                \"value\": \"Waiting for the smaller call\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Stack growing\"\n              }\n            ]\n          },\n          {\n            \"id\": \"push-one\",\n            \"label\": \"Push another call\",\n            \"short\": \"Push\",\n            \"sentence\": \"This call is still a recursive case, so it also needs a smaller call.\",\n            \"why\": \"Only the declared base case can return without waiting for another recursive call.\",\n            \"active\": [\n              \"frame-three\",\n              \"frame-two\",\n              \"frame-one\"\n            ],\n            \"calloutRegion\": \"frame-one\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames\",\n                \"value\": \"3 frames\"\n              },\n              {\n                \"id\": \"evaluation\",\n                \"label\": \"Evaluation\",\n                \"value\": \"Waiting for the smaller call\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Stack growing\"\n              }\n            ]\n          },\n          {\n            \"id\": \"base-case\",\n            \"label\": \"Reach the base case\",\n            \"short\": \"Base\",\n            \"sentence\": \"The base-case frame has a return value without making another call.\",\n            \"why\": \"No new frame is needed; this return lets the waiting callers finish.\",\n            \"active\": [\n              \"frame-three\",\n              \"frame-two\",\n              \"frame-one\",\n              \"frame-zero\"\n            ],\n            \"calloutRegion\": \"frame-zero\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames\",\n                \"value\": \"4 frames\"\n              },\n              {\n                \"id\": \"evaluation\",\n                \"label\": \"Evaluation\",\n                \"value\": \"Base return = 1\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Stack growth stops; ready to return\"\n              }\n            ]\n          },\n          {\n            \"id\": \"resume-one\",\n            \"label\": \"Resume the nearest caller\",\n            \"short\": \"Return\",\n            \"sentence\": \"The base-case frame leaves, and its caller resumes the waiting multiplication.\",\n            \"why\": \"Returns resume the most recently suspended caller first.\",\n            \"active\": [\n              \"frame-three\",\n              \"frame-two\",\n              \"frame-one\"\n            ],\n            \"calloutRegion\": \"frame-one\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames\",\n                \"value\": \"3 frames\"\n              },\n              {\n                \"id\": \"evaluation\",\n                \"label\": \"Evaluation\",\n                \"value\": \"1 × 1 = 1\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Caller ready to return\"\n              }\n            ]\n          },\n          {\n            \"id\": \"resume-two\",\n            \"label\": \"Resume the next caller\",\n            \"short\": \"Return\",\n            \"sentence\": \"The completed frame leaves, passing its result to the next waiting caller.\",\n            \"why\": \"This caller multiplies its saved argument by the returned result.\",\n            \"active\": [\n              \"frame-three\",\n              \"frame-two\"\n            ],\n            \"calloutRegion\": \"frame-two\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames\",\n                \"value\": \"2 frames\"\n              },\n              {\n                \"id\": \"evaluation\",\n                \"label\": \"Evaluation\",\n                \"value\": \"2 × 1 = 2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Caller ready to return\"\n              }\n            ]\n          },\n          {\n            \"id\": \"resume-three\",\n            \"label\": \"Resume the original caller\",\n            \"short\": \"Return\",\n            \"sentence\": \"The original frame resumes and completes its multiplication.\",\n            \"why\": \"The base-case return has now propagated through every waiting multiplication.\",\n            \"active\": [\n              \"frame-three\"\n            ],\n            \"calloutRegion\": \"frame-three\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames\",\n                \"value\": \"1 frame\"\n              },\n              {\n                \"id\": \"evaluation\",\n                \"label\": \"Evaluation\",\n                \"value\": \"3 × 2 = 6\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Original call ready to return\"\n              }\n            ]\n          },\n          {\n            \"id\": \"done\",\n            \"label\": \"Return the final answer\",\n            \"short\": \"Done\",\n            \"sentence\": \"The original frame returns and leaves the stack.\",\n            \"why\": \"Every call has finished; no factorial frames remain.\",\n            \"active\": [],\n            \"calloutRegion\": \"frame-three\",\n            \"readouts\": [\n              {\n                \"id\": \"depth\",\n                \"label\": \"Live frames\",\n                \"value\": \"0 frames\"\n              },\n              {\n                \"id\": \"evaluation\",\n                \"label\": \"Final result\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Complete\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Why does recursive factorial stop calling itself? Follow the stack as each call waits for a smaller input. The base case returns without another call. Then the waiting calls finish, and their frames leave the stack.",
+  "aha": {
+   "stateId": "base-case",
+   "observation": "The base case returns 1 without another call, stopping stack growth and allowing waiting calls to finish."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "steps",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell and algorithm composition. Keep explanation and instructions above the experiment. Show compact step labels and highlight the current state. The rail owns progress; its index is not elapsed time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "call-stack",
+    "kind": "fixed-picture",
+    "presentation": "Arrange fixed stack slots vertically, newest above oldest. Highlighted slots are live frames; muted slots are inactive references, not stack contents. Each transition adds or removes at most one live frame. Keep frame names readable in every state.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "current-frame",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the current frame without covering another slot. Identify its action; leave calculated values in the readouts. At completion, anchor beside the original frame's inactive slot.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "stack-evidence",
+    "kind": "value-readout",
+    "presentation": "Show live-frame count, evaluation, and status below the picture. Count highlighted frames; calculate returns from the same fixed input. Use exact integers, with frames as the count unit and no rounding. Assume nonnegative integer inputs, one frame per call, and no tail-call optimization. Fix the starting argument at three; define zero factorial as one. A returning frame leaves before its caller resumes.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Recursion step",
+    "items": "variant.states",
+    "presentation": "Use Previous and Next, retaining those names when disabled at boundaries. Default to the first state; advance one state per action. Bounds are the first and last listed states. Every state persists until learner action, including base-case. Reference captures show base-case. Provide accessible names, visible focus, and keyboard operation. Parameter-control budget: zero; navigation and reset are separate."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide an accessible name, visible focus, and keyboard operation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Recursive factorial: fixed starting argument",
+     "regions": [
+      {
+       "id": "frame-zero",
+       "label": "factorial(0)",
+       "values": [
+        "Base case"
+       ]
+      },
+      {
+       "id": "frame-one",
+       "label": "factorial(1)",
+       "values": [
+        "Recursive case"
+       ]
+      },
+      {
+       "id": "frame-two",
+       "label": "factorial(2)",
+       "values": [
+        "Recursive case"
+       ]
+      },
+      {
+       "id": "frame-three",
+       "label": "factorial(3)",
+       "values": [
+        "Recursive case"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "start",
+       "label": "Enter the original call",
+       "short": "Start",
+       "sentence": "The original call gets a stack frame to remember its argument and unfinished work.",
+       "why": "A recursive case must obtain the smaller call's return before multiplying.",
+       "active": [
+        "frame-three"
+       ],
+       "calloutRegion": "frame-three",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames",
+         "value": "1 frame"
+        },
+        {
+         "id": "evaluation",
+         "label": "Evaluation",
+         "value": "Waiting for the smaller call"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Original call entered"
+        }
+       ]
+      },
+      {
+       "id": "push-two",
+       "label": "Push the next call",
+       "short": "Push",
+       "sentence": "The smaller call gets a new frame above its waiting caller.",
+       "why": "The caller stays on the stack because its multiplication is unfinished.",
+       "active": [
+        "frame-three",
+        "frame-two"
+       ],
+       "calloutRegion": "frame-two",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames",
+         "value": "2 frames"
+        },
+        {
+         "id": "evaluation",
+         "label": "Evaluation",
+         "value": "Waiting for the smaller call"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Stack growing"
+        }
+       ]
+      },
+      {
+       "id": "push-one",
+       "label": "Push another call",
+       "short": "Push",
+       "sentence": "This call is still a recursive case, so it also needs a smaller call.",
+       "why": "Only the declared base case can return without waiting for another recursive call.",
+       "active": [
+        "frame-three",
+        "frame-two",
+        "frame-one"
+       ],
+       "calloutRegion": "frame-one",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames",
+         "value": "3 frames"
+        },
+        {
+         "id": "evaluation",
+         "label": "Evaluation",
+         "value": "Waiting for the smaller call"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Stack growing"
+        }
+       ]
+      },
+      {
+       "id": "base-case",
+       "label": "Reach the base case",
+       "short": "Base",
+       "sentence": "The base-case frame has a return value without making another call.",
+       "why": "No new frame is needed; this return lets the waiting callers finish.",
+       "active": [
+        "frame-three",
+        "frame-two",
+        "frame-one",
+        "frame-zero"
+       ],
+       "calloutRegion": "frame-zero",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames",
+         "value": "4 frames"
+        },
+        {
+         "id": "evaluation",
+         "label": "Evaluation",
+         "value": "Base return = 1"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Stack growth stops; ready to return"
+        }
+       ]
+      },
+      {
+       "id": "resume-one",
+       "label": "Resume the nearest caller",
+       "short": "Return",
+       "sentence": "The base-case frame leaves, and its caller resumes the waiting multiplication.",
+       "why": "Returns resume the most recently suspended caller first.",
+       "active": [
+        "frame-three",
+        "frame-two",
+        "frame-one"
+       ],
+       "calloutRegion": "frame-one",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames",
+         "value": "3 frames"
+        },
+        {
+         "id": "evaluation",
+         "label": "Evaluation",
+         "value": "1 × 1 = 1"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Caller ready to return"
+        }
+       ]
+      },
+      {
+       "id": "resume-two",
+       "label": "Resume the next caller",
+       "short": "Return",
+       "sentence": "The completed frame leaves, passing its result to the next waiting caller.",
+       "why": "This caller multiplies its saved argument by the returned result.",
+       "active": [
+        "frame-three",
+        "frame-two"
+       ],
+       "calloutRegion": "frame-two",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames",
+         "value": "2 frames"
+        },
+        {
+         "id": "evaluation",
+         "label": "Evaluation",
+         "value": "2 × 1 = 2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Caller ready to return"
+        }
+       ]
+      },
+      {
+       "id": "resume-three",
+       "label": "Resume the original caller",
+       "short": "Return",
+       "sentence": "The original frame resumes and completes its multiplication.",
+       "why": "The base-case return has now propagated through every waiting multiplication.",
+       "active": [
+        "frame-three"
+       ],
+       "calloutRegion": "frame-three",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames",
+         "value": "1 frame"
+        },
+        {
+         "id": "evaluation",
+         "label": "Evaluation",
+         "value": "3 × 2 = 6"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Original call ready to return"
+        }
+       ]
+      },
+      {
+       "id": "done",
+       "label": "Return the final answer",
+       "short": "Done",
+       "sentence": "The original frame returns and leaves the stack.",
+       "why": "Every call has finished; no factorial frames remain.",
+       "active": [],
+       "calloutRegion": "frame-three",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Live frames",
+         "value": "0 frames"
+        },
+        {
+         "id": "evaluation",
+         "label": "Final result",
+         "value": "6"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Complete"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1539,
+  "output": 4935
+ },
+ "usd": 0.049558,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3er2Wn3GqBb3ioa9gsn\"}"
+  },
+  "cardUsd": 0
+ }
+}

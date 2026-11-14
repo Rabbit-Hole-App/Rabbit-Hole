@@ -1,0 +1,227 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "b-merge-sort",
+ "set": "B",
+ "subject": "merge-sort",
+ "depth": "balanced",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T22:24:01.485Z",
+ "ms": 2719,
+ "raw": "{\n  \"story\": \"Merge sort divides the collection into single items, then repeatedly merges sorted pairs until the entire array is ordered.\",\n  \"aha\": {\n    \"stateId\": \"merge\",\n    \"observation\": \"Sub-lists are combined in sorted order by comparing their front elements.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"values\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\"Divide\", \"Split\", \"Compare\", \"Merge\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Merge Sort\",\n        \"regions\": [\n          {\n            \"id\": \"r1\",\n            \"label\": \"Left Bucket\",\n            \"values\": [\"3\", \"1\"]\n          },\n          {\n            \"id\": \"r2\",\n            \"label\": \"Right Bucket\",\n            \"values\": [\"4\", \"2\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"divide\",\n            \"label\": \"Divide\",\n            \"sentence\": \"The array is split into two halves.\",\n            \"why\": \"Splitting isolates elements.\",\n            \"active\": [\"r1\", \"r2\"],\n            \"calloutRegion\": \"r1\",\n            \"readouts\": [\n              {\n                \"id\": \"phase\",\n                \"label\": \"Phase\",\n                \"value\": \"Splitting\"\n              }\n            ]\n          },\n          {\n            \"id\": \"split\",\n            \"label\": \"Split\",\n            \"sentence\": \"Single elements are treated as sorted lists.\",\n            \"why\": \"Base case reached.\",\n            \"active\": [\"r1\"],\n            \"calloutRegion\": \"r1\",\n            \"readouts\": [\n              {\n                \"id\": \"phase\",\n                \"label\": \"Phase\",\n                \"value\": \"Base Case\"\n              }\n            ]\n          },\n          {\n            \"id\": \"compare\",\n            \"label\": \"Compare\",\n            \"sentence\": \"Front elements of each sub-list are compared.\",\n            \"why\": \"Determine smaller value.\",\n            \"active\": [\"r1\", \"r2\"],\n            \"calloutRegion\": \"r2\",\n            \"readouts\": [\n              {\n                \"id\": \"phase\",\n                \"label\": \"Phase\",\n                \"value\": \"Comparing\"\n              }\n            ]\n          },\n          {\n            \"id\": \"merge\",\n            \"label\": \"Merge\",\n            \"sentence\": \"Elements are merged back into a sorted array.\",\n            \"why\": \"Combines sorted runs.\",\n            \"active\": [\"r1\", \"r2\"],\n            \"calloutRegion\": \"r1\",\n            \"readouts\": [\n              {\n                \"id\": \"phase\",\n                \"label\": \"Phase\",\n                \"value\": \"Sorted\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Merge sort divides the collection into single items, then repeatedly merges sorted pairs until the entire array is ordered.",
+  "aha": {
+   "stateId": "merge",
+   "observation": "Sub-lists are combined in sorted order by comparing their front elements."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "values": "variant.states"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "Divide",
+     "Split",
+     "Compare",
+     "Merge"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Merge Sort",
+     "regions": [
+      {
+       "id": "r1",
+       "label": "Left Bucket",
+       "values": [
+        "3",
+        "1"
+       ]
+      },
+      {
+       "id": "r2",
+       "label": "Right Bucket",
+       "values": [
+        "4",
+        "2"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "divide",
+       "label": "Divide",
+       "sentence": "The array is split into two halves.",
+       "why": "Splitting isolates elements.",
+       "active": [
+        "r1",
+        "r2"
+       ],
+       "calloutRegion": "r1",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Phase",
+         "value": "Splitting"
+        }
+       ]
+      },
+      {
+       "id": "split",
+       "label": "Split",
+       "sentence": "Single elements are treated as sorted lists.",
+       "why": "Base case reached.",
+       "active": [
+        "r1"
+       ],
+       "calloutRegion": "r1",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Phase",
+         "value": "Base Case"
+        }
+       ]
+      },
+      {
+       "id": "compare",
+       "label": "Compare",
+       "sentence": "Front elements of each sub-list are compared.",
+       "why": "Determine smaller value.",
+       "active": [
+        "r1",
+        "r2"
+       ],
+       "calloutRegion": "r2",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Phase",
+         "value": "Comparing"
+        }
+       ]
+      },
+      {
+       "id": "merge",
+       "label": "Merge",
+       "sentence": "Elements are merged back into a sorted array.",
+       "why": "Combines sorted runs.",
+       "active": [
+        "r1",
+        "r2"
+       ],
+       "calloutRegion": "r1",
+       "readouts": [
+        {
+         "id": "phase",
+         "label": "Phase",
+         "value": "Sorted"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1102,
+  "output": 998
+ },
+ "usd": 0.002826,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The picture is two static buckets (\"3,1\" and \"4,2\") with no marks showing front-element comparison or the merged output, so the mechanism is not drawn."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The card is a manual stepper with no timed pause, but the aha state \"merge\" is the last step and its regions are the same unsorted buckets, so nothing visibly holds a decisive state."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single parameter stepIndex selects a different state, with changed active regions, callout, sentence and phase readout, so it does change the evidence shown."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The callout and readout bind to state fields, but the regions' values never change across states, and the \"why\" strings are never bound to any part."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The story speaks of single items and sorted pairs, while the regions are called \"Left Bucket\" and \"Right Bucket\" and the Split step highlights only r1. The \"Divide\" and \"Split\" steps also overlap."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "Depth is balanced but adds no comparison or count. There is no changing region beyond the highlights, and the step rail repeats the stepIndex control."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The \"Sorted\" readout on the merge step does not match the displayed values, which remain unsorted (\"3,1\" and \"4,2\"). The \"Left Bucket\" and \"Right Bucket\" values are not the single-element lists the story describes."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011332
+ }
+}

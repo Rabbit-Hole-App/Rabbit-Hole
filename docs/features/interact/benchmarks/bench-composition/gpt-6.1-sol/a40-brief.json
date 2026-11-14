@@ -1,0 +1,262 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a40",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does the call stack work during recursion?",
+ "ts": "2026-11-14T22:59:29.266Z",
+ "ms": 94225,
+ "raw": "{\n  \"story\": \"Why doesn’t a recursive call erase its caller? Start a countdown and follow its calls down to the base case. Then step through the returns and watch which saved input becomes current again.\",\n  \"aha\": {\n    \"stateId\": \"nested-resumes\",\n    \"observation\": \"A return pops only the newest frame; the waiting caller resumes with its saved input and return location.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"call-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place the story and instructions above the experiment, followed by this rail. Keep all progress and trace on the rail. Brief parameter-control budget: zero; navigation and reset are separate. Reference captures show nested-resumes.\",\n      \"bind\": {\n        \"active\": \"inputs.step\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"stack-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Program: countdown(n) returns immediately at zero; otherwise it calls countdown(n − 1), then returns. Assume nonnegative integers, synchronous execution, and no tail-call optimization. The initial Current input readout fixes the starting argument; it cannot be edited. Arrange fixed slots vertically: Outer frame below Nested frame below Base frame. Highlighted slots contain live frames; unhighlighted slots are empty placeholders. The callout identifies the executing frame, or the emptied slot after completion. Other highlighted frames are waiting. Preserve label space and readable text at native width.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"executing-frame\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the bound slot without covering the stack. Identify the action and its reason; keep numerical values in the readout.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"stack-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place below the picture. Current input is the executing frame’s local argument, expressed as an exact unitless integer without rounding. An em dash means no frame is executing. Render Status as the bound status line.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Call-stack state\",\n      \"presentation\": \"Use Previous and Next, retaining those names when disabled at boundaries. Default: first state; increment: one state; bounds: first through last state. Each action changes the live stack or resumes a saved caller. Every state, including nested-resumes, persists until the learner acts. Provide accessible button names, visible focus, and keyboard activation.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide the accessible name Reset, visible focus, and keyboard activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Recursive countdown\",\n        \"regions\": [\n          {\n            \"id\": \"outer\",\n            \"label\": \"Outer frame\",\n            \"values\": [\n              \"Stores its own input and return location.\"\n            ]\n          },\n          {\n            \"id\": \"nested\",\n            \"label\": \"Nested frame\",\n            \"values\": [\n              \"Stores its own input and return location.\"\n            ]\n          },\n          {\n            \"id\": \"base\",\n            \"label\": \"Base frame\",\n            \"values\": [\n              \"Stores its own input and return location.\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"outer-starts\",\n            \"label\": \"Outer frame starts\",\n            \"short\": \"Outer\",\n            \"sentence\": \"The Outer frame begins executing.\",\n            \"why\": \"Its input is positive, so it will make a recursive call.\",\n            \"active\": [\n              \"outer\"\n            ],\n            \"calloutRegion\": \"outer\",\n            \"readouts\": [\n              {\n                \"id\": \"current-input\",\n                \"label\": \"Current input\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Outer frame running.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"nested-starts\",\n            \"label\": \"Nested frame starts\",\n            \"short\": \"Nested\",\n            \"sentence\": \"The Nested frame is pushed above the waiting Outer frame.\",\n            \"why\": \"The recursive call gets a separate local input; the Outer frame keeps its saved input.\",\n            \"active\": [\n              \"outer\",\n              \"nested\"\n            ],\n            \"calloutRegion\": \"nested\",\n            \"readouts\": [\n              {\n                \"id\": \"current-input\",\n                \"label\": \"Current input\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Nested frame running; Outer frame waiting.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"base-starts\",\n            \"label\": \"Base frame starts\",\n            \"short\": \"Base\",\n            \"sentence\": \"The Base frame is pushed above the waiting callers.\",\n            \"why\": \"Its input meets the base case, so it returns without making another call.\",\n            \"active\": [\n              \"outer\",\n              \"nested\",\n              \"base\"\n            ],\n            \"calloutRegion\": \"base\",\n            \"readouts\": [\n              {\n                \"id\": \"current-input\",\n                \"label\": \"Current input\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Base frame running; Nested frame and Outer frame waiting.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"nested-resumes\",\n            \"label\": \"Nested frame resumes\",\n            \"short\": \"Resume nested\",\n            \"sentence\": \"The Base frame is popped; the Nested frame resumes.\",\n            \"why\": \"The Nested frame kept its input and the location immediately after its recursive call.\",\n            \"active\": [\n              \"outer\",\n              \"nested\"\n            ],\n            \"calloutRegion\": \"nested\",\n            \"readouts\": [\n              {\n                \"id\": \"current-input\",\n                \"label\": \"Current input\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Nested frame resumed; Outer frame still waiting.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"outer-resumes\",\n            \"label\": \"Outer frame resumes\",\n            \"short\": \"Resume outer\",\n            \"sentence\": \"The Nested frame is popped; the Outer frame resumes.\",\n            \"why\": \"The Outer frame continues immediately after its recursive call, using its unchanged local input.\",\n            \"active\": [\n              \"outer\"\n            ],\n            \"calloutRegion\": \"outer\",\n            \"readouts\": [\n              {\n                \"id\": \"current-input\",\n                \"label\": \"Current input\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Outer frame resumed.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"complete\",\n            \"label\": \"Outer frame returns\",\n            \"short\": \"Complete\",\n            \"sentence\": \"The Outer frame returns, leaving these stack slots empty.\",\n            \"why\": \"Every recursive frame has returned in reverse creation order; execution continues outside this countdown.\",\n            \"active\": [],\n            \"calloutRegion\": \"outer\",\n            \"readouts\": [\n              {\n                \"id\": \"current-input\",\n                \"label\": \"Current input\",\n                \"value\": \"—\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Countdown complete; all displayed frames popped.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Why doesn’t a recursive call erase its caller? Start a countdown and follow its calls down to the base case. Then step through the returns and watch which saved input becomes current again.",
+  "aha": {
+   "stateId": "nested-resumes",
+   "observation": "A return pops only the newest frame; the waiting caller resumes with its saved input and return location."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "call-rail",
+    "kind": "step-rail",
+    "presentation": "Place the story and instructions above the experiment, followed by this rail. Keep all progress and trace on the rail. Brief parameter-control budget: zero; navigation and reset are separate. Reference captures show nested-resumes.",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "stack-picture",
+    "kind": "fixed-picture",
+    "presentation": "Program: countdown(n) returns immediately at zero; otherwise it calls countdown(n − 1), then returns. Assume nonnegative integers, synchronous execution, and no tail-call optimization. The initial Current input readout fixes the starting argument; it cannot be edited. Arrange fixed slots vertically: Outer frame below Nested frame below Base frame. Highlighted slots contain live frames; unhighlighted slots are empty placeholders. The callout identifies the executing frame, or the emptied slot after completion. Other highlighted frames are waiting. Preserve label space and readable text at native width.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "executing-frame",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the bound slot without covering the stack. Identify the action and its reason; keep numerical values in the readout.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "stack-readouts",
+    "kind": "value-readout",
+    "presentation": "Place below the picture. Current input is the executing frame’s local argument, expressed as an exact unitless integer without rounding. An em dash means no frame is executing. Render Status as the bound status line.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Call-stack state",
+    "presentation": "Use Previous and Next, retaining those names when disabled at boundaries. Default: first state; increment: one state; bounds: first through last state. Each action changes the live stack or resumes a saved caller. Every state, including nested-resumes, persists until the learner acts. Provide accessible button names, visible focus, and keyboard activation."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide the accessible name Reset, visible focus, and keyboard activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Recursive countdown",
+     "regions": [
+      {
+       "id": "outer",
+       "label": "Outer frame",
+       "values": [
+        "Stores its own input and return location."
+       ]
+      },
+      {
+       "id": "nested",
+       "label": "Nested frame",
+       "values": [
+        "Stores its own input and return location."
+       ]
+      },
+      {
+       "id": "base",
+       "label": "Base frame",
+       "values": [
+        "Stores its own input and return location."
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "outer-starts",
+       "label": "Outer frame starts",
+       "short": "Outer",
+       "sentence": "The Outer frame begins executing.",
+       "why": "Its input is positive, so it will make a recursive call.",
+       "active": [
+        "outer"
+       ],
+       "calloutRegion": "outer",
+       "readouts": [
+        {
+         "id": "current-input",
+         "label": "Current input",
+         "value": "2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Outer frame running."
+        }
+       ]
+      },
+      {
+       "id": "nested-starts",
+       "label": "Nested frame starts",
+       "short": "Nested",
+       "sentence": "The Nested frame is pushed above the waiting Outer frame.",
+       "why": "The recursive call gets a separate local input; the Outer frame keeps its saved input.",
+       "active": [
+        "outer",
+        "nested"
+       ],
+       "calloutRegion": "nested",
+       "readouts": [
+        {
+         "id": "current-input",
+         "label": "Current input",
+         "value": "1"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Nested frame running; Outer frame waiting."
+        }
+       ]
+      },
+      {
+       "id": "base-starts",
+       "label": "Base frame starts",
+       "short": "Base",
+       "sentence": "The Base frame is pushed above the waiting callers.",
+       "why": "Its input meets the base case, so it returns without making another call.",
+       "active": [
+        "outer",
+        "nested",
+        "base"
+       ],
+       "calloutRegion": "base",
+       "readouts": [
+        {
+         "id": "current-input",
+         "label": "Current input",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Base frame running; Nested frame and Outer frame waiting."
+        }
+       ]
+      },
+      {
+       "id": "nested-resumes",
+       "label": "Nested frame resumes",
+       "short": "Resume nested",
+       "sentence": "The Base frame is popped; the Nested frame resumes.",
+       "why": "The Nested frame kept its input and the location immediately after its recursive call.",
+       "active": [
+        "outer",
+        "nested"
+       ],
+       "calloutRegion": "nested",
+       "readouts": [
+        {
+         "id": "current-input",
+         "label": "Current input",
+         "value": "1"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Nested frame resumed; Outer frame still waiting."
+        }
+       ]
+      },
+      {
+       "id": "outer-resumes",
+       "label": "Outer frame resumes",
+       "short": "Resume outer",
+       "sentence": "The Nested frame is popped; the Outer frame resumes.",
+       "why": "The Outer frame continues immediately after its recursive call, using its unchanged local input.",
+       "active": [
+        "outer"
+       ],
+       "calloutRegion": "outer",
+       "readouts": [
+        {
+         "id": "current-input",
+         "label": "Current input",
+         "value": "2"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Outer frame resumed."
+        }
+       ]
+      },
+      {
+       "id": "complete",
+       "label": "Outer frame returns",
+       "short": "Complete",
+       "sentence": "The Outer frame returns, leaving these stack slots empty.",
+       "why": "Every recursive frame has returned in reverse creation order; execution continues outside this countdown.",
+       "active": [],
+       "calloutRegion": "outer",
+       "readouts": [
+        {
+         "id": "current-input",
+         "label": "Current input",
+         "value": "—"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Countdown complete; all displayed frames popped."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1535,
+  "output": 4893
+ },
+ "usd": 0.04913,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3efiXGskbZ881zGwyCy\"}"
+  },
+  "cardUsd": 0
+ }
+}

@@ -1,0 +1,240 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a32",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "How does successive halving decide which trials get more training?",
+ "ts": "2026-11-14T22:22:47.862Z",
+ "ms": 3136,
+ "raw": "{\n  \"story\": \"Successive halving allocates training budgets to competing trials. Each round promotes the top fraction, doubling their training resources until one victor remains.\",\n  \"aha\": {\n    \"stateId\": \"round-2\",\n    \"observation\": \"Only the best performing trials from the previous round receive double resources.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"ghost\",\n      \"kind\": \"previous-state-ghost\",\n      \"bind\": {\n        \"regions\": \"previous.regions\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Round\",\n      \"options\": [\n        \"Round 1\",\n        \"Round 2\",\n        \"Final\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Successive Halving\",\n        \"regions\": [\n          {\n            \"id\": \"pool\",\n            \"label\": \"Active Trials\",\n            \"values\": [\"Trial A\", \"Trial B\", \"Trial C\", \"Trial D\"]\n          },\n          {\n            \"id\": \"promoted\",\n            \"label\": \"Promoted Trials\",\n            \"values\": [\"Trial A\", \"Trial C\"]\n          },\n          {\n            \"id\": \"winner\",\n            \"label\": \"Best Trial\",\n            \"values\": [\"Trial A\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"round-1\",\n            \"label\": \"Round 1\",\n            \"short\": \"Start\",\n            \"sentence\": \"All four trials start with equal base training resources.\",\n            \"why\": \"Initial evaluation across the full candidate set.\",\n            \"active\": [\"pool\"],\n            \"calloutRegion\": \"pool\",\n            \"readouts\": [\n              {\n                \"id\": \"budget\",\n                \"label\": \"Allocated Epochs\",\n                \"value\": \"5\"\n              },\n              {\n                \"id\": \"remaining\",\n                \"label\": \"Active Count\",\n                \"value\": \"4\"\n              }\n            ]\n          },\n          {\n            \"id\": \"round-2\",\n            \"label\": \"Round 2\",\n            \"short\": \"Halve\",\n            \"sentence\": \"The top half of trials advance and receive double training resources.\",\n            \"why\": \"Promoting leaders filters out poor configurations early.\",\n            \"active\": [\"promoted\"],\n            \"calloutRegion\": \"promoted\",\n            \"readouts\": [\n              {\n                \"id\": \"budget\",\n                \"label\": \"Allocated Epochs\",\n                \"value\": \"10\"\n              },\n              {\n                \"id\": \"remaining\",\n                \"label\": \"Active Count\",\n                \"value\": \"2\"\n              }\n            ]\n          },\n          {\n            \"id\": \"final\",\n            \"label\": \"Final\",\n            \"short\": \"Winner\",\n            \"sentence\": \"The single best performing trial receives maximum training resources.\",\n            \"why\": \"Focuses remaining budget on the top performer.\",\n            \"active\": [\"winner\"],\n            \"calloutRegion\": \"winner\",\n            \"readouts\": [\n              {\n                \"id\": \"budget\",\n                \"label\": \"Allocated Epochs\",\n                \"value\": \"20\"\n              },\n              {\n                \"id\": \"remaining\",\n                \"label\": \"Active Count\",\n                \"value\": \"1\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Successive halving allocates training budgets to competing trials. Each round promotes the top fraction, doubling their training resources until one victor remains.",
+  "aha": {
+   "stateId": "round-2",
+   "observation": "Only the best performing trials from the previous round receive double resources."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.regions"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Round",
+    "options": [
+     "Round 1",
+     "Round 2",
+     "Final"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Successive Halving",
+     "regions": [
+      {
+       "id": "pool",
+       "label": "Active Trials",
+       "values": [
+        "Trial A",
+        "Trial B",
+        "Trial C",
+        "Trial D"
+       ]
+      },
+      {
+       "id": "promoted",
+       "label": "Promoted Trials",
+       "values": [
+        "Trial A",
+        "Trial C"
+       ]
+      },
+      {
+       "id": "winner",
+       "label": "Best Trial",
+       "values": [
+        "Trial A"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "round-1",
+       "label": "Round 1",
+       "short": "Start",
+       "sentence": "All four trials start with equal base training resources.",
+       "why": "Initial evaluation across the full candidate set.",
+       "active": [
+        "pool"
+       ],
+       "calloutRegion": "pool",
+       "readouts": [
+        {
+         "id": "budget",
+         "label": "Allocated Epochs",
+         "value": "5"
+        },
+        {
+         "id": "remaining",
+         "label": "Active Count",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "round-2",
+       "label": "Round 2",
+       "short": "Halve",
+       "sentence": "The top half of trials advance and receive double training resources.",
+       "why": "Promoting leaders filters out poor configurations early.",
+       "active": [
+        "promoted"
+       ],
+       "calloutRegion": "promoted",
+       "readouts": [
+        {
+         "id": "budget",
+         "label": "Allocated Epochs",
+         "value": "10"
+        },
+        {
+         "id": "remaining",
+         "label": "Active Count",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "final",
+       "label": "Final",
+       "short": "Winner",
+       "sentence": "The single best performing trial receives maximum training resources.",
+       "why": "Focuses remaining budget on the top performer.",
+       "active": [
+        "winner"
+       ],
+       "calloutRegion": "winner",
+       "readouts": [
+        {
+         "id": "budget",
+         "label": "Allocated Epochs",
+         "value": "20"
+        },
+        {
+         "id": "remaining",
+         "label": "Active Count",
+         "value": "1"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1108,
+  "output": 1148
+ },
+ "usd": 0.003203,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture shows pool of 4, promoted 2, and winner 1 with budget readouts, answering how successive halving narrows trials and doubles resources."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state round-2 is a stepper state that holds until the learner changes the Round index, with no timing involved."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "Changing the Round index changes the active region, callout text and the budget and count readouts (5/4, 10/2, 20/1)."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, readouts and callout bind to declared variant states and regions, and the ghost uses the previous state's regions, though trial rankings are not given as data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, the Round control labels, state labels and callouts all refer to the same trials, rounds, promotion and the final winner."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The scene has one changing region per state, two readouts and a single callout, so it adds the mechanism without clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The counts 4, 2, 1 are halving and the epochs 5, 10, 20 are doubling, each value appears once in the readouts, and the callouts only locate."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.014304
+ }
+}

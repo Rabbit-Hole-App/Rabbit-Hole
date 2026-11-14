@@ -1,0 +1,683 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a24",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a random forest combine the predictions of its trees into one answer?",
+ "ts": "2026-11-14T22:44:29.345Z",
+ "ms": 138923,
+ "raw": "{\n  \"story\": \"How does a random forest combine its trees into one answer? Each of five trees contributes equally in these fixed examples. Select a task, then use Next to accumulate contributions. Compare Tree 1 with the final pooled answer. Classification pools votes; regression averages numerical predictions.\",\n  \"aha\": {\n    \"stateId\": \"pooled-answer\",\n    \"observation\": \"The forest pools every tree equally: votes determine a classification, while averaging produces a numerical prediction.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"state-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with the story and instructions above the experiment. Keep progress on this rail. Reference captures show pooled-answer.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"trees-and-combiner\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical algorithm/collection arrangement with five named trees feeding one Forest combiner. Keep predictions and geometry fixed throughout each variant.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor to the named active region without covering tree labels. Identify where the contribution enters; leave numerical totals to readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"pooling-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Reserve stable rows, with Status last. Counts use integer votes; regression uses minutes. Values are exact, without rounding. Here pᵢ denotes Tree i's prediction, c a class label, and T the total tree count. Intermediate totals include only visited trees; the final formula includes every tree. Classification uses hard-label votes, not probability averaging. Each tree has equal weight; fixed final votes avoid a tie.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"task\",\n      \"kind\": \"select\",\n      \"label\": \"Prediction task\",\n      \"options\": [\n        \"Classification\",\n        \"Regression\"\n      ],\n      \"presentation\": \"Detailed parameter-control budget: one selector, separate from navigation. Default: Classification. inputs.task selects the variant with the matching label and restores its first state. Only the listed options are allowed. Use native keyboard selection and visible focus.\"\n    },\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"label\": \"Step navigation\",\n      \"items\": \"variant.states\",\n      \"presentation\": \"Navigation budget: Previous, Next, and Reset. Default and minimum: first state; maximum: last state; increment: one state. Buttons retain the accessible names Previous and Next when disabled at boundaries. Support arrow-key navigation, button keyboard activation, and visible focus. Every state persists until learner action, including pooled-answer. The index represents state, never elapsed time.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore Classification and its first state. Keep the accessible name Reset, visible focus, and Enter or Space activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Classification\",\n        \"regions\": [\n          {\n            \"id\": \"tree-1\",\n            \"label\": \"Tree 1\",\n            \"values\": [\"Cat\"]\n          },\n          {\n            \"id\": \"tree-2\",\n            \"label\": \"Tree 2\",\n            \"values\": [\"Dog\"]\n          },\n          {\n            \"id\": \"tree-3\",\n            \"label\": \"Tree 3\",\n            \"values\": [\"Cat\"]\n          },\n          {\n            \"id\": \"tree-4\",\n            \"label\": \"Tree 4\",\n            \"values\": [\"Dog\"]\n          },\n          {\n            \"id\": \"tree-5\",\n            \"label\": \"Tree 5\",\n            \"values\": [\"Dog\"]\n          },\n          {\n            \"id\": \"combiner\",\n            \"label\": \"Forest combiner\",\n            \"values\": [\"Count equal votes; select the largest tally\"]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"tree-1\",\n            \"to\": \"combiner\",\n            \"label\": \"vote\"\n          },\n          {\n            \"from\": \"tree-2\",\n            \"to\": \"combiner\",\n            \"label\": \"vote\"\n          },\n          {\n            \"from\": \"tree-3\",\n            \"to\": \"combiner\",\n            \"label\": \"vote\"\n          },\n          {\n            \"from\": \"tree-4\",\n            \"to\": \"combiner\",\n            \"label\": \"vote\"\n          },\n          {\n            \"from\": \"tree-5\",\n            \"to\": \"combiner\",\n            \"label\": \"vote\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"ready\",\n            \"label\": \"Start\",\n            \"short\": \"Start\",\n            \"sentence\": \"The Forest combiner will count the fixed tree predictions.\",\n            \"why\": \"Each tree receives equal voting weight; counting order cannot change the final tally.\",\n            \"active\": [\"combiner\"],\n            \"calloutRegion\": \"combiner\",\n            \"readouts\": [\n              {\n                \"id\": \"cat\",\n                \"label\": \"Cat votes\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"dog\",\n                \"label\": \"Dog votes\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Awaiting all votes\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"No votes counted; use Next.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"count-tree-1\",\n            \"label\": \"Count Tree 1\",\n            \"short\": \"Tree 1\",\n            \"sentence\": \"Tree 1 contributes its Cat vote.\",\n            \"why\": \"Its prediction enters the tally without receiving special priority.\",\n            \"active\": [\"tree-1\"],\n            \"calloutRegion\": \"tree-1\",\n            \"readouts\": [\n              {\n                \"id\": \"cat\",\n                \"label\": \"Cat votes\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"dog\",\n                \"label\": \"Dog votes\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Awaiting all votes\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Cat leads provisionally; other trees still contribute.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"count-tree-2\",\n            \"label\": \"Count Tree 2\",\n            \"short\": \"Tree 2\",\n            \"sentence\": \"Tree 2 contributes its Dog vote.\",\n            \"why\": \"A disagreeing tree adds to its own class tally rather than replacing an earlier prediction.\",\n            \"active\": [\"tree-2\"],\n            \"calloutRegion\": \"tree-2\",\n            \"readouts\": [\n              {\n                \"id\": \"cat\",\n                \"label\": \"Cat votes\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"dog\",\n                \"label\": \"Dog votes\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Awaiting all votes\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The partial tally is tied; counting continues.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"count-tree-3\",\n            \"label\": \"Count Tree 3\",\n            \"short\": \"Tree 3\",\n            \"sentence\": \"Tree 3 contributes its Cat vote.\",\n            \"why\": \"Every counted tree increases exactly one class tally by one vote.\",\n            \"active\": [\"tree-3\"],\n            \"calloutRegion\": \"tree-3\",\n            \"readouts\": [\n              {\n                \"id\": \"cat\",\n                \"label\": \"Cat votes\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"dog\",\n                \"label\": \"Dog votes\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Awaiting all votes\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Cat leads provisionally; the remaining votes still matter.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"count-tree-4\",\n            \"label\": \"Count Tree 4\",\n            \"short\": \"Tree 4\",\n            \"sentence\": \"Tree 4 contributes its Dog vote.\",\n            \"why\": \"The accumulated votes now balance, making the remaining contribution decisive.\",\n            \"active\": [\"tree-4\"],\n            \"calloutRegion\": \"tree-4\",\n            \"readouts\": [\n              {\n                \"id\": \"cat\",\n                \"label\": \"Cat votes\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"dog\",\n                \"label\": \"Dog votes\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Awaiting all votes\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The partial tally is tied; Tree 5 remains.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"pooled-answer\",\n            \"label\": \"Count Tree 5; combine\",\n            \"short\": \"Answer\",\n            \"sentence\": \"The Forest combiner returns Dog, unlike Tree 1's Cat prediction.\",\n            \"why\": \"Tree 5 completes the tally; argmax selects the class with the most votes.\",\n            \"active\": [\"tree-5\", \"combiner\"],\n            \"calloutRegion\": \"combiner\",\n            \"readouts\": [\n              {\n                \"id\": \"cat\",\n                \"label\": \"Cat votes\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"dog\",\n                \"label\": \"Dog votes\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Dog\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"All votes counted; the pooled majority determines the answer.\"\n              }\n            ]\n          }\n        ]\n      },\n      {\n        \"label\": \"Regression\",\n        \"regions\": [\n          {\n            \"id\": \"tree-1\",\n            \"label\": \"Tree 1\",\n            \"values\": [\"10 min\"]\n          },\n          {\n            \"id\": \"tree-2\",\n            \"label\": \"Tree 2\",\n            \"values\": [\"12 min\"]\n          },\n          {\n            \"id\": \"tree-3\",\n            \"label\": \"Tree 3\",\n            \"values\": [\"14 min\"]\n          },\n          {\n            \"id\": \"tree-4\",\n            \"label\": \"Tree 4\",\n            \"values\": [\"16 min\"]\n          },\n          {\n            \"id\": \"tree-5\",\n            \"label\": \"Tree 5\",\n            \"values\": [\"23 min\"]\n          },\n          {\n            \"id\": \"combiner\",\n            \"label\": \"Forest combiner\",\n            \"values\": [\"Average predicted delivery durations\"]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"tree-1\",\n            \"to\": \"combiner\",\n            \"label\": \"prediction\"\n          },\n          {\n            \"from\": \"tree-2\",\n            \"to\": \"combiner\",\n            \"label\": \"prediction\"\n          },\n          {\n            \"from\": \"tree-3\",\n            \"to\": \"combiner\",\n            \"label\": \"prediction\"\n          },\n          {\n            \"from\": \"tree-4\",\n            \"to\": \"combiner\",\n            \"label\": \"prediction\"\n          },\n          {\n            \"from\": \"tree-5\",\n            \"to\": \"combiner\",\n            \"label\": \"prediction\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"ready\",\n            \"label\": \"Start\",\n            \"short\": \"Start\",\n            \"sentence\": \"The Forest combiner will average the fixed delivery-duration predictions.\",\n            \"why\": \"All predictions use minutes, and every tree receives equal weight.\",\n            \"active\": [\"combiner\"],\n            \"calloutRegion\": \"combiner\",\n            \"readouts\": [\n              {\n                \"id\": \"sum\",\n                \"label\": \"Prediction sum\",\n                \"value\": \"0 min\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Awaiting all contributions\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = (Σᵢ pᵢ) / T\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"No predictions accumulated; use Next.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"count-tree-1\",\n            \"label\": \"Add Tree 1\",\n            \"short\": \"Tree 1\",\n            \"sentence\": \"Tree 1 contributes its predicted duration.\",\n            \"why\": \"The running sum accumulates predictions; it is not itself the forest's predicted duration.\",\n            \"active\": [\"tree-1\"],\n            \"calloutRegion\": \"tree-1\",\n            \"readouts\": [\n              {\n                \"id\": \"sum\",\n                \"label\": \"Prediction sum\",\n                \"value\": \"10 min\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Awaiting all contributions\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = (Σᵢ pᵢ) / T\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Tree 1 is included; later trees retain equal influence.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"count-tree-2\",\n            \"label\": \"Add Tree 2\",\n            \"short\": \"Tree 2\",\n            \"sentence\": \"Tree 2 contributes its predicted duration.\",\n            \"why\": \"Its prediction adds to the running sum instead of replacing Tree 1's contribution.\",\n            \"active\": [\"tree-2\"],\n            \"calloutRegion\": \"tree-2\",\n            \"readouts\": [\n              {\n                \"id\": \"sum\",\n                \"label\": \"Prediction sum\",\n                \"value\": \"22 min\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Awaiting all contributions\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = (Σᵢ pᵢ) / T\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Both visited trees contribute equally to the sum.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"count-tree-3\",\n            \"label\": \"Add Tree 3\",\n            \"short\": \"Tree 3\",\n            \"sentence\": \"Tree 3 contributes its predicted duration.\",\n            \"why\": \"Every visited prediction appears exactly once in the running sum.\",\n            \"active\": [\"tree-3\"],\n            \"calloutRegion\": \"tree-3\",\n            \"readouts\": [\n              {\n                \"id\": \"sum\",\n                \"label\": \"Prediction sum\",\n                \"value\": \"36 min\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Awaiting all contributions\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = (Σᵢ pᵢ) / T\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Accumulation continues without selecting a preferred tree.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"count-tree-4\",\n            \"label\": \"Add Tree 4\",\n            \"short\": \"Tree 4\",\n            \"sentence\": \"Tree 4 contributes its predicted duration.\",\n            \"why\": \"The running sum still excludes Tree 5, so the displayed forest answer remains pending.\",\n            \"active\": [\"tree-4\"],\n            \"calloutRegion\": \"tree-4\",\n            \"readouts\": [\n              {\n                \"id\": \"sum\",\n                \"label\": \"Prediction sum\",\n                \"value\": \"52 min\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"Awaiting all contributions\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = (Σᵢ pᵢ) / T\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Tree 5 remains outside the accumulated sum.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"pooled-answer\",\n            \"label\": \"Add Tree 5; average\",\n            \"short\": \"Answer\",\n            \"sentence\": \"The Forest combiner returns the average, not Tree 1's prediction.\",\n            \"why\": \"Tree 5 completes the sum; dividing by the total tree count gives every tree equal weight.\",\n            \"active\": [\"tree-5\", \"combiner\"],\n            \"calloutRegion\": \"combiner\",\n            \"readouts\": [\n              {\n                \"id\": \"sum\",\n                \"label\": \"Prediction sum\",\n                \"value\": \"75 min\"\n              },\n              {\n                \"id\": \"output\",\n                \"label\": \"Forest answer\",\n                \"value\": \"15 min\"\n              },\n              {\n                \"id\": \"rule\",\n                \"label\": \"Final rule\",\n                \"value\": \"ŷ = (Σᵢ pᵢ) / T\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"All contributions included; the mean differs from every individual prediction.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does a random forest combine its trees into one answer? Each of five trees contributes equally in these fixed examples. Select a task, then use Next to accumulate contributions. Compare Tree 1 with the final pooled answer. Classification pools votes; regression averages numerical predictions.",
+  "aha": {
+   "stateId": "pooled-answer",
+   "observation": "The forest pools every tree equally: votes determine a classification, while averaging produces a numerical prediction."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "state-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with the story and instructions above the experiment. Keep progress on this rail. Reference captures show pooled-answer.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "trees-and-combiner",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical algorithm/collection arrangement with five named trees feeding one Forest combiner. Keep predictions and geometry fixed throughout each variant.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor to the named active region without covering tree labels. Identify where the contribution enters; leave numerical totals to readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "pooling-readouts",
+    "kind": "value-readout",
+    "presentation": "Reserve stable rows, with Status last. Counts use integer votes; regression uses minutes. Values are exact, without rounding. Here pᵢ denotes Tree i's prediction, c a class label, and T the total tree count. Intermediate totals include only visited trees; the final formula includes every tree. Classification uses hard-label votes, not probability averaging. Each tree has equal weight; fixed final votes avoid a tie.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "task",
+    "kind": "select",
+    "label": "Prediction task",
+    "options": [
+     "Classification",
+     "Regression"
+    ],
+    "presentation": "Detailed parameter-control budget: one selector, separate from navigation. Default: Classification. inputs.task selects the variant with the matching label and restores its first state. Only the listed options are allowed. Use native keyboard selection and visible focus."
+   },
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step navigation",
+    "items": "variant.states",
+    "presentation": "Navigation budget: Previous, Next, and Reset. Default and minimum: first state; maximum: last state; increment: one state. Buttons retain the accessible names Previous and Next when disabled at boundaries. Support arrow-key navigation, button keyboard activation, and visible focus. Every state persists until learner action, including pooled-answer. The index represents state, never elapsed time."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore Classification and its first state. Keep the accessible name Reset, visible focus, and Enter or Space activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Classification",
+     "regions": [
+      {
+       "id": "tree-1",
+       "label": "Tree 1",
+       "values": [
+        "Cat"
+       ]
+      },
+      {
+       "id": "tree-2",
+       "label": "Tree 2",
+       "values": [
+        "Dog"
+       ]
+      },
+      {
+       "id": "tree-3",
+       "label": "Tree 3",
+       "values": [
+        "Cat"
+       ]
+      },
+      {
+       "id": "tree-4",
+       "label": "Tree 4",
+       "values": [
+        "Dog"
+       ]
+      },
+      {
+       "id": "tree-5",
+       "label": "Tree 5",
+       "values": [
+        "Dog"
+       ]
+      },
+      {
+       "id": "combiner",
+       "label": "Forest combiner",
+       "values": [
+        "Count equal votes; select the largest tally"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "tree-1",
+       "to": "combiner",
+       "label": "vote"
+      },
+      {
+       "from": "tree-2",
+       "to": "combiner",
+       "label": "vote"
+      },
+      {
+       "from": "tree-3",
+       "to": "combiner",
+       "label": "vote"
+      },
+      {
+       "from": "tree-4",
+       "to": "combiner",
+       "label": "vote"
+      },
+      {
+       "from": "tree-5",
+       "to": "combiner",
+       "label": "vote"
+      }
+     ],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Start",
+       "short": "Start",
+       "sentence": "The Forest combiner will count the fixed tree predictions.",
+       "why": "Each tree receives equal voting weight; counting order cannot change the final tally.",
+       "active": [
+        "combiner"
+       ],
+       "calloutRegion": "combiner",
+       "readouts": [
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "0"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "0"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Awaiting all votes"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "No votes counted; use Next."
+        }
+       ]
+      },
+      {
+       "id": "count-tree-1",
+       "label": "Count Tree 1",
+       "short": "Tree 1",
+       "sentence": "Tree 1 contributes its Cat vote.",
+       "why": "Its prediction enters the tally without receiving special priority.",
+       "active": [
+        "tree-1"
+       ],
+       "calloutRegion": "tree-1",
+       "readouts": [
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "1"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "0"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Awaiting all votes"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Cat leads provisionally; other trees still contribute."
+        }
+       ]
+      },
+      {
+       "id": "count-tree-2",
+       "label": "Count Tree 2",
+       "short": "Tree 2",
+       "sentence": "Tree 2 contributes its Dog vote.",
+       "why": "A disagreeing tree adds to its own class tally rather than replacing an earlier prediction.",
+       "active": [
+        "tree-2"
+       ],
+       "calloutRegion": "tree-2",
+       "readouts": [
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "1"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "1"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Awaiting all votes"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The partial tally is tied; counting continues."
+        }
+       ]
+      },
+      {
+       "id": "count-tree-3",
+       "label": "Count Tree 3",
+       "short": "Tree 3",
+       "sentence": "Tree 3 contributes its Cat vote.",
+       "why": "Every counted tree increases exactly one class tally by one vote.",
+       "active": [
+        "tree-3"
+       ],
+       "calloutRegion": "tree-3",
+       "readouts": [
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "2"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "1"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Awaiting all votes"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Cat leads provisionally; the remaining votes still matter."
+        }
+       ]
+      },
+      {
+       "id": "count-tree-4",
+       "label": "Count Tree 4",
+       "short": "Tree 4",
+       "sentence": "Tree 4 contributes its Dog vote.",
+       "why": "The accumulated votes now balance, making the remaining contribution decisive.",
+       "active": [
+        "tree-4"
+       ],
+       "calloutRegion": "tree-4",
+       "readouts": [
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "2"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "2"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Awaiting all votes"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The partial tally is tied; Tree 5 remains."
+        }
+       ]
+      },
+      {
+       "id": "pooled-answer",
+       "label": "Count Tree 5; combine",
+       "short": "Answer",
+       "sentence": "The Forest combiner returns Dog, unlike Tree 1's Cat prediction.",
+       "why": "Tree 5 completes the tally; argmax selects the class with the most votes.",
+       "active": [
+        "tree-5",
+        "combiner"
+       ],
+       "calloutRegion": "combiner",
+       "readouts": [
+        {
+         "id": "cat",
+         "label": "Cat votes",
+         "value": "2"
+        },
+        {
+         "id": "dog",
+         "label": "Dog votes",
+         "value": "3"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Dog"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = argmax_c Σᵢ 𝟙[pᵢ = c]"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "All votes counted; the pooled majority determines the answer."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Regression",
+     "regions": [
+      {
+       "id": "tree-1",
+       "label": "Tree 1",
+       "values": [
+        "10 min"
+       ]
+      },
+      {
+       "id": "tree-2",
+       "label": "Tree 2",
+       "values": [
+        "12 min"
+       ]
+      },
+      {
+       "id": "tree-3",
+       "label": "Tree 3",
+       "values": [
+        "14 min"
+       ]
+      },
+      {
+       "id": "tree-4",
+       "label": "Tree 4",
+       "values": [
+        "16 min"
+       ]
+      },
+      {
+       "id": "tree-5",
+       "label": "Tree 5",
+       "values": [
+        "23 min"
+       ]
+      },
+      {
+       "id": "combiner",
+       "label": "Forest combiner",
+       "values": [
+        "Average predicted delivery durations"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "tree-1",
+       "to": "combiner",
+       "label": "prediction"
+      },
+      {
+       "from": "tree-2",
+       "to": "combiner",
+       "label": "prediction"
+      },
+      {
+       "from": "tree-3",
+       "to": "combiner",
+       "label": "prediction"
+      },
+      {
+       "from": "tree-4",
+       "to": "combiner",
+       "label": "prediction"
+      },
+      {
+       "from": "tree-5",
+       "to": "combiner",
+       "label": "prediction"
+      }
+     ],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Start",
+       "short": "Start",
+       "sentence": "The Forest combiner will average the fixed delivery-duration predictions.",
+       "why": "All predictions use minutes, and every tree receives equal weight.",
+       "active": [
+        "combiner"
+       ],
+       "calloutRegion": "combiner",
+       "readouts": [
+        {
+         "id": "sum",
+         "label": "Prediction sum",
+         "value": "0 min"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Awaiting all contributions"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = (Σᵢ pᵢ) / T"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "No predictions accumulated; use Next."
+        }
+       ]
+      },
+      {
+       "id": "count-tree-1",
+       "label": "Add Tree 1",
+       "short": "Tree 1",
+       "sentence": "Tree 1 contributes its predicted duration.",
+       "why": "The running sum accumulates predictions; it is not itself the forest's predicted duration.",
+       "active": [
+        "tree-1"
+       ],
+       "calloutRegion": "tree-1",
+       "readouts": [
+        {
+         "id": "sum",
+         "label": "Prediction sum",
+         "value": "10 min"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Awaiting all contributions"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = (Σᵢ pᵢ) / T"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Tree 1 is included; later trees retain equal influence."
+        }
+       ]
+      },
+      {
+       "id": "count-tree-2",
+       "label": "Add Tree 2",
+       "short": "Tree 2",
+       "sentence": "Tree 2 contributes its predicted duration.",
+       "why": "Its prediction adds to the running sum instead of replacing Tree 1's contribution.",
+       "active": [
+        "tree-2"
+       ],
+       "calloutRegion": "tree-2",
+       "readouts": [
+        {
+         "id": "sum",
+         "label": "Prediction sum",
+         "value": "22 min"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Awaiting all contributions"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = (Σᵢ pᵢ) / T"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Both visited trees contribute equally to the sum."
+        }
+       ]
+      },
+      {
+       "id": "count-tree-3",
+       "label": "Add Tree 3",
+       "short": "Tree 3",
+       "sentence": "Tree 3 contributes its predicted duration.",
+       "why": "Every visited prediction appears exactly once in the running sum.",
+       "active": [
+        "tree-3"
+       ],
+       "calloutRegion": "tree-3",
+       "readouts": [
+        {
+         "id": "sum",
+         "label": "Prediction sum",
+         "value": "36 min"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Awaiting all contributions"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = (Σᵢ pᵢ) / T"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Accumulation continues without selecting a preferred tree."
+        }
+       ]
+      },
+      {
+       "id": "count-tree-4",
+       "label": "Add Tree 4",
+       "short": "Tree 4",
+       "sentence": "Tree 4 contributes its predicted duration.",
+       "why": "The running sum still excludes Tree 5, so the displayed forest answer remains pending.",
+       "active": [
+        "tree-4"
+       ],
+       "calloutRegion": "tree-4",
+       "readouts": [
+        {
+         "id": "sum",
+         "label": "Prediction sum",
+         "value": "52 min"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "Awaiting all contributions"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = (Σᵢ pᵢ) / T"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Tree 5 remains outside the accumulated sum."
+        }
+       ]
+      },
+      {
+       "id": "pooled-answer",
+       "label": "Add Tree 5; average",
+       "short": "Answer",
+       "sentence": "The Forest combiner returns the average, not Tree 1's prediction.",
+       "why": "Tree 5 completes the sum; dividing by the total tree count gives every tree equal weight.",
+       "active": [
+        "tree-5",
+        "combiner"
+       ],
+       "calloutRegion": "combiner",
+       "readouts": [
+        {
+         "id": "sum",
+         "label": "Prediction sum",
+         "value": "75 min"
+        },
+        {
+         "id": "output",
+         "label": "Forest answer",
+         "value": "15 min"
+        },
+        {
+         "id": "rule",
+         "label": "Final rule",
+         "value": "ŷ = (Σᵢ pᵢ) / T"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "All contributions included; the mean differs from every individual prediction."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1542,
+  "output": 8410
+ },
+ "usd": 0.084314,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3dXNzgHULat1m8fWP49\"}"
+  },
+  "cardUsd": 0
+ }
+}

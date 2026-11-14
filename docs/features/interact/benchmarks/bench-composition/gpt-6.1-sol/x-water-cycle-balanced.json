@@ -1,0 +1,368 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "x-water-cycle",
+ "set": "X",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does the water cycle work?",
+ "ts": "2026-11-14T23:12:31.336Z",
+ "ms": 86632,
+ "raw": "{\n  \"story\": \"Follow one water sample through Ocean, Water vapor, Cloud droplets, Rain, Runoff, and Ocean again. Use Previous and Next to compare its physical state and location. Sunlight powers evaporation; cooling forms droplets, and gravity returns water. Does the sample lose water along this route?\",\n  \"aha\": {\n    \"stateId\": \"ocean-return\",\n    \"observation\": \"The same water returns to Ocean after changing phase and location; the tracked sample's total mass stays unchanged.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"cycle-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell with explanation and instructions above the experiment. The rail owns progress and highlights the current state. Indices represent states, not elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"water-route\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical cycle arrangement with fixed, labeled regions and directional links. Highlight the active region without animated movement. Track an idealized closed sample through one possible route. Assume no mixing, splitting, losses, freezing, infiltration, or transpiration. Region phases determine the sample's physical state. Preserve readable labels at native card width. Reference capture shows ocean-return.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"previous-location\",\n      \"kind\": \"previous-state-ghost\",\n      \"presentation\": \"Outline the previous state's active region for comparison. Hide the outline before the first transition and after Reset. Use the fixed picture's region geometry.\",\n      \"bind\": {\n        \"regions\": \"previous.active\"\n      }\n    },\n    {\n      \"id\": \"water-measurements\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show liquid mass, vapor mass, and total mass in one row. Place the bound Status entry beneath them. Fixed sample mass is ten grams. Precompute phase masses from the active region's phase: the entire sample is liquid or vapor. Total mass equals their sum. Units are grams, referenced only to the tracked sample, rounded to whole grams. No chart scale is used.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"active-location-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor the callout to the active region with reserved label space. Text identifies where the sample is; reason explains the mechanism. Report numerical values only in readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"cycle-state\",\n      \"kind\": \"index\",\n      \"label\": \"Cycle state\",\n      \"items\": \"variant.states\",\n      \"presentation\": \"Render Previous and Next buttons with those accessible names. Default index is zero; bounds are zero through five; increment is one. Each action changes the highlighted location, explanation, measurements, status, and previous-state outline. Disable boundary buttons without renaming them; do not wrap. Every state persists until learner action, including ocean-return. Provide visible focus and keyboard activation. Balanced parameter-control budget: zero; navigation and Reset are separate.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state, fixed sample assumptions, and default controls. Clear the previous-state outline. Provide visible focus and keyboard activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Water cycle: an ocean-to-land route\",\n        \"regions\": [\n          {\n            \"id\": \"ocean\",\n            \"label\": \"Ocean\",\n            \"phases\": [\n              \"liquid\"\n            ]\n          },\n          {\n            \"id\": \"vapor\",\n            \"label\": \"Water vapor\",\n            \"phases\": [\n              \"gas\"\n            ]\n          },\n          {\n            \"id\": \"cloud\",\n            \"label\": \"Cloud droplets\",\n            \"phases\": [\n              \"liquid\"\n            ]\n          },\n          {\n            \"id\": \"rain\",\n            \"label\": \"Rain\",\n            \"phases\": [\n              \"liquid\"\n            ]\n          },\n          {\n            \"id\": \"runoff\",\n            \"label\": \"Runoff\",\n            \"phases\": [\n              \"liquid\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"ocean\",\n            \"to\": \"vapor\",\n            \"label\": \"Evaporation: sunlight supplies energy\"\n          },\n          {\n            \"from\": \"vapor\",\n            \"to\": \"cloud\",\n            \"label\": \"Condensation: cooling forms droplets\"\n          },\n          {\n            \"from\": \"cloud\",\n            \"to\": \"rain\",\n            \"label\": \"Precipitation: droplets grow and fall\"\n          },\n          {\n            \"from\": \"rain\",\n            \"to\": \"runoff\",\n            \"label\": \"Collection: rain reaches land\"\n          },\n          {\n            \"from\": \"runoff\",\n            \"to\": \"ocean\",\n            \"label\": \"Return: gravity drives downhill flow\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"ocean-start\",\n            \"label\": \"Ocean: start\",\n            \"short\": \"Start\",\n            \"sentence\": \"Ocean holds the sample as liquid water.\",\n            \"why\": \"This is the starting reservoir; follow the same tagged water throughout the route.\",\n            \"active\": [\n              \"ocean\"\n            ],\n            \"calloutRegion\": \"ocean\",\n            \"readouts\": [\n              {\n                \"id\": \"liquid-mass\",\n                \"label\": \"Liquid mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Vapor mass\",\n                \"value\": \"0 g\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Liquid in Ocean; starting sample\"\n              }\n            ]\n          },\n          {\n            \"id\": \"evaporation\",\n            \"label\": \"Evaporation\",\n            \"short\": \"Evaporate\",\n            \"sentence\": \"The sample is now Water vapor in the air.\",\n            \"why\": \"Sunlight supplies energy for evaporation; liquid becomes invisible water vapor, not tiny droplets.\",\n            \"active\": [\n              \"vapor\"\n            ],\n            \"calloutRegion\": \"vapor\",\n            \"readouts\": [\n              {\n                \"id\": \"liquid-mass\",\n                \"label\": \"Liquid mass\",\n                \"value\": \"0 g\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Vapor mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Gas in the air; total unchanged\"\n              }\n            ]\n          },\n          {\n            \"id\": \"condensation\",\n            \"label\": \"Condensation\",\n            \"short\": \"Condense\",\n            \"sentence\": \"The sample forms Cloud droplets suspended in the air.\",\n            \"why\": \"Cooling allows water vapor to condense into liquid droplets; clouds are not water vapor.\",\n            \"active\": [\n              \"cloud\"\n            ],\n            \"calloutRegion\": \"cloud\",\n            \"readouts\": [\n              {\n                \"id\": \"liquid-mass\",\n                \"label\": \"Liquid mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Vapor mass\",\n                \"value\": \"0 g\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Liquid droplets; total unchanged\"\n              }\n            ]\n          },\n          {\n            \"id\": \"precipitation\",\n            \"label\": \"Precipitation\",\n            \"short\": \"Fall\",\n            \"sentence\": \"The sample falls toward land as Rain.\",\n            \"why\": \"Cloud droplets grow large enough for gravity to pull them downward as rain.\",\n            \"active\": [\n              \"rain\"\n            ],\n            \"calloutRegion\": \"rain\",\n            \"readouts\": [\n              {\n                \"id\": \"liquid-mass\",\n                \"label\": \"Liquid mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Vapor mass\",\n                \"value\": \"0 g\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Falling liquid; total unchanged\"\n              }\n            ]\n          },\n          {\n            \"id\": \"surface-runoff\",\n            \"label\": \"Surface runoff\",\n            \"short\": \"Collect\",\n            \"sentence\": \"The sample joins Runoff flowing downhill toward Ocean.\",\n            \"why\": \"In this route, rain reaches land and joins surface flow instead of soaking into the ground.\",\n            \"active\": [\n              \"runoff\"\n            ],\n            \"calloutRegion\": \"runoff\",\n            \"readouts\": [\n              {\n                \"id\": \"liquid-mass\",\n                \"label\": \"Liquid mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Vapor mass\",\n                \"value\": \"0 g\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Flowing liquid; total unchanged\"\n              }\n            ]\n          },\n          {\n            \"id\": \"ocean-return\",\n            \"label\": \"Ocean: return\",\n            \"short\": \"Return\",\n            \"sentence\": \"The same sample is back in Ocean as liquid water.\",\n            \"why\": \"Water changed phase and location without being used up; sunlight can drive evaporation again.\",\n            \"active\": [\n              \"ocean\"\n            ],\n            \"calloutRegion\": \"ocean\",\n            \"readouts\": [\n              {\n                \"id\": \"liquid-mass\",\n                \"label\": \"Liquid mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"vapor-mass\",\n                \"label\": \"Vapor mass\",\n                \"value\": \"0 g\"\n              },\n              {\n                \"id\": \"total-mass\",\n                \"label\": \"Total mass\",\n                \"value\": \"10 g\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Returned to Ocean; total matches the start\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Follow one water sample through Ocean, Water vapor, Cloud droplets, Rain, Runoff, and Ocean again. Use Previous and Next to compare its physical state and location. Sunlight powers evaporation; cooling forms droplets, and gravity returns water. Does the sample lose water along this route?",
+  "aha": {
+   "stateId": "ocean-return",
+   "observation": "The same water returns to Ocean after changing phase and location; the tracked sample's total mass stays unchanged."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "cycle-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell with explanation and instructions above the experiment. The rail owns progress and highlights the current state. Indices represent states, not elapsed time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "water-route",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical cycle arrangement with fixed, labeled regions and directional links. Highlight the active region without animated movement. Track an idealized closed sample through one possible route. Assume no mixing, splitting, losses, freezing, infiltration, or transpiration. Region phases determine the sample's physical state. Preserve readable labels at native card width. Reference capture shows ocean-return.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "previous-location",
+    "kind": "previous-state-ghost",
+    "presentation": "Outline the previous state's active region for comparison. Hide the outline before the first transition and after Reset. Use the fixed picture's region geometry.",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "water-measurements",
+    "kind": "value-readout",
+    "presentation": "Show liquid mass, vapor mass, and total mass in one row. Place the bound Status entry beneath them. Fixed sample mass is ten grams. Precompute phase masses from the active region's phase: the entire sample is liquid or vapor. Total mass equals their sum. Units are grams, referenced only to the tracked sample, rounded to whole grams. No chart scale is used.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "active-location-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor the callout to the active region with reserved label space. Text identifies where the sample is; reason explains the mechanism. Report numerical values only in readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "cycle-state",
+    "kind": "index",
+    "label": "Cycle state",
+    "items": "variant.states",
+    "presentation": "Render Previous and Next buttons with those accessible names. Default index is zero; bounds are zero through five; increment is one. Each action changes the highlighted location, explanation, measurements, status, and previous-state outline. Disable boundary buttons without renaming them; do not wrap. Every state persists until learner action, including ocean-return. Provide visible focus and keyboard activation. Balanced parameter-control budget: zero; navigation and Reset are separate."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state, fixed sample assumptions, and default controls. Clear the previous-state outline. Provide visible focus and keyboard activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Water cycle: an ocean-to-land route",
+     "regions": [
+      {
+       "id": "ocean",
+       "label": "Ocean",
+       "phases": [
+        "liquid"
+       ]
+      },
+      {
+       "id": "vapor",
+       "label": "Water vapor",
+       "phases": [
+        "gas"
+       ]
+      },
+      {
+       "id": "cloud",
+       "label": "Cloud droplets",
+       "phases": [
+        "liquid"
+       ]
+      },
+      {
+       "id": "rain",
+       "label": "Rain",
+       "phases": [
+        "liquid"
+       ]
+      },
+      {
+       "id": "runoff",
+       "label": "Runoff",
+       "phases": [
+        "liquid"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "ocean",
+       "to": "vapor",
+       "label": "Evaporation: sunlight supplies energy"
+      },
+      {
+       "from": "vapor",
+       "to": "cloud",
+       "label": "Condensation: cooling forms droplets"
+      },
+      {
+       "from": "cloud",
+       "to": "rain",
+       "label": "Precipitation: droplets grow and fall"
+      },
+      {
+       "from": "rain",
+       "to": "runoff",
+       "label": "Collection: rain reaches land"
+      },
+      {
+       "from": "runoff",
+       "to": "ocean",
+       "label": "Return: gravity drives downhill flow"
+      }
+     ],
+     "states": [
+      {
+       "id": "ocean-start",
+       "label": "Ocean: start",
+       "short": "Start",
+       "sentence": "Ocean holds the sample as liquid water.",
+       "why": "This is the starting reservoir; follow the same tagged water throughout the route.",
+       "active": [
+        "ocean"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "liquid-mass",
+         "label": "Liquid mass",
+         "value": "10 g"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Vapor mass",
+         "value": "0 g"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total mass",
+         "value": "10 g"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Liquid in Ocean; starting sample"
+        }
+       ]
+      },
+      {
+       "id": "evaporation",
+       "label": "Evaporation",
+       "short": "Evaporate",
+       "sentence": "The sample is now Water vapor in the air.",
+       "why": "Sunlight supplies energy for evaporation; liquid becomes invisible water vapor, not tiny droplets.",
+       "active": [
+        "vapor"
+       ],
+       "calloutRegion": "vapor",
+       "readouts": [
+        {
+         "id": "liquid-mass",
+         "label": "Liquid mass",
+         "value": "0 g"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Vapor mass",
+         "value": "10 g"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total mass",
+         "value": "10 g"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Gas in the air; total unchanged"
+        }
+       ]
+      },
+      {
+       "id": "condensation",
+       "label": "Condensation",
+       "short": "Condense",
+       "sentence": "The sample forms Cloud droplets suspended in the air.",
+       "why": "Cooling allows water vapor to condense into liquid droplets; clouds are not water vapor.",
+       "active": [
+        "cloud"
+       ],
+       "calloutRegion": "cloud",
+       "readouts": [
+        {
+         "id": "liquid-mass",
+         "label": "Liquid mass",
+         "value": "10 g"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Vapor mass",
+         "value": "0 g"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total mass",
+         "value": "10 g"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Liquid droplets; total unchanged"
+        }
+       ]
+      },
+      {
+       "id": "precipitation",
+       "label": "Precipitation",
+       "short": "Fall",
+       "sentence": "The sample falls toward land as Rain.",
+       "why": "Cloud droplets grow large enough for gravity to pull them downward as rain.",
+       "active": [
+        "rain"
+       ],
+       "calloutRegion": "rain",
+       "readouts": [
+        {
+         "id": "liquid-mass",
+         "label": "Liquid mass",
+         "value": "10 g"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Vapor mass",
+         "value": "0 g"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total mass",
+         "value": "10 g"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Falling liquid; total unchanged"
+        }
+       ]
+      },
+      {
+       "id": "surface-runoff",
+       "label": "Surface runoff",
+       "short": "Collect",
+       "sentence": "The sample joins Runoff flowing downhill toward Ocean.",
+       "why": "In this route, rain reaches land and joins surface flow instead of soaking into the ground.",
+       "active": [
+        "runoff"
+       ],
+       "calloutRegion": "runoff",
+       "readouts": [
+        {
+         "id": "liquid-mass",
+         "label": "Liquid mass",
+         "value": "10 g"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Vapor mass",
+         "value": "0 g"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total mass",
+         "value": "10 g"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Flowing liquid; total unchanged"
+        }
+       ]
+      },
+      {
+       "id": "ocean-return",
+       "label": "Ocean: return",
+       "short": "Return",
+       "sentence": "The same sample is back in Ocean as liquid water.",
+       "why": "Water changed phase and location without being used up; sunlight can drive evaporation again.",
+       "active": [
+        "ocean"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "liquid-mass",
+         "label": "Liquid mass",
+         "value": "10 g"
+        },
+        {
+         "id": "vapor-mass",
+         "label": "Vapor mass",
+         "value": "0 g"
+        },
+        {
+         "id": "total-mass",
+         "label": "Total mass",
+         "value": "10 g"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Returned to Ocean; total matches the start"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 5078
+ },
+ "usd": 0.050976,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3ffNFjrcrq3uTdXLnFN\"}"
+  },
+  "cardUsd": 0
+ }
+}

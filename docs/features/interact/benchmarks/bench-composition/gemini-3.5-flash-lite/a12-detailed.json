@@ -1,0 +1,283 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a12",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T22:21:05.758Z",
+ "ms": 3363,
+ "raw": "{\n  \"story\": \"Mitosis is the division of a cell genome into two identical daughter cells. DNA condenses into chromosomes, aligns at the metaphase plate, separates at sister chromatids, and reforms nuclei.\",\n  \"aha\": {\n    \"stateId\": \"anaphase\",\n    \"observation\": \"Sister chromatids pull apart toward opposite poles as spindle fibers shorten.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-vertical\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"reason\": \"variant.states.why\"\n      }\n    },\n    {\n      \"id\": \"ghost\",\n      \"kind\": \"previous-state-ghost\",\n      \"bind\": {\n        \"regions\": \"previous.regions\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    },\n    {\n      \"id\": \"bar\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Mitosis Phase\",\n      \"options\": [\n        \"Prophase\",\n        \"Metaphase\",\n        \"Anaphase\",\n        \"Telophase\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Mitosis Cycle\",\n        \"regions\": [\n          {\n            \"id\": \"chromosomes\",\n            \"label\": \"Chromosomes\",\n            \"kind\": \"dna\",\n            \"values\": [\"Condensed\", \"Aligned\", \"Separated\", \"Decondensed\"]\n          },\n          {\n            \"id\": \"spindle\",\n            \"label\": \"Spindle Fibers\",\n            \"kind\": \"protein\",\n            \"values\": [\"Forming\", \"Attached\", \"Shortening\", \"Disassembling\"]\n          },\n          {\n            \"id\": \"nucleus\",\n            \"label\": \"Nuclear Membrane\",\n            \"kind\": \"membrane\",\n            \"values\": [\"Breaking Down\", \"Absent\", \"Absent\", \"Reforming\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"prophase\",\n            \"label\": \"Prophase\",\n            \"short\": \"Condense\",\n            \"sentence\": \"Chromatin condenses into visible sister chromatids and mitotic spindle forms.\",\n            \"why\": \"DNA must be tightly packaged for safe segregation.\",\n            \"active\": [\"chromosomes\", \"spindle\", \"nucleus\"],\n            \"calloutRegion\": \"chromosomes\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosomes-count\",\n                \"label\": \"Chromosomes\",\n                \"value\": \"46 duplicated\"\n              },\n              {\n                \"id\": \"ploidy\",\n                \"label\": \"Ploidy\",\n                \"value\": \"2n\"\n              }\n            ]\n          },\n          {\n            \"id\": \"metaphase\",\n            \"label\": \"Metaphase\",\n            \"short\": \"Align\",\n            \"sentence\": \"Chromosomes align precisely at the cell equator.\",\n            \"why\": \"Ensures equal distribution to both daughter cells.\",\n            \"active\": [\"chromosomes\", \"spindle\"],\n            \"calloutRegion\": \"chromosomes\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosomes-count\",\n                \"label\": \"Chromosomes\",\n                \"value\": \"Aligned at plate\"\n              },\n              {\n                \"id\": \"ploidy\",\n                \"label\": \"Ploidy\",\n                \"value\": \"2n\"\n              }\n            ]\n          },\n          {\n            \"id\": \"anaphase\",\n            \"label\": \"Anaphase\",\n            \"short\": \"Separate\",\n            \"sentence\": \"Sister chromatids are pulled apart to opposite poles.\",\n            \"why\": \"Physical separation creates two identical sets of genetic material.\",\n            \"active\": [\"chromosomes\", \"spindle\"],\n            \"calloutRegion\": \"chromosomes\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosomes-count\",\n                \"label\": \"Chromatids\",\n                \"value\": \"92 moving\"\n              },\n              {\n                \"id\": \"ploidy\",\n                \"label\": \"Ploidy\",\n                \"value\": \"Separating\"\n              }\n            ]\n          },\n          {\n            \"id\": \"telophase\",\n            \"label\": \"Telophase\",\n            \"short\": \"Reform\",\n            \"sentence\": \"Nuclear envelopes reform around each new set of chromosomes.\",\n            \"why\": \"Restores normal nuclear compartmentalization before division completes.\",\n            \"active\": [\"chromosomes\", \"nucleus\"],\n            \"calloutRegion\": \"nucleus\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosomes-count\",\n                \"label\": \"Chromosomes\",\n                \"value\": \"46 per side\"\n              },\n              {\n                \"id\": \"ploidy\",\n                \"label\": \"Ploidy\",\n                \"value\": \"2n each\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Mitosis is the division of a cell genome into two identical daughter cells. DNA condenses into chromosomes, aligns at the metaphase plate, separates at sister chromatids, and reforms nuclei.",
+  "aha": {
+   "stateId": "anaphase",
+   "observation": "Sister chromatids pull apart toward opposite poles as spindle fibers shorten."
+  },
+  "layout": {
+   "preset": "stepper-vertical",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "reason": "variant.states.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   },
+   {
+    "id": "bar",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Mitosis Phase",
+    "options": [
+     "Prophase",
+     "Metaphase",
+     "Anaphase",
+     "Telophase"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Mitosis Cycle",
+     "regions": [
+      {
+       "id": "chromosomes",
+       "label": "Chromosomes",
+       "kind": "dna",
+       "values": [
+        "Condensed",
+        "Aligned",
+        "Separated",
+        "Decondensed"
+       ]
+      },
+      {
+       "id": "spindle",
+       "label": "Spindle Fibers",
+       "kind": "protein",
+       "values": [
+        "Forming",
+        "Attached",
+        "Shortening",
+        "Disassembling"
+       ]
+      },
+      {
+       "id": "nucleus",
+       "label": "Nuclear Membrane",
+       "kind": "membrane",
+       "values": [
+        "Breaking Down",
+        "Absent",
+        "Absent",
+        "Reforming"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Condense",
+       "sentence": "Chromatin condenses into visible sister chromatids and mitotic spindle forms.",
+       "why": "DNA must be tightly packaged for safe segregation.",
+       "active": [
+        "chromosomes",
+        "spindle",
+        "nucleus"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "chromosomes-count",
+         "label": "Chromosomes",
+         "value": "46 duplicated"
+        },
+        {
+         "id": "ploidy",
+         "label": "Ploidy",
+         "value": "2n"
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Align",
+       "sentence": "Chromosomes align precisely at the cell equator.",
+       "why": "Ensures equal distribution to both daughter cells.",
+       "active": [
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "chromosomes-count",
+         "label": "Chromosomes",
+         "value": "Aligned at plate"
+        },
+        {
+         "id": "ploidy",
+         "label": "Ploidy",
+         "value": "2n"
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Separate",
+       "sentence": "Sister chromatids are pulled apart to opposite poles.",
+       "why": "Physical separation creates two identical sets of genetic material.",
+       "active": [
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "chromosomes-count",
+         "label": "Chromatids",
+         "value": "92 moving"
+        },
+        {
+         "id": "ploidy",
+         "label": "Ploidy",
+         "value": "Separating"
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Reform",
+       "sentence": "Nuclear envelopes reform around each new set of chromosomes.",
+       "why": "Restores normal nuclear compartmentalization before division completes.",
+       "active": [
+        "chromosomes",
+        "nucleus"
+       ],
+       "calloutRegion": "nucleus",
+       "readouts": [
+        {
+         "id": "chromosomes-count",
+         "label": "Chromosomes",
+         "value": "46 per side"
+        },
+        {
+         "id": "ploidy",
+         "label": "Ploidy",
+         "value": "2n each"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1101,
+  "output": 1453
+ },
+ "usd": 0.003963,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture with chromosome, spindle and nucleus regions across four phases shows how the genome is split, with anaphase as the key observation of chromatids separating."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The stepper opens at inputs.stepIndex with no declared default or hold, so nothing guarantees the card starts at or pauses on the anaphase aha before the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single stepIndex control changes the active regions, callout target, sentence and readouts in each state, so every input has a distinct effect on the evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, ghost, callout, readouts and progress bar all bind to declared variant, previous-state or input fields, and the callout target is a declared region."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, the control options and the state labels use the same four phases and the same chromosomes, spindle and nucleus objects."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "With three regions, a previous-state ghost for comparison and two readouts per step, the density stays within the deep-mitosis ceiling."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The values are mostly correct, but the anaphase ploidy readout says \"Separating\", which is not a ploidy value. The readouts also repeat the callout and the region value text (for example Aligned and Separated), so the same information appears twice."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012116
+ }
+}

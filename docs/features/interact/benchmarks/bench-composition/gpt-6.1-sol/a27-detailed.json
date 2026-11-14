@@ -1,0 +1,735 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a27",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "How does a transformer turn the words in a sentence into embeddings?",
+ "ts": "2026-11-14T22:47:48.814Z",
+ "ms": 158448,
+ "raw": "{\n  \"story\": \"Start with “Birds fly” and follow tokenization, token lookup, and position addition. Inspect queries, keys, attention weights, value mixing, and residual addition in one simplified transformer block. Change Sentence to “Planes fly”: the unchanged lookup embedding for “fly” becomes a different contextual embedding.\",\n  \"aha\": {\n    \"stateId\": \"contextual\",\n    \"observation\": \"The lookup embedding for “fly” stays unchanged, but attention mixes in its subject, producing a different contextual embedding.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states/pipeline\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell and canonical pipeline composition. Place the step rail below the story. Highlight the current state; keep all progress on this rail.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Place explanation above the experiment, anchored to the named active region. Its text supplies the bound status line; its reason explains the mechanism.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"pipeline\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Keep every region in its canonical pipeline slot. Highlight only bound active regions. Preserve readable labels at native width; do not animate vector travel.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"links\": \"variant.links\"\n      }\n    },\n    {\n      \"id\": \"measurements\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place compact readouts beneath the picture. Keep each measurement here, never duplicated inside callouts. Compute from declared toy inputs without intermediate rounding. Display noninteger results to three decimal places. All vector components and attention scores are dimensionless.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Step\",\n      \"presentation\": \"Navigation budget: one index control, separate from the parameter budget. Default to the first state; bounds are zero through seven, increment one. Use Previous and Next, retaining both names when disabled at boundaries. Every state persists until learner action; there is no clock. Reference captures show contextual. Provide accessible names, visible focus, and keyboard operation.\"\n    },\n    {\n      \"id\": \"sentence\",\n      \"kind\": \"select\",\n      \"label\": \"Sentence\",\n      \"options\": [\n        \"Birds fly\",\n        \"Planes fly\"\n      ],\n      \"presentation\": \"Detailed parameter budget: one select. Default to Birds fly. Match inputs.sentence to the variant label, retaining the current step. Changing Sentence replaces the subject token, its vector, attention scores, weights, mixture, and contextual output. Provide visible focus and keyboard selection.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore Birds fly and the first state. Provide an accessible name, visible focus, and keyboard activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Birds fly\",\n        \"regions\": [\n          {\n            \"id\": \"sentence\",\n            \"label\": \"Input sentence\",\n            \"values\": [\n              \"Birds fly\"\n            ]\n          },\n          {\n            \"id\": \"tokenization\",\n            \"label\": \"Tokenization\",\n            \"phases\": [\n              \"Lowercase\",\n              \"Split spaces\",\n              \"Assign vocabulary IDs\"\n            ]\n          },\n          {\n            \"id\": \"lookup\",\n            \"label\": \"Token lookup\",\n            \"phases\": [\n              \"Select fixed token vectors\"\n            ]\n          },\n          {\n            \"id\": \"position\",\n            \"label\": \"Position addition\",\n            \"phases\": [\n              \"Add position vectors\"\n            ]\n          },\n          {\n            \"id\": \"attention\",\n            \"label\": \"Attention\",\n            \"phases\": [\n              \"Queries and keys\",\n              \"Attention weights\"\n            ]\n          },\n          {\n            \"id\": \"mixture\",\n            \"label\": \"Value mixing\",\n            \"phases\": [\n              \"Weight value vectors\"\n            ]\n          },\n          {\n            \"id\": \"output\",\n            \"label\": \"Residual addition\",\n            \"phases\": [\n              \"Add positioned input\",\n              \"Hold contextual embedding\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"sentence\",\n            \"to\": \"tokenization\",\n            \"label\": \"text\"\n          },\n          {\n            \"from\": \"tokenization\",\n            \"to\": \"lookup\",\n            \"label\": \"token IDs\"\n          },\n          {\n            \"from\": \"lookup\",\n            \"to\": \"position\",\n            \"label\": \"lookup vectors\"\n          },\n          {\n            \"from\": \"position\",\n            \"to\": \"attention\",\n            \"label\": \"positioned inputs\"\n          },\n          {\n            \"from\": \"attention\",\n            \"to\": \"mixture\",\n            \"label\": \"attention weights\"\n          },\n          {\n            \"from\": \"mixture\",\n            \"to\": \"output\",\n            \"label\": \"mixed value\"\n          },\n          {\n            \"from\": \"position\",\n            \"to\": \"output\",\n            \"label\": \"residual input\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"sentence\",\n            \"label\": \"Input sentence\",\n            \"short\": \"Input\",\n            \"sentence\": \"Start with a sentence and inspect the eventual embedding for fly.\",\n            \"why\": \"This untrained toy has one bidirectional attention head and one residual connection; normalization and feed-forward layers are omitted.\",\n            \"active\": [\n              \"sentence\"\n            ],\n            \"calloutRegion\": \"sentence\",\n            \"readouts\": [\n              {\n                \"id\": \"inspection\",\n                \"label\": \"Inspection\",\n                \"value\": \"Only fly’s output is displayed; every token receives an output.\"\n              },\n              {\n                \"id\": \"convention\",\n                \"label\": \"Vector convention\",\n                \"value\": \"Two dimensionless components, ordered consistently throughout.\"\n              },\n              {\n                \"id\": \"mask\",\n                \"label\": \"Attention assumption\",\n                \"value\": \"Both tokens are visible; no attention mask.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"tokens\",\n            \"label\": \"Tokenization\",\n            \"short\": \"Tokens\",\n            \"sentence\": \"Tokenization converts text into vocabulary IDs, not semantic vectors.\",\n            \"why\": \"Real tokenizers may split words into subwords; this toy lowercases and splits spaces without adding special tokens.\",\n            \"active\": [\n              \"tokenization\"\n            ],\n            \"calloutRegion\": \"tokenization\",\n            \"readouts\": [\n              {\n                \"id\": \"tokens\",\n                \"label\": \"Ordered tokens\",\n                \"value\": \"[birds, fly]\"\n              },\n              {\n                \"id\": \"ids\",\n                \"label\": \"Corresponding vocabulary IDs\",\n                \"value\": \"[0, 2]\"\n              }\n            ]\n          },\n          {\n            \"id\": \"lookup\",\n            \"label\": \"Token lookup\",\n            \"short\": \"Lookup\",\n            \"sentence\": \"Token lookup selects a fixed vector for each vocabulary ID.\",\n            \"why\": \"The rule is e_i = E[token_id_i]; the lookup table is normally learned during training.\",\n            \"active\": [\n              \"lookup\"\n            ],\n            \"calloutRegion\": \"lookup\",\n            \"readouts\": [\n              {\n                \"id\": \"subject_embedding\",\n                \"label\": \"Subject lookup e_s · birds\",\n                \"value\": \"(2, 0)\"\n              },\n              {\n                \"id\": \"fly_embedding\",\n                \"label\": \"fly lookup e_f\",\n                \"value\": \"(1, 1)\"\n              },\n              {\n                \"id\": \"table\",\n                \"label\": \"Fixed-input assumption\",\n                \"value\": \"Illustrative lookup vectors; not values from a trained model.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"positions\",\n            \"label\": \"Position addition\",\n            \"short\": \"Position\",\n            \"sentence\": \"Position addition supplies order before attention compares tokens.\",\n            \"why\": \"This toy uses x_i = e_i + p_i, indexing from the first token; other transformers may encode positions differently.\",\n            \"active\": [\n              \"position\"\n            ],\n            \"calloutRegion\": \"position\",\n            \"readouts\": [\n              {\n                \"id\": \"positions\",\n                \"label\": \"Fixed positions · first, second\",\n                \"value\": \"p₁=(0, 0); p₂=(0, 1)\"\n              },\n              {\n                \"id\": \"subject_input\",\n                \"label\": \"Positioned subject x_s\",\n                \"value\": \"(2, 0)\"\n              },\n              {\n                \"id\": \"fly_input\",\n                \"label\": \"Positioned fly x_f\",\n                \"value\": \"(1, 2)\"\n              }\n            ]\n          },\n          {\n            \"id\": \"projections\",\n            \"label\": \"Queries and keys\",\n            \"short\": \"Project\",\n            \"sentence\": \"The fly query compares with a key from each visible token.\",\n            \"why\": \"Use q_f=x_f W_Q and k_j=x_j W_K; identity value and output projections preserve vector coordinates.\",\n            \"active\": [\n              \"attention\"\n            ],\n            \"calloutRegion\": \"attention\",\n            \"readouts\": [\n              {\n                \"id\": \"projections\",\n                \"label\": \"Fixed projection matrices\",\n                \"value\": \"W_Q=W_K=(1, 0)ᵀ; W_V=W_O=I\"\n              },\n              {\n                \"id\": \"query\",\n                \"label\": \"fly query q_f\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"keys\",\n                \"label\": \"Keys [subject, fly]\",\n                \"value\": \"[2, 1]\"\n              },\n              {\n                \"id\": \"dimensions\",\n                \"label\": \"Head dimensions\",\n                \"value\": \"d_k=1; d_v=2\"\n              }\n            ]\n          },\n          {\n            \"id\": \"weights\",\n            \"label\": \"Attention weights\",\n            \"short\": \"Weights\",\n            \"sentence\": \"Attention weights determine how much each token contributes to fly.\",\n            \"why\": \"Compute a_j=softmax(q_f k_j / √d_k); softmax exponentiates scores and divides by their sum.\",\n            \"active\": [\n              \"attention\"\n            ],\n            \"calloutRegion\": \"attention\",\n            \"readouts\": [\n              {\n                \"id\": \"scores\",\n                \"label\": \"Scaled scores [subject, fly]\",\n                \"value\": \"[2, 1]\"\n              },\n              {\n                \"id\": \"weights\",\n                \"label\": \"Weights [subject, fly]\",\n                \"value\": \"[0.731, 0.269]\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Weight invariant\",\n                \"value\": \"Nonnegative; sum = 1.000\"\n              }\n            ]\n          },\n          {\n            \"id\": \"mixture\",\n            \"label\": \"Value mixing\",\n            \"short\": \"Mix\",\n            \"sentence\": \"Value mixing brings information from birds into the fly representation.\",\n            \"why\": \"With v_j=x_j, compute z_f=a_s v_s+a_f v_f using unrounded attention weights.\",\n            \"active\": [\n              \"mixture\"\n            ],\n            \"calloutRegion\": \"mixture\",\n            \"readouts\": [\n              {\n                \"id\": \"values\",\n                \"label\": \"Values [subject, fly]\",\n                \"value\": \"[(2, 0), (1, 2)]\"\n              },\n              {\n                \"id\": \"mixture\",\n                \"label\": \"Weighted mixture z_f\",\n                \"value\": \"(1.731, 0.538)\"\n              }\n            ]\n          },\n          {\n            \"id\": \"contextual\",\n            \"label\": \"Contextual embedding\",\n            \"short\": \"Compare\",\n            \"sentence\": \"The same fly lookup yields different contextual embeddings when Sentence changes.\",\n            \"why\": \"Residual addition gives h_f=x_f+z_f. Real transformers repeat attention and feed-forward blocks, usually with normalization, to produce final contextual embeddings.\",\n            \"active\": [\n              \"output\"\n            ],\n            \"calloutRegion\": \"output\",\n            \"readouts\": [\n              {\n                \"id\": \"shared_lookup\",\n                \"label\": \"Shared fly lookup e_f\",\n                \"value\": \"(1, 1)\"\n              },\n              {\n                \"id\": \"selected_output\",\n                \"label\": \"Selected · Birds fly · h_f\",\n                \"value\": \"(2.731, 2.538)\"\n              },\n              {\n                \"id\": \"comparison_output\",\n                \"label\": \"Comparison · Planes fly · h_f\",\n                \"value\": \"(1.731, 4.000)\"\n              }\n            ]\n          }\n        ]\n      },\n      {\n        \"label\": \"Planes fly\",\n        \"regions\": [\n          {\n            \"id\": \"sentence\",\n            \"label\": \"Input sentence\",\n            \"values\": [\n              \"Planes fly\"\n            ]\n          },\n          {\n            \"id\": \"tokenization\",\n            \"label\": \"Tokenization\",\n            \"phases\": [\n              \"Lowercase\",\n              \"Split spaces\",\n              \"Assign vocabulary IDs\"\n            ]\n          },\n          {\n            \"id\": \"lookup\",\n            \"label\": \"Token lookup\",\n            \"phases\": [\n              \"Select fixed token vectors\"\n            ]\n          },\n          {\n            \"id\": \"position\",\n            \"label\": \"Position addition\",\n            \"phases\": [\n              \"Add position vectors\"\n            ]\n          },\n          {\n            \"id\": \"attention\",\n            \"label\": \"Attention\",\n            \"phases\": [\n              \"Queries and keys\",\n              \"Attention weights\"\n            ]\n          },\n          {\n            \"id\": \"mixture\",\n            \"label\": \"Value mixing\",\n            \"phases\": [\n              \"Weight value vectors\"\n            ]\n          },\n          {\n            \"id\": \"output\",\n            \"label\": \"Residual addition\",\n            \"phases\": [\n              \"Add positioned input\",\n              \"Hold contextual embedding\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"sentence\",\n            \"to\": \"tokenization\",\n            \"label\": \"text\"\n          },\n          {\n            \"from\": \"tokenization\",\n            \"to\": \"lookup\",\n            \"label\": \"token IDs\"\n          },\n          {\n            \"from\": \"lookup\",\n            \"to\": \"position\",\n            \"label\": \"lookup vectors\"\n          },\n          {\n            \"from\": \"position\",\n            \"to\": \"attention\",\n            \"label\": \"positioned inputs\"\n          },\n          {\n            \"from\": \"attention\",\n            \"to\": \"mixture\",\n            \"label\": \"attention weights\"\n          },\n          {\n            \"from\": \"mixture\",\n            \"to\": \"output\",\n            \"label\": \"mixed value\"\n          },\n          {\n            \"from\": \"position\",\n            \"to\": \"output\",\n            \"label\": \"residual input\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"sentence\",\n            \"label\": \"Input sentence\",\n            \"short\": \"Input\",\n            \"sentence\": \"Start with a sentence and inspect the eventual embedding for fly.\",\n            \"why\": \"This untrained toy has one bidirectional attention head and one residual connection; normalization and feed-forward layers are omitted.\",\n            \"active\": [\n              \"sentence\"\n            ],\n            \"calloutRegion\": \"sentence\",\n            \"readouts\": [\n              {\n                \"id\": \"inspection\",\n                \"label\": \"Inspection\",\n                \"value\": \"Only fly’s output is displayed; every token receives an output.\"\n              },\n              {\n                \"id\": \"convention\",\n                \"label\": \"Vector convention\",\n                \"value\": \"Two dimensionless components, ordered consistently throughout.\"\n              },\n              {\n                \"id\": \"mask\",\n                \"label\": \"Attention assumption\",\n                \"value\": \"Both tokens are visible; no attention mask.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"tokens\",\n            \"label\": \"Tokenization\",\n            \"short\": \"Tokens\",\n            \"sentence\": \"Tokenization converts text into vocabulary IDs, not semantic vectors.\",\n            \"why\": \"Real tokenizers may split words into subwords; this toy lowercases and splits spaces without adding special tokens.\",\n            \"active\": [\n              \"tokenization\"\n            ],\n            \"calloutRegion\": \"tokenization\",\n            \"readouts\": [\n              {\n                \"id\": \"tokens\",\n                \"label\": \"Ordered tokens\",\n                \"value\": \"[planes, fly]\"\n              },\n              {\n                \"id\": \"ids\",\n                \"label\": \"Corresponding vocabulary IDs\",\n                \"value\": \"[1, 2]\"\n              }\n            ]\n          },\n          {\n            \"id\": \"lookup\",\n            \"label\": \"Token lookup\",\n            \"short\": \"Lookup\",\n            \"sentence\": \"Token lookup selects a fixed vector for each vocabulary ID.\",\n            \"why\": \"The rule is e_i = E[token_id_i]; the lookup table is normally learned during training.\",\n            \"active\": [\n              \"lookup\"\n            ],\n            \"calloutRegion\": \"lookup\",\n            \"readouts\": [\n              {\n                \"id\": \"subject_embedding\",\n                \"label\": \"Subject lookup e_s · planes\",\n                \"value\": \"(0, 2)\"\n              },\n              {\n                \"id\": \"fly_embedding\",\n                \"label\": \"fly lookup e_f\",\n                \"value\": \"(1, 1)\"\n              },\n              {\n                \"id\": \"table\",\n                \"label\": \"Fixed-input assumption\",\n                \"value\": \"Illustrative lookup vectors; not values from a trained model.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"positions\",\n            \"label\": \"Position addition\",\n            \"short\": \"Position\",\n            \"sentence\": \"Position addition supplies order before attention compares tokens.\",\n            \"why\": \"This toy uses x_i = e_i + p_i, indexing from the first token; other transformers may encode positions differently.\",\n            \"active\": [\n              \"position\"\n            ],\n            \"calloutRegion\": \"position\",\n            \"readouts\": [\n              {\n                \"id\": \"positions\",\n                \"label\": \"Fixed positions · first, second\",\n                \"value\": \"p₁=(0, 0); p₂=(0, 1)\"\n              },\n              {\n                \"id\": \"subject_input\",\n                \"label\": \"Positioned subject x_s\",\n                \"value\": \"(0, 2)\"\n              },\n              {\n                \"id\": \"fly_input\",\n                \"label\": \"Positioned fly x_f\",\n                \"value\": \"(1, 2)\"\n              }\n            ]\n          },\n          {\n            \"id\": \"projections\",\n            \"label\": \"Queries and keys\",\n            \"short\": \"Project\",\n            \"sentence\": \"The fly query compares with a key from each visible token.\",\n            \"why\": \"Use q_f=x_f W_Q and k_j=x_j W_K; identity value and output projections preserve vector coordinates.\",\n            \"active\": [\n              \"attention\"\n            ],\n            \"calloutRegion\": \"attention\",\n            \"readouts\": [\n              {\n                \"id\": \"projections\",\n                \"label\": \"Fixed projection matrices\",\n                \"value\": \"W_Q=W_K=(1, 0)ᵀ; W_V=W_O=I\"\n              },\n              {\n                \"id\": \"query\",\n                \"label\": \"fly query q_f\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"keys\",\n                \"label\": \"Keys [subject, fly]\",\n                \"value\": \"[0, 1]\"\n              },\n              {\n                \"id\": \"dimensions\",\n                \"label\": \"Head dimensions\",\n                \"value\": \"d_k=1; d_v=2\"\n              }\n            ]\n          },\n          {\n            \"id\": \"weights\",\n            \"label\": \"Attention weights\",\n            \"short\": \"Weights\",\n            \"sentence\": \"Attention weights determine how much each token contributes to fly.\",\n            \"why\": \"Compute a_j=softmax(q_f k_j / √d_k); softmax exponentiates scores and divides by their sum.\",\n            \"active\": [\n              \"attention\"\n            ],\n            \"calloutRegion\": \"attention\",\n            \"readouts\": [\n              {\n                \"id\": \"scores\",\n                \"label\": \"Scaled scores [subject, fly]\",\n                \"value\": \"[0, 1]\"\n              },\n              {\n                \"id\": \"weights\",\n                \"label\": \"Weights [subject, fly]\",\n                \"value\": \"[0.269, 0.731]\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Weight invariant\",\n                \"value\": \"Nonnegative; sum = 1.000\"\n              }\n            ]\n          },\n          {\n            \"id\": \"mixture\",\n            \"label\": \"Value mixing\",\n            \"short\": \"Mix\",\n            \"sentence\": \"Value mixing brings information from planes into the fly representation.\",\n            \"why\": \"With v_j=x_j, compute z_f=a_s v_s+a_f v_f using unrounded attention weights.\",\n            \"active\": [\n              \"mixture\"\n            ],\n            \"calloutRegion\": \"mixture\",\n            \"readouts\": [\n              {\n                \"id\": \"values\",\n                \"label\": \"Values [subject, fly]\",\n                \"value\": \"[(0, 2), (1, 2)]\"\n              },\n              {\n                \"id\": \"mixture\",\n                \"label\": \"Weighted mixture z_f\",\n                \"value\": \"(0.731, 2.000)\"\n              }\n            ]\n          },\n          {\n            \"id\": \"contextual\",\n            \"label\": \"Contextual embedding\",\n            \"short\": \"Compare\",\n            \"sentence\": \"The same fly lookup yields different contextual embeddings when Sentence changes.\",\n            \"why\": \"Residual addition gives h_f=x_f+z_f. Real transformers repeat attention and feed-forward blocks, usually with normalization, to produce final contextual embeddings.\",\n            \"active\": [\n              \"output\"\n            ],\n            \"calloutRegion\": \"output\",\n            \"readouts\": [\n              {\n                \"id\": \"shared_lookup\",\n                \"label\": \"Shared fly lookup e_f\",\n                \"value\": \"(1, 1)\"\n              },\n              {\n                \"id\": \"selected_output\",\n                \"label\": \"Selected · Planes fly · h_f\",\n                \"value\": \"(1.731, 4.000)\"\n              },\n              {\n                \"id\": \"comparison_output\",\n                \"label\": \"Comparison · Birds fly · h_f\",\n                \"value\": \"(2.731, 2.538)\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Start with “Birds fly” and follow tokenization, token lookup, and position addition. Inspect queries, keys, attention weights, value mixing, and residual addition in one simplified transformer block. Change Sentence to “Planes fly”: the unchanged lookup embedding for “fly” becomes a different contextual embedding.",
+  "aha": {
+   "stateId": "contextual",
+   "observation": "The lookup embedding for “fly” stays unchanged, but attention mixes in its subject, producing a different contextual embedding."
+  },
+  "layout": {
+   "preset": "stepper-states/pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell and canonical pipeline composition. Place the step rail below the story. Highlight the current state; keep all progress on this rail.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "explanation",
+    "kind": "active-callout",
+    "presentation": "Place explanation above the experiment, anchored to the named active region. Its text supplies the bound status line; its reason explains the mechanism.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "pipeline",
+    "kind": "fixed-picture",
+    "presentation": "Keep every region in its canonical pipeline slot. Highlight only bound active regions. Preserve readable labels at native width; do not animate vector travel.",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "links": "variant.links"
+    }
+   },
+   {
+    "id": "measurements",
+    "kind": "value-readout",
+    "presentation": "Place compact readouts beneath the picture. Keep each measurement here, never duplicated inside callouts. Compute from declared toy inputs without intermediate rounding. Display noninteger results to three decimal places. All vector components and attention scores are dimensionless.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Step",
+    "presentation": "Navigation budget: one index control, separate from the parameter budget. Default to the first state; bounds are zero through seven, increment one. Use Previous and Next, retaining both names when disabled at boundaries. Every state persists until learner action; there is no clock. Reference captures show contextual. Provide accessible names, visible focus, and keyboard operation."
+   },
+   {
+    "id": "sentence",
+    "kind": "select",
+    "label": "Sentence",
+    "options": [
+     "Birds fly",
+     "Planes fly"
+    ],
+    "presentation": "Detailed parameter budget: one select. Default to Birds fly. Match inputs.sentence to the variant label, retaining the current step. Changing Sentence replaces the subject token, its vector, attention scores, weights, mixture, and contextual output. Provide visible focus and keyboard selection."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore Birds fly and the first state. Provide an accessible name, visible focus, and keyboard activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Birds fly",
+     "regions": [
+      {
+       "id": "sentence",
+       "label": "Input sentence",
+       "values": [
+        "Birds fly"
+       ]
+      },
+      {
+       "id": "tokenization",
+       "label": "Tokenization",
+       "phases": [
+        "Lowercase",
+        "Split spaces",
+        "Assign vocabulary IDs"
+       ]
+      },
+      {
+       "id": "lookup",
+       "label": "Token lookup",
+       "phases": [
+        "Select fixed token vectors"
+       ]
+      },
+      {
+       "id": "position",
+       "label": "Position addition",
+       "phases": [
+        "Add position vectors"
+       ]
+      },
+      {
+       "id": "attention",
+       "label": "Attention",
+       "phases": [
+        "Queries and keys",
+        "Attention weights"
+       ]
+      },
+      {
+       "id": "mixture",
+       "label": "Value mixing",
+       "phases": [
+        "Weight value vectors"
+       ]
+      },
+      {
+       "id": "output",
+       "label": "Residual addition",
+       "phases": [
+        "Add positioned input",
+        "Hold contextual embedding"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "sentence",
+       "to": "tokenization",
+       "label": "text"
+      },
+      {
+       "from": "tokenization",
+       "to": "lookup",
+       "label": "token IDs"
+      },
+      {
+       "from": "lookup",
+       "to": "position",
+       "label": "lookup vectors"
+      },
+      {
+       "from": "position",
+       "to": "attention",
+       "label": "positioned inputs"
+      },
+      {
+       "from": "attention",
+       "to": "mixture",
+       "label": "attention weights"
+      },
+      {
+       "from": "mixture",
+       "to": "output",
+       "label": "mixed value"
+      },
+      {
+       "from": "position",
+       "to": "output",
+       "label": "residual input"
+      }
+     ],
+     "states": [
+      {
+       "id": "sentence",
+       "label": "Input sentence",
+       "short": "Input",
+       "sentence": "Start with a sentence and inspect the eventual embedding for fly.",
+       "why": "This untrained toy has one bidirectional attention head and one residual connection; normalization and feed-forward layers are omitted.",
+       "active": [
+        "sentence"
+       ],
+       "calloutRegion": "sentence",
+       "readouts": [
+        {
+         "id": "inspection",
+         "label": "Inspection",
+         "value": "Only fly’s output is displayed; every token receives an output."
+        },
+        {
+         "id": "convention",
+         "label": "Vector convention",
+         "value": "Two dimensionless components, ordered consistently throughout."
+        },
+        {
+         "id": "mask",
+         "label": "Attention assumption",
+         "value": "Both tokens are visible; no attention mask."
+        }
+       ]
+      },
+      {
+       "id": "tokens",
+       "label": "Tokenization",
+       "short": "Tokens",
+       "sentence": "Tokenization converts text into vocabulary IDs, not semantic vectors.",
+       "why": "Real tokenizers may split words into subwords; this toy lowercases and splits spaces without adding special tokens.",
+       "active": [
+        "tokenization"
+       ],
+       "calloutRegion": "tokenization",
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Ordered tokens",
+         "value": "[birds, fly]"
+        },
+        {
+         "id": "ids",
+         "label": "Corresponding vocabulary IDs",
+         "value": "[0, 2]"
+        }
+       ]
+      },
+      {
+       "id": "lookup",
+       "label": "Token lookup",
+       "short": "Lookup",
+       "sentence": "Token lookup selects a fixed vector for each vocabulary ID.",
+       "why": "The rule is e_i = E[token_id_i]; the lookup table is normally learned during training.",
+       "active": [
+        "lookup"
+       ],
+       "calloutRegion": "lookup",
+       "readouts": [
+        {
+         "id": "subject_embedding",
+         "label": "Subject lookup e_s · birds",
+         "value": "(2, 0)"
+        },
+        {
+         "id": "fly_embedding",
+         "label": "fly lookup e_f",
+         "value": "(1, 1)"
+        },
+        {
+         "id": "table",
+         "label": "Fixed-input assumption",
+         "value": "Illustrative lookup vectors; not values from a trained model."
+        }
+       ]
+      },
+      {
+       "id": "positions",
+       "label": "Position addition",
+       "short": "Position",
+       "sentence": "Position addition supplies order before attention compares tokens.",
+       "why": "This toy uses x_i = e_i + p_i, indexing from the first token; other transformers may encode positions differently.",
+       "active": [
+        "position"
+       ],
+       "calloutRegion": "position",
+       "readouts": [
+        {
+         "id": "positions",
+         "label": "Fixed positions · first, second",
+         "value": "p₁=(0, 0); p₂=(0, 1)"
+        },
+        {
+         "id": "subject_input",
+         "label": "Positioned subject x_s",
+         "value": "(2, 0)"
+        },
+        {
+         "id": "fly_input",
+         "label": "Positioned fly x_f",
+         "value": "(1, 2)"
+        }
+       ]
+      },
+      {
+       "id": "projections",
+       "label": "Queries and keys",
+       "short": "Project",
+       "sentence": "The fly query compares with a key from each visible token.",
+       "why": "Use q_f=x_f W_Q and k_j=x_j W_K; identity value and output projections preserve vector coordinates.",
+       "active": [
+        "attention"
+       ],
+       "calloutRegion": "attention",
+       "readouts": [
+        {
+         "id": "projections",
+         "label": "Fixed projection matrices",
+         "value": "W_Q=W_K=(1, 0)ᵀ; W_V=W_O=I"
+        },
+        {
+         "id": "query",
+         "label": "fly query q_f",
+         "value": "1"
+        },
+        {
+         "id": "keys",
+         "label": "Keys [subject, fly]",
+         "value": "[2, 1]"
+        },
+        {
+         "id": "dimensions",
+         "label": "Head dimensions",
+         "value": "d_k=1; d_v=2"
+        }
+       ]
+      },
+      {
+       "id": "weights",
+       "label": "Attention weights",
+       "short": "Weights",
+       "sentence": "Attention weights determine how much each token contributes to fly.",
+       "why": "Compute a_j=softmax(q_f k_j / √d_k); softmax exponentiates scores and divides by their sum.",
+       "active": [
+        "attention"
+       ],
+       "calloutRegion": "attention",
+       "readouts": [
+        {
+         "id": "scores",
+         "label": "Scaled scores [subject, fly]",
+         "value": "[2, 1]"
+        },
+        {
+         "id": "weights",
+         "label": "Weights [subject, fly]",
+         "value": "[0.731, 0.269]"
+        },
+        {
+         "id": "invariant",
+         "label": "Weight invariant",
+         "value": "Nonnegative; sum = 1.000"
+        }
+       ]
+      },
+      {
+       "id": "mixture",
+       "label": "Value mixing",
+       "short": "Mix",
+       "sentence": "Value mixing brings information from birds into the fly representation.",
+       "why": "With v_j=x_j, compute z_f=a_s v_s+a_f v_f using unrounded attention weights.",
+       "active": [
+        "mixture"
+       ],
+       "calloutRegion": "mixture",
+       "readouts": [
+        {
+         "id": "values",
+         "label": "Values [subject, fly]",
+         "value": "[(2, 0), (1, 2)]"
+        },
+        {
+         "id": "mixture",
+         "label": "Weighted mixture z_f",
+         "value": "(1.731, 0.538)"
+        }
+       ]
+      },
+      {
+       "id": "contextual",
+       "label": "Contextual embedding",
+       "short": "Compare",
+       "sentence": "The same fly lookup yields different contextual embeddings when Sentence changes.",
+       "why": "Residual addition gives h_f=x_f+z_f. Real transformers repeat attention and feed-forward blocks, usually with normalization, to produce final contextual embeddings.",
+       "active": [
+        "output"
+       ],
+       "calloutRegion": "output",
+       "readouts": [
+        {
+         "id": "shared_lookup",
+         "label": "Shared fly lookup e_f",
+         "value": "(1, 1)"
+        },
+        {
+         "id": "selected_output",
+         "label": "Selected · Birds fly · h_f",
+         "value": "(2.731, 2.538)"
+        },
+        {
+         "id": "comparison_output",
+         "label": "Comparison · Planes fly · h_f",
+         "value": "(1.731, 4.000)"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Planes fly",
+     "regions": [
+      {
+       "id": "sentence",
+       "label": "Input sentence",
+       "values": [
+        "Planes fly"
+       ]
+      },
+      {
+       "id": "tokenization",
+       "label": "Tokenization",
+       "phases": [
+        "Lowercase",
+        "Split spaces",
+        "Assign vocabulary IDs"
+       ]
+      },
+      {
+       "id": "lookup",
+       "label": "Token lookup",
+       "phases": [
+        "Select fixed token vectors"
+       ]
+      },
+      {
+       "id": "position",
+       "label": "Position addition",
+       "phases": [
+        "Add position vectors"
+       ]
+      },
+      {
+       "id": "attention",
+       "label": "Attention",
+       "phases": [
+        "Queries and keys",
+        "Attention weights"
+       ]
+      },
+      {
+       "id": "mixture",
+       "label": "Value mixing",
+       "phases": [
+        "Weight value vectors"
+       ]
+      },
+      {
+       "id": "output",
+       "label": "Residual addition",
+       "phases": [
+        "Add positioned input",
+        "Hold contextual embedding"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "sentence",
+       "to": "tokenization",
+       "label": "text"
+      },
+      {
+       "from": "tokenization",
+       "to": "lookup",
+       "label": "token IDs"
+      },
+      {
+       "from": "lookup",
+       "to": "position",
+       "label": "lookup vectors"
+      },
+      {
+       "from": "position",
+       "to": "attention",
+       "label": "positioned inputs"
+      },
+      {
+       "from": "attention",
+       "to": "mixture",
+       "label": "attention weights"
+      },
+      {
+       "from": "mixture",
+       "to": "output",
+       "label": "mixed value"
+      },
+      {
+       "from": "position",
+       "to": "output",
+       "label": "residual input"
+      }
+     ],
+     "states": [
+      {
+       "id": "sentence",
+       "label": "Input sentence",
+       "short": "Input",
+       "sentence": "Start with a sentence and inspect the eventual embedding for fly.",
+       "why": "This untrained toy has one bidirectional attention head and one residual connection; normalization and feed-forward layers are omitted.",
+       "active": [
+        "sentence"
+       ],
+       "calloutRegion": "sentence",
+       "readouts": [
+        {
+         "id": "inspection",
+         "label": "Inspection",
+         "value": "Only fly’s output is displayed; every token receives an output."
+        },
+        {
+         "id": "convention",
+         "label": "Vector convention",
+         "value": "Two dimensionless components, ordered consistently throughout."
+        },
+        {
+         "id": "mask",
+         "label": "Attention assumption",
+         "value": "Both tokens are visible; no attention mask."
+        }
+       ]
+      },
+      {
+       "id": "tokens",
+       "label": "Tokenization",
+       "short": "Tokens",
+       "sentence": "Tokenization converts text into vocabulary IDs, not semantic vectors.",
+       "why": "Real tokenizers may split words into subwords; this toy lowercases and splits spaces without adding special tokens.",
+       "active": [
+        "tokenization"
+       ],
+       "calloutRegion": "tokenization",
+       "readouts": [
+        {
+         "id": "tokens",
+         "label": "Ordered tokens",
+         "value": "[planes, fly]"
+        },
+        {
+         "id": "ids",
+         "label": "Corresponding vocabulary IDs",
+         "value": "[1, 2]"
+        }
+       ]
+      },
+      {
+       "id": "lookup",
+       "label": "Token lookup",
+       "short": "Lookup",
+       "sentence": "Token lookup selects a fixed vector for each vocabulary ID.",
+       "why": "The rule is e_i = E[token_id_i]; the lookup table is normally learned during training.",
+       "active": [
+        "lookup"
+       ],
+       "calloutRegion": "lookup",
+       "readouts": [
+        {
+         "id": "subject_embedding",
+         "label": "Subject lookup e_s · planes",
+         "value": "(0, 2)"
+        },
+        {
+         "id": "fly_embedding",
+         "label": "fly lookup e_f",
+         "value": "(1, 1)"
+        },
+        {
+         "id": "table",
+         "label": "Fixed-input assumption",
+         "value": "Illustrative lookup vectors; not values from a trained model."
+        }
+       ]
+      },
+      {
+       "id": "positions",
+       "label": "Position addition",
+       "short": "Position",
+       "sentence": "Position addition supplies order before attention compares tokens.",
+       "why": "This toy uses x_i = e_i + p_i, indexing from the first token; other transformers may encode positions differently.",
+       "active": [
+        "position"
+       ],
+       "calloutRegion": "position",
+       "readouts": [
+        {
+         "id": "positions",
+         "label": "Fixed positions · first, second",
+         "value": "p₁=(0, 0); p₂=(0, 1)"
+        },
+        {
+         "id": "subject_input",
+         "label": "Positioned subject x_s",
+         "value": "(0, 2)"
+        },
+        {
+         "id": "fly_input",
+         "label": "Positioned fly x_f",
+         "value": "(1, 2)"
+        }
+       ]
+      },
+      {
+       "id": "projections",
+       "label": "Queries and keys",
+       "short": "Project",
+       "sentence": "The fly query compares with a key from each visible token.",
+       "why": "Use q_f=x_f W_Q and k_j=x_j W_K; identity value and output projections preserve vector coordinates.",
+       "active": [
+        "attention"
+       ],
+       "calloutRegion": "attention",
+       "readouts": [
+        {
+         "id": "projections",
+         "label": "Fixed projection matrices",
+         "value": "W_Q=W_K=(1, 0)ᵀ; W_V=W_O=I"
+        },
+        {
+         "id": "query",
+         "label": "fly query q_f",
+         "value": "1"
+        },
+        {
+         "id": "keys",
+         "label": "Keys [subject, fly]",
+         "value": "[0, 1]"
+        },
+        {
+         "id": "dimensions",
+         "label": "Head dimensions",
+         "value": "d_k=1; d_v=2"
+        }
+       ]
+      },
+      {
+       "id": "weights",
+       "label": "Attention weights",
+       "short": "Weights",
+       "sentence": "Attention weights determine how much each token contributes to fly.",
+       "why": "Compute a_j=softmax(q_f k_j / √d_k); softmax exponentiates scores and divides by their sum.",
+       "active": [
+        "attention"
+       ],
+       "calloutRegion": "attention",
+       "readouts": [
+        {
+         "id": "scores",
+         "label": "Scaled scores [subject, fly]",
+         "value": "[0, 1]"
+        },
+        {
+         "id": "weights",
+         "label": "Weights [subject, fly]",
+         "value": "[0.269, 0.731]"
+        },
+        {
+         "id": "invariant",
+         "label": "Weight invariant",
+         "value": "Nonnegative; sum = 1.000"
+        }
+       ]
+      },
+      {
+       "id": "mixture",
+       "label": "Value mixing",
+       "short": "Mix",
+       "sentence": "Value mixing brings information from planes into the fly representation.",
+       "why": "With v_j=x_j, compute z_f=a_s v_s+a_f v_f using unrounded attention weights.",
+       "active": [
+        "mixture"
+       ],
+       "calloutRegion": "mixture",
+       "readouts": [
+        {
+         "id": "values",
+         "label": "Values [subject, fly]",
+         "value": "[(0, 2), (1, 2)]"
+        },
+        {
+         "id": "mixture",
+         "label": "Weighted mixture z_f",
+         "value": "(0.731, 2.000)"
+        }
+       ]
+      },
+      {
+       "id": "contextual",
+       "label": "Contextual embedding",
+       "short": "Compare",
+       "sentence": "The same fly lookup yields different contextual embeddings when Sentence changes.",
+       "why": "Residual addition gives h_f=x_f+z_f. Real transformers repeat attention and feed-forward blocks, usually with normalization, to produce final contextual embeddings.",
+       "active": [
+        "output"
+       ],
+       "calloutRegion": "output",
+       "readouts": [
+        {
+         "id": "shared_lookup",
+         "label": "Shared fly lookup e_f",
+         "value": "(1, 1)"
+        },
+        {
+         "id": "selected_output",
+         "label": "Selected · Planes fly · h_f",
+         "value": "(1.731, 4.000)"
+        },
+        {
+         "id": "comparison_output",
+         "label": "Comparison · Birds fly · h_f",
+         "value": "(2.731, 2.538)"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1540,
+  "output": 10073
+ },
+ "usd": 0.10094,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3dn5kmC2yrPfMC418BC\"}"
+  },
+  "cardUsd": 0
+ }
+}

@@ -1,0 +1,493 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a15",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T22:25:06.772Z",
+ "ms": 29539,
+ "raw": "{\"story\":\"Merge sort splits a list in half until each piece is one item, which is already sorted. It then merges sorted pieces back together, comparing only the front items. Eight numbers need three merge levels, and each level costs at most eight comparisons.\",\"aha\":{\"stateId\":\"s8\",\"observation\":\"Merging two sorted halves only compares their front items, so each level costs at most n comparisons. Here 3 levels used 17 of the 24 comparisons that n·log2 n allows.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons; step rail shows the active state\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Restores the first state\"}],\"data\":{\"variants\":[{\"label\":\"Sort 6 3 8 1 7 2 5 4 (fixed input, ascending, n = 8)\",\"regions\":[{\"id\":\"input\",\"label\":\"Unsorted list\",\"kind\":\"row\",\"values\":[\"6 3 8 1 7 2 5 4\"]},{\"id\":\"halves\",\"label\":\"Halves\",\"kind\":\"row\",\"values\":[\"6 3 8 1\",\"7 2 5 4\"]},{\"id\":\"pairs\",\"label\":\"Pairs\",\"kind\":\"row\",\"values\":[\"6 3\",\"8 1\",\"7 2\",\"5 4\"]},{\"id\":\"singles\",\"label\":\"Single items (sorted)\",\"kind\":\"row\",\"values\":[\"6\",\"3\",\"8\",\"1\",\"7\",\"2\",\"5\",\"4\"]},{\"id\":\"mergedPairs\",\"label\":\"Merged pairs\",\"kind\":\"row\",\"values\":[\"3 6\",\"1 8\",\"2 7\",\"4 5\"]},{\"id\":\"mergedQuads\",\"label\":\"Merged quarters-to-halves\",\"kind\":\"row\",\"values\":[\"1 3 6 8\",\"2 4 5 7\"]},{\"id\":\"heads\",\"label\":\"Front items compared\",\"kind\":\"comparison\",\"values\":[\"1 vs 2\"]},{\"id\":\"sorted\",\"label\":\"Sorted list\",\"kind\":\"row\",\"values\":[\"1 2 3 4 5 6 7 8\"]}],\"links\":[{\"from\":\"input\",\"to\":\"halves\",\"label\":\"split\"},{\"from\":\"halves\",\"to\":\"pairs\",\"label\":\"split\"},{\"from\":\"pairs\",\"to\":\"singles\",\"label\":\"split\"},{\"from\":\"singles\",\"to\":\"mergedPairs\",\"label\":\"merge\"},{\"from\":\"mergedPairs\",\"to\":\"mergedQuads\",\"label\":\"merge\"},{\"from\":\"mergedQuads\",\"to\":\"sorted\",\"label\":\"merge\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Start\",\"short\":\"Start\",\"sentence\":\"Eight numbers sit in the unsorted list. Nothing is ordered yet.\",\"why\":\"This is the input every later step divides or merges.\",\"active\":[\"input\"],\"calloutRegion\":\"input\",\"readouts\":[{\"id\":\"n\",\"label\":\"Items n\",\"value\":\"8\"},{\"id\":\"cmp\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"bound\",\"label\":\"Upper bound n·log2 n\",\"value\":\"8 × 3 = 24\"}]},{\"id\":\"s2\",\"label\":\"Split into halves\",\"short\":\"Halves\",\"sentence\":\"The list is cut in the middle into two halves of four.\",\"why\":\"Smaller lists are easier to sort; no comparing happens while splitting.\",\"active\":[\"halves\"],\"calloutRegion\":\"halves\",\"readouts\":[{\"id\":\"piece\",\"label\":\"Piece size\",\"value\":\"4\"},{\"id\":\"cmp\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"bound\",\"label\":\"Upper bound n·log2 n\",\"value\":\"24\"}]},{\"id\":\"s3\",\"label\":\"Split into pairs\",\"short\":\"Pairs\",\"sentence\":\"Each half is cut again, giving four pairs.\",\"why\":\"Halving repeats on every piece, so the same rule applies at each size.\",\"active\":[\"pairs\"],\"calloutRegion\":\"pairs\",\"readouts\":[{\"id\":\"piece\",\"label\":\"Piece size\",\"value\":\"2\"},{\"id\":\"cmp\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"bound\",\"label\":\"Upper bound n·log2 n\",\"value\":\"24\"}]},{\"id\":\"s4\",\"label\":\"Single items\",\"short\":\"Singles\",\"sentence\":\"Pairs split into eight single items. A one-item list is already sorted.\",\"why\":\"This base case stops the splitting after log2 8 = 3 cuts.\",\"active\":[\"singles\"],\"calloutRegion\":\"singles\",\"readouts\":[{\"id\":\"piece\",\"label\":\"Piece size\",\"value\":\"1\"},{\"id\":\"cmp\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"bound\",\"label\":\"Upper bound n·log2 n\",\"value\":\"24\"}]},{\"id\":\"s5\",\"label\":\"Merge into pairs\",\"short\":\"Merge 1\",\"sentence\":\"Neighbouring singles merge into sorted pairs: 6 3 becomes 3 6, and 8 1 becomes 1 8.\",\"why\":\"Each pair needs one comparison, so level one costs 4 of at most 8.\",\"active\":[\"mergedPairs\"],\"calloutRegion\":\"mergedPairs\",\"readouts\":[{\"id\":\"level\",\"label\":\"Merge level\",\"value\":\"1 of 3\"},{\"id\":\"lvlcmp\",\"label\":\"Comparisons this level\",\"value\":\"4\"},{\"id\":\"cmp\",\"label\":\"Comparisons so far\",\"value\":\"4\"}]},{\"id\":\"s6\",\"label\":\"Merge into halves\",\"short\":\"Merge 2\",\"sentence\":\"Sorted pairs merge into sorted fours: 3 6 and 1 8 become 1 3 6 8.\",\"why\":\"Only front items are compared; level two costs 3 + 3 = 6 of at most 8.\",\"active\":[\"mergedQuads\"],\"calloutRegion\":\"mergedQuads\",\"readouts\":[{\"id\":\"level\",\"label\":\"Merge level\",\"value\":\"2 of 3\"},{\"id\":\"lvlcmp\",\"label\":\"Comparisons this level\",\"value\":\"6\"},{\"id\":\"cmp\",\"label\":\"Comparisons so far\",\"value\":\"10\"}]},{\"id\":\"s7\",\"label\":\"Compare front items\",\"short\":\"Compare\",\"sentence\":\"To merge the last two halves, compare their front items: 1 and 2. The smaller, 1, moves out first.\",\"why\":\"Each half is sorted, so its smallest item is always at the front.\",\"active\":[\"mergedQuads\",\"heads\"],\"calloutRegion\":\"heads\",\"readouts\":[{\"id\":\"level\",\"label\":\"Merge level\",\"value\":\"3 of 3\"},{\"id\":\"lvlcmp\",\"label\":\"Comparisons this level\",\"value\":\"1 so far\"},{\"id\":\"cmp\",\"label\":\"Comparisons so far\",\"value\":\"11\"}]},{\"id\":\"s8\",\"label\":\"Final merge done\",\"short\":\"Sorted\",\"sentence\":\"Repeating that front comparison produces the fully sorted list: 1 through 8.\",\"why\":\"Level three took 7 comparisons. Total 4 + 6 + 7 = 17, under the 24 allowed.\",\"active\":[\"sorted\"],\"calloutRegion\":\"sorted\",\"readouts\":[{\"id\":\"level\",\"label\":\"Merge level\",\"value\":\"3 of 3\"},{\"id\":\"lvlcmp\",\"label\":\"Comparisons this level\",\"value\":\"7\"},{\"id\":\"cmp\",\"label\":\"Total comparisons\",\"value\":\"17\"},{\"id\":\"bound\",\"label\":\"Upper bound n·log2 n\",\"value\":\"8 × 3 = 24\"}]}]}]}}",
+ "composition": {
+  "story": "Merge sort splits a list in half until each piece is one item, which is already sorted. It then merges sorted pieces back together, comparing only the front items. Eight numbers need three merge levels, and each level costs at most eight comparisons.",
+  "aha": {
+   "stateId": "s8",
+   "observation": "Merging two sorted halves only compares their front items, so each level costs at most n comparisons. Here 3 levels used 17 of the 24 comparisons that n·log2 n allows."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons; step rail shows the active state"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restores the first state"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Sort 6 3 8 1 7 2 5 4 (fixed input, ascending, n = 8)",
+     "regions": [
+      {
+       "id": "input",
+       "label": "Unsorted list",
+       "kind": "row",
+       "values": [
+        "6 3 8 1 7 2 5 4"
+       ]
+      },
+      {
+       "id": "halves",
+       "label": "Halves",
+       "kind": "row",
+       "values": [
+        "6 3 8 1",
+        "7 2 5 4"
+       ]
+      },
+      {
+       "id": "pairs",
+       "label": "Pairs",
+       "kind": "row",
+       "values": [
+        "6 3",
+        "8 1",
+        "7 2",
+        "5 4"
+       ]
+      },
+      {
+       "id": "singles",
+       "label": "Single items (sorted)",
+       "kind": "row",
+       "values": [
+        "6",
+        "3",
+        "8",
+        "1",
+        "7",
+        "2",
+        "5",
+        "4"
+       ]
+      },
+      {
+       "id": "mergedPairs",
+       "label": "Merged pairs",
+       "kind": "row",
+       "values": [
+        "3 6",
+        "1 8",
+        "2 7",
+        "4 5"
+       ]
+      },
+      {
+       "id": "mergedQuads",
+       "label": "Merged quarters-to-halves",
+       "kind": "row",
+       "values": [
+        "1 3 6 8",
+        "2 4 5 7"
+       ]
+      },
+      {
+       "id": "heads",
+       "label": "Front items compared",
+       "kind": "comparison",
+       "values": [
+        "1 vs 2"
+       ]
+      },
+      {
+       "id": "sorted",
+       "label": "Sorted list",
+       "kind": "row",
+       "values": [
+        "1 2 3 4 5 6 7 8"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "input",
+       "to": "halves",
+       "label": "split"
+      },
+      {
+       "from": "halves",
+       "to": "pairs",
+       "label": "split"
+      },
+      {
+       "from": "pairs",
+       "to": "singles",
+       "label": "split"
+      },
+      {
+       "from": "singles",
+       "to": "mergedPairs",
+       "label": "merge"
+      },
+      {
+       "from": "mergedPairs",
+       "to": "mergedQuads",
+       "label": "merge"
+      },
+      {
+       "from": "mergedQuads",
+       "to": "sorted",
+       "label": "merge"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Start",
+       "short": "Start",
+       "sentence": "Eight numbers sit in the unsorted list. Nothing is ordered yet.",
+       "why": "This is the input every later step divides or merges.",
+       "active": [
+        "input"
+       ],
+       "calloutRegion": "input",
+       "readouts": [
+        {
+         "id": "n",
+         "label": "Items n",
+         "value": "8"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons so far",
+         "value": "0"
+        },
+        {
+         "id": "bound",
+         "label": "Upper bound n·log2 n",
+         "value": "8 × 3 = 24"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Split into halves",
+       "short": "Halves",
+       "sentence": "The list is cut in the middle into two halves of four.",
+       "why": "Smaller lists are easier to sort; no comparing happens while splitting.",
+       "active": [
+        "halves"
+       ],
+       "calloutRegion": "halves",
+       "readouts": [
+        {
+         "id": "piece",
+         "label": "Piece size",
+         "value": "4"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons so far",
+         "value": "0"
+        },
+        {
+         "id": "bound",
+         "label": "Upper bound n·log2 n",
+         "value": "24"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Split into pairs",
+       "short": "Pairs",
+       "sentence": "Each half is cut again, giving four pairs.",
+       "why": "Halving repeats on every piece, so the same rule applies at each size.",
+       "active": [
+        "pairs"
+       ],
+       "calloutRegion": "pairs",
+       "readouts": [
+        {
+         "id": "piece",
+         "label": "Piece size",
+         "value": "2"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons so far",
+         "value": "0"
+        },
+        {
+         "id": "bound",
+         "label": "Upper bound n·log2 n",
+         "value": "24"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Single items",
+       "short": "Singles",
+       "sentence": "Pairs split into eight single items. A one-item list is already sorted.",
+       "why": "This base case stops the splitting after log2 8 = 3 cuts.",
+       "active": [
+        "singles"
+       ],
+       "calloutRegion": "singles",
+       "readouts": [
+        {
+         "id": "piece",
+         "label": "Piece size",
+         "value": "1"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons so far",
+         "value": "0"
+        },
+        {
+         "id": "bound",
+         "label": "Upper bound n·log2 n",
+         "value": "24"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Merge into pairs",
+       "short": "Merge 1",
+       "sentence": "Neighbouring singles merge into sorted pairs: 6 3 becomes 3 6, and 8 1 becomes 1 8.",
+       "why": "Each pair needs one comparison, so level one costs 4 of at most 8.",
+       "active": [
+        "mergedPairs"
+       ],
+       "calloutRegion": "mergedPairs",
+       "readouts": [
+        {
+         "id": "level",
+         "label": "Merge level",
+         "value": "1 of 3"
+        },
+        {
+         "id": "lvlcmp",
+         "label": "Comparisons this level",
+         "value": "4"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons so far",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Merge into halves",
+       "short": "Merge 2",
+       "sentence": "Sorted pairs merge into sorted fours: 3 6 and 1 8 become 1 3 6 8.",
+       "why": "Only front items are compared; level two costs 3 + 3 = 6 of at most 8.",
+       "active": [
+        "mergedQuads"
+       ],
+       "calloutRegion": "mergedQuads",
+       "readouts": [
+        {
+         "id": "level",
+         "label": "Merge level",
+         "value": "2 of 3"
+        },
+        {
+         "id": "lvlcmp",
+         "label": "Comparisons this level",
+         "value": "6"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons so far",
+         "value": "10"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Compare front items",
+       "short": "Compare",
+       "sentence": "To merge the last two halves, compare their front items: 1 and 2. The smaller, 1, moves out first.",
+       "why": "Each half is sorted, so its smallest item is always at the front.",
+       "active": [
+        "mergedQuads",
+        "heads"
+       ],
+       "calloutRegion": "heads",
+       "readouts": [
+        {
+         "id": "level",
+         "label": "Merge level",
+         "value": "3 of 3"
+        },
+        {
+         "id": "lvlcmp",
+         "label": "Comparisons this level",
+         "value": "1 so far"
+        },
+        {
+         "id": "cmp",
+         "label": "Comparisons so far",
+         "value": "11"
+        }
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "Final merge done",
+       "short": "Sorted",
+       "sentence": "Repeating that front comparison produces the fully sorted list: 1 through 8.",
+       "why": "Level three took 7 comparisons. Total 4 + 6 + 7 = 17, under the 24 allowed.",
+       "active": [
+        "sorted"
+       ],
+       "calloutRegion": "sorted",
+       "readouts": [
+        {
+         "id": "level",
+         "label": "Merge level",
+         "value": "3 of 3"
+        },
+        {
+         "id": "lvlcmp",
+         "label": "Comparisons this level",
+         "value": "7"
+        },
+        {
+         "id": "cmp",
+         "label": "Total comparisons",
+         "value": "17"
+        },
+        {
+         "id": "bound",
+         "label": "Upper bound n·log2 n",
+         "value": "8 × 3 = 24"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3067,
+  "output": 4566
+ },
+ "usd": 0.051794,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture shows split rows then merge rows for 6 3 8 1 7 2 5 4, answering why merge sort costs at most n·log2 n comparisons, with the front-item comparison 1 vs 2 as the key mark."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s8 is the final step, so the stepper rests on the sorted list with 17 of 24 until the learner presses Previous or Reset."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There is no parameter; the single fixed input is justified, and the Step control changes the active region, callout and readouts at every state."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active regions, callout target, text, reason, readouts and the ghost are all bound to declared state fields and to region ids that exist in the variant."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels and region labels name the same splits, merges and front-item comparison; \"quarters-to-halves\" is a slightly clumsy label but refers to the same object."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each step highlights one region (two only at the compare step), and the deep part is the per-level comparison count against the bound, without extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Counts check independently: level 1 is 4, level 2 is 3+3=6, level 3 is 7, total 17, and the bound 8×3=24; some numbers repeat in both the sentence and the readout, which is minor."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.022728
+ }
+}

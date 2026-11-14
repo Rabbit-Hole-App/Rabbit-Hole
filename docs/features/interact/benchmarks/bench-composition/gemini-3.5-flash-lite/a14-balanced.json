@@ -1,0 +1,271 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a14",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a hash table work?",
+ "ts": "2026-11-14T22:21:15.199Z",
+ "ms": 3422,
+ "raw": "{\n  \"story\": \"A key is hashed into an array index. Collisions are handled by probing the next available slot to store the value safely.\",\n  \"aha\": {\n    \"stateId\": \"probe\",\n    \"observation\": \"When slot 1 is occupied, linear probing checks the very next index until an empty slot is found.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\"Hash\", \"Index\", \"Collision\", \"Probe\", \"Insert\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Hash Table Insertion\",\n        \"regions\": [\n          {\n            \"id\": \"key\",\n            \"label\": \"Key\",\n            \"kind\": \"cell\",\n            \"values\": [\"cat\"]\n          },\n          {\n            \"id\": \"hash\",\n            \"label\": \"Hash Function\",\n            \"kind\": \"cell\",\n            \"values\": [\"hash('cat') = 1\"]\n          },\n          {\n            \"id\": \"slot0\",\n            \"label\": \"Index 0\",\n            \"kind\": \"cell\",\n            \"values\": [\"empty\"]\n          },\n          {\n            \"id\": \"slot1\",\n            \"label\": \"Index 1\",\n            \"kind\": \"cell\",\n            \"values\": [\"dog\"]\n          },\n          {\n            \"id\": \"slot2\",\n            \"label\": \"Index 2\",\n            \"kind\": \"cell\",\n            \"values\": [\"empty\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"hash\",\n            \"label\": \"Hash\",\n            \"short\": \"Hash\",\n            \"sentence\": \"The key 'cat' is passed into a hash function.\",\n            \"why\": \"Computes an integer from string data.\",\n            \"active\": [\"key\"],\n            \"calloutRegion\": \"key\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Input Key\",\n                \"value\": \"cat\"\n              }\n            ]\n          },\n          {\n            \"id\": \"index\",\n            \"label\": \"Index\",\n            \"short\": \"Index\",\n            \"sentence\": \"The hash function returns target index 1.\",\n            \"why\": \"Maps infinite keys to finite table slots.\",\n            \"active\": [\"hash\"],\n            \"calloutRegion\": \"hash\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Hash Value\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"collision\",\n            \"label\": \"Collision\",\n            \"short\": \"Collision\",\n            \"sentence\": \"Index 1 is already occupied by 'dog'.\",\n            \"why\": \"Two different keys generated the same index.\",\n            \"active\": [\"slot1\"],\n            \"calloutRegion\": \"slot1\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Slot 1 Status\",\n                \"value\": \"Occupied\"\n              }\n            ]\n          },\n          {\n            \"id\": \"probe\",\n            \"label\": \"Probe\",\n            \"short\": \"Probe\",\n            \"sentence\": \"Linear probing checks the next slot, index 2.\",\n            \"why\": \"Finds the next available home without losing data.\",\n            \"active\": [\"slot2\"],\n            \"calloutRegion\": \"slot2\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Probe Target\",\n                \"value\": \"Index 2\"\n              }\n            ]\n          },\n          {\n            \"id\": \"insert\",\n            \"label\": \"Insert\",\n            \"short\": \"Insert\",\n            \"sentence\": \"Stored 'cat' successfully in index 2.\",\n            \"why\": \"Table remains consistent and queryable.\",\n            \"active\": [\"slot2\", \"key\"],\n            \"calloutRegion\": \"slot2\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Final Location\",\n                \"value\": \"Index 2\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "A key is hashed into an array index. Collisions are handled by probing the next available slot to store the value safely.",
+  "aha": {
+   "stateId": "probe",
+   "observation": "When slot 1 is occupied, linear probing checks the very next index until an empty slot is found."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "Hash",
+     "Index",
+     "Collision",
+     "Probe",
+     "Insert"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Hash Table Insertion",
+     "regions": [
+      {
+       "id": "key",
+       "label": "Key",
+       "kind": "cell",
+       "values": [
+        "cat"
+       ]
+      },
+      {
+       "id": "hash",
+       "label": "Hash Function",
+       "kind": "cell",
+       "values": [
+        "hash('cat') = 1"
+       ]
+      },
+      {
+       "id": "slot0",
+       "label": "Index 0",
+       "kind": "cell",
+       "values": [
+        "empty"
+       ]
+      },
+      {
+       "id": "slot1",
+       "label": "Index 1",
+       "kind": "cell",
+       "values": [
+        "dog"
+       ]
+      },
+      {
+       "id": "slot2",
+       "label": "Index 2",
+       "kind": "cell",
+       "values": [
+        "empty"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "hash",
+       "label": "Hash",
+       "short": "Hash",
+       "sentence": "The key 'cat' is passed into a hash function.",
+       "why": "Computes an integer from string data.",
+       "active": [
+        "key"
+       ],
+       "calloutRegion": "key",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Input Key",
+         "value": "cat"
+        }
+       ]
+      },
+      {
+       "id": "index",
+       "label": "Index",
+       "short": "Index",
+       "sentence": "The hash function returns target index 1.",
+       "why": "Maps infinite keys to finite table slots.",
+       "active": [
+        "hash"
+       ],
+       "calloutRegion": "hash",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Hash Value",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "collision",
+       "label": "Collision",
+       "short": "Collision",
+       "sentence": "Index 1 is already occupied by 'dog'.",
+       "why": "Two different keys generated the same index.",
+       "active": [
+        "slot1"
+       ],
+       "calloutRegion": "slot1",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Slot 1 Status",
+         "value": "Occupied"
+        }
+       ]
+      },
+      {
+       "id": "probe",
+       "label": "Probe",
+       "short": "Probe",
+       "sentence": "Linear probing checks the next slot, index 2.",
+       "why": "Finds the next available home without losing data.",
+       "active": [
+        "slot2"
+       ],
+       "calloutRegion": "slot2",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Probe Target",
+         "value": "Index 2"
+        }
+       ]
+      },
+      {
+       "id": "insert",
+       "label": "Insert",
+       "short": "Insert",
+       "sentence": "Stored 'cat' successfully in index 2.",
+       "why": "Table remains consistent and queryable.",
+       "active": [
+        "slot2",
+        "key"
+       ],
+       "calloutRegion": "slot2",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Final Location",
+         "value": "Index 2"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1103,
+  "output": 1309
+ },
+ "usd": 0.003604,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture holds the key, the hash result, and slots 0-2, so it answers how a collision is resolved by linear probing. Slot 1 occupied by 'dog' leads to slot 2 being probed."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'probe' is a stepper state that stays on slot 2 until the learner advances. It has no timer, so it holds."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only input is the step index, which navigates the narrative. There is no experiment parameter such as key or table contents, and no fixed-comparison justification is given."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Each state's active regions and calloutRegion refer to declared region ids, and the callout text and readouts come from state fields. The rail is bound to the variant states."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The step names Hash, Index, Collision, Probe and Insert match the state labels and sentences. Each highlighted region is the object the sentence names."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At this depth, each step highlights a single region with one callout and one readout. The picture is a small fixed row of five cells with no clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The values are consistent: hash('cat')=1, slot 1 holds dog, and the probe goes to index 2 where cat is stored. The callouts give the sentence and the readouts give the values, so nothing is duplicated."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01194
+ }
+}

@@ -1,0 +1,413 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a05",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a diffusion model generate an image?",
+ "ts": "2026-11-14T22:25:54.702Z",
+ "ms": 131266,
+ "raw": "{\n  \"story\": \"Start with a Noise canvas and a fixed Prompt for an apple. Follow the trained Denoiser, Predicted noise, and Sampler update. Compare the Intermediate canvas with the Final image to discover what repeated updates accomplish. This schematic uses pixel-space noise prediction, not latent decoding.\",\n  \"aha\": {\n    \"stateId\": \"final-image\",\n    \"observation\": \"The image emerges through repeated noise-guided updates to the same canvas; the Denoiser's noise prediction is not itself the image.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"sampling-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the story and above the picture. Show the active evidence stage and completed trace; stages represent states, not elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"sampling-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical pipeline composition with a feedback link. Keep named regions fixed and highlight bound active regions. Snapshot regions provide schematic comparisons.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"sampling-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the active region without covering labels. Identify the mechanism here; reserve numerical values for readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"sampling-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place beneath the picture, with Status last. Counts use whole completed updates, referenced to the initial Noise canvas; no rounding applies.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stage\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Sampling stage\",\n      \"presentation\": \"Navigation only; parameter-control budget is zero. Default: first state. Bounds: first through last state; increment: one state. Use Previous and Next, retaining names when disabled. Every state persists until learner action. Provide accessible names, visible focus, and keyboard operation. Reference capture: final-image.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults, including the same illustrative starting noise. Provide an accessible name, visible focus, and keyboard operation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Balanced — schematic noise-predicting pixel-space sampler\",\n        \"regions\": [\n          {\n            \"id\": \"prompt\",\n            \"label\": \"Prompt\",\n            \"values\": [\n              \"A red apple on a white background\",\n              \"Held fixed throughout\"\n            ]\n          },\n          {\n            \"id\": \"noise-canvas\",\n            \"label\": \"Noise canvas\",\n            \"values\": [\n              \"Starting snapshot: random pixel noise\",\n              \"No clean reference image is supplied\"\n            ]\n          },\n          {\n            \"id\": \"denoiser\",\n            \"label\": \"Denoiser\",\n            \"values\": [\n              \"Inputs: current canvas, noise level, Prompt\",\n              \"Trained weights remain fixed\"\n            ]\n          },\n          {\n            \"id\": \"predicted-noise\",\n            \"label\": \"Predicted noise\",\n            \"values\": [\n              \"Estimated noise in the current canvas\",\n              \"Not a finished apple image\"\n            ]\n          },\n          {\n            \"id\": \"sampler-update\",\n            \"label\": \"Sampler update\",\n            \"values\": [\n              \"Combines current canvas, prediction, and schedule\",\n              \"Produces the next, less-noisy canvas\"\n            ]\n          },\n          {\n            \"id\": \"intermediate-canvas\",\n            \"label\": \"Intermediate canvas\",\n            \"values\": [\n              \"Comparison snapshot: coarse apple structure\",\n              \"Residual noise remains\"\n            ]\n          },\n          {\n            \"id\": \"final-image\",\n            \"label\": \"Final image\",\n            \"values\": [\n              \"Final snapshot: recognizable apple\",\n              \"Result of successive canvas updates\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"prompt\",\n            \"to\": \"denoiser\",\n            \"label\": \"Guides every prediction\"\n          },\n          {\n            \"from\": \"noise-canvas\",\n            \"to\": \"denoiser\",\n            \"label\": \"First current canvas\"\n          },\n          {\n            \"from\": \"denoiser\",\n            \"to\": \"predicted-noise\",\n            \"label\": \"Predict noise\"\n          },\n          {\n            \"from\": \"predicted-noise\",\n            \"to\": \"sampler-update\",\n            \"label\": \"Guide the update\"\n          },\n          {\n            \"from\": \"noise-canvas\",\n            \"to\": \"sampler-update\",\n            \"label\": \"Starting canvas\"\n          },\n          {\n            \"from\": \"sampler-update\",\n            \"to\": \"intermediate-canvas\",\n            \"label\": \"Early update\"\n          },\n          {\n            \"from\": \"intermediate-canvas\",\n            \"to\": \"denoiser\",\n            \"label\": \"Repeat with updated canvas and lower noise level\"\n          },\n          {\n            \"from\": \"sampler-update\",\n            \"to\": \"final-image\",\n            \"label\": \"After the last update\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"start\",\n            \"label\": \"Start with noise\",\n            \"short\": \"Noise\",\n            \"sentence\": \"The Noise canvas starts as random pixels; the Prompt describes an apple but supplies no clean image.\",\n            \"why\": \"The starting sample is held fixed throughout this walkthrough, so each later snapshot belongs to the same generation.\",\n            \"active\": [\n              \"noise-canvas\",\n              \"prompt\"\n            ],\n            \"calloutRegion\": \"noise-canvas\",\n            \"readouts\": [\n              {\n                \"id\": \"completed-updates\",\n                \"label\": \"Completed updates\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"assumptions\",\n                \"label\": \"Assumptions\",\n                \"value\": \"Schematic pixel-space sampler; trained weights, starting noise, Prompt, and decreasing noise schedule are fixed.\"\n              },\n              {\n                \"id\": \"scope\",\n                \"label\": \"Scope\",\n                \"value\": \"Four illustrative updates; these snapshots do not simulate image quality.\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Ready to predict noise in the starting canvas.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"predict\",\n            \"label\": \"Predict noise\",\n            \"short\": \"Predict\",\n            \"sentence\": \"The Denoiser uses the current canvas, noise level, and Prompt to produce Predicted noise.\",\n            \"why\": \"Predicted noise estimates corruption in the canvas; it is not the image that should be displayed.\",\n            \"active\": [\n              \"prompt\",\n              \"denoiser\",\n              \"predicted-noise\"\n            ],\n            \"calloutRegion\": \"predicted-noise\",\n            \"readouts\": [\n              {\n                \"id\": \"completed-updates\",\n                \"label\": \"Completed updates\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"canvas-state\",\n                \"label\": \"Canvas state\",\n                \"value\": \"Unchanged; making a prediction has not yet updated the pixels.\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Held fixed\",\n                \"value\": \"Prompt and trained weights\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Noise prediction is ready for the Sampler update.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"first-update\",\n            \"label\": \"Update the canvas\",\n            \"short\": \"Update\",\n            \"sentence\": \"The Sampler update uses Predicted noise and the schedule to produce the Intermediate canvas.\",\n            \"why\": \"Compare the prediction with the canvas: one estimates noise, while the other retains image content and becomes less noisy.\",\n            \"active\": [\n              \"predicted-noise\",\n              \"sampler-update\",\n              \"intermediate-canvas\"\n            ],\n            \"calloutRegion\": \"sampler-update\",\n            \"readouts\": [\n              {\n                \"id\": \"completed-updates\",\n                \"label\": \"Completed updates\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"canvas-state\",\n                \"label\": \"Canvas state\",\n                \"value\": \"Coarse structure with substantial residual noise\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Held fixed\",\n                \"value\": \"Prompt and trained weights\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The updated canvas, not the noise prediction, continues through the process.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"repeat\",\n            \"label\": \"Repeat the same mechanism\",\n            \"short\": \"Repeat\",\n            \"sentence\": \"Two more prediction-and-update cycles refine the same canvas at successively lower noise levels.\",\n            \"why\": \"Each Denoiser call receives the latest canvas; the Prompt and trained weights stay fixed while the canvas changes.\",\n            \"active\": [\n              \"intermediate-canvas\",\n              \"denoiser\",\n              \"predicted-noise\",\n              \"sampler-update\"\n            ],\n            \"calloutRegion\": \"denoiser\",\n            \"readouts\": [\n              {\n                \"id\": \"completed-updates\",\n                \"label\": \"Completed updates\",\n                \"value\": \"3\"\n              },\n              {\n                \"id\": \"canvas-state\",\n                \"label\": \"Canvas state\",\n                \"value\": \"Refined structure with less residual noise\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Held fixed\",\n                \"value\": \"Prompt and trained weights\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The feedback link reuses the updated canvas; it does not restart from fresh noise.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"final-image\",\n            \"label\": \"Inspect the result\",\n            \"short\": \"Image\",\n            \"sentence\": \"The Final image comes from repeated noise-guided updates to the same canvas, not from displaying a single noise prediction.\",\n            \"why\": \"Compare the Noise canvas, Intermediate canvas, and Final image: useful structure emerges as the sampler progressively reduces noise.\",\n            \"active\": [\n              \"noise-canvas\",\n              \"intermediate-canvas\",\n              \"final-image\"\n            ],\n            \"calloutRegion\": \"final-image\",\n            \"readouts\": [\n              {\n                \"id\": \"completed-updates\",\n                \"label\": \"Completed updates\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"canvas-state\",\n                \"label\": \"Canvas state\",\n                \"value\": \"Final image in this schematic run\"\n              },\n              {\n                \"id\": \"invariant\",\n                \"label\": \"Held fixed\",\n                \"value\": \"Prompt and trained weights\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Generation is complete; this evidence remains visible until you navigate or reset.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Start with a Noise canvas and a fixed Prompt for an apple. Follow the trained Denoiser, Predicted noise, and Sampler update. Compare the Intermediate canvas with the Final image to discover what repeated updates accomplish. This schematic uses pixel-space noise prediction, not latent decoding.",
+  "aha": {
+   "stateId": "final-image",
+   "observation": "The image emerges through repeated noise-guided updates to the same canvas; the Denoiser's noise prediction is not itself the image."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "sampling-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the story and above the picture. Show the active evidence stage and completed trace; stages represent states, not elapsed time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "sampling-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical pipeline composition with a feedback link. Keep named regions fixed and highlight bound active regions. Snapshot regions provide schematic comparisons.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "sampling-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the active region without covering labels. Identify the mechanism here; reserve numerical values for readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "sampling-readouts",
+    "kind": "value-readout",
+    "presentation": "Place beneath the picture, with Status last. Counts use whole completed updates, referenced to the initial Noise canvas; no rounding applies.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stage",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Sampling stage",
+    "presentation": "Navigation only; parameter-control budget is zero. Default: first state. Bounds: first through last state; increment: one state. Use Previous and Next, retaining names when disabled. Every state persists until learner action. Provide accessible names, visible focus, and keyboard operation. Reference capture: final-image."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults, including the same illustrative starting noise. Provide an accessible name, visible focus, and keyboard operation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Balanced — schematic noise-predicting pixel-space sampler",
+     "regions": [
+      {
+       "id": "prompt",
+       "label": "Prompt",
+       "values": [
+        "A red apple on a white background",
+        "Held fixed throughout"
+       ]
+      },
+      {
+       "id": "noise-canvas",
+       "label": "Noise canvas",
+       "values": [
+        "Starting snapshot: random pixel noise",
+        "No clean reference image is supplied"
+       ]
+      },
+      {
+       "id": "denoiser",
+       "label": "Denoiser",
+       "values": [
+        "Inputs: current canvas, noise level, Prompt",
+        "Trained weights remain fixed"
+       ]
+      },
+      {
+       "id": "predicted-noise",
+       "label": "Predicted noise",
+       "values": [
+        "Estimated noise in the current canvas",
+        "Not a finished apple image"
+       ]
+      },
+      {
+       "id": "sampler-update",
+       "label": "Sampler update",
+       "values": [
+        "Combines current canvas, prediction, and schedule",
+        "Produces the next, less-noisy canvas"
+       ]
+      },
+      {
+       "id": "intermediate-canvas",
+       "label": "Intermediate canvas",
+       "values": [
+        "Comparison snapshot: coarse apple structure",
+        "Residual noise remains"
+       ]
+      },
+      {
+       "id": "final-image",
+       "label": "Final image",
+       "values": [
+        "Final snapshot: recognizable apple",
+        "Result of successive canvas updates"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "prompt",
+       "to": "denoiser",
+       "label": "Guides every prediction"
+      },
+      {
+       "from": "noise-canvas",
+       "to": "denoiser",
+       "label": "First current canvas"
+      },
+      {
+       "from": "denoiser",
+       "to": "predicted-noise",
+       "label": "Predict noise"
+      },
+      {
+       "from": "predicted-noise",
+       "to": "sampler-update",
+       "label": "Guide the update"
+      },
+      {
+       "from": "noise-canvas",
+       "to": "sampler-update",
+       "label": "Starting canvas"
+      },
+      {
+       "from": "sampler-update",
+       "to": "intermediate-canvas",
+       "label": "Early update"
+      },
+      {
+       "from": "intermediate-canvas",
+       "to": "denoiser",
+       "label": "Repeat with updated canvas and lower noise level"
+      },
+      {
+       "from": "sampler-update",
+       "to": "final-image",
+       "label": "After the last update"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start with noise",
+       "short": "Noise",
+       "sentence": "The Noise canvas starts as random pixels; the Prompt describes an apple but supplies no clean image.",
+       "why": "The starting sample is held fixed throughout this walkthrough, so each later snapshot belongs to the same generation.",
+       "active": [
+        "noise-canvas",
+        "prompt"
+       ],
+       "calloutRegion": "noise-canvas",
+       "readouts": [
+        {
+         "id": "completed-updates",
+         "label": "Completed updates",
+         "value": "0"
+        },
+        {
+         "id": "assumptions",
+         "label": "Assumptions",
+         "value": "Schematic pixel-space sampler; trained weights, starting noise, Prompt, and decreasing noise schedule are fixed."
+        },
+        {
+         "id": "scope",
+         "label": "Scope",
+         "value": "Four illustrative updates; these snapshots do not simulate image quality."
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Ready to predict noise in the starting canvas."
+        }
+       ]
+      },
+      {
+       "id": "predict",
+       "label": "Predict noise",
+       "short": "Predict",
+       "sentence": "The Denoiser uses the current canvas, noise level, and Prompt to produce Predicted noise.",
+       "why": "Predicted noise estimates corruption in the canvas; it is not the image that should be displayed.",
+       "active": [
+        "prompt",
+        "denoiser",
+        "predicted-noise"
+       ],
+       "calloutRegion": "predicted-noise",
+       "readouts": [
+        {
+         "id": "completed-updates",
+         "label": "Completed updates",
+         "value": "0"
+        },
+        {
+         "id": "canvas-state",
+         "label": "Canvas state",
+         "value": "Unchanged; making a prediction has not yet updated the pixels."
+        },
+        {
+         "id": "invariant",
+         "label": "Held fixed",
+         "value": "Prompt and trained weights"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Noise prediction is ready for the Sampler update."
+        }
+       ]
+      },
+      {
+       "id": "first-update",
+       "label": "Update the canvas",
+       "short": "Update",
+       "sentence": "The Sampler update uses Predicted noise and the schedule to produce the Intermediate canvas.",
+       "why": "Compare the prediction with the canvas: one estimates noise, while the other retains image content and becomes less noisy.",
+       "active": [
+        "predicted-noise",
+        "sampler-update",
+        "intermediate-canvas"
+       ],
+       "calloutRegion": "sampler-update",
+       "readouts": [
+        {
+         "id": "completed-updates",
+         "label": "Completed updates",
+         "value": "1"
+        },
+        {
+         "id": "canvas-state",
+         "label": "Canvas state",
+         "value": "Coarse structure with substantial residual noise"
+        },
+        {
+         "id": "invariant",
+         "label": "Held fixed",
+         "value": "Prompt and trained weights"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The updated canvas, not the noise prediction, continues through the process."
+        }
+       ]
+      },
+      {
+       "id": "repeat",
+       "label": "Repeat the same mechanism",
+       "short": "Repeat",
+       "sentence": "Two more prediction-and-update cycles refine the same canvas at successively lower noise levels.",
+       "why": "Each Denoiser call receives the latest canvas; the Prompt and trained weights stay fixed while the canvas changes.",
+       "active": [
+        "intermediate-canvas",
+        "denoiser",
+        "predicted-noise",
+        "sampler-update"
+       ],
+       "calloutRegion": "denoiser",
+       "readouts": [
+        {
+         "id": "completed-updates",
+         "label": "Completed updates",
+         "value": "3"
+        },
+        {
+         "id": "canvas-state",
+         "label": "Canvas state",
+         "value": "Refined structure with less residual noise"
+        },
+        {
+         "id": "invariant",
+         "label": "Held fixed",
+         "value": "Prompt and trained weights"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The feedback link reuses the updated canvas; it does not restart from fresh noise."
+        }
+       ]
+      },
+      {
+       "id": "final-image",
+       "label": "Inspect the result",
+       "short": "Image",
+       "sentence": "The Final image comes from repeated noise-guided updates to the same canvas, not from displaying a single noise prediction.",
+       "why": "Compare the Noise canvas, Intermediate canvas, and Final image: useful structure emerges as the sampler progressively reduces noise.",
+       "active": [
+        "noise-canvas",
+        "intermediate-canvas",
+        "final-image"
+       ],
+       "calloutRegion": "final-image",
+       "readouts": [
+        {
+         "id": "completed-updates",
+         "label": "Completed updates",
+         "value": "4"
+        },
+        {
+         "id": "canvas-state",
+         "label": "Canvas state",
+         "value": "Final image in this schematic run"
+        },
+        {
+         "id": "invariant",
+         "label": "Held fixed",
+         "value": "Prompt and trained weights"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Generation is complete; this evidence remains visible until you navigate or reset."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1535,
+  "output": 6663
+ },
+ "usd": 0.06683,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture shows the loop of Noise canvas, Denoiser, Predicted noise, Sampler update and Intermediate canvas, with snapshot regions, and it answers how an image emerges from repeated noise-guided updates rather than from the noise prediction itself."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state final-image is the last state, every state persists until learner action, and its status says the evidence stays visible until the learner navigates or resets."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The parameter budget is zero and the only control is stage navigation, so the fixed comparison of noise, intermediate and final snapshots is justified, and each stage changes the active evidence and readouts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Highlights come from state.active, the callout from state.calloutRegion, sentence and why, the arrows from variant.links, and the readouts from state.readouts, all declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, region labels, state sentences and controls use the same names (Noise canvas, Denoiser, Predicted noise, Sampler update, Intermediate canvas, Final image) and the same events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Balanced depth adds the comparison of noise, intermediate and final snapshots plus an update count, with three or four readouts per state and one active callout, which is moderate and not cluttered."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The update counts of 0, 0, 1, 3 and 4 are consistent with the 'two more cycles' narrative and the four-update scope, and the callouts give the mechanism while the readouts give the quantities."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.016834
+ }
+}

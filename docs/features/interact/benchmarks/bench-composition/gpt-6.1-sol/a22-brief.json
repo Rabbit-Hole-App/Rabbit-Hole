@@ -1,0 +1,224 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a22",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+ "ts": "2026-11-14T22:42:09.990Z",
+ "ms": 81682,
+ "raw": "{\n  \"story\": \"How much does this split improve purity? Compute each node's Gini: G = 1 − Σp², where p is its class proportion. Start with the parent, then inspect both children. Weight child impurities by sample fractions before subtracting from the parent. The final comparison shows Gini gain; entropy-based information gain uses entropy instead.\",\n  \"aha\": {\n    \"stateId\": \"gain\",\n    \"observation\": \"Weighting both children gives remaining impurity 0.250; subtracting it from the parent's 0.500 gives a Gini gain of 0.250.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"calculation-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with the story above the experiment. Keep step position and calculation progress on this rail.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"split-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Keep Parent, Left child, and Right child visible in fixed positions. Highlight only the active region. Letters represent equally weighted samples.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"calculation-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the active region without covering samples. Use the bound text as the status line; show its reason beneath.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"impurity-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Report numbers only here, beneath the picture. Gini is dimensionless, ranging from zero to one-half for these binary classes. Round results to three decimals.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"calculation-step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Calculation step\",\n      \"presentation\": \"Use Previous and Next with visible focus and keyboard operation. Default to parent; advance one state within parent through gain. Preserve disabled boundary names. Every state persists until another action. Brief parameter-control budget: zero, excluding navigation and reset.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the parent state and all defaults. Support keyboard activation and visible focus. Reference captures must show gain before reset.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Fixed binary split with unequal child sizes\",\n        \"regions\": [\n          {\n            \"id\": \"parent\",\n            \"label\": \"Parent\",\n            \"values\": [\"A\", \"A\", \"A\", \"B\", \"B\", \"B\"]\n          },\n          {\n            \"id\": \"left\",\n            \"label\": \"Left child\",\n            \"values\": [\"A\", \"A\"]\n          },\n          {\n            \"id\": \"right\",\n            \"label\": \"Right child\",\n            \"values\": [\"A\", \"B\", \"B\", \"B\"]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"parent\",\n            \"to\": \"left\",\n            \"label\": \"Left subset\"\n          },\n          {\n            \"from\": \"parent\",\n            \"to\": \"right\",\n            \"label\": \"Right subset\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"parent\",\n            \"label\": \"Parent impurity\",\n            \"short\": \"Parent\",\n            \"sentence\": \"Calculate the Parent's impurity before evaluating the split.\",\n            \"why\": \"Class proportions use this node's samples as the denominator.\",\n            \"active\": [\"parent\"],\n            \"calloutRegion\": \"parent\",\n            \"readouts\": [\n              {\n                \"id\": \"parent-gini\",\n                \"label\": \"Parent Gini\",\n                \"value\": \"1 − (3/6)² − (3/6)² = 0.500\"\n              }\n            ]\n          },\n          {\n            \"id\": \"left\",\n            \"label\": \"Left child impurity\",\n            \"short\": \"Left\",\n            \"sentence\": \"Calculate the Left child's impurity using only its own samples.\",\n            \"why\": \"Every sample belongs to the same class, so this child is pure.\",\n            \"active\": [\"left\"],\n            \"calloutRegion\": \"left\",\n            \"readouts\": [\n              {\n                \"id\": \"left-gini\",\n                \"label\": \"Left child Gini\",\n                \"value\": \"1 − (2/2)² − (0/2)² = 0.000\"\n              }\n            ]\n          },\n          {\n            \"id\": \"right\",\n            \"label\": \"Right child impurity\",\n            \"short\": \"Right\",\n            \"sentence\": \"Calculate the Right child's impurity using its own class proportions.\",\n            \"why\": \"This child contains both classes, so its impurity remains positive.\",\n            \"active\": [\"right\"],\n            \"calloutRegion\": \"right\",\n            \"readouts\": [\n              {\n                \"id\": \"right-gini\",\n                \"label\": \"Right child Gini\",\n                \"value\": \"1 − (1/4)² − (3/4)² = 0.375\"\n              }\n            ]\n          },\n          {\n            \"id\": \"gain\",\n            \"label\": \"Weighted impurity and gain\",\n            \"short\": \"Gain\",\n            \"sentence\": \"Subtract the sample-weighted child impurity from the Parent's impurity.\",\n            \"why\": \"The larger Right child contributes more; an unweighted average would misrepresent the split.\",\n            \"active\": [\"parent\"],\n            \"calloutRegion\": \"parent\",\n            \"readouts\": [\n              {\n                \"id\": \"parent-gini\",\n                \"label\": \"Parent Gini\",\n                \"value\": \"0.500\"\n              },\n              {\n                \"id\": \"weighted-gini\",\n                \"label\": \"Weighted children: (nL/n)GL + (nR/n)GR\",\n                \"value\": \"(2/6 × 0.000) + (4/6 × 0.375) = 0.250\"\n              },\n              {\n                \"id\": \"gini-gain\",\n                \"label\": \"Gini gain = Parent Gini − weighted child Gini\",\n                \"value\": \"0.250\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How much does this split improve purity? Compute each node's Gini: G = 1 − Σp², where p is its class proportion. Start with the parent, then inspect both children. Weight child impurities by sample fractions before subtracting from the parent. The final comparison shows Gini gain; entropy-based information gain uses entropy instead.",
+  "aha": {
+   "stateId": "gain",
+   "observation": "Weighting both children gives remaining impurity 0.250; subtracting it from the parent's 0.500 gives a Gini gain of 0.250."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "calculation-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with the story above the experiment. Keep step position and calculation progress on this rail.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "split-picture",
+    "kind": "fixed-picture",
+    "presentation": "Keep Parent, Left child, and Right child visible in fixed positions. Highlight only the active region. Letters represent equally weighted samples.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "calculation-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the active region without covering samples. Use the bound text as the status line; show its reason beneath.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "impurity-readouts",
+    "kind": "value-readout",
+    "presentation": "Report numbers only here, beneath the picture. Gini is dimensionless, ranging from zero to one-half for these binary classes. Round results to three decimals.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "calculation-step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Calculation step",
+    "presentation": "Use Previous and Next with visible focus and keyboard operation. Default to parent; advance one state within parent through gain. Preserve disabled boundary names. Every state persists until another action. Brief parameter-control budget: zero, excluding navigation and reset."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the parent state and all defaults. Support keyboard activation and visible focus. Reference captures must show gain before reset."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Fixed binary split with unequal child sizes",
+     "regions": [
+      {
+       "id": "parent",
+       "label": "Parent",
+       "values": [
+        "A",
+        "A",
+        "A",
+        "B",
+        "B",
+        "B"
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left child",
+       "values": [
+        "A",
+        "A"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right child",
+       "values": [
+        "A",
+        "B",
+        "B",
+        "B"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "parent",
+       "to": "left",
+       "label": "Left subset"
+      },
+      {
+       "from": "parent",
+       "to": "right",
+       "label": "Right subset"
+      }
+     ],
+     "states": [
+      {
+       "id": "parent",
+       "label": "Parent impurity",
+       "short": "Parent",
+       "sentence": "Calculate the Parent's impurity before evaluating the split.",
+       "why": "Class proportions use this node's samples as the denominator.",
+       "active": [
+        "parent"
+       ],
+       "calloutRegion": "parent",
+       "readouts": [
+        {
+         "id": "parent-gini",
+         "label": "Parent Gini",
+         "value": "1 − (3/6)² − (3/6)² = 0.500"
+        }
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left child impurity",
+       "short": "Left",
+       "sentence": "Calculate the Left child's impurity using only its own samples.",
+       "why": "Every sample belongs to the same class, so this child is pure.",
+       "active": [
+        "left"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "left-gini",
+         "label": "Left child Gini",
+         "value": "1 − (2/2)² − (0/2)² = 0.000"
+        }
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right child impurity",
+       "short": "Right",
+       "sentence": "Calculate the Right child's impurity using its own class proportions.",
+       "why": "This child contains both classes, so its impurity remains positive.",
+       "active": [
+        "right"
+       ],
+       "calloutRegion": "right",
+       "readouts": [
+        {
+         "id": "right-gini",
+         "label": "Right child Gini",
+         "value": "1 − (1/4)² − (3/4)² = 0.375"
+        }
+       ]
+      },
+      {
+       "id": "gain",
+       "label": "Weighted impurity and gain",
+       "short": "Gain",
+       "sentence": "Subtract the sample-weighted child impurity from the Parent's impurity.",
+       "why": "The larger Right child contributes more; an unweighted average would misrepresent the split.",
+       "active": [
+        "parent"
+       ],
+       "calloutRegion": "parent",
+       "readouts": [
+        {
+         "id": "parent-gini",
+         "label": "Parent Gini",
+         "value": "0.500"
+        },
+        {
+         "id": "weighted-gini",
+         "label": "Weighted children: (nL/n)GL + (nR/n)GR",
+         "value": "(2/6 × 0.000) + (4/6 × 0.375) = 0.250"
+        },
+        {
+         "id": "gini-gain",
+         "label": "Gini gain = Parent Gini − weighted child Gini",
+         "value": "0.250"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1546,
+  "output": 4443
+ },
+ "usd": 0.044652,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3dM76gdXP1TH5NURu3Q\"}"
+  },
+  "cardUsd": 0
+ }
+}

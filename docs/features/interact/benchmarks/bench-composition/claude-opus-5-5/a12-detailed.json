@@ -1,0 +1,890 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a12",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T22:26:21.373Z",
+ "ms": 67451,
+ "raw": "{\"story\":\"A dividing cell starts with every chromosome already copied into two sister chromatids. Step through prophase to cytokinesis: chromosomes condense, spindle fibers attach, chromosomes line up, then sisters split to opposite poles. Readouts count chromosomes, chromatids and DNA content each step, showing both daughters receive the exact chromosome set the parent began with.\",\"aha\":{\"stateId\":\"anaphase\",\"observation\":\"Sister chromatids separate, so each pole receives one copy of every chromosome, a full parental set, while total DNA is unchanged until cytokinesis.\"},\"layout\":{\"preset\":\"stepper-cycle\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"progress\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"}},{\"id\":\"cell\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"counts\",\"kind\":\"value-readout\",\"presentation\":\"Units: DNA in C (one haploid genome content); exact integers, no rounding.\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Mitosis step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons, names kept when disabled at boundaries; arrow keys\"},{\"id\":\"organism\",\"kind\":\"select\",\"label\":\"Organism (sets chromosome number 2n)\",\"options\":[\"Human (2n = 46)\",\"Fruit fly (2n = 8)\"],\"default\":0,\"presentation\":\"Switches variant; changes every computed count\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to interphase and Human\"}],\"data\":{\"variants\":[{\"label\":\"Human (2n = 46)\",\"regions\":[{\"id\":\"envelope\",\"label\":\"Nuclear envelope\",\"phases\":[\"intact\",\"breaking down\",\"absent\",\"reforming\"]},{\"id\":\"chromosomes\",\"label\":\"Chromosomes\",\"phases\":[\"loose\",\"condensed\",\"attached\",\"aligned\",\"separating\",\"decondensing\"]},{\"id\":\"centrosomes\",\"label\":\"Centrosomes\",\"phases\":[\"paired\",\"moving apart\",\"at poles\"]},{\"id\":\"spindle\",\"label\":\"Spindle fibers\",\"phases\":[\"absent\",\"growing\",\"attached\",\"shortening\"]},{\"id\":\"kinetochores\",\"label\":\"Kinetochores\",\"values\":[\"unattached\",\"attached to both poles\"]},{\"id\":\"plate\",\"label\":\"Metaphase plate\",\"values\":[\"empty\",\"aligned\"]},{\"id\":\"poleA\",\"label\":\"Pole A\",\"values\":[\"empty\",\"receives one set\"]},{\"id\":\"poleB\",\"label\":\"Pole B\",\"values\":[\"empty\",\"receives one set\"]},{\"id\":\"furrow\",\"label\":\"Cleavage furrow\",\"values\":[\"absent\",\"pinching\"]},{\"id\":\"daughterA\",\"label\":\"Daughter cell A\",\"values\":[\"forming\",\"complete\"]},{\"id\":\"daughterB\",\"label\":\"Daughter cell B\",\"values\":[\"forming\",\"complete\"]}],\"links\":[{\"from\":\"centrosomes\",\"to\":\"kinetochores\",\"label\":\"spindle attaches\"},{\"from\":\"plate\",\"to\":\"poleA\",\"label\":\"chromatids pulled\"},{\"from\":\"plate\",\"to\":\"poleB\",\"label\":\"chromatids pulled\"}],\"states\":[{\"id\":\"interphase\",\"label\":\"Interphase (G2)\",\"short\":\"G2\",\"active\":[\"envelope\",\"chromosomes\",\"centrosomes\"],\"calloutRegion\":\"chromosomes\",\"sentence\":\"Inside an intact nucleus, every chromosome is already copied; sister chromatids stay joined at the centromere.\",\"why\":\"Replication in S phase finished before mitosis, so the cell starts doubled.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"46\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"92 (2 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"chromatids = 2 × 46 = 92\"}]},{\"id\":\"prophase\",\"label\":\"Prophase\",\"short\":\"Pro\",\"active\":[\"chromosomes\",\"centrosomes\",\"spindle\"],\"calloutRegion\":\"chromosomes\",\"sentence\":\"Chromosomes condense into visible X shapes while centrosomes move apart and start growing spindle fibers.\",\"why\":\"Compact chromosomes can be moved without tangling or breaking.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"46\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"92 (2 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"no copying or splitting: 46 stays 46\"}]},{\"id\":\"prometaphase\",\"label\":\"Prometaphase\",\"short\":\"Prometa\",\"active\":[\"envelope\",\"kinetochores\",\"spindle\"],\"calloutRegion\":\"envelope\",\"sentence\":\"The nuclear envelope breaks down, letting spindle fibers grab each chromosome's kinetochores from both poles.\",\"why\":\"Each sister must attach to a different pole before splitting.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"46\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"92 (2 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"kinetochores = 2 × 46 = 92\"}]},{\"id\":\"metaphase\",\"label\":\"Metaphase\",\"short\":\"Meta\",\"active\":[\"plate\",\"chromosomes\",\"spindle\"],\"calloutRegion\":\"plate\",\"sentence\":\"Chromosomes line up single-file along the metaphase plate, balanced between pulls from opposite poles.\",\"why\":\"A checkpoint waits until every kinetochore is attached under tension.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"46\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"92 (2 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"aligned = 46 of 46\"}]},{\"id\":\"anaphase\",\"label\":\"Anaphase\",\"short\":\"Ana\",\"active\":[\"chromosomes\",\"spindle\",\"poleA\",\"poleB\"],\"calloutRegion\":\"chromosomes\",\"sentence\":\"Sister chromatids separate at the plate; shortening spindle fibers drag one copy of each chromosome to each pole.\",\"why\":\"Splitting every pair is what makes the two sets identical.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"92 (46 per pole)\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"92 (1 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C total (2C per pole)\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"per pole = 92 ÷ 2 = 46\"}]},{\"id\":\"telophase\",\"label\":\"Telophase\",\"short\":\"Telo\",\"active\":[\"envelope\",\"poleA\",\"poleB\"],\"calloutRegion\":\"envelope\",\"sentence\":\"Nuclear envelopes reform around each set at the poles, and chromosomes begin to loosen.\",\"why\":\"Each set gets its own nucleus before the cell divides.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"92 (46 per nucleus)\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"92 (1 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C total (2C per nucleus)\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"each nucleus = 46 = parent count\"}]},{\"id\":\"cytokinesis\",\"label\":\"Cytokinesis\",\"short\":\"Cyto\",\"active\":[\"furrow\",\"daughterA\",\"daughterB\"],\"calloutRegion\":\"furrow\",\"sentence\":\"The cleavage furrow pinches the cytoplasm in two, producing two genetically identical daughter cells.\",\"why\":\"Each daughter now matches the parent before replication.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"46 per daughter\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"46 per daughter\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"2C per daughter\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"2 cells × 46 = 92 = parent chromatids\"}]}]},{\"label\":\"Fruit fly (2n = 8)\",\"regions\":[{\"id\":\"envelope\",\"label\":\"Nuclear envelope\",\"phases\":[\"intact\",\"breaking down\",\"absent\",\"reforming\"]},{\"id\":\"chromosomes\",\"label\":\"Chromosomes\",\"phases\":[\"loose\",\"condensed\",\"attached\",\"aligned\",\"separating\",\"decondensing\"]},{\"id\":\"centrosomes\",\"label\":\"Centrosomes\",\"phases\":[\"paired\",\"moving apart\",\"at poles\"]},{\"id\":\"spindle\",\"label\":\"Spindle fibers\",\"phases\":[\"absent\",\"growing\",\"attached\",\"shortening\"]},{\"id\":\"kinetochores\",\"label\":\"Kinetochores\",\"values\":[\"unattached\",\"attached to both poles\"]},{\"id\":\"plate\",\"label\":\"Metaphase plate\",\"values\":[\"empty\",\"aligned\"]},{\"id\":\"poleA\",\"label\":\"Pole A\",\"values\":[\"empty\",\"receives one set\"]},{\"id\":\"poleB\",\"label\":\"Pole B\",\"values\":[\"empty\",\"receives one set\"]},{\"id\":\"furrow\",\"label\":\"Cleavage furrow\",\"values\":[\"absent\",\"pinching\"]},{\"id\":\"daughterA\",\"label\":\"Daughter cell A\",\"values\":[\"forming\",\"complete\"]},{\"id\":\"daughterB\",\"label\":\"Daughter cell B\",\"values\":[\"forming\",\"complete\"]}],\"links\":[{\"from\":\"centrosomes\",\"to\":\"kinetochores\",\"label\":\"spindle attaches\"},{\"from\":\"plate\",\"to\":\"poleA\",\"label\":\"chromatids pulled\"},{\"from\":\"plate\",\"to\":\"poleB\",\"label\":\"chromatids pulled\"}],\"states\":[{\"id\":\"interphase\",\"label\":\"Interphase (G2)\",\"short\":\"G2\",\"active\":[\"envelope\",\"chromosomes\",\"centrosomes\"],\"calloutRegion\":\"chromosomes\",\"sentence\":\"Inside an intact nucleus, every chromosome is already copied; sister chromatids stay joined at the centromere.\",\"why\":\"Replication in S phase finished before mitosis, so the cell starts doubled.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"8\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"16 (2 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"chromatids = 2 × 8 = 16\"}]},{\"id\":\"prophase\",\"label\":\"Prophase\",\"short\":\"Pro\",\"active\":[\"chromosomes\",\"centrosomes\",\"spindle\"],\"calloutRegion\":\"chromosomes\",\"sentence\":\"Chromosomes condense into visible X shapes while centrosomes move apart and start growing spindle fibers.\",\"why\":\"Compact chromosomes can be moved without tangling or breaking.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"8\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"16 (2 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"no copying or splitting: 8 stays 8\"}]},{\"id\":\"prometaphase\",\"label\":\"Prometaphase\",\"short\":\"Prometa\",\"active\":[\"envelope\",\"kinetochores\",\"spindle\"],\"calloutRegion\":\"envelope\",\"sentence\":\"The nuclear envelope breaks down, letting spindle fibers grab each chromosome's kinetochores from both poles.\",\"why\":\"Each sister must attach to a different pole before splitting.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"8\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"16 (2 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"kinetochores = 2 × 8 = 16\"}]},{\"id\":\"metaphase\",\"label\":\"Metaphase\",\"short\":\"Meta\",\"active\":[\"plate\",\"chromosomes\",\"spindle\"],\"calloutRegion\":\"plate\",\"sentence\":\"Chromosomes line up single-file along the metaphase plate, balanced between pulls from opposite poles.\",\"why\":\"A checkpoint waits until every kinetochore is attached under tension.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"8\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"16 (2 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"aligned = 8 of 8\"}]},{\"id\":\"anaphase\",\"label\":\"Anaphase\",\"short\":\"Ana\",\"active\":[\"chromosomes\",\"spindle\",\"poleA\",\"poleB\"],\"calloutRegion\":\"chromosomes\",\"sentence\":\"Sister chromatids separate at the plate; shortening spindle fibers drag one copy of each chromosome to each pole.\",\"why\":\"Splitting every pair is what makes the two sets identical.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"16 (8 per pole)\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"16 (1 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C total (2C per pole)\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"per pole = 16 ÷ 2 = 8\"}]},{\"id\":\"telophase\",\"label\":\"Telophase\",\"short\":\"Telo\",\"active\":[\"envelope\",\"poleA\",\"poleB\"],\"calloutRegion\":\"envelope\",\"sentence\":\"Nuclear envelopes reform around each set at the poles, and chromosomes begin to loosen.\",\"why\":\"Each set gets its own nucleus before the cell divides.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"16 (8 per nucleus)\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"16 (1 per chromosome)\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"4C total (2C per nucleus)\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"each nucleus = 8 = parent count\"}]},{\"id\":\"cytokinesis\",\"label\":\"Cytokinesis\",\"short\":\"Cyto\",\"active\":[\"furrow\",\"daughterA\",\"daughterB\"],\"calloutRegion\":\"furrow\",\"sentence\":\"The cleavage furrow pinches the cytoplasm in two, producing two genetically identical daughter cells.\",\"why\":\"Each daughter now matches the parent before replication.\",\"readouts\":[{\"id\":\"chrom\",\"label\":\"Chromosomes\",\"value\":\"8 per daughter\"},{\"id\":\"chromatids\",\"label\":\"Chromatids\",\"value\":\"8 per daughter\"},{\"id\":\"dna\",\"label\":\"DNA content\",\"value\":\"2C per daughter\"},{\"id\":\"rule\",\"label\":\"Count rule\",\"value\":\"2 cells × 8 = 16 = parent chromatids\"}]}]}]}}",
+ "composition": {
+  "story": "A dividing cell starts with every chromosome already copied into two sister chromatids. Step through prophase to cytokinesis: chromosomes condense, spindle fibers attach, chromosomes line up, then sisters split to opposite poles. Readouts count chromosomes, chromatids and DNA content each step, showing both daughters receive the exact chromosome set the parent began with.",
+  "aha": {
+   "stateId": "anaphase",
+   "observation": "Sister chromatids separate, so each pole receives one copy of every chromosome, a full parental set, while total DNA is unchanged until cytokinesis."
+  },
+  "layout": {
+   "preset": "stepper-cycle",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "progress",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    }
+   },
+   {
+    "id": "cell",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "counts",
+    "kind": "value-readout",
+    "presentation": "Units: DNA in C (one haploid genome content); exact integers, no rounding.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Mitosis step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons, names kept when disabled at boundaries; arrow keys"
+   },
+   {
+    "id": "organism",
+    "kind": "select",
+    "label": "Organism (sets chromosome number 2n)",
+    "options": [
+     "Human (2n = 46)",
+     "Fruit fly (2n = 8)"
+    ],
+    "default": 0,
+    "presentation": "Switches variant; changes every computed count"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to interphase and Human"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Human (2n = 46)",
+     "regions": [
+      {
+       "id": "envelope",
+       "label": "Nuclear envelope",
+       "phases": [
+        "intact",
+        "breaking down",
+        "absent",
+        "reforming"
+       ]
+      },
+      {
+       "id": "chromosomes",
+       "label": "Chromosomes",
+       "phases": [
+        "loose",
+        "condensed",
+        "attached",
+        "aligned",
+        "separating",
+        "decondensing"
+       ]
+      },
+      {
+       "id": "centrosomes",
+       "label": "Centrosomes",
+       "phases": [
+        "paired",
+        "moving apart",
+        "at poles"
+       ]
+      },
+      {
+       "id": "spindle",
+       "label": "Spindle fibers",
+       "phases": [
+        "absent",
+        "growing",
+        "attached",
+        "shortening"
+       ]
+      },
+      {
+       "id": "kinetochores",
+       "label": "Kinetochores",
+       "values": [
+        "unattached",
+        "attached to both poles"
+       ]
+      },
+      {
+       "id": "plate",
+       "label": "Metaphase plate",
+       "values": [
+        "empty",
+        "aligned"
+       ]
+      },
+      {
+       "id": "poleA",
+       "label": "Pole A",
+       "values": [
+        "empty",
+        "receives one set"
+       ]
+      },
+      {
+       "id": "poleB",
+       "label": "Pole B",
+       "values": [
+        "empty",
+        "receives one set"
+       ]
+      },
+      {
+       "id": "furrow",
+       "label": "Cleavage furrow",
+       "values": [
+        "absent",
+        "pinching"
+       ]
+      },
+      {
+       "id": "daughterA",
+       "label": "Daughter cell A",
+       "values": [
+        "forming",
+        "complete"
+       ]
+      },
+      {
+       "id": "daughterB",
+       "label": "Daughter cell B",
+       "values": [
+        "forming",
+        "complete"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "centrosomes",
+       "to": "kinetochores",
+       "label": "spindle attaches"
+      },
+      {
+       "from": "plate",
+       "to": "poleA",
+       "label": "chromatids pulled"
+      },
+      {
+       "from": "plate",
+       "to": "poleB",
+       "label": "chromatids pulled"
+      }
+     ],
+     "states": [
+      {
+       "id": "interphase",
+       "label": "Interphase (G2)",
+       "short": "G2",
+       "active": [
+        "envelope",
+        "chromosomes",
+        "centrosomes"
+       ],
+       "calloutRegion": "chromosomes",
+       "sentence": "Inside an intact nucleus, every chromosome is already copied; sister chromatids stay joined at the centromere.",
+       "why": "Replication in S phase finished before mitosis, so the cell starts doubled.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "46"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "92 (2 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "chromatids = 2 × 46 = 92"
+        }
+       ]
+      },
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Pro",
+       "active": [
+        "chromosomes",
+        "centrosomes",
+        "spindle"
+       ],
+       "calloutRegion": "chromosomes",
+       "sentence": "Chromosomes condense into visible X shapes while centrosomes move apart and start growing spindle fibers.",
+       "why": "Compact chromosomes can be moved without tangling or breaking.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "46"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "92 (2 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "no copying or splitting: 46 stays 46"
+        }
+       ]
+      },
+      {
+       "id": "prometaphase",
+       "label": "Prometaphase",
+       "short": "Prometa",
+       "active": [
+        "envelope",
+        "kinetochores",
+        "spindle"
+       ],
+       "calloutRegion": "envelope",
+       "sentence": "The nuclear envelope breaks down, letting spindle fibers grab each chromosome's kinetochores from both poles.",
+       "why": "Each sister must attach to a different pole before splitting.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "46"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "92 (2 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "kinetochores = 2 × 46 = 92"
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Meta",
+       "active": [
+        "plate",
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "plate",
+       "sentence": "Chromosomes line up single-file along the metaphase plate, balanced between pulls from opposite poles.",
+       "why": "A checkpoint waits until every kinetochore is attached under tension.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "46"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "92 (2 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "aligned = 46 of 46"
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Ana",
+       "active": [
+        "chromosomes",
+        "spindle",
+        "poleA",
+        "poleB"
+       ],
+       "calloutRegion": "chromosomes",
+       "sentence": "Sister chromatids separate at the plate; shortening spindle fibers drag one copy of each chromosome to each pole.",
+       "why": "Splitting every pair is what makes the two sets identical.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "92 (46 per pole)"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "92 (1 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C total (2C per pole)"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "per pole = 92 ÷ 2 = 46"
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Telo",
+       "active": [
+        "envelope",
+        "poleA",
+        "poleB"
+       ],
+       "calloutRegion": "envelope",
+       "sentence": "Nuclear envelopes reform around each set at the poles, and chromosomes begin to loosen.",
+       "why": "Each set gets its own nucleus before the cell divides.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "92 (46 per nucleus)"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "92 (1 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C total (2C per nucleus)"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "each nucleus = 46 = parent count"
+        }
+       ]
+      },
+      {
+       "id": "cytokinesis",
+       "label": "Cytokinesis",
+       "short": "Cyto",
+       "active": [
+        "furrow",
+        "daughterA",
+        "daughterB"
+       ],
+       "calloutRegion": "furrow",
+       "sentence": "The cleavage furrow pinches the cytoplasm in two, producing two genetically identical daughter cells.",
+       "why": "Each daughter now matches the parent before replication.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "46 per daughter"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "46 per daughter"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "2C per daughter"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "2 cells × 46 = 92 = parent chromatids"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Fruit fly (2n = 8)",
+     "regions": [
+      {
+       "id": "envelope",
+       "label": "Nuclear envelope",
+       "phases": [
+        "intact",
+        "breaking down",
+        "absent",
+        "reforming"
+       ]
+      },
+      {
+       "id": "chromosomes",
+       "label": "Chromosomes",
+       "phases": [
+        "loose",
+        "condensed",
+        "attached",
+        "aligned",
+        "separating",
+        "decondensing"
+       ]
+      },
+      {
+       "id": "centrosomes",
+       "label": "Centrosomes",
+       "phases": [
+        "paired",
+        "moving apart",
+        "at poles"
+       ]
+      },
+      {
+       "id": "spindle",
+       "label": "Spindle fibers",
+       "phases": [
+        "absent",
+        "growing",
+        "attached",
+        "shortening"
+       ]
+      },
+      {
+       "id": "kinetochores",
+       "label": "Kinetochores",
+       "values": [
+        "unattached",
+        "attached to both poles"
+       ]
+      },
+      {
+       "id": "plate",
+       "label": "Metaphase plate",
+       "values": [
+        "empty",
+        "aligned"
+       ]
+      },
+      {
+       "id": "poleA",
+       "label": "Pole A",
+       "values": [
+        "empty",
+        "receives one set"
+       ]
+      },
+      {
+       "id": "poleB",
+       "label": "Pole B",
+       "values": [
+        "empty",
+        "receives one set"
+       ]
+      },
+      {
+       "id": "furrow",
+       "label": "Cleavage furrow",
+       "values": [
+        "absent",
+        "pinching"
+       ]
+      },
+      {
+       "id": "daughterA",
+       "label": "Daughter cell A",
+       "values": [
+        "forming",
+        "complete"
+       ]
+      },
+      {
+       "id": "daughterB",
+       "label": "Daughter cell B",
+       "values": [
+        "forming",
+        "complete"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "centrosomes",
+       "to": "kinetochores",
+       "label": "spindle attaches"
+      },
+      {
+       "from": "plate",
+       "to": "poleA",
+       "label": "chromatids pulled"
+      },
+      {
+       "from": "plate",
+       "to": "poleB",
+       "label": "chromatids pulled"
+      }
+     ],
+     "states": [
+      {
+       "id": "interphase",
+       "label": "Interphase (G2)",
+       "short": "G2",
+       "active": [
+        "envelope",
+        "chromosomes",
+        "centrosomes"
+       ],
+       "calloutRegion": "chromosomes",
+       "sentence": "Inside an intact nucleus, every chromosome is already copied; sister chromatids stay joined at the centromere.",
+       "why": "Replication in S phase finished before mitosis, so the cell starts doubled.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "8"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "16 (2 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "chromatids = 2 × 8 = 16"
+        }
+       ]
+      },
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Pro",
+       "active": [
+        "chromosomes",
+        "centrosomes",
+        "spindle"
+       ],
+       "calloutRegion": "chromosomes",
+       "sentence": "Chromosomes condense into visible X shapes while centrosomes move apart and start growing spindle fibers.",
+       "why": "Compact chromosomes can be moved without tangling or breaking.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "8"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "16 (2 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "no copying or splitting: 8 stays 8"
+        }
+       ]
+      },
+      {
+       "id": "prometaphase",
+       "label": "Prometaphase",
+       "short": "Prometa",
+       "active": [
+        "envelope",
+        "kinetochores",
+        "spindle"
+       ],
+       "calloutRegion": "envelope",
+       "sentence": "The nuclear envelope breaks down, letting spindle fibers grab each chromosome's kinetochores from both poles.",
+       "why": "Each sister must attach to a different pole before splitting.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "8"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "16 (2 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "kinetochores = 2 × 8 = 16"
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Meta",
+       "active": [
+        "plate",
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "plate",
+       "sentence": "Chromosomes line up single-file along the metaphase plate, balanced between pulls from opposite poles.",
+       "why": "A checkpoint waits until every kinetochore is attached under tension.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "8"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "16 (2 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "aligned = 8 of 8"
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Ana",
+       "active": [
+        "chromosomes",
+        "spindle",
+        "poleA",
+        "poleB"
+       ],
+       "calloutRegion": "chromosomes",
+       "sentence": "Sister chromatids separate at the plate; shortening spindle fibers drag one copy of each chromosome to each pole.",
+       "why": "Splitting every pair is what makes the two sets identical.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "16 (8 per pole)"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "16 (1 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C total (2C per pole)"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "per pole = 16 ÷ 2 = 8"
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Telo",
+       "active": [
+        "envelope",
+        "poleA",
+        "poleB"
+       ],
+       "calloutRegion": "envelope",
+       "sentence": "Nuclear envelopes reform around each set at the poles, and chromosomes begin to loosen.",
+       "why": "Each set gets its own nucleus before the cell divides.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "16 (8 per nucleus)"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "16 (1 per chromosome)"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "4C total (2C per nucleus)"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "each nucleus = 8 = parent count"
+        }
+       ]
+      },
+      {
+       "id": "cytokinesis",
+       "label": "Cytokinesis",
+       "short": "Cyto",
+       "active": [
+        "furrow",
+        "daughterA",
+        "daughterB"
+       ],
+       "calloutRegion": "furrow",
+       "sentence": "The cleavage furrow pinches the cytoplasm in two, producing two genetically identical daughter cells.",
+       "why": "Each daughter now matches the parent before replication.",
+       "readouts": [
+        {
+         "id": "chrom",
+         "label": "Chromosomes",
+         "value": "8 per daughter"
+        },
+        {
+         "id": "chromatids",
+         "label": "Chromatids",
+         "value": "8 per daughter"
+        },
+        {
+         "id": "dna",
+         "label": "DNA content",
+         "value": "2C per daughter"
+        },
+        {
+         "id": "rule",
+         "label": "Count rule",
+         "value": "2 cells × 8 = 16 = parent chromatids"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 8740
+ },
+ "usd": 0.187072,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture with regions, links and per-step counts answers one question: how both daughters get the same chromosome set (anaphase split, 92 chromatids to 46 per pole)."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state is anaphase, but the step control is a manual index with no timer. The data has no decisive-state hold, and the story's hint that DNA is unchanged until cytokinesis is not emphasised at that state."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The organism select changes 2n between 46 and 8 and recomputes every count (92 vs 16, per pole 46 vs 8), and the step control changes the active regions and readouts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callout, ghost, rail and readouts bind to state fields (calloutRegion, sentence, why, active, readouts). Links connect declared regions (centrosomes to kinetochores, plate to poles)."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "Naming is mostly consistent, but the story says chromosomes are counted, while the anaphase readout shows 92 chromosomes and cytokinesis shows 46 per daughter, which makes chromosome and chromatid counts ambiguous. The story's 'aha' wording about one full set per pole also conflicts with the '92 chr"
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The 'detailed' depth shows four readouts at every step, plus rail, progress, ghost, callout and a picture with eleven regions. Because the count rule and the chromatid row restate the same numbers, the screen is denser than a single formula or count would be."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The values are arithmetically consistent, but the 'DNA content' readouts are muddled. Anaphase and telophase show '4C total (2C per pole)', and 'chromosomes 92 (46 per pole)' counts each chromatid as a chromosome. The same numbers also appear in the chromatids and rule rows, so they are placed more "
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.022312
+ }
+}

@@ -1,0 +1,270 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a06",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does KV caching speed up inference?",
+ "ts": "2026-11-14T22:20:33.887Z",
+ "ms": 3657,
+ "raw": "{\n  \"story\": \"During text generation, each new token requires attending to all prior tokens. Without caching, past key and value vectors are recomputed for every step. KV caching stores these vectors in memory, eliminating redundant computations and accelerating decoding speed dramatically.\",\n  \"aha\": {\n    \"stateId\": \"step_cache_hit\",\n    \"observation\": \"Notice how storing computed key and value tensors avoids re-running self-attention over the prompt tokens at every single generation step.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.step_index\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.short\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.step_index\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step_index\",\n      \"kind\": \"index\",\n      \"label\": \"Inference Step\",\n      \"options\": [\n        \"Prompt\",\n        \"Token 1\",\n        \"Token 2\",\n        \"Cache Hit\"\n      ]\n    },\n    {\n      \"id\": \"reset_btn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"KV Caching Sequence\",\n        \"regions\": [\n          {\n            \"id\": \"prompt_block\",\n            \"label\": \"Input Prompt\",\n            \"values\": [\"The\", \"quick\", \"brown\"]\n          },\n          {\n            \"id\": \"kv_cache\",\n            \"label\": \"KV Cache Storage\",\n            \"values\": [\"K_0\", \"V_0\", \"K_1\", \"V_1\"]\n          },\n          {\n            \"id\": \"attention_layer\",\n            \"label\": \"Self-Attention Compute\",\n            \"values\": [\"MatMul\", \"Softmax\", \"Scale\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"step_prompt\",\n            \"label\": \"1. Prompt\",\n            \"short\": \"Initial pass\",\n            \"sentence\": \"The full prompt is processed to compute initial keys and values.\",\n            \"why\": \"Establishes baseline tensor dimensions for all prompt tokens.\",\n            \"active\": [\"prompt_block\", \"attention_layer\"],\n            \"calloutRegion\": \"prompt_block\",\n            \"readouts\": [\n              {\n                \"id\": \"flops\",\n                \"label\": \"FLOPs per token\",\n                \"value\": \"O(N^2)\"\n              },\n              {\n                \"id\": \"latency\",\n                \"label\": \"Latency\",\n                \"value\": \"45ms\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step_token1\",\n            \"label\": \"2. Token 1\",\n            \"short\": \"First generated token\",\n            \"sentence\": \"Token 1 attends to stored prompt keys and values instead of recomputing them.\",\n            \"why\": \"Avoids redundant computation for historical tokens.\",\n            \"active\": [\"kv_cache\", \"attention_layer\"],\n            \"calloutRegion\": \"kv_cache\",\n            \"readouts\": [\n              {\n                \"id\": \"flops\",\n                \"label\": \"FLOPs per token\",\n                \"value\": \"O(N)\"\n              },\n              {\n                \"id\": \"latency\",\n                \"label\": \"Latency\",\n                \"value\": \"12ms\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step_token2\",\n            \"label\": \"3. Token 2\",\n            \"short\": \"Second generated token\",\n            \"sentence\": \"Token 2 appends its own K and V vectors to the cache storage.\",\n            \"why\": \"Grows the cache incrementally for subsequent generation steps.\",\n            \"active\": [\"kv_cache\", \"attention_layer\"],\n            \"calloutRegion\": \"kv_cache\",\n            \"readouts\": [\n              {\n                \"id\": \"flops\",\n                \"label\": \"FLOPs per token\",\n                \"value\": \"O(N)\"\n              },\n              {\n                \"id\": \"latency\",\n                \"label\": \"Latency\",\n                \"value\": \"12ms\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step_cache_hit\",\n            \"label\": \"4. Cache Hit\",\n            \"short\": \"Maximized speedup\",\n            \"sentence\": \"Memory bandwidth replaces heavy compute, yielding constant per-token time.\",\n            \"why\": \"Proves that attention complexity drops from quadratic to linear relative to generation length.\",\n            \"active\": [\"kv_cache\"],\n            \"calloutRegion\": \"kv_cache\",\n            \"readouts\": [\n              {\n                \"id\": \"flops\",\n                \"label\": \"FLOPs per token\",\n                \"value\": \"O(N)\"\n              },\n              {\n                \"id\": \"latency\",\n                \"label\": \"Latency\",\n                \"value\": \"11ms\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "During text generation, each new token requires attending to all prior tokens. Without caching, past key and value vectors are recomputed for every step. KV caching stores these vectors in memory, eliminating redundant computations and accelerating decoding speed dramatically.",
+  "aha": {
+   "stateId": "step_cache_hit",
+   "observation": "Notice how storing computed key and value tensors avoids re-running self-attention over the prompt tokens at every single generation step."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step_index",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.short"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step_index"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step_index",
+    "kind": "index",
+    "label": "Inference Step",
+    "options": [
+     "Prompt",
+     "Token 1",
+     "Token 2",
+     "Cache Hit"
+    ]
+   },
+   {
+    "id": "reset_btn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "KV Caching Sequence",
+     "regions": [
+      {
+       "id": "prompt_block",
+       "label": "Input Prompt",
+       "values": [
+        "The",
+        "quick",
+        "brown"
+       ]
+      },
+      {
+       "id": "kv_cache",
+       "label": "KV Cache Storage",
+       "values": [
+        "K_0",
+        "V_0",
+        "K_1",
+        "V_1"
+       ]
+      },
+      {
+       "id": "attention_layer",
+       "label": "Self-Attention Compute",
+       "values": [
+        "MatMul",
+        "Softmax",
+        "Scale"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "step_prompt",
+       "label": "1. Prompt",
+       "short": "Initial pass",
+       "sentence": "The full prompt is processed to compute initial keys and values.",
+       "why": "Establishes baseline tensor dimensions for all prompt tokens.",
+       "active": [
+        "prompt_block",
+        "attention_layer"
+       ],
+       "calloutRegion": "prompt_block",
+       "readouts": [
+        {
+         "id": "flops",
+         "label": "FLOPs per token",
+         "value": "O(N^2)"
+        },
+        {
+         "id": "latency",
+         "label": "Latency",
+         "value": "45ms"
+        }
+       ]
+      },
+      {
+       "id": "step_token1",
+       "label": "2. Token 1",
+       "short": "First generated token",
+       "sentence": "Token 1 attends to stored prompt keys and values instead of recomputing them.",
+       "why": "Avoids redundant computation for historical tokens.",
+       "active": [
+        "kv_cache",
+        "attention_layer"
+       ],
+       "calloutRegion": "kv_cache",
+       "readouts": [
+        {
+         "id": "flops",
+         "label": "FLOPs per token",
+         "value": "O(N)"
+        },
+        {
+         "id": "latency",
+         "label": "Latency",
+         "value": "12ms"
+        }
+       ]
+      },
+      {
+       "id": "step_token2",
+       "label": "3. Token 2",
+       "short": "Second generated token",
+       "sentence": "Token 2 appends its own K and V vectors to the cache storage.",
+       "why": "Grows the cache incrementally for subsequent generation steps.",
+       "active": [
+        "kv_cache",
+        "attention_layer"
+       ],
+       "calloutRegion": "kv_cache",
+       "readouts": [
+        {
+         "id": "flops",
+         "label": "FLOPs per token",
+         "value": "O(N)"
+        },
+        {
+         "id": "latency",
+         "label": "Latency",
+         "value": "12ms"
+        }
+       ]
+      },
+      {
+       "id": "step_cache_hit",
+       "label": "4. Cache Hit",
+       "short": "Maximized speedup",
+       "sentence": "Memory bandwidth replaces heavy compute, yielding constant per-token time.",
+       "why": "Proves that attention complexity drops from quadratic to linear relative to generation length.",
+       "active": [
+        "kv_cache"
+       ],
+       "calloutRegion": "kv_cache",
+       "readouts": [
+        {
+         "id": "flops",
+         "label": "FLOPs per token",
+         "value": "O(N)"
+        },
+        {
+         "id": "latency",
+         "label": "Latency",
+         "value": "11ms"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1104,
+  "output": 1441
+ },
+ "usd": 0.003934,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture's three regions (prompt, KV cache, attention compute) with highlights moving across steps show how cached K/V avoids recomputing prompt attention, answering one question."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state is the final step, but it is reached only by stepping, with no explicit hold or decisive-state emphasis; the aha text also says no re-running while the state only highlights the cache, so the hold is weak."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The single step_index parameter changes the active regions, the callout, and the readouts (O(N^2) 45ms to O(N) 12ms and 11ms), so each setting gives different evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout, readouts and progress bind to declared variant states, regions, and state fields (active, calloutRegion, short, why, readouts); the callout target is a valid region id."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, region names and control options (Prompt, Token 1, Token 2, Cache Hit) all refer to the same prompt, cache, and attention objects and events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The detailed depth adds a comparison through per-step readouts of complexity and latency without extra clutter; there are three regions and two readouts."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The values are inconsistent: the aha claims constant per-token time and a drop from quadratic to linear, yet the readouts show O(N) at both Token 1 and Cache Hit, and latency barely changes (12ms to 11ms); the sentence is also repeated in the callout."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012732
+ }
+}

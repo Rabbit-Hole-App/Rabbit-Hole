@@ -1,0 +1,245 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a33",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "Why does recursive feature elimination refit after each drop?",
+ "ts": "2026-11-14T22:52:30.918Z",
+ "ms": 126365,
+ "raw": "{\n  \"story\": \"Why refit after each drop? Start with three standardized predictors, a centered target, and unregularized ordinary least squares. Drop one feature per round using the smallest absolute coefficient. Removing Feature C reverses the surviving ranking after refitting. Compare stale and current scores before deciding which feature goes next.\",\n  \"aha\": {\n    \"stateId\": \"refit-after-drop\",\n    \"observation\": \"After Feature C is removed, refitting reverses the surviving ranking; stale coefficients would eliminate Feature B instead of Feature A.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states/algorithm-collection\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"state-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell at native width. Keep story and instructions above the experiment. Show ordered states with the current state highlighted. The rail carries all progress; its index represents a state, never elapsed time. Reference captures show the named aha state.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"feature-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Keep three equally sized feature regions in a fixed row. Active regions represent retained predictors; inactive regions remain visible with an excluded treatment. Preserve feature names and positions across states. Do not encode coefficient magnitude through region size or position.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"feature-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the named feature without covering labels. Identify where the decision applies and explain why. Keep numerical values exclusively in readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"evidence-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Use compact labeled rows with wrapping space. Place assumptions and the fit rule above the picture; place moments, scores, and status below it. All shown moments and coefficients are exact; trailing zeros indicate display precision. Coefficient comparisons share target units per input standard deviation. Current scores use the retained columns; stale scores preserve the preceding fit. No previous-state ghost is needed because the comparison remains visible.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Elimination and refit state\",\n      \"presentation\": \"Parameter-control budget: zero; navigation and Reset are separate. Default to the first state, advancing one state within the listed bounds. Use Previous and Next, retaining both names when disabled at boundaries. Every state persists until learner action, including the aha state. Support Left and Right arrows and standard button keyboard activation. Provide visible focus and accessible button names.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all fixed defaults. There are no adjustable parameters. Support keyboard activation and visible focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Absolute-coefficient RFE: first elimination and refit\",\n        \"regions\": [\n          {\n            \"id\": \"feature-a\",\n            \"label\": \"Feature A\",\n            \"values\": [\"Standardized predictor\"]\n          },\n          {\n            \"id\": \"feature-b\",\n            \"label\": \"Feature B\",\n            \"values\": [\"Standardized predictor\"]\n          },\n          {\n            \"id\": \"feature-c\",\n            \"label\": \"Feature C\",\n            \"values\": [\"Standardized predictor\"]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"initial-fit\",\n            \"label\": \"Fit all features\",\n            \"short\": \"Initial fit\",\n            \"sentence\": \"Feature C is the next removal.\",\n            \"why\": \"Its absolute coefficient is smallest in the model containing all three predictors.\",\n            \"active\": [\"feature-a\", \"feature-b\", \"feature-c\"],\n            \"calloutRegion\": \"feature-c\",\n            \"readouts\": [\n              {\n                \"id\": \"assumptions\",\n                \"label\": \"Fixed experiment\",\n                \"value\": \"Predictors have mean zero and variance one; the target is centered. Use unregularized OLS and drop one smallest absolute coefficient. There are no ties.\"\n              },\n              {\n                \"id\": \"fit-rule\",\n                \"label\": \"Refit rule\",\n                \"value\": \"β_S = R_SS⁻¹c_S, where S contains retained features, R = XᵀX/n, and c = Xᵀy/n. R is symmetric with unit diagonal.\"\n              },\n              {\n                \"id\": \"fixed-moments\",\n                \"label\": \"Fixed data moments\",\n                \"value\": \"R_AB = 0.80; R_AC = −0.50; R_BC = 0.05. c = (1.26, 1.35, −0.165), ordered A, B, C.\"\n              },\n              {\n                \"id\": \"current-scores\",\n                \"label\": \"Current absolute coefficients\",\n                \"value\": \"Feature A: 0.80; Feature B: 0.70; Feature C: 0.20.\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"All features are retained; the fitted ranking selects Feature C for removal.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"drop-c\",\n            \"label\": \"Remove Feature C\",\n            \"short\": \"Drop, not refitted\",\n            \"sentence\": \"Feature C is removed; the remaining scores have not been refitted.\",\n            \"why\": \"Those coefficients were optimized with Feature C present, so they do not describe the reduced model.\",\n            \"active\": [\"feature-a\", \"feature-b\"],\n            \"calloutRegion\": \"feature-c\",\n            \"readouts\": [\n              {\n                \"id\": \"assumptions\",\n                \"label\": \"Fixed experiment\",\n                \"value\": \"Predictors have mean zero and variance one; the target is centered. Use unregularized OLS and drop one smallest absolute coefficient. There are no ties.\"\n              },\n              {\n                \"id\": \"fit-rule\",\n                \"label\": \"Refit rule\",\n                \"value\": \"β_S = R_SS⁻¹c_S, where S contains retained features, R = XᵀX/n, and c = Xᵀy/n. R is symmetric with unit diagonal.\"\n              },\n              {\n                \"id\": \"fixed-moments\",\n                \"label\": \"Fixed data moments\",\n                \"value\": \"R_AB = 0.80; R_AC = −0.50; R_BC = 0.05. c = (1.26, 1.35, −0.165), ordered A, B, C.\"\n              },\n              {\n                \"id\": \"stale-scores\",\n                \"label\": \"Stale absolute coefficients\",\n                \"value\": \"Feature A: 0.80; Feature B: 0.70. Feature C is excluded.\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Refit is pending; the stale ranking would remove Feature B next.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"refit-after-drop\",\n            \"label\": \"Refit retained features\",\n            \"short\": \"Ranking reverses\",\n            \"sentence\": \"Feature A becomes the next removal after refitting.\",\n            \"why\": \"Reoptimizing with Feature C absent changes how Feature A and Feature B share predictive signal.\",\n            \"active\": [\"feature-a\", \"feature-b\"],\n            \"calloutRegion\": \"feature-a\",\n            \"readouts\": [\n              {\n                \"id\": \"assumptions\",\n                \"label\": \"Fixed experiment\",\n                \"value\": \"Predictors have mean zero and variance one; the target is centered. Use unregularized OLS and drop one smallest absolute coefficient. There are no ties.\"\n              },\n              {\n                \"id\": \"fit-rule\",\n                \"label\": \"Refit rule\",\n                \"value\": \"β_S = R_SS⁻¹c_S, where S contains retained features, R = XᵀX/n, and c = Xᵀy/n. R is symmetric with unit diagonal.\"\n              },\n              {\n                \"id\": \"fixed-moments\",\n                \"label\": \"Fixed data moments\",\n                \"value\": \"R_AB = 0.80; R_AC = −0.50; R_BC = 0.05. c = (1.26, 1.35, −0.165), ordered A, B, C.\"\n              },\n              {\n                \"id\": \"stale-scores\",\n                \"label\": \"Before refit: stale absolute coefficients\",\n                \"value\": \"Feature A: 0.80; Feature B: 0.70.\"\n              },\n              {\n                \"id\": \"current-scores\",\n                \"label\": \"After refit: current absolute coefficients\",\n                \"value\": \"Feature A: 0.50; Feature B: 0.95.\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"The data and ranking rule are unchanged. Stale scores select Feature B; refitted scores select Feature A.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Why refit after each drop? Start with three standardized predictors, a centered target, and unregularized ordinary least squares. Drop one feature per round using the smallest absolute coefficient. Removing Feature C reverses the surviving ranking after refitting. Compare stale and current scores before deciding which feature goes next.",
+  "aha": {
+   "stateId": "refit-after-drop",
+   "observation": "After Feature C is removed, refitting reverses the surviving ranking; stale coefficients would eliminate Feature B instead of Feature A."
+  },
+  "layout": {
+   "preset": "stepper-states/algorithm-collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "state-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell at native width. Keep story and instructions above the experiment. Show ordered states with the current state highlighted. The rail carries all progress; its index represents a state, never elapsed time. Reference captures show the named aha state.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "feature-picture",
+    "kind": "fixed-picture",
+    "presentation": "Keep three equally sized feature regions in a fixed row. Active regions represent retained predictors; inactive regions remain visible with an excluded treatment. Preserve feature names and positions across states. Do not encode coefficient magnitude through region size or position.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "feature-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the named feature without covering labels. Identify where the decision applies and explain why. Keep numerical values exclusively in readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "evidence-readouts",
+    "kind": "value-readout",
+    "presentation": "Use compact labeled rows with wrapping space. Place assumptions and the fit rule above the picture; place moments, scores, and status below it. All shown moments and coefficients are exact; trailing zeros indicate display precision. Coefficient comparisons share target units per input standard deviation. Current scores use the retained columns; stale scores preserve the preceding fit. No previous-state ghost is needed because the comparison remains visible.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Elimination and refit state",
+    "presentation": "Parameter-control budget: zero; navigation and Reset are separate. Default to the first state, advancing one state within the listed bounds. Use Previous and Next, retaining both names when disabled at boundaries. Every state persists until learner action, including the aha state. Support Left and Right arrows and standard button keyboard activation. Provide visible focus and accessible button names."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all fixed defaults. There are no adjustable parameters. Support keyboard activation and visible focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Absolute-coefficient RFE: first elimination and refit",
+     "regions": [
+      {
+       "id": "feature-a",
+       "label": "Feature A",
+       "values": [
+        "Standardized predictor"
+       ]
+      },
+      {
+       "id": "feature-b",
+       "label": "Feature B",
+       "values": [
+        "Standardized predictor"
+       ]
+      },
+      {
+       "id": "feature-c",
+       "label": "Feature C",
+       "values": [
+        "Standardized predictor"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "initial-fit",
+       "label": "Fit all features",
+       "short": "Initial fit",
+       "sentence": "Feature C is the next removal.",
+       "why": "Its absolute coefficient is smallest in the model containing all three predictors.",
+       "active": [
+        "feature-a",
+        "feature-b",
+        "feature-c"
+       ],
+       "calloutRegion": "feature-c",
+       "readouts": [
+        {
+         "id": "assumptions",
+         "label": "Fixed experiment",
+         "value": "Predictors have mean zero and variance one; the target is centered. Use unregularized OLS and drop one smallest absolute coefficient. There are no ties."
+        },
+        {
+         "id": "fit-rule",
+         "label": "Refit rule",
+         "value": "β_S = R_SS⁻¹c_S, where S contains retained features, R = XᵀX/n, and c = Xᵀy/n. R is symmetric with unit diagonal."
+        },
+        {
+         "id": "fixed-moments",
+         "label": "Fixed data moments",
+         "value": "R_AB = 0.80; R_AC = −0.50; R_BC = 0.05. c = (1.26, 1.35, −0.165), ordered A, B, C."
+        },
+        {
+         "id": "current-scores",
+         "label": "Current absolute coefficients",
+         "value": "Feature A: 0.80; Feature B: 0.70; Feature C: 0.20."
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "All features are retained; the fitted ranking selects Feature C for removal."
+        }
+       ]
+      },
+      {
+       "id": "drop-c",
+       "label": "Remove Feature C",
+       "short": "Drop, not refitted",
+       "sentence": "Feature C is removed; the remaining scores have not been refitted.",
+       "why": "Those coefficients were optimized with Feature C present, so they do not describe the reduced model.",
+       "active": [
+        "feature-a",
+        "feature-b"
+       ],
+       "calloutRegion": "feature-c",
+       "readouts": [
+        {
+         "id": "assumptions",
+         "label": "Fixed experiment",
+         "value": "Predictors have mean zero and variance one; the target is centered. Use unregularized OLS and drop one smallest absolute coefficient. There are no ties."
+        },
+        {
+         "id": "fit-rule",
+         "label": "Refit rule",
+         "value": "β_S = R_SS⁻¹c_S, where S contains retained features, R = XᵀX/n, and c = Xᵀy/n. R is symmetric with unit diagonal."
+        },
+        {
+         "id": "fixed-moments",
+         "label": "Fixed data moments",
+         "value": "R_AB = 0.80; R_AC = −0.50; R_BC = 0.05. c = (1.26, 1.35, −0.165), ordered A, B, C."
+        },
+        {
+         "id": "stale-scores",
+         "label": "Stale absolute coefficients",
+         "value": "Feature A: 0.80; Feature B: 0.70. Feature C is excluded."
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Refit is pending; the stale ranking would remove Feature B next."
+        }
+       ]
+      },
+      {
+       "id": "refit-after-drop",
+       "label": "Refit retained features",
+       "short": "Ranking reverses",
+       "sentence": "Feature A becomes the next removal after refitting.",
+       "why": "Reoptimizing with Feature C absent changes how Feature A and Feature B share predictive signal.",
+       "active": [
+        "feature-a",
+        "feature-b"
+       ],
+       "calloutRegion": "feature-a",
+       "readouts": [
+        {
+         "id": "assumptions",
+         "label": "Fixed experiment",
+         "value": "Predictors have mean zero and variance one; the target is centered. Use unregularized OLS and drop one smallest absolute coefficient. There are no ties."
+        },
+        {
+         "id": "fit-rule",
+         "label": "Refit rule",
+         "value": "β_S = R_SS⁻¹c_S, where S contains retained features, R = XᵀX/n, and c = Xᵀy/n. R is symmetric with unit diagonal."
+        },
+        {
+         "id": "fixed-moments",
+         "label": "Fixed data moments",
+         "value": "R_AB = 0.80; R_AC = −0.50; R_BC = 0.05. c = (1.26, 1.35, −0.165), ordered A, B, C."
+        },
+        {
+         "id": "stale-scores",
+         "label": "Before refit: stale absolute coefficients",
+         "value": "Feature A: 0.80; Feature B: 0.70."
+        },
+        {
+         "id": "current-scores",
+         "label": "After refit: current absolute coefficients",
+         "value": "Feature A: 0.50; Feature B: 0.95."
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "The data and ranking rule are unchanged. Stale scores select Feature B; refitted scores select Feature A."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1538,
+  "output": 6770
+ },
+ "usd": 0.067906,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3e8sk3WBaJ4veX9nJ7n\"}"
+  },
+  "cardUsd": 0
+ }
+}

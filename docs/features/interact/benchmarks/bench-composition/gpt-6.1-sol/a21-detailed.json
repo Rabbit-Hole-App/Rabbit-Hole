@@ -1,0 +1,367 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a21",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a decision tree split a two-feature dataset into regions?",
+ "ts": "2026-11-14T22:40:56.679Z",
+ "ms": 129024,
+ "raw": "{\n  \"story\": \"How do two features become regions? Start with Samples inside Root. A prescribed Vertical cut creates Left and Right. A prescribed Left cut divides only Left into Lower-left and Upper-left. Left cut stops at Vertical cut, leaving Right whole. Use Previous and Next; counts and impurity reveal how local splits build regions.\",\n  \"aha\": {\n    \"stateId\": \"local-split\",\n    \"observation\": \"Each split cuts only its current region; Left cut stops at Vertical cut, leaving Right unchanged.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"growth-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the story and above the experiment. Show the active state and completed states here, without a separate timeline. Step positions represent states, not elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"feature-plane\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the tested fixed-picture part with a stationary feature plane. Horizontal axis is x₁; vertical axis is x₂. Both axes span zero through seven with equal unit spacing. Sample feature values determine marker placement; region predicates determine partition membership. Samples a–h remain visible in every state. Show partition regions and cuts only when active. Render cuts within their declared scope, never beyond it. Keep partition labels inside their regions without covering samples. Distinguish classes using both marker shape and letter. Cut labels identify boundaries; readouts report thresholds. Preserve label space at native width.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"location-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor the callout to its named target without covering markers. Use text to identify where the change occurs. Render reason as the bound status line.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"partition-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place compact readout rows below the picture. Counts are exact; impurity and decreases are dimensionless and rounded to three decimals. Compute every count and impurity from the fixed sample values and active partition predicates. Gini uses class proportions within each region. Tree impurity weights leaf impurity by its fraction of all samples. Readouts own numeric evidence; callouts contain no duplicate measurements. Retained boundaries and fixed Samples provide comparison without a previous-state ghost.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Partition state\",\n      \"presentation\": \"Use Previous and Next, retaining those names when disabled. Default index is zero; bounds are zero through two; increment is one. Each action changes the partition evidence, not merely its label. Every state persists until another learner action; there is no timed playback. Reference captures show local-split. Provide accessible button names, visible focus, and standard keyboard operation. Detailed parameter-control budget: zero; navigation and reset are separate.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all fixed defaults. Provide an accessible name, visible focus, and Enter or Space activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Two prescribed, axis-aligned splits\",\n        \"regions\": [\n          {\n            \"id\": \"a\",\n            \"label\": \"a · A\",\n            \"values\": [\"x₁=1\", \"x₂=1\", \"class=A\"]\n          },\n          {\n            \"id\": \"b\",\n            \"label\": \"b · A\",\n            \"values\": [\"x₁=2\", \"x₂=2\", \"class=A\"]\n          },\n          {\n            \"id\": \"c\",\n            \"label\": \"c · B\",\n            \"values\": [\"x₁=1\", \"x₂=5\", \"class=B\"]\n          },\n          {\n            \"id\": \"d\",\n            \"label\": \"d · B\",\n            \"values\": [\"x₁=2\", \"x₂=6\", \"class=B\"]\n          },\n          {\n            \"id\": \"e\",\n            \"label\": \"e · B\",\n            \"values\": [\"x₁=5\", \"x₂=1\", \"class=B\"]\n          },\n          {\n            \"id\": \"f\",\n            \"label\": \"f · B\",\n            \"values\": [\"x₁=6\", \"x₂=2\", \"class=B\"]\n          },\n          {\n            \"id\": \"g\",\n            \"label\": \"g · B\",\n            \"values\": [\"x₁=5\", \"x₂=5\", \"class=B\"]\n          },\n          {\n            \"id\": \"h\",\n            \"label\": \"h · B\",\n            \"values\": [\"x₁=6\", \"x₂=6\", \"class=B\"]\n          },\n          {\n            \"id\": \"root\",\n            \"label\": \"Root\",\n            \"values\": [\"predicate: all Samples\"]\n          },\n          {\n            \"id\": \"vertical-cut\",\n            \"label\": \"Vertical cut\",\n            \"values\": [\n              \"feature: x₁\",\n              \"threshold: 3\",\n              \"scope: Root\",\n              \"rule: ≤ enters Left; > enters Right\"\n            ]\n          },\n          {\n            \"id\": \"left\",\n            \"label\": \"Left\",\n            \"values\": [\"predicate: x₁ ≤ 3\", \"parent: Root\"]\n          },\n          {\n            \"id\": \"right\",\n            \"label\": \"Right\",\n            \"values\": [\"predicate: x₁ > 3\", \"parent: Root\"]\n          },\n          {\n            \"id\": \"left-cut\",\n            \"label\": \"Left cut\",\n            \"values\": [\n              \"feature: x₂\",\n              \"threshold: 3\",\n              \"scope: Left\",\n              \"rule: ≤ enters Lower-left; > enters Upper-left\"\n            ]\n          },\n          {\n            \"id\": \"lower-left\",\n            \"label\": \"Lower-left\",\n            \"values\": [\n              \"predicate: x₁ ≤ 3 and x₂ ≤ 3\",\n              \"parent: Left\"\n            ]\n          },\n          {\n            \"id\": \"upper-left\",\n            \"label\": \"Upper-left\",\n            \"values\": [\n              \"predicate: x₁ ≤ 3 and x₂ > 3\",\n              \"parent: Left\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"unsplit\",\n            \"label\": \"Root\",\n            \"short\": \"One region\",\n            \"sentence\": \"Root covers the entire feature plane.\",\n            \"why\": \"Status: all Samples share Root; feature positions and class labels stay fixed.\",\n            \"active\": [\"root\"],\n            \"calloutRegion\": \"root\",\n            \"readouts\": [\n              {\n                \"id\": \"assumptions\",\n                \"label\": \"Fixed setup\",\n                \"value\": \"Unitless features; no missing values; prescribed cuts; ≤ and > assign every sample uniquely.\"\n              },\n              {\n                \"id\": \"decision\",\n                \"label\": \"Current decision\",\n                \"value\": \"No cut yet.\"\n              },\n              {\n                \"id\": \"counts\",\n                \"label\": \"Leaf counts (A, B)\",\n                \"value\": \"Root: (2, 6)\"\n              },\n              {\n                \"id\": \"gini\",\n                \"label\": \"Gini = 1 − p(A)² − p(B)²\",\n                \"value\": \"Root: 1 − (2/8)² − (6/8)² = 0.375\"\n              },\n              {\n                \"id\": \"tree-impurity\",\n                \"label\": \"Tree impurity I = Σleaf (nleaf/N)Gini\",\n                \"value\": \"(8/8) × 0.375 = 0.375\"\n              },\n              {\n                \"id\": \"decrease\",\n                \"label\": \"Impurity decrease\",\n                \"value\": \"Baseline; no split.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"root-split\",\n            \"label\": \"Vertical cut\",\n            \"short\": \"Two regions\",\n            \"sentence\": \"Vertical cut creates Left and Right across Root.\",\n            \"why\": \"Status: both children inherit samples by feature value; every sample belongs to exactly one child.\",\n            \"active\": [\"vertical-cut\", \"left\", \"right\"],\n            \"calloutRegion\": \"vertical-cut\",\n            \"readouts\": [\n              {\n                \"id\": \"assumptions\",\n                \"label\": \"Fixed setup\",\n                \"value\": \"Unitless features; no missing values; prescribed cuts; ≤ and > assign every sample uniquely.\"\n              },\n              {\n                \"id\": \"decision\",\n                \"label\": \"Current decision\",\n                \"value\": \"Within Root: x₁ ≤ 3 versus x₁ > 3.\"\n              },\n              {\n                \"id\": \"counts\",\n                \"label\": \"Leaf counts (A, B)\",\n                \"value\": \"Left: (2, 2); Right: (0, 4)\"\n              },\n              {\n                \"id\": \"gini\",\n                \"label\": \"Gini = 1 − p(A)² − p(B)²\",\n                \"value\": \"Left: 0.500; Right: 0.000\"\n              },\n              {\n                \"id\": \"tree-impurity\",\n                \"label\": \"Tree impurity I = Σleaf (nleaf/N)Gini\",\n                \"value\": \"(4/8) × 0.500 + (4/8) × 0.000 = 0.250\"\n              },\n              {\n                \"id\": \"decrease\",\n                \"label\": \"Impurity decrease\",\n                \"value\": \"Root and whole tree: 0.375 − 0.250 = 0.125\"\n              }\n            ]\n          },\n          {\n            \"id\": \"local-split\",\n            \"label\": \"Left cut\",\n            \"short\": \"Three regions\",\n            \"sentence\": \"Left cut stops at Vertical cut; Right remains whole.\",\n            \"why\": \"Status: Lower-left and Upper-left replace Left; Right keeps its original samples.\",\n            \"active\": [\n              \"vertical-cut\",\n              \"left-cut\",\n              \"lower-left\",\n              \"upper-left\",\n              \"right\"\n            ],\n            \"calloutRegion\": \"left-cut\",\n            \"readouts\": [\n              {\n                \"id\": \"assumptions\",\n                \"label\": \"Fixed setup\",\n                \"value\": \"Unitless features; no missing values; prescribed cuts; ≤ and > assign every sample uniquely.\"\n              },\n              {\n                \"id\": \"decision\",\n                \"label\": \"Current decision\",\n                \"value\": \"Within Left only: x₂ ≤ 3 versus x₂ > 3.\"\n              },\n              {\n                \"id\": \"counts\",\n                \"label\": \"Leaf counts (A, B)\",\n                \"value\": \"Lower-left: (2, 0); Upper-left: (0, 2); Right: (0, 4)\"\n              },\n              {\n                \"id\": \"gini\",\n                \"label\": \"Gini = 1 − p(A)² − p(B)²\",\n                \"value\": \"Every leaf: 0.000\"\n              },\n              {\n                \"id\": \"tree-impurity\",\n                \"label\": \"Tree impurity I = Σleaf (nleaf/N)Gini\",\n                \"value\": \"(2/8) × 0 + (2/8) × 0 + (4/8) × 0 = 0.000\"\n              },\n              {\n                \"id\": \"decrease\",\n                \"label\": \"Impurity decrease\",\n                \"value\": \"Within Left: 0.500; whole tree: (4/8) × 0.500 = 0.250\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How do two features become regions? Start with Samples inside Root. A prescribed Vertical cut creates Left and Right. A prescribed Left cut divides only Left into Lower-left and Upper-left. Left cut stops at Vertical cut, leaving Right whole. Use Previous and Next; counts and impurity reveal how local splits build regions.",
+  "aha": {
+   "stateId": "local-split",
+   "observation": "Each split cuts only its current region; Left cut stops at Vertical cut, leaving Right unchanged."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "growth-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the story and above the experiment. Show the active state and completed states here, without a separate timeline. Step positions represent states, not elapsed time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "feature-plane",
+    "kind": "fixed-picture",
+    "presentation": "Use the tested fixed-picture part with a stationary feature plane. Horizontal axis is x₁; vertical axis is x₂. Both axes span zero through seven with equal unit spacing. Sample feature values determine marker placement; region predicates determine partition membership. Samples a–h remain visible in every state. Show partition regions and cuts only when active. Render cuts within their declared scope, never beyond it. Keep partition labels inside their regions without covering samples. Distinguish classes using both marker shape and letter. Cut labels identify boundaries; readouts report thresholds. Preserve label space at native width.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "location-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor the callout to its named target without covering markers. Use text to identify where the change occurs. Render reason as the bound status line.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "partition-evidence",
+    "kind": "value-readout",
+    "presentation": "Place compact readout rows below the picture. Counts are exact; impurity and decreases are dimensionless and rounded to three decimals. Compute every count and impurity from the fixed sample values and active partition predicates. Gini uses class proportions within each region. Tree impurity weights leaf impurity by its fraction of all samples. Readouts own numeric evidence; callouts contain no duplicate measurements. Retained boundaries and fixed Samples provide comparison without a previous-state ghost.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Partition state",
+    "presentation": "Use Previous and Next, retaining those names when disabled. Default index is zero; bounds are zero through two; increment is one. Each action changes the partition evidence, not merely its label. Every state persists until another learner action; there is no timed playback. Reference captures show local-split. Provide accessible button names, visible focus, and standard keyboard operation. Detailed parameter-control budget: zero; navigation and reset are separate."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all fixed defaults. Provide an accessible name, visible focus, and Enter or Space activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Two prescribed, axis-aligned splits",
+     "regions": [
+      {
+       "id": "a",
+       "label": "a · A",
+       "values": [
+        "x₁=1",
+        "x₂=1",
+        "class=A"
+       ]
+      },
+      {
+       "id": "b",
+       "label": "b · A",
+       "values": [
+        "x₁=2",
+        "x₂=2",
+        "class=A"
+       ]
+      },
+      {
+       "id": "c",
+       "label": "c · B",
+       "values": [
+        "x₁=1",
+        "x₂=5",
+        "class=B"
+       ]
+      },
+      {
+       "id": "d",
+       "label": "d · B",
+       "values": [
+        "x₁=2",
+        "x₂=6",
+        "class=B"
+       ]
+      },
+      {
+       "id": "e",
+       "label": "e · B",
+       "values": [
+        "x₁=5",
+        "x₂=1",
+        "class=B"
+       ]
+      },
+      {
+       "id": "f",
+       "label": "f · B",
+       "values": [
+        "x₁=6",
+        "x₂=2",
+        "class=B"
+       ]
+      },
+      {
+       "id": "g",
+       "label": "g · B",
+       "values": [
+        "x₁=5",
+        "x₂=5",
+        "class=B"
+       ]
+      },
+      {
+       "id": "h",
+       "label": "h · B",
+       "values": [
+        "x₁=6",
+        "x₂=6",
+        "class=B"
+       ]
+      },
+      {
+       "id": "root",
+       "label": "Root",
+       "values": [
+        "predicate: all Samples"
+       ]
+      },
+      {
+       "id": "vertical-cut",
+       "label": "Vertical cut",
+       "values": [
+        "feature: x₁",
+        "threshold: 3",
+        "scope: Root",
+        "rule: ≤ enters Left; > enters Right"
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left",
+       "values": [
+        "predicate: x₁ ≤ 3",
+        "parent: Root"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right",
+       "values": [
+        "predicate: x₁ > 3",
+        "parent: Root"
+       ]
+      },
+      {
+       "id": "left-cut",
+       "label": "Left cut",
+       "values": [
+        "feature: x₂",
+        "threshold: 3",
+        "scope: Left",
+        "rule: ≤ enters Lower-left; > enters Upper-left"
+       ]
+      },
+      {
+       "id": "lower-left",
+       "label": "Lower-left",
+       "values": [
+        "predicate: x₁ ≤ 3 and x₂ ≤ 3",
+        "parent: Left"
+       ]
+      },
+      {
+       "id": "upper-left",
+       "label": "Upper-left",
+       "values": [
+        "predicate: x₁ ≤ 3 and x₂ > 3",
+        "parent: Left"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "unsplit",
+       "label": "Root",
+       "short": "One region",
+       "sentence": "Root covers the entire feature plane.",
+       "why": "Status: all Samples share Root; feature positions and class labels stay fixed.",
+       "active": [
+        "root"
+       ],
+       "calloutRegion": "root",
+       "readouts": [
+        {
+         "id": "assumptions",
+         "label": "Fixed setup",
+         "value": "Unitless features; no missing values; prescribed cuts; ≤ and > assign every sample uniquely."
+        },
+        {
+         "id": "decision",
+         "label": "Current decision",
+         "value": "No cut yet."
+        },
+        {
+         "id": "counts",
+         "label": "Leaf counts (A, B)",
+         "value": "Root: (2, 6)"
+        },
+        {
+         "id": "gini",
+         "label": "Gini = 1 − p(A)² − p(B)²",
+         "value": "Root: 1 − (2/8)² − (6/8)² = 0.375"
+        },
+        {
+         "id": "tree-impurity",
+         "label": "Tree impurity I = Σleaf (nleaf/N)Gini",
+         "value": "(8/8) × 0.375 = 0.375"
+        },
+        {
+         "id": "decrease",
+         "label": "Impurity decrease",
+         "value": "Baseline; no split."
+        }
+       ]
+      },
+      {
+       "id": "root-split",
+       "label": "Vertical cut",
+       "short": "Two regions",
+       "sentence": "Vertical cut creates Left and Right across Root.",
+       "why": "Status: both children inherit samples by feature value; every sample belongs to exactly one child.",
+       "active": [
+        "vertical-cut",
+        "left",
+        "right"
+       ],
+       "calloutRegion": "vertical-cut",
+       "readouts": [
+        {
+         "id": "assumptions",
+         "label": "Fixed setup",
+         "value": "Unitless features; no missing values; prescribed cuts; ≤ and > assign every sample uniquely."
+        },
+        {
+         "id": "decision",
+         "label": "Current decision",
+         "value": "Within Root: x₁ ≤ 3 versus x₁ > 3."
+        },
+        {
+         "id": "counts",
+         "label": "Leaf counts (A, B)",
+         "value": "Left: (2, 2); Right: (0, 4)"
+        },
+        {
+         "id": "gini",
+         "label": "Gini = 1 − p(A)² − p(B)²",
+         "value": "Left: 0.500; Right: 0.000"
+        },
+        {
+         "id": "tree-impurity",
+         "label": "Tree impurity I = Σleaf (nleaf/N)Gini",
+         "value": "(4/8) × 0.500 + (4/8) × 0.000 = 0.250"
+        },
+        {
+         "id": "decrease",
+         "label": "Impurity decrease",
+         "value": "Root and whole tree: 0.375 − 0.250 = 0.125"
+        }
+       ]
+      },
+      {
+       "id": "local-split",
+       "label": "Left cut",
+       "short": "Three regions",
+       "sentence": "Left cut stops at Vertical cut; Right remains whole.",
+       "why": "Status: Lower-left and Upper-left replace Left; Right keeps its original samples.",
+       "active": [
+        "vertical-cut",
+        "left-cut",
+        "lower-left",
+        "upper-left",
+        "right"
+       ],
+       "calloutRegion": "left-cut",
+       "readouts": [
+        {
+         "id": "assumptions",
+         "label": "Fixed setup",
+         "value": "Unitless features; no missing values; prescribed cuts; ≤ and > assign every sample uniquely."
+        },
+        {
+         "id": "decision",
+         "label": "Current decision",
+         "value": "Within Left only: x₂ ≤ 3 versus x₂ > 3."
+        },
+        {
+         "id": "counts",
+         "label": "Leaf counts (A, B)",
+         "value": "Lower-left: (2, 0); Upper-left: (0, 2); Right: (0, 4)"
+        },
+        {
+         "id": "gini",
+         "label": "Gini = 1 − p(A)² − p(B)²",
+         "value": "Every leaf: 0.000"
+        },
+        {
+         "id": "tree-impurity",
+         "label": "Tree impurity I = Σleaf (nleaf/N)Gini",
+         "value": "(2/8) × 0 + (2/8) × 0 + (4/8) × 0 = 0.000"
+        },
+        {
+         "id": "decrease",
+         "label": "Impurity decrease",
+         "value": "Within Left: 0.500; whole tree: (4/8) × 0.500 = 0.250"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1540,
+  "output": 7331
+ },
+ "usd": 0.07352,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3dFhe9ZkVJS61UTDgJz\"}"
+  },
+  "cardUsd": 0
+ }
+}

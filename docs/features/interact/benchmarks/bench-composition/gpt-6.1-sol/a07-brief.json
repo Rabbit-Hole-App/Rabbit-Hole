@@ -1,0 +1,223 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a07",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a robot arm pick up an object?",
+ "ts": "2026-11-14T22:27:16.463Z",
+ "ms": 75479,
+ "raw": "{\n  \"story\": \"How does a robot arm pick up an object? Start with the object resting on a table. Advance through approach, grasp, and lift; watch what supports the object. Assume a rigid object, known position, sufficient grip, and a clear path. Use Previous and Next; every state waits for you.\",\n  \"aha\": {\n    \"stateId\": \"lift\",\n    \"observation\": \"Once the gripper secures the object, raising the robot arm carries the object off the table.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"pickup-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation and above the experiment. Show the active state and completed trace here, without implying elapsed time. Brief parameter-control budget: zero; Previous, Next, and Reset are navigation controls.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pickup-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use one changing scene region within the approved fixed-picture layout. Select its phase by matching variant.states order. Keep the camera, table reference, and diagram scale fixed. Label Robot arm, Gripper, Object, and Table throughout. Reference capture shows the Lift aha state.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"pickup-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the gripper within the targeted scene region. Reserve label space in every state; identify the active relationship without repeating readout values.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"pickup-status\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show one bound status line beneath the picture, reporting what currently supports the object. These categorical values require no units or rounding.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Pickup step\",\n      \"presentation\": \"Use Previous and Next buttons. Default: first state; bounds: first through last state; increment: one state. Retain button names when disabled at boundaries. Each state persists until learner action, including Lift. Provide keyboard operation, accessible names, and visible focus.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide keyboard operation, an accessible name, and visible focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Known-position object pickup\",\n        \"regions\": [\n          {\n            \"id\": \"pickup-scene\",\n            \"label\": \"Robot arm, Gripper, Object, and Table\",\n            \"phases\": [\n              \"Robot arm above the table; gripper open above the object; object resting on the stationary table.\",\n              \"Robot arm lowered; gripper open around the object; object still resting on the stationary table.\",\n              \"Robot arm stationary; gripper closed around the object; object still resting on the stationary table.\",\n              \"Robot arm raised; gripper closed around the object; object held above the stationary table, with a visible gap beneath it.\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"ready\",\n            \"label\": \"Ready\",\n            \"short\": \"Locate\",\n            \"sentence\": \"Gripper above the object.\",\n            \"why\": \"The known object position tells the robot arm where to place its open gripper.\",\n            \"active\": [\n              \"pickup-scene\"\n            ],\n            \"calloutRegion\": \"pickup-scene\",\n            \"readouts\": [\n              {\n                \"id\": \"support\",\n                \"label\": \"Object support\",\n                \"value\": \"Table\"\n              }\n            ]\n          },\n          {\n            \"id\": \"approach\",\n            \"label\": \"Approach\",\n            \"short\": \"Approach\",\n            \"sentence\": \"Open gripper around the object.\",\n            \"why\": \"The robot arm places the gripper on opposite sides without moving the object.\",\n            \"active\": [\n              \"pickup-scene\"\n            ],\n            \"calloutRegion\": \"pickup-scene\",\n            \"readouts\": [\n              {\n                \"id\": \"support\",\n                \"label\": \"Object support\",\n                \"value\": \"Table\"\n              }\n            ]\n          },\n          {\n            \"id\": \"grasp\",\n            \"label\": \"Grasp\",\n            \"short\": \"Grasp\",\n            \"sentence\": \"Gripper touching both sides of the object.\",\n            \"why\": \"Closing the gripper secures the object before the robot arm lifts.\",\n            \"active\": [\n              \"pickup-scene\"\n            ],\n            \"calloutRegion\": \"pickup-scene\",\n            \"readouts\": [\n              {\n                \"id\": \"support\",\n                \"label\": \"Object support\",\n                \"value\": \"Table\"\n              }\n            ]\n          },\n          {\n            \"id\": \"lift\",\n            \"label\": \"Lift\",\n            \"short\": \"Lift\",\n            \"sentence\": \"Object inside the raised gripper.\",\n            \"why\": \"The gap above the table shows that the secured object moved with the robot arm.\",\n            \"active\": [\n              \"pickup-scene\"\n            ],\n            \"calloutRegion\": \"pickup-scene\",\n            \"readouts\": [\n              {\n                \"id\": \"support\",\n                \"label\": \"Object support\",\n                \"value\": \"Gripper\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does a robot arm pick up an object? Start with the object resting on a table. Advance through approach, grasp, and lift; watch what supports the object. Assume a rigid object, known position, sufficient grip, and a clear path. Use Previous and Next; every state waits for you.",
+  "aha": {
+   "stateId": "lift",
+   "observation": "Once the gripper secures the object, raising the robot arm carries the object off the table."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "pickup-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation and above the experiment. Show the active state and completed trace here, without implying elapsed time. Brief parameter-control budget: zero; Previous, Next, and Reset are navigation controls.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pickup-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use one changing scene region within the approved fixed-picture layout. Select its phase by matching variant.states order. Keep the camera, table reference, and diagram scale fixed. Label Robot arm, Gripper, Object, and Table throughout. Reference capture shows the Lift aha state.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "pickup-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the gripper within the targeted scene region. Reserve label space in every state; identify the active relationship without repeating readout values.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "pickup-status",
+    "kind": "value-readout",
+    "presentation": "Show one bound status line beneath the picture, reporting what currently supports the object. These categorical values require no units or rounding.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Pickup step",
+    "presentation": "Use Previous and Next buttons. Default: first state; bounds: first through last state; increment: one state. Retain button names when disabled at boundaries. Each state persists until learner action, including Lift. Provide keyboard operation, accessible names, and visible focus."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide keyboard operation, an accessible name, and visible focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Known-position object pickup",
+     "regions": [
+      {
+       "id": "pickup-scene",
+       "label": "Robot arm, Gripper, Object, and Table",
+       "phases": [
+        "Robot arm above the table; gripper open above the object; object resting on the stationary table.",
+        "Robot arm lowered; gripper open around the object; object still resting on the stationary table.",
+        "Robot arm stationary; gripper closed around the object; object still resting on the stationary table.",
+        "Robot arm raised; gripper closed around the object; object held above the stationary table, with a visible gap beneath it."
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Ready",
+       "short": "Locate",
+       "sentence": "Gripper above the object.",
+       "why": "The known object position tells the robot arm where to place its open gripper.",
+       "active": [
+        "pickup-scene"
+       ],
+       "calloutRegion": "pickup-scene",
+       "readouts": [
+        {
+         "id": "support",
+         "label": "Object support",
+         "value": "Table"
+        }
+       ]
+      },
+      {
+       "id": "approach",
+       "label": "Approach",
+       "short": "Approach",
+       "sentence": "Open gripper around the object.",
+       "why": "The robot arm places the gripper on opposite sides without moving the object.",
+       "active": [
+        "pickup-scene"
+       ],
+       "calloutRegion": "pickup-scene",
+       "readouts": [
+        {
+         "id": "support",
+         "label": "Object support",
+         "value": "Table"
+        }
+       ]
+      },
+      {
+       "id": "grasp",
+       "label": "Grasp",
+       "short": "Grasp",
+       "sentence": "Gripper touching both sides of the object.",
+       "why": "Closing the gripper secures the object before the robot arm lifts.",
+       "active": [
+        "pickup-scene"
+       ],
+       "calloutRegion": "pickup-scene",
+       "readouts": [
+        {
+         "id": "support",
+         "label": "Object support",
+         "value": "Table"
+        }
+       ]
+      },
+      {
+       "id": "lift",
+       "label": "Lift",
+       "short": "Lift",
+       "sentence": "Object inside the raised gripper.",
+       "why": "The gap above the table shows that the secured object moved with the robot arm.",
+       "active": [
+        "pickup-scene"
+       ],
+       "calloutRegion": "pickup-scene",
+       "readouts": [
+        {
+         "id": "support",
+         "label": "Object support",
+         "value": "Gripper"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1536,
+  "output": 3869
+ },
+ "usd": 0.038892,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The question is how a robot arm picks up an object; the four phases (open gripper above, lowered, closed, raised with a gap) and the support readout showing Table then Gripper show the mechanism."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha is the lift state, and the story and controls say every state waits for Previous/Next with no timer, so Lift persists until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The brief depth has no parameters by design; the step index is the only input, and each step changes the scene phase, callout, and support readout, which justifies the fixed comparison."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail binds to variant.states, the picture to state.active and the regions, the callout to state.sentence, why, and calloutRegion, and the readout to state.readouts; all of these are declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, labels (Robot arm, Gripper, Object, Table), state sentences, and the Previous/Next controls all use the same terms for the same objects and events, in the same order as the states."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Brief depth uses one changing scene region, one callout, and one status line, with no extra parts."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The categorical support values (Table, Table, Table, Gripper) are correct for each phase, and the callout sentences locate relationships without repeating the readout value."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01291
+ }
+}

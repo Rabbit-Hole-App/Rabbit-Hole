@@ -1,0 +1,282 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a26",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does cross-validation detect overfitting?",
+ "ts": "2026-11-14T22:22:16.260Z",
+ "ms": 3553,
+ "raw": "{\n  \"story\": \"Cross-validation splits data into folds to train on some and test on others. By checking out-of-sample error across multiple rounds, it exposes models that memorize training noise rather than learning true patterns.\",\n  \"aha\": {\n    \"stateId\": \"fold3\",\n    \"observation\": \"When validation error spikes while training error drops, the model is overfitting.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"completedBefore\": \"state.id\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Cross-Validation Step\",\n      \"options\": [\"fold1\", \"fold2\", \"fold3\", \"fold4\", \"fold5\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"5-Fold CV Overfitting Check\",\n        \"regions\": [\n          {\n            \"id\": \"trainSet\",\n            \"label\": \"Training Folds\",\n            \"values\": [\"Fold 1\", \"Fold 2\", \"Fold 3\", \"Fold 4\"]\n          },\n          {\n            \"id\": \"valSet\",\n            \"label\": \"Validation Fold\",\n            \"values\": [\"Fold 5\"]\n          },\n          {\n            \"id\": \"metricPanel\",\n            \"label\": \"Error Tracker\",\n            \"values\": [\"Train Err: 2%\", \"Val Err: 24%\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"fold1\",\n            \"label\": \"Fold 1\",\n            \"short\": \"Step 1\",\n            \"sentence\": \"Fold 1 serves as validation while folds 2-5 train the model.\",\n            \"why\": \"Establishes baseline score on unseen fold 1.\",\n            \"active\": [\"valSet\"],\n            \"calloutRegion\": \"valSet\",\n            \"readouts\": [\n              {\"id\": \"t1\", \"label\": \"Train Error\", \"value\": \"3%\"},\n              {\"id\": \"v1\", \"label\": \"Val Error\", \"value\": \"18%\"}\n            ]\n          },\n          {\n            \"id\": \"fold2\",\n            \"label\": \"Fold 2\",\n            \"short\": \"Step 2\",\n            \"sentence\": \"Fold 2 is held out for validation in the second round.\",\n            \"why\": \"Continues rotation across folds.\",\n            \"active\": [\"valSet\"],\n            \"calloutRegion\": \"valSet\",\n            \"readouts\": [\n              {\"id\": \"t2\", \"label\": \"Train Error\", \"value\": \"2.5%\"},\n              {\"id\": \"v2\", \"label\": \"Val Error\", \"value\": \"19%\"}\n            ]\n          },\n          {\n            \"id\": \"fold3\",\n            \"label\": \"Fold 3\",\n            \"short\": \"Step 3\",\n            \"sentence\": \"Fold 3 validation reveals a large divergence in error rates.\",\n            \"why\": \"Aha: Training error plummets while validation error remains high.\",\n            \"active\": [\"metricPanel\", \"valSet\"],\n            \"calloutRegion\": \"metricPanel\",\n            \"readouts\": [\n              {\"id\": \"t3\", \"label\": \"Train Error\", \"value\": \"1.5%\"},\n              {\"id\": \"v3\", \"label\": \"Val Error\", \"value\": \"26%\"}\n            ]\n          },\n          {\n            \"id\": \"fold4\",\n            \"label\": \"Fold 4\",\n            \"short\": \"Step 4\",\n            \"sentence\": \"Fold 4 validation confirms the generalization gap.\",\n            \"why\": \"Consistent high validation error proves overfitting.\",\n            \"active\": [\"valSet\"],\n            \"calloutRegion\": \"valSet\",\n            \"readouts\": [\n              {\"id\": \"t4\", \"label\": \"Train Error\", \"value\": \"2%\"},\n              {\"id\": \"v4\", \"label\": \"Val Error\", \"value\": \"22%\"}\n            ]\n          },\n          {\n            \"id\": \"fold5\",\n            \"label\": \"Fold 5\",\n            \"short\": \"Step 5\",\n            \"sentence\": \"Final fold completes the rotation cycle.\",\n            \"why\": \"Average validation error summarizes true performance.\",\n            \"active\": [\"metricPanel\"],\n            \"calloutRegion\": \"metricPanel\",\n            \"readouts\": [\n              {\"id\": \"t5\", \"label\": \"Train Error\", \"value\": \"2%\"},\n              {\"id\": \"v5\", \"label\": \"Val Error\", \"value\": \"23%\"}\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Cross-validation splits data into folds to train on some and test on others. By checking out-of-sample error across multiple rounds, it exposes models that memorize training noise rather than learning true patterns.",
+  "aha": {
+   "stateId": "fold3",
+   "observation": "When validation error spikes while training error drops, the model is overfitting."
+  },
+  "layout": {
+   "preset": "stepper",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "completedBefore": "state.id"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Cross-Validation Step",
+    "options": [
+     "fold1",
+     "fold2",
+     "fold3",
+     "fold4",
+     "fold5"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "5-Fold CV Overfitting Check",
+     "regions": [
+      {
+       "id": "trainSet",
+       "label": "Training Folds",
+       "values": [
+        "Fold 1",
+        "Fold 2",
+        "Fold 3",
+        "Fold 4"
+       ]
+      },
+      {
+       "id": "valSet",
+       "label": "Validation Fold",
+       "values": [
+        "Fold 5"
+       ]
+      },
+      {
+       "id": "metricPanel",
+       "label": "Error Tracker",
+       "values": [
+        "Train Err: 2%",
+        "Val Err: 24%"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "fold1",
+       "label": "Fold 1",
+       "short": "Step 1",
+       "sentence": "Fold 1 serves as validation while folds 2-5 train the model.",
+       "why": "Establishes baseline score on unseen fold 1.",
+       "active": [
+        "valSet"
+       ],
+       "calloutRegion": "valSet",
+       "readouts": [
+        {
+         "id": "t1",
+         "label": "Train Error",
+         "value": "3%"
+        },
+        {
+         "id": "v1",
+         "label": "Val Error",
+         "value": "18%"
+        }
+       ]
+      },
+      {
+       "id": "fold2",
+       "label": "Fold 2",
+       "short": "Step 2",
+       "sentence": "Fold 2 is held out for validation in the second round.",
+       "why": "Continues rotation across folds.",
+       "active": [
+        "valSet"
+       ],
+       "calloutRegion": "valSet",
+       "readouts": [
+        {
+         "id": "t2",
+         "label": "Train Error",
+         "value": "2.5%"
+        },
+        {
+         "id": "v2",
+         "label": "Val Error",
+         "value": "19%"
+        }
+       ]
+      },
+      {
+       "id": "fold3",
+       "label": "Fold 3",
+       "short": "Step 3",
+       "sentence": "Fold 3 validation reveals a large divergence in error rates.",
+       "why": "Aha: Training error plummets while validation error remains high.",
+       "active": [
+        "metricPanel",
+        "valSet"
+       ],
+       "calloutRegion": "metricPanel",
+       "readouts": [
+        {
+         "id": "t3",
+         "label": "Train Error",
+         "value": "1.5%"
+        },
+        {
+         "id": "v3",
+         "label": "Val Error",
+         "value": "26%"
+        }
+       ]
+      },
+      {
+       "id": "fold4",
+       "label": "Fold 4",
+       "short": "Step 4",
+       "sentence": "Fold 4 validation confirms the generalization gap.",
+       "why": "Consistent high validation error proves overfitting.",
+       "active": [
+        "valSet"
+       ],
+       "calloutRegion": "valSet",
+       "readouts": [
+        {
+         "id": "t4",
+         "label": "Train Error",
+         "value": "2%"
+        },
+        {
+         "id": "v4",
+         "label": "Val Error",
+         "value": "22%"
+        }
+       ]
+      },
+      {
+       "id": "fold5",
+       "label": "Fold 5",
+       "short": "Step 5",
+       "sentence": "Final fold completes the rotation cycle.",
+       "why": "Average validation error summarizes true performance.",
+       "active": [
+        "metricPanel"
+       ],
+       "calloutRegion": "metricPanel",
+       "readouts": [
+        {
+         "id": "t5",
+         "label": "Train Error",
+         "value": "2%"
+        },
+        {
+         "id": "v5",
+         "label": "Val Error",
+         "value": "23%"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1104,
+  "output": 1371
+ },
+ "usd": 0.003759,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The question is implied (is the model overfitting?), but the fixed picture always shows Fold 5 as validation, so it never shows the rotating fold mechanism it describes."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "It is a learner-driven stepper with no timer, so fold3 (the aha) holds until the learner changes the step index."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex control changes the active state, readouts and callout target, so each step shows different evidence."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The regions are static (valSet is always Fold 5), so the highlights for steps 1, 2 and 4 don't match the sentences about folds 1, 2 and 4. The metricPanel values (2% / 24%) match no state's readouts."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The story says Fold 1 is validation, but the picture labels Fold 5 as the validation set and Folds 1-4 as training in every step. The fold3 text says training error plummets (1.5%), but fold1 is 3%, fold2 is 2.5% and fold4 is 2%, so the drop is small and not clearly visible."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The scene is modest: a rail, one picture with three regions, a callout and a two-value readout, with no clutter at balanced depth."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The aha claims validation error 'spikes' and training error 'drops', but fold3 train 1.5% vs fold2 2.5% is a minor change and val 26% vs 19% is a modest rise. Fold 5's average claim (23%) is not the mean of the listed values (about 21.6%). The metricPanel values duplicate the readouts and conflict w"
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.014194
+ }
+}

@@ -1,0 +1,399 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a01",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "what is gradient descent?",
+ "ts": "2026-11-14T22:20:43.153Z",
+ "ms": 30133,
+ "raw": "{\"story\":\"Gradient descent finds a function's lowest point by repeatedly stepping downhill. A ball starts on the bowl f(x) = x² at x = 4. Each step measures the slope and moves against it by learning rate 0.25 × slope. Step through and watch the moves shrink as the slope flattens, until the ball settles near the minimum.\",\"aha\":{\"stateId\":\"s5\",\"observation\":\"No one tells the ball to slow down. Steps shrink on their own because the slope flattens near the bottom, so the ball settles at the minimum.\"},\"layout\":{\"preset\":\"stepper-rail-picture-readouts\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Horizontal rail above the picture showing completed, current and upcoming steps; it also serves as the progress trace.\"},{\"id\":\"bowl-picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Fixed bowl f(x)=x² on a shared x scale from -4 to 4, with the ball, slope arrow and minimum marker as named regions.\"},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"},\"presentation\":\"Faded ball at the previous position, so the length of the last step is visible.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the active region; says where things happen, with no numeric values.\"},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Position, slope, step and height, rounded to 3 decimals and unitless.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons keep their names when disabled at the ends; arrow keys work and focus is visible.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Goes back to the first state at x = 4.\"}],\"data\":{\"variants\":[{\"label\":\"f(x) = x², learning rate 0.25, start x = 4\",\"regions\":[{\"id\":\"bowl\",\"label\":\"Bowl f(x) = x²\",\"values\":[\"Fixed curve; lowest point at x = 0\"]},{\"id\":\"ball\",\"label\":\"Ball (current x)\",\"values\":[\"x = 4\",\"x = 2\",\"x = 1\",\"x = 0.5\",\"x = 0.25\",\"x = 0.125\"]},{\"id\":\"slope\",\"label\":\"Slope arrow at ball\",\"values\":[\"Steep, points uphill to the right\",\"Less steep\",\"Gentler\",\"Nearly flat\",\"Almost flat\",\"Flat enough to stop\"]},{\"id\":\"minimum\",\"label\":\"Minimum (x = 0)\",\"values\":[\"Target: lowest point of the bowl\"]}],\"links\":[{\"from\":\"ball\",\"to\":\"minimum\",\"label\":\"step = −0.25 × slope\"}],\"states\":[{\"id\":\"s0\",\"label\":\"Start\",\"short\":\"Start\",\"sentence\":\"The ball sits high on the right wall of the bowl, where the slope is steep.\",\"why\":\"Gradient descent starts at a guess and only knows the local slope.\",\"active\":[\"ball\",\"slope\"],\"calloutRegion\":\"slope\",\"readouts\":[{\"id\":\"x\",\"label\":\"Position x\",\"value\":\"4.000\"},{\"id\":\"g\",\"label\":\"Slope f′(x) = 2x\",\"value\":\"8.000\"},{\"id\":\"d\",\"label\":\"Next step −0.25 × slope\",\"value\":\"−2.000\"},{\"id\":\"f\",\"label\":\"Height f(x)\",\"value\":\"16.000\"}]},{\"id\":\"s1\",\"label\":\"Step 1\",\"short\":\"1\",\"sentence\":\"The slope points uphill, so the ball moves the opposite way, a big jump toward the bottom.\",\"why\":\"Moving against the slope is the quickest way to lower the height.\",\"active\":[\"ball\",\"slope\"],\"calloutRegion\":\"ball\",\"readouts\":[{\"id\":\"x\",\"label\":\"Position x\",\"value\":\"2.000\"},{\"id\":\"g\",\"label\":\"Slope f′(x) = 2x\",\"value\":\"4.000\"},{\"id\":\"d\",\"label\":\"Next step −0.25 × slope\",\"value\":\"−1.000\"},{\"id\":\"f\",\"label\":\"Height f(x)\",\"value\":\"4.000\"}]},{\"id\":\"s2\",\"label\":\"Step 2\",\"short\":\"2\",\"sentence\":\"The slope here is gentler, so this step is half as long as the last one.\",\"why\":\"Step length is proportional to slope.\",\"active\":[\"ball\",\"slope\"],\"calloutRegion\":\"ball\",\"readouts\":[{\"id\":\"x\",\"label\":\"Position x\",\"value\":\"1.000\"},{\"id\":\"g\",\"label\":\"Slope f′(x) = 2x\",\"value\":\"2.000\"},{\"id\":\"d\",\"label\":\"Next step −0.25 × slope\",\"value\":\"−0.500\"},{\"id\":\"f\",\"label\":\"Height f(x)\",\"value\":\"1.000\"}]},{\"id\":\"s3\",\"label\":\"Step 3\",\"short\":\"3\",\"sentence\":\"Close to the bottom, the slope arrow is nearly flat and the step shrinks again.\",\"why\":\"The same rule produces smaller moves as the ground levels out.\",\"active\":[\"ball\",\"slope\"],\"calloutRegion\":\"slope\",\"readouts\":[{\"id\":\"x\",\"label\":\"Position x\",\"value\":\"0.500\"},{\"id\":\"g\",\"label\":\"Slope f′(x) = 2x\",\"value\":\"1.000\"},{\"id\":\"d\",\"label\":\"Next step −0.25 × slope\",\"value\":\"−0.250\"},{\"id\":\"f\",\"label\":\"Height f(x)\",\"value\":\"0.250\"}]},{\"id\":\"s4\",\"label\":\"Step 4\",\"short\":\"4\",\"sentence\":\"The ball creeps toward the minimum marker, now barely moving with each step.\",\"why\":\"Tiny slope means tiny step.\",\"active\":[\"ball\",\"minimum\"],\"calloutRegion\":\"minimum\",\"readouts\":[{\"id\":\"x\",\"label\":\"Position x\",\"value\":\"0.250\"},{\"id\":\"g\",\"label\":\"Slope f′(x) = 2x\",\"value\":\"0.500\"},{\"id\":\"d\",\"label\":\"Next step −0.25 × slope\",\"value\":\"−0.125\"},{\"id\":\"f\",\"label\":\"Height f(x)\",\"value\":\"0.063\"}]},{\"id\":\"s5\",\"label\":\"Settled\",\"short\":\"Done\",\"sentence\":\"The ball rests almost at the minimum. The flat slope made the steps shrink without any extra rule.\",\"why\":\"At the lowest point the slope is zero, so gradient descent stops moving.\",\"active\":[\"ball\",\"minimum\",\"slope\"],\"calloutRegion\":\"minimum\",\"readouts\":[{\"id\":\"x\",\"label\":\"Position x\",\"value\":\"0.125\"},{\"id\":\"g\",\"label\":\"Slope f′(x) = 2x\",\"value\":\"0.250\"},{\"id\":\"d\",\"label\":\"Next step −0.25 × slope\",\"value\":\"−0.063\"},{\"id\":\"f\",\"label\":\"Height f(x)\",\"value\":\"0.016\"}]}]}]}}",
+ "composition": {
+  "story": "Gradient descent finds a function's lowest point by repeatedly stepping downhill. A ball starts on the bowl f(x) = x² at x = 4. Each step measures the slope and moves against it by learning rate 0.25 × slope. Step through and watch the moves shrink as the slope flattens, until the ball settles near the minimum.",
+  "aha": {
+   "stateId": "s5",
+   "observation": "No one tells the ball to slow down. Steps shrink on their own because the slope flattens near the bottom, so the ball settles at the minimum."
+  },
+  "layout": {
+   "preset": "stepper-rail-picture-readouts",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Horizontal rail above the picture showing completed, current and upcoming steps; it also serves as the progress trace."
+   },
+   {
+    "id": "bowl-picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Fixed bowl f(x)=x² on a shared x scale from -4 to 4, with the ball, slope arrow and minimum marker as named regions."
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    },
+    "presentation": "Faded ball at the previous position, so the length of the last step is visible."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the active region; says where things happen, with no numeric values."
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Position, slope, step and height, rounded to 3 decimals and unitless."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons keep their names when disabled at the ends; arrow keys work and focus is visible."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Goes back to the first state at x = 4."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "f(x) = x², learning rate 0.25, start x = 4",
+     "regions": [
+      {
+       "id": "bowl",
+       "label": "Bowl f(x) = x²",
+       "values": [
+        "Fixed curve; lowest point at x = 0"
+       ]
+      },
+      {
+       "id": "ball",
+       "label": "Ball (current x)",
+       "values": [
+        "x = 4",
+        "x = 2",
+        "x = 1",
+        "x = 0.5",
+        "x = 0.25",
+        "x = 0.125"
+       ]
+      },
+      {
+       "id": "slope",
+       "label": "Slope arrow at ball",
+       "values": [
+        "Steep, points uphill to the right",
+        "Less steep",
+        "Gentler",
+        "Nearly flat",
+        "Almost flat",
+        "Flat enough to stop"
+       ]
+      },
+      {
+       "id": "minimum",
+       "label": "Minimum (x = 0)",
+       "values": [
+        "Target: lowest point of the bowl"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "ball",
+       "to": "minimum",
+       "label": "step = −0.25 × slope"
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "Start",
+       "short": "Start",
+       "sentence": "The ball sits high on the right wall of the bowl, where the slope is steep.",
+       "why": "Gradient descent starts at a guess and only knows the local slope.",
+       "active": [
+        "ball",
+        "slope"
+       ],
+       "calloutRegion": "slope",
+       "readouts": [
+        {
+         "id": "x",
+         "label": "Position x",
+         "value": "4.000"
+        },
+        {
+         "id": "g",
+         "label": "Slope f′(x) = 2x",
+         "value": "8.000"
+        },
+        {
+         "id": "d",
+         "label": "Next step −0.25 × slope",
+         "value": "−2.000"
+        },
+        {
+         "id": "f",
+         "label": "Height f(x)",
+         "value": "16.000"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Step 1",
+       "short": "1",
+       "sentence": "The slope points uphill, so the ball moves the opposite way, a big jump toward the bottom.",
+       "why": "Moving against the slope is the quickest way to lower the height.",
+       "active": [
+        "ball",
+        "slope"
+       ],
+       "calloutRegion": "ball",
+       "readouts": [
+        {
+         "id": "x",
+         "label": "Position x",
+         "value": "2.000"
+        },
+        {
+         "id": "g",
+         "label": "Slope f′(x) = 2x",
+         "value": "4.000"
+        },
+        {
+         "id": "d",
+         "label": "Next step −0.25 × slope",
+         "value": "−1.000"
+        },
+        {
+         "id": "f",
+         "label": "Height f(x)",
+         "value": "4.000"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Step 2",
+       "short": "2",
+       "sentence": "The slope here is gentler, so this step is half as long as the last one.",
+       "why": "Step length is proportional to slope.",
+       "active": [
+        "ball",
+        "slope"
+       ],
+       "calloutRegion": "ball",
+       "readouts": [
+        {
+         "id": "x",
+         "label": "Position x",
+         "value": "1.000"
+        },
+        {
+         "id": "g",
+         "label": "Slope f′(x) = 2x",
+         "value": "2.000"
+        },
+        {
+         "id": "d",
+         "label": "Next step −0.25 × slope",
+         "value": "−0.500"
+        },
+        {
+         "id": "f",
+         "label": "Height f(x)",
+         "value": "1.000"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Step 3",
+       "short": "3",
+       "sentence": "Close to the bottom, the slope arrow is nearly flat and the step shrinks again.",
+       "why": "The same rule produces smaller moves as the ground levels out.",
+       "active": [
+        "ball",
+        "slope"
+       ],
+       "calloutRegion": "slope",
+       "readouts": [
+        {
+         "id": "x",
+         "label": "Position x",
+         "value": "0.500"
+        },
+        {
+         "id": "g",
+         "label": "Slope f′(x) = 2x",
+         "value": "1.000"
+        },
+        {
+         "id": "d",
+         "label": "Next step −0.25 × slope",
+         "value": "−0.250"
+        },
+        {
+         "id": "f",
+         "label": "Height f(x)",
+         "value": "0.250"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Step 4",
+       "short": "4",
+       "sentence": "The ball creeps toward the minimum marker, now barely moving with each step.",
+       "why": "Tiny slope means tiny step.",
+       "active": [
+        "ball",
+        "minimum"
+       ],
+       "calloutRegion": "minimum",
+       "readouts": [
+        {
+         "id": "x",
+         "label": "Position x",
+         "value": "0.250"
+        },
+        {
+         "id": "g",
+         "label": "Slope f′(x) = 2x",
+         "value": "0.500"
+        },
+        {
+         "id": "d",
+         "label": "Next step −0.25 × slope",
+         "value": "−0.125"
+        },
+        {
+         "id": "f",
+         "label": "Height f(x)",
+         "value": "0.063"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Settled",
+       "short": "Done",
+       "sentence": "The ball rests almost at the minimum. The flat slope made the steps shrink without any extra rule.",
+       "why": "At the lowest point the slope is zero, so gradient descent stops moving.",
+       "active": [
+        "ball",
+        "minimum",
+        "slope"
+       ],
+       "calloutRegion": "minimum",
+       "readouts": [
+        {
+         "id": "x",
+         "label": "Position x",
+         "value": "0.125"
+        },
+        {
+         "id": "g",
+         "label": "Slope f′(x) = 2x",
+         "value": "0.250"
+        },
+        {
+         "id": "d",
+         "label": "Next step −0.25 × slope",
+         "value": "−0.063"
+        },
+        {
+         "id": "f",
+         "label": "Height f(x)",
+         "value": "0.016"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3066,
+  "output": 3458
+ },
+ "usd": 0.081424,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed bowl with ball, slope arrow and ghost shows why steps shrink as the slope flattens, which answers the question of why the ball slows down on its own."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha is bound to s5, the final stepper state, and the card holds there until the learner moves the Step control or resets."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is the step index, so the single fixed trajectory is a justified fixed comparison, but there is no parameter such as the learning rate to vary."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, the active regions, the callout targets, the ghost (from previous.active) and the readouts all bind to declared state fields, though the ghost position is only implicit."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, the sentences, the region labels (ball, slope arrow, minimum) and the controls (Step, Reset) all name the same objects and events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth shows one picture with one changing ball region plus four readouts and no extra clutter or formulas beyond the small slope formula in the readout label."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The readouts check out at every step (for example 0.25→0.5, -0.125, 0.0625 shown as 0.063; 0.125→-0.0625 shown as -0.063), and the callouts carry no numbers."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01919
+ }
+}

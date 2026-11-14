@@ -1,0 +1,507 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a11",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does the TCP handshake work?",
+ "ts": "2026-11-14T22:23:54.411Z",
+ "ms": 24073,
+ "raw": "{\"story\":\"A client and server must agree on starting sequence numbers before sending data. The client sends SYN, the server answers SYN-ACK, and the client replies ACK. Each ACK equals the other side's number plus one, so both directions are confirmed.\",\"aha\":{\"stateId\":\"established\",\"observation\":\"Each side's ACK is the other side's sequence number plus one, so three segments confirm both starting numbers and both ends become ESTABLISHED.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Handshake step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next\"},{\"id\":\"isn\",\"kind\":\"select\",\"label\":\"Initial sequence numbers\",\"options\":[\"Client 100, Server 300\",\"Client 5000, Server 9000\"],\"default\":0,\"presentation\":\"Changes the starting numbers so the +1 rule shows in every segment\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Client 100, Server 300\",\"regions\":[{\"id\":\"client\",\"label\":\"Client\",\"kind\":\"actor\",\"phases\":[\"CLOSED\",\"SYN-SENT\",\"ESTABLISHED\"]},{\"id\":\"server\",\"label\":\"Server\",\"kind\":\"actor\",\"phases\":[\"LISTEN\",\"SYN-RECEIVED\",\"ESTABLISHED\"]},{\"id\":\"wire\",\"label\":\"Network wire\",\"kind\":\"channel\",\"values\":[\"SYN\",\"SYN-ACK\",\"ACK\"]}],\"links\":[{\"from\":\"client\",\"to\":\"server\",\"label\":\"SYN seq=100\"},{\"from\":\"server\",\"to\":\"client\",\"label\":\"SYN-ACK seq=300 ack=101\"},{\"from\":\"client\",\"to\":\"server\",\"label\":\"ACK seq=101 ack=301\"}],\"states\":[{\"id\":\"closed\",\"label\":\"Ready\",\"short\":\"Ready\",\"sentence\":\"The server listens for connections. The client has not sent anything yet.\",\"why\":\"A connection needs one side waiting and one side asking.\",\"active\":[\"client\",\"server\"],\"calloutRegion\":\"server\",\"readouts\":[{\"id\":\"cs\",\"label\":\"Client state\",\"value\":\"CLOSED\"},{\"id\":\"ss\",\"label\":\"Server state\",\"value\":\"LISTEN\"},{\"id\":\"seg\",\"label\":\"Segment\",\"value\":\"none\"}]},{\"id\":\"syn\",\"label\":\"SYN\",\"short\":\"SYN\",\"sentence\":\"The client sends SYN with its chosen starting sequence number, 100.\",\"why\":\"This announces the client's numbering for its own bytes.\",\"active\":[\"client\",\"wire\"],\"calloutRegion\":\"client\",\"readouts\":[{\"id\":\"cs\",\"label\":\"Client state\",\"value\":\"SYN-SENT\"},{\"id\":\"ss\",\"label\":\"Server state\",\"value\":\"LISTEN\"},{\"id\":\"seg\",\"label\":\"Segment\",\"value\":\"SYN seq=100\"}]},{\"id\":\"synack\",\"label\":\"SYN-ACK\",\"short\":\"SYN-ACK\",\"sentence\":\"The server acknowledges 100 by sending ack=101, and adds its own starting number, 300.\",\"why\":\"One segment both confirms the client and announces the server's numbering.\",\"active\":[\"server\",\"wire\"],\"calloutRegion\":\"server\",\"readouts\":[{\"id\":\"cs\",\"label\":\"Client state\",\"value\":\"SYN-SENT\"},{\"id\":\"ss\",\"label\":\"Server state\",\"value\":\"SYN-RECEIVED\"},{\"id\":\"seg\",\"label\":\"Segment\",\"value\":\"SYN-ACK seq=300 ack=101\"}]},{\"id\":\"established\",\"label\":\"ACK\",\"short\":\"ACK\",\"sentence\":\"The client acknowledges 300 with ack=301. Both sides now know both starting numbers and are ESTABLISHED.\",\"why\":\"Each ack is the other side's sequence number plus one, confirming both directions.\",\"active\":[\"client\",\"server\",\"wire\"],\"calloutRegion\":\"wire\",\"readouts\":[{\"id\":\"cs\",\"label\":\"Client state\",\"value\":\"ESTABLISHED\"},{\"id\":\"ss\",\"label\":\"Server state\",\"value\":\"ESTABLISHED\"},{\"id\":\"seg\",\"label\":\"Segment\",\"value\":\"ACK seq=101 ack=301\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ack = peer seq + 1 (101 = 100+1, 301 = 300+1)\"}]}]},{\"label\":\"Client 5000, Server 9000\",\"regions\":[{\"id\":\"client\",\"label\":\"Client\",\"kind\":\"actor\",\"phases\":[\"CLOSED\",\"SYN-SENT\",\"ESTABLISHED\"]},{\"id\":\"server\",\"label\":\"Server\",\"kind\":\"actor\",\"phases\":[\"LISTEN\",\"SYN-RECEIVED\",\"ESTABLISHED\"]},{\"id\":\"wire\",\"label\":\"Network wire\",\"kind\":\"channel\",\"values\":[\"SYN\",\"SYN-ACK\",\"ACK\"]}],\"links\":[{\"from\":\"client\",\"to\":\"server\",\"label\":\"SYN seq=5000\"},{\"from\":\"server\",\"to\":\"client\",\"label\":\"SYN-ACK seq=9000 ack=5001\"},{\"from\":\"client\",\"to\":\"server\",\"label\":\"ACK seq=5001 ack=9001\"}],\"states\":[{\"id\":\"closed\",\"label\":\"Ready\",\"short\":\"Ready\",\"sentence\":\"The server listens for connections. The client has not sent anything yet.\",\"why\":\"A connection needs one side waiting and one side asking.\",\"active\":[\"client\",\"server\"],\"calloutRegion\":\"server\",\"readouts\":[{\"id\":\"cs\",\"label\":\"Client state\",\"value\":\"CLOSED\"},{\"id\":\"ss\",\"label\":\"Server state\",\"value\":\"LISTEN\"},{\"id\":\"seg\",\"label\":\"Segment\",\"value\":\"none\"}]},{\"id\":\"syn\",\"label\":\"SYN\",\"short\":\"SYN\",\"sentence\":\"The client sends SYN with its chosen starting sequence number, 5000.\",\"why\":\"This announces the client's numbering for its own bytes.\",\"active\":[\"client\",\"wire\"],\"calloutRegion\":\"client\",\"readouts\":[{\"id\":\"cs\",\"label\":\"Client state\",\"value\":\"SYN-SENT\"},{\"id\":\"ss\",\"label\":\"Server state\",\"value\":\"LISTEN\"},{\"id\":\"seg\",\"label\":\"Segment\",\"value\":\"SYN seq=5000\"}]},{\"id\":\"synack\",\"label\":\"SYN-ACK\",\"short\":\"SYN-ACK\",\"sentence\":\"The server acknowledges 5000 by sending ack=5001, and adds its own starting number, 9000.\",\"why\":\"One segment both confirms the client and announces the server's numbering.\",\"active\":[\"server\",\"wire\"],\"calloutRegion\":\"server\",\"readouts\":[{\"id\":\"cs\",\"label\":\"Client state\",\"value\":\"SYN-SENT\"},{\"id\":\"ss\",\"label\":\"Server state\",\"value\":\"SYN-RECEIVED\"},{\"id\":\"seg\",\"label\":\"Segment\",\"value\":\"SYN-ACK seq=9000 ack=5001\"}]},{\"id\":\"established\",\"label\":\"ACK\",\"short\":\"ACK\",\"sentence\":\"The client acknowledges 9000 with ack=9001. Both sides now know both starting numbers and are ESTABLISHED.\",\"why\":\"Each ack is the other side's sequence number plus one, confirming both directions.\",\"active\":[\"client\",\"server\",\"wire\"],\"calloutRegion\":\"wire\",\"readouts\":[{\"id\":\"cs\",\"label\":\"Client state\",\"value\":\"ESTABLISHED\"},{\"id\":\"ss\",\"label\":\"Server state\",\"value\":\"ESTABLISHED\"},{\"id\":\"seg\",\"label\":\"Segment\",\"value\":\"ACK seq=5001 ack=9001\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ack = peer seq + 1 (5001 = 5000+1, 9001 = 9000+1)\"}]}]}]}}",
+ "composition": {
+  "story": "A client and server must agree on starting sequence numbers before sending data. The client sends SYN, the server answers SYN-ACK, and the client replies ACK. Each ACK equals the other side's number plus one, so both directions are confirmed.",
+  "aha": {
+   "stateId": "established",
+   "observation": "Each side's ACK is the other side's sequence number plus one, so three segments confirm both starting numbers and both ends become ESTABLISHED."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Handshake step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "isn",
+    "kind": "select",
+    "label": "Initial sequence numbers",
+    "options": [
+     "Client 100, Server 300",
+     "Client 5000, Server 9000"
+    ],
+    "default": 0,
+    "presentation": "Changes the starting numbers so the +1 rule shows in every segment"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Client 100, Server 300",
+     "regions": [
+      {
+       "id": "client",
+       "label": "Client",
+       "kind": "actor",
+       "phases": [
+        "CLOSED",
+        "SYN-SENT",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "server",
+       "label": "Server",
+       "kind": "actor",
+       "phases": [
+        "LISTEN",
+        "SYN-RECEIVED",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "wire",
+       "label": "Network wire",
+       "kind": "channel",
+       "values": [
+        "SYN",
+        "SYN-ACK",
+        "ACK"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "client",
+       "to": "server",
+       "label": "SYN seq=100"
+      },
+      {
+       "from": "server",
+       "to": "client",
+       "label": "SYN-ACK seq=300 ack=101"
+      },
+      {
+       "from": "client",
+       "to": "server",
+       "label": "ACK seq=101 ack=301"
+      }
+     ],
+     "states": [
+      {
+       "id": "closed",
+       "label": "Ready",
+       "short": "Ready",
+       "sentence": "The server listens for connections. The client has not sent anything yet.",
+       "why": "A connection needs one side waiting and one side asking.",
+       "active": [
+        "client",
+        "server"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "cs",
+         "label": "Client state",
+         "value": "CLOSED"
+        },
+        {
+         "id": "ss",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "seg",
+         "label": "Segment",
+         "value": "none"
+        }
+       ]
+      },
+      {
+       "id": "syn",
+       "label": "SYN",
+       "short": "SYN",
+       "sentence": "The client sends SYN with its chosen starting sequence number, 100.",
+       "why": "This announces the client's numbering for its own bytes.",
+       "active": [
+        "client",
+        "wire"
+       ],
+       "calloutRegion": "client",
+       "readouts": [
+        {
+         "id": "cs",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "ss",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "seg",
+         "label": "Segment",
+         "value": "SYN seq=100"
+        }
+       ]
+      },
+      {
+       "id": "synack",
+       "label": "SYN-ACK",
+       "short": "SYN-ACK",
+       "sentence": "The server acknowledges 100 by sending ack=101, and adds its own starting number, 300.",
+       "why": "One segment both confirms the client and announces the server's numbering.",
+       "active": [
+        "server",
+        "wire"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "cs",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "ss",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "seg",
+         "label": "Segment",
+         "value": "SYN-ACK seq=300 ack=101"
+        }
+       ]
+      },
+      {
+       "id": "established",
+       "label": "ACK",
+       "short": "ACK",
+       "sentence": "The client acknowledges 300 with ack=301. Both sides now know both starting numbers and are ESTABLISHED.",
+       "why": "Each ack is the other side's sequence number plus one, confirming both directions.",
+       "active": [
+        "client",
+        "server",
+        "wire"
+       ],
+       "calloutRegion": "wire",
+       "readouts": [
+        {
+         "id": "cs",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "ss",
+         "label": "Server state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "seg",
+         "label": "Segment",
+         "value": "ACK seq=101 ack=301"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ack = peer seq + 1 (101 = 100+1, 301 = 300+1)"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Client 5000, Server 9000",
+     "regions": [
+      {
+       "id": "client",
+       "label": "Client",
+       "kind": "actor",
+       "phases": [
+        "CLOSED",
+        "SYN-SENT",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "server",
+       "label": "Server",
+       "kind": "actor",
+       "phases": [
+        "LISTEN",
+        "SYN-RECEIVED",
+        "ESTABLISHED"
+       ]
+      },
+      {
+       "id": "wire",
+       "label": "Network wire",
+       "kind": "channel",
+       "values": [
+        "SYN",
+        "SYN-ACK",
+        "ACK"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "client",
+       "to": "server",
+       "label": "SYN seq=5000"
+      },
+      {
+       "from": "server",
+       "to": "client",
+       "label": "SYN-ACK seq=9000 ack=5001"
+      },
+      {
+       "from": "client",
+       "to": "server",
+       "label": "ACK seq=5001 ack=9001"
+      }
+     ],
+     "states": [
+      {
+       "id": "closed",
+       "label": "Ready",
+       "short": "Ready",
+       "sentence": "The server listens for connections. The client has not sent anything yet.",
+       "why": "A connection needs one side waiting and one side asking.",
+       "active": [
+        "client",
+        "server"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "cs",
+         "label": "Client state",
+         "value": "CLOSED"
+        },
+        {
+         "id": "ss",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "seg",
+         "label": "Segment",
+         "value": "none"
+        }
+       ]
+      },
+      {
+       "id": "syn",
+       "label": "SYN",
+       "short": "SYN",
+       "sentence": "The client sends SYN with its chosen starting sequence number, 5000.",
+       "why": "This announces the client's numbering for its own bytes.",
+       "active": [
+        "client",
+        "wire"
+       ],
+       "calloutRegion": "client",
+       "readouts": [
+        {
+         "id": "cs",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "ss",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "seg",
+         "label": "Segment",
+         "value": "SYN seq=5000"
+        }
+       ]
+      },
+      {
+       "id": "synack",
+       "label": "SYN-ACK",
+       "short": "SYN-ACK",
+       "sentence": "The server acknowledges 5000 by sending ack=5001, and adds its own starting number, 9000.",
+       "why": "One segment both confirms the client and announces the server's numbering.",
+       "active": [
+        "server",
+        "wire"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "cs",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "ss",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "seg",
+         "label": "Segment",
+         "value": "SYN-ACK seq=9000 ack=5001"
+        }
+       ]
+      },
+      {
+       "id": "established",
+       "label": "ACK",
+       "short": "ACK",
+       "sentence": "The client acknowledges 9000 with ack=9001. Both sides now know both starting numbers and are ESTABLISHED.",
+       "why": "Each ack is the other side's sequence number plus one, confirming both directions.",
+       "active": [
+        "client",
+        "server",
+        "wire"
+       ],
+       "calloutRegion": "wire",
+       "readouts": [
+        {
+         "id": "cs",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "ss",
+         "label": "Server state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "seg",
+         "label": "Segment",
+         "value": "ACK seq=5001 ack=9001"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ack = peer seq + 1 (5001 = 5000+1, 9001 = 9000+1)"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3070,
+  "output": 4119
+ },
+ "usd": 0.04733,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The links and per-state active regions show the SYN, SYN-ACK and ACK exchange demonstrating that each ack is the peer's seq plus one."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The established state is the final step of a learner-driven stepper with no timer, so it holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The ISN select changes every seq and ack value, and the step control changes the active state and readouts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callout, readouts, links and progress trace each bind to declared state or variant data, and the ghost binds to the previous state's active regions."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The narrative, step labels, link labels and readouts all use the same names for the client, the server and the SYN, SYN-ACK and ACK segments."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "A single fixed picture changes by one state per step, and only the final state adds a rule line."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "All +1 arithmetic is correct in both variants, and the callout only locates while the readouts quantify."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018232
+ }
+}

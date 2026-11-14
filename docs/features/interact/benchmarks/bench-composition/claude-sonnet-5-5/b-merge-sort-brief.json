@@ -1,0 +1,393 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "b-merge-sort",
+ "set": "B",
+ "subject": "merge-sort",
+ "depth": "brief",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T22:35:35.972Z",
+ "ms": 26366,
+ "raw": "{\"story\":\"Merge sort splits an eight-number array until every piece is a single number, which is trivially sorted. Then it merges neighbouring sorted pieces, always taking the smaller front number. Step through splitting, then merging, to see the whole array become sorted without ever sorting by swapping.\",\"aha\":{\"stateId\":\"s7\",\"observation\":\"Splitting sorts nothing; all the sorting happens in merges, where two sorted pieces combine by repeatedly taking the smaller front number.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"state.id\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons with step rail\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Merge sort on 8 numbers\",\"regions\":[{\"id\":\"r0\",\"label\":\"Whole array\",\"values\":[\"6 3 8 1 5 2 7 4\"]},{\"id\":\"r1\",\"label\":\"Halves\",\"values\":[\"6 3 8 1 | 5 2 7 4\"]},{\"id\":\"r2\",\"label\":\"Pairs\",\"values\":[\"6 3 | 8 1 | 5 2 | 7 4\"]},{\"id\":\"r3\",\"label\":\"Single numbers\",\"values\":[\"6 | 3 | 8 | 1 | 5 | 2 | 7 | 4\"]},{\"id\":\"r4\",\"label\":\"Merged pairs\",\"values\":[\"3 6 | 1 8 | 2 5 | 4 7\"]},{\"id\":\"r5\",\"label\":\"Merged fours\",\"values\":[\"1 3 6 8 | 2 4 5 7\"]},{\"id\":\"r6\",\"label\":\"Sorted array\",\"values\":[\"1 2 3 4 5 6 7 8\"]}],\"links\":[{\"from\":\"r0\",\"to\":\"r1\",\"label\":\"split\"},{\"from\":\"r1\",\"to\":\"r2\",\"label\":\"split\"},{\"from\":\"r2\",\"to\":\"r3\",\"label\":\"split\"},{\"from\":\"r3\",\"to\":\"r4\",\"label\":\"merge\"},{\"from\":\"r4\",\"to\":\"r5\",\"label\":\"merge\"},{\"from\":\"r5\",\"to\":\"r6\",\"label\":\"merge\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Start\",\"sentence\":\"The whole array is unsorted. Merge sort will break it down first.\",\"short\":\"Start\",\"why\":\"This is the single piece we begin with.\",\"active\":[\"r0\"],\"calloutRegion\":\"r0\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"1\"},{\"id\":\"sorted\",\"label\":\"Sorted pieces\",\"value\":\"0\"}]},{\"id\":\"s2\",\"label\":\"Split in halves\",\"sentence\":\"Cut the array in the middle. Neither half is sorted yet.\",\"short\":\"Halves\",\"why\":\"Splitting only divides; no numbers are compared.\",\"active\":[\"r1\"],\"calloutRegion\":\"r1\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"2\"},{\"id\":\"sorted\",\"label\":\"Sorted pieces\",\"value\":\"0\"}]},{\"id\":\"s3\",\"label\":\"Split in pairs\",\"sentence\":\"Cut each half again, giving four pairs. Still no comparing has happened.\",\"short\":\"Pairs\",\"why\":\"Each half is divided at its middle.\",\"active\":[\"r2\"],\"calloutRegion\":\"r2\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"4\"},{\"id\":\"sorted\",\"label\":\"Sorted pieces\",\"value\":\"0\"}]},{\"id\":\"s4\",\"label\":\"Split to singles\",\"sentence\":\"Cut each pair into single numbers. A piece of one number is already sorted.\",\"short\":\"Singles\",\"why\":\"The splitting stops here because one number cannot be out of order.\",\"active\":[\"r3\"],\"calloutRegion\":\"r3\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"8\"},{\"id\":\"sorted\",\"label\":\"Sorted pieces\",\"value\":\"8\"}]},{\"id\":\"s5\",\"label\":\"Merge into pairs\",\"sentence\":\"Merge neighbours: compare the two numbers and put the smaller first. 6 3 becomes 3 6.\",\"short\":\"Pairs\",\"why\":\"The first comparisons order each pair.\",\"active\":[\"r4\"],\"calloutRegion\":\"r4\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"4\"},{\"id\":\"sorted\",\"label\":\"Sorted pieces\",\"value\":\"4\"}]},{\"id\":\"s6\",\"label\":\"Merge into fours\",\"sentence\":\"Merge two sorted pairs by comparing their fronts. 3 6 and 1 8 become 1 3 6 8.\",\"short\":\"Fours\",\"why\":\"Only the front of each sorted piece needs comparing.\",\"active\":[\"r5\"],\"calloutRegion\":\"r5\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"2\"},{\"id\":\"sorted\",\"label\":\"Sorted pieces\",\"value\":\"2\"}]},{\"id\":\"s7\",\"label\":\"Final merge\",\"sentence\":\"Merge the last two sorted fours the same way. The whole array is now sorted.\",\"short\":\"Sorted\",\"why\":\"Every merge keeps pieces sorted, so one piece ends fully sorted.\",\"active\":[\"r6\"],\"calloutRegion\":\"r6\",\"readouts\":[{\"id\":\"pieces\",\"label\":\"Pieces\",\"value\":\"1\"},{\"id\":\"sorted\",\"label\":\"Sorted pieces\",\"value\":\"1\"}]}]}]}}",
+ "composition": {
+  "story": "Merge sort splits an eight-number array until every piece is a single number, which is trivially sorted. Then it merges neighbouring sorted pieces, always taking the smaller front number. Step through splitting, then merging, to see the whole array become sorted without ever sorting by swapping.",
+  "aha": {
+   "stateId": "s7",
+   "observation": "Splitting sorts nothing; all the sorting happens in merges, where two sorted pieces combine by repeatedly taking the smaller front number."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "state.id",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons with step rail"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Merge sort on 8 numbers",
+     "regions": [
+      {
+       "id": "r0",
+       "label": "Whole array",
+       "values": [
+        "6 3 8 1 5 2 7 4"
+       ]
+      },
+      {
+       "id": "r1",
+       "label": "Halves",
+       "values": [
+        "6 3 8 1 | 5 2 7 4"
+       ]
+      },
+      {
+       "id": "r2",
+       "label": "Pairs",
+       "values": [
+        "6 3 | 8 1 | 5 2 | 7 4"
+       ]
+      },
+      {
+       "id": "r3",
+       "label": "Single numbers",
+       "values": [
+        "6 | 3 | 8 | 1 | 5 | 2 | 7 | 4"
+       ]
+      },
+      {
+       "id": "r4",
+       "label": "Merged pairs",
+       "values": [
+        "3 6 | 1 8 | 2 5 | 4 7"
+       ]
+      },
+      {
+       "id": "r5",
+       "label": "Merged fours",
+       "values": [
+        "1 3 6 8 | 2 4 5 7"
+       ]
+      },
+      {
+       "id": "r6",
+       "label": "Sorted array",
+       "values": [
+        "1 2 3 4 5 6 7 8"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "r0",
+       "to": "r1",
+       "label": "split"
+      },
+      {
+       "from": "r1",
+       "to": "r2",
+       "label": "split"
+      },
+      {
+       "from": "r2",
+       "to": "r3",
+       "label": "split"
+      },
+      {
+       "from": "r3",
+       "to": "r4",
+       "label": "merge"
+      },
+      {
+       "from": "r4",
+       "to": "r5",
+       "label": "merge"
+      },
+      {
+       "from": "r5",
+       "to": "r6",
+       "label": "merge"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Start",
+       "sentence": "The whole array is unsorted. Merge sort will break it down first.",
+       "short": "Start",
+       "why": "This is the single piece we begin with.",
+       "active": [
+        "r0"
+       ],
+       "calloutRegion": "r0",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "1"
+        },
+        {
+         "id": "sorted",
+         "label": "Sorted pieces",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Split in halves",
+       "sentence": "Cut the array in the middle. Neither half is sorted yet.",
+       "short": "Halves",
+       "why": "Splitting only divides; no numbers are compared.",
+       "active": [
+        "r1"
+       ],
+       "calloutRegion": "r1",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "2"
+        },
+        {
+         "id": "sorted",
+         "label": "Sorted pieces",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Split in pairs",
+       "sentence": "Cut each half again, giving four pairs. Still no comparing has happened.",
+       "short": "Pairs",
+       "why": "Each half is divided at its middle.",
+       "active": [
+        "r2"
+       ],
+       "calloutRegion": "r2",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "4"
+        },
+        {
+         "id": "sorted",
+         "label": "Sorted pieces",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Split to singles",
+       "sentence": "Cut each pair into single numbers. A piece of one number is already sorted.",
+       "short": "Singles",
+       "why": "The splitting stops here because one number cannot be out of order.",
+       "active": [
+        "r3"
+       ],
+       "calloutRegion": "r3",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "8"
+        },
+        {
+         "id": "sorted",
+         "label": "Sorted pieces",
+         "value": "8"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Merge into pairs",
+       "sentence": "Merge neighbours: compare the two numbers and put the smaller first. 6 3 becomes 3 6.",
+       "short": "Pairs",
+       "why": "The first comparisons order each pair.",
+       "active": [
+        "r4"
+       ],
+       "calloutRegion": "r4",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "4"
+        },
+        {
+         "id": "sorted",
+         "label": "Sorted pieces",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Merge into fours",
+       "sentence": "Merge two sorted pairs by comparing their fronts. 3 6 and 1 8 become 1 3 6 8.",
+       "short": "Fours",
+       "why": "Only the front of each sorted piece needs comparing.",
+       "active": [
+        "r5"
+       ],
+       "calloutRegion": "r5",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "2"
+        },
+        {
+         "id": "sorted",
+         "label": "Sorted pieces",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Final merge",
+       "sentence": "Merge the last two sorted fours the same way. The whole array is now sorted.",
+       "short": "Sorted",
+       "why": "Every merge keeps pieces sorted, so one piece ends fully sorted.",
+       "active": [
+        "r6"
+       ],
+       "calloutRegion": "r6",
+       "readouts": [
+        {
+         "id": "pieces",
+         "label": "Pieces",
+         "value": "1"
+        },
+        {
+         "id": "sorted",
+         "label": "Sorted pieces",
+         "value": "1"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3066,
+  "output": 4114
+ },
+ "usd": 0.047272,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The regions show the array at each split and merge level, so the question of where the sorting happens is answered by the split and merge states with their sorted-piece counts."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s7 is the final state of a stepper the learner advances manually, so it holds until they act."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is the step index, and no input such as array values or size changes the experiment; a fixed walkthrough with no justification of the fixed comparison."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Each state's active region, callout target, readouts and the links all come from declared variant data, and the ghost binds to the previous state's active region."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and step labels all use the same terms (split, merge, pieces, sorted) and refer to the same regions."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each state highlights one region and shows two readouts, so there is no clutter, although the brief depth leaves the front-comparison mechanism only in text."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The merged arrays and the piece counts are all correct, and the callout sentences locate regions while the readouts carry the counts."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.014154
+ }
+}

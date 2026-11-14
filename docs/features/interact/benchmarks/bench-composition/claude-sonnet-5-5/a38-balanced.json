@@ -1,0 +1,869 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a38",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "explain k-means clustering with an example",
+ "ts": "2026-11-14T22:33:26.986Z",
+ "ms": 56597,
+ "raw": "{\"story\":\"Six points lie on a number line at 1, 2, 4, 9, 11 and 12. K-means with k=2 places two centroids, assigns each point to its nearest centroid, moves each centroid to its group's mean, and repeats until nothing changes. Compare two starting positions.\",\"aha\":{\"stateId\":\"converged\",\"observation\":\"When every point sits with its nearest centroid and each centroid is its group's mean, another loop changes nothing, so k-means stops.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"inputs.step\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"active\":\"state.active\",\"links\":\"variant.links\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"presentation\":\"Previous / Next buttons; keyboard arrow keys\"},{\"id\":\"init\",\"kind\":\"select\",\"label\":\"Starting centroids\",\"options\":[\"Close together (1, 2)\",\"Spread out (2, 11)\"],\"default\":0,\"presentation\":\"Selects the variant; changes the starting centroids and the number of loops needed\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first step and default starting centroids\"}],\"data\":{\"variants\":[{\"label\":\"Close together (1, 2)\",\"links\":[],\"regions\":[{\"id\":\"pA\",\"label\":\"Point A\",\"kind\":\"point\",\"values\":[\"x = 1\"]},{\"id\":\"pB\",\"label\":\"Point B\",\"kind\":\"point\",\"values\":[\"x = 2\"]},{\"id\":\"pC\",\"label\":\"Point C\",\"kind\":\"point\",\"values\":[\"x = 4\"]},{\"id\":\"pD\",\"label\":\"Point D\",\"kind\":\"point\",\"values\":[\"x = 9\"]},{\"id\":\"pE\",\"label\":\"Point E\",\"kind\":\"point\",\"values\":[\"x = 11\"]},{\"id\":\"pF\",\"label\":\"Point F\",\"kind\":\"point\",\"values\":[\"x = 12\"]},{\"id\":\"c1\",\"label\":\"Centroid c1\",\"kind\":\"centroid\",\"values\":[\"start x = 1\"]},{\"id\":\"c2\",\"label\":\"Centroid c2\",\"kind\":\"centroid\",\"values\":[\"start x = 2\"]},{\"id\":\"loop\",\"label\":\"Loop\",\"kind\":\"phase\",\"phases\":[\"Assign\",\"Update\"]}],\"states\":[{\"id\":\"start\",\"label\":\"Six points\",\"short\":\"Points\",\"sentence\":\"Six points sit on a number line at 1, 2, 4, 9, 11 and 12. We want k = 2 groups.\",\"why\":\"Point C at 4 is the one whose group is least obvious.\",\"calloutRegion\":\"pC\",\"active\":[\"pA\",\"pB\",\"pC\",\"pD\",\"pE\",\"pF\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"–\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"–\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"–\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"–\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"–\"}]},{\"id\":\"place\",\"label\":\"Place centroids\",\"short\":\"Place\",\"sentence\":\"Pick two starting centroids on data points: c1 at 1 and c2 at 2. Both start in the left group.\",\"why\":\"A poor start lets us see how the loop repairs itself.\",\"calloutRegion\":\"c2\",\"active\":[\"c1\",\"c2\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"1.00\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"2.00\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"–\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"–\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"–\"}]},{\"id\":\"assign1\",\"label\":\"Assign (1st)\",\"short\":\"Assign 1\",\"sentence\":\"Each point joins its nearest centroid. Only A goes to c1; B, C, D, E and F all go to c2.\",\"why\":\"Point C is 3 from c1 but only 2 from c2.\",\"calloutRegion\":\"pC\",\"active\":[\"pA\",\"pB\",\"pC\",\"pD\",\"pE\",\"pF\",\"c1\",\"c2\",\"loop\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"1.00\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"2.00\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"A\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"B C D E F\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"6 (first assignment)\"}]},{\"id\":\"update1\",\"label\":\"Update (1st)\",\"short\":\"Update 1\",\"sentence\":\"Each centroid moves to the mean of its points. c1 stays at 1; c2 jumps to (2+4+9+11+12)/5 = 7.6.\",\"why\":\"The mean of a lopsided group sits far from the old centroid: c2 moved 5.6.\",\"calloutRegion\":\"c2\",\"active\":[\"c1\",\"c2\",\"loop\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"1.00\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"7.60\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"A\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"B C D E F\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"–\"}]},{\"id\":\"assign2\",\"label\":\"Assign (2nd)\",\"short\":\"Assign 2\",\"sentence\":\"With c2 at 7.6, points A, B and C are now nearer c1. D, E and F stay with c2.\",\"why\":\"C is 3.0 from c1 but 3.6 from c2, so it switches.\",\"calloutRegion\":\"pC\",\"active\":[\"pB\",\"pC\",\"c1\",\"c2\",\"loop\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"1.00\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"7.60\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"A B C\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"D E F\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"2 (B, C)\"}]},{\"id\":\"update2\",\"label\":\"Update (2nd)\",\"short\":\"Update 2\",\"sentence\":\"Means shift again: c1 = (1+2+4)/3 = 2.33 and c2 = (9+11+12)/3 = 10.67.\",\"why\":\"Each centroid now sits at the center of its own group.\",\"calloutRegion\":\"c1\",\"active\":[\"c1\",\"c2\",\"loop\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"2.33\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"10.67\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"A B C\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"D E F\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"–\"}]},{\"id\":\"assign3\",\"label\":\"Assign (3rd)\",\"short\":\"Assign 3\",\"sentence\":\"Re-checking every point against the new centroids, nobody changes group. C is 1.67 from c1 and 6.67 from c2.\",\"why\":\"No switch means the next update cannot move any centroid.\",\"calloutRegion\":\"pC\",\"active\":[\"pA\",\"pB\",\"pC\",\"pD\",\"pE\",\"pF\",\"c1\",\"c2\",\"loop\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"2.33\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"10.67\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"A B C\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"D E F\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"0\"}]},{\"id\":\"converged\",\"label\":\"Converged\",\"short\":\"Done\",\"sentence\":\"Updating again gives the same means, so the centroids stop moving. Assign and update have nothing left to change.\",\"why\":\"Each loop never raises total squared distance, so with no changes the algorithm stops.\",\"calloutRegion\":\"c1\",\"active\":[\"c1\",\"c2\",\"pA\",\"pB\",\"pC\",\"pD\",\"pE\",\"pF\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"2.33 (unchanged)\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"10.67 (unchanged)\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"A B C\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"D E F\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"0\"}]}]},{\"label\":\"Spread out (2, 11)\",\"links\":[],\"regions\":[{\"id\":\"pA\",\"label\":\"Point A\",\"kind\":\"point\",\"values\":[\"x = 1\"]},{\"id\":\"pB\",\"label\":\"Point B\",\"kind\":\"point\",\"values\":[\"x = 2\"]},{\"id\":\"pC\",\"label\":\"Point C\",\"kind\":\"point\",\"values\":[\"x = 4\"]},{\"id\":\"pD\",\"label\":\"Point D\",\"kind\":\"point\",\"values\":[\"x = 9\"]},{\"id\":\"pE\",\"label\":\"Point E\",\"kind\":\"point\",\"values\":[\"x = 11\"]},{\"id\":\"pF\",\"label\":\"Point F\",\"kind\":\"point\",\"values\":[\"x = 12\"]},{\"id\":\"c1\",\"label\":\"Centroid c1\",\"kind\":\"centroid\",\"values\":[\"start x = 2\"]},{\"id\":\"c2\",\"label\":\"Centroid c2\",\"kind\":\"centroid\",\"values\":[\"start x = 11\"]},{\"id\":\"loop\",\"label\":\"Loop\",\"kind\":\"phase\",\"phases\":[\"Assign\",\"Update\"]}],\"states\":[{\"id\":\"start\",\"label\":\"Six points\",\"short\":\"Points\",\"sentence\":\"Six points sit on a number line at 1, 2, 4, 9, 11 and 12. We want k = 2 groups.\",\"why\":\"Point C at 4 is the one whose group is least obvious.\",\"calloutRegion\":\"pC\",\"active\":[\"pA\",\"pB\",\"pC\",\"pD\",\"pE\",\"pF\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"–\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"–\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"–\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"–\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"–\"}]},{\"id\":\"place\",\"label\":\"Place centroids\",\"short\":\"Place\",\"sentence\":\"Pick two starting centroids on data points: c1 at 2 and c2 at 11, one in each apparent group.\",\"why\":\"A spread-out start should need fewer loops than the close start.\",\"calloutRegion\":\"c2\",\"active\":[\"c1\",\"c2\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"2.00\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"11.00\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"–\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"–\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"–\"}]},{\"id\":\"assign1\",\"label\":\"Assign (1st)\",\"short\":\"Assign 1\",\"sentence\":\"A, B and C are nearest c1; D, E and F are nearest c2. C is 2 from c1 and 7 from c2.\",\"why\":\"The first assignment already matches the natural groups.\",\"calloutRegion\":\"pC\",\"active\":[\"pA\",\"pB\",\"pC\",\"pD\",\"pE\",\"pF\",\"c1\",\"c2\",\"loop\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"2.00\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"11.00\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"A B C\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"D E F\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"6 (first assignment)\"}]},{\"id\":\"update1\",\"label\":\"Update (1st)\",\"short\":\"Update 1\",\"sentence\":\"Centroids move to the group means: c1 = 7/3 = 2.33 and c2 = 32/3 = 10.67.\",\"why\":\"Both centroids shift slightly toward the center of their points.\",\"calloutRegion\":\"c1\",\"active\":[\"c1\",\"c2\",\"loop\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"2.33\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"10.67\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"A B C\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"D E F\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"–\"}]},{\"id\":\"assign2\",\"label\":\"Assign (2nd)\",\"short\":\"Assign 2\",\"sentence\":\"Checking every point against the moved centroids, nobody changes group. C is still nearer c1.\",\"why\":\"No switch means the next update cannot move any centroid.\",\"calloutRegion\":\"pC\",\"active\":[\"pA\",\"pB\",\"pC\",\"pD\",\"pE\",\"pF\",\"c1\",\"c2\",\"loop\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"2.33\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"10.67\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"A B C\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"D E F\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"0\"}]},{\"id\":\"converged\",\"label\":\"Converged\",\"short\":\"Done\",\"sentence\":\"Updating again leaves the centroids where they are. Converged after one update, because the start was good.\",\"why\":\"Same final groups as the close start, reached in fewer loops.\",\"calloutRegion\":\"c1\",\"active\":[\"c1\",\"c2\",\"pA\",\"pB\",\"pC\",\"pD\",\"pE\",\"pF\"],\"readouts\":[{\"id\":\"c1\",\"label\":\"c1 position\",\"value\":\"2.33 (unchanged)\"},{\"id\":\"c2\",\"label\":\"c2 position\",\"value\":\"10.67 (unchanged)\"},{\"id\":\"m1\",\"label\":\"Cluster c1\",\"value\":\"A B C\"},{\"id\":\"m2\",\"label\":\"Cluster c2\",\"value\":\"D E F\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"0\"}]}]}]}}",
+ "composition": {
+  "story": "Six points lie on a number line at 1, 2, 4, 9, 11 and 12. K-means with k=2 places two centroids, assigns each point to its nearest centroid, moves each centroid to its group's mean, and repeats until nothing changes. Compare two starting positions.",
+  "aha": {
+   "stateId": "converged",
+   "observation": "When every point sits with its nearest centroid and each centroid is its group's mean, another loop changes nothing, so k-means stops."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "inputs.step"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "active": "state.active",
+     "links": "variant.links"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "presentation": "Previous / Next buttons; keyboard arrow keys"
+   },
+   {
+    "id": "init",
+    "kind": "select",
+    "label": "Starting centroids",
+    "options": [
+     "Close together (1, 2)",
+     "Spread out (2, 11)"
+    ],
+    "default": 0,
+    "presentation": "Selects the variant; changes the starting centroids and the number of loops needed"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first step and default starting centroids"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Close together (1, 2)",
+     "links": [],
+     "regions": [
+      {
+       "id": "pA",
+       "label": "Point A",
+       "kind": "point",
+       "values": [
+        "x = 1"
+       ]
+      },
+      {
+       "id": "pB",
+       "label": "Point B",
+       "kind": "point",
+       "values": [
+        "x = 2"
+       ]
+      },
+      {
+       "id": "pC",
+       "label": "Point C",
+       "kind": "point",
+       "values": [
+        "x = 4"
+       ]
+      },
+      {
+       "id": "pD",
+       "label": "Point D",
+       "kind": "point",
+       "values": [
+        "x = 9"
+       ]
+      },
+      {
+       "id": "pE",
+       "label": "Point E",
+       "kind": "point",
+       "values": [
+        "x = 11"
+       ]
+      },
+      {
+       "id": "pF",
+       "label": "Point F",
+       "kind": "point",
+       "values": [
+        "x = 12"
+       ]
+      },
+      {
+       "id": "c1",
+       "label": "Centroid c1",
+       "kind": "centroid",
+       "values": [
+        "start x = 1"
+       ]
+      },
+      {
+       "id": "c2",
+       "label": "Centroid c2",
+       "kind": "centroid",
+       "values": [
+        "start x = 2"
+       ]
+      },
+      {
+       "id": "loop",
+       "label": "Loop",
+       "kind": "phase",
+       "phases": [
+        "Assign",
+        "Update"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Six points",
+       "short": "Points",
+       "sentence": "Six points sit on a number line at 1, 2, 4, 9, 11 and 12. We want k = 2 groups.",
+       "why": "Point C at 4 is the one whose group is least obvious.",
+       "calloutRegion": "pC",
+       "active": [
+        "pA",
+        "pB",
+        "pC",
+        "pD",
+        "pE",
+        "pF"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "–"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "–"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "–"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "–"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "place",
+       "label": "Place centroids",
+       "short": "Place",
+       "sentence": "Pick two starting centroids on data points: c1 at 1 and c2 at 2. Both start in the left group.",
+       "why": "A poor start lets us see how the loop repairs itself.",
+       "calloutRegion": "c2",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "1.00"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "2.00"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "–"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "–"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "assign1",
+       "label": "Assign (1st)",
+       "short": "Assign 1",
+       "sentence": "Each point joins its nearest centroid. Only A goes to c1; B, C, D, E and F all go to c2.",
+       "why": "Point C is 3 from c1 but only 2 from c2.",
+       "calloutRegion": "pC",
+       "active": [
+        "pA",
+        "pB",
+        "pC",
+        "pD",
+        "pE",
+        "pF",
+        "c1",
+        "c2",
+        "loop"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "1.00"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "2.00"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "A"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "B C D E F"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "6 (first assignment)"
+        }
+       ]
+      },
+      {
+       "id": "update1",
+       "label": "Update (1st)",
+       "short": "Update 1",
+       "sentence": "Each centroid moves to the mean of its points. c1 stays at 1; c2 jumps to (2+4+9+11+12)/5 = 7.6.",
+       "why": "The mean of a lopsided group sits far from the old centroid: c2 moved 5.6.",
+       "calloutRegion": "c2",
+       "active": [
+        "c1",
+        "c2",
+        "loop"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "1.00"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "7.60"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "A"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "B C D E F"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "assign2",
+       "label": "Assign (2nd)",
+       "short": "Assign 2",
+       "sentence": "With c2 at 7.6, points A, B and C are now nearer c1. D, E and F stay with c2.",
+       "why": "C is 3.0 from c1 but 3.6 from c2, so it switches.",
+       "calloutRegion": "pC",
+       "active": [
+        "pB",
+        "pC",
+        "c1",
+        "c2",
+        "loop"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "1.00"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "7.60"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "A B C"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "D E F"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "2 (B, C)"
+        }
+       ]
+      },
+      {
+       "id": "update2",
+       "label": "Update (2nd)",
+       "short": "Update 2",
+       "sentence": "Means shift again: c1 = (1+2+4)/3 = 2.33 and c2 = (9+11+12)/3 = 10.67.",
+       "why": "Each centroid now sits at the center of its own group.",
+       "calloutRegion": "c1",
+       "active": [
+        "c1",
+        "c2",
+        "loop"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "2.33"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "10.67"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "A B C"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "D E F"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "assign3",
+       "label": "Assign (3rd)",
+       "short": "Assign 3",
+       "sentence": "Re-checking every point against the new centroids, nobody changes group. C is 1.67 from c1 and 6.67 from c2.",
+       "why": "No switch means the next update cannot move any centroid.",
+       "calloutRegion": "pC",
+       "active": [
+        "pA",
+        "pB",
+        "pC",
+        "pD",
+        "pE",
+        "pF",
+        "c1",
+        "c2",
+        "loop"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "2.33"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "10.67"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "A B C"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "D E F"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "converged",
+       "label": "Converged",
+       "short": "Done",
+       "sentence": "Updating again gives the same means, so the centroids stop moving. Assign and update have nothing left to change.",
+       "why": "Each loop never raises total squared distance, so with no changes the algorithm stops.",
+       "calloutRegion": "c1",
+       "active": [
+        "c1",
+        "c2",
+        "pA",
+        "pB",
+        "pC",
+        "pD",
+        "pE",
+        "pF"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "2.33 (unchanged)"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "10.67 (unchanged)"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "A B C"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "D E F"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Spread out (2, 11)",
+     "links": [],
+     "regions": [
+      {
+       "id": "pA",
+       "label": "Point A",
+       "kind": "point",
+       "values": [
+        "x = 1"
+       ]
+      },
+      {
+       "id": "pB",
+       "label": "Point B",
+       "kind": "point",
+       "values": [
+        "x = 2"
+       ]
+      },
+      {
+       "id": "pC",
+       "label": "Point C",
+       "kind": "point",
+       "values": [
+        "x = 4"
+       ]
+      },
+      {
+       "id": "pD",
+       "label": "Point D",
+       "kind": "point",
+       "values": [
+        "x = 9"
+       ]
+      },
+      {
+       "id": "pE",
+       "label": "Point E",
+       "kind": "point",
+       "values": [
+        "x = 11"
+       ]
+      },
+      {
+       "id": "pF",
+       "label": "Point F",
+       "kind": "point",
+       "values": [
+        "x = 12"
+       ]
+      },
+      {
+       "id": "c1",
+       "label": "Centroid c1",
+       "kind": "centroid",
+       "values": [
+        "start x = 2"
+       ]
+      },
+      {
+       "id": "c2",
+       "label": "Centroid c2",
+       "kind": "centroid",
+       "values": [
+        "start x = 11"
+       ]
+      },
+      {
+       "id": "loop",
+       "label": "Loop",
+       "kind": "phase",
+       "phases": [
+        "Assign",
+        "Update"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Six points",
+       "short": "Points",
+       "sentence": "Six points sit on a number line at 1, 2, 4, 9, 11 and 12. We want k = 2 groups.",
+       "why": "Point C at 4 is the one whose group is least obvious.",
+       "calloutRegion": "pC",
+       "active": [
+        "pA",
+        "pB",
+        "pC",
+        "pD",
+        "pE",
+        "pF"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "–"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "–"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "–"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "–"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "place",
+       "label": "Place centroids",
+       "short": "Place",
+       "sentence": "Pick two starting centroids on data points: c1 at 2 and c2 at 11, one in each apparent group.",
+       "why": "A spread-out start should need fewer loops than the close start.",
+       "calloutRegion": "c2",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "2.00"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "11.00"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "–"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "–"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "assign1",
+       "label": "Assign (1st)",
+       "short": "Assign 1",
+       "sentence": "A, B and C are nearest c1; D, E and F are nearest c2. C is 2 from c1 and 7 from c2.",
+       "why": "The first assignment already matches the natural groups.",
+       "calloutRegion": "pC",
+       "active": [
+        "pA",
+        "pB",
+        "pC",
+        "pD",
+        "pE",
+        "pF",
+        "c1",
+        "c2",
+        "loop"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "2.00"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "11.00"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "A B C"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "D E F"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "6 (first assignment)"
+        }
+       ]
+      },
+      {
+       "id": "update1",
+       "label": "Update (1st)",
+       "short": "Update 1",
+       "sentence": "Centroids move to the group means: c1 = 7/3 = 2.33 and c2 = 32/3 = 10.67.",
+       "why": "Both centroids shift slightly toward the center of their points.",
+       "calloutRegion": "c1",
+       "active": [
+        "c1",
+        "c2",
+        "loop"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "2.33"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "10.67"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "A B C"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "D E F"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "assign2",
+       "label": "Assign (2nd)",
+       "short": "Assign 2",
+       "sentence": "Checking every point against the moved centroids, nobody changes group. C is still nearer c1.",
+       "why": "No switch means the next update cannot move any centroid.",
+       "calloutRegion": "pC",
+       "active": [
+        "pA",
+        "pB",
+        "pC",
+        "pD",
+        "pE",
+        "pF",
+        "c1",
+        "c2",
+        "loop"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "2.33"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "10.67"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "A B C"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "D E F"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "converged",
+       "label": "Converged",
+       "short": "Done",
+       "sentence": "Updating again leaves the centroids where they are. Converged after one update, because the start was good.",
+       "why": "Same final groups as the close start, reached in fewer loops.",
+       "calloutRegion": "c1",
+       "active": [
+        "c1",
+        "c2",
+        "pA",
+        "pB",
+        "pC",
+        "pD",
+        "pE",
+        "pF"
+       ],
+       "readouts": [
+        {
+         "id": "c1",
+         "label": "c1 position",
+         "value": "2.33 (unchanged)"
+        },
+        {
+         "id": "c2",
+         "label": "c2 position",
+         "value": "10.67 (unchanged)"
+        },
+        {
+         "id": "m1",
+         "label": "Cluster c1",
+         "value": "A B C"
+        },
+        {
+         "id": "m2",
+         "label": "Cluster c2",
+         "value": "D E F"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3070,
+  "output": 9243
+ },
+ "usd": 0.09857,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "scorecard reply incomplete"
+  },
+  "cardUsd": 0
+ }
+}

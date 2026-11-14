@@ -1,0 +1,215 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a28",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "How does a transformer turn scores into a guess for the next word?",
+ "ts": "2026-11-14T22:22:26.713Z",
+ "ms": 3003,
+ "raw": "{\n  \"story\": \"Scores measure token affinities. Softmax turns raw scores into probabilities. Sampling or argmax picks the next word.\",\n  \"aha\": {\n    \"stateId\": \"step_softmax\",\n    \"observation\": \"Softmax forces all token scores to sum to one, turning them into clear probabilities.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"completedBefore\": \"state.active\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\"Scores\", \"Softmax\", \"Selection\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Transformer Next-Word Pipeline\",\n        \"regions\": [\n          {\n            \"id\": \"reg_scores\",\n            \"label\": \"Raw Scores\",\n            \"values\": [\"12.5\", \"3.1\", \"1.0\"]\n          },\n          {\n            \"id\": \"reg_probs\",\n            \"label\": \"Probabilities\",\n            \"values\": [\"0.92\", \"0.06\", \"0.02\"]\n          },\n          {\n            \"id\": \"reg_token\",\n            \"label\": \"Selected Token\",\n            \"values\": [\"the\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"step_scores\",\n            \"label\": \"1. Scores\",\n            \"sentence\": \"Attention outputs raw logits for every possible vocabulary token.\",\n            \"why\": \"Higher score means higher initial affinity.\",\n            \"active\": [\"reg_scores\"],\n            \"calloutRegion\": \"reg_scores\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Top Logit\",\n                \"value\": \"12.5\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step_softmax\",\n            \"label\": \"2. Softmax\",\n            \"sentence\": \"Exponentiation and normalization turn logits into a probability distribution.\",\n            \"why\": \"Probabilities sum to exactly 1.0.\",\n            \"active\": [\"reg_probs\"],\n            \"calloutRegion\": \"reg_probs\",\n            \"readouts\": [\n              {\n                \"id\": \"r2\",\n                \"label\": \"Sum\",\n                \"value\": \"1.00\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step_select\",\n            \"label\": \"3. Selection\",\n            \"sentence\": \"Argmax or sampling picks the definitive next token from the distribution.\",\n            \"why\": \"The highest probability token is generated.\",\n            \"active\": [\"reg_token\"],\n            \"calloutRegion\": \"reg_token\",\n            \"readouts\": [\n              {\n                \"id\": \"r3\",\n                \"label\": \"Chosen\",\n                \"value\": \"the\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Scores measure token affinities. Softmax turns raw scores into probabilities. Sampling or argmax picks the next word.",
+  "aha": {
+   "stateId": "step_softmax",
+   "observation": "Softmax forces all token scores to sum to one, turning them into clear probabilities."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "completedBefore": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "Scores",
+     "Softmax",
+     "Selection"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Transformer Next-Word Pipeline",
+     "regions": [
+      {
+       "id": "reg_scores",
+       "label": "Raw Scores",
+       "values": [
+        "12.5",
+        "3.1",
+        "1.0"
+       ]
+      },
+      {
+       "id": "reg_probs",
+       "label": "Probabilities",
+       "values": [
+        "0.92",
+        "0.06",
+        "0.02"
+       ]
+      },
+      {
+       "id": "reg_token",
+       "label": "Selected Token",
+       "values": [
+        "the"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "step_scores",
+       "label": "1. Scores",
+       "sentence": "Attention outputs raw logits for every possible vocabulary token.",
+       "why": "Higher score means higher initial affinity.",
+       "active": [
+        "reg_scores"
+       ],
+       "calloutRegion": "reg_scores",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Top Logit",
+         "value": "12.5"
+        }
+       ]
+      },
+      {
+       "id": "step_softmax",
+       "label": "2. Softmax",
+       "sentence": "Exponentiation and normalization turn logits into a probability distribution.",
+       "why": "Probabilities sum to exactly 1.0.",
+       "active": [
+        "reg_probs"
+       ],
+       "calloutRegion": "reg_probs",
+       "readouts": [
+        {
+         "id": "r2",
+         "label": "Sum",
+         "value": "1.00"
+        }
+       ]
+      },
+      {
+       "id": "step_select",
+       "label": "3. Selection",
+       "sentence": "Argmax or sampling picks the definitive next token from the distribution.",
+       "why": "The highest probability token is generated.",
+       "active": [
+        "reg_token"
+       ],
+       "calloutRegion": "reg_token",
+       "readouts": [
+        {
+         "id": "r3",
+         "label": "Chosen",
+         "value": "the"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1110,
+  "output": 985
+ },
+ "usd": 0.002796,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture shows scores, then probabilities, then the selected token, which answers how raw scores become the next word."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The step index is a free control and nothing shows the card holding at step_softmax; the learner can land on any step, including the final one."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step index changes the active region, callout and readouts; a fixed walkthrough is acceptable here, so the lack of an experiment parameter is justified."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout and readouts bind to states, regions, calloutRegion and sentence fields that are all declared."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels, region labels and callouts consistently name scores, softmax and selection (argmax or sampling)."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth, only one region is active per step and there is a single readout, with no clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "Softmax of 12.5, 3.1 and 1.0 gives about 0.9999, 0.0001 and 0.00001, not 0.92, 0.06 and 0.02; 'the' is also stated both in the region values and in the Chosen readout."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01527
+ }
+}

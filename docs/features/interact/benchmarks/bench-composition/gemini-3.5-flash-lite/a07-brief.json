@@ -1,0 +1,227 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a07",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a robot arm pick up an object?",
+ "ts": "2026-11-14T22:20:37.232Z",
+ "ms": 2692,
+ "raw": "{\n  \"story\": \"A robot arm follows a precise sequence to pick up an object, moving from sensing to grasping.\",\n  \"aha\": {\n    \"stateId\": \"grip\",\n    \"observation\": \"Closing the end effector securely around the object completes the physical grasp.\"\n  },\n  \"layout\": {\n    \"preset\": \"default\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.step\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\"sense\", \"approach\", \"align\", \"grip\"]\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Pick and Place\",\n        \"regions\": [\n          {\n            \"id\": \"sensor\",\n            \"label\": \"Vision Sensor\",\n            \"kind\": \"sensor\"\n          },\n          {\n            \"id\": \"arm\",\n            \"label\": \"Arm Joints\",\n            \"kind\": \"actuator\"\n          },\n          {\n            \"id\": \"gripper\",\n            \"label\": \"End Effector\",\n            \"kind\": \"gripper\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"sense\",\n            \"label\": \"Sense\",\n            \"short\": \"Detect\",\n            \"sentence\": \"The camera locates the target object.\",\n            \"why\": \"Object position must be known.\",\n            \"active\": [\"sensor\"],\n            \"calloutRegion\": \"sensor\",\n            \"readouts\": [\n              {\n                \"id\": \"x\",\n                \"label\": \"X Coord\",\n                \"value\": \"120 mm\"\n              }\n            ]\n          },\n          {\n            \"id\": \"approach\",\n            \"label\": \"Approach\",\n            \"short\": \"Move\",\n            \"sentence\": \"Joints move the arm above the target.\",\n            \"why\": \"Arm must reach the workspace.\",\n            \"active\": [\"arm\"],\n            \"calloutRegion\": \"arm\",\n            \"readouts\": [\n              {\n                \"id\": \"h\",\n                \"label\": \"Height\",\n                \"value\": \"50 mm\"\n              }\n            ]\n          },\n          {\n            \"id\": \"align\",\n            \"label\": \"Align\",\n            \"short\": \"Position\",\n            \"sentence\": \"The gripper matches the object orientation.\",\n            \"why\": \"Prevents collision during contact.\",\n            \"active\": [\"arm\", \"gripper\"],\n            \"calloutRegion\": \"gripper\",\n            \"readouts\": [\n              {\n                \"id\": \"ang\",\n                \"label\": \"Angle\",\n                \"value\": \"0 deg\"\n              }\n            ]\n          },\n          {\n            \"id\": \"grip\",\n            \"label\": \"Grip\",\n            \"short\": \"Clasp\",\n            \"sentence\": \"Fingers close and lift the object.\",\n            \"why\": \"Secure friction grasp is achieved.\",\n            \"active\": [\"gripper\"],\n            \"calloutRegion\": \"gripper\",\n              \"readouts\": [\n              {\n                \"id\": \"force\",\n                \"label\": \"Force\",\n                \"value\": \"15 N\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "A robot arm follows a precise sequence to pick up an object, moving from sensing to grasping.",
+  "aha": {
+   "stateId": "grip",
+   "observation": "Closing the end effector securely around the object completes the physical grasp."
+  },
+  "layout": {
+   "preset": "default",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "sense",
+     "approach",
+     "align",
+     "grip"
+    ]
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Pick and Place",
+     "regions": [
+      {
+       "id": "sensor",
+       "label": "Vision Sensor",
+       "kind": "sensor"
+      },
+      {
+       "id": "arm",
+       "label": "Arm Joints",
+       "kind": "actuator"
+      },
+      {
+       "id": "gripper",
+       "label": "End Effector",
+       "kind": "gripper"
+      }
+     ],
+     "states": [
+      {
+       "id": "sense",
+       "label": "Sense",
+       "short": "Detect",
+       "sentence": "The camera locates the target object.",
+       "why": "Object position must be known.",
+       "active": [
+        "sensor"
+       ],
+       "calloutRegion": "sensor",
+       "readouts": [
+        {
+         "id": "x",
+         "label": "X Coord",
+         "value": "120 mm"
+        }
+       ]
+      },
+      {
+       "id": "approach",
+       "label": "Approach",
+       "short": "Move",
+       "sentence": "Joints move the arm above the target.",
+       "why": "Arm must reach the workspace.",
+       "active": [
+        "arm"
+       ],
+       "calloutRegion": "arm",
+       "readouts": [
+        {
+         "id": "h",
+         "label": "Height",
+         "value": "50 mm"
+        }
+       ]
+      },
+      {
+       "id": "align",
+       "label": "Align",
+       "short": "Position",
+       "sentence": "The gripper matches the object orientation.",
+       "why": "Prevents collision during contact.",
+       "active": [
+        "arm",
+        "gripper"
+       ],
+       "calloutRegion": "gripper",
+       "readouts": [
+        {
+         "id": "ang",
+         "label": "Angle",
+         "value": "0 deg"
+        }
+       ]
+      },
+      {
+       "id": "grip",
+       "label": "Grip",
+       "short": "Clasp",
+       "sentence": "Fingers close and lift the object.",
+       "why": "Secure friction grasp is achieved.",
+       "active": [
+        "gripper"
+       ],
+       "calloutRegion": "gripper",
+       "readouts": [
+        {
+         "id": "force",
+         "label": "Force",
+         "value": "15 N"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1106,
+  "output": 1028
+ },
+ "usd": 0.002902,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The sense-approach-align-grip sequence over sensor, arm and gripper regions shows how a grasp is achieved, though the fixed picture's actual marks (object, fingers) are not declared as regions."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state 'grip' is the last step of a learner-driven index, but nothing declares an initial state, so the card may not open on or hold at grip, and the grip sentence also adds 'lift', which goes beyond the aha observation of closing."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The Step index changes the active regions, callout and readout in each state, though it only moves through a fixed narrative rather than varying an experiment."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout and readout bind to inputs.step, state.active, state.calloutRegion, state.sentence and state.readouts, and all of these exist in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels and the Step control labels all refer to the same sensor, arm and end-effector events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth shows one active region and a single readout per state, with no clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Each readout value is stated once and is plausible (120 mm, 50 mm, 0 deg, 15 N), and the callouts only locate regions while the readouts carry the numbers."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011184
+ }
+}

@@ -1,0 +1,323 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "b-tcp-handshake",
+ "set": "B",
+ "subject": "tcp-handshake",
+ "depth": "balanced",
+ "request": "how does the TCP handshake work?",
+ "ts": "2026-11-14T23:07:29.752Z",
+ "ms": 89369,
+ "raw": "{\n  \"story\": \"The client sends SYN, and the server replies with SYN-ACK. The server still waits until the client's final ACK arrives. Compare endpoint states after each delivered segment. Assume reliable delivery, no payload, and no wraparound. Initial sequence numbers are fixed and shown at the start.\",\n  \"aha\": {\n    \"stateId\": \"ack-received\",\n    \"observation\": \"The final ACK confirms receipt of the server's SYN, letting the server join the client in ESTABLISHED.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states/protocol\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"handshake-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with story and navigation instructions above the experiment. Keep progress on this rail. Steps represent states, not time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"connection-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical protocol arrangement: Client left, Server right, and three fixed message lanes between them. Order lanes SYN, SYN-ACK, then ACK. Route each link through its matching message region. Keep labels visible and mute inactive regions. Highlight bound active regions without movement.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"delivery-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the target region without covering labels. Identify the relevant actor or message here; report numeric values only in readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"connection-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place endpoint states together, followed by sequence fields. Reserve the bottom line for the endpoint counter and connection status. Derive the counter from endpoint states. Values describe the latest delivered segment, except initial sequence numbers shown before delivery. Sequence values are exact, dimensionless integers without rounding. An acknowledgment names the next sequence number expected from the peer.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"handshake-step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Handshake step\",\n      \"presentation\": \"Navigation budget: one index control. Parameter-control budget: zero. Default: first state. Bounds: first through fourth state. Increment: one state. Use Previous and Next, retaining their names when disabled at boundaries. Each activation updates the picture, explanation, and readouts. Every state persists until the learner acts; never autoplay. Reference captures must show ack-received. Provide accessible button names, visible focus, and keyboard activation.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all fixed defaults. Provide the accessible name Reset, visible focus, and keyboard activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"TCP connection opening\",\n        \"regions\": [\n          {\n            \"id\": \"client\",\n            \"label\": \"Client\",\n            \"actors\": [\n              \"Active opener\"\n            ]\n          },\n          {\n            \"id\": \"server\",\n            \"label\": \"Server\",\n            \"actors\": [\n              \"Listening endpoint\"\n            ]\n          },\n          {\n            \"id\": \"syn\",\n            \"label\": \"SYN\",\n            \"values\": [\n              \"Client → Server\"\n            ]\n          },\n          {\n            \"id\": \"syn-ack\",\n            \"label\": \"SYN-ACK\",\n            \"values\": [\n              \"Server → Client\"\n            ]\n          },\n          {\n            \"id\": \"ack\",\n            \"label\": \"ACK\",\n            \"values\": [\n              \"Client → Server\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"client\",\n            \"to\": \"syn\",\n            \"label\": \"\"\n          },\n          {\n            \"from\": \"syn\",\n            \"to\": \"server\",\n            \"label\": \"\"\n          },\n          {\n            \"from\": \"server\",\n            \"to\": \"syn-ack\",\n            \"label\": \"\"\n          },\n          {\n            \"from\": \"syn-ack\",\n            \"to\": \"client\",\n            \"label\": \"\"\n          },\n          {\n            \"from\": \"client\",\n            \"to\": \"ack\",\n            \"label\": \"\"\n          },\n          {\n            \"from\": \"ack\",\n            \"to\": \"server\",\n            \"label\": \"\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"before-opening\",\n            \"label\": \"Before opening\",\n            \"short\": \"Start\",\n            \"sentence\": \"Server is listening; Client has not opened a connection.\",\n            \"why\": \"The fixed initial sequence numbers identify where each endpoint's sequence space begins.\",\n            \"active\": [\n              \"server\"\n            ],\n            \"calloutRegion\": \"server\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"CLOSED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"LISTEN\"\n              },\n              {\n                \"id\": \"client-initial-sequence\",\n                \"label\": \"Client initial sequence\",\n                \"value\": \"1000\"\n              },\n              {\n                \"id\": \"server-initial-sequence\",\n                \"label\": \"Server initial sequence\",\n                \"value\": \"5000\"\n              },\n              {\n                \"id\": \"connection-status\",\n                \"label\": \"Established endpoints\",\n                \"value\": \"0 of 2 · Connection not ready\"\n              }\n            ]\n          },\n          {\n            \"id\": \"syn-received\",\n            \"label\": \"SYN received\",\n            \"short\": \"SYN\",\n            \"sentence\": \"Server receives Client's SYN and prepares its SYN-ACK response.\",\n            \"why\": \"SYN introduces Client's initial sequence number and consumes one sequence number, even without payload.\",\n            \"active\": [\n              \"syn\",\n              \"server\"\n            ],\n            \"calloutRegion\": \"syn\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"SYN-SENT\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"SYN-RECEIVED\"\n              },\n              {\n                \"id\": \"delivered-sequence\",\n                \"label\": \"Delivered sequence\",\n                \"value\": \"1000\"\n              },\n              {\n                \"id\": \"delivered-acknowledgment\",\n                \"label\": \"Delivered acknowledgment\",\n                \"value\": \"Not valid: ACK flag clear\"\n              },\n              {\n                \"id\": \"connection-status\",\n                \"label\": \"Established endpoints\",\n                \"value\": \"0 of 2 · Connection not ready\"\n              }\n            ]\n          },\n          {\n            \"id\": \"syn-ack-received\",\n            \"label\": \"SYN-ACK received\",\n            \"short\": \"SYN-ACK\",\n            \"sentence\": \"Client receives SYN-ACK and enters ESTABLISHED; Server still waits for the final ACK.\",\n            \"why\": \"The acknowledgment equals Client's initial sequence number plus one; Server still needs acknowledgment of its own SYN.\",\n            \"active\": [\n              \"syn-ack\",\n              \"client\"\n            ],\n            \"calloutRegion\": \"syn-ack\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"SYN-RECEIVED\"\n              },\n              {\n                \"id\": \"delivered-sequence\",\n                \"label\": \"Delivered sequence\",\n                \"value\": \"5000\"\n              },\n              {\n                \"id\": \"delivered-acknowledgment\",\n                \"label\": \"Delivered acknowledgment\",\n                \"value\": \"1001\"\n              },\n              {\n                \"id\": \"connection-status\",\n                \"label\": \"Established endpoints\",\n                \"value\": \"1 of 2 · Server still waiting\"\n              }\n            ]\n          },\n          {\n            \"id\": \"ack-received\",\n            \"label\": \"Final ACK received\",\n            \"short\": \"ACK\",\n            \"sentence\": \"Server receives the final ACK; Client and Server are now both ESTABLISHED.\",\n            \"why\": \"The acknowledgment equals Server's initial sequence number plus one, confirming receipt of its SYN.\",\n            \"active\": [\n              \"ack\",\n              \"client\",\n              \"server\"\n            ],\n            \"calloutRegion\": \"ack\",\n            \"readouts\": [\n              {\n                \"id\": \"client-state\",\n                \"label\": \"Client state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"server-state\",\n                \"label\": \"Server state\",\n                \"value\": \"ESTABLISHED\"\n              },\n              {\n                \"id\": \"delivered-sequence\",\n                \"label\": \"Delivered sequence\",\n                \"value\": \"1001\"\n              },\n              {\n                \"id\": \"delivered-acknowledgment\",\n                \"label\": \"Delivered acknowledgment\",\n                \"value\": \"5001\"\n              },\n              {\n                \"id\": \"connection-status\",\n                \"label\": \"Established endpoints\",\n                \"value\": \"2 of 2 · Connection established\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "The client sends SYN, and the server replies with SYN-ACK. The server still waits until the client's final ACK arrives. Compare endpoint states after each delivered segment. Assume reliable delivery, no payload, and no wraparound. Initial sequence numbers are fixed and shown at the start.",
+  "aha": {
+   "stateId": "ack-received",
+   "observation": "The final ACK confirms receipt of the server's SYN, letting the server join the client in ESTABLISHED."
+  },
+  "layout": {
+   "preset": "stepper-states/protocol",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "handshake-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with story and navigation instructions above the experiment. Keep progress on this rail. Steps represent states, not time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "connection-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical protocol arrangement: Client left, Server right, and three fixed message lanes between them. Order lanes SYN, SYN-ACK, then ACK. Route each link through its matching message region. Keep labels visible and mute inactive regions. Highlight bound active regions without movement.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "delivery-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the target region without covering labels. Identify the relevant actor or message here; report numeric values only in readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "connection-readouts",
+    "kind": "value-readout",
+    "presentation": "Place endpoint states together, followed by sequence fields. Reserve the bottom line for the endpoint counter and connection status. Derive the counter from endpoint states. Values describe the latest delivered segment, except initial sequence numbers shown before delivery. Sequence values are exact, dimensionless integers without rounding. An acknowledgment names the next sequence number expected from the peer.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "handshake-step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Handshake step",
+    "presentation": "Navigation budget: one index control. Parameter-control budget: zero. Default: first state. Bounds: first through fourth state. Increment: one state. Use Previous and Next, retaining their names when disabled at boundaries. Each activation updates the picture, explanation, and readouts. Every state persists until the learner acts; never autoplay. Reference captures must show ack-received. Provide accessible button names, visible focus, and keyboard activation."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all fixed defaults. Provide the accessible name Reset, visible focus, and keyboard activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "TCP connection opening",
+     "regions": [
+      {
+       "id": "client",
+       "label": "Client",
+       "actors": [
+        "Active opener"
+       ]
+      },
+      {
+       "id": "server",
+       "label": "Server",
+       "actors": [
+        "Listening endpoint"
+       ]
+      },
+      {
+       "id": "syn",
+       "label": "SYN",
+       "values": [
+        "Client → Server"
+       ]
+      },
+      {
+       "id": "syn-ack",
+       "label": "SYN-ACK",
+       "values": [
+        "Server → Client"
+       ]
+      },
+      {
+       "id": "ack",
+       "label": "ACK",
+       "values": [
+        "Client → Server"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "client",
+       "to": "syn",
+       "label": ""
+      },
+      {
+       "from": "syn",
+       "to": "server",
+       "label": ""
+      },
+      {
+       "from": "server",
+       "to": "syn-ack",
+       "label": ""
+      },
+      {
+       "from": "syn-ack",
+       "to": "client",
+       "label": ""
+      },
+      {
+       "from": "client",
+       "to": "ack",
+       "label": ""
+      },
+      {
+       "from": "ack",
+       "to": "server",
+       "label": ""
+      }
+     ],
+     "states": [
+      {
+       "id": "before-opening",
+       "label": "Before opening",
+       "short": "Start",
+       "sentence": "Server is listening; Client has not opened a connection.",
+       "why": "The fixed initial sequence numbers identify where each endpoint's sequence space begins.",
+       "active": [
+        "server"
+       ],
+       "calloutRegion": "server",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "CLOSED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "LISTEN"
+        },
+        {
+         "id": "client-initial-sequence",
+         "label": "Client initial sequence",
+         "value": "1000"
+        },
+        {
+         "id": "server-initial-sequence",
+         "label": "Server initial sequence",
+         "value": "5000"
+        },
+        {
+         "id": "connection-status",
+         "label": "Established endpoints",
+         "value": "0 of 2 · Connection not ready"
+        }
+       ]
+      },
+      {
+       "id": "syn-received",
+       "label": "SYN received",
+       "short": "SYN",
+       "sentence": "Server receives Client's SYN and prepares its SYN-ACK response.",
+       "why": "SYN introduces Client's initial sequence number and consumes one sequence number, even without payload.",
+       "active": [
+        "syn",
+        "server"
+       ],
+       "calloutRegion": "syn",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "SYN-SENT"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "delivered-sequence",
+         "label": "Delivered sequence",
+         "value": "1000"
+        },
+        {
+         "id": "delivered-acknowledgment",
+         "label": "Delivered acknowledgment",
+         "value": "Not valid: ACK flag clear"
+        },
+        {
+         "id": "connection-status",
+         "label": "Established endpoints",
+         "value": "0 of 2 · Connection not ready"
+        }
+       ]
+      },
+      {
+       "id": "syn-ack-received",
+       "label": "SYN-ACK received",
+       "short": "SYN-ACK",
+       "sentence": "Client receives SYN-ACK and enters ESTABLISHED; Server still waits for the final ACK.",
+       "why": "The acknowledgment equals Client's initial sequence number plus one; Server still needs acknowledgment of its own SYN.",
+       "active": [
+        "syn-ack",
+        "client"
+       ],
+       "calloutRegion": "syn-ack",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "SYN-RECEIVED"
+        },
+        {
+         "id": "delivered-sequence",
+         "label": "Delivered sequence",
+         "value": "5000"
+        },
+        {
+         "id": "delivered-acknowledgment",
+         "label": "Delivered acknowledgment",
+         "value": "1001"
+        },
+        {
+         "id": "connection-status",
+         "label": "Established endpoints",
+         "value": "1 of 2 · Server still waiting"
+        }
+       ]
+      },
+      {
+       "id": "ack-received",
+       "label": "Final ACK received",
+       "short": "ACK",
+       "sentence": "Server receives the final ACK; Client and Server are now both ESTABLISHED.",
+       "why": "The acknowledgment equals Server's initial sequence number plus one, confirming receipt of its SYN.",
+       "active": [
+        "ack",
+        "client",
+        "server"
+       ],
+       "calloutRegion": "ack",
+       "readouts": [
+        {
+         "id": "client-state",
+         "label": "Client state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "server-state",
+         "label": "Server state",
+         "value": "ESTABLISHED"
+        },
+        {
+         "id": "delivered-sequence",
+         "label": "Delivered sequence",
+         "value": "1001"
+        },
+        {
+         "id": "delivered-acknowledgment",
+         "label": "Delivered acknowledgment",
+         "value": "5001"
+        },
+        {
+         "id": "connection-status",
+         "label": "Established endpoints",
+         "value": "2 of 2 · Connection established"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 5230
+ },
+ "usd": 0.052496,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3fH8gJLC6aCnS2VZ13F\"}"
+  },
+  "cardUsd": 0
+ }
+}

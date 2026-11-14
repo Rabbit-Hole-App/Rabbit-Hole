@@ -1,0 +1,283 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a25",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "What happens inside one Llama-style decoder block?",
+ "ts": "2026-11-14T22:45:09.826Z",
+ "ms": 108637,
+ "raw": "{\n  \"story\": \"What happens inside one Llama-style decoder block? Start with three illustrative token positions and track the middle position, B. Follow attention, then the MLP, watching each update join the running stream. The final state reveals which branch mixes positions and how both updates accumulate.\",\n  \"aha\": {\n    \"stateId\": \"block-output\",\n    \"observation\": \"Attention mixes information across permitted positions; the MLP transforms each position separately, and both updates enter the running stream through residual additions.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-pipeline\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"stage-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell and canonical pipeline arrangement. Keep story and instructions above the experiment. Progress belongs exclusively to this rail.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"block-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Stack five fixed regions with labeled residual bypasses. Highlight only the active region. Wrap labels and phase descriptions without reducing readability.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the active region without covering links. Identify the operation and explain its mechanism; reserve numerical values for readouts.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"block-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show the bound status and residual-addition counter below the picture. Counts equal completed residual additions in the selected state, not elapsed time.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stage\",\n      \"kind\": \"index\",\n      \"presentation\": \"Previous and Next move one state within variant.states; default first state; increment one. Retain button names when disabled at boundaries. Every state persists until navigation, including the aha state. Provide accessible names, keyboard operation, and visible focus. Parameter-control budget: zero; navigation controls are separate.\",\n      \"items\": \"variant.states\",\n      \"label\": \"Block stage\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"presentation\": \"Reset restores the first state and fixed defaults. Provide keyboard operation and visible focus.\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Brief Llama-style decoder block\",\n        \"regions\": [\n          {\n            \"id\": \"input\",\n            \"label\": \"Input stream x\",\n            \"values\": [\n              \"A | B | C\",\n              \"Fixed focus: B\"\n            ]\n          },\n          {\n            \"id\": \"attention\",\n            \"label\": \"Attention branch\",\n            \"phases\": [\n              \"RMSNorm → causal self-attention → output projection\"\n            ]\n          },\n          {\n            \"id\": \"attention-sum\",\n            \"label\": \"Attention residual sum → stream u\",\n            \"phases\": [\n              \"Add attention update to x\"\n            ]\n          },\n          {\n            \"id\": \"mlp\",\n            \"label\": \"MLP branch\",\n            \"phases\": [\n              \"RMSNorm → SwiGLU → output projection\"\n            ]\n          },\n          {\n            \"id\": \"mlp-sum\",\n            \"label\": \"MLP residual sum → output y\",\n            \"phases\": [\n              \"Add MLP update to u\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"input\",\n            \"to\": \"attention\",\n            \"label\": \"x\"\n          },\n          {\n            \"from\": \"attention\",\n            \"to\": \"attention-sum\",\n            \"label\": \"Attention update\"\n          },\n          {\n            \"from\": \"input\",\n            \"to\": \"attention-sum\",\n            \"label\": \"Residual bypass: x\"\n          },\n          {\n            \"from\": \"attention-sum\",\n            \"to\": \"mlp\",\n            \"label\": \"u\"\n          },\n          {\n            \"from\": \"mlp\",\n            \"to\": \"mlp-sum\",\n            \"label\": \"MLP update\"\n          },\n          {\n            \"from\": \"attention-sum\",\n            \"to\": \"mlp-sum\",\n            \"label\": \"Residual bypass: u\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"block-input\",\n            \"label\": \"Input\",\n            \"short\": \"Input\",\n            \"sentence\": \"At the input stream, track B’s vector through the block.\",\n            \"why\": \"Positions A, B, and C are illustrative; B is fixed as the focus, with inference mode and no output head.\",\n            \"active\": [\n              \"input\"\n            ],\n            \"calloutRegion\": \"input\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Input vectors ready; focus B\"\n              },\n              {\n                \"id\": \"residual-count\",\n                \"label\": \"Residual additions completed\",\n                \"value\": \"0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"attention-update\",\n            \"label\": \"Attention\",\n            \"short\": \"Attend\",\n            \"sentence\": \"The attention branch normalizes x, projects queries, keys, and values, applies RoPE to queries and keys, then computes a projected attention update.\",\n            \"why\": \"For B, causal masking permits A and B but excludes C; attention weights combine their value vectors.\",\n            \"active\": [\n              \"attention\"\n            ],\n            \"calloutRegion\": \"attention\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"B attends to A and B; C is masked\"\n              },\n              {\n                \"id\": \"residual-count\",\n                \"label\": \"Residual additions completed\",\n                \"value\": \"0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"attention-added\",\n            \"label\": \"Add attention\",\n            \"short\": \"Add attention\",\n            \"sentence\": \"At the attention residual sum, add the attention update to the original stream x, producing u.\",\n            \"why\": \"The bypass carries x around normalization and attention, so the branch updates the stream rather than replacing it.\",\n            \"active\": [\n              \"attention-sum\"\n            ],\n            \"calloutRegion\": \"attention-sum\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Running stream u contains x plus the attention update\"\n              },\n              {\n                \"id\": \"residual-count\",\n                \"label\": \"Residual additions completed\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"mlp-update\",\n            \"label\": \"MLP\",\n            \"short\": \"Transform\",\n            \"sentence\": \"The MLP branch normalizes u, applies the SwiGLU gated transformation, and projects the result back to the stream width.\",\n            \"why\": \"The same MLP acts independently at every position; B’s input already carries context gathered by attention.\",\n            \"active\": [\n              \"mlp\"\n            ],\n            \"calloutRegion\": \"mlp\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"MLP transforms B’s contextual vector without reading other positions\"\n              },\n              {\n                \"id\": \"residual-count\",\n                \"label\": \"Residual additions completed\",\n                \"value\": \"1\"\n              }\n            ]\n          },\n          {\n            \"id\": \"block-output\",\n            \"label\": \"Add MLP\",\n            \"short\": \"Output\",\n            \"sentence\": \"At the MLP residual sum, add the MLP update to u, producing output y.\",\n            \"why\": \"Both branches preserve the running stream through addition; only attention mixes information across positions.\",\n            \"active\": [\n              \"mlp-sum\"\n            ],\n            \"calloutRegion\": \"mlp-sum\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Attention mixes positions; MLP acts separately per position\"\n              },\n              {\n                \"id\": \"residual-count\",\n                \"label\": \"Residual additions completed\",\n                \"value\": \"2\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "What happens inside one Llama-style decoder block? Start with three illustrative token positions and track the middle position, B. Follow attention, then the MLP, watching each update join the running stream. The final state reveals which branch mixes positions and how both updates accumulate.",
+  "aha": {
+   "stateId": "block-output",
+   "observation": "Attention mixes information across permitted positions; the MLP transforms each position separately, and both updates enter the running stream through residual additions."
+  },
+  "layout": {
+   "preset": "stepper-pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "stage-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell and canonical pipeline arrangement. Keep story and instructions above the experiment. Progress belongs exclusively to this rail.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "block-picture",
+    "kind": "fixed-picture",
+    "presentation": "Stack five fixed regions with labeled residual bypasses. Highlight only the active region. Wrap labels and phase descriptions without reducing readability.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the active region without covering links. Identify the operation and explain its mechanism; reserve numerical values for readouts.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "block-readouts",
+    "kind": "value-readout",
+    "presentation": "Show the bound status and residual-addition counter below the picture. Counts equal completed residual additions in the selected state, not elapsed time.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stage",
+    "kind": "index",
+    "presentation": "Previous and Next move one state within variant.states; default first state; increment one. Retain button names when disabled at boundaries. Every state persists until navigation, including the aha state. Provide accessible names, keyboard operation, and visible focus. Parameter-control budget: zero; navigation controls are separate.",
+    "items": "variant.states",
+    "label": "Block stage"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "presentation": "Reset restores the first state and fixed defaults. Provide keyboard operation and visible focus.",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Brief Llama-style decoder block",
+     "regions": [
+      {
+       "id": "input",
+       "label": "Input stream x",
+       "values": [
+        "A | B | C",
+        "Fixed focus: B"
+       ]
+      },
+      {
+       "id": "attention",
+       "label": "Attention branch",
+       "phases": [
+        "RMSNorm → causal self-attention → output projection"
+       ]
+      },
+      {
+       "id": "attention-sum",
+       "label": "Attention residual sum → stream u",
+       "phases": [
+        "Add attention update to x"
+       ]
+      },
+      {
+       "id": "mlp",
+       "label": "MLP branch",
+       "phases": [
+        "RMSNorm → SwiGLU → output projection"
+       ]
+      },
+      {
+       "id": "mlp-sum",
+       "label": "MLP residual sum → output y",
+       "phases": [
+        "Add MLP update to u"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "input",
+       "to": "attention",
+       "label": "x"
+      },
+      {
+       "from": "attention",
+       "to": "attention-sum",
+       "label": "Attention update"
+      },
+      {
+       "from": "input",
+       "to": "attention-sum",
+       "label": "Residual bypass: x"
+      },
+      {
+       "from": "attention-sum",
+       "to": "mlp",
+       "label": "u"
+      },
+      {
+       "from": "mlp",
+       "to": "mlp-sum",
+       "label": "MLP update"
+      },
+      {
+       "from": "attention-sum",
+       "to": "mlp-sum",
+       "label": "Residual bypass: u"
+      }
+     ],
+     "states": [
+      {
+       "id": "block-input",
+       "label": "Input",
+       "short": "Input",
+       "sentence": "At the input stream, track B’s vector through the block.",
+       "why": "Positions A, B, and C are illustrative; B is fixed as the focus, with inference mode and no output head.",
+       "active": [
+        "input"
+       ],
+       "calloutRegion": "input",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Input vectors ready; focus B"
+        },
+        {
+         "id": "residual-count",
+         "label": "Residual additions completed",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "attention-update",
+       "label": "Attention",
+       "short": "Attend",
+       "sentence": "The attention branch normalizes x, projects queries, keys, and values, applies RoPE to queries and keys, then computes a projected attention update.",
+       "why": "For B, causal masking permits A and B but excludes C; attention weights combine their value vectors.",
+       "active": [
+        "attention"
+       ],
+       "calloutRegion": "attention",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "B attends to A and B; C is masked"
+        },
+        {
+         "id": "residual-count",
+         "label": "Residual additions completed",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "attention-added",
+       "label": "Add attention",
+       "short": "Add attention",
+       "sentence": "At the attention residual sum, add the attention update to the original stream x, producing u.",
+       "why": "The bypass carries x around normalization and attention, so the branch updates the stream rather than replacing it.",
+       "active": [
+        "attention-sum"
+       ],
+       "calloutRegion": "attention-sum",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Running stream u contains x plus the attention update"
+        },
+        {
+         "id": "residual-count",
+         "label": "Residual additions completed",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "mlp-update",
+       "label": "MLP",
+       "short": "Transform",
+       "sentence": "The MLP branch normalizes u, applies the SwiGLU gated transformation, and projects the result back to the stream width.",
+       "why": "The same MLP acts independently at every position; B’s input already carries context gathered by attention.",
+       "active": [
+        "mlp"
+       ],
+       "calloutRegion": "mlp",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "MLP transforms B’s contextual vector without reading other positions"
+        },
+        {
+         "id": "residual-count",
+         "label": "Residual additions completed",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "block-output",
+       "label": "Add MLP",
+       "short": "Output",
+       "sentence": "At the MLP residual sum, add the MLP update to u, producing output y.",
+       "why": "Both branches preserve the running stream through addition; only attention mixes information across positions.",
+       "active": [
+        "mlp-sum"
+       ],
+       "calloutRegion": "mlp-sum",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Attention mixes positions; MLP acts separately per position"
+        },
+        {
+         "id": "residual-count",
+         "label": "Residual additions completed",
+         "value": "2"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1536,
+  "output": 5529
+ },
+ "usd": 0.055492,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3daNHMk4yPX8KuAfw5K\"}"
+  },
+  "cardUsd": 0
+ }
+}

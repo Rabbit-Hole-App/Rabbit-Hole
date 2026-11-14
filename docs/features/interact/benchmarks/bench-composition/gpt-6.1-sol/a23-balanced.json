@@ -1,0 +1,475 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a23",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a decision tree search for the best threshold on one feature?",
+ "ts": "2026-11-14T22:43:20.364Z",
+ "ms": 143256,
+ "raw": "{\n  \"story\": \"How does a tree choose a threshold? Start with samples sorted by feature value. Test each midpoint between neighboring values, preserving every sample. Compare the child class counts and size-weighted Gini impurity. Finally, return to the lowest-scoring cut: a winning split can still leave one child mixed.\",\n  \"aha\": {\n    \"stateId\": \"best-threshold\",\n    \"observation\": \"The best threshold minimizes size-weighted child impurity across all candidates, even when one child remains mixed.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"search-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the algorithm/collection composition within the approved card shell. Place explanation and assumptions above the experiment. Show state labels and the active state. Keep navigation progress on this rail; steps represent search states, not elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"sorted-samples\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Show the declared regions in one fixed row, alternating sample cells and candidate gaps. Sample cells display their names, feature values, and class letters. Reinforce class letters with consistent colors. Place gap names below their boundaries with readable spacing. Highlight the active region without moving samples. An active gap divides samples into left and right children. Above the experiment, declare these assumptions. Feature x uses arbitrary units. Samples have equal weight, with no missing values or minimum-child-size restriction. Left children contain x ≤ threshold; right children contain x > threshold. Test midpoints between adjacent distinct feature values. Parameter-control budget: zero, excluding navigation and Reset.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"cut-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor text to the named sample or gap. Callout text identifies where to inspect, without repeating measurements. Render reason as the bound status line beneath the picture.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"split-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Use a compact two-column readout grid below the picture. Counts use A / B order throughout. Parent counts remain fixed, exposing sample conservation. Derive child counts and scores from the fixed sample labels and current cut. Above the experiment, explain the scoring rule. Child Gini is one minus the sum of squared class proportions. Weight each child's Gini by its fraction of all samples. Lower weighted Gini is better. Scores are unitless; display three decimals and compare unrounded values. Thresholds use the same feature units as the sample row. Break ties by retaining the smaller threshold. Best tested cut names the incumbent without duplicating its measurements. Reference captures show the named aha state.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"search-state\",\n      \"kind\": \"index\",\n      \"label\": \"Search state\",\n      \"items\": \"variant.states\",\n      \"presentation\": \"Use Previous and Next buttons. Default to the first state and advance by one listed state. Bounds are the first and last states. Keep disabled boundary buttons visible with their original names. Provide accessible names, keyboard operation, and visible focus. Every state persists until the learner acts; never autoplay.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Fixed sample inputs remain unchanged. Provide keyboard operation and visible focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"One numeric feature, two classes\",\n        \"regions\": [\n          {\n            \"id\": \"s1\",\n            \"label\": \"S1\",\n            \"values\": [\"x = 1\", \"A\"]\n          },\n          {\n            \"id\": \"cut-a\",\n            \"label\": \"Cut A\",\n            \"values\": []\n          },\n          {\n            \"id\": \"s2\",\n            \"label\": \"S2\",\n            \"values\": [\"x = 2\", \"A\"]\n          },\n          {\n            \"id\": \"cut-b\",\n            \"label\": \"Cut B\",\n            \"values\": []\n          },\n          {\n            \"id\": \"s3\",\n            \"label\": \"S3\",\n            \"values\": [\"x = 3\", \"B\"]\n          },\n          {\n            \"id\": \"cut-c\",\n            \"label\": \"Cut C\",\n            \"values\": []\n          },\n          {\n            \"id\": \"s4\",\n            \"label\": \"S4\",\n            \"values\": [\"x = 4\", \"B\"]\n          },\n          {\n            \"id\": \"cut-d\",\n            \"label\": \"Cut D\",\n            \"values\": []\n          },\n          {\n            \"id\": \"s5\",\n            \"label\": \"S5\",\n            \"values\": [\"x = 5\", \"B\"]\n          },\n          {\n            \"id\": \"cut-e\",\n            \"label\": \"Cut E\",\n            \"values\": []\n          },\n          {\n            \"id\": \"s6\",\n            \"label\": \"S6\",\n            \"values\": [\"x = 6\", \"A\"]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"sorted-input\",\n            \"label\": \"Sorted input\",\n            \"short\": \"Start\",\n            \"sentence\": \"Read the sorted sample row from S1 to S6.\",\n            \"why\": \"Only the candidate boundary changes; sample values, classes, and parent counts stay fixed.\",\n            \"active\": [\"s1\"],\n            \"calloutRegion\": \"s1\",\n            \"readouts\": [\n              {\n                \"id\": \"parent-counts\",\n                \"label\": \"Parent count: A / B\",\n                \"value\": \"3 / 3\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"Threshold: feature units\",\n                \"value\": \"Not selected\"\n              },\n              {\n                \"id\": \"left-counts\",\n                \"label\": \"Left count: A / B\",\n                \"value\": \"Not split\"\n              },\n              {\n                \"id\": \"right-counts\",\n                \"label\": \"Right count: A / B\",\n                \"value\": \"Not split\"\n              },\n              {\n                \"id\": \"weighted-gini\",\n                \"label\": \"Weighted child Gini\",\n                \"value\": \"Not evaluated\"\n              },\n              {\n                \"id\": \"best-cut\",\n                \"label\": \"Best tested cut\",\n                \"value\": \"None\"\n              }\n            ]\n          },\n          {\n            \"id\": \"test-a\",\n            \"label\": \"Test Cut A\",\n            \"short\": \"Cut A\",\n            \"sentence\": \"Cut A separates S1 from the remaining samples.\",\n            \"why\": \"The left child is pure, but the larger right child remains mixed.\",\n            \"active\": [\"cut-a\"],\n            \"calloutRegion\": \"cut-a\",\n            \"readouts\": [\n              {\n                \"id\": \"parent-counts\",\n                \"label\": \"Parent count: A / B\",\n                \"value\": \"3 / 3\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"Threshold: feature units\",\n                \"value\": \"1.5\"\n              },\n              {\n                \"id\": \"left-counts\",\n                \"label\": \"Left count: A / B\",\n                \"value\": \"1 / 0\"\n              },\n              {\n                \"id\": \"right-counts\",\n                \"label\": \"Right count: A / B\",\n                \"value\": \"2 / 3\"\n              },\n              {\n                \"id\": \"weighted-gini\",\n                \"label\": \"Weighted child Gini\",\n                \"value\": \"0.400\"\n              },\n              {\n                \"id\": \"best-cut\",\n                \"label\": \"Best tested cut\",\n                \"value\": \"Cut A\"\n              }\n            ]\n          },\n          {\n            \"id\": \"test-b\",\n            \"label\": \"Test Cut B\",\n            \"short\": \"Cut B\",\n            \"sentence\": \"Cut B places S1 and S2 in the left child.\",\n            \"why\": \"The left child stays pure while the weighted impurity falls, replacing Cut A as the best tested cut.\",\n            \"active\": [\"cut-b\"],\n            \"calloutRegion\": \"cut-b\",\n            \"readouts\": [\n              {\n                \"id\": \"parent-counts\",\n                \"label\": \"Parent count: A / B\",\n                \"value\": \"3 / 3\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"Threshold: feature units\",\n                \"value\": \"2.5\"\n              },\n              {\n                \"id\": \"left-counts\",\n                \"label\": \"Left count: A / B\",\n                \"value\": \"2 / 0\"\n              },\n              {\n                \"id\": \"right-counts\",\n                \"label\": \"Right count: A / B\",\n                \"value\": \"1 / 3\"\n              },\n              {\n                \"id\": \"weighted-gini\",\n                \"label\": \"Weighted child Gini\",\n                \"value\": \"0.250\"\n              },\n              {\n                \"id\": \"best-cut\",\n                \"label\": \"Best tested cut\",\n                \"value\": \"Cut B\"\n              }\n            ]\n          },\n          {\n            \"id\": \"test-c\",\n            \"label\": \"Test Cut C\",\n            \"short\": \"Cut C\",\n            \"sentence\": \"Cut C places S3 in the left child.\",\n            \"why\": \"Both children are now mixed, and the score rises; Cut B remains best.\",\n            \"active\": [\"cut-c\"],\n            \"calloutRegion\": \"cut-c\",\n            \"readouts\": [\n              {\n                \"id\": \"parent-counts\",\n                \"label\": \"Parent count: A / B\",\n                \"value\": \"3 / 3\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"Threshold: feature units\",\n                \"value\": \"3.5\"\n              },\n              {\n                \"id\": \"left-counts\",\n                \"label\": \"Left count: A / B\",\n                \"value\": \"2 / 1\"\n              },\n              {\n                \"id\": \"right-counts\",\n                \"label\": \"Right count: A / B\",\n                \"value\": \"1 / 2\"\n              },\n              {\n                \"id\": \"weighted-gini\",\n                \"label\": \"Weighted child Gini\",\n                \"value\": \"0.444\"\n              },\n              {\n                \"id\": \"best-cut\",\n                \"label\": \"Best tested cut\",\n                \"value\": \"Cut B\"\n              }\n            ]\n          },\n          {\n            \"id\": \"test-d\",\n            \"label\": \"Test Cut D\",\n            \"short\": \"Cut D\",\n            \"sentence\": \"Cut D places S4 in the left child.\",\n            \"why\": \"Both children have equal class proportions, so this split provides no impurity reduction.\",\n            \"active\": [\"cut-d\"],\n            \"calloutRegion\": \"cut-d\",\n            \"readouts\": [\n              {\n                \"id\": \"parent-counts\",\n                \"label\": \"Parent count: A / B\",\n                \"value\": \"3 / 3\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"Threshold: feature units\",\n                \"value\": \"4.5\"\n              },\n              {\n                \"id\": \"left-counts\",\n                \"label\": \"Left count: A / B\",\n                \"value\": \"2 / 2\"\n              },\n              {\n                \"id\": \"right-counts\",\n                \"label\": \"Right count: A / B\",\n                \"value\": \"1 / 1\"\n              },\n              {\n                \"id\": \"weighted-gini\",\n                \"label\": \"Weighted child Gini\",\n                \"value\": \"0.500\"\n              },\n              {\n                \"id\": \"best-cut\",\n                \"label\": \"Best tested cut\",\n                \"value\": \"Cut B\"\n              }\n            ]\n          },\n          {\n            \"id\": \"test-e\",\n            \"label\": \"Test Cut E\",\n            \"short\": \"Cut E\",\n            \"sentence\": \"Cut E leaves only S6 in the right child.\",\n            \"why\": \"A pure right child does not guarantee the lowest weighted score; Cut B remains best.\",\n            \"active\": [\"cut-e\"],\n            \"calloutRegion\": \"cut-e\",\n            \"readouts\": [\n              {\n                \"id\": \"parent-counts\",\n                \"label\": \"Parent count: A / B\",\n                \"value\": \"3 / 3\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"Threshold: feature units\",\n                \"value\": \"5.5\"\n              },\n              {\n                \"id\": \"left-counts\",\n                \"label\": \"Left count: A / B\",\n                \"value\": \"2 / 3\"\n              },\n              {\n                \"id\": \"right-counts\",\n                \"label\": \"Right count: A / B\",\n                \"value\": \"1 / 0\"\n              },\n              {\n                \"id\": \"weighted-gini\",\n                \"label\": \"Weighted child Gini\",\n                \"value\": \"0.400\"\n              },\n              {\n                \"id\": \"best-cut\",\n                \"label\": \"Best tested cut\",\n                \"value\": \"Cut B\"\n              }\n            ]\n          },\n          {\n            \"id\": \"best-threshold\",\n            \"label\": \"Choose Cut B\",\n            \"short\": \"Winner\",\n            \"sentence\": \"Return to Cut B, the winning boundary between S2 and S3.\",\n            \"why\": \"Every candidate was tested; this cut minimizes weighted child impurity even though its right child remains mixed.\",\n            \"active\": [\"cut-b\"],\n            \"calloutRegion\": \"cut-b\",\n            \"readouts\": [\n              {\n                \"id\": \"parent-counts\",\n                \"label\": \"Parent count: A / B\",\n                \"value\": \"3 / 3\"\n              },\n              {\n                \"id\": \"threshold\",\n                \"label\": \"Threshold: feature units\",\n                \"value\": \"2.5\"\n              },\n              {\n                \"id\": \"left-counts\",\n                \"label\": \"Left count: A / B\",\n                \"value\": \"2 / 0\"\n              },\n              {\n                \"id\": \"right-counts\",\n                \"label\": \"Right count: A / B\",\n                \"value\": \"1 / 3\"\n              },\n              {\n                \"id\": \"weighted-gini\",\n                \"label\": \"Weighted child Gini\",\n                \"value\": \"0.250\"\n              },\n              {\n                \"id\": \"best-cut\",\n                \"label\": \"Best tested cut\",\n                \"value\": \"Cut B\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does a tree choose a threshold? Start with samples sorted by feature value. Test each midpoint between neighboring values, preserving every sample. Compare the child class counts and size-weighted Gini impurity. Finally, return to the lowest-scoring cut: a winning split can still leave one child mixed.",
+  "aha": {
+   "stateId": "best-threshold",
+   "observation": "The best threshold minimizes size-weighted child impurity across all candidates, even when one child remains mixed."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "search-rail",
+    "kind": "step-rail",
+    "presentation": "Use the algorithm/collection composition within the approved card shell. Place explanation and assumptions above the experiment. Show state labels and the active state. Keep navigation progress on this rail; steps represent search states, not elapsed time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "sorted-samples",
+    "kind": "fixed-picture",
+    "presentation": "Show the declared regions in one fixed row, alternating sample cells and candidate gaps. Sample cells display their names, feature values, and class letters. Reinforce class letters with consistent colors. Place gap names below their boundaries with readable spacing. Highlight the active region without moving samples. An active gap divides samples into left and right children. Above the experiment, declare these assumptions. Feature x uses arbitrary units. Samples have equal weight, with no missing values or minimum-child-size restriction. Left children contain x ≤ threshold; right children contain x > threshold. Test midpoints between adjacent distinct feature values. Parameter-control budget: zero, excluding navigation and Reset.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "cut-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor text to the named sample or gap. Callout text identifies where to inspect, without repeating measurements. Render reason as the bound status line beneath the picture.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "split-evidence",
+    "kind": "value-readout",
+    "presentation": "Use a compact two-column readout grid below the picture. Counts use A / B order throughout. Parent counts remain fixed, exposing sample conservation. Derive child counts and scores from the fixed sample labels and current cut. Above the experiment, explain the scoring rule. Child Gini is one minus the sum of squared class proportions. Weight each child's Gini by its fraction of all samples. Lower weighted Gini is better. Scores are unitless; display three decimals and compare unrounded values. Thresholds use the same feature units as the sample row. Break ties by retaining the smaller threshold. Best tested cut names the incumbent without duplicating its measurements. Reference captures show the named aha state.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "search-state",
+    "kind": "index",
+    "label": "Search state",
+    "items": "variant.states",
+    "presentation": "Use Previous and Next buttons. Default to the first state and advance by one listed state. Bounds are the first and last states. Keep disabled boundary buttons visible with their original names. Provide accessible names, keyboard operation, and visible focus. Every state persists until the learner acts; never autoplay."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Fixed sample inputs remain unchanged. Provide keyboard operation and visible focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "One numeric feature, two classes",
+     "regions": [
+      {
+       "id": "s1",
+       "label": "S1",
+       "values": [
+        "x = 1",
+        "A"
+       ]
+      },
+      {
+       "id": "cut-a",
+       "label": "Cut A",
+       "values": []
+      },
+      {
+       "id": "s2",
+       "label": "S2",
+       "values": [
+        "x = 2",
+        "A"
+       ]
+      },
+      {
+       "id": "cut-b",
+       "label": "Cut B",
+       "values": []
+      },
+      {
+       "id": "s3",
+       "label": "S3",
+       "values": [
+        "x = 3",
+        "B"
+       ]
+      },
+      {
+       "id": "cut-c",
+       "label": "Cut C",
+       "values": []
+      },
+      {
+       "id": "s4",
+       "label": "S4",
+       "values": [
+        "x = 4",
+        "B"
+       ]
+      },
+      {
+       "id": "cut-d",
+       "label": "Cut D",
+       "values": []
+      },
+      {
+       "id": "s5",
+       "label": "S5",
+       "values": [
+        "x = 5",
+        "B"
+       ]
+      },
+      {
+       "id": "cut-e",
+       "label": "Cut E",
+       "values": []
+      },
+      {
+       "id": "s6",
+       "label": "S6",
+       "values": [
+        "x = 6",
+        "A"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "sorted-input",
+       "label": "Sorted input",
+       "short": "Start",
+       "sentence": "Read the sorted sample row from S1 to S6.",
+       "why": "Only the candidate boundary changes; sample values, classes, and parent counts stay fixed.",
+       "active": [
+        "s1"
+       ],
+       "calloutRegion": "s1",
+       "readouts": [
+        {
+         "id": "parent-counts",
+         "label": "Parent count: A / B",
+         "value": "3 / 3"
+        },
+        {
+         "id": "threshold",
+         "label": "Threshold: feature units",
+         "value": "Not selected"
+        },
+        {
+         "id": "left-counts",
+         "label": "Left count: A / B",
+         "value": "Not split"
+        },
+        {
+         "id": "right-counts",
+         "label": "Right count: A / B",
+         "value": "Not split"
+        },
+        {
+         "id": "weighted-gini",
+         "label": "Weighted child Gini",
+         "value": "Not evaluated"
+        },
+        {
+         "id": "best-cut",
+         "label": "Best tested cut",
+         "value": "None"
+        }
+       ]
+      },
+      {
+       "id": "test-a",
+       "label": "Test Cut A",
+       "short": "Cut A",
+       "sentence": "Cut A separates S1 from the remaining samples.",
+       "why": "The left child is pure, but the larger right child remains mixed.",
+       "active": [
+        "cut-a"
+       ],
+       "calloutRegion": "cut-a",
+       "readouts": [
+        {
+         "id": "parent-counts",
+         "label": "Parent count: A / B",
+         "value": "3 / 3"
+        },
+        {
+         "id": "threshold",
+         "label": "Threshold: feature units",
+         "value": "1.5"
+        },
+        {
+         "id": "left-counts",
+         "label": "Left count: A / B",
+         "value": "1 / 0"
+        },
+        {
+         "id": "right-counts",
+         "label": "Right count: A / B",
+         "value": "2 / 3"
+        },
+        {
+         "id": "weighted-gini",
+         "label": "Weighted child Gini",
+         "value": "0.400"
+        },
+        {
+         "id": "best-cut",
+         "label": "Best tested cut",
+         "value": "Cut A"
+        }
+       ]
+      },
+      {
+       "id": "test-b",
+       "label": "Test Cut B",
+       "short": "Cut B",
+       "sentence": "Cut B places S1 and S2 in the left child.",
+       "why": "The left child stays pure while the weighted impurity falls, replacing Cut A as the best tested cut.",
+       "active": [
+        "cut-b"
+       ],
+       "calloutRegion": "cut-b",
+       "readouts": [
+        {
+         "id": "parent-counts",
+         "label": "Parent count: A / B",
+         "value": "3 / 3"
+        },
+        {
+         "id": "threshold",
+         "label": "Threshold: feature units",
+         "value": "2.5"
+        },
+        {
+         "id": "left-counts",
+         "label": "Left count: A / B",
+         "value": "2 / 0"
+        },
+        {
+         "id": "right-counts",
+         "label": "Right count: A / B",
+         "value": "1 / 3"
+        },
+        {
+         "id": "weighted-gini",
+         "label": "Weighted child Gini",
+         "value": "0.250"
+        },
+        {
+         "id": "best-cut",
+         "label": "Best tested cut",
+         "value": "Cut B"
+        }
+       ]
+      },
+      {
+       "id": "test-c",
+       "label": "Test Cut C",
+       "short": "Cut C",
+       "sentence": "Cut C places S3 in the left child.",
+       "why": "Both children are now mixed, and the score rises; Cut B remains best.",
+       "active": [
+        "cut-c"
+       ],
+       "calloutRegion": "cut-c",
+       "readouts": [
+        {
+         "id": "parent-counts",
+         "label": "Parent count: A / B",
+         "value": "3 / 3"
+        },
+        {
+         "id": "threshold",
+         "label": "Threshold: feature units",
+         "value": "3.5"
+        },
+        {
+         "id": "left-counts",
+         "label": "Left count: A / B",
+         "value": "2 / 1"
+        },
+        {
+         "id": "right-counts",
+         "label": "Right count: A / B",
+         "value": "1 / 2"
+        },
+        {
+         "id": "weighted-gini",
+         "label": "Weighted child Gini",
+         "value": "0.444"
+        },
+        {
+         "id": "best-cut",
+         "label": "Best tested cut",
+         "value": "Cut B"
+        }
+       ]
+      },
+      {
+       "id": "test-d",
+       "label": "Test Cut D",
+       "short": "Cut D",
+       "sentence": "Cut D places S4 in the left child.",
+       "why": "Both children have equal class proportions, so this split provides no impurity reduction.",
+       "active": [
+        "cut-d"
+       ],
+       "calloutRegion": "cut-d",
+       "readouts": [
+        {
+         "id": "parent-counts",
+         "label": "Parent count: A / B",
+         "value": "3 / 3"
+        },
+        {
+         "id": "threshold",
+         "label": "Threshold: feature units",
+         "value": "4.5"
+        },
+        {
+         "id": "left-counts",
+         "label": "Left count: A / B",
+         "value": "2 / 2"
+        },
+        {
+         "id": "right-counts",
+         "label": "Right count: A / B",
+         "value": "1 / 1"
+        },
+        {
+         "id": "weighted-gini",
+         "label": "Weighted child Gini",
+         "value": "0.500"
+        },
+        {
+         "id": "best-cut",
+         "label": "Best tested cut",
+         "value": "Cut B"
+        }
+       ]
+      },
+      {
+       "id": "test-e",
+       "label": "Test Cut E",
+       "short": "Cut E",
+       "sentence": "Cut E leaves only S6 in the right child.",
+       "why": "A pure right child does not guarantee the lowest weighted score; Cut B remains best.",
+       "active": [
+        "cut-e"
+       ],
+       "calloutRegion": "cut-e",
+       "readouts": [
+        {
+         "id": "parent-counts",
+         "label": "Parent count: A / B",
+         "value": "3 / 3"
+        },
+        {
+         "id": "threshold",
+         "label": "Threshold: feature units",
+         "value": "5.5"
+        },
+        {
+         "id": "left-counts",
+         "label": "Left count: A / B",
+         "value": "2 / 3"
+        },
+        {
+         "id": "right-counts",
+         "label": "Right count: A / B",
+         "value": "1 / 0"
+        },
+        {
+         "id": "weighted-gini",
+         "label": "Weighted child Gini",
+         "value": "0.400"
+        },
+        {
+         "id": "best-cut",
+         "label": "Best tested cut",
+         "value": "Cut B"
+        }
+       ]
+      },
+      {
+       "id": "best-threshold",
+       "label": "Choose Cut B",
+       "short": "Winner",
+       "sentence": "Return to Cut B, the winning boundary between S2 and S3.",
+       "why": "Every candidate was tested; this cut minimizes weighted child impurity even though its right child remains mixed.",
+       "active": [
+        "cut-b"
+       ],
+       "calloutRegion": "cut-b",
+       "readouts": [
+        {
+         "id": "parent-counts",
+         "label": "Parent count: A / B",
+         "value": "3 / 3"
+        },
+        {
+         "id": "threshold",
+         "label": "Threshold: feature units",
+         "value": "2.5"
+        },
+        {
+         "id": "left-counts",
+         "label": "Left count: A / B",
+         "value": "2 / 0"
+        },
+        {
+         "id": "right-counts",
+         "label": "Right count: A / B",
+         "value": "1 / 3"
+        },
+        {
+         "id": "weighted-gini",
+         "label": "Weighted child Gini",
+         "value": "0.250"
+        },
+        {
+         "id": "best-cut",
+         "label": "Best tested cut",
+         "value": "Cut B"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1540,
+  "output": 8116
+ },
+ "usd": 0.08137,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3dSKVCSKN4zk9kZD9Gx\"}"
+  },
+  "cardUsd": 0
+ }
+}

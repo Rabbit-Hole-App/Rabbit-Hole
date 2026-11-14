@@ -1,0 +1,246 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a22",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+ "ts": "2026-11-14T22:21:51.684Z",
+ "ms": 2952,
+ "raw": "{\n  \"story\": \"Watch a dataset split into two child nodes. Compute Gini impurity for each side and find the information gain.\",\n  \"aha\": {\n    \"stateId\": \"split\",\n    \"observation\": \"Information gain measures the drop in impurity achieved by the split.\"\n  },\n  \"layout\": {\n    \"preset\": \"card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"variant.states[inputs.stepIndex].active\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states[inputs.stepIndex].why\",\n        \"target\": \"variant.states[inputs.stepIndex].calloutRegion\",\n        \"text\": \"variant.states[inputs.stepIndex].sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states[inputs.stepIndex].readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\"Parent node\", \"Left child\", \"Right child\", \"Information gain\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Gini Split\",\n        \"regions\": [\n          {\n            \"id\": \"parent\",\n            \"label\": \"Parent Node\",\n            \"kind\": \"node\",\n            \"values\": [\"6 Yes\", \"6 No\"]\n          },\n          {\n            \"id\": \"left\",\n            \"label\": \"Left Child\",\n            \"kind\": \"node\",\n            \"values\": [\"5 Yes\", \"1 No\"]\n          },\n          {\n            \"id\": \"right\",\n            \"label\": \"Right Child\",\n            \"kind\": \"node\",\n            \"values\": [\"1 Yes\", \"5 No\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"parent_state\",\n            \"label\": \"Parent\",\n            \"short\": \"Parent\",\n            \"sentence\": \"The parent node contains 6 positive and 6 negative samples.\",\n            \"why\": \"Base impurity is 1 - (0.5^2 + 0.5^2) = 0.500.\",\n            \"active\": [\"parent\"],\n            \"calloutRegion\": \"parent\",\n            \"readouts\": [\n              {\n                \"id\": \"gini_p\",\n                \"label\": \"Parent Gini\",\n                \"value\": \"0.500\"\n              }\n            ]\n          },\n          {\n            \"id\": \"left_state\",\n            \"label\": \"Left Child\",\n            \"short\": \"Left\",\n            \"sentence\": \"The left child node contains 5 positive and 1 negative sample.\",\n            \"why\": \"Left impurity is 1 - ((5/6)^2 + (1/6)^2) = 0.278.\",\n            \"active\": [\"left\"],\n            \"calloutRegion\": \"left\",\n            \"readouts\": [\n              {\n                \"id\": \"gini_l\",\n                \"label\": \"Left Gini\",\n                \"value\": \"0.278\"\n              }\n            ]\n          },\n          {\n            \"id\": \"right_state\",\n            \"label\": \"Right Child\",\n            \"short\": \"Right\",\n            \"sentence\": \"The right child node contains 1 positive and 5 negative samples.\",\n            \"why\": \"Right impurity is 1 - ((1/6)^2 + (5/6)^2) = 0.278.\",\n            \"active\": [\"right\"],\n            \"calloutRegion\": \"right\",\n            \"readouts\": [\n              {\n                \"id\": \"gini_r\",\n                \"label\": \"Right Gini\",\n                \"value\": \"0.278\"\n              }\n            ]\n          },\n          {\n            \"id\": \"split\",\n            \"label\": \"Information Gain\",\n            \"short\": \"Gain\",\n            \"sentence\": \"Information gain subtracts the weighted child impurity from the parent impurity.\",\n            \"why\": \"Gain = 0.500 - ((6/12)*0.278 + (6/12)*0.278) = 0.222.\",\n            \"active\": [\"left\", \"right\"],\n            \"calloutRegion\": \"left\",\n            \"readouts\": [\n              {\n                \"id\": \"gain\",\n                \"label\": \"Info Gain\",\n                \"value\": \"0.222\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Watch a dataset split into two child nodes. Compute Gini impurity for each side and find the information gain.",
+  "aha": {
+   "stateId": "split",
+   "observation": "Information gain measures the drop in impurity achieved by the split."
+  },
+  "layout": {
+   "preset": "card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "variant.states[inputs.stepIndex].active",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states[inputs.stepIndex].why",
+     "target": "variant.states[inputs.stepIndex].calloutRegion",
+     "text": "variant.states[inputs.stepIndex].sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states[inputs.stepIndex].readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "Parent node",
+     "Left child",
+     "Right child",
+     "Information gain"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Gini Split",
+     "regions": [
+      {
+       "id": "parent",
+       "label": "Parent Node",
+       "kind": "node",
+       "values": [
+        "6 Yes",
+        "6 No"
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left Child",
+       "kind": "node",
+       "values": [
+        "5 Yes",
+        "1 No"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right Child",
+       "kind": "node",
+       "values": [
+        "1 Yes",
+        "5 No"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "parent_state",
+       "label": "Parent",
+       "short": "Parent",
+       "sentence": "The parent node contains 6 positive and 6 negative samples.",
+       "why": "Base impurity is 1 - (0.5^2 + 0.5^2) = 0.500.",
+       "active": [
+        "parent"
+       ],
+       "calloutRegion": "parent",
+       "readouts": [
+        {
+         "id": "gini_p",
+         "label": "Parent Gini",
+         "value": "0.500"
+        }
+       ]
+      },
+      {
+       "id": "left_state",
+       "label": "Left Child",
+       "short": "Left",
+       "sentence": "The left child node contains 5 positive and 1 negative sample.",
+       "why": "Left impurity is 1 - ((5/6)^2 + (1/6)^2) = 0.278.",
+       "active": [
+        "left"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "gini_l",
+         "label": "Left Gini",
+         "value": "0.278"
+        }
+       ]
+      },
+      {
+       "id": "right_state",
+       "label": "Right Child",
+       "short": "Right",
+       "sentence": "The right child node contains 1 positive and 5 negative samples.",
+       "why": "Right impurity is 1 - ((1/6)^2 + (5/6)^2) = 0.278.",
+       "active": [
+        "right"
+       ],
+       "calloutRegion": "right",
+       "readouts": [
+        {
+         "id": "gini_r",
+         "label": "Right Gini",
+         "value": "0.278"
+        }
+       ]
+      },
+      {
+       "id": "split",
+       "label": "Information Gain",
+       "short": "Gain",
+       "sentence": "Information gain subtracts the weighted child impurity from the parent impurity.",
+       "why": "Gain = 0.500 - ((6/12)*0.278 + (6/12)*0.278) = 0.222.",
+       "active": [
+        "left",
+        "right"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "gain",
+         "label": "Info Gain",
+         "value": "0.222"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1115,
+  "output": 1302
+ },
+ "usd": 0.00359,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture shows parent and child nodes with class counts, and the steps compute impurity and gain, which answers how much a split reduces impurity."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state \"split\" is the final step, and it stays on screen until the learner steps or resets."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is stepIndex, which changes the narration focus but not the data or the experiment, and no counts can be varied to show how gain changes."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The active regions, callout text, why text and readouts all bind to variant.states entries, and the regions come from variant.regions."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The step labels, sentences and region names (Parent, Left child, Right child, Information gain) are consistent throughout."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth keeps a single changing highlight and a single readout per step, with the formula in the why text."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The values check out (0.500, 0.278, 0.278, gain 0.222), and each is quantified once in the readout while the callout only locates the region."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01441
+ }
+}

@@ -1,0 +1,226 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a31",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "How does Bayesian optimization decide which setting to try next?",
+ "ts": "2026-11-14T22:50:20.768Z",
+ "ms": 88864,
+ "raw": "{\n  \"story\": \"Why might a lower prediction earn the next trial? Review completed trials, then inspect Settings A and B. This fixed, noiseless example maximizes score using expected improvement: average positive gain above the best observed score. Gaussian predictions are supplied, not fitted here. Use Next; the decision remains visible until you act.\",\n  \"aha\": {\n    \"stateId\": \"choose-b\",\n    \"observation\": \"Setting B wins because its uncertainty creates more expected improvement, despite its lower predicted score.\"\n  },\n  \"layout\": {\n    \"preset\": \"approved-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"decision-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation and above the experiment. Highlight the active state; keep all progress on this rail. Steps represent decisions, not elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"settings-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use one fixed row with three named regions. Only the active region changes highlight. Keep labels readable without motion or a matrix.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"links\": \"variant.links\"\n      }\n    },\n    {\n      \"id\": \"decision-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the active region without covering labels. Identify the setting and explain its role; report numerical values only in readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"decision-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show one active-setting evidence stack, not a candidate matrix. Scores, uncertainty, and expected improvement share score-point units. Uncertainty denotes one standard deviation. Expected improvement is computed from each Gaussian forecast against the same observed best. Round displayed numbers to two decimals. Keep the observed-best readout anchored. Use the final entry as the bound status line.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Decision step\",\n      \"presentation\": \"Parameter-control budget: zero; navigation and reset are separate. Provide Previous and Next, moving exactly one state per action. Default to the first state; bounds are the first and last states. Retain button names when disabled at boundaries. Every state persists until another action; never advance automatically. Use visible keyboard focus and native keyboard activation.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide visible focus and keyboard activation. Reference captures must show the named aha state.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Expected improvement with fixed Gaussian forecasts\",\n        \"regions\": [\n          {\n            \"id\": \"completed\",\n            \"label\": \"Completed trials\",\n            \"values\": [\n              \"Observed baseline\"\n            ]\n          },\n          {\n            \"id\": \"setting-a\",\n            \"label\": \"Setting A\",\n            \"values\": [\n              \"Untried candidate\"\n            ]\n          },\n          {\n            \"id\": \"setting-b\",\n            \"label\": \"Setting B\",\n            \"values\": [\n              \"Untried candidate\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"observed-best\",\n            \"label\": \"Observed best\",\n            \"short\": \"Baseline\",\n            \"sentence\": \"Completed trials establish the result to beat.\",\n            \"why\": \"Expected improvement counts only gains above this baseline; worse outcomes contribute zero improvement.\",\n            \"active\": [\n              \"completed\"\n            ],\n            \"calloutRegion\": \"completed\",\n            \"readouts\": [\n              {\n                \"id\": \"best\",\n                \"label\": \"Best observed score\",\n                \"value\": \"8.00\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Compare the two untried settings next.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"inspect-a\",\n            \"label\": \"Inspect A\",\n            \"short\": \"Setting A\",\n            \"sentence\": \"Setting A predicts a modest, fairly certain improvement.\",\n            \"why\": \"Its narrow uncertainty keeps most possible outcomes close to its predicted score.\",\n            \"active\": [\n              \"setting-a\"\n            ],\n            \"calloutRegion\": \"setting-a\",\n            \"readouts\": [\n              {\n                \"id\": \"best\",\n                \"label\": \"Best observed score\",\n                \"value\": \"8.00\"\n              },\n              {\n                \"id\": \"prediction\",\n                \"label\": \"A predicted score\",\n                \"value\": \"8.50\"\n              },\n              {\n                \"id\": \"uncertainty\",\n                \"label\": \"A uncertainty\",\n                \"value\": \"0.20\"\n              },\n              {\n                \"id\": \"a-improvement\",\n                \"label\": \"A expected improvement\",\n                \"value\": \"0.50\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Inspect Setting B before choosing.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"choose-b\",\n            \"label\": \"Choose next\",\n            \"short\": \"Setting B\",\n            \"sentence\": \"Setting B is the next trial.\",\n            \"why\": \"Its wider uncertainty offers enough upside to outweigh its lower predicted score.\",\n            \"active\": [\n              \"setting-b\"\n            ],\n            \"calloutRegion\": \"setting-b\",\n            \"readouts\": [\n              {\n                \"id\": \"best\",\n                \"label\": \"Best observed score\",\n                \"value\": \"8.00\"\n              },\n              {\n                \"id\": \"prediction\",\n                \"label\": \"B predicted score\",\n                \"value\": \"8.00\"\n              },\n              {\n                \"id\": \"uncertainty\",\n                \"label\": \"B uncertainty\",\n                \"value\": \"2.00\"\n              },\n              {\n                \"id\": \"a-improvement\",\n                \"label\": \"A expected improvement\",\n                \"value\": \"0.50\"\n              },\n              {\n                \"id\": \"b-improvement\",\n                \"label\": \"B expected improvement\",\n                \"value\": \"0.80\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Choose B: highest expected improvement among these candidates.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Why might a lower prediction earn the next trial? Review completed trials, then inspect Settings A and B. This fixed, noiseless example maximizes score using expected improvement: average positive gain above the best observed score. Gaussian predictions are supplied, not fitted here. Use Next; the decision remains visible until you act.",
+  "aha": {
+   "stateId": "choose-b",
+   "observation": "Setting B wins because its uncertainty creates more expected improvement, despite its lower predicted score."
+  },
+  "layout": {
+   "preset": "approved-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "decision-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation and above the experiment. Highlight the active state; keep all progress on this rail. Steps represent decisions, not elapsed time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "settings-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use one fixed row with three named regions. Only the active region changes highlight. Keep labels readable without motion or a matrix.",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "links": "variant.links"
+    }
+   },
+   {
+    "id": "decision-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the active region without covering labels. Identify the setting and explain its role; report numerical values only in readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "decision-evidence",
+    "kind": "value-readout",
+    "presentation": "Show one active-setting evidence stack, not a candidate matrix. Scores, uncertainty, and expected improvement share score-point units. Uncertainty denotes one standard deviation. Expected improvement is computed from each Gaussian forecast against the same observed best. Round displayed numbers to two decimals. Keep the observed-best readout anchored. Use the final entry as the bound status line.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Decision step",
+    "presentation": "Parameter-control budget: zero; navigation and reset are separate. Provide Previous and Next, moving exactly one state per action. Default to the first state; bounds are the first and last states. Retain button names when disabled at boundaries. Every state persists until another action; never advance automatically. Use visible keyboard focus and native keyboard activation."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide visible focus and keyboard activation. Reference captures must show the named aha state."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Expected improvement with fixed Gaussian forecasts",
+     "regions": [
+      {
+       "id": "completed",
+       "label": "Completed trials",
+       "values": [
+        "Observed baseline"
+       ]
+      },
+      {
+       "id": "setting-a",
+       "label": "Setting A",
+       "values": [
+        "Untried candidate"
+       ]
+      },
+      {
+       "id": "setting-b",
+       "label": "Setting B",
+       "values": [
+        "Untried candidate"
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "observed-best",
+       "label": "Observed best",
+       "short": "Baseline",
+       "sentence": "Completed trials establish the result to beat.",
+       "why": "Expected improvement counts only gains above this baseline; worse outcomes contribute zero improvement.",
+       "active": [
+        "completed"
+       ],
+       "calloutRegion": "completed",
+       "readouts": [
+        {
+         "id": "best",
+         "label": "Best observed score",
+         "value": "8.00"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Compare the two untried settings next."
+        }
+       ]
+      },
+      {
+       "id": "inspect-a",
+       "label": "Inspect A",
+       "short": "Setting A",
+       "sentence": "Setting A predicts a modest, fairly certain improvement.",
+       "why": "Its narrow uncertainty keeps most possible outcomes close to its predicted score.",
+       "active": [
+        "setting-a"
+       ],
+       "calloutRegion": "setting-a",
+       "readouts": [
+        {
+         "id": "best",
+         "label": "Best observed score",
+         "value": "8.00"
+        },
+        {
+         "id": "prediction",
+         "label": "A predicted score",
+         "value": "8.50"
+        },
+        {
+         "id": "uncertainty",
+         "label": "A uncertainty",
+         "value": "0.20"
+        },
+        {
+         "id": "a-improvement",
+         "label": "A expected improvement",
+         "value": "0.50"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Inspect Setting B before choosing."
+        }
+       ]
+      },
+      {
+       "id": "choose-b",
+       "label": "Choose next",
+       "short": "Setting B",
+       "sentence": "Setting B is the next trial.",
+       "why": "Its wider uncertainty offers enough upside to outweigh its lower predicted score.",
+       "active": [
+        "setting-b"
+       ],
+       "calloutRegion": "setting-b",
+       "readouts": [
+        {
+         "id": "best",
+         "label": "Best observed score",
+         "value": "8.00"
+        },
+        {
+         "id": "prediction",
+         "label": "B predicted score",
+         "value": "8.00"
+        },
+        {
+         "id": "uncertainty",
+         "label": "B uncertainty",
+         "value": "2.00"
+        },
+        {
+         "id": "a-improvement",
+         "label": "A expected improvement",
+         "value": "0.50"
+        },
+        {
+         "id": "b-improvement",
+         "label": "B expected improvement",
+         "value": "0.80"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Choose B: highest expected improvement among these candidates."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1537,
+  "output": 4588
+ },
+ "usd": 0.046084,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3dyHeCF5aHpekR2DT4x\"}"
+  },
+  "cardUsd": 0
+ }
+}

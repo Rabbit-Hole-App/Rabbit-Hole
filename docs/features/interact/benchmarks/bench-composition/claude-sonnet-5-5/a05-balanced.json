@@ -1,0 +1,689 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a05",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a diffusion model generate an image?",
+ "ts": "2026-11-14T22:22:01.955Z",
+ "ms": 38649,
+ "raw": "{\"story\":\"A diffusion model starts from a canvas of pure random noise. A denoiser network, guided by the text prompt, guesses the noise in the canvas. We subtract a small share of that guess and repeat. Step by step the noise meter falls to zero and an image is left.\",\"aha\":{\"stateId\":\"done\",\"observation\":\"Nothing is drawn directly. The image is what remains after the denoiser's noise guess is subtracted, a little at a time, until the noise meter reads 0%.\"},\"layout\":{\"preset\":\"stepper-pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next\"},{\"id\":\"steps\",\"kind\":\"select\",\"label\":\"Denoising steps\",\"options\":[\"4 steps\",\"8 steps\"],\"default\":0,\"presentation\":\"Selects the variant: more steps means a smaller noise share removed per step\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"4 steps\",\"regions\":[{\"id\":\"prompt\",\"label\":\"Text prompt\",\"kind\":\"input\",\"values\":[\"\\\"a cat\\\"\"]},{\"id\":\"canvas\",\"label\":\"Canvas\",\"kind\":\"image\",\"phases\":[\"pure noise\",\"rough blobs\",\"cat shape\",\"sharp cat image\"]},{\"id\":\"denoiser\",\"label\":\"Denoiser network\",\"kind\":\"actor\",\"actors\":[\"trained neural network\"]},{\"id\":\"noise-guess\",\"label\":\"Noise guess\",\"kind\":\"image\",\"values\":[\"predicted noise pattern\"]},{\"id\":\"update\",\"label\":\"Subtract step\",\"kind\":\"operation\",\"values\":[\"canvas − 25% of guess\"]},{\"id\":\"noise-meter\",\"label\":\"Noise meter\",\"kind\":\"scale\",\"values\":[\"100%\",\"75%\",\"50%\",\"25%\",\"0%\"]}],\"links\":[{\"from\":\"canvas\",\"to\":\"denoiser\",\"label\":\"noisy input\"},{\"from\":\"prompt\",\"to\":\"denoiser\",\"label\":\"guides\"},{\"from\":\"denoiser\",\"to\":\"noise-guess\",\"label\":\"predicts\"},{\"from\":\"noise-guess\",\"to\":\"update\",\"label\":\"share removed\"},{\"from\":\"update\",\"to\":\"canvas\",\"label\":\"new canvas\"}],\"states\":[{\"id\":\"start\",\"label\":\"Pure noise\",\"short\":\"Start\",\"sentence\":\"Generation begins with a canvas filled with random noise. No picture exists yet.\",\"why\":\"Every image starts as the same kind of static.\",\"calloutRegion\":\"canvas\",\"active\":[\"canvas\",\"noise-meter\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"0 of 4\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"100%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"25%\"}]},{\"id\":\"predict\",\"label\":\"Guess the noise\",\"short\":\"Predict\",\"sentence\":\"The denoiser looks at the noisy canvas and the prompt, then guesses which part is noise.\",\"why\":\"The prompt steers the guess toward a cat.\",\"calloutRegion\":\"denoiser\",\"active\":[\"canvas\",\"prompt\",\"denoiser\",\"noise-guess\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"1 of 4\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"100%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"25%\"}]},{\"id\":\"first\",\"label\":\"Subtract a little\",\"short\":\"Step 1\",\"sentence\":\"Only a quarter of the guessed noise is subtracted. The canvas changes slightly, into faint blobs.\",\"why\":\"Small steps keep each guess easy to get right.\",\"calloutRegion\":\"update\",\"active\":[\"noise-guess\",\"update\",\"canvas\",\"noise-meter\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"1 of 4\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"75%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"25%\"}]},{\"id\":\"middle\",\"label\":\"Repeat: shape appears\",\"short\":\"Step 2\",\"sentence\":\"The same guess-and-subtract loop runs again on the new canvas. A rough cat shape emerges.\",\"why\":\"Same network, same rule, cleaner input.\",\"calloutRegion\":\"canvas\",\"active\":[\"denoiser\",\"update\",\"canvas\",\"noise-meter\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"2 of 4\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"50%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"25%\"}]},{\"id\":\"late\",\"label\":\"Repeat: details form\",\"short\":\"Step 3\",\"sentence\":\"With less noise left, the guesses refine edges and fur. The shape firms up.\",\"why\":\"Later steps add detail, not layout.\",\"calloutRegion\":\"noise-meter\",\"active\":[\"denoiser\",\"update\",\"canvas\",\"noise-meter\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"3 of 4\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"25%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"25%\"}]},{\"id\":\"done\",\"label\":\"Image remains\",\"short\":\"Done\",\"sentence\":\"After the last subtraction the noise meter reads 0%. What is left on the canvas is the image.\",\"why\":\"The picture is the leftover after repeated noise removal.\",\"calloutRegion\":\"canvas\",\"active\":[\"canvas\",\"noise-meter\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"4 of 4\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"0%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"25%\"}]}]},{\"label\":\"8 steps\",\"regions\":[{\"id\":\"prompt\",\"label\":\"Text prompt\",\"kind\":\"input\",\"values\":[\"\\\"a cat\\\"\"]},{\"id\":\"canvas\",\"label\":\"Canvas\",\"kind\":\"image\",\"phases\":[\"pure noise\",\"rough blobs\",\"cat shape\",\"sharp cat image\"]},{\"id\":\"denoiser\",\"label\":\"Denoiser network\",\"kind\":\"actor\",\"actors\":[\"trained neural network\"]},{\"id\":\"noise-guess\",\"label\":\"Noise guess\",\"kind\":\"image\",\"values\":[\"predicted noise pattern\"]},{\"id\":\"update\",\"label\":\"Subtract step\",\"kind\":\"operation\",\"values\":[\"canvas − 12.5% of guess\"]},{\"id\":\"noise-meter\",\"label\":\"Noise meter\",\"kind\":\"scale\",\"values\":[\"100%\",\"87.5%\",\"50%\",\"25%\",\"0%\"]}],\"links\":[{\"from\":\"canvas\",\"to\":\"denoiser\",\"label\":\"noisy input\"},{\"from\":\"prompt\",\"to\":\"denoiser\",\"label\":\"guides\"},{\"from\":\"denoiser\",\"to\":\"noise-guess\",\"label\":\"predicts\"},{\"from\":\"noise-guess\",\"to\":\"update\",\"label\":\"share removed\"},{\"from\":\"update\",\"to\":\"canvas\",\"label\":\"new canvas\"}],\"states\":[{\"id\":\"start\",\"label\":\"Pure noise\",\"short\":\"Start\",\"sentence\":\"Generation begins with a canvas filled with random noise. No picture exists yet.\",\"why\":\"Every image starts as the same kind of static.\",\"calloutRegion\":\"canvas\",\"active\":[\"canvas\",\"noise-meter\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"0 of 8\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"100%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"12.5%\"}]},{\"id\":\"predict\",\"label\":\"Guess the noise\",\"short\":\"Predict\",\"sentence\":\"The denoiser looks at the noisy canvas and the prompt, then guesses which part is noise.\",\"why\":\"The prompt steers the guess toward a cat.\",\"calloutRegion\":\"denoiser\",\"active\":[\"canvas\",\"prompt\",\"denoiser\",\"noise-guess\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"1 of 8\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"100%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"12.5%\"}]},{\"id\":\"first\",\"label\":\"Subtract a little\",\"short\":\"Step 1\",\"sentence\":\"Only an eighth of the guessed noise is subtracted. The canvas barely changes.\",\"why\":\"More steps mean smaller, safer corrections.\",\"calloutRegion\":\"update\",\"active\":[\"noise-guess\",\"update\",\"canvas\",\"noise-meter\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"1 of 8\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"87.5%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"12.5%\"}]},{\"id\":\"middle\",\"label\":\"Repeat: shape appears\",\"short\":\"Step 4\",\"sentence\":\"After four more guess-and-subtract rounds, half the noise is gone and a rough cat shape shows.\",\"why\":\"Same network, same rule, repeated.\",\"calloutRegion\":\"canvas\",\"active\":[\"denoiser\",\"update\",\"canvas\",\"noise-meter\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"4 of 8\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"50%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"12.5%\"}]},{\"id\":\"late\",\"label\":\"Repeat: details form\",\"short\":\"Step 6\",\"sentence\":\"With a quarter of the noise left, the guesses refine edges and fur.\",\"why\":\"Later steps add detail, not layout.\",\"calloutRegion\":\"noise-meter\",\"active\":[\"denoiser\",\"update\",\"canvas\",\"noise-meter\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"6 of 8\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"25%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"12.5%\"}]},{\"id\":\"done\",\"label\":\"Image remains\",\"short\":\"Done\",\"sentence\":\"After the eighth subtraction the noise meter reads 0%. What is left on the canvas is the image.\",\"why\":\"The picture is the leftover after repeated noise removal.\",\"calloutRegion\":\"canvas\",\"active\":[\"canvas\",\"noise-meter\"],\"readouts\":[{\"id\":\"t\",\"label\":\"Step\",\"value\":\"8 of 8\"},{\"id\":\"n\",\"label\":\"Noise left\",\"value\":\"0%\"},{\"id\":\"r\",\"label\":\"Removed per step\",\"value\":\"12.5%\"}]}]}]}}",
+ "composition": {
+  "story": "A diffusion model starts from a canvas of pure random noise. A denoiser network, guided by the text prompt, guesses the noise in the canvas. We subtract a small share of that guess and repeat. Step by step the noise meter falls to zero and an image is left.",
+  "aha": {
+   "stateId": "done",
+   "observation": "Nothing is drawn directly. The image is what remains after the denoiser's noise guess is subtracted, a little at a time, until the noise meter reads 0%."
+  },
+  "layout": {
+   "preset": "stepper-pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "steps",
+    "kind": "select",
+    "label": "Denoising steps",
+    "options": [
+     "4 steps",
+     "8 steps"
+    ],
+    "default": 0,
+    "presentation": "Selects the variant: more steps means a smaller noise share removed per step"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "4 steps",
+     "regions": [
+      {
+       "id": "prompt",
+       "label": "Text prompt",
+       "kind": "input",
+       "values": [
+        "\"a cat\""
+       ]
+      },
+      {
+       "id": "canvas",
+       "label": "Canvas",
+       "kind": "image",
+       "phases": [
+        "pure noise",
+        "rough blobs",
+        "cat shape",
+        "sharp cat image"
+       ]
+      },
+      {
+       "id": "denoiser",
+       "label": "Denoiser network",
+       "kind": "actor",
+       "actors": [
+        "trained neural network"
+       ]
+      },
+      {
+       "id": "noise-guess",
+       "label": "Noise guess",
+       "kind": "image",
+       "values": [
+        "predicted noise pattern"
+       ]
+      },
+      {
+       "id": "update",
+       "label": "Subtract step",
+       "kind": "operation",
+       "values": [
+        "canvas − 25% of guess"
+       ]
+      },
+      {
+       "id": "noise-meter",
+       "label": "Noise meter",
+       "kind": "scale",
+       "values": [
+        "100%",
+        "75%",
+        "50%",
+        "25%",
+        "0%"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "canvas",
+       "to": "denoiser",
+       "label": "noisy input"
+      },
+      {
+       "from": "prompt",
+       "to": "denoiser",
+       "label": "guides"
+      },
+      {
+       "from": "denoiser",
+       "to": "noise-guess",
+       "label": "predicts"
+      },
+      {
+       "from": "noise-guess",
+       "to": "update",
+       "label": "share removed"
+      },
+      {
+       "from": "update",
+       "to": "canvas",
+       "label": "new canvas"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Pure noise",
+       "short": "Start",
+       "sentence": "Generation begins with a canvas filled with random noise. No picture exists yet.",
+       "why": "Every image starts as the same kind of static.",
+       "calloutRegion": "canvas",
+       "active": [
+        "canvas",
+        "noise-meter"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "0 of 4"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "100%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "25%"
+        }
+       ]
+      },
+      {
+       "id": "predict",
+       "label": "Guess the noise",
+       "short": "Predict",
+       "sentence": "The denoiser looks at the noisy canvas and the prompt, then guesses which part is noise.",
+       "why": "The prompt steers the guess toward a cat.",
+       "calloutRegion": "denoiser",
+       "active": [
+        "canvas",
+        "prompt",
+        "denoiser",
+        "noise-guess"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "1 of 4"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "100%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "25%"
+        }
+       ]
+      },
+      {
+       "id": "first",
+       "label": "Subtract a little",
+       "short": "Step 1",
+       "sentence": "Only a quarter of the guessed noise is subtracted. The canvas changes slightly, into faint blobs.",
+       "why": "Small steps keep each guess easy to get right.",
+       "calloutRegion": "update",
+       "active": [
+        "noise-guess",
+        "update",
+        "canvas",
+        "noise-meter"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "1 of 4"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "75%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "25%"
+        }
+       ]
+      },
+      {
+       "id": "middle",
+       "label": "Repeat: shape appears",
+       "short": "Step 2",
+       "sentence": "The same guess-and-subtract loop runs again on the new canvas. A rough cat shape emerges.",
+       "why": "Same network, same rule, cleaner input.",
+       "calloutRegion": "canvas",
+       "active": [
+        "denoiser",
+        "update",
+        "canvas",
+        "noise-meter"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "2 of 4"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "50%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "25%"
+        }
+       ]
+      },
+      {
+       "id": "late",
+       "label": "Repeat: details form",
+       "short": "Step 3",
+       "sentence": "With less noise left, the guesses refine edges and fur. The shape firms up.",
+       "why": "Later steps add detail, not layout.",
+       "calloutRegion": "noise-meter",
+       "active": [
+        "denoiser",
+        "update",
+        "canvas",
+        "noise-meter"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "3 of 4"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "25%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "25%"
+        }
+       ]
+      },
+      {
+       "id": "done",
+       "label": "Image remains",
+       "short": "Done",
+       "sentence": "After the last subtraction the noise meter reads 0%. What is left on the canvas is the image.",
+       "why": "The picture is the leftover after repeated noise removal.",
+       "calloutRegion": "canvas",
+       "active": [
+        "canvas",
+        "noise-meter"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "4 of 4"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "0%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "25%"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "8 steps",
+     "regions": [
+      {
+       "id": "prompt",
+       "label": "Text prompt",
+       "kind": "input",
+       "values": [
+        "\"a cat\""
+       ]
+      },
+      {
+       "id": "canvas",
+       "label": "Canvas",
+       "kind": "image",
+       "phases": [
+        "pure noise",
+        "rough blobs",
+        "cat shape",
+        "sharp cat image"
+       ]
+      },
+      {
+       "id": "denoiser",
+       "label": "Denoiser network",
+       "kind": "actor",
+       "actors": [
+        "trained neural network"
+       ]
+      },
+      {
+       "id": "noise-guess",
+       "label": "Noise guess",
+       "kind": "image",
+       "values": [
+        "predicted noise pattern"
+       ]
+      },
+      {
+       "id": "update",
+       "label": "Subtract step",
+       "kind": "operation",
+       "values": [
+        "canvas − 12.5% of guess"
+       ]
+      },
+      {
+       "id": "noise-meter",
+       "label": "Noise meter",
+       "kind": "scale",
+       "values": [
+        "100%",
+        "87.5%",
+        "50%",
+        "25%",
+        "0%"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "canvas",
+       "to": "denoiser",
+       "label": "noisy input"
+      },
+      {
+       "from": "prompt",
+       "to": "denoiser",
+       "label": "guides"
+      },
+      {
+       "from": "denoiser",
+       "to": "noise-guess",
+       "label": "predicts"
+      },
+      {
+       "from": "noise-guess",
+       "to": "update",
+       "label": "share removed"
+      },
+      {
+       "from": "update",
+       "to": "canvas",
+       "label": "new canvas"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Pure noise",
+       "short": "Start",
+       "sentence": "Generation begins with a canvas filled with random noise. No picture exists yet.",
+       "why": "Every image starts as the same kind of static.",
+       "calloutRegion": "canvas",
+       "active": [
+        "canvas",
+        "noise-meter"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "0 of 8"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "100%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "12.5%"
+        }
+       ]
+      },
+      {
+       "id": "predict",
+       "label": "Guess the noise",
+       "short": "Predict",
+       "sentence": "The denoiser looks at the noisy canvas and the prompt, then guesses which part is noise.",
+       "why": "The prompt steers the guess toward a cat.",
+       "calloutRegion": "denoiser",
+       "active": [
+        "canvas",
+        "prompt",
+        "denoiser",
+        "noise-guess"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "1 of 8"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "100%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "12.5%"
+        }
+       ]
+      },
+      {
+       "id": "first",
+       "label": "Subtract a little",
+       "short": "Step 1",
+       "sentence": "Only an eighth of the guessed noise is subtracted. The canvas barely changes.",
+       "why": "More steps mean smaller, safer corrections.",
+       "calloutRegion": "update",
+       "active": [
+        "noise-guess",
+        "update",
+        "canvas",
+        "noise-meter"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "1 of 8"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "87.5%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "12.5%"
+        }
+       ]
+      },
+      {
+       "id": "middle",
+       "label": "Repeat: shape appears",
+       "short": "Step 4",
+       "sentence": "After four more guess-and-subtract rounds, half the noise is gone and a rough cat shape shows.",
+       "why": "Same network, same rule, repeated.",
+       "calloutRegion": "canvas",
+       "active": [
+        "denoiser",
+        "update",
+        "canvas",
+        "noise-meter"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "4 of 8"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "50%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "12.5%"
+        }
+       ]
+      },
+      {
+       "id": "late",
+       "label": "Repeat: details form",
+       "short": "Step 6",
+       "sentence": "With a quarter of the noise left, the guesses refine edges and fur.",
+       "why": "Later steps add detail, not layout.",
+       "calloutRegion": "noise-meter",
+       "active": [
+        "denoiser",
+        "update",
+        "canvas",
+        "noise-meter"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "6 of 8"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "25%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "12.5%"
+        }
+       ]
+      },
+      {
+       "id": "done",
+       "label": "Image remains",
+       "short": "Done",
+       "sentence": "After the eighth subtraction the noise meter reads 0%. What is left on the canvas is the image.",
+       "why": "The picture is the leftover after repeated noise removal.",
+       "calloutRegion": "canvas",
+       "active": [
+        "canvas",
+        "noise-meter"
+       ],
+       "readouts": [
+        {
+         "id": "t",
+         "label": "Step",
+         "value": "8 of 8"
+        },
+        {
+         "id": "n",
+         "label": "Noise left",
+         "value": "0%"
+        },
+        {
+         "id": "r",
+         "label": "Removed per step",
+         "value": "12.5%"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3072,
+  "output": 6149
+ },
+ "usd": 0.067634,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture with canvas, denoiser, noise guess, subtract step and meter, linked in a loop, shows that the image is what remains after repeated noise removal."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'done' is the final stepper state, so it holds at noise 0% until the learner acts, and nothing is timed."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The steps select changes the removal share (25% vs 12.5%), the number of states, and the noise-left values, so it changes the experiment."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Callout targets, active lists, links and readouts all reference declared region ids and state fields, and the ghost binds to the previous state's active regions."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The sentences, region labels and controls consistently name the canvas, denoiser, noise guess, subtract step and noise meter."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each state highlights two to four regions and shows three readouts, which fits the balanced depth without clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The values compute correctly, but the share removed appears in both the update region ('canvas − 25% of guess') and the 'Removed per step' readout, and the 'Step 1 of N' readout appears twice. The 8-step meter scale also skips from 87.5% to 50%."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.022086
+ }
+}

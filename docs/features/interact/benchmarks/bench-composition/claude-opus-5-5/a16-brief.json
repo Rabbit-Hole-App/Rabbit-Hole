@@ -1,0 +1,480 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a16",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "explain the OSI model of networking",
+ "ts": "2026-11-14T22:27:41.713Z",
+ "ms": 41913,
+ "raw": "{\"story\":\"A browser request leaves an app and moves down the sender's seven OSI layers. Each layer does one job. The lower layers wrap the message in their own headers. On the wire, the request is bits inside nested wrappers. The receiver goes back up the layers, and each layer removes only the wrapper its matching layer added.\",\"aha\":{\"stateId\":\"s7\",\"observation\":\"On the wire, the original request is still inside. Transport, Network and Data Link each added a wrapper, and Physical sends everything as bits.\"},\"layout\":{\"preset\":\"stepper-rail-picture-readout\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Horizontal step names above the picture\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Sender's layer stack from L7 at the top to L1 at the bottom, then a wire to the receiver; the active layer is highlighted\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the highlighted layer\"},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Unit name, current message and wrapper count\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons, keyboard arrows; names stay visible when disabled at the ends\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to step 1\"}],\"data\":{\"variants\":[{\"label\":\"Web request through OSI\",\"regions\":[{\"id\":\"L7\",\"label\":\"7 Application\",\"kind\":\"layer\",\"values\":[\"App's request (HTTP)\"]},{\"id\":\"L6\",\"label\":\"6 Presentation\",\"kind\":\"layer\",\"values\":[\"Formats and encrypts\"]},{\"id\":\"L5\",\"label\":\"5 Session\",\"kind\":\"layer\",\"values\":[\"Keeps the conversation open\"]},{\"id\":\"L4\",\"label\":\"4 Transport\",\"kind\":\"layer\",\"values\":[\"Ports, reliable delivery (TCP)\"]},{\"id\":\"L3\",\"label\":\"3 Network\",\"kind\":\"layer\",\"values\":[\"IP addresses, routing\"]},{\"id\":\"L2\",\"label\":\"2 Data Link\",\"kind\":\"layer\",\"values\":[\"MAC addresses, next hop\"]},{\"id\":\"L1\",\"label\":\"1 Physical\",\"kind\":\"layer\",\"values\":[\"Bits as signals\"]},{\"id\":\"wire\",\"label\":\"Wire\",\"kind\":\"medium\",\"values\":[\"Cable, fiber or radio\"]},{\"id\":\"receiver\",\"label\":\"Receiver's stack\",\"kind\":\"host\",\"actors\":[\"Server\"]}],\"links\":[{\"from\":\"L7\",\"to\":\"L6\",\"label\":\"down\"},{\"from\":\"L6\",\"to\":\"L5\",\"label\":\"down\"},{\"from\":\"L5\",\"to\":\"L4\",\"label\":\"down\"},{\"from\":\"L4\",\"to\":\"L3\",\"label\":\"down\"},{\"from\":\"L3\",\"to\":\"L2\",\"label\":\"down\"},{\"from\":\"L2\",\"to\":\"L1\",\"label\":\"down\"},{\"from\":\"L1\",\"to\":\"wire\",\"label\":\"signal\"},{\"from\":\"wire\",\"to\":\"receiver\",\"label\":\"up L1→L7\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Application\",\"short\":\"L7\",\"active\":[\"L7\"],\"calloutRegion\":\"L7\",\"sentence\":\"The browser creates a request for a web page. This is the data the user cares about.\",\"why\":\"Layer 7 is where apps send and receive data over the network.\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Data\"},{\"id\":\"msg\",\"label\":\"Message\",\"value\":\"GET /index.html\"},{\"id\":\"wraps\",\"label\":\"Wrappers added\",\"value\":\"0\"}]},{\"id\":\"s2\",\"label\":\"Presentation\",\"short\":\"L6\",\"active\":[\"L6\"],\"calloutRegion\":\"L6\",\"sentence\":\"The request is encoded and encrypted. Its content stays the same, but its format changes.\",\"why\":\"Layer 6 makes sure both sides read the data the same way.\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Data\"},{\"id\":\"msg\",\"label\":\"Message\",\"value\":\"encrypted(GET /index.html)\"},{\"id\":\"wraps\",\"label\":\"Wrappers added\",\"value\":\"0\"}]},{\"id\":\"s3\",\"label\":\"Session\",\"short\":\"L5\",\"active\":[\"L5\"],\"calloutRegion\":\"L5\",\"sentence\":\"The request is linked to an ongoing conversation, so replies return to the right exchange.\",\"why\":\"Layer 5 opens, keeps and closes conversations.\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Data\"},{\"id\":\"msg\",\"label\":\"Message\",\"value\":\"session 42: encrypted request\"},{\"id\":\"wraps\",\"label\":\"Wrappers added\",\"value\":\"0\"}]},{\"id\":\"s4\",\"label\":\"Transport\",\"short\":\"L4\",\"active\":[\"L4\"],\"calloutRegion\":\"L4\",\"sentence\":\"Transport adds the first wrapper, a TCP header with port numbers and sequence numbers.\",\"why\":\"Ports pick the receiving app. Sequence numbers let lost pieces be sent again.\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Segment\"},{\"id\":\"msg\",\"label\":\"Message\",\"value\":\"[TCP :443] data\"},{\"id\":\"wraps\",\"label\":\"Wrappers added\",\"value\":\"1\"}]},{\"id\":\"s5\",\"label\":\"Network\",\"short\":\"L3\",\"active\":[\"L3\"],\"calloutRegion\":\"L3\",\"sentence\":\"Network wraps the segment in an IP header with the source and destination addresses.\",\"why\":\"Routers read only this header to choose the next path across networks.\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Packet\"},{\"id\":\"msg\",\"label\":\"Message\",\"value\":\"[IP][TCP] data\"},{\"id\":\"wraps\",\"label\":\"Wrappers added\",\"value\":\"2\"}]},{\"id\":\"s6\",\"label\":\"Data Link\",\"short\":\"L2\",\"active\":[\"L2\"],\"calloutRegion\":\"L2\",\"sentence\":\"Data Link adds an Ethernet header with MAC addresses and an error-check trailer.\",\"why\":\"Layer 2 moves the packet one hop on the local network.\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Frame\"},{\"id\":\"msg\",\"label\":\"Message\",\"value\":\"[Eth][IP][TCP] data [FCS]\"},{\"id\":\"wraps\",\"label\":\"Wrappers added\",\"value\":\"3 + trailer\"}]},{\"id\":\"s7\",\"label\":\"Physical\",\"short\":\"L1\",\"active\":[\"L1\",\"wire\"],\"calloutRegion\":\"wire\",\"sentence\":\"Physical sends the whole frame as bits. The original request is still inside all the wrappers.\",\"why\":\"Each wrapper came from a different layer. The wire only carries ones and zeros.\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Bits\"},{\"id\":\"msg\",\"label\":\"Message\",\"value\":\"10110010 01101… (Eth, IP, TCP and data inside)\"},{\"id\":\"wraps\",\"label\":\"Wrappers added\",\"value\":\"3 + trailer\"}]},{\"id\":\"s8\",\"label\":\"Receiver\",\"short\":\"Up\",\"active\":[\"receiver\"],\"calloutRegion\":\"receiver\",\"sentence\":\"Going up the receiver's stack, each layer removes the wrapper its matching sender layer added. The server reads the original request.\",\"why\":\"Matching layers understand each other's headers, so the layers stay independent.\",\"readouts\":[{\"id\":\"unit\",\"label\":\"Unit\",\"value\":\"Data\"},{\"id\":\"msg\",\"label\":\"Message\",\"value\":\"GET /index.html\"},{\"id\":\"wraps\",\"label\":\"Wrappers left\",\"value\":\"0\"}]}]}]}}",
+ "composition": {
+  "story": "A browser request leaves an app and moves down the sender's seven OSI layers. Each layer does one job. The lower layers wrap the message in their own headers. On the wire, the request is bits inside nested wrappers. The receiver goes back up the layers, and each layer removes only the wrapper its matching layer added.",
+  "aha": {
+   "stateId": "s7",
+   "observation": "On the wire, the original request is still inside. Transport, Network and Data Link each added a wrapper, and Physical sends everything as bits."
+  },
+  "layout": {
+   "preset": "stepper-rail-picture-readout",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Horizontal step names above the picture"
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Sender's layer stack from L7 at the top to L1 at the bottom, then a wire to the receiver; the active layer is highlighted"
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the highlighted layer"
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Unit name, current message and wrapper count"
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons, keyboard arrows; names stay visible when disabled at the ends"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to step 1"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Web request through OSI",
+     "regions": [
+      {
+       "id": "L7",
+       "label": "7 Application",
+       "kind": "layer",
+       "values": [
+        "App's request (HTTP)"
+       ]
+      },
+      {
+       "id": "L6",
+       "label": "6 Presentation",
+       "kind": "layer",
+       "values": [
+        "Formats and encrypts"
+       ]
+      },
+      {
+       "id": "L5",
+       "label": "5 Session",
+       "kind": "layer",
+       "values": [
+        "Keeps the conversation open"
+       ]
+      },
+      {
+       "id": "L4",
+       "label": "4 Transport",
+       "kind": "layer",
+       "values": [
+        "Ports, reliable delivery (TCP)"
+       ]
+      },
+      {
+       "id": "L3",
+       "label": "3 Network",
+       "kind": "layer",
+       "values": [
+        "IP addresses, routing"
+       ]
+      },
+      {
+       "id": "L2",
+       "label": "2 Data Link",
+       "kind": "layer",
+       "values": [
+        "MAC addresses, next hop"
+       ]
+      },
+      {
+       "id": "L1",
+       "label": "1 Physical",
+       "kind": "layer",
+       "values": [
+        "Bits as signals"
+       ]
+      },
+      {
+       "id": "wire",
+       "label": "Wire",
+       "kind": "medium",
+       "values": [
+        "Cable, fiber or radio"
+       ]
+      },
+      {
+       "id": "receiver",
+       "label": "Receiver's stack",
+       "kind": "host",
+       "actors": [
+        "Server"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "L7",
+       "to": "L6",
+       "label": "down"
+      },
+      {
+       "from": "L6",
+       "to": "L5",
+       "label": "down"
+      },
+      {
+       "from": "L5",
+       "to": "L4",
+       "label": "down"
+      },
+      {
+       "from": "L4",
+       "to": "L3",
+       "label": "down"
+      },
+      {
+       "from": "L3",
+       "to": "L2",
+       "label": "down"
+      },
+      {
+       "from": "L2",
+       "to": "L1",
+       "label": "down"
+      },
+      {
+       "from": "L1",
+       "to": "wire",
+       "label": "signal"
+      },
+      {
+       "from": "wire",
+       "to": "receiver",
+       "label": "up L1→L7"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Application",
+       "short": "L7",
+       "active": [
+        "L7"
+       ],
+       "calloutRegion": "L7",
+       "sentence": "The browser creates a request for a web page. This is the data the user cares about.",
+       "why": "Layer 7 is where apps send and receive data over the network.",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Data"
+        },
+        {
+         "id": "msg",
+         "label": "Message",
+         "value": "GET /index.html"
+        },
+        {
+         "id": "wraps",
+         "label": "Wrappers added",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Presentation",
+       "short": "L6",
+       "active": [
+        "L6"
+       ],
+       "calloutRegion": "L6",
+       "sentence": "The request is encoded and encrypted. Its content stays the same, but its format changes.",
+       "why": "Layer 6 makes sure both sides read the data the same way.",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Data"
+        },
+        {
+         "id": "msg",
+         "label": "Message",
+         "value": "encrypted(GET /index.html)"
+        },
+        {
+         "id": "wraps",
+         "label": "Wrappers added",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Session",
+       "short": "L5",
+       "active": [
+        "L5"
+       ],
+       "calloutRegion": "L5",
+       "sentence": "The request is linked to an ongoing conversation, so replies return to the right exchange.",
+       "why": "Layer 5 opens, keeps and closes conversations.",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Data"
+        },
+        {
+         "id": "msg",
+         "label": "Message",
+         "value": "session 42: encrypted request"
+        },
+        {
+         "id": "wraps",
+         "label": "Wrappers added",
+         "value": "0"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Transport",
+       "short": "L4",
+       "active": [
+        "L4"
+       ],
+       "calloutRegion": "L4",
+       "sentence": "Transport adds the first wrapper, a TCP header with port numbers and sequence numbers.",
+       "why": "Ports pick the receiving app. Sequence numbers let lost pieces be sent again.",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Segment"
+        },
+        {
+         "id": "msg",
+         "label": "Message",
+         "value": "[TCP :443] data"
+        },
+        {
+         "id": "wraps",
+         "label": "Wrappers added",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Network",
+       "short": "L3",
+       "active": [
+        "L3"
+       ],
+       "calloutRegion": "L3",
+       "sentence": "Network wraps the segment in an IP header with the source and destination addresses.",
+       "why": "Routers read only this header to choose the next path across networks.",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Packet"
+        },
+        {
+         "id": "msg",
+         "label": "Message",
+         "value": "[IP][TCP] data"
+        },
+        {
+         "id": "wraps",
+         "label": "Wrappers added",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Data Link",
+       "short": "L2",
+       "active": [
+        "L2"
+       ],
+       "calloutRegion": "L2",
+       "sentence": "Data Link adds an Ethernet header with MAC addresses and an error-check trailer.",
+       "why": "Layer 2 moves the packet one hop on the local network.",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Frame"
+        },
+        {
+         "id": "msg",
+         "label": "Message",
+         "value": "[Eth][IP][TCP] data [FCS]"
+        },
+        {
+         "id": "wraps",
+         "label": "Wrappers added",
+         "value": "3 + trailer"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Physical",
+       "short": "L1",
+       "active": [
+        "L1",
+        "wire"
+       ],
+       "calloutRegion": "wire",
+       "sentence": "Physical sends the whole frame as bits. The original request is still inside all the wrappers.",
+       "why": "Each wrapper came from a different layer. The wire only carries ones and zeros.",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Bits"
+        },
+        {
+         "id": "msg",
+         "label": "Message",
+         "value": "10110010 01101… (Eth, IP, TCP and data inside)"
+        },
+        {
+         "id": "wraps",
+         "label": "Wrappers added",
+         "value": "3 + trailer"
+        }
+       ]
+      },
+      {
+       "id": "s8",
+       "label": "Receiver",
+       "short": "Up",
+       "active": [
+        "receiver"
+       ],
+       "calloutRegion": "receiver",
+       "sentence": "Going up the receiver's stack, each layer removes the wrapper its matching sender layer added. The server reads the original request.",
+       "why": "Matching layers understand each other's headers, so the layers stay independent.",
+       "readouts": [
+        {
+         "id": "unit",
+         "label": "Unit",
+         "value": "Data"
+        },
+        {
+         "id": "msg",
+         "label": "Message",
+         "value": "GET /index.html"
+        },
+        {
+         "id": "wraps",
+         "label": "Wrappers left",
+         "value": "0"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 4604
+ },
+ "usd": 0.104352,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed layer stack with wire and receiver, plus nested-wrapper message readouts, shows how encapsulation and decapsulation work."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s7 is a stepper state that stays on the wire with the original data still inside until the learner presses Next."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is a step index with no parameter, and no fixed comparison is offered or justified beyond the narrative sequence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlight, callout, readouts and rail all bind to state.active, calloutRegion, sentence and readouts, and each region and link is declared in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "Story, callouts and readouts consistently name the same layers, wrappers and units, with only minor wording drift such as \"wrap\" versus \"trailer\" and \"added\" versus \"left\"."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each step highlights one region and adds one wrapper to the message, with no extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Wrapper counts progress correctly (0, 0, 0, 1, 2, 3 + trailer, then 0 left), and callouts locate while readouts quantify, with only mild repetition between the message string and the count."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018178
+ }
+}

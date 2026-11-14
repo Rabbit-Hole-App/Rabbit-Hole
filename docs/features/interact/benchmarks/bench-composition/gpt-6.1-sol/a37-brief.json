@@ -1,0 +1,209 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a37",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "what happens to the centroids in k-means each iteration?",
+ "ts": "2026-11-14T22:55:57.415Z",
+ "ms": 76546,
+ "raw": "{\n  \"story\": \"What happens to k-means centroids each iteration? Start with two guesses and four fixed points on a line. Assign each point to its nearest centroid, then move each centroid to its assigned points’ mean. Repeat these two steps until the centroids stop changing.\",\n  \"aha\": {\n    \"stateId\": \"recenter\",\n    \"observation\": \"Each centroid moves to the arithmetic mean of its assigned points; the sample points stay fixed.\"\n  },\n  \"layout\": {\n    \"preset\": \"approved-card/stepper-states/algorithm-collection\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"iteration-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation and above the experiment. Highlight the current state; the rail carries all progress information.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"cluster-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical collection composition as one horizontal cluster line. Phase entries align with the state index. Coordinates use one fixed, linear axis spanning zero through ten data units. Render sample points as circles and centroids as labeled crosshairs on a separate aligned lane. Show sample identities and centroid names, without coordinate labels. Show membership using matching letters and colors, never color alone. Render each phase immediately, without animation. Assumptions: one-dimensional k-means, two clusters, nearest-centroid assignment, arithmetic-mean updates, no ties, and no empty clusters.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"links\": \"variant.links\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor the callout to the centroid lane within the named region. Callout text identifies the change; its reason supplies the bound status line. Keep both free of numerical values.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"measurements\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place compact readouts below the picture. Coordinates use data units, measured from the same axis origin. Display exact integers without rounding. Readouts contain all visible coordinate numbers. Centroid coordinates match the active phase; recentered coordinates are the arithmetic means of that phase’s assigned sample coordinates.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Iteration step\",\n      \"presentation\": \"Navigation budget: one index control; parameter-control budget: zero. Default index zero; bounds zero through two; increment one. Provide Previous and Next, retaining their names when disabled at boundaries. Every state persists until learner action, including Recenter, the aha state. Reference captures show Recenter. Use accessible button names, visible focus, and keyboard activation.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and default index; fixed inputs remain unchanged. Provide visible focus and keyboard activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"One-dimensional k-means: two centroids\",\n        \"regions\": [\n          {\n            \"id\": \"cluster-line\",\n            \"label\": \"Fixed samples and Centroids A and B\",\n            \"phases\": [\n              \"Samples: P@0, Q@2, R@8, S@10. Centroids: A@0, B@6. Membership: unassigned.\",\n              \"Samples: P@0, Q@2, R@8, S@10. Centroids: A@0, B@6. Membership: A={P,Q}; B={R,S}.\",\n              \"Samples: P@0, Q@2, R@8, S@10. Centroids: A@1, B@9. Membership: A={P,Q}; B={R,S}.\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"initial\",\n            \"label\": \"Initial guesses\",\n            \"short\": \"Start\",\n            \"sentence\": \"Centroids A and B begin at their initial guesses.\",\n            \"why\": \"Status: The samples are fixed; no points have been assigned.\",\n            \"active\": [\n              \"cluster-line\"\n            ],\n            \"calloutRegion\": \"cluster-line\",\n            \"readouts\": [\n              {\n                \"id\": \"sample-coordinates\",\n                \"label\": \"Fixed samples · data units\",\n                \"value\": \"P: 0; Q: 2; R: 8; S: 10\"\n              },\n              {\n                \"id\": \"centroid-a\",\n                \"label\": \"Centroid A · data units\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"centroid-b\",\n                \"label\": \"Centroid B · data units\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"memberships\",\n                \"label\": \"Assigned samples\",\n                \"value\": \"Not assigned\"\n              }\n            ]\n          },\n          {\n            \"id\": \"assign\",\n            \"label\": \"Assign points\",\n            \"short\": \"Assign\",\n            \"sentence\": \"Points join their nearest centroid; Centroids A and B have not moved yet.\",\n            \"why\": \"Status: Membership is fixed for the upcoming centroid update.\",\n            \"active\": [\n              \"cluster-line\"\n            ],\n            \"calloutRegion\": \"cluster-line\",\n            \"readouts\": [\n              {\n                \"id\": \"sample-coordinates\",\n                \"label\": \"Fixed samples · data units\",\n                \"value\": \"P: 0; Q: 2; R: 8; S: 10\"\n              },\n              {\n                \"id\": \"centroid-a\",\n                \"label\": \"Centroid A · data units\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"centroid-b\",\n                \"label\": \"Centroid B · data units\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"memberships\",\n                \"label\": \"Assigned samples\",\n                \"value\": \"A: P, Q; B: R, S\"\n              }\n            ]\n          },\n          {\n            \"id\": \"recenter\",\n            \"label\": \"Recenter\",\n            \"short\": \"Mean\",\n            \"sentence\": \"Centroids A and B now sit at the means of their assigned samples.\",\n            \"why\": \"Status: One iteration is complete; repeat assignment and recentering for subsequent iterations.\",\n            \"active\": [\n              \"cluster-line\"\n            ],\n            \"calloutRegion\": \"cluster-line\",\n            \"readouts\": [\n              {\n                \"id\": \"sample-coordinates\",\n                \"label\": \"Fixed samples · data units\",\n                \"value\": \"P: 0; Q: 2; R: 8; S: 10\"\n              },\n              {\n                \"id\": \"centroid-a\",\n                \"label\": \"Centroid A · data units\",\n                \"value\": \"1\"\n              },\n              {\n                \"id\": \"centroid-b\",\n                \"label\": \"Centroid B · data units\",\n                \"value\": \"9\"\n              },\n              {\n                \"id\": \"memberships\",\n                \"label\": \"Assigned samples\",\n                \"value\": \"A: P, Q; B: R, S\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "What happens to k-means centroids each iteration? Start with two guesses and four fixed points on a line. Assign each point to its nearest centroid, then move each centroid to its assigned points’ mean. Repeat these two steps until the centroids stop changing.",
+  "aha": {
+   "stateId": "recenter",
+   "observation": "Each centroid moves to the arithmetic mean of its assigned points; the sample points stay fixed."
+  },
+  "layout": {
+   "preset": "approved-card/stepper-states/algorithm-collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "iteration-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation and above the experiment. Highlight the current state; the rail carries all progress information.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "cluster-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical collection composition as one horizontal cluster line. Phase entries align with the state index. Coordinates use one fixed, linear axis spanning zero through ten data units. Render sample points as circles and centroids as labeled crosshairs on a separate aligned lane. Show sample identities and centroid names, without coordinate labels. Show membership using matching letters and colors, never color alone. Render each phase immediately, without animation. Assumptions: one-dimensional k-means, two clusters, nearest-centroid assignment, arithmetic-mean updates, no ties, and no empty clusters.",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "links": "variant.links"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor the callout to the centroid lane within the named region. Callout text identifies the change; its reason supplies the bound status line. Keep both free of numerical values.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "measurements",
+    "kind": "value-readout",
+    "presentation": "Place compact readouts below the picture. Coordinates use data units, measured from the same axis origin. Display exact integers without rounding. Readouts contain all visible coordinate numbers. Centroid coordinates match the active phase; recentered coordinates are the arithmetic means of that phase’s assigned sample coordinates.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Iteration step",
+    "presentation": "Navigation budget: one index control; parameter-control budget: zero. Default index zero; bounds zero through two; increment one. Provide Previous and Next, retaining their names when disabled at boundaries. Every state persists until learner action, including Recenter, the aha state. Reference captures show Recenter. Use accessible button names, visible focus, and keyboard activation."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and default index; fixed inputs remain unchanged. Provide visible focus and keyboard activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "One-dimensional k-means: two centroids",
+     "regions": [
+      {
+       "id": "cluster-line",
+       "label": "Fixed samples and Centroids A and B",
+       "phases": [
+        "Samples: P@0, Q@2, R@8, S@10. Centroids: A@0, B@6. Membership: unassigned.",
+        "Samples: P@0, Q@2, R@8, S@10. Centroids: A@0, B@6. Membership: A={P,Q}; B={R,S}.",
+        "Samples: P@0, Q@2, R@8, S@10. Centroids: A@1, B@9. Membership: A={P,Q}; B={R,S}."
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "initial",
+       "label": "Initial guesses",
+       "short": "Start",
+       "sentence": "Centroids A and B begin at their initial guesses.",
+       "why": "Status: The samples are fixed; no points have been assigned.",
+       "active": [
+        "cluster-line"
+       ],
+       "calloutRegion": "cluster-line",
+       "readouts": [
+        {
+         "id": "sample-coordinates",
+         "label": "Fixed samples · data units",
+         "value": "P: 0; Q: 2; R: 8; S: 10"
+        },
+        {
+         "id": "centroid-a",
+         "label": "Centroid A · data units",
+         "value": "0"
+        },
+        {
+         "id": "centroid-b",
+         "label": "Centroid B · data units",
+         "value": "6"
+        },
+        {
+         "id": "memberships",
+         "label": "Assigned samples",
+         "value": "Not assigned"
+        }
+       ]
+      },
+      {
+       "id": "assign",
+       "label": "Assign points",
+       "short": "Assign",
+       "sentence": "Points join their nearest centroid; Centroids A and B have not moved yet.",
+       "why": "Status: Membership is fixed for the upcoming centroid update.",
+       "active": [
+        "cluster-line"
+       ],
+       "calloutRegion": "cluster-line",
+       "readouts": [
+        {
+         "id": "sample-coordinates",
+         "label": "Fixed samples · data units",
+         "value": "P: 0; Q: 2; R: 8; S: 10"
+        },
+        {
+         "id": "centroid-a",
+         "label": "Centroid A · data units",
+         "value": "0"
+        },
+        {
+         "id": "centroid-b",
+         "label": "Centroid B · data units",
+         "value": "6"
+        },
+        {
+         "id": "memberships",
+         "label": "Assigned samples",
+         "value": "A: P, Q; B: R, S"
+        }
+       ]
+      },
+      {
+       "id": "recenter",
+       "label": "Recenter",
+       "short": "Mean",
+       "sentence": "Centroids A and B now sit at the means of their assigned samples.",
+       "why": "Status: One iteration is complete; repeat assignment and recentering for subsequent iterations.",
+       "active": [
+        "cluster-line"
+       ],
+       "calloutRegion": "cluster-line",
+       "readouts": [
+        {
+         "id": "sample-coordinates",
+         "label": "Fixed samples · data units",
+         "value": "P: 0; Q: 2; R: 8; S: 10"
+        },
+        {
+         "id": "centroid-a",
+         "label": "Centroid A · data units",
+         "value": "1"
+        },
+        {
+         "id": "centroid-b",
+         "label": "Centroid B · data units",
+         "value": "9"
+        },
+        {
+         "id": "memberships",
+         "label": "Assigned samples",
+         "value": "A: P, Q; B: R, S"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1539,
+  "output": 4272
+ },
+ "usd": 0.042928,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3eQ6crcXrXeHGpHT1rd\"}"
+  },
+  "cardUsd": 0
+ }
+}

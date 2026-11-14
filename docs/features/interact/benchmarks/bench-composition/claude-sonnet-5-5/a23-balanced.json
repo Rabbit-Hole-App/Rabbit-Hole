@@ -1,0 +1,554 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a23",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does a decision tree search for the best threshold on one feature?",
+ "ts": "2026-11-14T22:27:43.574Z",
+ "ms": 35103,
+ "raw": "{\"story\":\"Seven samples sit sorted on one feature, each labelled A or B. The tree tries every midpoint between neighbours as a cut. For each cut it scores the left and right groups by weighted Gini impurity. Stepping through all six cuts shows why 3.5 wins: it leaves the purest children.\",\"aha\":{\"stateId\":\"best\",\"observation\":\"Cut 3.5 wins: its children are purest overall, weighted Gini 0.214, lower than all five other midpoints, the nearest being 5.5 at 0.229.\"},\"layout\":{\"preset\":\"stepper-algorithm-collection\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"inputs.step\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"inputs.step\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Threshold search on feature x (7 samples, 4 A and 3 B)\",\"regions\":[{\"id\":\"s1\",\"label\":\"x=1 A\",\"kind\":\"sample\",\"values\":[\"1\",\"A\"]},{\"id\":\"s2\",\"label\":\"x=2 A\",\"kind\":\"sample\",\"values\":[\"2\",\"A\"]},{\"id\":\"s3\",\"label\":\"x=3 A\",\"kind\":\"sample\",\"values\":[\"3\",\"A\"]},{\"id\":\"s4\",\"label\":\"x=4 B\",\"kind\":\"sample\",\"values\":[\"4\",\"B\"]},{\"id\":\"s5\",\"label\":\"x=5 A\",\"kind\":\"sample\",\"values\":[\"5\",\"A\"]},{\"id\":\"s6\",\"label\":\"x=6 B\",\"kind\":\"sample\",\"values\":[\"6\",\"B\"]},{\"id\":\"s7\",\"label\":\"x=7 B\",\"kind\":\"sample\",\"values\":[\"7\",\"B\"]},{\"id\":\"parent\",\"label\":\"All samples: Gini 0.490\",\"kind\":\"group\"},{\"id\":\"cut\",\"label\":\"Candidate cut\",\"kind\":\"threshold\"},{\"id\":\"left\",\"label\":\"Left child (x below cut)\",\"kind\":\"group\"},{\"id\":\"right\",\"label\":\"Right child (x above cut)\",\"kind\":\"group\"},{\"id\":\"best\",\"label\":\"Best cut so far\",\"kind\":\"result\"}],\"links\":[{\"from\":\"cut\",\"to\":\"left\",\"label\":\"x ≤ cut\"},{\"from\":\"cut\",\"to\":\"right\",\"label\":\"x > cut\"}],\"states\":[{\"id\":\"sorted\",\"label\":\"Sort\",\"sentence\":\"Sort the samples by x. Before any split, the whole set of 7 has Gini impurity 0.490.\",\"why\":\"Sorting makes every possible split a cut between neighbours.\",\"active\":[\"s1\",\"s2\",\"s3\",\"s4\",\"s5\",\"s6\",\"s7\",\"parent\"],\"calloutRegion\":\"parent\",\"short\":\"Sorted\",\"readouts\":[{\"id\":\"cut\",\"label\":\"Cut\",\"value\":\"none\"},{\"id\":\"gini\",\"label\":\"Weighted Gini\",\"value\":\"0.490 (unsplit)\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"none\"}]},{\"id\":\"cands\",\"label\":\"Candidates\",\"sentence\":\"Candidate cuts are midpoints between neighbouring x values: 1.5, 2.5, 3.5, 4.5, 5.5 and 6.5.\",\"why\":\"Only these cuts change which samples go left or right.\",\"active\":[\"s1\",\"s2\",\"s3\",\"s4\",\"s5\",\"s6\",\"s7\",\"cut\"],\"calloutRegion\":\"cut\",\"short\":\"Candidates\",\"readouts\":[{\"id\":\"cut\",\"label\":\"Cuts to test\",\"value\":\"6\"},{\"id\":\"gini\",\"label\":\"Weighted Gini\",\"value\":\"not scored yet\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"none\"}]},{\"id\":\"c15\",\"label\":\"Cut 1.5\",\"sentence\":\"Cut 1.5 sends only x=1 left. The right child is still mixed, so the gain is small.\",\"why\":\"Weighted Gini = (nL·GiniL + nR·GiniR) / 7.\",\"active\":[\"cut\",\"left\",\"right\",\"s1\"],\"calloutRegion\":\"right\",\"short\":\"1.5\",\"readouts\":[{\"id\":\"cut\",\"label\":\"Cut\",\"value\":\"1.5\"},{\"id\":\"lr\",\"label\":\"Left / Right (A,B)\",\"value\":\"(1,0) / (3,3)\"},{\"id\":\"gini\",\"label\":\"Weighted Gini\",\"value\":\"0.429\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"1.5 at 0.429\"}]},{\"id\":\"c25\",\"label\":\"Cut 2.5\",\"sentence\":\"Cut 2.5 puts two pure A samples left. The right child still holds A and B in a 2:3 mix.\",\"why\":\"A pure left child contributes zero impurity.\",\"active\":[\"cut\",\"left\",\"right\",\"s1\",\"s2\"],\"calloutRegion\":\"left\",\"short\":\"2.5\",\"readouts\":[{\"id\":\"cut\",\"label\":\"Cut\",\"value\":\"2.5\"},{\"id\":\"lr\",\"label\":\"Left / Right (A,B)\",\"value\":\"(2,0) / (2,3)\"},{\"id\":\"gini\",\"label\":\"Weighted Gini\",\"value\":\"0.343\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"2.5 at 0.343\"}]},{\"id\":\"c35\",\"label\":\"Cut 3.5\",\"sentence\":\"Cut 3.5 keeps three pure A samples left. The right child is mostly B, with one stray A.\",\"why\":\"Lower weighted impurity than 2.5, so this cut becomes the new best.\",\"active\":[\"cut\",\"left\",\"right\",\"s1\",\"s2\",\"s3\"],\"calloutRegion\":\"cut\",\"short\":\"3.5\",\"readouts\":[{\"id\":\"cut\",\"label\":\"Cut\",\"value\":\"3.5\"},{\"id\":\"lr\",\"label\":\"Left / Right (A,B)\",\"value\":\"(3,0) / (1,3)\"},{\"id\":\"gini\",\"label\":\"Weighted Gini\",\"value\":\"0.214\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"3.5 at 0.214\"}]},{\"id\":\"c45\",\"label\":\"Cut 4.5\",\"sentence\":\"Cut 4.5 pulls B at x=4 into the left child, which becomes mixed. Impurity rises sharply.\",\"why\":\"Both children are now impure, so the weighted score worsens.\",\"active\":[\"cut\",\"left\",\"right\",\"s1\",\"s2\",\"s3\",\"s4\"],\"calloutRegion\":\"left\",\"short\":\"4.5\",\"readouts\":[{\"id\":\"cut\",\"label\":\"Cut\",\"value\":\"4.5\"},{\"id\":\"lr\",\"label\":\"Left / Right (A,B)\",\"value\":\"(3,1) / (1,2)\"},{\"id\":\"gini\",\"label\":\"Weighted Gini\",\"value\":\"0.405\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"3.5 at 0.214\"}]},{\"id\":\"c55\",\"label\":\"Cut 5.5\",\"sentence\":\"Cut 5.5 makes the right child pure B, but the left child holds the one B beside four A.\",\"why\":\"Close to 3.5, yet slightly worse: 0.229 against 0.214.\",\"active\":[\"cut\",\"left\",\"right\",\"s1\",\"s2\",\"s3\",\"s4\",\"s5\"],\"calloutRegion\":\"right\",\"short\":\"5.5\",\"readouts\":[{\"id\":\"cut\",\"label\":\"Cut\",\"value\":\"5.5\"},{\"id\":\"lr\",\"label\":\"Left / Right (A,B)\",\"value\":\"(4,1) / (0,2)\"},{\"id\":\"gini\",\"label\":\"Weighted Gini\",\"value\":\"0.229\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"3.5 at 0.214\"}]},{\"id\":\"c65\",\"label\":\"Cut 6.5\",\"sentence\":\"Cut 6.5 leaves only x=7 on the right. The left child is mixed with 4 A and 2 B.\",\"why\":\"A tiny pure child cannot rescue a large mixed one.\",\"active\":[\"cut\",\"left\",\"right\",\"s1\",\"s2\",\"s3\",\"s4\",\"s5\",\"s6\"],\"calloutRegion\":\"left\",\"short\":\"6.5\",\"readouts\":[{\"id\":\"cut\",\"label\":\"Cut\",\"value\":\"6.5\"},{\"id\":\"lr\",\"label\":\"Left / Right (A,B)\",\"value\":\"(4,2) / (0,1)\"},{\"id\":\"gini\",\"label\":\"Weighted Gini\",\"value\":\"0.381\"},{\"id\":\"best\",\"label\":\"Best so far\",\"value\":\"3.5 at 0.214\"}]},{\"id\":\"best\",\"label\":\"Pick best\",\"sentence\":\"The tree picks the cut with the lowest weighted Gini: x ≤ 3.5, with 0.214 against the parent's 0.490.\",\"why\":\"Best split = argmin over cuts of weighted child impurity.\",\"active\":[\"best\",\"cut\",\"left\",\"right\",\"s1\",\"s2\",\"s3\",\"s4\",\"s5\",\"s6\",\"s7\"],\"calloutRegion\":\"best\",\"short\":\"Best: 3.5\",\"readouts\":[{\"id\":\"cut\",\"label\":\"Chosen cut\",\"value\":\"3.5\"},{\"id\":\"lr\",\"label\":\"Left / Right (A,B)\",\"value\":\"(3,0) / (1,3)\"},{\"id\":\"gini\",\"label\":\"Weighted Gini\",\"value\":\"0.214\"},{\"id\":\"gain\",\"label\":\"Impurity drop\",\"value\":\"0.490 − 0.214 = 0.276\"}]}]}]}}",
+ "composition": {
+  "story": "Seven samples sit sorted on one feature, each labelled A or B. The tree tries every midpoint between neighbours as a cut. For each cut it scores the left and right groups by weighted Gini impurity. Stepping through all six cuts shows why 3.5 wins: it leaves the purest children.",
+  "aha": {
+   "stateId": "best",
+   "observation": "Cut 3.5 wins: its children are purest overall, weighted Gini 0.214, lower than all five other midpoints, the nearest being 5.5 at 0.229."
+  },
+  "layout": {
+   "preset": "stepper-algorithm-collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "inputs.step"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "inputs.step"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Threshold search on feature x (7 samples, 4 A and 3 B)",
+     "regions": [
+      {
+       "id": "s1",
+       "label": "x=1 A",
+       "kind": "sample",
+       "values": [
+        "1",
+        "A"
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "x=2 A",
+       "kind": "sample",
+       "values": [
+        "2",
+        "A"
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "x=3 A",
+       "kind": "sample",
+       "values": [
+        "3",
+        "A"
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "x=4 B",
+       "kind": "sample",
+       "values": [
+        "4",
+        "B"
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "x=5 A",
+       "kind": "sample",
+       "values": [
+        "5",
+        "A"
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "x=6 B",
+       "kind": "sample",
+       "values": [
+        "6",
+        "B"
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "x=7 B",
+       "kind": "sample",
+       "values": [
+        "7",
+        "B"
+       ]
+      },
+      {
+       "id": "parent",
+       "label": "All samples: Gini 0.490",
+       "kind": "group"
+      },
+      {
+       "id": "cut",
+       "label": "Candidate cut",
+       "kind": "threshold"
+      },
+      {
+       "id": "left",
+       "label": "Left child (x below cut)",
+       "kind": "group"
+      },
+      {
+       "id": "right",
+       "label": "Right child (x above cut)",
+       "kind": "group"
+      },
+      {
+       "id": "best",
+       "label": "Best cut so far",
+       "kind": "result"
+      }
+     ],
+     "links": [
+      {
+       "from": "cut",
+       "to": "left",
+       "label": "x ≤ cut"
+      },
+      {
+       "from": "cut",
+       "to": "right",
+       "label": "x > cut"
+      }
+     ],
+     "states": [
+      {
+       "id": "sorted",
+       "label": "Sort",
+       "sentence": "Sort the samples by x. Before any split, the whole set of 7 has Gini impurity 0.490.",
+       "why": "Sorting makes every possible split a cut between neighbours.",
+       "active": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "parent"
+       ],
+       "calloutRegion": "parent",
+       "short": "Sorted",
+       "readouts": [
+        {
+         "id": "cut",
+         "label": "Cut",
+         "value": "none"
+        },
+        {
+         "id": "gini",
+         "label": "Weighted Gini",
+         "value": "0.490 (unsplit)"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "none"
+        }
+       ]
+      },
+      {
+       "id": "cands",
+       "label": "Candidates",
+       "sentence": "Candidate cuts are midpoints between neighbouring x values: 1.5, 2.5, 3.5, 4.5, 5.5 and 6.5.",
+       "why": "Only these cuts change which samples go left or right.",
+       "active": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7",
+        "cut"
+       ],
+       "calloutRegion": "cut",
+       "short": "Candidates",
+       "readouts": [
+        {
+         "id": "cut",
+         "label": "Cuts to test",
+         "value": "6"
+        },
+        {
+         "id": "gini",
+         "label": "Weighted Gini",
+         "value": "not scored yet"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "none"
+        }
+       ]
+      },
+      {
+       "id": "c15",
+       "label": "Cut 1.5",
+       "sentence": "Cut 1.5 sends only x=1 left. The right child is still mixed, so the gain is small.",
+       "why": "Weighted Gini = (nL·GiniL + nR·GiniR) / 7.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s1"
+       ],
+       "calloutRegion": "right",
+       "short": "1.5",
+       "readouts": [
+        {
+         "id": "cut",
+         "label": "Cut",
+         "value": "1.5"
+        },
+        {
+         "id": "lr",
+         "label": "Left / Right (A,B)",
+         "value": "(1,0) / (3,3)"
+        },
+        {
+         "id": "gini",
+         "label": "Weighted Gini",
+         "value": "0.429"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "1.5 at 0.429"
+        }
+       ]
+      },
+      {
+       "id": "c25",
+       "label": "Cut 2.5",
+       "sentence": "Cut 2.5 puts two pure A samples left. The right child still holds A and B in a 2:3 mix.",
+       "why": "A pure left child contributes zero impurity.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s1",
+        "s2"
+       ],
+       "calloutRegion": "left",
+       "short": "2.5",
+       "readouts": [
+        {
+         "id": "cut",
+         "label": "Cut",
+         "value": "2.5"
+        },
+        {
+         "id": "lr",
+         "label": "Left / Right (A,B)",
+         "value": "(2,0) / (2,3)"
+        },
+        {
+         "id": "gini",
+         "label": "Weighted Gini",
+         "value": "0.343"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "2.5 at 0.343"
+        }
+       ]
+      },
+      {
+       "id": "c35",
+       "label": "Cut 3.5",
+       "sentence": "Cut 3.5 keeps three pure A samples left. The right child is mostly B, with one stray A.",
+       "why": "Lower weighted impurity than 2.5, so this cut becomes the new best.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s1",
+        "s2",
+        "s3"
+       ],
+       "calloutRegion": "cut",
+       "short": "3.5",
+       "readouts": [
+        {
+         "id": "cut",
+         "label": "Cut",
+         "value": "3.5"
+        },
+        {
+         "id": "lr",
+         "label": "Left / Right (A,B)",
+         "value": "(3,0) / (1,3)"
+        },
+        {
+         "id": "gini",
+         "label": "Weighted Gini",
+         "value": "0.214"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "3.5 at 0.214"
+        }
+       ]
+      },
+      {
+       "id": "c45",
+       "label": "Cut 4.5",
+       "sentence": "Cut 4.5 pulls B at x=4 into the left child, which becomes mixed. Impurity rises sharply.",
+       "why": "Both children are now impure, so the weighted score worsens.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s1",
+        "s2",
+        "s3",
+        "s4"
+       ],
+       "calloutRegion": "left",
+       "short": "4.5",
+       "readouts": [
+        {
+         "id": "cut",
+         "label": "Cut",
+         "value": "4.5"
+        },
+        {
+         "id": "lr",
+         "label": "Left / Right (A,B)",
+         "value": "(3,1) / (1,2)"
+        },
+        {
+         "id": "gini",
+         "label": "Weighted Gini",
+         "value": "0.405"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "3.5 at 0.214"
+        }
+       ]
+      },
+      {
+       "id": "c55",
+       "label": "Cut 5.5",
+       "sentence": "Cut 5.5 makes the right child pure B, but the left child holds the one B beside four A.",
+       "why": "Close to 3.5, yet slightly worse: 0.229 against 0.214.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5"
+       ],
+       "calloutRegion": "right",
+       "short": "5.5",
+       "readouts": [
+        {
+         "id": "cut",
+         "label": "Cut",
+         "value": "5.5"
+        },
+        {
+         "id": "lr",
+         "label": "Left / Right (A,B)",
+         "value": "(4,1) / (0,2)"
+        },
+        {
+         "id": "gini",
+         "label": "Weighted Gini",
+         "value": "0.229"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "3.5 at 0.214"
+        }
+       ]
+      },
+      {
+       "id": "c65",
+       "label": "Cut 6.5",
+       "sentence": "Cut 6.5 leaves only x=7 on the right. The left child is mixed with 4 A and 2 B.",
+       "why": "A tiny pure child cannot rescue a large mixed one.",
+       "active": [
+        "cut",
+        "left",
+        "right",
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6"
+       ],
+       "calloutRegion": "left",
+       "short": "6.5",
+       "readouts": [
+        {
+         "id": "cut",
+         "label": "Cut",
+         "value": "6.5"
+        },
+        {
+         "id": "lr",
+         "label": "Left / Right (A,B)",
+         "value": "(4,2) / (0,1)"
+        },
+        {
+         "id": "gini",
+         "label": "Weighted Gini",
+         "value": "0.381"
+        },
+        {
+         "id": "best",
+         "label": "Best so far",
+         "value": "3.5 at 0.214"
+        }
+       ]
+      },
+      {
+       "id": "best",
+       "label": "Pick best",
+       "sentence": "The tree picks the cut with the lowest weighted Gini: x ≤ 3.5, with 0.214 against the parent's 0.490.",
+       "why": "Best split = argmin over cuts of weighted child impurity.",
+       "active": [
+        "best",
+        "cut",
+        "left",
+        "right",
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5",
+        "s6",
+        "s7"
+       ],
+       "calloutRegion": "best",
+       "short": "Best: 3.5",
+       "readouts": [
+        {
+         "id": "cut",
+         "label": "Chosen cut",
+         "value": "3.5"
+        },
+        {
+         "id": "lr",
+         "label": "Left / Right (A,B)",
+         "value": "(3,0) / (1,3)"
+        },
+        {
+         "id": "gini",
+         "label": "Weighted Gini",
+         "value": "0.214"
+        },
+        {
+         "id": "gain",
+         "label": "Impurity drop",
+         "value": "0.490 − 0.214 = 0.276"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3078,
+  "output": 5601
+ },
+ "usd": 0.062166,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "scorecard reply incomplete"
+  },
+  "cardUsd": 0
+ }
+}

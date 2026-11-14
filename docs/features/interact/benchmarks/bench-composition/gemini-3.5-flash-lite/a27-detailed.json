@@ -1,0 +1,276 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a27",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "How does a transformer turn the words in a sentence into embeddings?",
+ "ts": "2026-11-14T22:22:19.469Z",
+ "ms": 3965,
+ "raw": "{\n  \"story\": \"Tokens enter the transformer, converting text into dense continuous vectors. Positional encoding adds sequence order. Self-attention weights contextual relationships across all words simultaneously, producing final enriched embeddings for downstream tasks.\",\n  \"aha\": {\n    \"stateId\": \"step-attention\",\n    \"observation\": \"Self-attention computes dot products between queries and keys, routing information dynamically between unrelated words based on context.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Transformer Stage\",\n      \"options\": [\n        \"Tokenization\",\n        \"Embedding\",\n        \"Positional Encoding\",\n        \"Self-Attention\",\n        \"Final Vector\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Detailed Embedding Pipeline\",\n        \"regions\": [\n          {\n            \"id\": \"reg-tokens\",\n            \"label\": \"Input Tokens\",\n            \"kind\": \"array\",\n            \"values\": [\"The\", \"bank\", \"of\", \"river\"]\n          },\n          {\n            \"id\": \"reg-vectors\",\n            \"label\": \"Embedding Table\",\n            \"kind\": \"matrix\",\n            \"values\": [\"0.25\", \"-0.11\", \"0.84\", \"0.42\"]\n          },\n          {\n            \"id\": \"reg-pos\",\n            \"label\": \"Positional Signal\",\n            \"kind\": \"vector\",\n            \"values\": [\"0.01\", \"1.00\", \"0.99\", \"0.00\"]\n          },\n          {\n            \"id\": \"reg-attention\",\n            \"label\": \"Attention Matrix\",\n            \"kind\": \"matrix\",\n            \"values\": [\"0.1\", \"0.8\", \"0.0\", \"0.1\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"step-tokens\",\n            \"label\": \"Tokenize\",\n            \"short\": \"Split\",\n            \"sentence\": \"The raw sentence is split into discrete subword tokens.\",\n            \"why\": \"Mapping words to integer IDs prepares text for numerical lookup.\",\n            \"active\": [\"reg-tokens\"],\n            \"calloutRegion\": \"reg-tokens\",\n            \"readouts\": [\n              {\n                \"id\": \"vocab\",\n                \"label\": \"Vocab Size\",\n                \"value\": \"32000\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-embed\",\n            \"label\": \"Embed\",\n            \"short\": \"Lookup\",\n            \"sentence\": \"Each token ID fetches a high-dimensional vector from the embedding table.\",\n            \"why\": \"Converts discrete symbols into continuous semantic space.\",\n            \"active\": [\"reg-vectors\"],\n            \"calloutRegion\": \"reg-vectors\",\n            \"readouts\": [\n              {\n                \"id\": \"dim\",\n                \"label\": \"Hidden Dim\",\n                \"value\": \"768\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-pos\",\n            \"label\": \"Position\",\n            \"short\": \"Inject\",\n            \"sentence\": \"Sinusoidal positional encodings are added to retain word order.\",\n            \"why\": \"Transformers process sets, so explicit position prevents loss of syntax.\",\n            \"active\": [\"reg-pos\"],\n            \"calloutRegion\": \"reg-pos\",\n            \"readouts\": [\n              {\n                \"id\": \"max-len\",\n                \"label\": \"Max Length\",\n                \"value\": \"2048\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-attention\",\n            \"label\": \"Attention\",\n            \"short\": \"Context\",\n            \"sentence\": \"Queries, keys, and values compute weighted sums across all token vectors.\",\n            \"why\": \"Resolves polysemy by blending contextual semantics into each vector.\",\n            \"active\": [\"reg-attention\"],\n            \"calloutRegion\": \"reg-attention\",\n            \"readouts\": [\n              {\n                \"id\": \"heads\",\n                \"label\": \"Attention Heads\",\n                \"value\": \"12\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step-final\",\n            \"label\": \"Output\",\n            \"short\": \"Vector\",\n            \"sentence\": \"The resulting context-aware vectors emerge as final embeddings.\",\n            \"why\": \"Ready for classification, generation, or retrieval tasks.\",\n            \"active\": [\"reg-tokens\", \"reg-vectors\", \"reg-attention\"],\n            \"calloutRegion\": \"reg-vectors\",\n            \"readouts\": [\n              {\n                \"id\": \"norm\",\n                \"label\": \"Vector Norm\",\n                \"value\": \"1.00\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Tokens enter the transformer, converting text into dense continuous vectors. Positional encoding adds sequence order. Self-attention weights contextual relationships across all words simultaneously, producing final enriched embeddings for downstream tasks.",
+  "aha": {
+   "stateId": "step-attention",
+   "observation": "Self-attention computes dot products between queries and keys, routing information dynamically between unrelated words based on context."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Transformer Stage",
+    "options": [
+     "Tokenization",
+     "Embedding",
+     "Positional Encoding",
+     "Self-Attention",
+     "Final Vector"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Detailed Embedding Pipeline",
+     "regions": [
+      {
+       "id": "reg-tokens",
+       "label": "Input Tokens",
+       "kind": "array",
+       "values": [
+        "The",
+        "bank",
+        "of",
+        "river"
+       ]
+      },
+      {
+       "id": "reg-vectors",
+       "label": "Embedding Table",
+       "kind": "matrix",
+       "values": [
+        "0.25",
+        "-0.11",
+        "0.84",
+        "0.42"
+       ]
+      },
+      {
+       "id": "reg-pos",
+       "label": "Positional Signal",
+       "kind": "vector",
+       "values": [
+        "0.01",
+        "1.00",
+        "0.99",
+        "0.00"
+       ]
+      },
+      {
+       "id": "reg-attention",
+       "label": "Attention Matrix",
+       "kind": "matrix",
+       "values": [
+        "0.1",
+        "0.8",
+        "0.0",
+        "0.1"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "step-tokens",
+       "label": "Tokenize",
+       "short": "Split",
+       "sentence": "The raw sentence is split into discrete subword tokens.",
+       "why": "Mapping words to integer IDs prepares text for numerical lookup.",
+       "active": [
+        "reg-tokens"
+       ],
+       "calloutRegion": "reg-tokens",
+       "readouts": [
+        {
+         "id": "vocab",
+         "label": "Vocab Size",
+         "value": "32000"
+        }
+       ]
+      },
+      {
+       "id": "step-embed",
+       "label": "Embed",
+       "short": "Lookup",
+       "sentence": "Each token ID fetches a high-dimensional vector from the embedding table.",
+       "why": "Converts discrete symbols into continuous semantic space.",
+       "active": [
+        "reg-vectors"
+       ],
+       "calloutRegion": "reg-vectors",
+       "readouts": [
+        {
+         "id": "dim",
+         "label": "Hidden Dim",
+         "value": "768"
+        }
+       ]
+      },
+      {
+       "id": "step-pos",
+       "label": "Position",
+       "short": "Inject",
+       "sentence": "Sinusoidal positional encodings are added to retain word order.",
+       "why": "Transformers process sets, so explicit position prevents loss of syntax.",
+       "active": [
+        "reg-pos"
+       ],
+       "calloutRegion": "reg-pos",
+       "readouts": [
+        {
+         "id": "max-len",
+         "label": "Max Length",
+         "value": "2048"
+        }
+       ]
+      },
+      {
+       "id": "step-attention",
+       "label": "Attention",
+       "short": "Context",
+       "sentence": "Queries, keys, and values compute weighted sums across all token vectors.",
+       "why": "Resolves polysemy by blending contextual semantics into each vector.",
+       "active": [
+        "reg-attention"
+       ],
+       "calloutRegion": "reg-attention",
+       "readouts": [
+        {
+         "id": "heads",
+         "label": "Attention Heads",
+         "value": "12"
+        }
+       ]
+      },
+      {
+       "id": "step-final",
+       "label": "Output",
+       "short": "Vector",
+       "sentence": "The resulting context-aware vectors emerge as final embeddings.",
+       "why": "Ready for classification, generation, or retrieval tasks.",
+       "active": [
+        "reg-tokens",
+        "reg-vectors",
+        "reg-attention"
+       ],
+       "calloutRegion": "reg-vectors",
+       "readouts": [
+        {
+         "id": "norm",
+         "label": "Vector Norm",
+         "value": "1.00"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1109,
+  "output": 1441
+ },
+ "usd": 0.003936,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The scene is a five-stage tour of the pipeline rather than one question, and the attention matrix row [0.1,0.8,0,0.1] is not tied to any token pairing, so it never shows how 'bank' resolves against 'river'."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state is step-attention (stage 4 of 5), but the stepper continues to a Final Vector stage and nothing indicates the card holds at the aha until the learner acts."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is a stage index that swaps static regions and readouts, with no parameter that alters evidence or outcomes (e.g., no change to the tokens or attention weights)."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "Callouts and active regions bind to declared regions, but the readouts (vocab 32000, dim 768, heads 12) are not tied to anything drawn, and the final state's 'norm 1.00' has no source in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The story and observation say attention computes query-key dot products and routes information between unrelated words, while the state sentence adds value-weighted sums and the data has only one row of weights. The stage names also differ across Tokenization/Tokenize and Final Vector/Output."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The detailed depth adds no formula or count showing the mechanism, and the final state highlights three regions at once, scattering focus rather than adding one comparison."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The attention weights 0.1+0.8+0.0+0.1 sum to 1.0, but the embedding values and the position signal [0.01,1.00,0.99,0.00] are not consistent with sinusoids. The 'Vector Norm 1.00' also conflicts with the embedding values shown, and the data does not support the claim that 768 dims are shown with 4 va"
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.013452
+ }
+}

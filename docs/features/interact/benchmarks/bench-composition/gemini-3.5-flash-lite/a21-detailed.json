@@ -1,0 +1,225 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a21",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a decision tree split a two-feature dataset into regions?",
+ "ts": "2026-11-14T22:21:44.212Z",
+ "ms": 3165,
+ "raw": "{\n  \"story\": \"A decision tree partitions feature space into orthogonal regions. Each step adds a splitting threshold on one feature to minimize impurity, separating classes until regions become pure.\",\n  \"aha\": {\n    \"stateId\": \"split2\",\n    \"observation\": \"Adding a second split subdivides the existing feature space into four distinct regions, isolating the minority class.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"canvas\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"regions\": \"variant.regions\",\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    },\n    {\n      \"id\": \"ghost\",\n      \"kind\": \"previous-state-ghost\",\n      \"bind\": {\n        \"regions\": \"previous.regions\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"values\": \"state.active\"\n      }\n    },\n    {\n      \"id\": \"metrics\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Tree Step\",\n      \"options\": [\n        \"Root\",\n        \"Split 1\",\n        \"Split 2\",\n        \"Pure\"\n      ]\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"regions\": [\n          {\n            \"id\": \"r1\",\n            \"label\": \"Entire Feature Space\",\n            \"kind\": \"box\",\n            \"values\": [\"x: 0-10\", \"y: 0-10\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"root\",\n            \"label\": \"Root\",\n            \"short\": \"Start\",\n            \"sentence\": \"All training points reside in one single unpartitioned region.\",\n            \"why\": \"Initialization\",\n            \"active\": [\"r1\"],\n            \"calloutRegion\": \"r1\",\n            \"readouts\": [\n              {\n                \"id\": \"gini\",\n                \"label\": \"Gini Impurity\",\n                \"value\": \"0.50\"\n              }\n            ]\n          },\n          {\n            \"id\": \"split1\",\n            \"label\": \"First Split\",\n            \"short\": \"X Split\",\n            \"sentence\": \"A vertical threshold at x = 5 divides the space into two halves.\",\n            \"why\": \"First feature threshold\",\n            \"active\": [\"r1\"],\n            \"calloutRegion\": \"r1\",\n            \"readouts\": [\n              {\n                \"id\": \"gini\",\n                \"label\": \"Gini Impurity\",\n                \"value\": \"0.32\"\n              }\n            ]\n          },\n          {\n            \"id\": \"split2\",\n            \"label\": \"Second Split\",\n            \"short\": \"Y Split\",\n            \"sentence\": \"A horizontal threshold at y = 4 subdivides the left region.\",\n            \"why\": \"Second feature threshold\",\n            \"active\": [\"r1\"],\n            \"calloutRegion\": \"r1\",\n            \"readouts\": [\n              {\n                \"id\": \"gini\",\n                \"label\": \"Gini Impurity\",\n                \"value\": \"0.12\"\n              }\n            ]\n          },\n          {\n            \"id\": \"pure\",\n            \"label\": \"Leaf Nodes\",\n            \"short\": \"Pure\",\n            \"sentence\": \"Final regions successfully separate the classes with minimum impurity.\",\n            \"why\": \"Completion\",\n            \"active\": [\"r1\"],\n            \"calloutRegion\": \"r1\",\n            \"readouts\": [\n              {\n                \"id\": \"gini\",\n                \"label\": \"Gini Impurity\",\n                \"value\": \"0.00\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "A decision tree partitions feature space into orthogonal regions. Each step adds a splitting threshold on one feature to minimize impurity, separating classes until regions become pure.",
+  "aha": {
+   "stateId": "split2",
+   "observation": "Adding a second split subdivides the existing feature space into four distinct regions, isolating the minority class."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "canvas",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "completedBefore": "inputs.stepIndex"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "values": "state.active"
+    }
+   },
+   {
+    "id": "metrics",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Tree Step",
+    "options": [
+     "Root",
+     "Split 1",
+     "Split 2",
+     "Pure"
+    ]
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "regions": [
+      {
+       "id": "r1",
+       "label": "Entire Feature Space",
+       "kind": "box",
+       "values": [
+        "x: 0-10",
+        "y: 0-10"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "root",
+       "label": "Root",
+       "short": "Start",
+       "sentence": "All training points reside in one single unpartitioned region.",
+       "why": "Initialization",
+       "active": [
+        "r1"
+       ],
+       "calloutRegion": "r1",
+       "readouts": [
+        {
+         "id": "gini",
+         "label": "Gini Impurity",
+         "value": "0.50"
+        }
+       ]
+      },
+      {
+       "id": "split1",
+       "label": "First Split",
+       "short": "X Split",
+       "sentence": "A vertical threshold at x = 5 divides the space into two halves.",
+       "why": "First feature threshold",
+       "active": [
+        "r1"
+       ],
+       "calloutRegion": "r1",
+       "readouts": [
+        {
+         "id": "gini",
+         "label": "Gini Impurity",
+         "value": "0.32"
+        }
+       ]
+      },
+      {
+       "id": "split2",
+       "label": "Second Split",
+       "short": "Y Split",
+       "sentence": "A horizontal threshold at y = 4 subdivides the left region.",
+       "why": "Second feature threshold",
+       "active": [
+        "r1"
+       ],
+       "calloutRegion": "r1",
+       "readouts": [
+        {
+         "id": "gini",
+         "label": "Gini Impurity",
+         "value": "0.12"
+        }
+       ]
+      },
+      {
+       "id": "pure",
+       "label": "Leaf Nodes",
+       "short": "Pure",
+       "sentence": "Final regions successfully separate the classes with minimum impurity.",
+       "why": "Completion",
+       "active": [
+        "r1"
+       ],
+       "calloutRegion": "r1",
+       "readouts": [
+        {
+         "id": "gini",
+         "label": "Gini Impurity",
+         "value": "0.00"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1110,
+  "output": 1095
+ },
+ "usd": 0.003071,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "Only a single region r1 is declared, so no marks show the splits or partitioning mechanism that the question implies."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha state split2 is just one of four steps with no hold or pause, and its observation (four regions) is not reflected in any declared geometry."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The stepIndex control only swaps the sentence and Gini value; the regions and active highlight are identical (r1) in every state."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The callout, ghost and canvas all bind to r1 only, and the previous-state ghost has no distinct regions to show; the claimed splits and regions are not in the declared data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The aha says four regions while the state sentence describes subdividing only the left region (three), and the narrative names splits and regions that no declared object represents."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The detailed depth adds no comparison, formula or count beyond a single Gini number, so extra depth contributes no mechanism."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The Gini values are asserted without class counts to verify them, the implied four-region count conflicts with the three-region split described, and the sentence and readout are not tied to any computation."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012238
+ }
+}

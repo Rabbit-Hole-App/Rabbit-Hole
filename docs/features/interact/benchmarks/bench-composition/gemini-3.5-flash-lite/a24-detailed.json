@@ -1,0 +1,236 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a24",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a random forest combine the predictions of its trees into one answer?",
+ "ts": "2026-11-14T22:22:04.150Z",
+ "ms": 4689,
+ "raw": "{\n  \"story\": \"A random forest builds many distinct decision trees. Each tree casts an individual vote on the target class. The forest aggregates these votes using majority rule. The final predicted class emerges clearly.\",\n  \"aha\": {\n    \"stateId\": \"aggregate\",\n    \"observation\": \"Majority voting outweighs minority errors to establish the robust final prediction.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Forest Step\",\n      \"options\": [\n        \"Tree 1\",\n        \"Tree 2\",\n        \"Tree 3\",\n        \"Aggregation\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Random Forest Voting\",\n        \"regions\": [\n          {\n            \"id\": \"treeA\",\n            \"label\": \"Tree 1\",\n            \"values\": [\"Class A\"]\n          },\n          {\n            \"id\": \"treeB\",\n            \"label\": \"Tree 2\",\n            \"values\": [\"Class A\"]\n          },\n          {\n            \"id\": \"treeC\",\n            \"label\": \"Tree 3\",\n            \"values\": [\"Class B\"]\n          },\n          {\n            \"id\": \"forest\",\n            \"label\": \"Final Forest\",\n            \"values\": [\"Class A\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"tree1\",\n            \"label\": \"Step 1\",\n            \"sentence\": \"Tree 1 votes for Class A.\",\n            \"why\": \"Learns from a random feature subset.\",\n            \"active\": [\"treeA\"],\n            \"calloutRegion\": \"treeA\",\n            \"readouts\": [\n              {\n                \"id\": \"v1\",\n                \"label\": \"Tree 1 Vote\",\n                \"value\": \"Class A\"\n              }\n            ]\n          },\n          {\n            \"id\": \"tree2\",\n            \"label\": \"Step 2\",\n            \"sentence\": \"Tree 2 votes for Class A.\",\n            \"why\": \"Different bootstrap sample produces matching vote.\",\n            \"active\": [\"treeB\"],\n            \"calloutRegion\": \"treeB\",\n            \"readouts\": [\n              {\n                \"id\": \"v2\",\n                \"label\": \"Tree 2 Vote\",\n                \"value\": \"Class A\"\n              }\n            ]\n          },\n          {\n            \"id\": \"tree3\",\n            \"label\": \"Step 3\",\n            \"sentence\": \"Tree 3 votes for Class B.\",\n            \"why\": \"Variance introduces an outlier vote.\",\n            \"active\": [\"treeC\"],\n            \"calloutRegion\": \"treeC\",\n            \"readouts\": [\n              {\n                \"id\": \"v3\",\n                \"label\": \"Tree 3 Vote\",\n                \"value\": \"Class B\"\n              }\n            ]\n          },\n          {\n            \"id\": \"aggregate\",\n            \"label\": \"Step 4\",\n            \"sentence\": \"Majority rule combines all votes into Class A.\",\n            \"why\": \"Two votes for A versus one for B yields A.\",\n            \"active\": [\"forest\"],\n            \"calloutRegion\": \"forest\",\n            \"readouts\": [\n              {\n                \"id\": \"v4\",\n                \"label\": \"Final Output\",\n                \"value\": \"Class A (2/3)\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "A random forest builds many distinct decision trees. Each tree casts an individual vote on the target class. The forest aggregates these votes using majority rule. The final predicted class emerges clearly.",
+  "aha": {
+   "stateId": "aggregate",
+   "observation": "Majority voting outweighs minority errors to establish the robust final prediction."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Forest Step",
+    "options": [
+     "Tree 1",
+     "Tree 2",
+     "Tree 3",
+     "Aggregation"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Random Forest Voting",
+     "regions": [
+      {
+       "id": "treeA",
+       "label": "Tree 1",
+       "values": [
+        "Class A"
+       ]
+      },
+      {
+       "id": "treeB",
+       "label": "Tree 2",
+       "values": [
+        "Class A"
+       ]
+      },
+      {
+       "id": "treeC",
+       "label": "Tree 3",
+       "values": [
+        "Class B"
+       ]
+      },
+      {
+       "id": "forest",
+       "label": "Final Forest",
+       "values": [
+        "Class A"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "tree1",
+       "label": "Step 1",
+       "sentence": "Tree 1 votes for Class A.",
+       "why": "Learns from a random feature subset.",
+       "active": [
+        "treeA"
+       ],
+       "calloutRegion": "treeA",
+       "readouts": [
+        {
+         "id": "v1",
+         "label": "Tree 1 Vote",
+         "value": "Class A"
+        }
+       ]
+      },
+      {
+       "id": "tree2",
+       "label": "Step 2",
+       "sentence": "Tree 2 votes for Class A.",
+       "why": "Different bootstrap sample produces matching vote.",
+       "active": [
+        "treeB"
+       ],
+       "calloutRegion": "treeB",
+       "readouts": [
+        {
+         "id": "v2",
+         "label": "Tree 2 Vote",
+         "value": "Class A"
+        }
+       ]
+      },
+      {
+       "id": "tree3",
+       "label": "Step 3",
+       "sentence": "Tree 3 votes for Class B.",
+       "why": "Variance introduces an outlier vote.",
+       "active": [
+        "treeC"
+       ],
+       "calloutRegion": "treeC",
+       "readouts": [
+        {
+         "id": "v3",
+         "label": "Tree 3 Vote",
+         "value": "Class B"
+        }
+       ]
+      },
+      {
+       "id": "aggregate",
+       "label": "Step 4",
+       "sentence": "Majority rule combines all votes into Class A.",
+       "why": "Two votes for A versus one for B yields A.",
+       "active": [
+        "forest"
+       ],
+       "calloutRegion": "forest",
+       "readouts": [
+        {
+         "id": "v4",
+         "label": "Final Output",
+         "value": "Class A (2/3)"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1111,
+  "output": 1124
+ },
+ "usd": 0.003144,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The scene answers how tree votes become one forest prediction, with regions for the three trees and the forest showing the votes."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state \"aggregate\" is the final step and the stepper holds there until the learner acts."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control, stepIndex, just navigates the steps; no input changes the votes or the outcome, so the learner cannot test the mechanism."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture highlights, callout target and readouts all bind to declared variant states, regions and readouts."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, control options, callouts and readouts consistently refer to Tree 1, Tree 2, Tree 3 and the forest aggregation."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "Each state shows only one active region, so the aggregate step never displays the votes together as a comparison or count."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The 2/3 count is correct, but it appears in both the readout \"Class A (2/3)\" and the callout \"Two votes for A versus one for B\", so it is stated twice."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01491
+ }
+}

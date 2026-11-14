@@ -1,0 +1,333 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a44",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "Explain post entries to cash",
+ "ts": "2026-11-14T23:03:15.875Z",
+ "ms": 97849,
+ "raw": "{\n  \"story\": \"How does posting a journal entry change Cash? Start with an opening balance, then post an owner investment and a rent payment. Compare each highlighted Cash line with its ledger destination. Use Previous and Next to see which postings raise or lower the balance.\",\n  \"aha\": {\n    \"stateId\": \"both-posted\",\n    \"observation\": \"Posting preserves the journal side: Cash debits increase the balance, while Cash credits decrease it.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"posting-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the story and instructions. Show the active state and completed trace on this rail, without timing or automatic advancement.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"journal-and-ledger\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the approved fixed-picture arrangement with journal rows left and Cash ledger regions right. Keep positions unchanged. Highlight bound active regions and connecting links. Inactive destinations are guides, not posted entries; readout labels identify posting status. Keep monetary values exclusively in readouts.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"posting-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor the text beside its named target without covering labels. Present the reason as the bound status line beneath the picture.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"cash-measurements\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Use four stable readout slots with wrapping labels. Values use whole USD, without rounding. Opening Cash is the reference balance. Current Cash equals opening Cash plus posted investment minus posted rent. Exclude unposted amounts from that calculation.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"presentation\": \"Provide Previous and Next buttons. Default index is zero; bounds are zero through four, increment one. Retain button names when disabled at boundaries. Each state persists until learner action, including both-posted. Use visible focus, accessible names, and keyboard activation. Navigation budget: one index control; parameter-control budget: zero.\",\n      \"items\": \"variant.states\",\n      \"label\": \"Posting state\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"presentation\": \"Reset restores the first state and all defaults. Provide visible focus, an accessible name, and keyboard activation.\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Fixed USD example: opening debit balance, owner investment, and rent payment. Cash is an asset; assume no other activity, fees, or taxes.\",\n        \"regions\": [\n          {\n            \"id\": \"investment-cash\",\n            \"label\": \"Investment Cash\",\n            \"values\": [\n              \"Journal: debit Cash\"\n            ]\n          },\n          {\n            \"id\": \"owner-capital\",\n            \"label\": \"Owner capital\",\n            \"values\": [\n              \"Journal: credit Owner capital\"\n            ]\n          },\n          {\n            \"id\": \"rent-expense\",\n            \"label\": \"Rent expense\",\n            \"values\": [\n              \"Journal: debit Rent expense\"\n            ]\n          },\n          {\n            \"id\": \"rent-cash\",\n            \"label\": \"Rent Cash\",\n            \"values\": [\n              \"Journal: credit Cash\"\n            ]\n          },\n          {\n            \"id\": \"cash-debit\",\n            \"label\": \"Cash debit\",\n            \"values\": [\n              \"Ledger destination for Investment Cash\"\n            ]\n          },\n          {\n            \"id\": \"cash-credit\",\n            \"label\": \"Cash credit\",\n            \"values\": [\n              \"Ledger destination for Rent Cash\"\n            ]\n          },\n          {\n            \"id\": \"cash-balance\",\n            \"label\": \"Cash balance\",\n            \"values\": [\n              \"Cash ledger: debit-normal asset\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"investment-cash\",\n            \"to\": \"cash-debit\",\n            \"label\": \"Debit posts to debit\"\n          },\n          {\n            \"from\": \"rent-cash\",\n            \"to\": \"cash-credit\",\n            \"label\": \"Credit posts to credit\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"opening\",\n            \"label\": \"Opening Cash\",\n            \"short\": \"Neither entry posted\",\n            \"sentence\": \"Cash balance starts with an opening debit balance; both journal entries remain unposted.\",\n            \"why\": \"The opening balance is the reference point for both postings.\",\n            \"active\": [\n              \"cash-balance\"\n            ],\n            \"calloutRegion\": \"cash-balance\",\n            \"readouts\": [\n              {\n                \"id\": \"opening\",\n                \"label\": \"Opening Cash\",\n                \"value\": \"USD 1,000\"\n              },\n              {\n                \"id\": \"investment\",\n                \"label\": \"Investment debit · unposted\",\n                \"value\": \"USD 500\"\n              },\n              {\n                \"id\": \"rent\",\n                \"label\": \"Rent credit · unposted\",\n                \"value\": \"USD 200\"\n              },\n              {\n                \"id\": \"balance\",\n                \"label\": \"Current Cash · debit balance\",\n                \"value\": \"USD 1,000\"\n              }\n            ]\n          },\n          {\n            \"id\": \"inspect-investment\",\n            \"label\": \"Find investment Cash\",\n            \"short\": \"Inspect the journal debit\",\n            \"sentence\": \"Investment Cash is the journal debit to post into Cash.\",\n            \"why\": \"Owner capital is the matching credit, but it belongs in a different ledger account.\",\n            \"active\": [\n              \"investment-cash\",\n              \"owner-capital\"\n            ],\n            \"calloutRegion\": \"investment-cash\",\n            \"readouts\": [\n              {\n                \"id\": \"opening\",\n                \"label\": \"Opening Cash\",\n                \"value\": \"USD 1,000\"\n              },\n              {\n                \"id\": \"investment\",\n                \"label\": \"Investment debit · unposted\",\n                \"value\": \"USD 500\"\n              },\n              {\n                \"id\": \"rent\",\n                \"label\": \"Rent credit · unposted\",\n                \"value\": \"USD 200\"\n              },\n              {\n                \"id\": \"balance\",\n                \"label\": \"Current Cash · debit balance\",\n                \"value\": \"USD 1,000\"\n              }\n            ]\n          },\n          {\n            \"id\": \"investment-posted\",\n            \"label\": \"Post the debit\",\n            \"short\": \"Investment posted; Cash rises\",\n            \"sentence\": \"Copy Investment Cash to Cash debit, preserving its amount and side.\",\n            \"why\": \"Cash balance increases by the posted investment; the rent payment remains unposted.\",\n            \"active\": [\n              \"investment-cash\",\n              \"cash-debit\",\n              \"cash-balance\"\n            ],\n            \"calloutRegion\": \"cash-debit\",\n            \"readouts\": [\n              {\n                \"id\": \"opening\",\n                \"label\": \"Opening Cash\",\n                \"value\": \"USD 1,000\"\n              },\n              {\n                \"id\": \"investment\",\n                \"label\": \"Investment debit · posted\",\n                \"value\": \"USD 500\"\n              },\n              {\n                \"id\": \"rent\",\n                \"label\": \"Rent credit · unposted\",\n                \"value\": \"USD 200\"\n              },\n              {\n                \"id\": \"balance\",\n                \"label\": \"Current Cash · debit balance\",\n                \"value\": \"USD 1,500\"\n              }\n            ]\n          },\n          {\n            \"id\": \"inspect-rent\",\n            \"label\": \"Find rent Cash\",\n            \"short\": \"Inspect the journal credit\",\n            \"sentence\": \"Rent Cash is a credit, unlike the debit in Investment Cash.\",\n            \"why\": \"Rent expense belongs in its own ledger; only the Cash line posts into Cash.\",\n            \"active\": [\n              \"rent-expense\",\n              \"rent-cash\"\n            ],\n            \"calloutRegion\": \"rent-cash\",\n            \"readouts\": [\n              {\n                \"id\": \"opening\",\n                \"label\": \"Opening Cash\",\n                \"value\": \"USD 1,000\"\n              },\n              {\n                \"id\": \"investment\",\n                \"label\": \"Investment debit · posted\",\n                \"value\": \"USD 500\"\n              },\n              {\n                \"id\": \"rent\",\n                \"label\": \"Rent credit · unposted\",\n                \"value\": \"USD 200\"\n              },\n              {\n                \"id\": \"balance\",\n                \"label\": \"Current Cash · debit balance\",\n                \"value\": \"USD 1,500\"\n              }\n            ]\n          },\n          {\n            \"id\": \"both-posted\",\n            \"label\": \"Post the credit\",\n            \"short\": \"Both posted; debit adds, credit subtracts\",\n            \"sentence\": \"Copy Rent Cash to Cash credit; this posting lowers Cash balance.\",\n            \"why\": \"Both postings preserve their journal sides: the investment debit adds to Cash, while the rent credit subtracts.\",\n            \"active\": [\n              \"rent-cash\",\n              \"cash-debit\",\n              \"cash-credit\",\n              \"cash-balance\"\n            ],\n            \"calloutRegion\": \"cash-credit\",\n            \"readouts\": [\n              {\n                \"id\": \"opening\",\n                \"label\": \"Opening Cash\",\n                \"value\": \"USD 1,000\"\n              },\n              {\n                \"id\": \"investment\",\n                \"label\": \"Investment debit · posted\",\n                \"value\": \"USD 500\"\n              },\n              {\n                \"id\": \"rent\",\n                \"label\": \"Rent credit · posted\",\n                \"value\": \"USD 200\"\n              },\n              {\n                \"id\": \"balance\",\n                \"label\": \"Current Cash · debit balance\",\n                \"value\": \"USD 1,300\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does posting a journal entry change Cash? Start with an opening balance, then post an owner investment and a rent payment. Compare each highlighted Cash line with its ledger destination. Use Previous and Next to see which postings raise or lower the balance.",
+  "aha": {
+   "stateId": "both-posted",
+   "observation": "Posting preserves the journal side: Cash debits increase the balance, while Cash credits decrease it."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "posting-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the story and instructions. Show the active state and completed trace on this rail, without timing or automatic advancement.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "journal-and-ledger",
+    "kind": "fixed-picture",
+    "presentation": "Use the approved fixed-picture arrangement with journal rows left and Cash ledger regions right. Keep positions unchanged. Highlight bound active regions and connecting links. Inactive destinations are guides, not posted entries; readout labels identify posting status. Keep monetary values exclusively in readouts.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "posting-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor the text beside its named target without covering labels. Present the reason as the bound status line beneath the picture.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "cash-measurements",
+    "kind": "value-readout",
+    "presentation": "Use four stable readout slots with wrapping labels. Values use whole USD, without rounding. Opening Cash is the reference balance. Current Cash equals opening Cash plus posted investment minus posted rent. Exclude unposted amounts from that calculation.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "presentation": "Provide Previous and Next buttons. Default index is zero; bounds are zero through four, increment one. Retain button names when disabled at boundaries. Each state persists until learner action, including both-posted. Use visible focus, accessible names, and keyboard activation. Navigation budget: one index control; parameter-control budget: zero.",
+    "items": "variant.states",
+    "label": "Posting state"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "presentation": "Reset restores the first state and all defaults. Provide visible focus, an accessible name, and keyboard activation.",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Fixed USD example: opening debit balance, owner investment, and rent payment. Cash is an asset; assume no other activity, fees, or taxes.",
+     "regions": [
+      {
+       "id": "investment-cash",
+       "label": "Investment Cash",
+       "values": [
+        "Journal: debit Cash"
+       ]
+      },
+      {
+       "id": "owner-capital",
+       "label": "Owner capital",
+       "values": [
+        "Journal: credit Owner capital"
+       ]
+      },
+      {
+       "id": "rent-expense",
+       "label": "Rent expense",
+       "values": [
+        "Journal: debit Rent expense"
+       ]
+      },
+      {
+       "id": "rent-cash",
+       "label": "Rent Cash",
+       "values": [
+        "Journal: credit Cash"
+       ]
+      },
+      {
+       "id": "cash-debit",
+       "label": "Cash debit",
+       "values": [
+        "Ledger destination for Investment Cash"
+       ]
+      },
+      {
+       "id": "cash-credit",
+       "label": "Cash credit",
+       "values": [
+        "Ledger destination for Rent Cash"
+       ]
+      },
+      {
+       "id": "cash-balance",
+       "label": "Cash balance",
+       "values": [
+        "Cash ledger: debit-normal asset"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "investment-cash",
+       "to": "cash-debit",
+       "label": "Debit posts to debit"
+      },
+      {
+       "from": "rent-cash",
+       "to": "cash-credit",
+       "label": "Credit posts to credit"
+      }
+     ],
+     "states": [
+      {
+       "id": "opening",
+       "label": "Opening Cash",
+       "short": "Neither entry posted",
+       "sentence": "Cash balance starts with an opening debit balance; both journal entries remain unposted.",
+       "why": "The opening balance is the reference point for both postings.",
+       "active": [
+        "cash-balance"
+       ],
+       "calloutRegion": "cash-balance",
+       "readouts": [
+        {
+         "id": "opening",
+         "label": "Opening Cash",
+         "value": "USD 1,000"
+        },
+        {
+         "id": "investment",
+         "label": "Investment debit · unposted",
+         "value": "USD 500"
+        },
+        {
+         "id": "rent",
+         "label": "Rent credit · unposted",
+         "value": "USD 200"
+        },
+        {
+         "id": "balance",
+         "label": "Current Cash · debit balance",
+         "value": "USD 1,000"
+        }
+       ]
+      },
+      {
+       "id": "inspect-investment",
+       "label": "Find investment Cash",
+       "short": "Inspect the journal debit",
+       "sentence": "Investment Cash is the journal debit to post into Cash.",
+       "why": "Owner capital is the matching credit, but it belongs in a different ledger account.",
+       "active": [
+        "investment-cash",
+        "owner-capital"
+       ],
+       "calloutRegion": "investment-cash",
+       "readouts": [
+        {
+         "id": "opening",
+         "label": "Opening Cash",
+         "value": "USD 1,000"
+        },
+        {
+         "id": "investment",
+         "label": "Investment debit · unposted",
+         "value": "USD 500"
+        },
+        {
+         "id": "rent",
+         "label": "Rent credit · unposted",
+         "value": "USD 200"
+        },
+        {
+         "id": "balance",
+         "label": "Current Cash · debit balance",
+         "value": "USD 1,000"
+        }
+       ]
+      },
+      {
+       "id": "investment-posted",
+       "label": "Post the debit",
+       "short": "Investment posted; Cash rises",
+       "sentence": "Copy Investment Cash to Cash debit, preserving its amount and side.",
+       "why": "Cash balance increases by the posted investment; the rent payment remains unposted.",
+       "active": [
+        "investment-cash",
+        "cash-debit",
+        "cash-balance"
+       ],
+       "calloutRegion": "cash-debit",
+       "readouts": [
+        {
+         "id": "opening",
+         "label": "Opening Cash",
+         "value": "USD 1,000"
+        },
+        {
+         "id": "investment",
+         "label": "Investment debit · posted",
+         "value": "USD 500"
+        },
+        {
+         "id": "rent",
+         "label": "Rent credit · unposted",
+         "value": "USD 200"
+        },
+        {
+         "id": "balance",
+         "label": "Current Cash · debit balance",
+         "value": "USD 1,500"
+        }
+       ]
+      },
+      {
+       "id": "inspect-rent",
+       "label": "Find rent Cash",
+       "short": "Inspect the journal credit",
+       "sentence": "Rent Cash is a credit, unlike the debit in Investment Cash.",
+       "why": "Rent expense belongs in its own ledger; only the Cash line posts into Cash.",
+       "active": [
+        "rent-expense",
+        "rent-cash"
+       ],
+       "calloutRegion": "rent-cash",
+       "readouts": [
+        {
+         "id": "opening",
+         "label": "Opening Cash",
+         "value": "USD 1,000"
+        },
+        {
+         "id": "investment",
+         "label": "Investment debit · posted",
+         "value": "USD 500"
+        },
+        {
+         "id": "rent",
+         "label": "Rent credit · unposted",
+         "value": "USD 200"
+        },
+        {
+         "id": "balance",
+         "label": "Current Cash · debit balance",
+         "value": "USD 1,500"
+        }
+       ]
+      },
+      {
+       "id": "both-posted",
+       "label": "Post the credit",
+       "short": "Both posted; debit adds, credit subtracts",
+       "sentence": "Copy Rent Cash to Cash credit; this posting lowers Cash balance.",
+       "why": "Both postings preserve their journal sides: the investment debit adds to Cash, while the rent credit subtracts.",
+       "active": [
+        "rent-cash",
+        "cash-debit",
+        "cash-credit",
+        "cash-balance"
+       ],
+       "calloutRegion": "cash-credit",
+       "readouts": [
+        {
+         "id": "opening",
+         "label": "Opening Cash",
+         "value": "USD 1,000"
+        },
+        {
+         "id": "investment",
+         "label": "Investment debit · posted",
+         "value": "USD 500"
+        },
+        {
+         "id": "rent",
+         "label": "Rent credit · posted",
+         "value": "USD 200"
+        },
+        {
+         "id": "balance",
+         "label": "Current Cash · debit balance",
+         "value": "USD 1,300"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1531,
+  "output": 5331
+ },
+ "usd": 0.053502,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3exR8UmVdoQvoFXRXbV\"}"
+  },
+  "cardUsd": 0
+ }
+}

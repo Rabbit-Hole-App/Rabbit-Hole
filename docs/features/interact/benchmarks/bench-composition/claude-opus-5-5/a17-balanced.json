@@ -1,0 +1,411 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a17",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "explain recursion",
+ "ts": "2026-11-14T22:28:22.217Z",
+ "ms": 34471,
+ "raw": "{\"story\":\"fact(4) can't answer right away, so it calls fact(3). Each call waits on the stack for a smaller one. At fact(1), the base case, the calls stop. The answers then come back up: every waiting frame finishes its multiplication in reverse order. The stack shrinks back to empty, and the final result is 24.\",\"aha\":{\"stateId\":\"s4\",\"observation\":\"fact(1) returns 1 without calling again. The stack stops growing, so every waiting frame can now finish in reverse order.\"},\"layout\":{\"preset\":\"stepper-stack\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Step titles above the picture\"},{\"id\":\"progress\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"},\"presentation\":\"Trace inside the rail\"},{\"id\":\"stack\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Call stack: fact(4) frame at the bottom, fact(1) frame at the top\"},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"},\"presentation\":\"Faint outline of the frames from the previous step\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Pointer to the active frame\"},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Row below the stack\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons that keep their names when disabled; arrow keys also work\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Goes back to the first step\"}],\"data\":{\"variants\":[{\"label\":\"fact(4), base case n = 1\",\"regions\":[{\"id\":\"frame-4\",\"label\":\"fact(4)\",\"values\":[\"waits: 4 × fact(3)\",\"returns 24\"]},{\"id\":\"frame-3\",\"label\":\"fact(3)\",\"values\":[\"waits: 3 × fact(2)\",\"returns 6\"]},{\"id\":\"frame-2\",\"label\":\"fact(2)\",\"values\":[\"waits: 2 × fact(1)\",\"returns 2\"]},{\"id\":\"frame-1\",\"label\":\"fact(1) base case\",\"values\":[\"returns 1\"]}],\"links\":[{\"from\":\"frame-4\",\"to\":\"frame-3\",\"label\":\"calls / gets 6\"},{\"from\":\"frame-3\",\"to\":\"frame-2\",\"label\":\"calls / gets 2\"},{\"from\":\"frame-2\",\"to\":\"frame-1\",\"label\":\"calls / gets 1\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Call fact(4)\",\"short\":\"fact(4)\",\"sentence\":\"fact(4) isn't the base case, so it pauses and calls fact(3).\",\"why\":\"Since n > 1, it needs the smaller answer first.\",\"active\":[\"frame-4\"],\"calloutRegion\":\"frame-4\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"1 frame\"},{\"id\":\"pending\",\"label\":\"Waiting work\",\"value\":\"4 × ?\"},{\"id\":\"ret\",\"label\":\"Last returned\",\"value\":\"none\"}]},{\"id\":\"s2\",\"label\":\"Call fact(3)\",\"short\":\"fact(3)\",\"sentence\":\"fact(3) also pauses and calls fact(2). Another frame goes onto the stack.\",\"why\":\"Each call works on n − 1, which moves it closer to the base case.\",\"active\":[\"frame-4\",\"frame-3\"],\"calloutRegion\":\"frame-3\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"2 frames\"},{\"id\":\"pending\",\"label\":\"Waiting work\",\"value\":\"4 × 3 × ?\"},{\"id\":\"ret\",\"label\":\"Last returned\",\"value\":\"none\"}]},{\"id\":\"s3\",\"label\":\"Call fact(2)\",\"short\":\"fact(2)\",\"sentence\":\"fact(2) pauses and calls fact(1). Three frames are now waiting.\",\"why\":\"No frame can finish until a call below it returns.\",\"active\":[\"frame-4\",\"frame-3\",\"frame-2\"],\"calloutRegion\":\"frame-2\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"3 frames\"},{\"id\":\"pending\",\"label\":\"Waiting work\",\"value\":\"4 × 3 × 2 × ?\"},{\"id\":\"ret\",\"label\":\"Last returned\",\"value\":\"none\"}]},{\"id\":\"s4\",\"label\":\"Base case fact(1)\",\"short\":\"base\",\"sentence\":\"fact(1) returns 1 right away. It makes no new call, so the stack stops growing.\",\"why\":\"The base case answers directly, which ends the chain of calls.\",\"active\":[\"frame-4\",\"frame-3\",\"frame-2\",\"frame-1\"],\"calloutRegion\":\"frame-1\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"4 frames (peak)\"},{\"id\":\"pending\",\"label\":\"Waiting work\",\"value\":\"4 × 3 × 2 × 1\"},{\"id\":\"ret\",\"label\":\"Last returned\",\"value\":\"1\"}]},{\"id\":\"s5\",\"label\":\"fact(2) returns\",\"short\":\"ret 2\",\"sentence\":\"fact(2) finishes 2 × 1 = 2, and its frame comes off the stack.\",\"why\":\"The waiting multiplication now has its missing value.\",\"active\":[\"frame-4\",\"frame-3\",\"frame-2\"],\"calloutRegion\":\"frame-2\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"3 frames\"},{\"id\":\"pending\",\"label\":\"Waiting work\",\"value\":\"4 × 3 × 2\"},{\"id\":\"ret\",\"label\":\"Last returned\",\"value\":\"2\"}]},{\"id\":\"s6\",\"label\":\"fact(3) returns\",\"short\":\"ret 6\",\"sentence\":\"fact(3) finishes 3 × 2 = 6 and passes it down to fact(4).\",\"why\":\"Frames finish in the reverse of the order they were called.\",\"active\":[\"frame-4\",\"frame-3\"],\"calloutRegion\":\"frame-3\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"2 frames\"},{\"id\":\"pending\",\"label\":\"Waiting work\",\"value\":\"4 × 6\"},{\"id\":\"ret\",\"label\":\"Last returned\",\"value\":\"6\"}]},{\"id\":\"s7\",\"label\":\"fact(4) returns\",\"short\":\"ret 24\",\"sentence\":\"fact(4) finishes 4 × 6 = 24. The stack empties, and the answer is 24.\",\"why\":\"The first call to start is the last one to finish.\",\"active\":[\"frame-4\"],\"calloutRegion\":\"frame-4\",\"readouts\":[{\"id\":\"depth\",\"label\":\"Stack depth\",\"value\":\"1 frame, then empty\"},{\"id\":\"pending\",\"label\":\"Waiting work\",\"value\":\"none\"},{\"id\":\"ret\",\"label\":\"Last returned\",\"value\":\"24\"}]}]}]}}",
+ "composition": {
+  "story": "fact(4) can't answer right away, so it calls fact(3). Each call waits on the stack for a smaller one. At fact(1), the base case, the calls stop. The answers then come back up: every waiting frame finishes its multiplication in reverse order. The stack shrinks back to empty, and the final result is 24.",
+  "aha": {
+   "stateId": "s4",
+   "observation": "fact(1) returns 1 without calling again. The stack stops growing, so every waiting frame can now finish in reverse order."
+  },
+  "layout": {
+   "preset": "stepper-stack",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Step titles above the picture"
+   },
+   {
+    "id": "progress",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    },
+    "presentation": "Trace inside the rail"
+   },
+   {
+    "id": "stack",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Call stack: fact(4) frame at the bottom, fact(1) frame at the top"
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    },
+    "presentation": "Faint outline of the frames from the previous step"
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Pointer to the active frame"
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Row below the stack"
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons that keep their names when disabled; arrow keys also work"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Goes back to the first step"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "fact(4), base case n = 1",
+     "regions": [
+      {
+       "id": "frame-4",
+       "label": "fact(4)",
+       "values": [
+        "waits: 4 × fact(3)",
+        "returns 24"
+       ]
+      },
+      {
+       "id": "frame-3",
+       "label": "fact(3)",
+       "values": [
+        "waits: 3 × fact(2)",
+        "returns 6"
+       ]
+      },
+      {
+       "id": "frame-2",
+       "label": "fact(2)",
+       "values": [
+        "waits: 2 × fact(1)",
+        "returns 2"
+       ]
+      },
+      {
+       "id": "frame-1",
+       "label": "fact(1) base case",
+       "values": [
+        "returns 1"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "frame-4",
+       "to": "frame-3",
+       "label": "calls / gets 6"
+      },
+      {
+       "from": "frame-3",
+       "to": "frame-2",
+       "label": "calls / gets 2"
+      },
+      {
+       "from": "frame-2",
+       "to": "frame-1",
+       "label": "calls / gets 1"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Call fact(4)",
+       "short": "fact(4)",
+       "sentence": "fact(4) isn't the base case, so it pauses and calls fact(3).",
+       "why": "Since n > 1, it needs the smaller answer first.",
+       "active": [
+        "frame-4"
+       ],
+       "calloutRegion": "frame-4",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "1 frame"
+        },
+        {
+         "id": "pending",
+         "label": "Waiting work",
+         "value": "4 × ?"
+        },
+        {
+         "id": "ret",
+         "label": "Last returned",
+         "value": "none"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Call fact(3)",
+       "short": "fact(3)",
+       "sentence": "fact(3) also pauses and calls fact(2). Another frame goes onto the stack.",
+       "why": "Each call works on n − 1, which moves it closer to the base case.",
+       "active": [
+        "frame-4",
+        "frame-3"
+       ],
+       "calloutRegion": "frame-3",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "2 frames"
+        },
+        {
+         "id": "pending",
+         "label": "Waiting work",
+         "value": "4 × 3 × ?"
+        },
+        {
+         "id": "ret",
+         "label": "Last returned",
+         "value": "none"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Call fact(2)",
+       "short": "fact(2)",
+       "sentence": "fact(2) pauses and calls fact(1). Three frames are now waiting.",
+       "why": "No frame can finish until a call below it returns.",
+       "active": [
+        "frame-4",
+        "frame-3",
+        "frame-2"
+       ],
+       "calloutRegion": "frame-2",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "3 frames"
+        },
+        {
+         "id": "pending",
+         "label": "Waiting work",
+         "value": "4 × 3 × 2 × ?"
+        },
+        {
+         "id": "ret",
+         "label": "Last returned",
+         "value": "none"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Base case fact(1)",
+       "short": "base",
+       "sentence": "fact(1) returns 1 right away. It makes no new call, so the stack stops growing.",
+       "why": "The base case answers directly, which ends the chain of calls.",
+       "active": [
+        "frame-4",
+        "frame-3",
+        "frame-2",
+        "frame-1"
+       ],
+       "calloutRegion": "frame-1",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "4 frames (peak)"
+        },
+        {
+         "id": "pending",
+         "label": "Waiting work",
+         "value": "4 × 3 × 2 × 1"
+        },
+        {
+         "id": "ret",
+         "label": "Last returned",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "fact(2) returns",
+       "short": "ret 2",
+       "sentence": "fact(2) finishes 2 × 1 = 2, and its frame comes off the stack.",
+       "why": "The waiting multiplication now has its missing value.",
+       "active": [
+        "frame-4",
+        "frame-3",
+        "frame-2"
+       ],
+       "calloutRegion": "frame-2",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "3 frames"
+        },
+        {
+         "id": "pending",
+         "label": "Waiting work",
+         "value": "4 × 3 × 2"
+        },
+        {
+         "id": "ret",
+         "label": "Last returned",
+         "value": "2"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "fact(3) returns",
+       "short": "ret 6",
+       "sentence": "fact(3) finishes 3 × 2 = 6 and passes it down to fact(4).",
+       "why": "Frames finish in the reverse of the order they were called.",
+       "active": [
+        "frame-4",
+        "frame-3"
+       ],
+       "calloutRegion": "frame-3",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "2 frames"
+        },
+        {
+         "id": "pending",
+         "label": "Waiting work",
+         "value": "4 × 6"
+        },
+        {
+         "id": "ret",
+         "label": "Last returned",
+         "value": "6"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "fact(4) returns",
+       "short": "ret 24",
+       "sentence": "fact(4) finishes 4 × 6 = 24. The stack empties, and the answer is 24.",
+       "why": "The first call to start is the last one to finish.",
+       "active": [
+        "frame-4"
+       ],
+       "calloutRegion": "frame-4",
+       "readouts": [
+        {
+         "id": "depth",
+         "label": "Stack depth",
+         "value": "1 frame, then empty"
+        },
+        {
+         "id": "pending",
+         "label": "Waiting work",
+         "value": "none"
+        },
+        {
+         "id": "ret",
+         "label": "Last returned",
+         "value": "24"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3064,
+  "output": 4007
+ },
+ "usd": 0.092396,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The stack picture with frames growing to the base case and unwinding answers how recursion terminates and returns 24."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s4 is a manual step with no timer, so it holds until the learner clicks Next."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step index is the sole parameter, and each step changes the active frames, readouts and callout."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The ghost, callout, readouts and links each bind to declared fields such as previous.active, state.calloutRegion and state.readouts."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels and frame labels all use the same fact(n) calls and returns in the same order."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "One picture with a single changing region plus three readouts adds the pending-work product without clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Depths 1 to 4 and back, the pending products, and the returns 2, 6 and 24 are all correct; the callout locates the frame and the readouts hold the numbers."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.017172
+ }
+}

@@ -1,0 +1,530 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a30",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "Where do the out-of-fold predictions for the stacking model come from?",
+ "ts": "2026-11-14T22:50:24.158Z",
+ "ms": 154879,
+ "raw": "{\n  \"story\": \"Where do stacking features come from? Follow Fold A, Fold B, and Fold C through Mean and Nearest. Advance with Next to fill the OOF ledger from held-out rows. The meta-model uses that ledger with the original targets. Inputs, folds, and learner rules stay fixed; no tuning or preprocessing occurs.\",\n  \"aha\": {\n    \"stateId\": \"stacking-ready\",\n    \"observation\": \"Every OOF feature comes from a base model fitted without that row’s entire fold, not from an all-data fit.\"\n  },\n  \"layout\": {\n    \"preset\": \"approved-card: algorithm / collection stepper\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"fold-step-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the explanation and instructions. Keep progress on this rail; highlight the active state without implying elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"fold-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical collection composition with fixed, named regions. Keep folds together, followed by learners, ledger, and meta-model. Highlight only bound regions.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor to the active region. Identify its role without repeating numerical readouts. Keep readable label space in every state.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"oof-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place prediction blocks beside the OOF ledger, ordered Mean then Nearest. Show counts as integers without rounding. Render Status as the bound footer.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Previous / Next\",\n      \"presentation\": \"Detailed parameter-control budget: zero. Navigation uses Previous, Next, and Reset. Default index: zero; bounds: zero through six; increment: one state. Advancing changes training membership, fitted-model counts, or saved prediction evidence. Boundary buttons retain their names when disabled. Buttons support Enter and Space with visible keyboard focus. Every state persists until the learner acts. No timer is used. Reference capture: stacking-ready.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state, unfitted learners, empty OOF ledger, and default navigation index. Support Enter and Space with visible keyboard focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Fixed regression example: three folds, six rows, two base learners\",\n        \"regions\": [\n          {\n            \"id\": \"fold-a\",\n            \"label\": \"Fold A\",\n            \"values\": [\n              \"a: x = 1, y = 2\",\n              \"b: x = 2, y = 4\"\n            ]\n          },\n          {\n            \"id\": \"fold-b\",\n            \"label\": \"Fold B\",\n            \"values\": [\n              \"c: x = 3, y = 4\",\n              \"d: x = 4, y = 6\"\n            ]\n          },\n          {\n            \"id\": \"fold-c\",\n            \"label\": \"Fold C\",\n            \"values\": [\n              \"e: x = 5, y = 6\",\n              \"f: x = 6, y = 8\"\n            ]\n          },\n          {\n            \"id\": \"base-learners\",\n            \"label\": \"Mean and Nearest\",\n            \"actors\": [\n              \"Mean predicts the average fitted target.\",\n              \"Nearest copies the target of the closest fitted x.\",\n              \"Distance is absolute x difference; ties choose the alphabetically earlier row.\",\n              \"Each fold receives a fresh fitted pair.\"\n            ]\n          },\n          {\n            \"id\": \"oof-ledger\",\n            \"label\": \"OOF ledger\",\n            \"values\": [\n              \"Row order: a, b, c, d, e, f\",\n              \"Feature columns: Mean, Nearest\",\n              \"Blank entries have not been predicted.\"\n            ]\n          },\n          {\n            \"id\": \"meta-model\",\n            \"label\": \"Meta-model\",\n            \"actors\": [\n              \"Ordinary least squares with an intercept\",\n              \"Inputs: OOF ledger features\",\n              \"Targets: corresponding original y values\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"fold-a\",\n            \"to\": \"base-learners\",\n            \"label\": \"Fit rows or held-out x, as indicated\"\n          },\n          {\n            \"from\": \"fold-b\",\n            \"to\": \"base-learners\",\n            \"label\": \"Fit rows or held-out x, as indicated\"\n          },\n          {\n            \"from\": \"fold-c\",\n            \"to\": \"base-learners\",\n            \"label\": \"Fit rows or held-out x, as indicated\"\n          },\n          {\n            \"from\": \"base-learners\",\n            \"to\": \"oof-ledger\",\n            \"label\": \"Write held-out predictions\"\n          },\n          {\n            \"from\": \"oof-ledger\",\n            \"to\": \"meta-model\",\n            \"label\": \"Row-aligned training features\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"ready\",\n            \"label\": \"Prepare folds\",\n            \"short\": \"Prepare\",\n            \"sentence\": \"The OOF ledger starts empty; each fold will supply predictions from models trained on the other folds.\",\n            \"why\": \"The task is regression. Inputs and targets are dimensionless; fold membership and deterministic learner rules remain fixed.\",\n            \"active\": [\n              \"fold-a\",\n              \"fold-b\",\n              \"fold-c\"\n            ],\n            \"calloutRegion\": \"fold-a\",\n            \"readouts\": [\n              {\n                \"id\": \"block-a\",\n                \"label\": \"Fold A OOF: (Mean, Nearest)\",\n                \"value\": \"a: (—, —); b: (—, —)\"\n              },\n              {\n                \"id\": \"block-b\",\n                \"label\": \"Fold B OOF: (Mean, Nearest)\",\n                \"value\": \"c: (—, —); d: (—, —)\"\n              },\n              {\n                \"id\": \"block-c\",\n                \"label\": \"Fold C OOF: (Mean, Nearest)\",\n                \"value\": \"e: (—, —); f: (—, —)\"\n              },\n              {\n                \"id\": \"fits\",\n                \"label\": \"Base-model fits completed\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"entries\",\n                \"label\": \"OOF entries written\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"exposures\",\n                \"label\": \"Written entries whose producer trained on their row\",\n                \"value\": \"Not applicable\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Unfitted; Fold A is the first hold-out.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"fit-a\",\n            \"label\": \"Fit without A\",\n            \"short\": \"Fit −A\",\n            \"sentence\": \"Fit fresh Mean and Nearest models on Fold B and Fold C, excluding Fold A completely.\",\n            \"why\": \"Neither row from Fold A contributes inputs or targets to these fits.\",\n            \"active\": [\n              \"fold-b\",\n              \"fold-c\",\n              \"base-learners\"\n            ],\n            \"calloutRegion\": \"base-learners\",\n            \"readouts\": [\n              {\n                \"id\": \"block-a\",\n                \"label\": \"Fold A OOF: (Mean, Nearest)\",\n                \"value\": \"a: (—, —); b: (—, —)\"\n              },\n              {\n                \"id\": \"block-b\",\n                \"label\": \"Fold B OOF: (Mean, Nearest)\",\n                \"value\": \"c: (—, —); d: (—, —)\"\n              },\n              {\n                \"id\": \"block-c\",\n                \"label\": \"Fold C OOF: (Mean, Nearest)\",\n                \"value\": \"e: (—, —); f: (—, —)\"\n              },\n              {\n                \"id\": \"fits\",\n                \"label\": \"Base-model fits completed\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"entries\",\n                \"label\": \"OOF entries written\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"exposures\",\n                \"label\": \"Written entries whose producer trained on their row\",\n                \"value\": \"Not applicable\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Train: c, d, e, f. Held out: a, b.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"write-a\",\n            \"label\": \"Predict A\",\n            \"short\": \"Write A\",\n            \"sentence\": \"Mean and Nearest predict rows a and b using their held-out x values, then write the first OOF block.\",\n            \"why\": \"The nearest training row is c for both held-out rows; Mean averages the training targets.\",\n            \"active\": [\n              \"fold-a\",\n              \"base-learners\",\n              \"oof-ledger\"\n            ],\n            \"calloutRegion\": \"oof-ledger\",\n            \"readouts\": [\n              {\n                \"id\": \"block-a\",\n                \"label\": \"Fold A OOF: (Mean, Nearest)\",\n                \"value\": \"a: (6, 4); b: (6, 4)\"\n              },\n              {\n                \"id\": \"block-b\",\n                \"label\": \"Fold B OOF: (Mean, Nearest)\",\n                \"value\": \"c: (—, —); d: (—, —)\"\n              },\n              {\n                \"id\": \"block-c\",\n                \"label\": \"Fold C OOF: (Mean, Nearest)\",\n                \"value\": \"e: (—, —); f: (—, —)\"\n              },\n              {\n                \"id\": \"fits\",\n                \"label\": \"Base-model fits completed\",\n                \"value\": \"2\"\n              },\n              {\n                \"id\": \"entries\",\n                \"label\": \"OOF entries written\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"exposures\",\n                \"label\": \"Written entries whose producer trained on their row\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Fold A predictions saved; its targets were not used.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"fit-b\",\n            \"label\": \"Fit without B\",\n            \"short\": \"Fit −B\",\n            \"sentence\": \"Refit Mean and Nearest on Fold A and Fold C while keeping the first OOF block.\",\n            \"why\": \"Discard the previous fitted pair, not its saved predictions. Fold B contributes neither inputs nor targets to the fresh fits.\",\n            \"active\": [\n              \"fold-a\",\n              \"fold-c\",\n              \"base-learners\"\n            ],\n            \"calloutRegion\": \"base-learners\",\n            \"readouts\": [\n              {\n                \"id\": \"block-a\",\n                \"label\": \"Fold A OOF: (Mean, Nearest)\",\n                \"value\": \"a: (6, 4); b: (6, 4)\"\n              },\n              {\n                \"id\": \"block-b\",\n                \"label\": \"Fold B OOF: (Mean, Nearest)\",\n                \"value\": \"c: (—, —); d: (—, —)\"\n              },\n              {\n                \"id\": \"block-c\",\n                \"label\": \"Fold C OOF: (Mean, Nearest)\",\n                \"value\": \"e: (—, —); f: (—, —)\"\n              },\n              {\n                \"id\": \"fits\",\n                \"label\": \"Base-model fits completed\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"entries\",\n                \"label\": \"OOF entries written\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"exposures\",\n                \"label\": \"Written entries whose producer trained on their row\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Train: a, b, e, f. Held out: c, d.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"write-b\",\n            \"label\": \"Predict B\",\n            \"short\": \"Write B\",\n            \"sentence\": \"The fresh Mean and Nearest models predict Fold B, filling its original row positions in the OOF ledger.\",\n            \"why\": \"The nearest training rows are b for c and e for d; Mean averages the same training targets.\",\n            \"active\": [\n              \"fold-b\",\n              \"base-learners\",\n              \"oof-ledger\"\n            ],\n            \"calloutRegion\": \"oof-ledger\",\n            \"readouts\": [\n              {\n                \"id\": \"block-a\",\n                \"label\": \"Fold A OOF: (Mean, Nearest)\",\n                \"value\": \"a: (6, 4); b: (6, 4)\"\n              },\n              {\n                \"id\": \"block-b\",\n                \"label\": \"Fold B OOF: (Mean, Nearest)\",\n                \"value\": \"c: (5, 4); d: (5, 6)\"\n              },\n              {\n                \"id\": \"block-c\",\n                \"label\": \"Fold C OOF: (Mean, Nearest)\",\n                \"value\": \"e: (—, —); f: (—, —)\"\n              },\n              {\n                \"id\": \"fits\",\n                \"label\": \"Base-model fits completed\",\n                \"value\": \"4\"\n              },\n              {\n                \"id\": \"entries\",\n                \"label\": \"OOF entries written\",\n                \"value\": \"8\"\n              },\n              {\n                \"id\": \"exposures\",\n                \"label\": \"Written entries whose producer trained on their row\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Folds A and B saved; each used a different fitted pair.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"fit-c\",\n            \"label\": \"Fit without C\",\n            \"short\": \"Fit −C\",\n            \"sentence\": \"Refit Mean and Nearest on Fold A and Fold B; keep Fold C completely outside training.\",\n            \"why\": \"Earlier OOF blocks remain frozen; this fresh fitted pair has never seen rows e or f.\",\n            \"active\": [\n              \"fold-a\",\n              \"fold-b\",\n              \"base-learners\"\n            ],\n            \"calloutRegion\": \"base-learners\",\n            \"readouts\": [\n              {\n                \"id\": \"block-a\",\n                \"label\": \"Fold A OOF: (Mean, Nearest)\",\n                \"value\": \"a: (6, 4); b: (6, 4)\"\n              },\n              {\n                \"id\": \"block-b\",\n                \"label\": \"Fold B OOF: (Mean, Nearest)\",\n                \"value\": \"c: (5, 4); d: (5, 6)\"\n              },\n              {\n                \"id\": \"block-c\",\n                \"label\": \"Fold C OOF: (Mean, Nearest)\",\n                \"value\": \"e: (—, —); f: (—, —)\"\n              },\n              {\n                \"id\": \"fits\",\n                \"label\": \"Base-model fits completed\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"entries\",\n                \"label\": \"OOF entries written\",\n                \"value\": \"8\"\n              },\n              {\n                \"id\": \"exposures\",\n                \"label\": \"Written entries whose producer trained on their row\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Train: a, b, c, d. Held out: e, f.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"stacking-ready\",\n            \"label\": \"Complete OOF features\",\n            \"short\": \"OOF ready\",\n            \"sentence\": \"Predict Fold C and complete the OOF ledger; the meta-model can now train on these features paired with original targets.\",\n            \"why\": \"For i in fold F, OOF[i,m] = fit_m(D ∖ F)(x_i). Base fits = folds × learners; OOF entries = rows × learners.\",\n            \"active\": [\n              \"fold-c\",\n              \"base-learners\",\n              \"oof-ledger\",\n              \"meta-model\"\n            ],\n            \"calloutRegion\": \"oof-ledger\",\n            \"readouts\": [\n              {\n                \"id\": \"block-a\",\n                \"label\": \"Fold A OOF: (Mean, Nearest)\",\n                \"value\": \"a: (6, 4); b: (6, 4)\"\n              },\n              {\n                \"id\": \"block-b\",\n                \"label\": \"Fold B OOF: (Mean, Nearest)\",\n                \"value\": \"c: (5, 4); d: (5, 6)\"\n              },\n              {\n                \"id\": \"block-c\",\n                \"label\": \"Fold C OOF: (Mean, Nearest)\",\n                \"value\": \"e: (4, 6); f: (4, 6)\"\n              },\n              {\n                \"id\": \"fits\",\n                \"label\": \"Base-model fits completed\",\n                \"value\": \"6\"\n              },\n              {\n                \"id\": \"entries\",\n                \"label\": \"OOF entries written\",\n                \"value\": \"12\"\n              },\n              {\n                \"id\": \"exposures\",\n                \"label\": \"Written entries whose producer trained on their row\",\n                \"value\": \"0\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"All rows have held-out features; no all-data fit produced this ledger.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Where do stacking features come from? Follow Fold A, Fold B, and Fold C through Mean and Nearest. Advance with Next to fill the OOF ledger from held-out rows. The meta-model uses that ledger with the original targets. Inputs, folds, and learner rules stay fixed; no tuning or preprocessing occurs.",
+  "aha": {
+   "stateId": "stacking-ready",
+   "observation": "Every OOF feature comes from a base model fitted without that row’s entire fold, not from an all-data fit."
+  },
+  "layout": {
+   "preset": "approved-card: algorithm / collection stepper",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "fold-step-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the explanation and instructions. Keep progress on this rail; highlight the active state without implying elapsed time.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "fold-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical collection composition with fixed, named regions. Keep folds together, followed by learners, ledger, and meta-model. Highlight only bound regions.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor to the active region. Identify its role without repeating numerical readouts. Keep readable label space in every state.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "oof-evidence",
+    "kind": "value-readout",
+    "presentation": "Place prediction blocks beside the OOF ledger, ordered Mean then Nearest. Show counts as integers without rounding. Render Status as the bound footer.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Previous / Next",
+    "presentation": "Detailed parameter-control budget: zero. Navigation uses Previous, Next, and Reset. Default index: zero; bounds: zero through six; increment: one state. Advancing changes training membership, fitted-model counts, or saved prediction evidence. Boundary buttons retain their names when disabled. Buttons support Enter and Space with visible keyboard focus. Every state persists until the learner acts. No timer is used. Reference capture: stacking-ready."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state, unfitted learners, empty OOF ledger, and default navigation index. Support Enter and Space with visible keyboard focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Fixed regression example: three folds, six rows, two base learners",
+     "regions": [
+      {
+       "id": "fold-a",
+       "label": "Fold A",
+       "values": [
+        "a: x = 1, y = 2",
+        "b: x = 2, y = 4"
+       ]
+      },
+      {
+       "id": "fold-b",
+       "label": "Fold B",
+       "values": [
+        "c: x = 3, y = 4",
+        "d: x = 4, y = 6"
+       ]
+      },
+      {
+       "id": "fold-c",
+       "label": "Fold C",
+       "values": [
+        "e: x = 5, y = 6",
+        "f: x = 6, y = 8"
+       ]
+      },
+      {
+       "id": "base-learners",
+       "label": "Mean and Nearest",
+       "actors": [
+        "Mean predicts the average fitted target.",
+        "Nearest copies the target of the closest fitted x.",
+        "Distance is absolute x difference; ties choose the alphabetically earlier row.",
+        "Each fold receives a fresh fitted pair."
+       ]
+      },
+      {
+       "id": "oof-ledger",
+       "label": "OOF ledger",
+       "values": [
+        "Row order: a, b, c, d, e, f",
+        "Feature columns: Mean, Nearest",
+        "Blank entries have not been predicted."
+       ]
+      },
+      {
+       "id": "meta-model",
+       "label": "Meta-model",
+       "actors": [
+        "Ordinary least squares with an intercept",
+        "Inputs: OOF ledger features",
+        "Targets: corresponding original y values"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "fold-a",
+       "to": "base-learners",
+       "label": "Fit rows or held-out x, as indicated"
+      },
+      {
+       "from": "fold-b",
+       "to": "base-learners",
+       "label": "Fit rows or held-out x, as indicated"
+      },
+      {
+       "from": "fold-c",
+       "to": "base-learners",
+       "label": "Fit rows or held-out x, as indicated"
+      },
+      {
+       "from": "base-learners",
+       "to": "oof-ledger",
+       "label": "Write held-out predictions"
+      },
+      {
+       "from": "oof-ledger",
+       "to": "meta-model",
+       "label": "Row-aligned training features"
+      }
+     ],
+     "states": [
+      {
+       "id": "ready",
+       "label": "Prepare folds",
+       "short": "Prepare",
+       "sentence": "The OOF ledger starts empty; each fold will supply predictions from models trained on the other folds.",
+       "why": "The task is regression. Inputs and targets are dimensionless; fold membership and deterministic learner rules remain fixed.",
+       "active": [
+        "fold-a",
+        "fold-b",
+        "fold-c"
+       ],
+       "calloutRegion": "fold-a",
+       "readouts": [
+        {
+         "id": "block-a",
+         "label": "Fold A OOF: (Mean, Nearest)",
+         "value": "a: (—, —); b: (—, —)"
+        },
+        {
+         "id": "block-b",
+         "label": "Fold B OOF: (Mean, Nearest)",
+         "value": "c: (—, —); d: (—, —)"
+        },
+        {
+         "id": "block-c",
+         "label": "Fold C OOF: (Mean, Nearest)",
+         "value": "e: (—, —); f: (—, —)"
+        },
+        {
+         "id": "fits",
+         "label": "Base-model fits completed",
+         "value": "0"
+        },
+        {
+         "id": "entries",
+         "label": "OOF entries written",
+         "value": "0"
+        },
+        {
+         "id": "exposures",
+         "label": "Written entries whose producer trained on their row",
+         "value": "Not applicable"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Unfitted; Fold A is the first hold-out."
+        }
+       ]
+      },
+      {
+       "id": "fit-a",
+       "label": "Fit without A",
+       "short": "Fit −A",
+       "sentence": "Fit fresh Mean and Nearest models on Fold B and Fold C, excluding Fold A completely.",
+       "why": "Neither row from Fold A contributes inputs or targets to these fits.",
+       "active": [
+        "fold-b",
+        "fold-c",
+        "base-learners"
+       ],
+       "calloutRegion": "base-learners",
+       "readouts": [
+        {
+         "id": "block-a",
+         "label": "Fold A OOF: (Mean, Nearest)",
+         "value": "a: (—, —); b: (—, —)"
+        },
+        {
+         "id": "block-b",
+         "label": "Fold B OOF: (Mean, Nearest)",
+         "value": "c: (—, —); d: (—, —)"
+        },
+        {
+         "id": "block-c",
+         "label": "Fold C OOF: (Mean, Nearest)",
+         "value": "e: (—, —); f: (—, —)"
+        },
+        {
+         "id": "fits",
+         "label": "Base-model fits completed",
+         "value": "2"
+        },
+        {
+         "id": "entries",
+         "label": "OOF entries written",
+         "value": "0"
+        },
+        {
+         "id": "exposures",
+         "label": "Written entries whose producer trained on their row",
+         "value": "Not applicable"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Train: c, d, e, f. Held out: a, b."
+        }
+       ]
+      },
+      {
+       "id": "write-a",
+       "label": "Predict A",
+       "short": "Write A",
+       "sentence": "Mean and Nearest predict rows a and b using their held-out x values, then write the first OOF block.",
+       "why": "The nearest training row is c for both held-out rows; Mean averages the training targets.",
+       "active": [
+        "fold-a",
+        "base-learners",
+        "oof-ledger"
+       ],
+       "calloutRegion": "oof-ledger",
+       "readouts": [
+        {
+         "id": "block-a",
+         "label": "Fold A OOF: (Mean, Nearest)",
+         "value": "a: (6, 4); b: (6, 4)"
+        },
+        {
+         "id": "block-b",
+         "label": "Fold B OOF: (Mean, Nearest)",
+         "value": "c: (—, —); d: (—, —)"
+        },
+        {
+         "id": "block-c",
+         "label": "Fold C OOF: (Mean, Nearest)",
+         "value": "e: (—, —); f: (—, —)"
+        },
+        {
+         "id": "fits",
+         "label": "Base-model fits completed",
+         "value": "2"
+        },
+        {
+         "id": "entries",
+         "label": "OOF entries written",
+         "value": "4"
+        },
+        {
+         "id": "exposures",
+         "label": "Written entries whose producer trained on their row",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Fold A predictions saved; its targets were not used."
+        }
+       ]
+      },
+      {
+       "id": "fit-b",
+       "label": "Fit without B",
+       "short": "Fit −B",
+       "sentence": "Refit Mean and Nearest on Fold A and Fold C while keeping the first OOF block.",
+       "why": "Discard the previous fitted pair, not its saved predictions. Fold B contributes neither inputs nor targets to the fresh fits.",
+       "active": [
+        "fold-a",
+        "fold-c",
+        "base-learners"
+       ],
+       "calloutRegion": "base-learners",
+       "readouts": [
+        {
+         "id": "block-a",
+         "label": "Fold A OOF: (Mean, Nearest)",
+         "value": "a: (6, 4); b: (6, 4)"
+        },
+        {
+         "id": "block-b",
+         "label": "Fold B OOF: (Mean, Nearest)",
+         "value": "c: (—, —); d: (—, —)"
+        },
+        {
+         "id": "block-c",
+         "label": "Fold C OOF: (Mean, Nearest)",
+         "value": "e: (—, —); f: (—, —)"
+        },
+        {
+         "id": "fits",
+         "label": "Base-model fits completed",
+         "value": "4"
+        },
+        {
+         "id": "entries",
+         "label": "OOF entries written",
+         "value": "4"
+        },
+        {
+         "id": "exposures",
+         "label": "Written entries whose producer trained on their row",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Train: a, b, e, f. Held out: c, d."
+        }
+       ]
+      },
+      {
+       "id": "write-b",
+       "label": "Predict B",
+       "short": "Write B",
+       "sentence": "The fresh Mean and Nearest models predict Fold B, filling its original row positions in the OOF ledger.",
+       "why": "The nearest training rows are b for c and e for d; Mean averages the same training targets.",
+       "active": [
+        "fold-b",
+        "base-learners",
+        "oof-ledger"
+       ],
+       "calloutRegion": "oof-ledger",
+       "readouts": [
+        {
+         "id": "block-a",
+         "label": "Fold A OOF: (Mean, Nearest)",
+         "value": "a: (6, 4); b: (6, 4)"
+        },
+        {
+         "id": "block-b",
+         "label": "Fold B OOF: (Mean, Nearest)",
+         "value": "c: (5, 4); d: (5, 6)"
+        },
+        {
+         "id": "block-c",
+         "label": "Fold C OOF: (Mean, Nearest)",
+         "value": "e: (—, —); f: (—, —)"
+        },
+        {
+         "id": "fits",
+         "label": "Base-model fits completed",
+         "value": "4"
+        },
+        {
+         "id": "entries",
+         "label": "OOF entries written",
+         "value": "8"
+        },
+        {
+         "id": "exposures",
+         "label": "Written entries whose producer trained on their row",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Folds A and B saved; each used a different fitted pair."
+        }
+       ]
+      },
+      {
+       "id": "fit-c",
+       "label": "Fit without C",
+       "short": "Fit −C",
+       "sentence": "Refit Mean and Nearest on Fold A and Fold B; keep Fold C completely outside training.",
+       "why": "Earlier OOF blocks remain frozen; this fresh fitted pair has never seen rows e or f.",
+       "active": [
+        "fold-a",
+        "fold-b",
+        "base-learners"
+       ],
+       "calloutRegion": "base-learners",
+       "readouts": [
+        {
+         "id": "block-a",
+         "label": "Fold A OOF: (Mean, Nearest)",
+         "value": "a: (6, 4); b: (6, 4)"
+        },
+        {
+         "id": "block-b",
+         "label": "Fold B OOF: (Mean, Nearest)",
+         "value": "c: (5, 4); d: (5, 6)"
+        },
+        {
+         "id": "block-c",
+         "label": "Fold C OOF: (Mean, Nearest)",
+         "value": "e: (—, —); f: (—, —)"
+        },
+        {
+         "id": "fits",
+         "label": "Base-model fits completed",
+         "value": "6"
+        },
+        {
+         "id": "entries",
+         "label": "OOF entries written",
+         "value": "8"
+        },
+        {
+         "id": "exposures",
+         "label": "Written entries whose producer trained on their row",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Train: a, b, c, d. Held out: e, f."
+        }
+       ]
+      },
+      {
+       "id": "stacking-ready",
+       "label": "Complete OOF features",
+       "short": "OOF ready",
+       "sentence": "Predict Fold C and complete the OOF ledger; the meta-model can now train on these features paired with original targets.",
+       "why": "For i in fold F, OOF[i,m] = fit_m(D ∖ F)(x_i). Base fits = folds × learners; OOF entries = rows × learners.",
+       "active": [
+        "fold-c",
+        "base-learners",
+        "oof-ledger",
+        "meta-model"
+       ],
+       "calloutRegion": "oof-ledger",
+       "readouts": [
+        {
+         "id": "block-a",
+         "label": "Fold A OOF: (Mean, Nearest)",
+         "value": "a: (6, 4); b: (6, 4)"
+        },
+        {
+         "id": "block-b",
+         "label": "Fold B OOF: (Mean, Nearest)",
+         "value": "c: (5, 4); d: (5, 6)"
+        },
+        {
+         "id": "block-c",
+         "label": "Fold C OOF: (Mean, Nearest)",
+         "value": "e: (4, 6); f: (4, 6)"
+        },
+        {
+         "id": "fits",
+         "label": "Base-model fits completed",
+         "value": "6"
+        },
+        {
+         "id": "entries",
+         "label": "OOF entries written",
+         "value": "12"
+        },
+        {
+         "id": "exposures",
+         "label": "Written entries whose producer trained on their row",
+         "value": "0"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "All rows have held-out features; no all-data fit produced this ledger."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1541,
+  "output": 9236
+ },
+ "usd": 0.092572,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3dyXgHqg2zNngmrHQ8y\"}"
+  },
+  "cardUsd": 0
+ }
+}

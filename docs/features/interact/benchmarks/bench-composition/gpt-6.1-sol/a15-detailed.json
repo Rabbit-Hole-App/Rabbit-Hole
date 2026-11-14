@@ -1,0 +1,590 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a15",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T22:35:56.152Z",
+ "ms": 174720,
+ "raw": "{\n  \"story\": \"How does merge sort build a sorted array? Start with the highlighted input on a fixed split-and-merge map. Divide into singletons, then merge sorted runs by choosing the smaller front value. Track the final prefix and comparison count. The completed merge shows why choosing the smaller front preserves order.\",\n  \"aha\": {\n    \"stateId\": \"complete\",\n    \"observation\": \"Choosing the smaller front preserves sorted order during merging; starting from singletons lets repeated merges sort the entire input.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states/algorithm-collection\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Place explanation and status above the experiment, with an anchored leader to the target. Text supplies the status line; reason explains the mechanism.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"state-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use short labels in a wrapping rail with a distinct active step. Keep all progress here. Parameter-control budget: zero, excluding navigation and Reset.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"merge-map\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical split-and-merge arrangement with fixed positions and equal-sized array cells. All runs remain visible as a roadmap; highlight only active regions. Persistent runs provide comparison context without a ghost. Reserve readable labels at native width.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"merge-evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Use a fixed two-column grid below the picture. Preserve field positions across states. Counts derive from the fixed input and traced merges. Report each measurement only here; retain exact integer counts without rounding.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Merge sort step\",\n      \"presentation\": \"Use Previous and Next, retaining those names when disabled at boundaries. Default to the first state; advance one state within the listed bounds. Provide visible focus and Left/Right keyboard operation. Put navigation instructions above the experiment. Every state persists until learner action; never autoplay. Reference captures show complete.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Support Enter and Space with visible keyboard focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Fixed distinct integers, ascending order\",\n        \"regions\": [\n          {\n            \"id\": \"input\",\n            \"label\": \"Input\",\n            \"values\": [\"4\", \"1\", \"3\", \"2\"]\n          },\n          {\n            \"id\": \"left-half\",\n            \"label\": \"Left half\",\n            \"values\": [\"4\", \"1\"]\n          },\n          {\n            \"id\": \"right-half\",\n            \"label\": \"Right half\",\n            \"values\": [\"3\", \"2\"]\n          },\n          {\n            \"id\": \"singleton-a\",\n            \"label\": \"Singleton A\",\n            \"values\": [\"4\"]\n          },\n          {\n            \"id\": \"singleton-b\",\n            \"label\": \"Singleton B\",\n            \"values\": [\"1\"]\n          },\n          {\n            \"id\": \"singleton-c\",\n            \"label\": \"Singleton C\",\n            \"values\": [\"3\"]\n          },\n          {\n            \"id\": \"singleton-d\",\n            \"label\": \"Singleton D\",\n            \"values\": [\"2\"]\n          },\n          {\n            \"id\": \"left-run\",\n            \"label\": \"Sorted left run\",\n            \"values\": [\"1\", \"4\"]\n          },\n          {\n            \"id\": \"right-run\",\n            \"label\": \"Sorted right run\",\n            \"values\": [\"2\", \"3\"]\n          },\n          {\n            \"id\": \"result\",\n            \"label\": \"Sorted result\",\n            \"values\": [\"1\", \"2\", \"3\", \"4\"]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"input\",\n            \"to\": \"left-half\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"input\",\n            \"to\": \"right-half\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"left-half\",\n            \"to\": \"singleton-a\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"left-half\",\n            \"to\": \"singleton-b\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"right-half\",\n            \"to\": \"singleton-c\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"right-half\",\n            \"to\": \"singleton-d\",\n            \"label\": \"split\"\n          },\n          {\n            \"from\": \"singleton-a\",\n            \"to\": \"left-run\",\n            \"label\": \"merge\"\n          },\n          {\n            \"from\": \"singleton-b\",\n            \"to\": \"left-run\",\n            \"label\": \"merge\"\n          },\n          {\n            \"from\": \"singleton-c\",\n            \"to\": \"right-run\",\n            \"label\": \"merge\"\n          },\n          {\n            \"from\": \"singleton-d\",\n            \"to\": \"right-run\",\n            \"label\": \"merge\"\n          },\n          {\n            \"from\": \"left-run\",\n            \"to\": \"result\",\n            \"label\": \"merge\"\n          },\n          {\n            \"from\": \"right-run\",\n            \"to\": \"result\",\n            \"label\": \"merge\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"input\",\n            \"label\": \"Start with the unsorted input\",\n            \"short\": \"Input\",\n            \"sentence\": \"The input is unsorted; the pale roadmap shows the runs used during splitting and merging.\",\n            \"why\": \"Sort ascending with fixed, distinct integers. Count only comparisons between run fronts and item placements during merges; splitting creates views.\",\n            \"active\": [\"input\"],\n            \"calloutRegion\": \"input\",\n            \"readouts\": [\n              {\n                \"id\": \"front-comparison\",\n                \"label\": \"Front comparison\",\n                \"value\": \"Not started\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Cumulative key comparisons\",\n                \"value\": \"0 comparisons\"\n              },\n              {\n                \"id\": \"placements\",\n                \"label\": \"Cumulative merge placements\",\n                \"value\": \"0 item placements\"\n              },\n              {\n                \"id\": \"final-prefix\",\n                \"label\": \"Final merge prefix\",\n                \"value\": \"[]\"\n              }\n            ]\n          },\n          {\n            \"id\": \"split\",\n            \"label\": \"Divide into halves\",\n            \"short\": \"Halves\",\n            \"sentence\": \"Divide the input into a left half and a right half without rearranging their values.\",\n            \"why\": \"Splitting reduces the problem size but does not sort either half.\",\n            \"active\": [\"left-half\", \"right-half\"],\n            \"calloutRegion\": \"left-half\",\n            \"readouts\": [\n              {\n                \"id\": \"front-comparison\",\n                \"label\": \"Front comparison\",\n                \"value\": \"None during splitting\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Cumulative key comparisons\",\n                \"value\": \"0 comparisons\"\n              },\n              {\n                \"id\": \"placements\",\n                \"label\": \"Cumulative merge placements\",\n                \"value\": \"0 item placements\"\n              },\n              {\n                \"id\": \"final-prefix\",\n                \"label\": \"Final merge prefix\",\n                \"value\": \"[]\"\n              }\n            ]\n          },\n          {\n            \"id\": \"singletons\",\n            \"label\": \"Reach singleton runs\",\n            \"short\": \"Singles\",\n            \"sentence\": \"Continue splitting until every run contains a single item.\",\n            \"why\": \"Every singleton is already sorted, providing the base case for merging.\",\n            \"active\": [\n              \"singleton-a\",\n              \"singleton-b\",\n              \"singleton-c\",\n              \"singleton-d\"\n            ],\n            \"calloutRegion\": \"singleton-a\",\n            \"readouts\": [\n              {\n                \"id\": \"front-comparison\",\n                \"label\": \"Front comparison\",\n                \"value\": \"None during splitting\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Cumulative key comparisons\",\n                \"value\": \"0 comparisons\"\n              },\n              {\n                \"id\": \"placements\",\n                \"label\": \"Cumulative merge placements\",\n                \"value\": \"0 item placements\"\n              },\n              {\n                \"id\": \"final-prefix\",\n                \"label\": \"Final merge prefix\",\n                \"value\": \"[]\"\n              }\n            ]\n          },\n          {\n            \"id\": \"merge-left\",\n            \"label\": \"Merge the left singletons\",\n            \"short\": \"Left run\",\n            \"sentence\": \"Merge the left singletons: place the smaller front first, then copy the remaining tail.\",\n            \"why\": \"After either input empties, its partner's remaining items need no further comparisons.\",\n            \"active\": [\"singleton-a\", \"singleton-b\", \"left-run\"],\n            \"calloutRegion\": \"left-run\",\n            \"readouts\": [\n              {\n                \"id\": \"front-comparison\",\n                \"label\": \"Front comparison\",\n                \"value\": \"4 > 1; choose right\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Cumulative key comparisons\",\n                \"value\": \"1 comparison\"\n              },\n              {\n                \"id\": \"placements\",\n                \"label\": \"Cumulative merge placements\",\n                \"value\": \"2 item placements\"\n              },\n              {\n                \"id\": \"final-prefix\",\n                \"label\": \"Final merge prefix\",\n                \"value\": \"[]\"\n              }\n            ]\n          },\n          {\n            \"id\": \"merge-right\",\n            \"label\": \"Merge the right singletons\",\n            \"short\": \"Right run\",\n            \"sentence\": \"Apply the same merge rule to the right singletons.\",\n            \"why\": \"Both resulting runs are sorted, so their fronts reveal their smallest remaining items.\",\n            \"active\": [\"singleton-c\", \"singleton-d\", \"right-run\"],\n            \"calloutRegion\": \"right-run\",\n            \"readouts\": [\n              {\n                \"id\": \"front-comparison\",\n                \"label\": \"Front comparison\",\n                \"value\": \"3 > 2; choose right\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Cumulative key comparisons\",\n                \"value\": \"2 comparisons\"\n              },\n              {\n                \"id\": \"placements\",\n                \"label\": \"Cumulative merge placements\",\n                \"value\": \"4 item placements\"\n              },\n              {\n                \"id\": \"final-prefix\",\n                \"label\": \"Final merge prefix\",\n                \"value\": \"[]\"\n              }\n            ]\n          },\n          {\n            \"id\": \"take-left\",\n            \"label\": \"Begin the final merge\",\n            \"short\": \"Pick left\",\n            \"sentence\": \"Compare the sorted runs' fronts and append the smaller left front to the final prefix.\",\n            \"why\": \"Each run is sorted, so the smaller front is the smallest item remaining anywhere.\",\n            \"active\": [\"left-run\", \"right-run\"],\n            \"calloutRegion\": \"left-run\",\n            \"readouts\": [\n              {\n                \"id\": \"front-comparison\",\n                \"label\": \"Front comparison\",\n                \"value\": \"1 < 2; choose left\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Cumulative key comparisons\",\n                \"value\": \"3 comparisons\"\n              },\n              {\n                \"id\": \"placements\",\n                \"label\": \"Cumulative merge placements\",\n                \"value\": \"5 item placements\"\n              },\n              {\n                \"id\": \"final-prefix\",\n                \"label\": \"Final merge prefix\",\n                \"value\": \"[1]\"\n              }\n            ]\n          },\n          {\n            \"id\": \"take-right-first\",\n            \"label\": \"Compare the unconsumed fronts\",\n            \"short\": \"Pick right\",\n            \"sentence\": \"Advance only the left run's front, compare again, and append the smaller right front.\",\n            \"why\": \"Ignore consumed items. The prefix remains sorted because the selected front cannot precede anything already emitted.\",\n            \"active\": [\"left-run\", \"right-run\"],\n            \"calloutRegion\": \"right-run\",\n            \"readouts\": [\n              {\n                \"id\": \"front-comparison\",\n                \"label\": \"Front comparison\",\n                \"value\": \"4 > 2; choose right\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Cumulative key comparisons\",\n                \"value\": \"4 comparisons\"\n              },\n              {\n                \"id\": \"placements\",\n                \"label\": \"Cumulative merge placements\",\n                \"value\": \"6 item placements\"\n              },\n              {\n                \"id\": \"final-prefix\",\n                \"label\": \"Final merge prefix\",\n                \"value\": \"[1, 2]\"\n              }\n            ]\n          },\n          {\n            \"id\": \"take-right-second\",\n            \"label\": \"Choose the right front again\",\n            \"short\": \"Right again\",\n            \"sentence\": \"Advance the right run's front and compare again; its next item also belongs before the left front.\",\n            \"why\": \"The unconsumed portion of each run stays sorted, so inspecting only its front remains sufficient.\",\n            \"active\": [\"left-run\", \"right-run\"],\n            \"calloutRegion\": \"right-run\",\n            \"readouts\": [\n              {\n                \"id\": \"front-comparison\",\n                \"label\": \"Front comparison\",\n                \"value\": \"4 > 3; choose right\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Cumulative key comparisons\",\n                \"value\": \"5 comparisons\"\n              },\n              {\n                \"id\": \"placements\",\n                \"label\": \"Cumulative merge placements\",\n                \"value\": \"7 item placements\"\n              },\n              {\n                \"id\": \"final-prefix\",\n                \"label\": \"Final merge prefix\",\n                \"value\": \"[1, 2, 3]\"\n              }\n            ]\n          },\n          {\n            \"id\": \"complete\",\n            \"label\": \"Append the tail and inspect the result\",\n            \"short\": \"Complete\",\n            \"sentence\": \"The right run is empty; append the remaining left tail to complete the sorted result.\",\n            \"why\": \"Every choice preserved a sorted prefix. Merging sorted runs therefore produces another sorted run, starting from the singleton base cases.\",\n            \"active\": [\"result\"],\n            \"calloutRegion\": \"result\",\n            \"readouts\": [\n              {\n                \"id\": \"front-comparison\",\n                \"label\": \"Front comparison\",\n                \"value\": \"Right run empty; no comparison\"\n              },\n              {\n                \"id\": \"comparisons\",\n                \"label\": \"Cumulative key comparisons\",\n                \"value\": \"5 comparisons = 1 left + 1 right + 3 final\"\n              },\n              {\n                \"id\": \"placements\",\n                \"label\": \"Cumulative merge placements\",\n                \"value\": \"8 item placements\"\n              },\n              {\n                \"id\": \"final-prefix\",\n                \"label\": \"Final merge prefix\",\n                \"value\": \"[1, 2, 3, 4]\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How does merge sort build a sorted array? Start with the highlighted input on a fixed split-and-merge map. Divide into singletons, then merge sorted runs by choosing the smaller front value. Track the final prefix and comparison count. The completed merge shows why choosing the smaller front preserves order.",
+  "aha": {
+   "stateId": "complete",
+   "observation": "Choosing the smaller front preserves sorted order during merging; starting from singletons lets repeated merges sort the entire input."
+  },
+  "layout": {
+   "preset": "stepper-states/algorithm-collection",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Place explanation and status above the experiment, with an anchored leader to the target. Text supplies the status line; reason explains the mechanism.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "state-rail",
+    "kind": "step-rail",
+    "presentation": "Use short labels in a wrapping rail with a distinct active step. Keep all progress here. Parameter-control budget: zero, excluding navigation and Reset.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "merge-map",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical split-and-merge arrangement with fixed positions and equal-sized array cells. All runs remain visible as a roadmap; highlight only active regions. Persistent runs provide comparison context without a ghost. Reserve readable labels at native width.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "merge-evidence",
+    "kind": "value-readout",
+    "presentation": "Use a fixed two-column grid below the picture. Preserve field positions across states. Counts derive from the fixed input and traced merges. Report each measurement only here; retain exact integer counts without rounding.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Merge sort step",
+    "presentation": "Use Previous and Next, retaining those names when disabled at boundaries. Default to the first state; advance one state within the listed bounds. Provide visible focus and Left/Right keyboard operation. Put navigation instructions above the experiment. Every state persists until learner action; never autoplay. Reference captures show complete."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Support Enter and Space with visible keyboard focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Fixed distinct integers, ascending order",
+     "regions": [
+      {
+       "id": "input",
+       "label": "Input",
+       "values": [
+        "4",
+        "1",
+        "3",
+        "2"
+       ]
+      },
+      {
+       "id": "left-half",
+       "label": "Left half",
+       "values": [
+        "4",
+        "1"
+       ]
+      },
+      {
+       "id": "right-half",
+       "label": "Right half",
+       "values": [
+        "3",
+        "2"
+       ]
+      },
+      {
+       "id": "singleton-a",
+       "label": "Singleton A",
+       "values": [
+        "4"
+       ]
+      },
+      {
+       "id": "singleton-b",
+       "label": "Singleton B",
+       "values": [
+        "1"
+       ]
+      },
+      {
+       "id": "singleton-c",
+       "label": "Singleton C",
+       "values": [
+        "3"
+       ]
+      },
+      {
+       "id": "singleton-d",
+       "label": "Singleton D",
+       "values": [
+        "2"
+       ]
+      },
+      {
+       "id": "left-run",
+       "label": "Sorted left run",
+       "values": [
+        "1",
+        "4"
+       ]
+      },
+      {
+       "id": "right-run",
+       "label": "Sorted right run",
+       "values": [
+        "2",
+        "3"
+       ]
+      },
+      {
+       "id": "result",
+       "label": "Sorted result",
+       "values": [
+        "1",
+        "2",
+        "3",
+        "4"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "input",
+       "to": "left-half",
+       "label": "split"
+      },
+      {
+       "from": "input",
+       "to": "right-half",
+       "label": "split"
+      },
+      {
+       "from": "left-half",
+       "to": "singleton-a",
+       "label": "split"
+      },
+      {
+       "from": "left-half",
+       "to": "singleton-b",
+       "label": "split"
+      },
+      {
+       "from": "right-half",
+       "to": "singleton-c",
+       "label": "split"
+      },
+      {
+       "from": "right-half",
+       "to": "singleton-d",
+       "label": "split"
+      },
+      {
+       "from": "singleton-a",
+       "to": "left-run",
+       "label": "merge"
+      },
+      {
+       "from": "singleton-b",
+       "to": "left-run",
+       "label": "merge"
+      },
+      {
+       "from": "singleton-c",
+       "to": "right-run",
+       "label": "merge"
+      },
+      {
+       "from": "singleton-d",
+       "to": "right-run",
+       "label": "merge"
+      },
+      {
+       "from": "left-run",
+       "to": "result",
+       "label": "merge"
+      },
+      {
+       "from": "right-run",
+       "to": "result",
+       "label": "merge"
+      }
+     ],
+     "states": [
+      {
+       "id": "input",
+       "label": "Start with the unsorted input",
+       "short": "Input",
+       "sentence": "The input is unsorted; the pale roadmap shows the runs used during splitting and merging.",
+       "why": "Sort ascending with fixed, distinct integers. Count only comparisons between run fronts and item placements during merges; splitting creates views.",
+       "active": [
+        "input"
+       ],
+       "calloutRegion": "input",
+       "readouts": [
+        {
+         "id": "front-comparison",
+         "label": "Front comparison",
+         "value": "Not started"
+        },
+        {
+         "id": "comparisons",
+         "label": "Cumulative key comparisons",
+         "value": "0 comparisons"
+        },
+        {
+         "id": "placements",
+         "label": "Cumulative merge placements",
+         "value": "0 item placements"
+        },
+        {
+         "id": "final-prefix",
+         "label": "Final merge prefix",
+         "value": "[]"
+        }
+       ]
+      },
+      {
+       "id": "split",
+       "label": "Divide into halves",
+       "short": "Halves",
+       "sentence": "Divide the input into a left half and a right half without rearranging their values.",
+       "why": "Splitting reduces the problem size but does not sort either half.",
+       "active": [
+        "left-half",
+        "right-half"
+       ],
+       "calloutRegion": "left-half",
+       "readouts": [
+        {
+         "id": "front-comparison",
+         "label": "Front comparison",
+         "value": "None during splitting"
+        },
+        {
+         "id": "comparisons",
+         "label": "Cumulative key comparisons",
+         "value": "0 comparisons"
+        },
+        {
+         "id": "placements",
+         "label": "Cumulative merge placements",
+         "value": "0 item placements"
+        },
+        {
+         "id": "final-prefix",
+         "label": "Final merge prefix",
+         "value": "[]"
+        }
+       ]
+      },
+      {
+       "id": "singletons",
+       "label": "Reach singleton runs",
+       "short": "Singles",
+       "sentence": "Continue splitting until every run contains a single item.",
+       "why": "Every singleton is already sorted, providing the base case for merging.",
+       "active": [
+        "singleton-a",
+        "singleton-b",
+        "singleton-c",
+        "singleton-d"
+       ],
+       "calloutRegion": "singleton-a",
+       "readouts": [
+        {
+         "id": "front-comparison",
+         "label": "Front comparison",
+         "value": "None during splitting"
+        },
+        {
+         "id": "comparisons",
+         "label": "Cumulative key comparisons",
+         "value": "0 comparisons"
+        },
+        {
+         "id": "placements",
+         "label": "Cumulative merge placements",
+         "value": "0 item placements"
+        },
+        {
+         "id": "final-prefix",
+         "label": "Final merge prefix",
+         "value": "[]"
+        }
+       ]
+      },
+      {
+       "id": "merge-left",
+       "label": "Merge the left singletons",
+       "short": "Left run",
+       "sentence": "Merge the left singletons: place the smaller front first, then copy the remaining tail.",
+       "why": "After either input empties, its partner's remaining items need no further comparisons.",
+       "active": [
+        "singleton-a",
+        "singleton-b",
+        "left-run"
+       ],
+       "calloutRegion": "left-run",
+       "readouts": [
+        {
+         "id": "front-comparison",
+         "label": "Front comparison",
+         "value": "4 > 1; choose right"
+        },
+        {
+         "id": "comparisons",
+         "label": "Cumulative key comparisons",
+         "value": "1 comparison"
+        },
+        {
+         "id": "placements",
+         "label": "Cumulative merge placements",
+         "value": "2 item placements"
+        },
+        {
+         "id": "final-prefix",
+         "label": "Final merge prefix",
+         "value": "[]"
+        }
+       ]
+      },
+      {
+       "id": "merge-right",
+       "label": "Merge the right singletons",
+       "short": "Right run",
+       "sentence": "Apply the same merge rule to the right singletons.",
+       "why": "Both resulting runs are sorted, so their fronts reveal their smallest remaining items.",
+       "active": [
+        "singleton-c",
+        "singleton-d",
+        "right-run"
+       ],
+       "calloutRegion": "right-run",
+       "readouts": [
+        {
+         "id": "front-comparison",
+         "label": "Front comparison",
+         "value": "3 > 2; choose right"
+        },
+        {
+         "id": "comparisons",
+         "label": "Cumulative key comparisons",
+         "value": "2 comparisons"
+        },
+        {
+         "id": "placements",
+         "label": "Cumulative merge placements",
+         "value": "4 item placements"
+        },
+        {
+         "id": "final-prefix",
+         "label": "Final merge prefix",
+         "value": "[]"
+        }
+       ]
+      },
+      {
+       "id": "take-left",
+       "label": "Begin the final merge",
+       "short": "Pick left",
+       "sentence": "Compare the sorted runs' fronts and append the smaller left front to the final prefix.",
+       "why": "Each run is sorted, so the smaller front is the smallest item remaining anywhere.",
+       "active": [
+        "left-run",
+        "right-run"
+       ],
+       "calloutRegion": "left-run",
+       "readouts": [
+        {
+         "id": "front-comparison",
+         "label": "Front comparison",
+         "value": "1 < 2; choose left"
+        },
+        {
+         "id": "comparisons",
+         "label": "Cumulative key comparisons",
+         "value": "3 comparisons"
+        },
+        {
+         "id": "placements",
+         "label": "Cumulative merge placements",
+         "value": "5 item placements"
+        },
+        {
+         "id": "final-prefix",
+         "label": "Final merge prefix",
+         "value": "[1]"
+        }
+       ]
+      },
+      {
+       "id": "take-right-first",
+       "label": "Compare the unconsumed fronts",
+       "short": "Pick right",
+       "sentence": "Advance only the left run's front, compare again, and append the smaller right front.",
+       "why": "Ignore consumed items. The prefix remains sorted because the selected front cannot precede anything already emitted.",
+       "active": [
+        "left-run",
+        "right-run"
+       ],
+       "calloutRegion": "right-run",
+       "readouts": [
+        {
+         "id": "front-comparison",
+         "label": "Front comparison",
+         "value": "4 > 2; choose right"
+        },
+        {
+         "id": "comparisons",
+         "label": "Cumulative key comparisons",
+         "value": "4 comparisons"
+        },
+        {
+         "id": "placements",
+         "label": "Cumulative merge placements",
+         "value": "6 item placements"
+        },
+        {
+         "id": "final-prefix",
+         "label": "Final merge prefix",
+         "value": "[1, 2]"
+        }
+       ]
+      },
+      {
+       "id": "take-right-second",
+       "label": "Choose the right front again",
+       "short": "Right again",
+       "sentence": "Advance the right run's front and compare again; its next item also belongs before the left front.",
+       "why": "The unconsumed portion of each run stays sorted, so inspecting only its front remains sufficient.",
+       "active": [
+        "left-run",
+        "right-run"
+       ],
+       "calloutRegion": "right-run",
+       "readouts": [
+        {
+         "id": "front-comparison",
+         "label": "Front comparison",
+         "value": "4 > 3; choose right"
+        },
+        {
+         "id": "comparisons",
+         "label": "Cumulative key comparisons",
+         "value": "5 comparisons"
+        },
+        {
+         "id": "placements",
+         "label": "Cumulative merge placements",
+         "value": "7 item placements"
+        },
+        {
+         "id": "final-prefix",
+         "label": "Final merge prefix",
+         "value": "[1, 2, 3]"
+        }
+       ]
+      },
+      {
+       "id": "complete",
+       "label": "Append the tail and inspect the result",
+       "short": "Complete",
+       "sentence": "The right run is empty; append the remaining left tail to complete the sorted result.",
+       "why": "Every choice preserved a sorted prefix. Merging sorted runs therefore produces another sorted run, starting from the singleton base cases.",
+       "active": [
+        "result"
+       ],
+       "calloutRegion": "result",
+       "readouts": [
+        {
+         "id": "front-comparison",
+         "label": "Front comparison",
+         "value": "Right run empty; no comparison"
+        },
+        {
+         "id": "comparisons",
+         "label": "Cumulative key comparisons",
+         "value": "5 comparisons = 1 left + 1 right + 3 final"
+        },
+        {
+         "id": "placements",
+         "label": "Cumulative merge placements",
+         "value": "8 item placements"
+        },
+        {
+         "id": "final-prefix",
+         "label": "Final merge prefix",
+         "value": "[1, 2, 3, 4]"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 9902
+ },
+ "usd": 0.099216,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed split-and-merge map with highlighted runs answers how merging sorted runs by choosing the smaller front builds a sorted array."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The complete state highlights the result with the explanatory 'why', and it persists with no autoplay until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "There are no parameters by design; the fixed input is justified, and the step index changes the active regions and readouts at every state."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callout binds to state.calloutRegion, sentence and why, the map highlights bind to state.active with regions and links, and the readouts bind to state.readouts."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, region names and readouts consistently name the same runs, such as the left run, right run and final prefix, along with the merge events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The picture is a single fixed map with a few active regions per state and four readouts in a grid, and the complete state's comparison breakdown adds a deep-level count without clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "I traced the counts independently, giving 1, 2, 3, 4 and 5 comparisons and 2, 4, 5, 6, 7 and 8 placements, and they are correct, with each quantity reported only in the readouts and the callout locating the region."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.022558
+ }
+}

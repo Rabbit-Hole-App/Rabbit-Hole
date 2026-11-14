@@ -1,0 +1,276 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a17",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "explain recursion",
+ "ts": "2026-11-14T22:37:39.346Z",
+ "ms": 93783,
+ "raw": "{\n  \"story\": \"How can a function call itself and still finish? Start with factorial of three. Each call saves its multiplication and requests a smaller input, until one returns directly. Compare descending calls with returning results: waiting callers resume rather than restart. Use Next to reach the outer result, which remains visible.\",\n  \"aha\": {\n    \"stateId\": \"outer-return\",\n    \"observation\": \"The base case stops further calls; each waiting caller then resumes its saved multiplication using the returned result.\"\n  },\n  \"layout\": {\n    \"preset\": \"approved-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"call-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Place below the story and above the experiment. Show the active state and completed trace here, without a separate progress display.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"call-map\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical algorithm composition with three fixed call regions in declared order. Inactive regions show the call map, not executed calls. Highlight only active regions; keep labels readable throughout. Links identify smaller self-calls, not elapsed time.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the active call without covering labels. Identify where execution is happening; leave numerical values in the readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"execution-readouts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place below the picture with a bound status line. Fixed input: positive integer three. Base case: factorial of one returns one. Arithmetic is exact and unitless. Operation and saved work describe the same selected state; no measurements or clock are used.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"items\": \"variant.states\",\n      \"presentation\": \"Navigation budget: one index control and Reset; parameter-control budget: zero. Use Previous and Next, defaulting to the first state. Advance one state within the first-to-last bounds. Retain button names when disabled at boundaries. Every state persists until learner action, including the aha state. Provide keyboard operation and visible focus.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and fixed input. Provide keyboard operation and visible focus.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Factorial: smaller calls, then returned results\",\n        \"regions\": [\n          {\n            \"id\": \"outer\",\n            \"label\": \"Outer call\",\n            \"values\": [\n              \"Save the input; request a smaller self-call.\",\n              \"Resume by multiplying the saved input by the returned result.\"\n            ]\n          },\n          {\n            \"id\": \"middle\",\n            \"label\": \"Middle call\",\n            \"values\": [\n              \"Save the input; request a smaller self-call.\",\n              \"Resume by multiplying the saved input by the returned result.\"\n            ]\n          },\n          {\n            \"id\": \"base\",\n            \"label\": \"Base call\",\n            \"values\": [\n              \"Return directly at the base case.\",\n              \"Do not request another self-call.\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"outer\",\n            \"to\": \"middle\",\n            \"label\": \"Same function, smaller input\"\n          },\n          {\n            \"from\": \"middle\",\n            \"to\": \"base\",\n            \"label\": \"Same function, smaller input\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"outer-start\",\n            \"label\": \"Enter Outer call\",\n            \"short\": \"Outer enters\",\n            \"sentence\": \"Outer call starts the recursive computation.\",\n            \"why\": \"It must obtain a smaller call's result before completing its multiplication.\",\n            \"active\": [\n              \"outer\"\n            ],\n            \"calloutRegion\": \"outer\",\n            \"readouts\": [\n              {\n                \"id\": \"operation\",\n                \"label\": \"Current operation\",\n                \"value\": \"Evaluate factorial(3)\"\n              },\n              {\n                \"id\": \"saved-work\",\n                \"label\": \"Suspended callers\",\n                \"value\": \"None yet\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Descending: ready to request a smaller self-call.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"middle-start\",\n            \"label\": \"Enter Middle call\",\n            \"short\": \"Middle enters\",\n            \"sentence\": \"Middle call runs while Outer call waits.\",\n            \"why\": \"Calling the same function creates another invocation; it does not erase the waiting caller's saved work.\",\n            \"active\": [\n              \"middle\"\n            ],\n            \"calloutRegion\": \"middle\",\n            \"readouts\": [\n              {\n                \"id\": \"operation\",\n                \"label\": \"Current operation\",\n                \"value\": \"Evaluate factorial(2)\"\n              },\n              {\n                \"id\": \"saved-work\",\n                \"label\": \"Suspended callers\",\n                \"value\": \"Outer call: multiply the returned result by 3\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Descending: Outer call is suspended; Middle call requests a smaller self-call.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"base-return\",\n            \"label\": \"Base call returns\",\n            \"short\": \"Base returns\",\n            \"sentence\": \"Base call returns directly instead of calling itself again.\",\n            \"why\": \"The smaller inputs have reached the stopping condition; waiting callers can now resume.\",\n            \"active\": [\n              \"base\"\n            ],\n            \"calloutRegion\": \"base\",\n            \"readouts\": [\n              {\n                \"id\": \"operation\",\n                \"label\": \"Current operation\",\n                \"value\": \"factorial(1) = 1\"\n              },\n              {\n                \"id\": \"saved-work\",\n                \"label\": \"Suspended callers\",\n                \"value\": \"Resume order: Middle call ×2; then Outer call ×3\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Turning point: no further self-call; return to Middle call.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"middle-return\",\n            \"label\": \"Resume Middle call\",\n            \"short\": \"Middle resumes\",\n            \"sentence\": \"Middle call resumes its saved multiplication rather than starting over.\",\n            \"why\": \"The returned result replaces the smaller self-call in the waiting calculation.\",\n            \"active\": [\n              \"middle\"\n            ],\n            \"calloutRegion\": \"middle\",\n            \"readouts\": [\n              {\n                \"id\": \"operation\",\n                \"label\": \"Current operation\",\n                \"value\": \"2 × 1 = 2\"\n              },\n              {\n                \"id\": \"saved-work\",\n                \"label\": \"Suspended callers\",\n                \"value\": \"Outer call: multiply the returned result by 3\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Returning: Middle call finishes and returns its result to Outer call.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"outer-return\",\n            \"label\": \"Resume Outer call\",\n            \"short\": \"Outer finishes\",\n            \"sentence\": \"Outer call resumes its saved multiplication and finishes.\",\n            \"why\": \"The base case enabled a chain of returns; each caller continued with the result it had awaited.\",\n            \"active\": [\n              \"outer\"\n            ],\n            \"calloutRegion\": \"outer\",\n            \"readouts\": [\n              {\n                \"id\": \"operation\",\n                \"label\": \"Current operation\",\n                \"value\": \"3 × 2 = 6\"\n              },\n              {\n                \"id\": \"saved-work\",\n                \"label\": \"Suspended callers\",\n                \"value\": \"None\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Complete: all calls returned; the final result remains visible.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "How can a function call itself and still finish? Start with factorial of three. Each call saves its multiplication and requests a smaller input, until one returns directly. Compare descending calls with returning results: waiting callers resume rather than restart. Use Next to reach the outer result, which remains visible.",
+  "aha": {
+   "stateId": "outer-return",
+   "observation": "The base case stops further calls; each waiting caller then resumes its saved multiplication using the returned result."
+  },
+  "layout": {
+   "preset": "approved-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "call-rail",
+    "kind": "step-rail",
+    "presentation": "Place below the story and above the experiment. Show the active state and completed trace here, without a separate progress display.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "call-map",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical algorithm composition with three fixed call regions in declared order. Inactive regions show the call map, not executed calls. Highlight only active regions; keep labels readable throughout. Links identify smaller self-calls, not elapsed time.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the active call without covering labels. Identify where execution is happening; leave numerical values in the readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "execution-readouts",
+    "kind": "value-readout",
+    "presentation": "Place below the picture with a bound status line. Fixed input: positive integer three. Base case: factorial of one returns one. Arithmetic is exact and unitless. Operation and saved work describe the same selected state; no measurements or clock are used.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "presentation": "Navigation budget: one index control and Reset; parameter-control budget: zero. Use Previous and Next, defaulting to the first state. Advance one state within the first-to-last bounds. Retain button names when disabled at boundaries. Every state persists until learner action, including the aha state. Provide keyboard operation and visible focus."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and fixed input. Provide keyboard operation and visible focus."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Factorial: smaller calls, then returned results",
+     "regions": [
+      {
+       "id": "outer",
+       "label": "Outer call",
+       "values": [
+        "Save the input; request a smaller self-call.",
+        "Resume by multiplying the saved input by the returned result."
+       ]
+      },
+      {
+       "id": "middle",
+       "label": "Middle call",
+       "values": [
+        "Save the input; request a smaller self-call.",
+        "Resume by multiplying the saved input by the returned result."
+       ]
+      },
+      {
+       "id": "base",
+       "label": "Base call",
+       "values": [
+        "Return directly at the base case.",
+        "Do not request another self-call."
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "outer",
+       "to": "middle",
+       "label": "Same function, smaller input"
+      },
+      {
+       "from": "middle",
+       "to": "base",
+       "label": "Same function, smaller input"
+      }
+     ],
+     "states": [
+      {
+       "id": "outer-start",
+       "label": "Enter Outer call",
+       "short": "Outer enters",
+       "sentence": "Outer call starts the recursive computation.",
+       "why": "It must obtain a smaller call's result before completing its multiplication.",
+       "active": [
+        "outer"
+       ],
+       "calloutRegion": "outer",
+       "readouts": [
+        {
+         "id": "operation",
+         "label": "Current operation",
+         "value": "Evaluate factorial(3)"
+        },
+        {
+         "id": "saved-work",
+         "label": "Suspended callers",
+         "value": "None yet"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Descending: ready to request a smaller self-call."
+        }
+       ]
+      },
+      {
+       "id": "middle-start",
+       "label": "Enter Middle call",
+       "short": "Middle enters",
+       "sentence": "Middle call runs while Outer call waits.",
+       "why": "Calling the same function creates another invocation; it does not erase the waiting caller's saved work.",
+       "active": [
+        "middle"
+       ],
+       "calloutRegion": "middle",
+       "readouts": [
+        {
+         "id": "operation",
+         "label": "Current operation",
+         "value": "Evaluate factorial(2)"
+        },
+        {
+         "id": "saved-work",
+         "label": "Suspended callers",
+         "value": "Outer call: multiply the returned result by 3"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Descending: Outer call is suspended; Middle call requests a smaller self-call."
+        }
+       ]
+      },
+      {
+       "id": "base-return",
+       "label": "Base call returns",
+       "short": "Base returns",
+       "sentence": "Base call returns directly instead of calling itself again.",
+       "why": "The smaller inputs have reached the stopping condition; waiting callers can now resume.",
+       "active": [
+        "base"
+       ],
+       "calloutRegion": "base",
+       "readouts": [
+        {
+         "id": "operation",
+         "label": "Current operation",
+         "value": "factorial(1) = 1"
+        },
+        {
+         "id": "saved-work",
+         "label": "Suspended callers",
+         "value": "Resume order: Middle call ×2; then Outer call ×3"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Turning point: no further self-call; return to Middle call."
+        }
+       ]
+      },
+      {
+       "id": "middle-return",
+       "label": "Resume Middle call",
+       "short": "Middle resumes",
+       "sentence": "Middle call resumes its saved multiplication rather than starting over.",
+       "why": "The returned result replaces the smaller self-call in the waiting calculation.",
+       "active": [
+        "middle"
+       ],
+       "calloutRegion": "middle",
+       "readouts": [
+        {
+         "id": "operation",
+         "label": "Current operation",
+         "value": "2 × 1 = 2"
+        },
+        {
+         "id": "saved-work",
+         "label": "Suspended callers",
+         "value": "Outer call: multiply the returned result by 3"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Returning: Middle call finishes and returns its result to Outer call."
+        }
+       ]
+      },
+      {
+       "id": "outer-return",
+       "label": "Resume Outer call",
+       "short": "Outer finishes",
+       "sentence": "Outer call resumes its saved multiplication and finishes.",
+       "why": "The base case enabled a chain of returns; each caller continued with the result it had awaited.",
+       "active": [
+        "outer"
+       ],
+       "calloutRegion": "outer",
+       "readouts": [
+        {
+         "id": "operation",
+         "label": "Current operation",
+         "value": "3 × 2 = 6"
+        },
+        {
+         "id": "saved-work",
+         "label": "Suspended callers",
+         "value": "None"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Complete: all calls returned; the final result remains visible."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1529,
+  "output": 4982
+ },
+ "usd": 0.050008,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3d1CBULTr4yGQUkgZes\"}"
+  },
+  "cardUsd": 0
+ }
+}

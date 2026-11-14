@@ -1,0 +1,386 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a13",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a bill become a law in the United States?",
+ "ts": "2026-11-14T22:26:01.246Z",
+ "ms": 36122,
+ "raw": "{\"story\":\"A bill is a proposed law. Step through its path: a member introduces it, a committee reviews it, the House and Senate each pass it, and the President signs it. Watch the approvals counter. The bill becomes law only after the House, the Senate and the President all approve the same text.\",\"aha\":{\"stateId\":\"law\",\"observation\":\"A bill becomes law only after three approvals of the same text: House, Senate, then President. Two-thirds of each chamber can override a veto.\"},\"layout\":{\"preset\":\"pipeline\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top rail listing each stage of the bill; the current stage is highlighted and shows progress.\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Left-to-right pipeline: House, Committee, Senate, Reconcile text, President, Law. The active stage is highlighted.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the active stage. Says where the bill is and why this step matters.\"},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Status line under the picture showing approvals so far and where the bill is now.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons that keep their names when disabled at the first and last step. They work with the keyboard and show a visible focus ring.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to introduction\",\"presentation\":\"Returns to step 1.\"}],\"data\":{\"variants\":[{\"label\":\"Bill starting in the House\",\"regions\":[{\"id\":\"house\",\"kind\":\"chamber\",\"label\":\"House\",\"actors\":[\"435 Representatives\"]},{\"id\":\"committee\",\"kind\":\"stage\",\"label\":\"Committee\",\"values\":[\"Hearings\",\"Amendments\",\"Committee vote\"]},{\"id\":\"senate\",\"kind\":\"chamber\",\"label\":\"Senate\",\"actors\":[\"100 Senators\"]},{\"id\":\"reconcile\",\"kind\":\"stage\",\"label\":\"Reconcile text\",\"values\":[\"Identical text required\"]},{\"id\":\"president\",\"kind\":\"actor\",\"label\":\"President\",\"actors\":[\"President\"]},{\"id\":\"law\",\"kind\":\"stage\",\"label\":\"Law\",\"values\":[\"Enacted\"]}],\"links\":[{\"from\":\"house\",\"to\":\"committee\",\"label\":\"referred\"},{\"from\":\"committee\",\"to\":\"house\",\"label\":\"reported\"},{\"from\":\"house\",\"to\":\"senate\",\"label\":\"passed bill\"},{\"from\":\"senate\",\"to\":\"reconcile\",\"label\":\"if changed\"},{\"from\":\"reconcile\",\"to\":\"president\",\"label\":\"same text\"},{\"from\":\"president\",\"to\":\"law\",\"label\":\"signature\"}],\"states\":[{\"id\":\"introduced\",\"label\":\"Introduced\",\"short\":\"Introduce\",\"sentence\":\"A Representative introduces the bill in the House, where it gets a number such as H.R. 1.\",\"why\":\"Only a member of Congress can formally introduce a bill.\",\"active\":[\"house\"],\"calloutRegion\":\"house\",\"readouts\":[{\"id\":\"approvals\",\"label\":\"Approvals\",\"value\":\"0 of 3\"},{\"id\":\"location\",\"label\":\"Bill is in\",\"value\":\"House\"}]},{\"id\":\"committee\",\"label\":\"Committee review\",\"short\":\"Committee\",\"sentence\":\"A House committee holds hearings and amends the bill. Most bills never leave committee.\",\"why\":\"Committees decide which bills reach a full vote.\",\"active\":[\"committee\"],\"calloutRegion\":\"committee\",\"readouts\":[{\"id\":\"approvals\",\"label\":\"Approvals\",\"value\":\"0 of 3\"},{\"id\":\"location\",\"label\":\"Bill is in\",\"value\":\"House committee\"}]},{\"id\":\"house-vote\",\"label\":\"House passes\",\"short\":\"House vote\",\"sentence\":\"The full House votes. A simple majority of members voting passes the bill.\",\"why\":\"This is the first of three required approvals.\",\"active\":[\"house\"],\"calloutRegion\":\"house\",\"readouts\":[{\"id\":\"approvals\",\"label\":\"Approvals\",\"value\":\"1 of 3\"},{\"id\":\"location\",\"label\":\"Bill is in\",\"value\":\"Sent to Senate\"}]},{\"id\":\"senate-vote\",\"label\":\"Senate passes\",\"short\":\"Senate vote\",\"sentence\":\"The Senate repeats committee review and a floor vote. Ending debate usually takes 60 votes.\",\"why\":\"The second chamber must approve the bill on its own.\",\"active\":[\"senate\"],\"calloutRegion\":\"senate\",\"readouts\":[{\"id\":\"approvals\",\"label\":\"Approvals\",\"value\":\"2 of 3\"},{\"id\":\"location\",\"label\":\"Bill is in\",\"value\":\"Senate\"}]},{\"id\":\"reconcile\",\"label\":\"Same text agreed\",\"short\":\"Reconcile\",\"sentence\":\"If the Senate changed anything, both chambers must agree on identical text before the bill moves on.\",\"why\":\"Two different versions cannot both go to the President.\",\"active\":[\"reconcile\",\"house\",\"senate\"],\"calloutRegion\":\"reconcile\",\"readouts\":[{\"id\":\"approvals\",\"label\":\"Approvals\",\"value\":\"2 of 3\"},{\"id\":\"location\",\"label\":\"Bill is in\",\"value\":\"Both chambers\"}]},{\"id\":\"president\",\"label\":\"On the President's desk\",\"short\":\"President\",\"sentence\":\"The President has 10 days, not counting Sundays, to sign or veto. Two-thirds of each chamber can override a veto.\",\"why\":\"The executive branch provides the final check.\",\"active\":[\"president\"],\"calloutRegion\":\"president\",\"readouts\":[{\"id\":\"approvals\",\"label\":\"Approvals\",\"value\":\"2 of 3\"},{\"id\":\"location\",\"label\":\"Bill is in\",\"value\":\"White House\"}]},{\"id\":\"law\",\"label\":\"Becomes law\",\"short\":\"Law\",\"sentence\":\"Once signed, the identical text becomes law. The House, Senate and President have all approved the same words.\",\"why\":\"Three approvals of one text is the rule for every federal law.\",\"active\":[\"law\"],\"calloutRegion\":\"law\",\"readouts\":[{\"id\":\"approvals\",\"label\":\"Approvals\",\"value\":\"3 of 3\"},{\"id\":\"location\",\"label\":\"Bill is in\",\"value\":\"U.S. Code\"}]}]}]}}",
+ "composition": {
+  "story": "A bill is a proposed law. Step through its path: a member introduces it, a committee reviews it, the House and Senate each pass it, and the President signs it. Watch the approvals counter. The bill becomes law only after the House, the Senate and the President all approve the same text.",
+  "aha": {
+   "stateId": "law",
+   "observation": "A bill becomes law only after three approvals of the same text: House, Senate, then President. Two-thirds of each chamber can override a veto."
+  },
+  "layout": {
+   "preset": "pipeline",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top rail listing each stage of the bill; the current stage is highlighted and shows progress."
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Left-to-right pipeline: House, Committee, Senate, Reconcile text, President, Law. The active stage is highlighted."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the active stage. Says where the bill is and why this step matters."
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Status line under the picture showing approvals so far and where the bill is now."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons that keep their names when disabled at the first and last step. They work with the keyboard and show a visible focus ring."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to introduction",
+    "presentation": "Returns to step 1."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Bill starting in the House",
+     "regions": [
+      {
+       "id": "house",
+       "kind": "chamber",
+       "label": "House",
+       "actors": [
+        "435 Representatives"
+       ]
+      },
+      {
+       "id": "committee",
+       "kind": "stage",
+       "label": "Committee",
+       "values": [
+        "Hearings",
+        "Amendments",
+        "Committee vote"
+       ]
+      },
+      {
+       "id": "senate",
+       "kind": "chamber",
+       "label": "Senate",
+       "actors": [
+        "100 Senators"
+       ]
+      },
+      {
+       "id": "reconcile",
+       "kind": "stage",
+       "label": "Reconcile text",
+       "values": [
+        "Identical text required"
+       ]
+      },
+      {
+       "id": "president",
+       "kind": "actor",
+       "label": "President",
+       "actors": [
+        "President"
+       ]
+      },
+      {
+       "id": "law",
+       "kind": "stage",
+       "label": "Law",
+       "values": [
+        "Enacted"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "house",
+       "to": "committee",
+       "label": "referred"
+      },
+      {
+       "from": "committee",
+       "to": "house",
+       "label": "reported"
+      },
+      {
+       "from": "house",
+       "to": "senate",
+       "label": "passed bill"
+      },
+      {
+       "from": "senate",
+       "to": "reconcile",
+       "label": "if changed"
+      },
+      {
+       "from": "reconcile",
+       "to": "president",
+       "label": "same text"
+      },
+      {
+       "from": "president",
+       "to": "law",
+       "label": "signature"
+      }
+     ],
+     "states": [
+      {
+       "id": "introduced",
+       "label": "Introduced",
+       "short": "Introduce",
+       "sentence": "A Representative introduces the bill in the House, where it gets a number such as H.R. 1.",
+       "why": "Only a member of Congress can formally introduce a bill.",
+       "active": [
+        "house"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "approvals",
+         "label": "Approvals",
+         "value": "0 of 3"
+        },
+        {
+         "id": "location",
+         "label": "Bill is in",
+         "value": "House"
+        }
+       ]
+      },
+      {
+       "id": "committee",
+       "label": "Committee review",
+       "short": "Committee",
+       "sentence": "A House committee holds hearings and amends the bill. Most bills never leave committee.",
+       "why": "Committees decide which bills reach a full vote.",
+       "active": [
+        "committee"
+       ],
+       "calloutRegion": "committee",
+       "readouts": [
+        {
+         "id": "approvals",
+         "label": "Approvals",
+         "value": "0 of 3"
+        },
+        {
+         "id": "location",
+         "label": "Bill is in",
+         "value": "House committee"
+        }
+       ]
+      },
+      {
+       "id": "house-vote",
+       "label": "House passes",
+       "short": "House vote",
+       "sentence": "The full House votes. A simple majority of members voting passes the bill.",
+       "why": "This is the first of three required approvals.",
+       "active": [
+        "house"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "approvals",
+         "label": "Approvals",
+         "value": "1 of 3"
+        },
+        {
+         "id": "location",
+         "label": "Bill is in",
+         "value": "Sent to Senate"
+        }
+       ]
+      },
+      {
+       "id": "senate-vote",
+       "label": "Senate passes",
+       "short": "Senate vote",
+       "sentence": "The Senate repeats committee review and a floor vote. Ending debate usually takes 60 votes.",
+       "why": "The second chamber must approve the bill on its own.",
+       "active": [
+        "senate"
+       ],
+       "calloutRegion": "senate",
+       "readouts": [
+        {
+         "id": "approvals",
+         "label": "Approvals",
+         "value": "2 of 3"
+        },
+        {
+         "id": "location",
+         "label": "Bill is in",
+         "value": "Senate"
+        }
+       ]
+      },
+      {
+       "id": "reconcile",
+       "label": "Same text agreed",
+       "short": "Reconcile",
+       "sentence": "If the Senate changed anything, both chambers must agree on identical text before the bill moves on.",
+       "why": "Two different versions cannot both go to the President.",
+       "active": [
+        "reconcile",
+        "house",
+        "senate"
+       ],
+       "calloutRegion": "reconcile",
+       "readouts": [
+        {
+         "id": "approvals",
+         "label": "Approvals",
+         "value": "2 of 3"
+        },
+        {
+         "id": "location",
+         "label": "Bill is in",
+         "value": "Both chambers"
+        }
+       ]
+      },
+      {
+       "id": "president",
+       "label": "On the President's desk",
+       "short": "President",
+       "sentence": "The President has 10 days, not counting Sundays, to sign or veto. Two-thirds of each chamber can override a veto.",
+       "why": "The executive branch provides the final check.",
+       "active": [
+        "president"
+       ],
+       "calloutRegion": "president",
+       "readouts": [
+        {
+         "id": "approvals",
+         "label": "Approvals",
+         "value": "2 of 3"
+        },
+        {
+         "id": "location",
+         "label": "Bill is in",
+         "value": "White House"
+        }
+       ]
+      },
+      {
+       "id": "law",
+       "label": "Becomes law",
+       "short": "Law",
+       "sentence": "Once signed, the identical text becomes law. The House, Senate and President have all approved the same words.",
+       "why": "Three approvals of one text is the rule for every federal law.",
+       "active": [
+        "law"
+       ],
+       "calloutRegion": "law",
+       "readouts": [
+        {
+         "id": "approvals",
+         "label": "Approvals",
+         "value": "3 of 3"
+        },
+        {
+         "id": "location",
+         "label": "Bill is in",
+         "value": "U.S. Code"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3071,
+  "output": 3947
+ },
+ "usd": 0.091224,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The pipeline of House, Committee, Senate, Reconcile, President and Law with the approvals counter shows that three approvals of the same text are needed to make law."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'law' is the final step of a step-controlled scene with no timer, so it holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step index is the only control and it changes the active region, callout and readouts; a fixed sequence with no other parameter is justified here."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlights, callout and readouts all trace to state.active, calloutRegion, sentence and readouts, and the links are declared, although the 'reported' link back to the House is never shown as active."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, region labels, step names and the approvals counter all refer to the same stages and events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth the scene shows a single pipeline with one or a few highlighted stages per step and no extra formula or clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The approvals counts progress correctly (0, 0, 1, 2, 2, 2, 3) and the readouts quantify while the callouts locate, with only minor wording overlap such as 'Sent to Senate' while the House is active."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.018734
+ }
+}

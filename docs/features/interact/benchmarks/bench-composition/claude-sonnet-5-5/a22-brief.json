@@ -1,0 +1,635 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a22",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+ "ts": "2026-11-14T22:27:16.594Z",
+ "ms": 30511,
+ "raw": "{\"story\":\"A parent node holds 6 A and 4 B samples. A split sends them into two children. Compute each node's Gini impurity, average the children by size, then subtract from the parent. That drop is the information gain.\",\"aha\":{\"stateId\":\"gain\",\"observation\":\"Information gain is the parent's Gini minus the size-weighted average of the children's Gini. A bigger drop means a better split.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"presentation\":\"Previous / Next\"},{\"id\":\"split\",\"kind\":\"select\",\"label\":\"Split\",\"options\":[\"Split X: 4A,1B | 2A,3B\",\"Split Y: 4A,0B | 2A,4B\"],\"default\":0,\"presentation\":\"Selects which variant of the split is shown; changes child counts and every computed value.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to the first state and the default split.\"}],\"data\":{\"variants\":[{\"label\":\"Split X: 4A,1B | 2A,3B\",\"regions\":[{\"id\":\"parent\",\"label\":\"Parent node\",\"values\":[\"6 A\",\"4 B\",\"n = 10\"]},{\"id\":\"left\",\"label\":\"Left child\",\"values\":[\"4 A\",\"1 B\",\"n = 5\"]},{\"id\":\"right\",\"label\":\"Right child\",\"values\":[\"2 A\",\"3 B\",\"n = 5\"]},{\"id\":\"weighted\",\"label\":\"Weighted child Gini\",\"values\":[\"0.5×0.32 + 0.5×0.48\"]},{\"id\":\"gain\",\"label\":\"Information gain\",\"values\":[\"0.48 − 0.40\"]}],\"links\":[{\"from\":\"parent\",\"to\":\"left\",\"label\":\"split\"},{\"from\":\"parent\",\"to\":\"right\",\"label\":\"split\"},{\"from\":\"left\",\"to\":\"weighted\",\"label\":\"×0.5\"},{\"from\":\"right\",\"to\":\"weighted\",\"label\":\"×0.5\"},{\"from\":\"weighted\",\"to\":\"gain\",\"label\":\"subtract\"}],\"states\":[{\"id\":\"parent\",\"label\":\"Parent\",\"short\":\"Parent\",\"sentence\":\"Parent proportions are 0.6 and 0.4, so Gini = 1 − (0.36 + 0.16) = 0.48.\",\"why\":\"Gini = 1 − sum of squared class proportions.\",\"active\":[\"parent\"],\"calloutRegion\":\"parent\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"}]},{\"id\":\"split\",\"label\":\"Split\",\"short\":\"Split\",\"sentence\":\"The split sends 5 samples left and 5 right. Each child keeps its own class counts.\",\"why\":\"Child sizes become the weights later.\",\"active\":[\"parent\",\"left\",\"right\"],\"calloutRegion\":\"left\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"},{\"id\":\"n\",\"label\":\"Child sizes\",\"value\":\"5 | 5\"}]},{\"id\":\"left\",\"label\":\"Left Gini\",\"short\":\"Left\",\"sentence\":\"Left proportions are 0.8 and 0.2, so Gini = 1 − (0.64 + 0.04) = 0.32.\",\"why\":\"Same formula, applied to the left counts only.\",\"active\":[\"left\"],\"calloutRegion\":\"left\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.32\"}]},{\"id\":\"right\",\"label\":\"Right Gini\",\"short\":\"Right\",\"sentence\":\"Right proportions are 0.4 and 0.6, so Gini = 1 − (0.16 + 0.36) = 0.48.\",\"why\":\"Same formula, applied to the right counts only.\",\"active\":[\"right\"],\"calloutRegion\":\"right\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.32\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"0.48\"}]},{\"id\":\"weighted\",\"label\":\"Weighted\",\"short\":\"Weight\",\"sentence\":\"Weight each child by its share of samples: 0.5 × 0.32 + 0.5 × 0.48 = 0.40.\",\"why\":\"Larger children count more toward the average.\",\"active\":[\"left\",\"right\",\"weighted\"],\"calloutRegion\":\"weighted\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.32\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"0.48\"},{\"id\":\"gw\",\"label\":\"Weighted Gini\",\"value\":\"0.40\"}]},{\"id\":\"gain\",\"label\":\"Gain\",\"short\":\"Gain\",\"sentence\":\"Information gain = parent Gini − weighted child Gini = 0.48 − 0.40 = 0.08.\",\"why\":\"The impurity removed by the split.\",\"active\":[\"parent\",\"weighted\",\"gain\"],\"calloutRegion\":\"gain\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.32\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"0.48\"},{\"id\":\"gw\",\"label\":\"Weighted Gini\",\"value\":\"0.40\"},{\"id\":\"ig\",\"label\":\"Information gain\",\"value\":\"0.08\"}]}]},{\"label\":\"Split Y: 4A,0B | 2A,4B\",\"regions\":[{\"id\":\"parent\",\"label\":\"Parent node\",\"values\":[\"6 A\",\"4 B\",\"n = 10\"]},{\"id\":\"left\",\"label\":\"Left child\",\"values\":[\"4 A\",\"0 B\",\"n = 4\"]},{\"id\":\"right\",\"label\":\"Right child\",\"values\":[\"2 A\",\"4 B\",\"n = 6\"]},{\"id\":\"weighted\",\"label\":\"Weighted child Gini\",\"values\":[\"0.4×0 + 0.6×0.444\"]},{\"id\":\"gain\",\"label\":\"Information gain\",\"values\":[\"0.48 − 0.267\"]}],\"links\":[{\"from\":\"parent\",\"to\":\"left\",\"label\":\"split\"},{\"from\":\"parent\",\"to\":\"right\",\"label\":\"split\"},{\"from\":\"left\",\"to\":\"weighted\",\"label\":\"×0.4\"},{\"from\":\"right\",\"to\":\"weighted\",\"label\":\"×0.6\"},{\"from\":\"weighted\",\"to\":\"gain\",\"label\":\"subtract\"}],\"states\":[{\"id\":\"parent\",\"label\":\"Parent\",\"short\":\"Parent\",\"sentence\":\"Parent proportions are 0.6 and 0.4, so Gini = 1 − (0.36 + 0.16) = 0.48.\",\"why\":\"Gini = 1 − sum of squared class proportions.\",\"active\":[\"parent\"],\"calloutRegion\":\"parent\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"}]},{\"id\":\"split\",\"label\":\"Split\",\"short\":\"Split\",\"sentence\":\"The split sends 4 samples left and 6 right. Each child keeps its own class counts.\",\"why\":\"Child sizes become the weights later.\",\"active\":[\"parent\",\"left\",\"right\"],\"calloutRegion\":\"left\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"},{\"id\":\"n\",\"label\":\"Child sizes\",\"value\":\"4 | 6\"}]},{\"id\":\"left\",\"label\":\"Left Gini\",\"short\":\"Left\",\"sentence\":\"Left proportions are 1.0 and 0.0, so Gini = 1 − (1 + 0) = 0. The node is pure.\",\"why\":\"Same formula, applied to the left counts only.\",\"active\":[\"left\"],\"calloutRegion\":\"left\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.00\"}]},{\"id\":\"right\",\"label\":\"Right Gini\",\"short\":\"Right\",\"sentence\":\"Right proportions are 0.33 and 0.67, so Gini = 1 − (0.111 + 0.444) = 0.444.\",\"why\":\"Same formula, applied to the right counts only.\",\"active\":[\"right\"],\"calloutRegion\":\"right\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.00\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"0.444\"}]},{\"id\":\"weighted\",\"label\":\"Weighted\",\"short\":\"Weight\",\"sentence\":\"Weight each child by its share of samples: 0.4 × 0 + 0.6 × 0.444 = 0.267.\",\"why\":\"Larger children count more toward the average.\",\"active\":[\"left\",\"right\",\"weighted\"],\"calloutRegion\":\"weighted\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.00\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"0.444\"},{\"id\":\"gw\",\"label\":\"Weighted Gini\",\"value\":\"0.267\"}]},{\"id\":\"gain\",\"label\":\"Gain\",\"short\":\"Gain\",\"sentence\":\"Information gain = parent Gini − weighted child Gini = 0.48 − 0.267 = 0.213.\",\"why\":\"The impurity removed by the split; larger than Split X.\",\"active\":[\"parent\",\"weighted\",\"gain\"],\"calloutRegion\":\"gain\",\"readouts\":[{\"id\":\"gp\",\"label\":\"Parent Gini\",\"value\":\"0.48\"},{\"id\":\"gl\",\"label\":\"Left Gini\",\"value\":\"0.00\"},{\"id\":\"gr\",\"label\":\"Right Gini\",\"value\":\"0.444\"},{\"id\":\"gw\",\"label\":\"Weighted Gini\",\"value\":\"0.267\"},{\"id\":\"ig\",\"label\":\"Information gain\",\"value\":\"0.213\"}]}]}]}}",
+ "composition": {
+  "story": "A parent node holds 6 A and 4 B samples. A split sends them into two children. Compute each node's Gini impurity, average the children by size, then subtract from the parent. That drop is the information gain.",
+  "aha": {
+   "stateId": "gain",
+   "observation": "Information gain is the parent's Gini minus the size-weighted average of the children's Gini. A bigger drop means a better split."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "split",
+    "kind": "select",
+    "label": "Split",
+    "options": [
+     "Split X: 4A,1B | 2A,3B",
+     "Split Y: 4A,0B | 2A,4B"
+    ],
+    "default": 0,
+    "presentation": "Selects which variant of the split is shown; changes child counts and every computed value."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to the first state and the default split."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Split X: 4A,1B | 2A,3B",
+     "regions": [
+      {
+       "id": "parent",
+       "label": "Parent node",
+       "values": [
+        "6 A",
+        "4 B",
+        "n = 10"
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left child",
+       "values": [
+        "4 A",
+        "1 B",
+        "n = 5"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right child",
+       "values": [
+        "2 A",
+        "3 B",
+        "n = 5"
+       ]
+      },
+      {
+       "id": "weighted",
+       "label": "Weighted child Gini",
+       "values": [
+        "0.5×0.32 + 0.5×0.48"
+       ]
+      },
+      {
+       "id": "gain",
+       "label": "Information gain",
+       "values": [
+        "0.48 − 0.40"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "parent",
+       "to": "left",
+       "label": "split"
+      },
+      {
+       "from": "parent",
+       "to": "right",
+       "label": "split"
+      },
+      {
+       "from": "left",
+       "to": "weighted",
+       "label": "×0.5"
+      },
+      {
+       "from": "right",
+       "to": "weighted",
+       "label": "×0.5"
+      },
+      {
+       "from": "weighted",
+       "to": "gain",
+       "label": "subtract"
+      }
+     ],
+     "states": [
+      {
+       "id": "parent",
+       "label": "Parent",
+       "short": "Parent",
+       "sentence": "Parent proportions are 0.6 and 0.4, so Gini = 1 − (0.36 + 0.16) = 0.48.",
+       "why": "Gini = 1 − sum of squared class proportions.",
+       "active": [
+        "parent"
+       ],
+       "calloutRegion": "parent",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        }
+       ]
+      },
+      {
+       "id": "split",
+       "label": "Split",
+       "short": "Split",
+       "sentence": "The split sends 5 samples left and 5 right. Each child keeps its own class counts.",
+       "why": "Child sizes become the weights later.",
+       "active": [
+        "parent",
+        "left",
+        "right"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "n",
+         "label": "Child sizes",
+         "value": "5 | 5"
+        }
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left Gini",
+       "short": "Left",
+       "sentence": "Left proportions are 0.8 and 0.2, so Gini = 1 − (0.64 + 0.04) = 0.32.",
+       "why": "Same formula, applied to the left counts only.",
+       "active": [
+        "left"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.32"
+        }
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right Gini",
+       "short": "Right",
+       "sentence": "Right proportions are 0.4 and 0.6, so Gini = 1 − (0.16 + 0.36) = 0.48.",
+       "why": "Same formula, applied to the right counts only.",
+       "active": [
+        "right"
+       ],
+       "calloutRegion": "right",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.32"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "0.48"
+        }
+       ]
+      },
+      {
+       "id": "weighted",
+       "label": "Weighted",
+       "short": "Weight",
+       "sentence": "Weight each child by its share of samples: 0.5 × 0.32 + 0.5 × 0.48 = 0.40.",
+       "why": "Larger children count more toward the average.",
+       "active": [
+        "left",
+        "right",
+        "weighted"
+       ],
+       "calloutRegion": "weighted",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.32"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted Gini",
+         "value": "0.40"
+        }
+       ]
+      },
+      {
+       "id": "gain",
+       "label": "Gain",
+       "short": "Gain",
+       "sentence": "Information gain = parent Gini − weighted child Gini = 0.48 − 0.40 = 0.08.",
+       "why": "The impurity removed by the split.",
+       "active": [
+        "parent",
+        "weighted",
+        "gain"
+       ],
+       "calloutRegion": "gain",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.32"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted Gini",
+         "value": "0.40"
+        },
+        {
+         "id": "ig",
+         "label": "Information gain",
+         "value": "0.08"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Split Y: 4A,0B | 2A,4B",
+     "regions": [
+      {
+       "id": "parent",
+       "label": "Parent node",
+       "values": [
+        "6 A",
+        "4 B",
+        "n = 10"
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left child",
+       "values": [
+        "4 A",
+        "0 B",
+        "n = 4"
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right child",
+       "values": [
+        "2 A",
+        "4 B",
+        "n = 6"
+       ]
+      },
+      {
+       "id": "weighted",
+       "label": "Weighted child Gini",
+       "values": [
+        "0.4×0 + 0.6×0.444"
+       ]
+      },
+      {
+       "id": "gain",
+       "label": "Information gain",
+       "values": [
+        "0.48 − 0.267"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "parent",
+       "to": "left",
+       "label": "split"
+      },
+      {
+       "from": "parent",
+       "to": "right",
+       "label": "split"
+      },
+      {
+       "from": "left",
+       "to": "weighted",
+       "label": "×0.4"
+      },
+      {
+       "from": "right",
+       "to": "weighted",
+       "label": "×0.6"
+      },
+      {
+       "from": "weighted",
+       "to": "gain",
+       "label": "subtract"
+      }
+     ],
+     "states": [
+      {
+       "id": "parent",
+       "label": "Parent",
+       "short": "Parent",
+       "sentence": "Parent proportions are 0.6 and 0.4, so Gini = 1 − (0.36 + 0.16) = 0.48.",
+       "why": "Gini = 1 − sum of squared class proportions.",
+       "active": [
+        "parent"
+       ],
+       "calloutRegion": "parent",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        }
+       ]
+      },
+      {
+       "id": "split",
+       "label": "Split",
+       "short": "Split",
+       "sentence": "The split sends 4 samples left and 6 right. Each child keeps its own class counts.",
+       "why": "Child sizes become the weights later.",
+       "active": [
+        "parent",
+        "left",
+        "right"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "n",
+         "label": "Child sizes",
+         "value": "4 | 6"
+        }
+       ]
+      },
+      {
+       "id": "left",
+       "label": "Left Gini",
+       "short": "Left",
+       "sentence": "Left proportions are 1.0 and 0.0, so Gini = 1 − (1 + 0) = 0. The node is pure.",
+       "why": "Same formula, applied to the left counts only.",
+       "active": [
+        "left"
+       ],
+       "calloutRegion": "left",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.00"
+        }
+       ]
+      },
+      {
+       "id": "right",
+       "label": "Right Gini",
+       "short": "Right",
+       "sentence": "Right proportions are 0.33 and 0.67, so Gini = 1 − (0.111 + 0.444) = 0.444.",
+       "why": "Same formula, applied to the right counts only.",
+       "active": [
+        "right"
+       ],
+       "calloutRegion": "right",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.00"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "0.444"
+        }
+       ]
+      },
+      {
+       "id": "weighted",
+       "label": "Weighted",
+       "short": "Weight",
+       "sentence": "Weight each child by its share of samples: 0.4 × 0 + 0.6 × 0.444 = 0.267.",
+       "why": "Larger children count more toward the average.",
+       "active": [
+        "left",
+        "right",
+        "weighted"
+       ],
+       "calloutRegion": "weighted",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.00"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "0.444"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted Gini",
+         "value": "0.267"
+        }
+       ]
+      },
+      {
+       "id": "gain",
+       "label": "Gain",
+       "short": "Gain",
+       "sentence": "Information gain = parent Gini − weighted child Gini = 0.48 − 0.267 = 0.213.",
+       "why": "The impurity removed by the split; larger than Split X.",
+       "active": [
+        "parent",
+        "weighted",
+        "gain"
+       ],
+       "calloutRegion": "gain",
+       "readouts": [
+        {
+         "id": "gp",
+         "label": "Parent Gini",
+         "value": "0.48"
+        },
+        {
+         "id": "gl",
+         "label": "Left Gini",
+         "value": "0.00"
+        },
+        {
+         "id": "gr",
+         "label": "Right Gini",
+         "value": "0.444"
+        },
+        {
+         "id": "gw",
+         "label": "Weighted Gini",
+         "value": "0.267"
+        },
+        {
+         "id": "ig",
+         "label": "Information gain",
+         "value": "0.213"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3083,
+  "output": 5515
+ },
+ "usd": 0.061316,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of parent, children, weighted Gini and gain regions, linked by arrows, shows how a split's impurity drop gives information gain."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'gain' is the final step and stays there until the learner presses Previous or Reset; there is no timer."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The split select swaps the child counts and changes the Gini values, weights and gain (0.08 vs 0.213), making the comparison between splits real."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active regions, links, the ghost (previous.active), the callout (calloutRegion, sentence, why) and the readouts all bind to declared variant and state data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story's parent, children, weighted average and gain match the region labels, state names, step rail and callouts."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "A brief scene runs six states with up to five cumulative readouts plus region values and a callout, which exceeds the one-changing-region overview budget."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "All Gini, weighted and gain values check out for both splits, and the readouts carry the numbers while the callout only locates; some repetition with the sentence is minor."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.019508
+ }
+}

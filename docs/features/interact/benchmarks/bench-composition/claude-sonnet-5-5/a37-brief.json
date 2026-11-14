@@ -1,0 +1,334 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a37",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "what happens to the centroids in k-means each iteration?",
+ "ts": "2026-11-14T22:32:59.357Z",
+ "ms": 32230,
+ "raw": "{\"story\":\"Two centroids start at guessed spots among six points. Each iteration has two moves: every point joins its nearest centroid, then each centroid jumps to the mean of its points. Watch the centroids move far at first, then stop once assignments stop changing.\",\"aha\":{\"stateId\":\"update-2\",\"observation\":\"Each centroid moves to the mean of its points; once no point switches clusters, the mean equals the centroid, so movement is zero and k-means has converged.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"k = 2, six points\",\"regions\":[{\"id\":\"centroid-a\",\"label\":\"Centroid A\",\"values\":[\"start (1.00, 1.00)\",\"after update 1 (1.33, 2.00)\"]},{\"id\":\"centroid-b\",\"label\":\"Centroid B\",\"values\":[\"start (4.00, 3.00)\",\"after update 1 (4.75, 4.75)\"]},{\"id\":\"cluster-a\",\"label\":\"Cluster A points\",\"values\":[\"a (1,1)\",\"b (2,2)\",\"c (1,3)\"]},{\"id\":\"cluster-b\",\"label\":\"Cluster B points\",\"values\":[\"d (5,4)\",\"e (6,5)\",\"f (5,6)\",\"g (3,4)\"]}],\"links\":[{\"from\":\"centroid-a\",\"to\":\"cluster-a\",\"label\":\"nearest / mean\"},{\"from\":\"centroid-b\",\"to\":\"cluster-b\",\"label\":\"nearest / mean\"}],\"states\":[{\"id\":\"start\",\"label\":\"Start\",\"sentence\":\"Both centroids begin at guessed positions; no point belongs to a cluster yet.\",\"short\":\"Initial guess\",\"why\":\"K-means needs starting centroids before it can assign anything.\",\"calloutRegion\":\"centroid-a\",\"active\":[\"centroid-a\",\"centroid-b\"],\"readouts\":[{\"id\":\"ca\",\"label\":\"Centroid A\",\"value\":\"(1.00, 1.00)\"},{\"id\":\"cb\",\"label\":\"Centroid B\",\"value\":\"(4.00, 3.00)\"},{\"id\":\"mv\",\"label\":\"Moved A / B\",\"value\":\"–\"}]},{\"id\":\"assign-1\",\"label\":\"Assign 1\",\"sentence\":\"Each point joins its nearest centroid: a, b, c go to A; d, e, f, g go to B.\",\"short\":\"Points pick nearest\",\"why\":\"Centroids have not moved yet; only point memberships change.\",\"calloutRegion\":\"cluster-b\",\"active\":[\"cluster-a\",\"cluster-b\"],\"readouts\":[{\"id\":\"ca\",\"label\":\"Centroid A\",\"value\":\"(1.00, 1.00)\"},{\"id\":\"cb\",\"label\":\"Centroid B\",\"value\":\"(4.00, 3.00)\"},{\"id\":\"mv\",\"label\":\"Moved A / B\",\"value\":\"0.00 / 0.00\"}]},{\"id\":\"update-1\",\"label\":\"Update 1\",\"sentence\":\"Each centroid jumps to the mean of its points: A to (1.33, 2.00), B to (4.75, 4.75).\",\"short\":\"Centroids jump\",\"why\":\"The mean is the position minimizing squared distance to that cluster's points.\",\"calloutRegion\":\"centroid-b\",\"active\":[\"centroid-a\",\"centroid-b\"],\"readouts\":[{\"id\":\"ca\",\"label\":\"Centroid A\",\"value\":\"(1.33, 2.00)\"},{\"id\":\"cb\",\"label\":\"Centroid B\",\"value\":\"(4.75, 4.75)\"},{\"id\":\"mv\",\"label\":\"Moved A / B\",\"value\":\"1.05 / 1.90\"}]},{\"id\":\"assign-2\",\"label\":\"Assign 2\",\"sentence\":\"Reassigning with the new centroids, every point picks the same cluster as before.\",\"short\":\"No switches\",\"why\":\"If memberships are unchanged, the next mean will equal the current centroid.\",\"calloutRegion\":\"cluster-a\",\"active\":[\"cluster-a\",\"cluster-b\"],\"readouts\":[{\"id\":\"ca\",\"label\":\"Centroid A\",\"value\":\"(1.33, 2.00)\"},{\"id\":\"cb\",\"label\":\"Centroid B\",\"value\":\"(4.75, 4.75)\"},{\"id\":\"mv\",\"label\":\"Points switched\",\"value\":\"0 of 7\"}]},{\"id\":\"update-2\",\"label\":\"Update 2: converged\",\"sentence\":\"The means equal the current centroids, so neither centroid moves. K-means has converged.\",\"short\":\"Movement is zero\",\"why\":\"Same members give the same mean, so the loop reaches a fixed point and stops.\",\"calloutRegion\":\"centroid-a\",\"active\":[\"centroid-a\",\"centroid-b\"],\"readouts\":[{\"id\":\"ca\",\"label\":\"Centroid A\",\"value\":\"(1.33, 2.00)\"},{\"id\":\"cb\",\"label\":\"Centroid B\",\"value\":\"(4.75, 4.75)\"},{\"id\":\"mv\",\"label\":\"Moved A / B\",\"value\":\"0.00 / 0.00\"}]}]}]}}",
+ "composition": {
+  "story": "Two centroids start at guessed spots among six points. Each iteration has two moves: every point joins its nearest centroid, then each centroid jumps to the mean of its points. Watch the centroids move far at first, then stop once assignments stop changing.",
+  "aha": {
+   "stateId": "update-2",
+   "observation": "Each centroid moves to the mean of its points; once no point switches clusters, the mean equals the centroid, so movement is zero and k-means has converged."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "k = 2, six points",
+     "regions": [
+      {
+       "id": "centroid-a",
+       "label": "Centroid A",
+       "values": [
+        "start (1.00, 1.00)",
+        "after update 1 (1.33, 2.00)"
+       ]
+      },
+      {
+       "id": "centroid-b",
+       "label": "Centroid B",
+       "values": [
+        "start (4.00, 3.00)",
+        "after update 1 (4.75, 4.75)"
+       ]
+      },
+      {
+       "id": "cluster-a",
+       "label": "Cluster A points",
+       "values": [
+        "a (1,1)",
+        "b (2,2)",
+        "c (1,3)"
+       ]
+      },
+      {
+       "id": "cluster-b",
+       "label": "Cluster B points",
+       "values": [
+        "d (5,4)",
+        "e (6,5)",
+        "f (5,6)",
+        "g (3,4)"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "centroid-a",
+       "to": "cluster-a",
+       "label": "nearest / mean"
+      },
+      {
+       "from": "centroid-b",
+       "to": "cluster-b",
+       "label": "nearest / mean"
+      }
+     ],
+     "states": [
+      {
+       "id": "start",
+       "label": "Start",
+       "sentence": "Both centroids begin at guessed positions; no point belongs to a cluster yet.",
+       "short": "Initial guess",
+       "why": "K-means needs starting centroids before it can assign anything.",
+       "calloutRegion": "centroid-a",
+       "active": [
+        "centroid-a",
+        "centroid-b"
+       ],
+       "readouts": [
+        {
+         "id": "ca",
+         "label": "Centroid A",
+         "value": "(1.00, 1.00)"
+        },
+        {
+         "id": "cb",
+         "label": "Centroid B",
+         "value": "(4.00, 3.00)"
+        },
+        {
+         "id": "mv",
+         "label": "Moved A / B",
+         "value": "–"
+        }
+       ]
+      },
+      {
+       "id": "assign-1",
+       "label": "Assign 1",
+       "sentence": "Each point joins its nearest centroid: a, b, c go to A; d, e, f, g go to B.",
+       "short": "Points pick nearest",
+       "why": "Centroids have not moved yet; only point memberships change.",
+       "calloutRegion": "cluster-b",
+       "active": [
+        "cluster-a",
+        "cluster-b"
+       ],
+       "readouts": [
+        {
+         "id": "ca",
+         "label": "Centroid A",
+         "value": "(1.00, 1.00)"
+        },
+        {
+         "id": "cb",
+         "label": "Centroid B",
+         "value": "(4.00, 3.00)"
+        },
+        {
+         "id": "mv",
+         "label": "Moved A / B",
+         "value": "0.00 / 0.00"
+        }
+       ]
+      },
+      {
+       "id": "update-1",
+       "label": "Update 1",
+       "sentence": "Each centroid jumps to the mean of its points: A to (1.33, 2.00), B to (4.75, 4.75).",
+       "short": "Centroids jump",
+       "why": "The mean is the position minimizing squared distance to that cluster's points.",
+       "calloutRegion": "centroid-b",
+       "active": [
+        "centroid-a",
+        "centroid-b"
+       ],
+       "readouts": [
+        {
+         "id": "ca",
+         "label": "Centroid A",
+         "value": "(1.33, 2.00)"
+        },
+        {
+         "id": "cb",
+         "label": "Centroid B",
+         "value": "(4.75, 4.75)"
+        },
+        {
+         "id": "mv",
+         "label": "Moved A / B",
+         "value": "1.05 / 1.90"
+        }
+       ]
+      },
+      {
+       "id": "assign-2",
+       "label": "Assign 2",
+       "sentence": "Reassigning with the new centroids, every point picks the same cluster as before.",
+       "short": "No switches",
+       "why": "If memberships are unchanged, the next mean will equal the current centroid.",
+       "calloutRegion": "cluster-a",
+       "active": [
+        "cluster-a",
+        "cluster-b"
+       ],
+       "readouts": [
+        {
+         "id": "ca",
+         "label": "Centroid A",
+         "value": "(1.33, 2.00)"
+        },
+        {
+         "id": "cb",
+         "label": "Centroid B",
+         "value": "(4.75, 4.75)"
+        },
+        {
+         "id": "mv",
+         "label": "Points switched",
+         "value": "0 of 7"
+        }
+       ]
+      },
+      {
+       "id": "update-2",
+       "label": "Update 2: converged",
+       "sentence": "The means equal the current centroids, so neither centroid moves. K-means has converged.",
+       "short": "Movement is zero",
+       "why": "Same members give the same mean, so the loop reaches a fixed point and stops.",
+       "calloutRegion": "centroid-a",
+       "active": [
+        "centroid-a",
+        "centroid-b"
+       ],
+       "readouts": [
+        {
+         "id": "ca",
+         "label": "Centroid A",
+         "value": "(1.33, 2.00)"
+        },
+        {
+         "id": "cb",
+         "label": "Centroid B",
+         "value": "(4.75, 4.75)"
+        },
+        {
+         "id": "mv",
+         "label": "Moved A / B",
+         "value": "0.00 / 0.00"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3075,
+  "output": 4746
+ },
+ "usd": 0.05361,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture shows centroids, clusters and their nearest/mean links, answering why k-means stops: unchanged membership means the mean equals the centroid and movement is zero."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state update-2 (converged, movement 0.00 / 0.00) is the final step, so the stepper rests there until the learner changes the step."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The step index is the only input and it changes the active regions, the centroid positions and the movement readouts; with a single fixed worked example, no other parameter is needed."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout, ghost and readout all bind to variant.states, regions, links or state fields, and each callout target is a declared region."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The story says \"six points\" while the data lists seven points (a through g) and the readout says \"0 of 7\", so the narrative and the changing parts name different objects."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth uses one picture with one changing region per step, a rail and a three-value readout, with no clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": ""
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.021032
+ }
+}

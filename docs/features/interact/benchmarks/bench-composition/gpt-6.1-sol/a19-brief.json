@@ -1,0 +1,187 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a19",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a volcano erupt?",
+ "ts": "2026-11-14T22:38:42.211Z",
+ "ms": 61875,
+ "raw": "{\n  \"story\": \"Gas-bearing magma collects in the Magma reservoir beneath a blocked Conduit. Advance to see pressure open the Conduit. At the Vent, falling pressure lets gas expand and drive magma out as lava. This simplified example shows a gas-driven eruption.\",\n  \"aha\": {\n    \"stateId\": \"eruption\",\n    \"observation\": \"As magma rises, falling pressure lets gas expand, helping drive magma through the Vent as lava.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"eruption-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with explanation and instructions above the experiment. Show progress only on this rail. Parameter-control budget: zero; navigation: Previous, Next, Reset.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"volcano-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Fixed cross-section: Magma reservoir below Conduit, with Vent at the surface. Keep labels readable and highlight one region at a time. Links indicate connections, not animated flow.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-location\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the active region without covering labels. The callout identifies the location and explains the mechanism.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"eruption-status\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Bound status line below the picture. Use qualitative observations, not a fabricated clock.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stage\",\n      \"kind\": \"index\",\n      \"presentation\": \"Default to the first state; advance one state per action. Label buttons Previous and Next, retaining names when disabled at boundaries. Every state, including eruption, persists until learner action. Reference captures show eruption. Provide visible focus and keyboard operation.\",\n      \"items\": \"variant.states\",\n      \"label\": \"Eruption stage\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide visible focus and keyboard operation.\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Simplified gas-driven eruption\",\n        \"regions\": [\n          {\n            \"id\": \"reservoir\",\n            \"label\": \"Magma reservoir\",\n            \"values\": [\n              \"Gas-bearing molten rock underground\"\n            ]\n          },\n          {\n            \"id\": \"conduit\",\n            \"label\": \"Conduit\",\n            \"values\": [\n              \"Passage through surrounding rock\"\n            ]\n          },\n          {\n            \"id\": \"vent\",\n            \"label\": \"Vent\",\n            \"values\": [\n              \"Opening at the surface\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"reservoir\",\n            \"to\": \"conduit\",\n            \"label\": \"Underground connection\"\n          },\n          {\n            \"from\": \"conduit\",\n            \"to\": \"vent\",\n            \"label\": \"Route to the surface\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"pressure-builds\",\n            \"label\": \"Pressure builds\",\n            \"short\": \"Trapped\",\n            \"sentence\": \"Magma reservoir\",\n            \"why\": \"Magma and gas accumulate beneath a blocked Conduit, increasing pressure against the surrounding rock.\",\n            \"active\": [\n              \"reservoir\"\n            ],\n            \"calloutRegion\": \"reservoir\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Conduit blocked; magma remains underground.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"path-opens\",\n            \"label\": \"A path opens\",\n            \"short\": \"Rising\",\n            \"sentence\": \"Conduit\",\n            \"why\": \"Pressure overcomes the rock's resistance, opening a path upward; pressure on the rising magma then decreases.\",\n            \"active\": [\n              \"conduit\"\n            ],\n            \"calloutRegion\": \"conduit\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Conduit open; magma rises toward the Vent.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"eruption\",\n            \"label\": \"Eruption\",\n            \"short\": \"Gas expands\",\n            \"sentence\": \"Vent\",\n            \"why\": \"Lower pressure lets gas bubbles expand, helping push magma out; magma at the surface is called lava.\",\n            \"active\": [\n              \"vent\"\n            ],\n            \"calloutRegion\": \"vent\",\n            \"readouts\": [\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Expanding gas drives magma through the Vent as lava.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Gas-bearing magma collects in the Magma reservoir beneath a blocked Conduit. Advance to see pressure open the Conduit. At the Vent, falling pressure lets gas expand and drive magma out as lava. This simplified example shows a gas-driven eruption.",
+  "aha": {
+   "stateId": "eruption",
+   "observation": "As magma rises, falling pressure lets gas expand, helping drive magma through the Vent as lava."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "eruption-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with explanation and instructions above the experiment. Show progress only on this rail. Parameter-control budget: zero; navigation: Previous, Next, Reset.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "volcano-picture",
+    "kind": "fixed-picture",
+    "presentation": "Fixed cross-section: Magma reservoir below Conduit, with Vent at the surface. Keep labels readable and highlight one region at a time. Links indicate connections, not animated flow.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-location",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the active region without covering labels. The callout identifies the location and explains the mechanism.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "eruption-status",
+    "kind": "value-readout",
+    "presentation": "Bound status line below the picture. Use qualitative observations, not a fabricated clock.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stage",
+    "kind": "index",
+    "presentation": "Default to the first state; advance one state per action. Label buttons Previous and Next, retaining names when disabled at boundaries. Every state, including eruption, persists until learner action. Reference captures show eruption. Provide visible focus and keyboard operation.",
+    "items": "variant.states",
+    "label": "Eruption stage"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "presentation": "Restore the first state and all defaults. Provide visible focus and keyboard operation.",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Simplified gas-driven eruption",
+     "regions": [
+      {
+       "id": "reservoir",
+       "label": "Magma reservoir",
+       "values": [
+        "Gas-bearing molten rock underground"
+       ]
+      },
+      {
+       "id": "conduit",
+       "label": "Conduit",
+       "values": [
+        "Passage through surrounding rock"
+       ]
+      },
+      {
+       "id": "vent",
+       "label": "Vent",
+       "values": [
+        "Opening at the surface"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "reservoir",
+       "to": "conduit",
+       "label": "Underground connection"
+      },
+      {
+       "from": "conduit",
+       "to": "vent",
+       "label": "Route to the surface"
+      }
+     ],
+     "states": [
+      {
+       "id": "pressure-builds",
+       "label": "Pressure builds",
+       "short": "Trapped",
+       "sentence": "Magma reservoir",
+       "why": "Magma and gas accumulate beneath a blocked Conduit, increasing pressure against the surrounding rock.",
+       "active": [
+        "reservoir"
+       ],
+       "calloutRegion": "reservoir",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Conduit blocked; magma remains underground."
+        }
+       ]
+      },
+      {
+       "id": "path-opens",
+       "label": "A path opens",
+       "short": "Rising",
+       "sentence": "Conduit",
+       "why": "Pressure overcomes the rock's resistance, opening a path upward; pressure on the rising magma then decreases.",
+       "active": [
+        "conduit"
+       ],
+       "calloutRegion": "conduit",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Conduit open; magma rises toward the Vent."
+        }
+       ]
+      },
+      {
+       "id": "eruption",
+       "label": "Eruption",
+       "short": "Gas expands",
+       "sentence": "Vent",
+       "why": "Lower pressure lets gas bubbles expand, helping push magma out; magma at the surface is called lava.",
+       "active": [
+        "vent"
+       ],
+       "calloutRegion": "vent",
+       "readouts": [
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Expanding gas drives magma through the Vent as lava."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1532,
+  "output": 3102
+ },
+ "usd": 0.031214,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3d5oNRLriBKa9MczWkx\"}"
+  },
+  "cardUsd": 0
+ }
+}

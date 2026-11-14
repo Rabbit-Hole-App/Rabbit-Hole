@@ -1,0 +1,13 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "b-mitosis",
+ "set": "B",
+ "subject": "mitosis",
+ "depth": "brief",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T22:36:30.336Z",
+ "ms": null,
+ "usd": 0,
+ "composition": null,
+ "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3cv359gfBPrsnDmiiM5\"}"
+}

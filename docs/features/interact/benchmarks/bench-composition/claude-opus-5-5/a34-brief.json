@@ -1,0 +1,325 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a34",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does public-key encryption work?",
+ "ts": "2026-11-14T22:36:42.708Z",
+ "ms": 24927,
+ "raw": "{\"story\":\"Bob creates two linked keys: a public key that only locks, and a private key that unlocks. He shares the public key openly. Alice locks her message with it and sends it. Eve copies everything on the wire, but the public key cannot unlock it. Only Bob's private key, which never left him, reveals the message.\",\"aha\":{\"stateId\":\"eve-fails\",\"observation\":\"Eve has both the public key and the ciphertext, but she still can't read it. The key that locks a message can't unlock it.\"},\"layout\":{\"preset\":\"protocol-two-actors-wire\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Alice left, Bob right, wire between, Eve below wire\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons; names stay when disabled at boundaries\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step\"}],\"data\":{\"variants\":[{\"label\":\"Public-key encryption\",\"regions\":[{\"id\":\"alice\",\"label\":\"Alice (sender)\",\"actors\":[\"Alice\"],\"values\":[\"MEET AT 9\"]},{\"id\":\"wire\",\"label\":\"Public wire\",\"values\":[\"public key\",\"ciphertext X7#Q9!\"]},{\"id\":\"bob\",\"label\":\"Bob (receiver)\",\"actors\":[\"Bob\"],\"values\":[\"public key\",\"private key\"]},{\"id\":\"eve\",\"label\":\"Eve (eavesdropper)\",\"actors\":[\"Eve\"],\"values\":[\"copied public key\",\"copied ciphertext\"]}],\"links\":[{\"from\":\"bob\",\"to\":\"alice\",\"label\":\"public key (open)\"},{\"from\":\"alice\",\"to\":\"bob\",\"label\":\"ciphertext\"},{\"from\":\"wire\",\"to\":\"eve\",\"label\":\"copies everything\"}],\"states\":[{\"id\":\"keys\",\"label\":\"Make keys\",\"short\":\"1\",\"sentence\":\"Bob makes a matched pair: a public key that only locks and a private key that unlocks.\",\"active\":[\"bob\"],\"calloutRegion\":\"bob\",\"why\":\"The two keys are mathematically linked, but you can't work out one from the other.\",\"readouts\":[{\"id\":\"wire\",\"label\":\"On the wire\",\"value\":\"nothing\"},{\"id\":\"eve\",\"label\":\"Eve holds\",\"value\":\"nothing\"},{\"id\":\"read\",\"label\":\"Who can read\",\"value\":\"Alice only\"}]},{\"id\":\"publish\",\"label\":\"Share lock\",\"short\":\"2\",\"sentence\":\"Bob sends his public key openly. Alice gets it, and so does Eve.\",\"active\":[\"wire\",\"alice\",\"eve\"],\"calloutRegion\":\"wire\",\"why\":\"Sharing the public key is safe because it can only lock messages.\",\"readouts\":[{\"id\":\"wire\",\"label\":\"On the wire\",\"value\":\"public key\"},{\"id\":\"eve\",\"label\":\"Eve holds\",\"value\":\"public key\"},{\"id\":\"read\",\"label\":\"Who can read\",\"value\":\"Alice only\"}]},{\"id\":\"lock\",\"label\":\"Lock message\",\"short\":\"3\",\"sentence\":\"Alice locks MEET AT 9 with Bob's public key, which turns it into the ciphertext X7#Q9!.\",\"active\":[\"alice\"],\"calloutRegion\":\"alice\",\"why\":\"After locking, even Alice can't reverse it with the public key.\",\"readouts\":[{\"id\":\"wire\",\"label\":\"On the wire\",\"value\":\"nothing new\"},{\"id\":\"eve\",\"label\":\"Eve holds\",\"value\":\"public key\"},{\"id\":\"read\",\"label\":\"Who can read\",\"value\":\"Alice (original copy)\"}]},{\"id\":\"send\",\"label\":\"Send\",\"short\":\"4\",\"sentence\":\"The ciphertext crosses the public wire, and Eve copies it.\",\"active\":[\"wire\",\"eve\"],\"calloutRegion\":\"wire\",\"why\":\"We assume the wire is fully visible to anyone.\",\"readouts\":[{\"id\":\"wire\",\"label\":\"On the wire\",\"value\":\"X7#Q9!\"},{\"id\":\"eve\",\"label\":\"Eve holds\",\"value\":\"public key + X7#Q9!\"},{\"id\":\"read\",\"label\":\"Who can read\",\"value\":\"Alice (original copy)\"}]},{\"id\":\"eve-fails\",\"label\":\"Eve stuck\",\"short\":\"5\",\"sentence\":\"Eve tries the public key on X7#Q9! and gets nothing. That key locks but can't unlock.\",\"active\":[\"eve\"],\"calloutRegion\":\"eve\",\"why\":\"Eve has everything that was sent, but the unlocking key was never sent.\",\"readouts\":[{\"id\":\"wire\",\"label\":\"On the wire\",\"value\":\"X7#Q9!\"},{\"id\":\"eve\",\"label\":\"Eve holds\",\"value\":\"public key + X7#Q9!\"},{\"id\":\"read\",\"label\":\"Who can read\",\"value\":\"not Eve\"}]},{\"id\":\"unlock\",\"label\":\"Bob unlocks\",\"short\":\"6\",\"sentence\":\"Bob uses his private key, which never left him, and X7#Q9! turns back into MEET AT 9.\",\"active\":[\"bob\"],\"calloutRegion\":\"bob\",\"why\":\"Only the matching private key can undo the public key's lock.\",\"readouts\":[{\"id\":\"wire\",\"label\":\"On the wire\",\"value\":\"X7#Q9!\"},{\"id\":\"eve\",\"label\":\"Eve holds\",\"value\":\"public key + X7#Q9!\"},{\"id\":\"read\",\"label\":\"Who can read\",\"value\":\"Bob (and Alice)\"}]}]}]}}",
+ "composition": {
+  "story": "Bob creates two linked keys: a public key that only locks, and a private key that unlocks. He shares the public key openly. Alice locks her message with it and sends it. Eve copies everything on the wire, but the public key cannot unlock it. Only Bob's private key, which never left him, reveals the message.",
+  "aha": {
+   "stateId": "eve-fails",
+   "observation": "Eve has both the public key and the ciphertext, but she still can't read it. The key that locks a message can't unlock it."
+  },
+  "layout": {
+   "preset": "protocol-two-actors-wire",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Alice left, Bob right, wire between, Eve below wire"
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons; names stay when disabled at boundaries"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Public-key encryption",
+     "regions": [
+      {
+       "id": "alice",
+       "label": "Alice (sender)",
+       "actors": [
+        "Alice"
+       ],
+       "values": [
+        "MEET AT 9"
+       ]
+      },
+      {
+       "id": "wire",
+       "label": "Public wire",
+       "values": [
+        "public key",
+        "ciphertext X7#Q9!"
+       ]
+      },
+      {
+       "id": "bob",
+       "label": "Bob (receiver)",
+       "actors": [
+        "Bob"
+       ],
+       "values": [
+        "public key",
+        "private key"
+       ]
+      },
+      {
+       "id": "eve",
+       "label": "Eve (eavesdropper)",
+       "actors": [
+        "Eve"
+       ],
+       "values": [
+        "copied public key",
+        "copied ciphertext"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "bob",
+       "to": "alice",
+       "label": "public key (open)"
+      },
+      {
+       "from": "alice",
+       "to": "bob",
+       "label": "ciphertext"
+      },
+      {
+       "from": "wire",
+       "to": "eve",
+       "label": "copies everything"
+      }
+     ],
+     "states": [
+      {
+       "id": "keys",
+       "label": "Make keys",
+       "short": "1",
+       "sentence": "Bob makes a matched pair: a public key that only locks and a private key that unlocks.",
+       "active": [
+        "bob"
+       ],
+       "calloutRegion": "bob",
+       "why": "The two keys are mathematically linked, but you can't work out one from the other.",
+       "readouts": [
+        {
+         "id": "wire",
+         "label": "On the wire",
+         "value": "nothing"
+        },
+        {
+         "id": "eve",
+         "label": "Eve holds",
+         "value": "nothing"
+        },
+        {
+         "id": "read",
+         "label": "Who can read",
+         "value": "Alice only"
+        }
+       ]
+      },
+      {
+       "id": "publish",
+       "label": "Share lock",
+       "short": "2",
+       "sentence": "Bob sends his public key openly. Alice gets it, and so does Eve.",
+       "active": [
+        "wire",
+        "alice",
+        "eve"
+       ],
+       "calloutRegion": "wire",
+       "why": "Sharing the public key is safe because it can only lock messages.",
+       "readouts": [
+        {
+         "id": "wire",
+         "label": "On the wire",
+         "value": "public key"
+        },
+        {
+         "id": "eve",
+         "label": "Eve holds",
+         "value": "public key"
+        },
+        {
+         "id": "read",
+         "label": "Who can read",
+         "value": "Alice only"
+        }
+       ]
+      },
+      {
+       "id": "lock",
+       "label": "Lock message",
+       "short": "3",
+       "sentence": "Alice locks MEET AT 9 with Bob's public key, which turns it into the ciphertext X7#Q9!.",
+       "active": [
+        "alice"
+       ],
+       "calloutRegion": "alice",
+       "why": "After locking, even Alice can't reverse it with the public key.",
+       "readouts": [
+        {
+         "id": "wire",
+         "label": "On the wire",
+         "value": "nothing new"
+        },
+        {
+         "id": "eve",
+         "label": "Eve holds",
+         "value": "public key"
+        },
+        {
+         "id": "read",
+         "label": "Who can read",
+         "value": "Alice (original copy)"
+        }
+       ]
+      },
+      {
+       "id": "send",
+       "label": "Send",
+       "short": "4",
+       "sentence": "The ciphertext crosses the public wire, and Eve copies it.",
+       "active": [
+        "wire",
+        "eve"
+       ],
+       "calloutRegion": "wire",
+       "why": "We assume the wire is fully visible to anyone.",
+       "readouts": [
+        {
+         "id": "wire",
+         "label": "On the wire",
+         "value": "X7#Q9!"
+        },
+        {
+         "id": "eve",
+         "label": "Eve holds",
+         "value": "public key + X7#Q9!"
+        },
+        {
+         "id": "read",
+         "label": "Who can read",
+         "value": "Alice (original copy)"
+        }
+       ]
+      },
+      {
+       "id": "eve-fails",
+       "label": "Eve stuck",
+       "short": "5",
+       "sentence": "Eve tries the public key on X7#Q9! and gets nothing. That key locks but can't unlock.",
+       "active": [
+        "eve"
+       ],
+       "calloutRegion": "eve",
+       "why": "Eve has everything that was sent, but the unlocking key was never sent.",
+       "readouts": [
+        {
+         "id": "wire",
+         "label": "On the wire",
+         "value": "X7#Q9!"
+        },
+        {
+         "id": "eve",
+         "label": "Eve holds",
+         "value": "public key + X7#Q9!"
+        },
+        {
+         "id": "read",
+         "label": "Who can read",
+         "value": "not Eve"
+        }
+       ]
+      },
+      {
+       "id": "unlock",
+       "label": "Bob unlocks",
+       "short": "6",
+       "sentence": "Bob uses his private key, which never left him, and X7#Q9! turns back into MEET AT 9.",
+       "active": [
+        "bob"
+       ],
+       "calloutRegion": "bob",
+       "why": "Only the matching private key can undo the public key's lock.",
+       "readouts": [
+        {
+         "id": "wire",
+         "label": "On the wire",
+         "value": "X7#Q9!"
+        },
+        {
+         "id": "eve",
+         "label": "Eve holds",
+         "value": "public key + X7#Q9!"
+        },
+        {
+         "id": "read",
+         "label": "Who can read",
+         "value": "Bob (and Alice)"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 2853
+ },
+ "usd": 0.069332,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3cvzEWrGHRQ4mFnoaHE\"}"
+  },
+  "cardUsd": 0
+ }
+}

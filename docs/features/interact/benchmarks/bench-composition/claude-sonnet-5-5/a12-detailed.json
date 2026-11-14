@@ -1,0 +1,811 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a12",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T22:24:29.189Z",
+ "ms": 48165,
+ "raw": "{\"story\":\"A cell about to divide has already copied its DNA. Step through mitosis: chromosomes condense, spindle fibres attach, chromosomes line up, then anaphase splits every sister pair. Each pole receives one full set, so two identical cells form. Switch organism to see the counts change.\",\"aha\":{\"stateId\":\"anaphase\",\"observation\":\"Anaphase splits every sister pair, so the chromosome count briefly doubles (46 to 92) and each pole gets an identical full set of 46.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"progress\",\"kind\":\"progress\",\"presentation\":\"within-rail\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next\"},{\"id\":\"organism\",\"kind\":\"select\",\"label\":\"Organism (sets chromosome number)\",\"options\":[\"Human (2n = 46)\",\"Fruit fly (2n = 8)\"],\"default\":0,\"presentation\":\"Changes every chromosome count in the readouts\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to Interphase and Human\"}],\"data\":{\"variants\":[{\"label\":\"Human (2n = 46)\",\"regions\":[{\"id\":\"cell-membrane\",\"label\":\"Cell membrane\",\"kind\":\"structure\"},{\"id\":\"nuclear-envelope\",\"label\":\"Nuclear envelope\",\"kind\":\"structure\"},{\"id\":\"chromosomes\",\"label\":\"Chromosomes\",\"kind\":\"structure\"},{\"id\":\"cohesion\",\"label\":\"Sister-chromatid link\",\"kind\":\"structure\"},{\"id\":\"centrosomes\",\"label\":\"Centrosomes\",\"kind\":\"structure\"},{\"id\":\"spindle\",\"label\":\"Spindle fibres\",\"kind\":\"structure\"},{\"id\":\"equator\",\"label\":\"Cell equator\",\"kind\":\"structure\"},{\"id\":\"furrow\",\"label\":\"Cleavage furrow\",\"kind\":\"structure\"},{\"id\":\"daughters\",\"label\":\"Daughter cells\",\"kind\":\"structure\"}],\"links\":[{\"from\":\"centrosomes\",\"to\":\"spindle\",\"label\":\"organize\"},{\"from\":\"spindle\",\"to\":\"chromosomes\",\"label\":\"attach to\"},{\"from\":\"cohesion\",\"to\":\"chromosomes\",\"label\":\"joins sister chromatids\"},{\"from\":\"chromosomes\",\"to\":\"equator\",\"label\":\"line up at\"},{\"from\":\"furrow\",\"to\":\"daughters\",\"label\":\"pinches into\"}],\"states\":[{\"id\":\"interphase\",\"label\":\"Interphase\",\"short\":\"Interphase\",\"sentence\":\"Before dividing, the cell copies its DNA. Each of the 46 chromosomes now has two identical sister chromatids.\",\"why\":\"Copying first guarantees each daughter can receive a full set.\",\"active\":[\"cell-membrane\",\"nuclear-envelope\",\"chromosomes\",\"centrosomes\"],\"calloutRegion\":\"nuclear-envelope\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"46\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"46\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"not yet split\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1\"}]},{\"id\":\"prophase\",\"label\":\"Prophase\",\"short\":\"Prophase\",\"sentence\":\"Chromosomes condense into visible X shapes. Centrosomes move apart and begin building the spindle.\",\"why\":\"Compact chromosomes can be moved without tangling or breaking.\",\"active\":[\"chromosomes\",\"cohesion\",\"centrosomes\",\"nuclear-envelope\"],\"calloutRegion\":\"chromosomes\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"46\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"46\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"not yet split\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1\"}]},{\"id\":\"prometaphase\",\"label\":\"Prometaphase\",\"short\":\"Prometaphase\",\"sentence\":\"The nuclear envelope breaks down. Spindle fibres reach in and attach to each chromosome at its centromere.\",\"why\":\"Attachment gives every chromosome a handle for being pulled.\",\"active\":[\"nuclear-envelope\",\"spindle\",\"chromosomes\"],\"calloutRegion\":\"spindle\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"46\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"46\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"not yet split\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1\"}]},{\"id\":\"metaphase\",\"label\":\"Metaphase\",\"short\":\"Metaphase\",\"sentence\":\"All 46 chromosomes line up along the cell equator, with sister chromatids facing opposite poles.\",\"why\":\"Lining up ensures each pole can receive exactly one chromatid of every pair.\",\"active\":[\"equator\",\"spindle\",\"chromosomes\"],\"calloutRegion\":\"equator\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"46\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"46\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"not yet split\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1\"}]},{\"id\":\"anaphase\",\"label\":\"Anaphase\",\"short\":\"Anaphase\",\"sentence\":\"The links break and every sister pair separates. Each chromatid, now its own chromosome, is pulled toward an opposite pole.\",\"why\":\"Splitting every pair gives each pole an identical full set: 46 each.\",\"active\":[\"cohesion\",\"chromosomes\",\"spindle\",\"centrosomes\"],\"calloutRegion\":\"chromosomes\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"92\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"0\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"46 + 46\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1\"}]},{\"id\":\"telophase\",\"label\":\"Telophase\",\"short\":\"Telophase\",\"sentence\":\"Two nuclear envelopes re-form around the two chromosome sets. The spindle disassembles and chromosomes loosen.\",\"why\":\"Each set is now enclosed in its own nucleus.\",\"active\":[\"nuclear-envelope\",\"chromosomes\",\"spindle\"],\"calloutRegion\":\"nuclear-envelope\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"92\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"0\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"46 + 46\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1 (2 nuclei)\"}]},{\"id\":\"cytokinesis\",\"label\":\"Cytokinesis\",\"short\":\"Cytokinesis\",\"sentence\":\"The membrane pinches at the furrow and the cytoplasm divides, leaving two genetically identical daughter cells.\",\"why\":\"Cytoplasm division finishes the split: one cell becomes two.\",\"active\":[\"furrow\",\"daughters\",\"cell-membrane\"],\"calloutRegion\":\"furrow\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"92\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"0\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"46 in each\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"2\"}]}]},{\"label\":\"Fruit fly (2n = 8)\",\"regions\":[{\"id\":\"cell-membrane\",\"label\":\"Cell membrane\",\"kind\":\"structure\"},{\"id\":\"nuclear-envelope\",\"label\":\"Nuclear envelope\",\"kind\":\"structure\"},{\"id\":\"chromosomes\",\"label\":\"Chromosomes\",\"kind\":\"structure\"},{\"id\":\"cohesion\",\"label\":\"Sister-chromatid link\",\"kind\":\"structure\"},{\"id\":\"centrosomes\",\"label\":\"Centrosomes\",\"kind\":\"structure\"},{\"id\":\"spindle\",\"label\":\"Spindle fibres\",\"kind\":\"structure\"},{\"id\":\"equator\",\"label\":\"Cell equator\",\"kind\":\"structure\"},{\"id\":\"furrow\",\"label\":\"Cleavage furrow\",\"kind\":\"structure\"},{\"id\":\"daughters\",\"label\":\"Daughter cells\",\"kind\":\"structure\"}],\"links\":[{\"from\":\"centrosomes\",\"to\":\"spindle\",\"label\":\"organize\"},{\"from\":\"spindle\",\"to\":\"chromosomes\",\"label\":\"attach to\"},{\"from\":\"cohesion\",\"to\":\"chromosomes\",\"label\":\"joins sister chromatids\"},{\"from\":\"chromosomes\",\"to\":\"equator\",\"label\":\"line up at\"},{\"from\":\"furrow\",\"to\":\"daughters\",\"label\":\"pinches into\"}],\"states\":[{\"id\":\"interphase\",\"label\":\"Interphase\",\"short\":\"Interphase\",\"sentence\":\"Before dividing, the cell copies its DNA. Each of the 8 chromosomes now has two identical sister chromatids.\",\"why\":\"Copying first guarantees each daughter can receive a full set.\",\"active\":[\"cell-membrane\",\"nuclear-envelope\",\"chromosomes\",\"centrosomes\"],\"calloutRegion\":\"nuclear-envelope\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"8\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"8\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"not yet split\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1\"}]},{\"id\":\"prophase\",\"label\":\"Prophase\",\"short\":\"Prophase\",\"sentence\":\"Chromosomes condense into visible X shapes. Centrosomes move apart and begin building the spindle.\",\"why\":\"Compact chromosomes can be moved without tangling or breaking.\",\"active\":[\"chromosomes\",\"cohesion\",\"centrosomes\",\"nuclear-envelope\"],\"calloutRegion\":\"chromosomes\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"8\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"8\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"not yet split\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1\"}]},{\"id\":\"prometaphase\",\"label\":\"Prometaphase\",\"short\":\"Prometaphase\",\"sentence\":\"The nuclear envelope breaks down. Spindle fibres reach in and attach to each chromosome at its centromere.\",\"why\":\"Attachment gives every chromosome a handle for being pulled.\",\"active\":[\"nuclear-envelope\",\"spindle\",\"chromosomes\"],\"calloutRegion\":\"spindle\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"8\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"8\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"not yet split\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1\"}]},{\"id\":\"metaphase\",\"label\":\"Metaphase\",\"short\":\"Metaphase\",\"sentence\":\"All 8 chromosomes line up along the cell equator, with sister chromatids facing opposite poles.\",\"why\":\"Lining up ensures each pole can receive exactly one chromatid of every pair.\",\"active\":[\"equator\",\"spindle\",\"chromosomes\"],\"calloutRegion\":\"equator\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"8\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"8\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"not yet split\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1\"}]},{\"id\":\"anaphase\",\"label\":\"Anaphase\",\"short\":\"Anaphase\",\"sentence\":\"The links break and every sister pair separates. Each chromatid, now its own chromosome, is pulled toward an opposite pole.\",\"why\":\"Splitting every pair gives each pole an identical full set: 8 each.\",\"active\":[\"cohesion\",\"chromosomes\",\"spindle\",\"centrosomes\"],\"calloutRegion\":\"chromosomes\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"16\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"0\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"8 + 8\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1\"}]},{\"id\":\"telophase\",\"label\":\"Telophase\",\"short\":\"Telophase\",\"sentence\":\"Two nuclear envelopes re-form around the two chromosome sets. The spindle disassembles and chromosomes loosen.\",\"why\":\"Each set is now enclosed in its own nucleus.\",\"active\":[\"nuclear-envelope\",\"chromosomes\",\"spindle\"],\"calloutRegion\":\"nuclear-envelope\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"16\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"0\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"8 + 8\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"1 (2 nuclei)\"}]},{\"id\":\"cytokinesis\",\"label\":\"Cytokinesis\",\"short\":\"Cytokinesis\",\"sentence\":\"The membrane pinches at the furrow and the cytoplasm divides, leaving two genetically identical daughter cells.\",\"why\":\"Cytoplasm division finishes the split: one cell becomes two.\",\"active\":[\"furrow\",\"daughters\",\"cell-membrane\"],\"calloutRegion\":\"furrow\",\"readouts\":[{\"id\":\"chr\",\"label\":\"Chromosomes (centromeres)\",\"value\":\"16\"},{\"id\":\"pairs\",\"label\":\"Joined sister pairs\",\"value\":\"0\"},{\"id\":\"set\",\"label\":\"Set per pole / daughter\",\"value\":\"8 in each\"},{\"id\":\"cells\",\"label\":\"Cells\",\"value\":\"2\"}]}]}]}}",
+ "composition": {
+  "story": "A cell about to divide has already copied its DNA. Step through mitosis: chromosomes condense, spindle fibres attach, chromosomes line up, then anaphase splits every sister pair. Each pole receives one full set, so two identical cells form. Switch organism to see the counts change.",
+  "aha": {
+   "stateId": "anaphase",
+   "observation": "Anaphase splits every sister pair, so the chromosome count briefly doubles (46 to 92) and each pole gets an identical full set of 46."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "progress",
+    "kind": "progress",
+    "presentation": "within-rail",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "organism",
+    "kind": "select",
+    "label": "Organism (sets chromosome number)",
+    "options": [
+     "Human (2n = 46)",
+     "Fruit fly (2n = 8)"
+    ],
+    "default": 0,
+    "presentation": "Changes every chromosome count in the readouts"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to Interphase and Human"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Human (2n = 46)",
+     "regions": [
+      {
+       "id": "cell-membrane",
+       "label": "Cell membrane",
+       "kind": "structure"
+      },
+      {
+       "id": "nuclear-envelope",
+       "label": "Nuclear envelope",
+       "kind": "structure"
+      },
+      {
+       "id": "chromosomes",
+       "label": "Chromosomes",
+       "kind": "structure"
+      },
+      {
+       "id": "cohesion",
+       "label": "Sister-chromatid link",
+       "kind": "structure"
+      },
+      {
+       "id": "centrosomes",
+       "label": "Centrosomes",
+       "kind": "structure"
+      },
+      {
+       "id": "spindle",
+       "label": "Spindle fibres",
+       "kind": "structure"
+      },
+      {
+       "id": "equator",
+       "label": "Cell equator",
+       "kind": "structure"
+      },
+      {
+       "id": "furrow",
+       "label": "Cleavage furrow",
+       "kind": "structure"
+      },
+      {
+       "id": "daughters",
+       "label": "Daughter cells",
+       "kind": "structure"
+      }
+     ],
+     "links": [
+      {
+       "from": "centrosomes",
+       "to": "spindle",
+       "label": "organize"
+      },
+      {
+       "from": "spindle",
+       "to": "chromosomes",
+       "label": "attach to"
+      },
+      {
+       "from": "cohesion",
+       "to": "chromosomes",
+       "label": "joins sister chromatids"
+      },
+      {
+       "from": "chromosomes",
+       "to": "equator",
+       "label": "line up at"
+      },
+      {
+       "from": "furrow",
+       "to": "daughters",
+       "label": "pinches into"
+      }
+     ],
+     "states": [
+      {
+       "id": "interphase",
+       "label": "Interphase",
+       "short": "Interphase",
+       "sentence": "Before dividing, the cell copies its DNA. Each of the 46 chromosomes now has two identical sister chromatids.",
+       "why": "Copying first guarantees each daughter can receive a full set.",
+       "active": [
+        "cell-membrane",
+        "nuclear-envelope",
+        "chromosomes",
+        "centrosomes"
+       ],
+       "calloutRegion": "nuclear-envelope",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "46"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "46"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "not yet split"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Prophase",
+       "sentence": "Chromosomes condense into visible X shapes. Centrosomes move apart and begin building the spindle.",
+       "why": "Compact chromosomes can be moved without tangling or breaking.",
+       "active": [
+        "chromosomes",
+        "cohesion",
+        "centrosomes",
+        "nuclear-envelope"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "46"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "46"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "not yet split"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "prometaphase",
+       "label": "Prometaphase",
+       "short": "Prometaphase",
+       "sentence": "The nuclear envelope breaks down. Spindle fibres reach in and attach to each chromosome at its centromere.",
+       "why": "Attachment gives every chromosome a handle for being pulled.",
+       "active": [
+        "nuclear-envelope",
+        "spindle",
+        "chromosomes"
+       ],
+       "calloutRegion": "spindle",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "46"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "46"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "not yet split"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Metaphase",
+       "sentence": "All 46 chromosomes line up along the cell equator, with sister chromatids facing opposite poles.",
+       "why": "Lining up ensures each pole can receive exactly one chromatid of every pair.",
+       "active": [
+        "equator",
+        "spindle",
+        "chromosomes"
+       ],
+       "calloutRegion": "equator",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "46"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "46"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "not yet split"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Anaphase",
+       "sentence": "The links break and every sister pair separates. Each chromatid, now its own chromosome, is pulled toward an opposite pole.",
+       "why": "Splitting every pair gives each pole an identical full set: 46 each.",
+       "active": [
+        "cohesion",
+        "chromosomes",
+        "spindle",
+        "centrosomes"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "92"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "0"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "46 + 46"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Telophase",
+       "sentence": "Two nuclear envelopes re-form around the two chromosome sets. The spindle disassembles and chromosomes loosen.",
+       "why": "Each set is now enclosed in its own nucleus.",
+       "active": [
+        "nuclear-envelope",
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "nuclear-envelope",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "92"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "0"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "46 + 46"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1 (2 nuclei)"
+        }
+       ]
+      },
+      {
+       "id": "cytokinesis",
+       "label": "Cytokinesis",
+       "short": "Cytokinesis",
+       "sentence": "The membrane pinches at the furrow and the cytoplasm divides, leaving two genetically identical daughter cells.",
+       "why": "Cytoplasm division finishes the split: one cell becomes two.",
+       "active": [
+        "furrow",
+        "daughters",
+        "cell-membrane"
+       ],
+       "calloutRegion": "furrow",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "92"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "0"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "46 in each"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "2"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Fruit fly (2n = 8)",
+     "regions": [
+      {
+       "id": "cell-membrane",
+       "label": "Cell membrane",
+       "kind": "structure"
+      },
+      {
+       "id": "nuclear-envelope",
+       "label": "Nuclear envelope",
+       "kind": "structure"
+      },
+      {
+       "id": "chromosomes",
+       "label": "Chromosomes",
+       "kind": "structure"
+      },
+      {
+       "id": "cohesion",
+       "label": "Sister-chromatid link",
+       "kind": "structure"
+      },
+      {
+       "id": "centrosomes",
+       "label": "Centrosomes",
+       "kind": "structure"
+      },
+      {
+       "id": "spindle",
+       "label": "Spindle fibres",
+       "kind": "structure"
+      },
+      {
+       "id": "equator",
+       "label": "Cell equator",
+       "kind": "structure"
+      },
+      {
+       "id": "furrow",
+       "label": "Cleavage furrow",
+       "kind": "structure"
+      },
+      {
+       "id": "daughters",
+       "label": "Daughter cells",
+       "kind": "structure"
+      }
+     ],
+     "links": [
+      {
+       "from": "centrosomes",
+       "to": "spindle",
+       "label": "organize"
+      },
+      {
+       "from": "spindle",
+       "to": "chromosomes",
+       "label": "attach to"
+      },
+      {
+       "from": "cohesion",
+       "to": "chromosomes",
+       "label": "joins sister chromatids"
+      },
+      {
+       "from": "chromosomes",
+       "to": "equator",
+       "label": "line up at"
+      },
+      {
+       "from": "furrow",
+       "to": "daughters",
+       "label": "pinches into"
+      }
+     ],
+     "states": [
+      {
+       "id": "interphase",
+       "label": "Interphase",
+       "short": "Interphase",
+       "sentence": "Before dividing, the cell copies its DNA. Each of the 8 chromosomes now has two identical sister chromatids.",
+       "why": "Copying first guarantees each daughter can receive a full set.",
+       "active": [
+        "cell-membrane",
+        "nuclear-envelope",
+        "chromosomes",
+        "centrosomes"
+       ],
+       "calloutRegion": "nuclear-envelope",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "8"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "8"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "not yet split"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Prophase",
+       "sentence": "Chromosomes condense into visible X shapes. Centrosomes move apart and begin building the spindle.",
+       "why": "Compact chromosomes can be moved without tangling or breaking.",
+       "active": [
+        "chromosomes",
+        "cohesion",
+        "centrosomes",
+        "nuclear-envelope"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "8"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "8"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "not yet split"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "prometaphase",
+       "label": "Prometaphase",
+       "short": "Prometaphase",
+       "sentence": "The nuclear envelope breaks down. Spindle fibres reach in and attach to each chromosome at its centromere.",
+       "why": "Attachment gives every chromosome a handle for being pulled.",
+       "active": [
+        "nuclear-envelope",
+        "spindle",
+        "chromosomes"
+       ],
+       "calloutRegion": "spindle",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "8"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "8"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "not yet split"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Metaphase",
+       "sentence": "All 8 chromosomes line up along the cell equator, with sister chromatids facing opposite poles.",
+       "why": "Lining up ensures each pole can receive exactly one chromatid of every pair.",
+       "active": [
+        "equator",
+        "spindle",
+        "chromosomes"
+       ],
+       "calloutRegion": "equator",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "8"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "8"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "not yet split"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Anaphase",
+       "sentence": "The links break and every sister pair separates. Each chromatid, now its own chromosome, is pulled toward an opposite pole.",
+       "why": "Splitting every pair gives each pole an identical full set: 8 each.",
+       "active": [
+        "cohesion",
+        "chromosomes",
+        "spindle",
+        "centrosomes"
+       ],
+       "calloutRegion": "chromosomes",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "16"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "0"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "8 + 8"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1"
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Telophase",
+       "sentence": "Two nuclear envelopes re-form around the two chromosome sets. The spindle disassembles and chromosomes loosen.",
+       "why": "Each set is now enclosed in its own nucleus.",
+       "active": [
+        "nuclear-envelope",
+        "chromosomes",
+        "spindle"
+       ],
+       "calloutRegion": "nuclear-envelope",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "16"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "0"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "8 + 8"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "1 (2 nuclei)"
+        }
+       ]
+      },
+      {
+       "id": "cytokinesis",
+       "label": "Cytokinesis",
+       "short": "Cytokinesis",
+       "sentence": "The membrane pinches at the furrow and the cytoplasm divides, leaving two genetically identical daughter cells.",
+       "why": "Cytoplasm division finishes the split: one cell becomes two.",
+       "active": [
+        "furrow",
+        "daughters",
+        "cell-membrane"
+       ],
+       "calloutRegion": "furrow",
+       "readouts": [
+        {
+         "id": "chr",
+         "label": "Chromosomes (centromeres)",
+         "value": "16"
+        },
+        {
+         "id": "pairs",
+         "label": "Joined sister pairs",
+         "value": "0"
+        },
+        {
+         "id": "set",
+         "label": "Set per pole / daughter",
+         "value": "8 in each"
+        },
+        {
+         "id": "cells",
+         "label": "Cells",
+         "value": "2"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 8328
+ },
+ "usd": 0.089416,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The scene answers one question, how one cell becomes two identical cells with full sets. Chromosomes, cohesion links, spindle and equator are the marks, and the anaphase readouts (92, 0 pairs, 46 + 46) show the split."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The stepper is learner-driven with no timer, so anaphase holds until Next is pressed. Its sentence, why text and readouts (46 to 92, 0 pairs) all state the aha."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The organism select swaps the variant, changing every count (46/92 versus 8/16) in the sentences and readouts. The step control changes the active regions and readouts."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The picture, ghost, callout and readout bind to state.active, previous.active, state.calloutRegion, state.sentence and state.readouts. Each calloutRegion id exists in the regions list and the links reference declared regions."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The narrative order (condense, attach, line up, split, two cells) matches the state sequence and region labels. The Step and Organism controls match the story's wording."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each state activates 3-4 regions with one callout and 4 compact readouts. This is a detailed scene, but it does not exceed the mitosis density ceiling."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The counts are correct: 46 doubles to 92 and splits 46 + 46, and for the fruit fly 8 doubles to 16 and splits 8 + 8. Interphase shows 46 centromeres and 46 pairs, and there are 2 cells after cytokinesis. The numbers sit in the readouts, while the callouts only point to regions, though the sentences "
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.022124
+ }
+}

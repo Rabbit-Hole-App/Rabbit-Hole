@@ -1,0 +1,280 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a08",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does the human heart pump blood?",
+ "ts": "2026-11-14T22:20:43.808Z",
+ "ms": 3601,
+ "raw": "{\n  \"story\": \"Deoxygenated blood enters the right atrium, moves to the right ventricle, gets pumped to the lungs for oxygen, returns to the left atrium, and enters the left ventricle to be pumped out to the entire body.\",\n  \"aha\": {\n    \"stateId\": \"pump\",\n    \"observation\": \"Ventricle contraction forces blood through the semilunar valves into the arteries while AV valves snap shut.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"heart-diagram\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"metrics\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    },\n    {\n      \"id\": \"prog\",\n      \"kind\": \"progress\",\n      \"bind\": {\n        \"completedBefore\": \"inputs.stepIndex\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Heart Cycle Step\",\n      \"options\": [\n        \"Fill Atria\",\n        \"Atrial Kick\",\n        \"Ventricle Pump\",\n        \"Systemic Flow\"\n      ]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Cardiac Cycle\",\n        \"regions\": [\n          {\n            \"id\": \"ra\",\n            \"label\": \"Right Atrium\",\n            \"kind\": \"chamber\",\n            \"values\": [\"Pressure: Low\", \"Volume: Filling\"]\n          },\n          {\n            \"id\": \"rv\",\n            \"label\": \"Right Ventricle\",\n            \"kind\": \"chamber\",\n            \"values\": [\"Pressure: Low\", \"Volume: Mid\"]\n          },\n          {\n            \"id\": \"la\",\n            \"label\": \"Left Atrium\",\n            \"kind\": \"chamber\",\n            \"values\": [\"Pressure: Low\", \"Volume: Filling\"]\n          },\n          {\n            \"id\": \"lv\",\n            \"label\": \"Left Ventricle\",\n            \"kind\": \"chamber\",\n            \"values\": [\"Pressure: Low\", \"Volume: Mid\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"fill\",\n            \"label\": \"Passive Fill\",\n            \"short\": \"Fill\",\n            \"sentence\": \"Blood flows passively from veins into both atria and through open valves into ventricles.\",\n            \"why\": \"Atrioventricular valves open due to higher atrial pressure.\",\n            \"active\": [\"ra\", \"la\"],\n            \"calloutRegion\": \"ra\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Atrial Pressure\",\n                \"value\": \"5 mmHg\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Ventricle Pressure\",\n                \"value\": \"2 mmHg\"\n              }\n            ]\n          },\n          {\n            \"id\": \"kick\",\n            \"label\": \"Atrial Kick\",\n            \"short\": \"Kick\",\n            \"sentence\": \"The atria contract to squeeze the remaining blood completely into the ventricles.\",\n            \"why\": \"Active atrial contraction tops off ventricular volume.\",\n            \"active\": [\"ra\", \"la\", \"rv\", \"lv\"],\n            \"calloutRegion\": \"la\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Atrial Pressure\",\n                \"value\": \"8 mmHg\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Ventricle Pressure\",\n                \"value\": \"6 mmHg\"\n              }\n            ]\n          },\n          {\n            \"id\": \"pump\",\n            \"label\": \"Ventricle Pump\",\n            \"short\": \"Pump\",\n            \"sentence\": \"Ventricles contract fiercely, forcing blood out through pulmonary and aortic valves.\",\n            \"why\": \"High ventricular pressure snaps AV valves shut and opens semilunar valves.\",\n            \"active\": [\"rv\", \"lv\"],\n            \"calloutRegion\": \"lv\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Atrial Pressure\",\n                \"value\": \"3 mmHg\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Ventricle Pressure\",\n                \"value\": \"120 mmHg\"\n              }\n            ]\n          },\n          {\n            \"id\": \"flow\",\n            \"label\": \"Systemic Flow\",\n            \"short\": \"Flow\",\n            \"sentence\": \"Oxygenated blood travels through the body while deoxygenated blood returns to the heart.\",\n            \"why\": \"Arterial pressure drives circulation forward.\",\n            \"active\": [\"ra\", \"la\"],\n            \"calloutRegion\": \"rv\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Atrial Pressure\",\n                \"value\": \"4 mmHg\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Ventricle Pressure\",\n                \"value\": \"10 mmHg\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Deoxygenated blood enters the right atrium, moves to the right ventricle, gets pumped to the lungs for oxygen, returns to the left atrium, and enters the left ventricle to be pumped out to the entire body.",
+  "aha": {
+   "stateId": "pump",
+   "observation": "Ventricle contraction forces blood through the semilunar valves into the arteries while AV valves snap shut."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "heart-diagram",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions",
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "metrics",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "prog",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.stepIndex"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Heart Cycle Step",
+    "options": [
+     "Fill Atria",
+     "Atrial Kick",
+     "Ventricle Pump",
+     "Systemic Flow"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Cardiac Cycle",
+     "regions": [
+      {
+       "id": "ra",
+       "label": "Right Atrium",
+       "kind": "chamber",
+       "values": [
+        "Pressure: Low",
+        "Volume: Filling"
+       ]
+      },
+      {
+       "id": "rv",
+       "label": "Right Ventricle",
+       "kind": "chamber",
+       "values": [
+        "Pressure: Low",
+        "Volume: Mid"
+       ]
+      },
+      {
+       "id": "la",
+       "label": "Left Atrium",
+       "kind": "chamber",
+       "values": [
+        "Pressure: Low",
+        "Volume: Filling"
+       ]
+      },
+      {
+       "id": "lv",
+       "label": "Left Ventricle",
+       "kind": "chamber",
+       "values": [
+        "Pressure: Low",
+        "Volume: Mid"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "fill",
+       "label": "Passive Fill",
+       "short": "Fill",
+       "sentence": "Blood flows passively from veins into both atria and through open valves into ventricles.",
+       "why": "Atrioventricular valves open due to higher atrial pressure.",
+       "active": [
+        "ra",
+        "la"
+       ],
+       "calloutRegion": "ra",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Atrial Pressure",
+         "value": "5 mmHg"
+        },
+        {
+         "id": "r2",
+         "label": "Ventricle Pressure",
+         "value": "2 mmHg"
+        }
+       ]
+      },
+      {
+       "id": "kick",
+       "label": "Atrial Kick",
+       "short": "Kick",
+       "sentence": "The atria contract to squeeze the remaining blood completely into the ventricles.",
+       "why": "Active atrial contraction tops off ventricular volume.",
+       "active": [
+        "ra",
+        "la",
+        "rv",
+        "lv"
+       ],
+       "calloutRegion": "la",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Atrial Pressure",
+         "value": "8 mmHg"
+        },
+        {
+         "id": "r2",
+         "label": "Ventricle Pressure",
+         "value": "6 mmHg"
+        }
+       ]
+      },
+      {
+       "id": "pump",
+       "label": "Ventricle Pump",
+       "short": "Pump",
+       "sentence": "Ventricles contract fiercely, forcing blood out through pulmonary and aortic valves.",
+       "why": "High ventricular pressure snaps AV valves shut and opens semilunar valves.",
+       "active": [
+        "rv",
+        "lv"
+       ],
+       "calloutRegion": "lv",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Atrial Pressure",
+         "value": "3 mmHg"
+        },
+        {
+         "id": "r2",
+         "label": "Ventricle Pressure",
+         "value": "120 mmHg"
+        }
+       ]
+      },
+      {
+       "id": "flow",
+       "label": "Systemic Flow",
+       "short": "Flow",
+       "sentence": "Oxygenated blood travels through the body while deoxygenated blood returns to the heart.",
+       "why": "Arterial pressure drives circulation forward.",
+       "active": [
+        "ra",
+        "la"
+       ],
+       "calloutRegion": "rv",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Atrial Pressure",
+         "value": "4 mmHg"
+        },
+        {
+         "id": "r2",
+         "label": "Ventricle Pressure",
+         "value": "10 mmHg"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1104,
+  "output": 1457
+ },
+ "usd": 0.003974,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The diagram has only four chamber regions, with no declared valve or flow marks to show the AV and semilunar valve mechanism the aha claims."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "It is a learner-driven stepper with no timer, so the card holds on the pump state until the learner advances."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex control changes the active regions, callout target and pressure readouts for each state."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The aha's valves, arteries and blood flow have no declared regions or marks, and the static region values (\"Pressure: Low\") are not bound to state."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The flow step's sentence is about systemic circulation but its callout targets the right ventricle, and the story's lungs and left-atrium return path is never staged."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The scene has one diagram, one callout and one readout set, which is a restrained level of density for a balanced depth."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The static region values (\"Pressure: Low\") contradict the 120 mmHg pump readout, and the same pressure information is placed in both the regions and the readouts."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.017186
+ }
+}

@@ -1,0 +1,715 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a26",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does cross-validation detect overfitting?",
+ "ts": "2026-11-14T22:28:36.005Z",
+ "ms": 30477,
+ "raw": "{\"story\":\"Cross-validation hides one fold of the data, trains on the rest, then scores the model on both. Rotating the hidden fold gives five held-out scores. Overfitting shows up as a model with a tiny training error but a much larger held-out error.\",\"aha\":{\"stateId\":\"gap\",\"observation\":\"The flexible model's training error is 2% but its mean held-out error is 24%. That 22-point gap is overfitting. The simple model's gap is only 2 points.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"inputs.step\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"inputs.step\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next\"},{\"id\":\"model\",\"kind\":\"select\",\"label\":\"Model\",\"options\":[\"Flexible model (degree 9)\",\"Simple model (degree 1)\"],\"default\":0,\"presentation\":\"Switches the variant; changes the train and held-out errors compared in the final state\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Flexible model (degree 9)\",\"regions\":[{\"id\":\"fold1\",\"label\":\"Fold 1\",\"kind\":\"fold\",\"values\":[\"held-out error 22%\"]},{\"id\":\"fold2\",\"label\":\"Fold 2\",\"kind\":\"fold\",\"values\":[\"held-out error 26%\"]},{\"id\":\"fold3\",\"label\":\"Fold 3\",\"kind\":\"fold\",\"values\":[\"held-out error 23%\"]},{\"id\":\"fold4\",\"label\":\"Fold 4\",\"kind\":\"fold\",\"values\":[\"held-out error 25%\"]},{\"id\":\"fold5\",\"label\":\"Fold 5\",\"kind\":\"fold\",\"values\":[\"held-out error 24%\"]},{\"id\":\"model\",\"label\":\"Model (degree 9)\",\"kind\":\"model\"},{\"id\":\"train-score\",\"label\":\"Training error\",\"kind\":\"score\",\"values\":[\"2%\"]},{\"id\":\"heldout-score\",\"label\":\"Held-out error\",\"kind\":\"score\",\"values\":[\"24% mean\"]},{\"id\":\"gap\",\"label\":\"Gap\",\"kind\":\"score\",\"values\":[\"22 points\"]}],\"links\":[{\"from\":\"fold2\",\"to\":\"model\",\"label\":\"train\"},{\"from\":\"fold3\",\"to\":\"model\",\"label\":\"train\"},{\"from\":\"fold4\",\"to\":\"model\",\"label\":\"train\"},{\"from\":\"fold5\",\"to\":\"model\",\"label\":\"train\"},{\"from\":\"model\",\"to\":\"train-score\",\"label\":\"score on training folds\"},{\"from\":\"fold1\",\"to\":\"heldout-score\",\"label\":\"score on hidden fold\"},{\"from\":\"train-score\",\"to\":\"gap\",\"label\":\"subtract\"},{\"from\":\"heldout-score\",\"to\":\"gap\",\"label\":\"subtract\"}],\"states\":[{\"id\":\"split\",\"label\":\"Split into folds\",\"short\":\"Split\",\"sentence\":\"The data is divided into five equal folds, so every example gets one turn as unseen data.\",\"why\":\"Folds make unseen data available without collecting more.\",\"active\":[\"fold1\",\"fold2\",\"fold3\",\"fold4\",\"fold5\"],\"calloutRegion\":\"fold1\",\"readouts\":[{\"id\":\"folds\",\"label\":\"Folds\",\"value\":\"5\"},{\"id\":\"round\",\"label\":\"Round\",\"value\":\"1 of 5\"}]},{\"id\":\"holdout\",\"label\":\"Hold out fold 1\",\"short\":\"Hold out\",\"sentence\":\"Fold 1 is hidden. The degree-9 model trains only on folds 2 to 5.\",\"why\":\"The hidden fold must not influence training.\",\"active\":[\"fold1\",\"fold2\",\"fold3\",\"fold4\",\"fold5\",\"model\"],\"calloutRegion\":\"fold1\",\"readouts\":[{\"id\":\"hidden\",\"label\":\"Hidden fold\",\"value\":\"1\"},{\"id\":\"trainfolds\",\"label\":\"Training folds\",\"value\":\"4\"}]},{\"id\":\"train\",\"label\":\"Score on training folds\",\"short\":\"Train score\",\"sentence\":\"The model is scored on the folds it learned from. It nearly memorises them.\",\"why\":\"A flexible model can bend to fit noise in its training data.\",\"active\":[\"fold2\",\"fold3\",\"fold4\",\"fold5\",\"model\",\"train-score\"],\"calloutRegion\":\"train-score\",\"readouts\":[{\"id\":\"train\",\"label\":\"Training error\",\"value\":\"2%\"}]},{\"id\":\"validate\",\"label\":\"Score on fold 1\",\"short\":\"Held-out score\",\"sentence\":\"The same model is scored on hidden fold 1. Its error is far higher.\",\"why\":\"Noise it memorised does not repeat in unseen data.\",\"active\":[\"fold1\",\"model\",\"heldout-score\",\"train-score\"],\"calloutRegion\":\"heldout-score\",\"readouts\":[{\"id\":\"train\",\"label\":\"Training error\",\"value\":\"2%\"},{\"id\":\"f1\",\"label\":\"Fold 1 held-out error\",\"value\":\"22%\"}]},{\"id\":\"rotate\",\"label\":\"Rotate the hidden fold\",\"short\":\"Rotate\",\"sentence\":\"Each fold takes a turn hidden. All five held-out errors are high, so fold 1 was not a fluke.\",\"why\":\"Repeating the test shows the weakness is consistent.\",\"active\":[\"fold1\",\"fold2\",\"fold3\",\"fold4\",\"fold5\",\"heldout-score\"],\"calloutRegion\":\"heldout-score\",\"readouts\":[{\"id\":\"range\",\"label\":\"Held-out range\",\"value\":\"22% to 26%\"},{\"id\":\"mean\",\"label\":\"Mean held-out error\",\"value\":\"24%\"}]},{\"id\":\"gap\",\"label\":\"Compare the scores\",\"short\":\"Gap\",\"sentence\":\"Training error is 2% but held-out error is 24%. This large gap is how cross-validation detects overfitting.\",\"why\":\"Good fit to seen data without good fit to unseen data means memorising.\",\"active\":[\"train-score\",\"heldout-score\",\"gap\"],\"calloutRegion\":\"gap\",\"readouts\":[{\"id\":\"train\",\"label\":\"Training error\",\"value\":\"2%\"},{\"id\":\"mean\",\"label\":\"Mean held-out error\",\"value\":\"24%\"},{\"id\":\"gap\",\"label\":\"Gap\",\"value\":\"22 points\"}]}]},{\"label\":\"Simple model (degree 1)\",\"regions\":[{\"id\":\"fold1\",\"label\":\"Fold 1\",\"kind\":\"fold\",\"values\":[\"held-out error 15%\"]},{\"id\":\"fold2\",\"label\":\"Fold 2\",\"kind\":\"fold\",\"values\":[\"held-out error 17%\"]},{\"id\":\"fold3\",\"label\":\"Fold 3\",\"kind\":\"fold\",\"values\":[\"held-out error 16%\"]},{\"id\":\"fold4\",\"label\":\"Fold 4\",\"kind\":\"fold\",\"values\":[\"held-out error 16%\"]},{\"id\":\"fold5\",\"label\":\"Fold 5\",\"kind\":\"fold\",\"values\":[\"held-out error 16%\"]},{\"id\":\"model\",\"label\":\"Model (degree 1)\",\"kind\":\"model\"},{\"id\":\"train-score\",\"label\":\"Training error\",\"kind\":\"score\",\"values\":[\"14%\"]},{\"id\":\"heldout-score\",\"label\":\"Held-out error\",\"kind\":\"score\",\"values\":[\"16% mean\"]},{\"id\":\"gap\",\"label\":\"Gap\",\"kind\":\"score\",\"values\":[\"2 points\"]}],\"links\":[{\"from\":\"fold2\",\"to\":\"model\",\"label\":\"train\"},{\"from\":\"fold3\",\"to\":\"model\",\"label\":\"train\"},{\"from\":\"fold4\",\"to\":\"model\",\"label\":\"train\"},{\"from\":\"fold5\",\"to\":\"model\",\"label\":\"train\"},{\"from\":\"model\",\"to\":\"train-score\",\"label\":\"score on training folds\"},{\"from\":\"fold1\",\"to\":\"heldout-score\",\"label\":\"score on hidden fold\"},{\"from\":\"train-score\",\"to\":\"gap\",\"label\":\"subtract\"},{\"from\":\"heldout-score\",\"to\":\"gap\",\"label\":\"subtract\"}],\"states\":[{\"id\":\"split\",\"label\":\"Split into folds\",\"short\":\"Split\",\"sentence\":\"The data is divided into five equal folds, so every example gets one turn as unseen data.\",\"why\":\"Folds make unseen data available without collecting more.\",\"active\":[\"fold1\",\"fold2\",\"fold3\",\"fold4\",\"fold5\"],\"calloutRegion\":\"fold1\",\"readouts\":[{\"id\":\"folds\",\"label\":\"Folds\",\"value\":\"5\"},{\"id\":\"round\",\"label\":\"Round\",\"value\":\"1 of 5\"}]},{\"id\":\"holdout\",\"label\":\"Hold out fold 1\",\"short\":\"Hold out\",\"sentence\":\"Fold 1 is hidden. The degree-1 model trains only on folds 2 to 5.\",\"why\":\"The hidden fold must not influence training.\",\"active\":[\"fold1\",\"fold2\",\"fold3\",\"fold4\",\"fold5\",\"model\"],\"calloutRegion\":\"fold1\",\"readouts\":[{\"id\":\"hidden\",\"label\":\"Hidden fold\",\"value\":\"1\"},{\"id\":\"trainfolds\",\"label\":\"Training folds\",\"value\":\"4\"}]},{\"id\":\"train\",\"label\":\"Score on training folds\",\"short\":\"Train score\",\"sentence\":\"The model is scored on the folds it learned from. A straight line cannot memorise noise, so error stays moderate.\",\"why\":\"A rigid model captures the trend, not the noise.\",\"active\":[\"fold2\",\"fold3\",\"fold4\",\"fold5\",\"model\",\"train-score\"],\"calloutRegion\":\"train-score\",\"readouts\":[{\"id\":\"train\",\"label\":\"Training error\",\"value\":\"14%\"}]},{\"id\":\"validate\",\"label\":\"Score on fold 1\",\"short\":\"Held-out score\",\"sentence\":\"The same model is scored on hidden fold 1. Its error is almost the same.\",\"why\":\"What it learned also holds on unseen data.\",\"active\":[\"fold1\",\"model\",\"heldout-score\",\"train-score\"],\"calloutRegion\":\"heldout-score\",\"readouts\":[{\"id\":\"train\",\"label\":\"Training error\",\"value\":\"14%\"},{\"id\":\"f1\",\"label\":\"Fold 1 held-out error\",\"value\":\"15%\"}]},{\"id\":\"rotate\",\"label\":\"Rotate the hidden fold\",\"short\":\"Rotate\",\"sentence\":\"Each fold takes a turn hidden. All five held-out errors are close together and close to training error.\",\"why\":\"Repeating the test confirms the result is stable.\",\"active\":[\"fold1\",\"fold2\",\"fold3\",\"fold4\",\"fold5\",\"heldout-score\"],\"calloutRegion\":\"heldout-score\",\"readouts\":[{\"id\":\"range\",\"label\":\"Held-out range\",\"value\":\"15% to 17%\"},{\"id\":\"mean\",\"label\":\"Mean held-out error\",\"value\":\"16%\"}]},{\"id\":\"gap\",\"label\":\"Compare the scores\",\"short\":\"Gap\",\"sentence\":\"Training error is 14% and held-out error is 16%. The small gap shows no overfitting.\",\"why\":\"Similar scores on seen and unseen data mean the model generalises.\",\"active\":[\"train-score\",\"heldout-score\",\"gap\"],\"calloutRegion\":\"gap\",\"readouts\":[{\"id\":\"train\",\"label\":\"Training error\",\"value\":\"14%\"},{\"id\":\"mean\",\"label\":\"Mean held-out error\",\"value\":\"16%\"},{\"id\":\"gap\",\"label\":\"Gap\",\"value\":\"2 points\"}]}]}]}}",
+ "composition": {
+  "story": "Cross-validation hides one fold of the data, trains on the rest, then scores the model on both. Rotating the hidden fold gives five held-out scores. Overfitting shows up as a model with a tiny training error but a much larger held-out error.",
+  "aha": {
+   "stateId": "gap",
+   "observation": "The flexible model's training error is 2% but its mean held-out error is 24%. That 22-point gap is overfitting. The simple model's gap is only 2 points."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "inputs.step"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "inputs.step"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "model",
+    "kind": "select",
+    "label": "Model",
+    "options": [
+     "Flexible model (degree 9)",
+     "Simple model (degree 1)"
+    ],
+    "default": 0,
+    "presentation": "Switches the variant; changes the train and held-out errors compared in the final state"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Flexible model (degree 9)",
+     "regions": [
+      {
+       "id": "fold1",
+       "label": "Fold 1",
+       "kind": "fold",
+       "values": [
+        "held-out error 22%"
+       ]
+      },
+      {
+       "id": "fold2",
+       "label": "Fold 2",
+       "kind": "fold",
+       "values": [
+        "held-out error 26%"
+       ]
+      },
+      {
+       "id": "fold3",
+       "label": "Fold 3",
+       "kind": "fold",
+       "values": [
+        "held-out error 23%"
+       ]
+      },
+      {
+       "id": "fold4",
+       "label": "Fold 4",
+       "kind": "fold",
+       "values": [
+        "held-out error 25%"
+       ]
+      },
+      {
+       "id": "fold5",
+       "label": "Fold 5",
+       "kind": "fold",
+       "values": [
+        "held-out error 24%"
+       ]
+      },
+      {
+       "id": "model",
+       "label": "Model (degree 9)",
+       "kind": "model"
+      },
+      {
+       "id": "train-score",
+       "label": "Training error",
+       "kind": "score",
+       "values": [
+        "2%"
+       ]
+      },
+      {
+       "id": "heldout-score",
+       "label": "Held-out error",
+       "kind": "score",
+       "values": [
+        "24% mean"
+       ]
+      },
+      {
+       "id": "gap",
+       "label": "Gap",
+       "kind": "score",
+       "values": [
+        "22 points"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "fold2",
+       "to": "model",
+       "label": "train"
+      },
+      {
+       "from": "fold3",
+       "to": "model",
+       "label": "train"
+      },
+      {
+       "from": "fold4",
+       "to": "model",
+       "label": "train"
+      },
+      {
+       "from": "fold5",
+       "to": "model",
+       "label": "train"
+      },
+      {
+       "from": "model",
+       "to": "train-score",
+       "label": "score on training folds"
+      },
+      {
+       "from": "fold1",
+       "to": "heldout-score",
+       "label": "score on hidden fold"
+      },
+      {
+       "from": "train-score",
+       "to": "gap",
+       "label": "subtract"
+      },
+      {
+       "from": "heldout-score",
+       "to": "gap",
+       "label": "subtract"
+      }
+     ],
+     "states": [
+      {
+       "id": "split",
+       "label": "Split into folds",
+       "short": "Split",
+       "sentence": "The data is divided into five equal folds, so every example gets one turn as unseen data.",
+       "why": "Folds make unseen data available without collecting more.",
+       "active": [
+        "fold1",
+        "fold2",
+        "fold3",
+        "fold4",
+        "fold5"
+       ],
+       "calloutRegion": "fold1",
+       "readouts": [
+        {
+         "id": "folds",
+         "label": "Folds",
+         "value": "5"
+        },
+        {
+         "id": "round",
+         "label": "Round",
+         "value": "1 of 5"
+        }
+       ]
+      },
+      {
+       "id": "holdout",
+       "label": "Hold out fold 1",
+       "short": "Hold out",
+       "sentence": "Fold 1 is hidden. The degree-9 model trains only on folds 2 to 5.",
+       "why": "The hidden fold must not influence training.",
+       "active": [
+        "fold1",
+        "fold2",
+        "fold3",
+        "fold4",
+        "fold5",
+        "model"
+       ],
+       "calloutRegion": "fold1",
+       "readouts": [
+        {
+         "id": "hidden",
+         "label": "Hidden fold",
+         "value": "1"
+        },
+        {
+         "id": "trainfolds",
+         "label": "Training folds",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "train",
+       "label": "Score on training folds",
+       "short": "Train score",
+       "sentence": "The model is scored on the folds it learned from. It nearly memorises them.",
+       "why": "A flexible model can bend to fit noise in its training data.",
+       "active": [
+        "fold2",
+        "fold3",
+        "fold4",
+        "fold5",
+        "model",
+        "train-score"
+       ],
+       "calloutRegion": "train-score",
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Training error",
+         "value": "2%"
+        }
+       ]
+      },
+      {
+       "id": "validate",
+       "label": "Score on fold 1",
+       "short": "Held-out score",
+       "sentence": "The same model is scored on hidden fold 1. Its error is far higher.",
+       "why": "Noise it memorised does not repeat in unseen data.",
+       "active": [
+        "fold1",
+        "model",
+        "heldout-score",
+        "train-score"
+       ],
+       "calloutRegion": "heldout-score",
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Training error",
+         "value": "2%"
+        },
+        {
+         "id": "f1",
+         "label": "Fold 1 held-out error",
+         "value": "22%"
+        }
+       ]
+      },
+      {
+       "id": "rotate",
+       "label": "Rotate the hidden fold",
+       "short": "Rotate",
+       "sentence": "Each fold takes a turn hidden. All five held-out errors are high, so fold 1 was not a fluke.",
+       "why": "Repeating the test shows the weakness is consistent.",
+       "active": [
+        "fold1",
+        "fold2",
+        "fold3",
+        "fold4",
+        "fold5",
+        "heldout-score"
+       ],
+       "calloutRegion": "heldout-score",
+       "readouts": [
+        {
+         "id": "range",
+         "label": "Held-out range",
+         "value": "22% to 26%"
+        },
+        {
+         "id": "mean",
+         "label": "Mean held-out error",
+         "value": "24%"
+        }
+       ]
+      },
+      {
+       "id": "gap",
+       "label": "Compare the scores",
+       "short": "Gap",
+       "sentence": "Training error is 2% but held-out error is 24%. This large gap is how cross-validation detects overfitting.",
+       "why": "Good fit to seen data without good fit to unseen data means memorising.",
+       "active": [
+        "train-score",
+        "heldout-score",
+        "gap"
+       ],
+       "calloutRegion": "gap",
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Training error",
+         "value": "2%"
+        },
+        {
+         "id": "mean",
+         "label": "Mean held-out error",
+         "value": "24%"
+        },
+        {
+         "id": "gap",
+         "label": "Gap",
+         "value": "22 points"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Simple model (degree 1)",
+     "regions": [
+      {
+       "id": "fold1",
+       "label": "Fold 1",
+       "kind": "fold",
+       "values": [
+        "held-out error 15%"
+       ]
+      },
+      {
+       "id": "fold2",
+       "label": "Fold 2",
+       "kind": "fold",
+       "values": [
+        "held-out error 17%"
+       ]
+      },
+      {
+       "id": "fold3",
+       "label": "Fold 3",
+       "kind": "fold",
+       "values": [
+        "held-out error 16%"
+       ]
+      },
+      {
+       "id": "fold4",
+       "label": "Fold 4",
+       "kind": "fold",
+       "values": [
+        "held-out error 16%"
+       ]
+      },
+      {
+       "id": "fold5",
+       "label": "Fold 5",
+       "kind": "fold",
+       "values": [
+        "held-out error 16%"
+       ]
+      },
+      {
+       "id": "model",
+       "label": "Model (degree 1)",
+       "kind": "model"
+      },
+      {
+       "id": "train-score",
+       "label": "Training error",
+       "kind": "score",
+       "values": [
+        "14%"
+       ]
+      },
+      {
+       "id": "heldout-score",
+       "label": "Held-out error",
+       "kind": "score",
+       "values": [
+        "16% mean"
+       ]
+      },
+      {
+       "id": "gap",
+       "label": "Gap",
+       "kind": "score",
+       "values": [
+        "2 points"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "fold2",
+       "to": "model",
+       "label": "train"
+      },
+      {
+       "from": "fold3",
+       "to": "model",
+       "label": "train"
+      },
+      {
+       "from": "fold4",
+       "to": "model",
+       "label": "train"
+      },
+      {
+       "from": "fold5",
+       "to": "model",
+       "label": "train"
+      },
+      {
+       "from": "model",
+       "to": "train-score",
+       "label": "score on training folds"
+      },
+      {
+       "from": "fold1",
+       "to": "heldout-score",
+       "label": "score on hidden fold"
+      },
+      {
+       "from": "train-score",
+       "to": "gap",
+       "label": "subtract"
+      },
+      {
+       "from": "heldout-score",
+       "to": "gap",
+       "label": "subtract"
+      }
+     ],
+     "states": [
+      {
+       "id": "split",
+       "label": "Split into folds",
+       "short": "Split",
+       "sentence": "The data is divided into five equal folds, so every example gets one turn as unseen data.",
+       "why": "Folds make unseen data available without collecting more.",
+       "active": [
+        "fold1",
+        "fold2",
+        "fold3",
+        "fold4",
+        "fold5"
+       ],
+       "calloutRegion": "fold1",
+       "readouts": [
+        {
+         "id": "folds",
+         "label": "Folds",
+         "value": "5"
+        },
+        {
+         "id": "round",
+         "label": "Round",
+         "value": "1 of 5"
+        }
+       ]
+      },
+      {
+       "id": "holdout",
+       "label": "Hold out fold 1",
+       "short": "Hold out",
+       "sentence": "Fold 1 is hidden. The degree-1 model trains only on folds 2 to 5.",
+       "why": "The hidden fold must not influence training.",
+       "active": [
+        "fold1",
+        "fold2",
+        "fold3",
+        "fold4",
+        "fold5",
+        "model"
+       ],
+       "calloutRegion": "fold1",
+       "readouts": [
+        {
+         "id": "hidden",
+         "label": "Hidden fold",
+         "value": "1"
+        },
+        {
+         "id": "trainfolds",
+         "label": "Training folds",
+         "value": "4"
+        }
+       ]
+      },
+      {
+       "id": "train",
+       "label": "Score on training folds",
+       "short": "Train score",
+       "sentence": "The model is scored on the folds it learned from. A straight line cannot memorise noise, so error stays moderate.",
+       "why": "A rigid model captures the trend, not the noise.",
+       "active": [
+        "fold2",
+        "fold3",
+        "fold4",
+        "fold5",
+        "model",
+        "train-score"
+       ],
+       "calloutRegion": "train-score",
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Training error",
+         "value": "14%"
+        }
+       ]
+      },
+      {
+       "id": "validate",
+       "label": "Score on fold 1",
+       "short": "Held-out score",
+       "sentence": "The same model is scored on hidden fold 1. Its error is almost the same.",
+       "why": "What it learned also holds on unseen data.",
+       "active": [
+        "fold1",
+        "model",
+        "heldout-score",
+        "train-score"
+       ],
+       "calloutRegion": "heldout-score",
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Training error",
+         "value": "14%"
+        },
+        {
+         "id": "f1",
+         "label": "Fold 1 held-out error",
+         "value": "15%"
+        }
+       ]
+      },
+      {
+       "id": "rotate",
+       "label": "Rotate the hidden fold",
+       "short": "Rotate",
+       "sentence": "Each fold takes a turn hidden. All five held-out errors are close together and close to training error.",
+       "why": "Repeating the test confirms the result is stable.",
+       "active": [
+        "fold1",
+        "fold2",
+        "fold3",
+        "fold4",
+        "fold5",
+        "heldout-score"
+       ],
+       "calloutRegion": "heldout-score",
+       "readouts": [
+        {
+         "id": "range",
+         "label": "Held-out range",
+         "value": "15% to 17%"
+        },
+        {
+         "id": "mean",
+         "label": "Mean held-out error",
+         "value": "16%"
+        }
+       ]
+      },
+      {
+       "id": "gap",
+       "label": "Compare the scores",
+       "short": "Gap",
+       "sentence": "Training error is 14% and held-out error is 16%. The small gap shows no overfitting.",
+       "why": "Similar scores on seen and unseen data mean the model generalises.",
+       "active": [
+        "train-score",
+        "heldout-score",
+        "gap"
+       ],
+       "calloutRegion": "gap",
+       "readouts": [
+        {
+         "id": "train",
+         "label": "Training error",
+         "value": "14%"
+        },
+        {
+         "id": "mean",
+         "label": "Mean held-out error",
+         "value": "16%"
+        },
+        {
+         "id": "gap",
+         "label": "Gap",
+         "value": "2 points"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3073,
+  "output": 5298
+ },
+ "usd": 0.059126,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of folds, model, train and held-out scores and the gap answers \"how does cross-validation reveal overfitting?\" through the train-to-gap links."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state \"gap\" is the final step, so the stepper rests on the 2% vs 24% comparison until the learner moves on."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The Model select swaps the variant, changing training error, fold errors and gap (2/24/22 vs 14/16/2), and Step changes the active regions."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active regions, callout targets, sentences and readouts all come from state fields, and the links and region values come from variant data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "Narrative, state labels and the step control all use the same names (fold 1, hidden fold, training error, held-out error, gap), and the model name matches the degree in the sentences."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each state activates a focused subset of one fixed picture and the readouts are two or three values each, with the final state adding the subtraction as the formula, so there is no clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The numbers are correct (means 24 and 16, gaps 22 and 2, ranges match), but in the gap state the same values appear both in the region values and in the readouts, so they are placed twice."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.021118
+ }
+}

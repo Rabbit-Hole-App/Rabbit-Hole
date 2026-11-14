@@ -1,0 +1,417 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a07",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a robot arm pick up an object?",
+ "ts": "2026-11-14T22:23:37.707Z",
+ "ms": 31764,
+ "raw": "{\"story\":\"A camera spots a cup on the table. The planner turns its position into joint angles. Shoulder, elbow and wrist swing the open gripper above the cup, then lower it. The fingers close until the force sensor feels contact, then stop. The arm lifts, carrying the cup. Step with Previous and Next.\",\"aha\":{\"stateId\":\"grasp\",\"observation\":\"The fingers stop at 60 mm because the force sensor feels 5 N of contact. Feedback, not a preset position, ends the squeeze.\"},\"layout\":{\"preset\":\"stepper-protocol\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top row with step labels; shows progress through the six states.\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"active\":\"state.active\",\"links\":\"variant.links\"},\"presentation\":\"Side view: camera, planner, shoulder, elbow, wrist, gripper, cup on table. Active regions are highlighted.\"},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"},\"presentation\":\"Faint outline of the previous gripper pose.\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.short\",\"reason\":\"state.why\"},\"presentation\":\"Points to where the change happens; carries no numbers.\"},{\"id\":\"readouts\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Gripper opening (mm), grip force (N), hand height above table (cm). Values are whole numbers.\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons keep their names when disabled at either end. Keyboard: arrow keys. Visible focus.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to step 1, See the cup.\"}],\"data\":{\"variants\":[{\"label\":\"Pick up a 60 mm cup\",\"regions\":[{\"id\":\"camera\",\"label\":\"Camera\",\"values\":[\"searching\",\"cup found\"]},{\"id\":\"planner\",\"label\":\"Planner\",\"values\":[\"idle\",\"joint angles computed\",\"watching force\"]},{\"id\":\"shoulder\",\"label\":\"Shoulder joint\",\"values\":[\"home\",\"rotated\"]},{\"id\":\"elbow\",\"label\":\"Elbow joint\",\"values\":[\"home\",\"bent\"]},{\"id\":\"wrist\",\"label\":\"Wrist joint\",\"values\":[\"home\",\"pointing down\"]},{\"id\":\"gripper\",\"label\":\"Gripper\",\"phases\":[\"open\",\"closing\",\"holding\"]},{\"id\":\"force\",\"label\":\"Force sensor\",\"values\":[\"0 N\",\"5 N contact\"]},{\"id\":\"cup\",\"label\":\"Cup\",\"values\":[\"on table\",\"lifted\"]},{\"id\":\"table\",\"label\":\"Table\",\"values\":[\"surface\"]}],\"links\":[{\"from\":\"camera\",\"to\":\"planner\",\"label\":\"cup position\"},{\"from\":\"planner\",\"to\":\"shoulder\",\"label\":\"joint angles\"},{\"from\":\"force\",\"to\":\"planner\",\"label\":\"contact signal\"}],\"states\":[{\"id\":\"see\",\"label\":\"See the cup\",\"short\":\"Camera finds the cup\",\"sentence\":\"The camera finds the cup and reports where it sits on the table.\",\"why\":\"The arm cannot reach for what it has not located.\",\"active\":[\"camera\",\"cup\"],\"calloutRegion\":\"camera\",\"readouts\":[{\"id\":\"open\",\"label\":\"Gripper opening\",\"value\":\"100 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"0 N\"},{\"id\":\"height\",\"label\":\"Hand height\",\"value\":\"40 cm\"}]},{\"id\":\"plan\",\"label\":\"Plan the joints\",\"short\":\"Position becomes joint angles\",\"sentence\":\"The planner converts the cup's position into angles for the shoulder, elbow and wrist.\",\"why\":\"Motors move joints, not the hand directly, so each joint needs its own target.\",\"active\":[\"planner\"],\"calloutRegion\":\"planner\",\"readouts\":[{\"id\":\"open\",\"label\":\"Gripper opening\",\"value\":\"100 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"0 N\"},{\"id\":\"height\",\"label\":\"Hand height\",\"value\":\"40 cm\"}]},{\"id\":\"reach\",\"label\":\"Reach above\",\"short\":\"Joints swing the hand over the cup\",\"sentence\":\"Shoulder, elbow and wrist rotate together, placing the open gripper directly above the cup.\",\"why\":\"Approaching from above avoids knocking the cup sideways.\",\"active\":[\"shoulder\",\"elbow\",\"wrist\",\"gripper\"],\"calloutRegion\":\"gripper\",\"readouts\":[{\"id\":\"open\",\"label\":\"Gripper opening\",\"value\":\"100 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"0 N\"},{\"id\":\"height\",\"label\":\"Hand height\",\"value\":\"20 cm\"}]},{\"id\":\"descend\",\"label\":\"Lower\",\"short\":\"Fingers slide around the cup\",\"sentence\":\"The hand moves straight down until the open fingers surround the cup.\",\"why\":\"The 100 mm opening clears the 60 mm cup with room to spare.\",\"active\":[\"gripper\",\"cup\"],\"calloutRegion\":\"gripper\",\"readouts\":[{\"id\":\"open\",\"label\":\"Gripper opening\",\"value\":\"100 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"0 N\"},{\"id\":\"height\",\"label\":\"Hand height\",\"value\":\"5 cm\"}]},{\"id\":\"grasp\",\"label\":\"Close and feel\",\"short\":\"Fingers stop at contact\",\"sentence\":\"The fingers close until the force sensor reads 5 N, then stop squeezing.\",\"why\":\"Stopping on felt force grips firmly without crushing, whatever the cup's exact size.\",\"active\":[\"gripper\",\"force\",\"planner\"],\"calloutRegion\":\"force\",\"readouts\":[{\"id\":\"open\",\"label\":\"Gripper opening\",\"value\":\"60 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"5 N\"},{\"id\":\"height\",\"label\":\"Hand height\",\"value\":\"5 cm\"}]},{\"id\":\"lift\",\"label\":\"Lift\",\"short\":\"Cup rises with the hand\",\"sentence\":\"The joints raise the hand while grip force holds steady, so the cup rises with it.\",\"why\":\"Steady force keeps friction high enough to hold the cup against gravity.\",\"active\":[\"shoulder\",\"elbow\",\"gripper\",\"cup\"],\"calloutRegion\":\"cup\",\"readouts\":[{\"id\":\"open\",\"label\":\"Gripper opening\",\"value\":\"60 mm\"},{\"id\":\"force\",\"label\":\"Grip force\",\"value\":\"5 N\"},{\"id\":\"height\",\"label\":\"Hand height\",\"value\":\"20 cm\"}]}]}]}}",
+ "composition": {
+  "story": "A camera spots a cup on the table. The planner turns its position into joint angles. Shoulder, elbow and wrist swing the open gripper above the cup, then lower it. The fingers close until the force sensor feels contact, then stop. The arm lifts, carrying the cup. Step with Previous and Next.",
+  "aha": {
+   "stateId": "grasp",
+   "observation": "The fingers stop at 60 mm because the force sensor feels 5 N of contact. Feedback, not a preset position, ends the squeeze."
+  },
+  "layout": {
+   "preset": "stepper-protocol",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top row with step labels; shows progress through the six states."
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "active": "state.active",
+     "links": "variant.links"
+    },
+    "presentation": "Side view: camera, planner, shoulder, elbow, wrist, gripper, cup on table. Active regions are highlighted."
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    },
+    "presentation": "Faint outline of the previous gripper pose."
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.short",
+     "reason": "state.why"
+    },
+    "presentation": "Points to where the change happens; carries no numbers."
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Gripper opening (mm), grip force (N), hand height above table (cm). Values are whole numbers."
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons keep their names when disabled at either end. Keyboard: arrow keys. Visible focus."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to step 1, See the cup."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Pick up a 60 mm cup",
+     "regions": [
+      {
+       "id": "camera",
+       "label": "Camera",
+       "values": [
+        "searching",
+        "cup found"
+       ]
+      },
+      {
+       "id": "planner",
+       "label": "Planner",
+       "values": [
+        "idle",
+        "joint angles computed",
+        "watching force"
+       ]
+      },
+      {
+       "id": "shoulder",
+       "label": "Shoulder joint",
+       "values": [
+        "home",
+        "rotated"
+       ]
+      },
+      {
+       "id": "elbow",
+       "label": "Elbow joint",
+       "values": [
+        "home",
+        "bent"
+       ]
+      },
+      {
+       "id": "wrist",
+       "label": "Wrist joint",
+       "values": [
+        "home",
+        "pointing down"
+       ]
+      },
+      {
+       "id": "gripper",
+       "label": "Gripper",
+       "phases": [
+        "open",
+        "closing",
+        "holding"
+       ]
+      },
+      {
+       "id": "force",
+       "label": "Force sensor",
+       "values": [
+        "0 N",
+        "5 N contact"
+       ]
+      },
+      {
+       "id": "cup",
+       "label": "Cup",
+       "values": [
+        "on table",
+        "lifted"
+       ]
+      },
+      {
+       "id": "table",
+       "label": "Table",
+       "values": [
+        "surface"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "camera",
+       "to": "planner",
+       "label": "cup position"
+      },
+      {
+       "from": "planner",
+       "to": "shoulder",
+       "label": "joint angles"
+      },
+      {
+       "from": "force",
+       "to": "planner",
+       "label": "contact signal"
+      }
+     ],
+     "states": [
+      {
+       "id": "see",
+       "label": "See the cup",
+       "short": "Camera finds the cup",
+       "sentence": "The camera finds the cup and reports where it sits on the table.",
+       "why": "The arm cannot reach for what it has not located.",
+       "active": [
+        "camera",
+        "cup"
+       ],
+       "calloutRegion": "camera",
+       "readouts": [
+        {
+         "id": "open",
+         "label": "Gripper opening",
+         "value": "100 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "0 N"
+        },
+        {
+         "id": "height",
+         "label": "Hand height",
+         "value": "40 cm"
+        }
+       ]
+      },
+      {
+       "id": "plan",
+       "label": "Plan the joints",
+       "short": "Position becomes joint angles",
+       "sentence": "The planner converts the cup's position into angles for the shoulder, elbow and wrist.",
+       "why": "Motors move joints, not the hand directly, so each joint needs its own target.",
+       "active": [
+        "planner"
+       ],
+       "calloutRegion": "planner",
+       "readouts": [
+        {
+         "id": "open",
+         "label": "Gripper opening",
+         "value": "100 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "0 N"
+        },
+        {
+         "id": "height",
+         "label": "Hand height",
+         "value": "40 cm"
+        }
+       ]
+      },
+      {
+       "id": "reach",
+       "label": "Reach above",
+       "short": "Joints swing the hand over the cup",
+       "sentence": "Shoulder, elbow and wrist rotate together, placing the open gripper directly above the cup.",
+       "why": "Approaching from above avoids knocking the cup sideways.",
+       "active": [
+        "shoulder",
+        "elbow",
+        "wrist",
+        "gripper"
+       ],
+       "calloutRegion": "gripper",
+       "readouts": [
+        {
+         "id": "open",
+         "label": "Gripper opening",
+         "value": "100 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "0 N"
+        },
+        {
+         "id": "height",
+         "label": "Hand height",
+         "value": "20 cm"
+        }
+       ]
+      },
+      {
+       "id": "descend",
+       "label": "Lower",
+       "short": "Fingers slide around the cup",
+       "sentence": "The hand moves straight down until the open fingers surround the cup.",
+       "why": "The 100 mm opening clears the 60 mm cup with room to spare.",
+       "active": [
+        "gripper",
+        "cup"
+       ],
+       "calloutRegion": "gripper",
+       "readouts": [
+        {
+         "id": "open",
+         "label": "Gripper opening",
+         "value": "100 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "0 N"
+        },
+        {
+         "id": "height",
+         "label": "Hand height",
+         "value": "5 cm"
+        }
+       ]
+      },
+      {
+       "id": "grasp",
+       "label": "Close and feel",
+       "short": "Fingers stop at contact",
+       "sentence": "The fingers close until the force sensor reads 5 N, then stop squeezing.",
+       "why": "Stopping on felt force grips firmly without crushing, whatever the cup's exact size.",
+       "active": [
+        "gripper",
+        "force",
+        "planner"
+       ],
+       "calloutRegion": "force",
+       "readouts": [
+        {
+         "id": "open",
+         "label": "Gripper opening",
+         "value": "60 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "5 N"
+        },
+        {
+         "id": "height",
+         "label": "Hand height",
+         "value": "5 cm"
+        }
+       ]
+      },
+      {
+       "id": "lift",
+       "label": "Lift",
+       "short": "Cup rises with the hand",
+       "sentence": "The joints raise the hand while grip force holds steady, so the cup rises with it.",
+       "why": "Steady force keeps friction high enough to hold the cup against gravity.",
+       "active": [
+        "shoulder",
+        "elbow",
+        "gripper",
+        "cup"
+       ],
+       "calloutRegion": "cup",
+       "readouts": [
+        {
+         "id": "open",
+         "label": "Gripper opening",
+         "value": "60 mm"
+        },
+        {
+         "id": "force",
+         "label": "Grip force",
+         "value": "5 N"
+        },
+        {
+         "id": "height",
+         "label": "Hand height",
+         "value": "20 cm"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3071,
+  "output": 3646
+ },
+ "usd": 0.085204,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The drawing shows the whole pick-up chain (camera, planner, joints, gripper, force sensor, cup) with a force-to-planner link, which answers how the gripper knows when to stop squeezing."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'grasp' is a single stepper state that stays put until Next is pressed, and it shows 60 mm, 5 N and the force callout together."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is the step index, which navigates states rather than changing the experiment. The single variant has a fixed cup size, so the claim that this works 'whatever the cup's exact size' is never tested."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, highlights, ghost, callout and readouts each bind to declared state, previous-state or variant fields, and the links are declared with labels."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels, region names and the Previous/Next and Reset controls all use the same objects (camera, planner, joints, gripper, force sensor, cup) in the same order."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At brief depth there is one fixed picture with a highlighted region, a ghost, one callout and three readouts, which is light and does not clutter the view."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The values are consistent: 100 mm clears the 60 mm cup, and force reads 5 N from grasp onward. Height goes 40, 40, 20, 5, 5, 20 cm. The callouts carry no numbers, so values appear only in the readouts."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.014494
+ }
+}

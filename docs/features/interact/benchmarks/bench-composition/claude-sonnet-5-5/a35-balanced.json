@@ -1,0 +1,664 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a35",
+ "set": "A",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does k-means clustering work?",
+ "ts": "2026-11-14T22:32:07.753Z",
+ "ms": 51187,
+ "raw": "{\"story\":\"K-means groups points by repeating two moves. Each point joins its nearest centroid. Each centroid then moves to the mean of its points. Watch six points on a line until no point switches. Total squared distance only falls, then stops.\",\"aha\":{\"stateId\":\"s5\",\"observation\":\"No point switched clusters, so the centroids stopped moving. Each assign or update step only lowered total squared distance, until it stopped at 9.33.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"inputs.step\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"default\":0,\"items\":\"variant.states\",\"presentation\":\"Previous and Next buttons; the rail shows the active step\"},{\"id\":\"start\",\"kind\":\"select\",\"label\":\"Starting centroids\",\"options\":[\"Start at 1 and 4\",\"Start at 1 and 2\"],\"default\":0,\"presentation\":\"Selects the variant. Changes the start, so the first rounds differ. Both end at the same clusters.\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to step 1 and the default start\"}],\"data\":{\"variants\":[{\"label\":\"Start at 1 and 4\",\"regions\":[{\"id\":\"pt1\",\"label\":\"Point 1\",\"values\":[\"x=1\"]},{\"id\":\"pt2\",\"label\":\"Point 2\",\"values\":[\"x=2\"]},{\"id\":\"pt4\",\"label\":\"Point 4\",\"values\":[\"x=4\"]},{\"id\":\"pt9\",\"label\":\"Point 9\",\"values\":[\"x=9\"]},{\"id\":\"pt10\",\"label\":\"Point 10\",\"values\":[\"x=10\"]},{\"id\":\"pt12\",\"label\":\"Point 12\",\"values\":[\"x=12\"]},{\"id\":\"c1\",\"label\":\"Centroid 1\",\"values\":[\"starts at x=1\"]},{\"id\":\"c2\",\"label\":\"Centroid 2\",\"values\":[\"starts at x=4\"]}],\"states\":[{\"id\":\"s0\",\"label\":\"Place centroids\",\"sentence\":\"Choose k=2 and drop two starting centroids on the line. No point has a cluster yet.\",\"short\":\"Start\",\"why\":\"Centroid 2 starts right on point 4.\",\"calloutRegion\":\"c2\",\"active\":[\"c1\",\"c2\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"none yet\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"1, 4\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"-\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"-\"}]},{\"id\":\"s1\",\"label\":\"Assign\",\"sentence\":\"Every point joins its nearest centroid, measured by distance on the line.\",\"short\":\"Assign\",\"why\":\"Point 4 sits on centroid 2, so it joins cluster 2.\",\"calloutRegion\":\"pt4\",\"active\":[\"pt1\",\"pt2\",\"pt4\",\"pt9\",\"pt10\",\"pt12\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"{1, 2} | {4, 9, 10, 12}\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"1, 4\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"6 (first assignment)\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"126\"}]},{\"id\":\"s2\",\"label\":\"Update\",\"sentence\":\"Each centroid moves to the mean of its cluster. The big cluster pulls centroid 2 far right.\",\"short\":\"Move\",\"why\":\"Centroid 2 has the farthest to travel.\",\"calloutRegion\":\"c2\",\"active\":[\"c1\",\"c2\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"{1, 2} | {4, 9, 10, 12}\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"1.5, 8.75\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"0\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"35.25\"}]},{\"id\":\"s3\",\"label\":\"Reassign\",\"sentence\":\"With the centroids moved, nearest-centroid is checked again. One point changes its mind.\",\"short\":\"Reassign\",\"why\":\"Point 4 is now closer to centroid 1.\",\"calloutRegion\":\"pt4\",\"active\":[\"pt4\",\"c1\",\"c2\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"{1, 2, 4} | {9, 10, 12}\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"1.5, 8.75\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"1\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"18.94\"}]},{\"id\":\"s4\",\"label\":\"Update again\",\"sentence\":\"Both centroids move again to the means of their new clusters. The moves are smaller now.\",\"short\":\"Move\",\"why\":\"Both centroids land at the center of three points.\",\"calloutRegion\":\"c1\",\"active\":[\"c1\",\"c2\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"{1, 2, 4} | {9, 10, 12}\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"2.33, 10.33\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"0\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"9.33\"}]},{\"id\":\"s5\",\"label\":\"Converged\",\"sentence\":\"Checking nearest centroids once more, nothing switches. The centroids would not move, so the algorithm stops.\",\"short\":\"Done\",\"why\":\"Stable assignments mean stable centroids.\",\"calloutRegion\":\"c2\",\"active\":[\"pt1\",\"pt2\",\"pt4\",\"pt9\",\"pt10\",\"pt12\",\"c1\",\"c2\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"{1, 2, 4} | {9, 10, 12}\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"2.33, 10.33\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"0\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"9.33\"}]}]},{\"label\":\"Start at 1 and 2\",\"regions\":[{\"id\":\"pt1\",\"label\":\"Point 1\",\"values\":[\"x=1\"]},{\"id\":\"pt2\",\"label\":\"Point 2\",\"values\":[\"x=2\"]},{\"id\":\"pt4\",\"label\":\"Point 4\",\"values\":[\"x=4\"]},{\"id\":\"pt9\",\"label\":\"Point 9\",\"values\":[\"x=9\"]},{\"id\":\"pt10\",\"label\":\"Point 10\",\"values\":[\"x=10\"]},{\"id\":\"pt12\",\"label\":\"Point 12\",\"values\":[\"x=12\"]},{\"id\":\"c1\",\"label\":\"Centroid 1\",\"values\":[\"starts at x=1\"]},{\"id\":\"c2\",\"label\":\"Centroid 2\",\"values\":[\"starts at x=2\"]}],\"states\":[{\"id\":\"s0\",\"label\":\"Place centroids\",\"sentence\":\"Choose k=2 and drop two starting centroids close together on the left. No point has a cluster yet.\",\"short\":\"Start\",\"why\":\"Both centroids start crowded at the left end.\",\"calloutRegion\":\"c2\",\"active\":[\"c1\",\"c2\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"none yet\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"1, 2\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"-\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"-\"}]},{\"id\":\"s1\",\"label\":\"Assign\",\"sentence\":\"Every point joins its nearest centroid. Centroid 2 captures almost everything.\",\"short\":\"Assign\",\"why\":\"Point 4 is closer to centroid 2 than to centroid 1.\",\"calloutRegion\":\"pt4\",\"active\":[\"pt1\",\"pt2\",\"pt4\",\"pt9\",\"pt10\",\"pt12\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"{1} | {2, 4, 9, 10, 12}\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"1, 2\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"6 (first assignment)\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"217\"}]},{\"id\":\"s2\",\"label\":\"Update\",\"sentence\":\"Each centroid moves to the mean of its cluster. Centroid 2 is dragged to the middle of the line.\",\"short\":\"Move\",\"why\":\"Centroid 1 stays put because it owns one point.\",\"calloutRegion\":\"c2\",\"active\":[\"c1\",\"c2\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"{1} | {2, 4, 9, 10, 12}\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"1, 7.4\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"0\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"71.2\"}]},{\"id\":\"s3\",\"label\":\"Reassign\",\"sentence\":\"With the centroids moved, nearest-centroid is checked again. Two points change clusters.\",\"short\":\"Reassign\",\"why\":\"Point 4 is now closer to centroid 1.\",\"calloutRegion\":\"pt4\",\"active\":[\"pt2\",\"pt4\",\"c1\",\"c2\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"{1, 2, 4} | {9, 10, 12}\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"1, 7.4\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"2\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"40.48\"}]},{\"id\":\"s4\",\"label\":\"Update again\",\"sentence\":\"Both centroids move again to the means of their new clusters, reaching the same spots as the other start.\",\"short\":\"Move\",\"why\":\"Same clusters give the same means.\",\"calloutRegion\":\"c1\",\"active\":[\"c1\",\"c2\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"{1, 2, 4} | {9, 10, 12}\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"2.33, 10.33\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"0\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"9.33\"}]},{\"id\":\"s5\",\"label\":\"Converged\",\"sentence\":\"Checking nearest centroids once more, nothing switches. The centroids would not move, so the algorithm stops.\",\"short\":\"Done\",\"why\":\"Stable assignments mean stable centroids.\",\"calloutRegion\":\"c2\",\"active\":[\"pt1\",\"pt2\",\"pt4\",\"pt9\",\"pt10\",\"pt12\",\"c1\",\"c2\"],\"readouts\":[{\"id\":\"cl\",\"label\":\"Clusters\",\"value\":\"{1, 2, 4} | {9, 10, 12}\"},{\"id\":\"ce\",\"label\":\"Centroids\",\"value\":\"2.33, 10.33\"},{\"id\":\"sw\",\"label\":\"Points switched\",\"value\":\"0\"},{\"id\":\"sse\",\"label\":\"Total squared distance\",\"value\":\"9.33\"}]}]}]}}",
+ "composition": {
+  "story": "K-means groups points by repeating two moves. Each point joins its nearest centroid. Each centroid then moves to the mean of its points. Watch six points on a line until no point switches. Total squared distance only falls, then stops.",
+  "aha": {
+   "stateId": "s5",
+   "observation": "No point switched clusters, so the centroids stopped moving. Each assign or update step only lowered total squared distance, until it stopped at 9.33."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "inputs.step"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "default": 0,
+    "items": "variant.states",
+    "presentation": "Previous and Next buttons; the rail shows the active step"
+   },
+   {
+    "id": "start",
+    "kind": "select",
+    "label": "Starting centroids",
+    "options": [
+     "Start at 1 and 4",
+     "Start at 1 and 2"
+    ],
+    "default": 0,
+    "presentation": "Selects the variant. Changes the start, so the first rounds differ. Both end at the same clusters."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to step 1 and the default start"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Start at 1 and 4",
+     "regions": [
+      {
+       "id": "pt1",
+       "label": "Point 1",
+       "values": [
+        "x=1"
+       ]
+      },
+      {
+       "id": "pt2",
+       "label": "Point 2",
+       "values": [
+        "x=2"
+       ]
+      },
+      {
+       "id": "pt4",
+       "label": "Point 4",
+       "values": [
+        "x=4"
+       ]
+      },
+      {
+       "id": "pt9",
+       "label": "Point 9",
+       "values": [
+        "x=9"
+       ]
+      },
+      {
+       "id": "pt10",
+       "label": "Point 10",
+       "values": [
+        "x=10"
+       ]
+      },
+      {
+       "id": "pt12",
+       "label": "Point 12",
+       "values": [
+        "x=12"
+       ]
+      },
+      {
+       "id": "c1",
+       "label": "Centroid 1",
+       "values": [
+        "starts at x=1"
+       ]
+      },
+      {
+       "id": "c2",
+       "label": "Centroid 2",
+       "values": [
+        "starts at x=4"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "Place centroids",
+       "sentence": "Choose k=2 and drop two starting centroids on the line. No point has a cluster yet.",
+       "short": "Start",
+       "why": "Centroid 2 starts right on point 4.",
+       "calloutRegion": "c2",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "none yet"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "1, 4"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "-"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "-"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Assign",
+       "sentence": "Every point joins its nearest centroid, measured by distance on the line.",
+       "short": "Assign",
+       "why": "Point 4 sits on centroid 2, so it joins cluster 2.",
+       "calloutRegion": "pt4",
+       "active": [
+        "pt1",
+        "pt2",
+        "pt4",
+        "pt9",
+        "pt10",
+        "pt12"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "{1, 2} | {4, 9, 10, 12}"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "1, 4"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "6 (first assignment)"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "126"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Update",
+       "sentence": "Each centroid moves to the mean of its cluster. The big cluster pulls centroid 2 far right.",
+       "short": "Move",
+       "why": "Centroid 2 has the farthest to travel.",
+       "calloutRegion": "c2",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "{1, 2} | {4, 9, 10, 12}"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "1.5, 8.75"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "0"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "35.25"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Reassign",
+       "sentence": "With the centroids moved, nearest-centroid is checked again. One point changes its mind.",
+       "short": "Reassign",
+       "why": "Point 4 is now closer to centroid 1.",
+       "calloutRegion": "pt4",
+       "active": [
+        "pt4",
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "{1, 2, 4} | {9, 10, 12}"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "1.5, 8.75"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "1"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "18.94"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Update again",
+       "sentence": "Both centroids move again to the means of their new clusters. The moves are smaller now.",
+       "short": "Move",
+       "why": "Both centroids land at the center of three points.",
+       "calloutRegion": "c1",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "{1, 2, 4} | {9, 10, 12}"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "2.33, 10.33"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "0"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "9.33"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Converged",
+       "sentence": "Checking nearest centroids once more, nothing switches. The centroids would not move, so the algorithm stops.",
+       "short": "Done",
+       "why": "Stable assignments mean stable centroids.",
+       "calloutRegion": "c2",
+       "active": [
+        "pt1",
+        "pt2",
+        "pt4",
+        "pt9",
+        "pt10",
+        "pt12",
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "{1, 2, 4} | {9, 10, 12}"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "2.33, 10.33"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "0"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "9.33"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Start at 1 and 2",
+     "regions": [
+      {
+       "id": "pt1",
+       "label": "Point 1",
+       "values": [
+        "x=1"
+       ]
+      },
+      {
+       "id": "pt2",
+       "label": "Point 2",
+       "values": [
+        "x=2"
+       ]
+      },
+      {
+       "id": "pt4",
+       "label": "Point 4",
+       "values": [
+        "x=4"
+       ]
+      },
+      {
+       "id": "pt9",
+       "label": "Point 9",
+       "values": [
+        "x=9"
+       ]
+      },
+      {
+       "id": "pt10",
+       "label": "Point 10",
+       "values": [
+        "x=10"
+       ]
+      },
+      {
+       "id": "pt12",
+       "label": "Point 12",
+       "values": [
+        "x=12"
+       ]
+      },
+      {
+       "id": "c1",
+       "label": "Centroid 1",
+       "values": [
+        "starts at x=1"
+       ]
+      },
+      {
+       "id": "c2",
+       "label": "Centroid 2",
+       "values": [
+        "starts at x=2"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "Place centroids",
+       "sentence": "Choose k=2 and drop two starting centroids close together on the left. No point has a cluster yet.",
+       "short": "Start",
+       "why": "Both centroids start crowded at the left end.",
+       "calloutRegion": "c2",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "none yet"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "1, 2"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "-"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "-"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Assign",
+       "sentence": "Every point joins its nearest centroid. Centroid 2 captures almost everything.",
+       "short": "Assign",
+       "why": "Point 4 is closer to centroid 2 than to centroid 1.",
+       "calloutRegion": "pt4",
+       "active": [
+        "pt1",
+        "pt2",
+        "pt4",
+        "pt9",
+        "pt10",
+        "pt12"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "{1} | {2, 4, 9, 10, 12}"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "1, 2"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "6 (first assignment)"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "217"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Update",
+       "sentence": "Each centroid moves to the mean of its cluster. Centroid 2 is dragged to the middle of the line.",
+       "short": "Move",
+       "why": "Centroid 1 stays put because it owns one point.",
+       "calloutRegion": "c2",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "{1} | {2, 4, 9, 10, 12}"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "1, 7.4"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "0"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "71.2"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Reassign",
+       "sentence": "With the centroids moved, nearest-centroid is checked again. Two points change clusters.",
+       "short": "Reassign",
+       "why": "Point 4 is now closer to centroid 1.",
+       "calloutRegion": "pt4",
+       "active": [
+        "pt2",
+        "pt4",
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "{1, 2, 4} | {9, 10, 12}"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "1, 7.4"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "2"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "40.48"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Update again",
+       "sentence": "Both centroids move again to the means of their new clusters, reaching the same spots as the other start.",
+       "short": "Move",
+       "why": "Same clusters give the same means.",
+       "calloutRegion": "c1",
+       "active": [
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "{1, 2, 4} | {9, 10, 12}"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "2.33, 10.33"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "0"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "9.33"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Converged",
+       "sentence": "Checking nearest centroids once more, nothing switches. The centroids would not move, so the algorithm stops.",
+       "short": "Done",
+       "why": "Stable assignments mean stable centroids.",
+       "calloutRegion": "c2",
+       "active": [
+        "pt1",
+        "pt2",
+        "pt4",
+        "pt9",
+        "pt10",
+        "pt12",
+        "c1",
+        "c2"
+       ],
+       "readouts": [
+        {
+         "id": "cl",
+         "label": "Clusters",
+         "value": "{1, 2, 4} | {9, 10, 12}"
+        },
+        {
+         "id": "ce",
+         "label": "Centroids",
+         "value": "2.33, 10.33"
+        },
+        {
+         "id": "sw",
+         "label": "Points switched",
+         "value": "0"
+        },
+        {
+         "id": "sse",
+         "label": "Total squared distance",
+         "value": "9.33"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3069,
+  "output": 7861
+ },
+ "usd": 0.084748,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": null,
+   "error": "scorecard reply incomplete"
+  },
+  "cardUsd": 0
+ }
+}

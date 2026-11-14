@@ -1,0 +1,246 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a25",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "What happens inside one Llama-style decoder block?",
+ "ts": "2026-11-14T22:22:07.744Z",
+ "ms": 3272,
+ "raw": "{\n  \"story\": \"Step through a Llama-style decoder block to see how token representations are transformed by normalization, attention, and feed-forward swiglu layers.\",\n  \"aha\": {\n    \"stateId\": \"s3\",\n    \"observation\": \"RMSNorm preserves scale stability before attention computes semantic mixing.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Block Step\",\n      \"options\": [\"Input\", \"RMSNorm 1\", \"Attention\", \"RMSNorm 2\", \"SwiGLU\", \"Residual Add\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Llama Decoder Block\",\n        \"regions\": [\n          {\n            \"id\": \"r_input\",\n            \"label\": \"Token Embeddings\"\n          },\n          {\n            \"id\": \"r_norm1\",\n            \"label\": \"RMSNorm 1\"\n          },\n          {\n            \"id\": \"r_attn\",\n            \"label\": \"Self-Attention\"\n          },\n          {\n            \"id\": \"r_norm2\",\n            \"label\": \"RMSNorm 2\"\n          },\n          {\n            \"id\": \"r_mlp\",\n            \"label\": \"SwiGLU MLP\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"s1\",\n            \"label\": \"Input\",\n            \"sentence\": \"Input token representations enter the decoder block.\",\n            \"why\": \"Establishes starting vector state.\",\n            \"active\": [\"r_input\"],\n            \"calloutRegion\": \"r_input\",\n            \"readouts\": [\n              {\n                \"id\": \"dim\",\n                \"label\": \"Hidden Dim\",\n                \"value\": \"4096\"\n              }\n            ]\n          },\n          {\n            \"id\": \"s2\",\n            \"label\": \"Norm 1\",\n            \"sentence\": \"Pre-normalization stabilizes variance using RMSNorm.\",\n            \"why\": \"Prevents exploding gradients before mixing.\",\n            \"active\": [\"r_norm1\"],\n            \"calloutRegion\": \"r_norm1\",\n            \"readouts\": [\n              {\n                \"id\": \"rms\",\n                \"label\": \"Variance\",\n                \"value\": \"1.0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"s3\",\n            \"label\": \"Attention\",\n            \"sentence\": \"Rotary embeddings and grouped-query attention mix token contexts.\",\n            \"why\": \"Core aha: captures token dependencies efficiently.\",\n            \"active\": [\"r_attn\"],\n            \"calloutRegion\": \"r_attn\",\n            \"readouts\": [\n              {\n                \"id\": \"heads\",\n                \"label\": \"Query Heads\",\n                \"value\": \"32\"\n              }\n            ]\n          },\n          {\n            \"id\": \"s4\",\n            \"label\": \"Norm 2\",\n            \"sentence\": \"A second RMSNorm prepares features for the feed-forward network.\",\n            \"why\": \"Ensures stable scaling for the MLP.\",\n            \"active\": [\"r_norm2\"],\n            \"calloutRegion\": \"r_norm2\",\n            \"readouts\": [\n              {\n                \"id\": \"rms2\",\n                \"label\": \"Variance\",\n                \"value\": \"1.0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"s5\",\n            \"label\": \"SwiGLU\",\n            \"sentence\": \"SwiGLU non-linearity expands and filters the feature dimension.\",\n            \"why\": \"Enriches token representations.\",\n            \"active\": [\"r_mlp\"],\n            \"calloutRegion\": \"r_mlp\",\n            \"readouts\": [\n              {\n                \"id\": \"mlp_dim\",\n                \"label\": \"Intermediate\",\n                \"value\": \"11008\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Step through a Llama-style decoder block to see how token representations are transformed by normalization, attention, and feed-forward swiglu layers.",
+  "aha": {
+   "stateId": "s3",
+   "observation": "RMSNorm preserves scale stability before attention computes semantic mixing."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Block Step",
+    "options": [
+     "Input",
+     "RMSNorm 1",
+     "Attention",
+     "RMSNorm 2",
+     "SwiGLU",
+     "Residual Add"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Llama Decoder Block",
+     "regions": [
+      {
+       "id": "r_input",
+       "label": "Token Embeddings"
+      },
+      {
+       "id": "r_norm1",
+       "label": "RMSNorm 1"
+      },
+      {
+       "id": "r_attn",
+       "label": "Self-Attention"
+      },
+      {
+       "id": "r_norm2",
+       "label": "RMSNorm 2"
+      },
+      {
+       "id": "r_mlp",
+       "label": "SwiGLU MLP"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Input",
+       "sentence": "Input token representations enter the decoder block.",
+       "why": "Establishes starting vector state.",
+       "active": [
+        "r_input"
+       ],
+       "calloutRegion": "r_input",
+       "readouts": [
+        {
+         "id": "dim",
+         "label": "Hidden Dim",
+         "value": "4096"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Norm 1",
+       "sentence": "Pre-normalization stabilizes variance using RMSNorm.",
+       "why": "Prevents exploding gradients before mixing.",
+       "active": [
+        "r_norm1"
+       ],
+       "calloutRegion": "r_norm1",
+       "readouts": [
+        {
+         "id": "rms",
+         "label": "Variance",
+         "value": "1.0"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Attention",
+       "sentence": "Rotary embeddings and grouped-query attention mix token contexts.",
+       "why": "Core aha: captures token dependencies efficiently.",
+       "active": [
+        "r_attn"
+       ],
+       "calloutRegion": "r_attn",
+       "readouts": [
+        {
+         "id": "heads",
+         "label": "Query Heads",
+         "value": "32"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Norm 2",
+       "sentence": "A second RMSNorm prepares features for the feed-forward network.",
+       "why": "Ensures stable scaling for the MLP.",
+       "active": [
+        "r_norm2"
+       ],
+       "calloutRegion": "r_norm2",
+       "readouts": [
+        {
+         "id": "rms2",
+         "label": "Variance",
+         "value": "1.0"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "SwiGLU",
+       "sentence": "SwiGLU non-linearity expands and filters the feature dimension.",
+       "why": "Enriches token representations.",
+       "active": [
+        "r_mlp"
+       ],
+       "calloutRegion": "r_mlp",
+       "readouts": [
+        {
+         "id": "mlp_dim",
+         "label": "Intermediate",
+         "value": "11008"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1107,
+  "output": 1237
+ },
+ "usd": 0.003425,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The picture is only labelled blocks highlighted in sequence, with no marks demonstrating how attention or normalization transforms anything, and no single clear question is posed."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha is stated at s3 but its observation is about RMSNorm while s3 is Attention, and the stepper has no hold or pause at a decisive state."
+    },
+    "3": {
+     "answer": "No",
+     "reason": "The only control is a step index that selects states; no parameter alters evidence or an experiment, and no fixed comparison is justified."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The callouts, readouts and active regions bind to state fields, but the \"Residual Add\" control step has no state or region behind it and the aha text does not match its state."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "No",
+     "reason": "The control lists six steps including \"Residual Add\" and the rail items come from five states, and the aha speaks of RMSNorm while pointing at the Attention state."
+    },
+    "7": {
+     "answer": "No",
+     "reason": "The depth is brief with one changing region at a time, but it adds no mechanism such as a comparison or formula, so it is a bare label walk-through."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "4096 and 11008 are correct for Llama-7B, but \"Variance 1.0\" mislabels the RMS normalization and the 32 query heads are unexplained without the KV head count."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.014484
+ }
+}

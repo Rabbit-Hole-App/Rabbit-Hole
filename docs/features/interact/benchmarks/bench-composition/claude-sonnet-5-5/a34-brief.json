@@ -1,0 +1,353 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "a34",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does public-key encryption work?",
+ "ts": "2026-11-14T22:31:10.805Z",
+ "ms": 17984,
+ "raw": "{\"story\":\"Bob wants Alice to send him a secret over a wire anyone can read. He makes two linked keys: a public one that locks and a private one that unlocks. Step through to see why only Bob can open the message.\",\"aha\":{\"stateId\":\"s5\",\"observation\":\"The key that locks the message is public, but the key that unlocks it never left Bob, so Eve's copy of everything is useless.\"},\"layout\":{\"preset\":\"stepper-protocol\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"state.id\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"state.id\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"presentation\":\"Previous / Next\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\"}],\"data\":{\"variants\":[{\"label\":\"Public-key encryption: Bob receives a secret from Alice\",\"regions\":[{\"id\":\"bob\",\"label\":\"Bob\",\"kind\":\"actor\",\"actors\":[\"Bob\"]},{\"id\":\"pub\",\"label\":\"Public key\",\"kind\":\"key\",\"values\":[\"locks only\"]},{\"id\":\"priv\",\"label\":\"Private key\",\"kind\":\"key\",\"values\":[\"unlocks only\"]},{\"id\":\"wire\",\"label\":\"Public wire\",\"kind\":\"channel\",\"values\":[\"anyone can read\"]},{\"id\":\"alice\",\"label\":\"Alice\",\"kind\":\"actor\",\"actors\":[\"Alice\"]},{\"id\":\"cipher\",\"label\":\"Ciphertext\",\"kind\":\"message\",\"values\":[\"scrambled message\"]},{\"id\":\"eve\",\"label\":\"Eve\",\"kind\":\"actor\",\"actors\":[\"Eve (eavesdropper)\"]}],\"links\":[{\"from\":\"bob\",\"to\":\"alice\",\"label\":\"public key\"},{\"from\":\"alice\",\"to\":\"bob\",\"label\":\"ciphertext\"},{\"from\":\"eve\",\"to\":\"wire\",\"label\":\"listens\"}],\"states\":[{\"id\":\"s1\",\"label\":\"Make keys\",\"short\":\"Make keys\",\"sentence\":\"Bob generates a linked pair: a public key and a private key.\",\"why\":\"The two keys are mathematically linked, but the private one cannot be worked out from the public one.\",\"calloutRegion\":\"bob\",\"active\":[\"bob\",\"pub\",\"priv\"],\"readouts\":[{\"id\":\"r-wire\",\"label\":\"Keys on the wire\",\"value\":\"0\"},{\"id\":\"r-priv\",\"label\":\"Private key held by\",\"value\":\"Bob only\"}]},{\"id\":\"s2\",\"label\":\"Share public key\",\"short\":\"Share public\",\"sentence\":\"Bob sends his public key across the open wire to Alice.\",\"why\":\"The public key is safe to share; it can only lock messages.\",\"calloutRegion\":\"pub\",\"active\":[\"pub\",\"wire\",\"alice\"],\"readouts\":[{\"id\":\"r-wire\",\"label\":\"Keys on the wire\",\"value\":\"1 (public)\"},{\"id\":\"r-priv\",\"label\":\"Private key held by\",\"value\":\"Bob only\"}]},{\"id\":\"s3\",\"label\":\"Lock message\",\"short\":\"Lock\",\"sentence\":\"Alice uses Bob's public key to scramble her message into ciphertext.\",\"why\":\"Locking needs only the public key, which Alice now has.\",\"calloutRegion\":\"alice\",\"active\":[\"alice\",\"pub\",\"cipher\"],\"readouts\":[{\"id\":\"r-wire\",\"label\":\"Keys on the wire\",\"value\":\"1 (public)\"},{\"id\":\"r-priv\",\"label\":\"Private key held by\",\"value\":\"Bob only\"}]},{\"id\":\"s4\",\"label\":\"Eve listens\",\"short\":\"Eve\",\"sentence\":\"Ciphertext crosses the wire. Eve copies it and Bob's public key, but cannot read the message.\",\"why\":\"The public key locks but cannot unlock, so Eve's copies do not reveal the message.\",\"calloutRegion\":\"eve\",\"active\":[\"cipher\",\"wire\",\"eve\"],\"readouts\":[{\"id\":\"r-wire\",\"label\":\"Keys on the wire\",\"value\":\"1 (public)\"},{\"id\":\"r-eve\",\"label\":\"Eve can unlock?\",\"value\":\"No\"}]},{\"id\":\"s5\",\"label\":\"Bob unlocks\",\"short\":\"Unlock\",\"sentence\":\"Bob applies his private key to the ciphertext and recovers Alice's message.\",\"why\":\"Only the private key reverses the lock, and it never traveled anywhere.\",\"calloutRegion\":\"priv\",\"active\":[\"bob\",\"priv\",\"cipher\"],\"readouts\":[{\"id\":\"r-wire\",\"label\":\"Private keys on the wire\",\"value\":\"0\"},{\"id\":\"r-bob\",\"label\":\"Bob can unlock?\",\"value\":\"Yes\"},{\"id\":\"r-eve\",\"label\":\"Eve can unlock?\",\"value\":\"No\"}]}]}]}}",
+ "composition": {
+  "story": "Bob wants Alice to send him a secret over a wire anyone can read. He makes two linked keys: a public one that locks and a private one that unlocks. Step through to see why only Bob can open the message.",
+  "aha": {
+   "stateId": "s5",
+   "observation": "The key that locks the message is public, but the key that unlocks it never left Bob, so Eve's copy of everything is useless."
+  },
+  "layout": {
+   "preset": "stepper-protocol",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "state.id",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "presentation": "Previous / Next"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Public-key encryption: Bob receives a secret from Alice",
+     "regions": [
+      {
+       "id": "bob",
+       "label": "Bob",
+       "kind": "actor",
+       "actors": [
+        "Bob"
+       ]
+      },
+      {
+       "id": "pub",
+       "label": "Public key",
+       "kind": "key",
+       "values": [
+        "locks only"
+       ]
+      },
+      {
+       "id": "priv",
+       "label": "Private key",
+       "kind": "key",
+       "values": [
+        "unlocks only"
+       ]
+      },
+      {
+       "id": "wire",
+       "label": "Public wire",
+       "kind": "channel",
+       "values": [
+        "anyone can read"
+       ]
+      },
+      {
+       "id": "alice",
+       "label": "Alice",
+       "kind": "actor",
+       "actors": [
+        "Alice"
+       ]
+      },
+      {
+       "id": "cipher",
+       "label": "Ciphertext",
+       "kind": "message",
+       "values": [
+        "scrambled message"
+       ]
+      },
+      {
+       "id": "eve",
+       "label": "Eve",
+       "kind": "actor",
+       "actors": [
+        "Eve (eavesdropper)"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "bob",
+       "to": "alice",
+       "label": "public key"
+      },
+      {
+       "from": "alice",
+       "to": "bob",
+       "label": "ciphertext"
+      },
+      {
+       "from": "eve",
+       "to": "wire",
+       "label": "listens"
+      }
+     ],
+     "states": [
+      {
+       "id": "s1",
+       "label": "Make keys",
+       "short": "Make keys",
+       "sentence": "Bob generates a linked pair: a public key and a private key.",
+       "why": "The two keys are mathematically linked, but the private one cannot be worked out from the public one.",
+       "calloutRegion": "bob",
+       "active": [
+        "bob",
+        "pub",
+        "priv"
+       ],
+       "readouts": [
+        {
+         "id": "r-wire",
+         "label": "Keys on the wire",
+         "value": "0"
+        },
+        {
+         "id": "r-priv",
+         "label": "Private key held by",
+         "value": "Bob only"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Share public key",
+       "short": "Share public",
+       "sentence": "Bob sends his public key across the open wire to Alice.",
+       "why": "The public key is safe to share; it can only lock messages.",
+       "calloutRegion": "pub",
+       "active": [
+        "pub",
+        "wire",
+        "alice"
+       ],
+       "readouts": [
+        {
+         "id": "r-wire",
+         "label": "Keys on the wire",
+         "value": "1 (public)"
+        },
+        {
+         "id": "r-priv",
+         "label": "Private key held by",
+         "value": "Bob only"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Lock message",
+       "short": "Lock",
+       "sentence": "Alice uses Bob's public key to scramble her message into ciphertext.",
+       "why": "Locking needs only the public key, which Alice now has.",
+       "calloutRegion": "alice",
+       "active": [
+        "alice",
+        "pub",
+        "cipher"
+       ],
+       "readouts": [
+        {
+         "id": "r-wire",
+         "label": "Keys on the wire",
+         "value": "1 (public)"
+        },
+        {
+         "id": "r-priv",
+         "label": "Private key held by",
+         "value": "Bob only"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Eve listens",
+       "short": "Eve",
+       "sentence": "Ciphertext crosses the wire. Eve copies it and Bob's public key, but cannot read the message.",
+       "why": "The public key locks but cannot unlock, so Eve's copies do not reveal the message.",
+       "calloutRegion": "eve",
+       "active": [
+        "cipher",
+        "wire",
+        "eve"
+       ],
+       "readouts": [
+        {
+         "id": "r-wire",
+         "label": "Keys on the wire",
+         "value": "1 (public)"
+        },
+        {
+         "id": "r-eve",
+         "label": "Eve can unlock?",
+         "value": "No"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Bob unlocks",
+       "short": "Unlock",
+       "sentence": "Bob applies his private key to the ciphertext and recovers Alice's message.",
+       "why": "Only the private key reverses the lock, and it never traveled anywhere.",
+       "calloutRegion": "priv",
+       "active": [
+        "bob",
+        "priv",
+        "cipher"
+       ],
+       "readouts": [
+        {
+         "id": "r-wire",
+         "label": "Private keys on the wire",
+         "value": "0"
+        },
+        {
+         "id": "r-bob",
+         "label": "Bob can unlock?",
+         "value": "Yes"
+        },
+        {
+         "id": "r-eve",
+         "label": "Eve can unlock?",
+         "value": "No"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 2765
+ },
+ "usd": 0.033786,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The picture answers why only Bob can open the message, using the public key, private key, wire, ciphertext and Eve regions with their links."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s5 is the last step in a learner-driven Previous/Next stepper with no timer, so it holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only parameter is the step index, and each step changes the active regions, callout and readouts (for example, Eve can unlock appears at s4 and Bob can unlock at s5)."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The callout binds to state.calloutRegion, sentence and why; the ghost binds to previous.active; readouts bind to state.readouts; all of these exist in the data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The sentences, region labels, step names and readouts all use the same names (Bob, Alice, Eve, public key, private key, ciphertext, wire)."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "A fixed picture highlights only 3 regions per step, with 2-3 readouts and one callout. Depth is brief, and the few readouts compare what Bob and Eve can do."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The readout values are consistent with the story (0 keys before sharing, 1 public key after, the private key never on the wire, Eve No, Bob Yes), and the callouts only locate regions while the readouts carry the values."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.012854
+ }
+}

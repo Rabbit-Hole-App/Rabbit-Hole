@@ -1,0 +1,397 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a16",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "explain the OSI model of networking",
+ "ts": "2026-11-14T22:36:24.693Z",
+ "ms": 87828,
+ "raw": "{\n  \"story\": \"Why does networking need seven OSI layers? Follow one message, “Hi,” from the Sender through the Signal path to the Receiver. Compare the recovered message with the original. Assume successful delivery; protocol examples illustrate responsibilities, not seven mandatory software modules.\",\n  \"aha\": {\n    \"stateId\": \"recovered\",\n    \"observation\": \"The Receiver recovers the original message because the layers perform different jobs around the same application data.\"\n  },\n  \"layout\": {\n    \"preset\": \"protocol\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"journey-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Approved card shell; explanation above experiment; ordered state rail carries progress, never elapsed time. Brief parameter-control budget: zero; navigation is separate.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"delivery-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Canonical protocol composition with fixed Sender, Signal path, and Receiver. Highlight one active region; no animation or full layer matrix.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"responsibility-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the named active region; reserve readable label space. Identify the location and explain its current responsibility.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"evidence-and-status\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Show message evidence and bound status below the picture; wrap long values. Reference capture shows recovered, held until learner action.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"label\": \"OSI journey\",\n      \"items\": \"variant.states\",\n      \"presentation\": \"Previous and Next; default index 0, bounds 0–7, increment 1. Keep boundary buttons named and disabled; support keyboard activation and visible focus.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Support keyboard activation and visible focus; no automatic advancement.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"One message through seven responsibilities\",\n        \"regions\": [\n          {\n            \"id\": \"sender\",\n            \"label\": \"Sender\",\n            \"actors\": [\"Sender\"]\n          },\n          {\n            \"id\": \"signal-path\",\n            \"label\": \"Signal path\",\n            \"phases\": [\"Physical transmission\"]\n          },\n          {\n            \"id\": \"receiver\",\n            \"label\": \"Receiver\",\n            \"actors\": [\"Receiver\"]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"sender\",\n            \"to\": \"signal-path\",\n            \"label\": \"Transmit\"\n          },\n          {\n            \"from\": \"signal-path\",\n            \"to\": \"receiver\",\n            \"label\": \"Receive\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"application\",\n            \"label\": \"7 · Application\",\n            \"short\": \"Application\",\n            \"sentence\": \"Sender: Application provides network services used by applications, such as sending an HTTP message.\",\n            \"why\": \"OSI describes responsibilities; this example uses HTTP, TCP, IP, and Ethernet without assuming a perfect OSI mapping.\",\n            \"active\": [\"sender\"],\n            \"calloutRegion\": \"sender\",\n            \"readouts\": [\n              {\n                \"id\": \"original\",\n                \"label\": \"Original message\",\n                \"value\": \"Hi\"\n              },\n              {\n                \"id\": \"representation\",\n                \"label\": \"Current representation\",\n                \"value\": \"Application message carrying “Hi”\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Application message ready; Next examines its representation.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"presentation\",\n            \"label\": \"6 · Presentation\",\n            \"short\": \"Presentation\",\n            \"sentence\": \"Sender: Presentation handles data representation, such as encoding text in UTF-8.\",\n            \"why\": \"Both endpoints must interpret the representation consistently; encoding does not change the intended message.\",\n            \"active\": [\"sender\"],\n            \"calloutRegion\": \"sender\",\n            \"readouts\": [\n              {\n                \"id\": \"original\",\n                \"label\": \"Original message\",\n                \"value\": \"Hi\"\n              },\n              {\n                \"id\": \"representation\",\n                \"label\": \"Current representation\",\n                \"value\": \"Application message with “Hi” encoded as UTF-8 text\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Representation agreed; Next examines conversation management.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"session\",\n            \"label\": \"5 · Session\",\n            \"short\": \"Session\",\n            \"sentence\": \"Sender: Session manages the dialogue, including establishing, coordinating, and ending conversations.\",\n            \"why\": \"Internet applications may implement these responsibilities themselves; a separate session-layer header is not required.\",\n            \"active\": [\"sender\"],\n            \"calloutRegion\": \"sender\",\n            \"readouts\": [\n              {\n                \"id\": \"original\",\n                \"label\": \"Original message\",\n                \"value\": \"Hi\"\n              },\n              {\n                \"id\": \"representation\",\n                \"label\": \"Current representation\",\n                \"value\": \"Same encoded application message, within a managed conversation\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Conversation context ready; Next examines end-to-end transport.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"transport\",\n            \"label\": \"4 · Transport\",\n            \"short\": \"Transport\",\n            \"sentence\": \"Sender: Transport provides process-to-process delivery; TCP adds ordering and retransmission for reliable transfer.\",\n            \"why\": \"In this simplified example, TCP places the application message inside one segment and identifies the communicating processes using ports.\",\n            \"active\": [\"sender\"],\n            \"calloutRegion\": \"sender\",\n            \"readouts\": [\n              {\n                \"id\": \"original\",\n                \"label\": \"Original message\",\n                \"value\": \"Hi\"\n              },\n              {\n                \"id\": \"representation\",\n                \"label\": \"Current representation\",\n                \"value\": \"TCP segment containing the application message\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Transport information added; Next examines delivery across networks.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"network\",\n            \"label\": \"3 · Network\",\n            \"short\": \"Network\",\n            \"sentence\": \"Sender: Network provides addressing and routing between networks; IP carries the TCP segment toward its destination.\",\n            \"why\": \"IP addresses identify network endpoints; routers use destination addressing to select forwarding paths.\",\n            \"active\": [\"sender\"],\n            \"calloutRegion\": \"sender\",\n            \"readouts\": [\n              {\n                \"id\": \"original\",\n                \"label\": \"Original message\",\n                \"value\": \"Hi\"\n              },\n              {\n                \"id\": \"representation\",\n                \"label\": \"Current representation\",\n                \"value\": \"IP packet containing the TCP segment\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Network information added; Next examines delivery over one link.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"data-link\",\n            \"label\": \"2 · Data link\",\n            \"short\": \"Data link\",\n            \"sentence\": \"Sender: Data link packages the IP packet for one local link, using an Ethernet frame in this example.\",\n            \"why\": \"Link delivery reaches the next interface; it is different from routing across an entire network path.\",\n            \"active\": [\"sender\"],\n            \"calloutRegion\": \"sender\",\n            \"readouts\": [\n              {\n                \"id\": \"original\",\n                \"label\": \"Original message\",\n                \"value\": \"Hi\"\n              },\n              {\n                \"id\": \"representation\",\n                \"label\": \"Current representation\",\n                \"value\": \"Ethernet frame containing the IP packet\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Link information added; Next examines physical transmission.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"physical\",\n            \"label\": \"1 · Physical\",\n            \"short\": \"Physical\",\n            \"sentence\": \"Signal path: Physical carries encoded bits as electrical, optical, or radio signals.\",\n            \"why\": \"The medium carries signals representing the frame, not the word “Hi” directly.\",\n            \"active\": [\"signal-path\"],\n            \"calloutRegion\": \"signal-path\",\n            \"readouts\": [\n              {\n                \"id\": \"original\",\n                \"label\": \"Original message\",\n                \"value\": \"Hi\"\n              },\n              {\n                \"id\": \"representation\",\n                \"label\": \"Current representation\",\n                \"value\": \"Physical signals encoding the Ethernet frame\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Frame transmitted; Next compares the recovered message.\"\n              }\n            ]\n          },\n          {\n            \"id\": \"recovered\",\n            \"label\": \"Receiver · Compare\",\n            \"short\": \"Compare\",\n            \"sentence\": \"Receiver: The receiving stack reverses encapsulation and delivers the recovered message to the application.\",\n            \"why\": \"Different layers supplied different services around the same application data; the matching messages are the final evidence.\",\n            \"active\": [\"receiver\"],\n            \"calloutRegion\": \"receiver\",\n            \"readouts\": [\n              {\n                \"id\": \"original\",\n                \"label\": \"Original message\",\n                \"value\": \"Hi\"\n              },\n              {\n                \"id\": \"recovered\",\n                \"label\": \"Recovered message\",\n                \"value\": \"Hi\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Messages match. This comparison remains visible until you choose Previous or Reset.\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Why does networking need seven OSI layers? Follow one message, “Hi,” from the Sender through the Signal path to the Receiver. Compare the recovered message with the original. Assume successful delivery; protocol examples illustrate responsibilities, not seven mandatory software modules.",
+  "aha": {
+   "stateId": "recovered",
+   "observation": "The Receiver recovers the original message because the layers perform different jobs around the same application data."
+  },
+  "layout": {
+   "preset": "protocol",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "journey-rail",
+    "kind": "step-rail",
+    "presentation": "Approved card shell; explanation above experiment; ordered state rail carries progress, never elapsed time. Brief parameter-control budget: zero; navigation is separate.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "delivery-picture",
+    "kind": "fixed-picture",
+    "presentation": "Canonical protocol composition with fixed Sender, Signal path, and Receiver. Highlight one active region; no animation or full layer matrix.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "responsibility-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the named active region; reserve readable label space. Identify the location and explain its current responsibility.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "evidence-and-status",
+    "kind": "value-readout",
+    "presentation": "Show message evidence and bound status below the picture; wrap long values. Reference capture shows recovered, held until learner action.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "OSI journey",
+    "items": "variant.states",
+    "presentation": "Previous and Next; default index 0, bounds 0–7, increment 1. Keep boundary buttons named and disabled; support keyboard activation and visible focus."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Support keyboard activation and visible focus; no automatic advancement."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "One message through seven responsibilities",
+     "regions": [
+      {
+       "id": "sender",
+       "label": "Sender",
+       "actors": [
+        "Sender"
+       ]
+      },
+      {
+       "id": "signal-path",
+       "label": "Signal path",
+       "phases": [
+        "Physical transmission"
+       ]
+      },
+      {
+       "id": "receiver",
+       "label": "Receiver",
+       "actors": [
+        "Receiver"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "sender",
+       "to": "signal-path",
+       "label": "Transmit"
+      },
+      {
+       "from": "signal-path",
+       "to": "receiver",
+       "label": "Receive"
+      }
+     ],
+     "states": [
+      {
+       "id": "application",
+       "label": "7 · Application",
+       "short": "Application",
+       "sentence": "Sender: Application provides network services used by applications, such as sending an HTTP message.",
+       "why": "OSI describes responsibilities; this example uses HTTP, TCP, IP, and Ethernet without assuming a perfect OSI mapping.",
+       "active": [
+        "sender"
+       ],
+       "calloutRegion": "sender",
+       "readouts": [
+        {
+         "id": "original",
+         "label": "Original message",
+         "value": "Hi"
+        },
+        {
+         "id": "representation",
+         "label": "Current representation",
+         "value": "Application message carrying “Hi”"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Application message ready; Next examines its representation."
+        }
+       ]
+      },
+      {
+       "id": "presentation",
+       "label": "6 · Presentation",
+       "short": "Presentation",
+       "sentence": "Sender: Presentation handles data representation, such as encoding text in UTF-8.",
+       "why": "Both endpoints must interpret the representation consistently; encoding does not change the intended message.",
+       "active": [
+        "sender"
+       ],
+       "calloutRegion": "sender",
+       "readouts": [
+        {
+         "id": "original",
+         "label": "Original message",
+         "value": "Hi"
+        },
+        {
+         "id": "representation",
+         "label": "Current representation",
+         "value": "Application message with “Hi” encoded as UTF-8 text"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Representation agreed; Next examines conversation management."
+        }
+       ]
+      },
+      {
+       "id": "session",
+       "label": "5 · Session",
+       "short": "Session",
+       "sentence": "Sender: Session manages the dialogue, including establishing, coordinating, and ending conversations.",
+       "why": "Internet applications may implement these responsibilities themselves; a separate session-layer header is not required.",
+       "active": [
+        "sender"
+       ],
+       "calloutRegion": "sender",
+       "readouts": [
+        {
+         "id": "original",
+         "label": "Original message",
+         "value": "Hi"
+        },
+        {
+         "id": "representation",
+         "label": "Current representation",
+         "value": "Same encoded application message, within a managed conversation"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Conversation context ready; Next examines end-to-end transport."
+        }
+       ]
+      },
+      {
+       "id": "transport",
+       "label": "4 · Transport",
+       "short": "Transport",
+       "sentence": "Sender: Transport provides process-to-process delivery; TCP adds ordering and retransmission for reliable transfer.",
+       "why": "In this simplified example, TCP places the application message inside one segment and identifies the communicating processes using ports.",
+       "active": [
+        "sender"
+       ],
+       "calloutRegion": "sender",
+       "readouts": [
+        {
+         "id": "original",
+         "label": "Original message",
+         "value": "Hi"
+        },
+        {
+         "id": "representation",
+         "label": "Current representation",
+         "value": "TCP segment containing the application message"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Transport information added; Next examines delivery across networks."
+        }
+       ]
+      },
+      {
+       "id": "network",
+       "label": "3 · Network",
+       "short": "Network",
+       "sentence": "Sender: Network provides addressing and routing between networks; IP carries the TCP segment toward its destination.",
+       "why": "IP addresses identify network endpoints; routers use destination addressing to select forwarding paths.",
+       "active": [
+        "sender"
+       ],
+       "calloutRegion": "sender",
+       "readouts": [
+        {
+         "id": "original",
+         "label": "Original message",
+         "value": "Hi"
+        },
+        {
+         "id": "representation",
+         "label": "Current representation",
+         "value": "IP packet containing the TCP segment"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Network information added; Next examines delivery over one link."
+        }
+       ]
+      },
+      {
+       "id": "data-link",
+       "label": "2 · Data link",
+       "short": "Data link",
+       "sentence": "Sender: Data link packages the IP packet for one local link, using an Ethernet frame in this example.",
+       "why": "Link delivery reaches the next interface; it is different from routing across an entire network path.",
+       "active": [
+        "sender"
+       ],
+       "calloutRegion": "sender",
+       "readouts": [
+        {
+         "id": "original",
+         "label": "Original message",
+         "value": "Hi"
+        },
+        {
+         "id": "representation",
+         "label": "Current representation",
+         "value": "Ethernet frame containing the IP packet"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Link information added; Next examines physical transmission."
+        }
+       ]
+      },
+      {
+       "id": "physical",
+       "label": "1 · Physical",
+       "short": "Physical",
+       "sentence": "Signal path: Physical carries encoded bits as electrical, optical, or radio signals.",
+       "why": "The medium carries signals representing the frame, not the word “Hi” directly.",
+       "active": [
+        "signal-path"
+       ],
+       "calloutRegion": "signal-path",
+       "readouts": [
+        {
+         "id": "original",
+         "label": "Original message",
+         "value": "Hi"
+        },
+        {
+         "id": "representation",
+         "label": "Current representation",
+         "value": "Physical signals encoding the Ethernet frame"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Frame transmitted; Next compares the recovered message."
+        }
+       ]
+      },
+      {
+       "id": "recovered",
+       "label": "Receiver · Compare",
+       "short": "Compare",
+       "sentence": "Receiver: The receiving stack reverses encapsulation and delivers the recovered message to the application.",
+       "why": "Different layers supplied different services around the same application data; the matching messages are the final evidence.",
+       "active": [
+        "receiver"
+       ],
+       "calloutRegion": "receiver",
+       "readouts": [
+        {
+         "id": "original",
+         "label": "Original message",
+         "value": "Hi"
+        },
+        {
+         "id": "recovered",
+         "label": "Recovered message",
+         "value": "Hi"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Messages match. This comparison remains visible until you choose Previous or Reset."
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1534,
+  "output": 4853
+ },
+ "usd": 0.048728,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed Sender, Signal path and Receiver picture, with the active region highlighted per step and the original and recovered \"Hi\" compared, answers why networking needs seven layers."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state \"recovered\" is the last state (index 7), there is no auto-advance, and its status says the comparison stays visible until Previous or Reset."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The brief budget allows no parameter, and the only control, the step index, changes the active region, the representation readout and the callout at each of the 8 states."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlight comes from state.active, the callout from state.calloutRegion, sentence and why, the readouts from state.readouts, and the links and regions from the variant data."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story's Sender, Signal path, Receiver and \"Hi\" match the region labels, callout text and readouts, and the step labels match the layer names and numbers."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Brief depth shows one active region, one callout and three short readouts per state, with no layer matrix and no extra comparison panels."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The layer numbering 7 to 1 and the encapsulation chain (message, TCP segment, IP packet, Ethernet frame, signals) are correct, and \"Hi\" matches \"Hi\" at the end. The callout carries the responsibility and the readouts carry the values, so nothing is duplicated."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.01519
+ }
+}

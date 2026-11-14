@@ -1,0 +1,546 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a09",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does the water cycle work?",
+ "ts": "2026-11-14T22:24:29.060Z",
+ "ms": 45140,
+ "raw": "{\"story\":\"The sun lifts water from the ocean as vapor. It cools into clouds and falls as rain. Most falls back on the ocean, but wind carries a surplus inland. Land rain partly evaporates again. The rest runs off to the sea. Step through the flows: river runoff exactly equals the vapor surplus, so the cycle closes.\",\"aha\":{\"stateId\":\"runoff\",\"observation\":\"Runoff returning to the ocean (40 thousand km³/yr) equals the vapor surplus wind carried inland. Ocean E−P equals land P−ET, so mass balances.\"},\"layout\":{\"preset\":\"stepper-cycle\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.short\",\"reason\":\"state.why\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"progress\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Water cycle step (Previous / Next)\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons; names kept when disabled at first and last step; arrow keys move one step\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset to first step\",\"presentation\":\"Restores the 'Water at rest' step\"}],\"data\":{\"variants\":[{\"label\":\"Global annual water budget (Trenberth et al. 2007 estimates; thousand km³/yr, rounded to nearest thousand)\",\"regions\":[{\"id\":\"sun\",\"label\":\"Sun\",\"values\":[\"energy source\"]},{\"id\":\"ocean\",\"label\":\"Ocean\",\"values\":[\"≈1,335,000 thousand km³ stored\"]},{\"id\":\"air-ocean\",\"label\":\"Air over ocean\",\"phases\":[\"vapor\",\"cloud\"]},{\"id\":\"air-land\",\"label\":\"Air over land\",\"phases\":[\"vapor\",\"cloud\"]},{\"id\":\"land\",\"label\":\"Land and plants\",\"values\":[\"soil\",\"lakes\",\"vegetation\"]},{\"id\":\"river\",\"label\":\"Rivers and groundwater\",\"values\":[\"surface runoff\",\"groundwater flow\"]}],\"links\":[{\"from\":\"ocean\",\"to\":\"air-ocean\",\"label\":\"evaporation\"},{\"from\":\"air-ocean\",\"to\":\"ocean\",\"label\":\"ocean precipitation\"},{\"from\":\"air-ocean\",\"to\":\"air-land\",\"label\":\"wind transport\"},{\"from\":\"air-land\",\"to\":\"land\",\"label\":\"land precipitation\"},{\"from\":\"land\",\"to\":\"air-land\",\"label\":\"evapotranspiration\"},{\"from\":\"land\",\"to\":\"river\",\"label\":\"infiltration and runoff\"},{\"from\":\"river\",\"to\":\"ocean\",\"label\":\"discharge\"}],\"states\":[{\"id\":\"rest\",\"label\":\"Water at rest\",\"short\":\"Ocean: the main store\",\"sentence\":\"Almost all of Earth's water sits in the ocean before any flow begins.\",\"why\":\"Every flow in the cycle starts from this store.\",\"active\":[\"ocean\"],\"calloutRegion\":\"ocean\",\"readouts\":[{\"id\":\"flow\",\"label\":\"Active flow\",\"value\":\"none\"},{\"id\":\"ocean\",\"label\":\"Ocean net (E − P)\",\"value\":\"—\"},{\"id\":\"land\",\"label\":\"Land net (P − ET)\",\"value\":\"—\"},{\"id\":\"check\",\"label\":\"Check\",\"value\":\"Ocean holds ≈ 97% of Earth's water\"}]},{\"id\":\"evap\",\"label\":\"Evaporation\",\"short\":\"Ocean surface → air\",\"sentence\":\"Sunlight heats the ocean surface, and water molecules escape as invisible vapor.\",\"why\":\"Evaporation absorbs solar energy; salt stays behind.\",\"active\":[\"sun\",\"ocean\",\"air-ocean\"],\"calloutRegion\":\"air-ocean\",\"readouts\":[{\"id\":\"flow\",\"label\":\"Active flow\",\"value\":\"Evaporation E = 413\"},{\"id\":\"ocean\",\"label\":\"Ocean net (E − P)\",\"value\":\"E = 413 so far\"},{\"id\":\"land\",\"label\":\"Land net (P − ET)\",\"value\":\"—\"},{\"id\":\"check\",\"label\":\"Check\",\"value\":\"Energy input: sunlight\"}]},{\"id\":\"condense\",\"label\":\"Condensation\",\"short\":\"Rising vapor → clouds\",\"sentence\":\"Rising air cools, so vapor condenses on tiny particles into cloud droplets.\",\"why\":\"Cooler air holds less vapor; the air holds only a small store.\",\"active\":[\"air-ocean\"],\"calloutRegion\":\"air-ocean\",\"readouts\":[{\"id\":\"flow\",\"label\":\"Active flow\",\"value\":\"Vapor → droplets\"},{\"id\":\"ocean\",\"label\":\"Ocean net (E − P)\",\"value\":\"E = 413 so far\"},{\"id\":\"land\",\"label\":\"Land net (P − ET)\",\"value\":\"—\"},{\"id\":\"check\",\"label\":\"Residence time\",\"value\":\"13 stored ÷ 486/yr ≈ 0.027 yr ≈ 10 days\"}]},{\"id\":\"rain-ocean\",\"label\":\"Rain on ocean\",\"short\":\"Clouds → ocean\",\"sentence\":\"Most cloud water rains straight back onto the ocean, leaving a small surplus aloft.\",\"why\":\"The surplus is what can travel inland.\",\"active\":[\"air-ocean\",\"ocean\"],\"calloutRegion\":\"ocean\",\"readouts\":[{\"id\":\"flow\",\"label\":\"Active flow\",\"value\":\"Ocean precipitation P = 373\"},{\"id\":\"ocean\",\"label\":\"Ocean net (E − P)\",\"value\":\"413 − 373 = 40\"},{\"id\":\"land\",\"label\":\"Land net (P − ET)\",\"value\":\"—\"},{\"id\":\"check\",\"label\":\"Check\",\"value\":\"Surplus aloft = 40\"}]},{\"id\":\"transport\",\"label\":\"Wind transport\",\"short\":\"Ocean air → land air\",\"sentence\":\"Winds carry the leftover moist air from over the ocean toward the continents.\",\"why\":\"This transfer is the only ocean water that reaches land each year.\",\"active\":[\"air-ocean\",\"air-land\"],\"calloutRegion\":\"air-land\",\"readouts\":[{\"id\":\"flow\",\"label\":\"Active flow\",\"value\":\"Transport inland = 40\"},{\"id\":\"ocean\",\"label\":\"Ocean net (E − P)\",\"value\":\"40 exported\"},{\"id\":\"land\",\"label\":\"Land net (P − ET)\",\"value\":\"40 imported\"},{\"id\":\"check\",\"label\":\"Check\",\"value\":\"Export = import\"}]},{\"id\":\"rain-land\",\"label\":\"Rain on land\",\"short\":\"Clouds → land\",\"sentence\":\"Clouds over land release rain and snow, mixing transported water with locally recycled vapor.\",\"why\":\"Land rain exceeds what the ocean sent, because land vapor rains again.\",\"active\":[\"air-land\",\"land\"],\"calloutRegion\":\"land\",\"readouts\":[{\"id\":\"flow\",\"label\":\"Active flow\",\"value\":\"Land precipitation P = 113\"},{\"id\":\"ocean\",\"label\":\"Ocean net (E − P)\",\"value\":\"40 exported\"},{\"id\":\"land\",\"label\":\"Land net (P − ET)\",\"value\":\"P = 40 imported + 73 recycled\"},{\"id\":\"check\",\"label\":\"Check\",\"value\":\"40 + 73 = 113\"}]},{\"id\":\"et\",\"label\":\"Evapotranspiration\",\"short\":\"Soil and leaves → air\",\"sentence\":\"Soil, lakes and plant leaves return much land water to the air.\",\"why\":\"Recycling over land does not change the net surplus.\",\"active\":[\"land\",\"air-land\"],\"calloutRegion\":\"air-land\",\"readouts\":[{\"id\":\"flow\",\"label\":\"Active flow\",\"value\":\"Evapotranspiration ET = 73\"},{\"id\":\"ocean\",\"label\":\"Ocean net (E − P)\",\"value\":\"40 exported\"},{\"id\":\"land\",\"label\":\"Land net (P − ET)\",\"value\":\"113 − 73 = 40\"},{\"id\":\"check\",\"label\":\"Check\",\"value\":\"Land surplus = 40\"}]},{\"id\":\"runoff\",\"label\":\"Runoff\",\"short\":\"Rivers and groundwater → ocean\",\"sentence\":\"Gravity drains the land surplus through rivers and groundwater back into the ocean.\",\"why\":\"Runoff matches the inland transport, so neither store gains or loses.\",\"active\":[\"land\",\"river\",\"ocean\"],\"calloutRegion\":\"river\",\"readouts\":[{\"id\":\"flow\",\"label\":\"Active flow\",\"value\":\"Runoff R = 40\"},{\"id\":\"ocean\",\"label\":\"Ocean net (E − P)\",\"value\":\"40 lost = 40 returned\"},{\"id\":\"land\",\"label\":\"Land net (P − ET)\",\"value\":\"40 gained = 40 drained\"},{\"id\":\"check\",\"label\":\"Check\",\"value\":\"E − P = P − ET = R = 40\"}]},{\"id\":\"balance\",\"label\":\"Cycle closes\",\"short\":\"Whole loop balanced\",\"sentence\":\"Summed worldwide, all evaporation equals all precipitation, so the cycle repeats indefinitely.\",\"why\":\"Water is conserved; only its location and phase change.\",\"active\":[\"sun\",\"ocean\",\"air-ocean\",\"air-land\",\"land\",\"river\"],\"calloutRegion\":\"air-land\",\"readouts\":[{\"id\":\"flow\",\"label\":\"Active flow\",\"value\":\"All flows together\"},{\"id\":\"ocean\",\"label\":\"Total evaporation\",\"value\":\"413 + 73 = 486\"},{\"id\":\"land\",\"label\":\"Total precipitation\",\"value\":\"373 + 113 = 486\"},{\"id\":\"check\",\"label\":\"Check\",\"value\":\"486 = 486; net storage change ≈ 0\"}]}]}]}}",
+ "composition": {
+  "story": "The sun lifts water from the ocean as vapor. It cools into clouds and falls as rain. Most falls back on the ocean, but wind carries a surplus inland. Land rain partly evaporates again. The rest runs off to the sea. Step through the flows: river runoff exactly equals the vapor surplus, so the cycle closes.",
+  "aha": {
+   "stateId": "runoff",
+   "observation": "Runoff returning to the ocean (40 thousand km³/yr) equals the vapor surplus wind carried inland. Ocean E−P equals land P−ET, so mass balances."
+  },
+  "layout": {
+   "preset": "stepper-cycle",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.short",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "progress",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Water cycle step (Previous / Next)",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons; names kept when disabled at first and last step; arrow keys move one step"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset to first step",
+    "presentation": "Restores the 'Water at rest' step"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Global annual water budget (Trenberth et al. 2007 estimates; thousand km³/yr, rounded to nearest thousand)",
+     "regions": [
+      {
+       "id": "sun",
+       "label": "Sun",
+       "values": [
+        "energy source"
+       ]
+      },
+      {
+       "id": "ocean",
+       "label": "Ocean",
+       "values": [
+        "≈1,335,000 thousand km³ stored"
+       ]
+      },
+      {
+       "id": "air-ocean",
+       "label": "Air over ocean",
+       "phases": [
+        "vapor",
+        "cloud"
+       ]
+      },
+      {
+       "id": "air-land",
+       "label": "Air over land",
+       "phases": [
+        "vapor",
+        "cloud"
+       ]
+      },
+      {
+       "id": "land",
+       "label": "Land and plants",
+       "values": [
+        "soil",
+        "lakes",
+        "vegetation"
+       ]
+      },
+      {
+       "id": "river",
+       "label": "Rivers and groundwater",
+       "values": [
+        "surface runoff",
+        "groundwater flow"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "ocean",
+       "to": "air-ocean",
+       "label": "evaporation"
+      },
+      {
+       "from": "air-ocean",
+       "to": "ocean",
+       "label": "ocean precipitation"
+      },
+      {
+       "from": "air-ocean",
+       "to": "air-land",
+       "label": "wind transport"
+      },
+      {
+       "from": "air-land",
+       "to": "land",
+       "label": "land precipitation"
+      },
+      {
+       "from": "land",
+       "to": "air-land",
+       "label": "evapotranspiration"
+      },
+      {
+       "from": "land",
+       "to": "river",
+       "label": "infiltration and runoff"
+      },
+      {
+       "from": "river",
+       "to": "ocean",
+       "label": "discharge"
+      }
+     ],
+     "states": [
+      {
+       "id": "rest",
+       "label": "Water at rest",
+       "short": "Ocean: the main store",
+       "sentence": "Almost all of Earth's water sits in the ocean before any flow begins.",
+       "why": "Every flow in the cycle starts from this store.",
+       "active": [
+        "ocean"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "flow",
+         "label": "Active flow",
+         "value": "none"
+        },
+        {
+         "id": "ocean",
+         "label": "Ocean net (E − P)",
+         "value": "—"
+        },
+        {
+         "id": "land",
+         "label": "Land net (P − ET)",
+         "value": "—"
+        },
+        {
+         "id": "check",
+         "label": "Check",
+         "value": "Ocean holds ≈ 97% of Earth's water"
+        }
+       ]
+      },
+      {
+       "id": "evap",
+       "label": "Evaporation",
+       "short": "Ocean surface → air",
+       "sentence": "Sunlight heats the ocean surface, and water molecules escape as invisible vapor.",
+       "why": "Evaporation absorbs solar energy; salt stays behind.",
+       "active": [
+        "sun",
+        "ocean",
+        "air-ocean"
+       ],
+       "calloutRegion": "air-ocean",
+       "readouts": [
+        {
+         "id": "flow",
+         "label": "Active flow",
+         "value": "Evaporation E = 413"
+        },
+        {
+         "id": "ocean",
+         "label": "Ocean net (E − P)",
+         "value": "E = 413 so far"
+        },
+        {
+         "id": "land",
+         "label": "Land net (P − ET)",
+         "value": "—"
+        },
+        {
+         "id": "check",
+         "label": "Check",
+         "value": "Energy input: sunlight"
+        }
+       ]
+      },
+      {
+       "id": "condense",
+       "label": "Condensation",
+       "short": "Rising vapor → clouds",
+       "sentence": "Rising air cools, so vapor condenses on tiny particles into cloud droplets.",
+       "why": "Cooler air holds less vapor; the air holds only a small store.",
+       "active": [
+        "air-ocean"
+       ],
+       "calloutRegion": "air-ocean",
+       "readouts": [
+        {
+         "id": "flow",
+         "label": "Active flow",
+         "value": "Vapor → droplets"
+        },
+        {
+         "id": "ocean",
+         "label": "Ocean net (E − P)",
+         "value": "E = 413 so far"
+        },
+        {
+         "id": "land",
+         "label": "Land net (P − ET)",
+         "value": "—"
+        },
+        {
+         "id": "check",
+         "label": "Residence time",
+         "value": "13 stored ÷ 486/yr ≈ 0.027 yr ≈ 10 days"
+        }
+       ]
+      },
+      {
+       "id": "rain-ocean",
+       "label": "Rain on ocean",
+       "short": "Clouds → ocean",
+       "sentence": "Most cloud water rains straight back onto the ocean, leaving a small surplus aloft.",
+       "why": "The surplus is what can travel inland.",
+       "active": [
+        "air-ocean",
+        "ocean"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "flow",
+         "label": "Active flow",
+         "value": "Ocean precipitation P = 373"
+        },
+        {
+         "id": "ocean",
+         "label": "Ocean net (E − P)",
+         "value": "413 − 373 = 40"
+        },
+        {
+         "id": "land",
+         "label": "Land net (P − ET)",
+         "value": "—"
+        },
+        {
+         "id": "check",
+         "label": "Check",
+         "value": "Surplus aloft = 40"
+        }
+       ]
+      },
+      {
+       "id": "transport",
+       "label": "Wind transport",
+       "short": "Ocean air → land air",
+       "sentence": "Winds carry the leftover moist air from over the ocean toward the continents.",
+       "why": "This transfer is the only ocean water that reaches land each year.",
+       "active": [
+        "air-ocean",
+        "air-land"
+       ],
+       "calloutRegion": "air-land",
+       "readouts": [
+        {
+         "id": "flow",
+         "label": "Active flow",
+         "value": "Transport inland = 40"
+        },
+        {
+         "id": "ocean",
+         "label": "Ocean net (E − P)",
+         "value": "40 exported"
+        },
+        {
+         "id": "land",
+         "label": "Land net (P − ET)",
+         "value": "40 imported"
+        },
+        {
+         "id": "check",
+         "label": "Check",
+         "value": "Export = import"
+        }
+       ]
+      },
+      {
+       "id": "rain-land",
+       "label": "Rain on land",
+       "short": "Clouds → land",
+       "sentence": "Clouds over land release rain and snow, mixing transported water with locally recycled vapor.",
+       "why": "Land rain exceeds what the ocean sent, because land vapor rains again.",
+       "active": [
+        "air-land",
+        "land"
+       ],
+       "calloutRegion": "land",
+       "readouts": [
+        {
+         "id": "flow",
+         "label": "Active flow",
+         "value": "Land precipitation P = 113"
+        },
+        {
+         "id": "ocean",
+         "label": "Ocean net (E − P)",
+         "value": "40 exported"
+        },
+        {
+         "id": "land",
+         "label": "Land net (P − ET)",
+         "value": "P = 40 imported + 73 recycled"
+        },
+        {
+         "id": "check",
+         "label": "Check",
+         "value": "40 + 73 = 113"
+        }
+       ]
+      },
+      {
+       "id": "et",
+       "label": "Evapotranspiration",
+       "short": "Soil and leaves → air",
+       "sentence": "Soil, lakes and plant leaves return much land water to the air.",
+       "why": "Recycling over land does not change the net surplus.",
+       "active": [
+        "land",
+        "air-land"
+       ],
+       "calloutRegion": "air-land",
+       "readouts": [
+        {
+         "id": "flow",
+         "label": "Active flow",
+         "value": "Evapotranspiration ET = 73"
+        },
+        {
+         "id": "ocean",
+         "label": "Ocean net (E − P)",
+         "value": "40 exported"
+        },
+        {
+         "id": "land",
+         "label": "Land net (P − ET)",
+         "value": "113 − 73 = 40"
+        },
+        {
+         "id": "check",
+         "label": "Check",
+         "value": "Land surplus = 40"
+        }
+       ]
+      },
+      {
+       "id": "runoff",
+       "label": "Runoff",
+       "short": "Rivers and groundwater → ocean",
+       "sentence": "Gravity drains the land surplus through rivers and groundwater back into the ocean.",
+       "why": "Runoff matches the inland transport, so neither store gains or loses.",
+       "active": [
+        "land",
+        "river",
+        "ocean"
+       ],
+       "calloutRegion": "river",
+       "readouts": [
+        {
+         "id": "flow",
+         "label": "Active flow",
+         "value": "Runoff R = 40"
+        },
+        {
+         "id": "ocean",
+         "label": "Ocean net (E − P)",
+         "value": "40 lost = 40 returned"
+        },
+        {
+         "id": "land",
+         "label": "Land net (P − ET)",
+         "value": "40 gained = 40 drained"
+        },
+        {
+         "id": "check",
+         "label": "Check",
+         "value": "E − P = P − ET = R = 40"
+        }
+       ]
+      },
+      {
+       "id": "balance",
+       "label": "Cycle closes",
+       "short": "Whole loop balanced",
+       "sentence": "Summed worldwide, all evaporation equals all precipitation, so the cycle repeats indefinitely.",
+       "why": "Water is conserved; only its location and phase change.",
+       "active": [
+        "sun",
+        "ocean",
+        "air-ocean",
+        "air-land",
+        "land",
+        "river"
+       ],
+       "calloutRegion": "air-land",
+       "readouts": [
+        {
+         "id": "flow",
+         "label": "Active flow",
+         "value": "All flows together"
+        },
+        {
+         "id": "ocean",
+         "label": "Total evaporation",
+         "value": "413 + 73 = 486"
+        },
+        {
+         "id": "land",
+         "label": "Total precipitation",
+         "value": "373 + 113 = 486"
+        },
+        {
+         "id": "check",
+         "label": "Check",
+         "value": "486 = 486; net storage change ≈ 0"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3068,
+  "output": 5252
+ },
+ "usd": 0.117312,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of ocean, air, land and river with labeled links shows that ocean E−P equals land P−ET equals runoff, answering why the cycle closes."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The runoff state is a user-stepped state that stays on screen with its 40=40 readouts until the learner presses Next, and the aha names it explicitly."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only control is the step index, which changes the active regions, callout and readouts each time; the fixed global budget is justified as a single comparison."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active highlights, ghost, callout region and readouts all bind to state fields (active, previous.active, calloutRegion, short/why, readouts) and to declared regions and links."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "Story sentences, step labels, link labels and readout labels consistently name the same ocean, air, land and river objects and the evaporation, rain, transport and runoff events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each step lights a small set of regions with a four-slot readout holding one equation or count, which is within the deep ceiling and adds the mass-balance mechanism."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "Checks hold: 413−373=40, 40+73=113, 113−73=40, 413+73=486=373+113, and 13/486≈0.027 yr≈10 days; callouts locate while readouts quantify, with only minor repetition of 40 across slots."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.021378
+ }
+}

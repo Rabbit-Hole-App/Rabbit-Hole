@@ -1,0 +1,381 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a13",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a bill become a law in the United States?",
+ "ts": "2026-11-14T22:32:55.650Z",
+ "ms": 88855,
+ "raw": "{\n  \"story\": \"Follow a federal bill introduced in the House through committee review and votes in both chambers. Use Next to see when approval becomes law. This example keeps the text unchanged and ends with presidential signature. A veto instead requires a two-thirds vote in each chamber to override.\",\n  \"aha\": {\n    \"stateId\": \"law\",\n    \"observation\": \"On this route, the bill becomes law after both chambers approve identical text and the President signs it.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"step-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell, with story and instructions above the experiment. Show ordered steps with wrapped labels and the active step. Keep progress here. Brief parameter-control budget: zero; navigation comprises Previous, Next, and Reset.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"bill-path\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Arrange named regions in a fixed left-to-right path using the tested part's layout. Highlight only the active region; mute inactive regions. Preserve readable labels at native width. No motion or fabricated time.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"active-explanation\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor beside the active region without covering labels. Identify its action and significance; leave numerical evidence in readouts.\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"reason\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"evidence\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place compact readouts below the picture, with Status last as a persistent status line. Matching approvals count House and Senate passage of unchanged text. Counts use exact integers, with no rounding. The fixed reference is both chambers.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"step\",\n      \"kind\": \"index\",\n      \"items\": \"variant.states\",\n      \"label\": \"Bill stage\",\n      \"presentation\": \"Use Previous and Next, retaining names when disabled at boundaries. Default to the first state; advance one integer index within the supplied states. Every state persists until learner action, including law. Provide accessible button names, visible focus, and keyboard activation. Reference captures show law.\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"presentation\": \"Restore the first state and all defaults. Provide an accessible name, visible focus, and keyboard activation.\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"House-origin bill, unchanged text, presidential signature\",\n        \"regions\": [\n          {\n            \"id\": \"house\",\n            \"label\": \"House\",\n            \"actors\": [\n              \"U.S. House of Representatives\"\n            ]\n          },\n          {\n            \"id\": \"senate\",\n            \"label\": \"Senate\",\n            \"actors\": [\n              \"U.S. Senate\"\n            ]\n          },\n          {\n            \"id\": \"president\",\n            \"label\": \"President\",\n            \"actors\": [\n              \"President of the United States\"\n            ]\n          },\n          {\n            \"id\": \"federal-law\",\n            \"label\": \"Federal law\",\n            \"values\": [\n              \"Enacted bill\"\n            ]\n          }\n        ],\n        \"links\": [\n          {\n            \"from\": \"house\",\n            \"to\": \"senate\",\n            \"label\": \"House-passed text\"\n          },\n          {\n            \"from\": \"senate\",\n            \"to\": \"president\",\n            \"label\": \"Identical text passed\"\n          },\n          {\n            \"from\": \"president\",\n            \"to\": \"federal-law\",\n            \"label\": \"Signature\"\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"introduced\",\n            \"label\": \"Introduced\",\n            \"short\": \"Introduced\",\n            \"sentence\": \"A House member introduces the bill, which is referred to a House committee.\",\n            \"why\": \"Introduction begins consideration; it does not enact the proposal.\",\n            \"active\": [\n              \"house\"\n            ],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"matching-approvals\",\n                \"label\": \"Matching-text chamber approvals\",\n                \"value\": \"0 of 2\"\n              },\n              {\n                \"id\": \"presidential-action\",\n                \"label\": \"President\",\n                \"value\": \"Not presented\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Bill introduced; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"house-committee\",\n            \"label\": \"House review\",\n            \"short\": \"House review\",\n            \"sentence\": \"The House committee reviews the bill and reports it for House consideration.\",\n            \"why\": \"In this example, the committee recommends advancing the bill without changing its text.\",\n            \"active\": [\n              \"house\"\n            ],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"matching-approvals\",\n                \"label\": \"Matching-text chamber approvals\",\n                \"value\": \"0 of 2\"\n              },\n              {\n                \"id\": \"presidential-action\",\n                \"label\": \"President\",\n                \"value\": \"Not presented\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"House committee reported bill; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"house-passes\",\n            \"label\": \"House vote\",\n            \"short\": \"House vote\",\n            \"sentence\": \"The House debates and passes the bill, then sends it to the Senate.\",\n            \"why\": \"House passage alone is insufficient; the Senate must also approve identical text.\",\n            \"active\": [\n              \"house\"\n            ],\n            \"calloutRegion\": \"house\",\n            \"readouts\": [\n              {\n                \"id\": \"matching-approvals\",\n                \"label\": \"Matching-text chamber approvals\",\n                \"value\": \"1 of 2\"\n              },\n              {\n                \"id\": \"presidential-action\",\n                \"label\": \"President\",\n                \"value\": \"Not presented\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"House passed bill; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"senate-committee\",\n            \"label\": \"Senate review\",\n            \"short\": \"Senate review\",\n            \"sentence\": \"A Senate committee reviews the House-passed bill and reports it for Senate consideration.\",\n            \"why\": \"This example follows committee review in both chambers; neither committee substitutes for a chamber's passage vote.\",\n            \"active\": [\n              \"senate\"\n            ],\n            \"calloutRegion\": \"senate\",\n            \"readouts\": [\n              {\n                \"id\": \"matching-approvals\",\n                \"label\": \"Matching-text chamber approvals\",\n                \"value\": \"1 of 2\"\n              },\n              {\n                \"id\": \"presidential-action\",\n                \"label\": \"President\",\n                \"value\": \"Not presented\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Senate committee reported bill; not law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"senate-passes\",\n            \"label\": \"Senate vote\",\n            \"short\": \"Senate vote\",\n            \"sentence\": \"The Senate passes exactly the text that the House passed.\",\n            \"why\": \"If the Senate changed the text, both chambers would need to approve an identical final version.\",\n            \"active\": [\n              \"senate\"\n            ],\n            \"calloutRegion\": \"senate\",\n            \"readouts\": [\n              {\n                \"id\": \"matching-approvals\",\n                \"label\": \"Matching-text chamber approvals\",\n                \"value\": \"2 of 2\"\n              },\n              {\n                \"id\": \"presidential-action\",\n                \"label\": \"President\",\n                \"value\": \"Not presented\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Congress passed identical text; not yet law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"presented\",\n            \"label\": \"President\",\n            \"short\": \"Presented\",\n            \"sentence\": \"The bill approved by both chambers is presented to the President.\",\n            \"why\": \"Congressional passage and presidential signature are distinct actions on this route.\",\n            \"active\": [\n              \"president\"\n            ],\n            \"calloutRegion\": \"president\",\n            \"readouts\": [\n              {\n                \"id\": \"matching-approvals\",\n                \"label\": \"Matching-text chamber approvals\",\n                \"value\": \"2 of 2\"\n              },\n              {\n                \"id\": \"presidential-action\",\n                \"label\": \"President\",\n                \"value\": \"Received; decision pending\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Presented to President; not yet law\"\n              }\n            ]\n          },\n          {\n            \"id\": \"law\",\n            \"label\": \"Law\",\n            \"short\": \"Law\",\n            \"sentence\": \"The President signs the bill, making it federal law.\",\n            \"why\": \"Both chambers approved identical text, and the President completed this route by signing.\",\n            \"active\": [\n              \"federal-law\"\n            ],\n            \"calloutRegion\": \"federal-law\",\n            \"readouts\": [\n              {\n                \"id\": \"matching-approvals\",\n                \"label\": \"Matching-text chamber approvals\",\n                \"value\": \"2 of 2\"\n              },\n              {\n                \"id\": \"presidential-action\",\n                \"label\": \"President\",\n                \"value\": \"Signed\"\n              },\n              {\n                \"id\": \"status\",\n                \"label\": \"Status\",\n                \"value\": \"Federal law enacted\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Follow a federal bill introduced in the House through committee review and votes in both chambers. Use Next to see when approval becomes law. This example keeps the text unchanged and ends with presidential signature. A veto instead requires a two-thirds vote in each chamber to override.",
+  "aha": {
+   "stateId": "law",
+   "observation": "On this route, the bill becomes law after both chambers approve identical text and the President signs it."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "step-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell, with story and instructions above the experiment. Show ordered steps with wrapped labels and the active step. Keep progress here. Brief parameter-control budget: zero; navigation comprises Previous, Next, and Reset.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "bill-path",
+    "kind": "fixed-picture",
+    "presentation": "Arrange named regions in a fixed left-to-right path using the tested part's layout. Highlight only the active region; mute inactive regions. Preserve readable labels at native width. No motion or fabricated time.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "active-explanation",
+    "kind": "active-callout",
+    "presentation": "Anchor beside the active region without covering labels. Identify its action and significance; leave numerical evidence in readouts.",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    }
+   },
+   {
+    "id": "evidence",
+    "kind": "value-readout",
+    "presentation": "Place compact readouts below the picture, with Status last as a persistent status line. Matching approvals count House and Senate passage of unchanged text. Counts use exact integers, with no rounding. The fixed reference is both chambers.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "items": "variant.states",
+    "label": "Bill stage",
+    "presentation": "Use Previous and Next, retaining names when disabled at boundaries. Default to the first state; advance one integer index within the supplied states. Every state persists until learner action, including law. Provide accessible button names, visible focus, and keyboard activation. Reference captures show law."
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Restore the first state and all defaults. Provide an accessible name, visible focus, and keyboard activation."
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "House-origin bill, unchanged text, presidential signature",
+     "regions": [
+      {
+       "id": "house",
+       "label": "House",
+       "actors": [
+        "U.S. House of Representatives"
+       ]
+      },
+      {
+       "id": "senate",
+       "label": "Senate",
+       "actors": [
+        "U.S. Senate"
+       ]
+      },
+      {
+       "id": "president",
+       "label": "President",
+       "actors": [
+        "President of the United States"
+       ]
+      },
+      {
+       "id": "federal-law",
+       "label": "Federal law",
+       "values": [
+        "Enacted bill"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "house",
+       "to": "senate",
+       "label": "House-passed text"
+      },
+      {
+       "from": "senate",
+       "to": "president",
+       "label": "Identical text passed"
+      },
+      {
+       "from": "president",
+       "to": "federal-law",
+       "label": "Signature"
+      }
+     ],
+     "states": [
+      {
+       "id": "introduced",
+       "label": "Introduced",
+       "short": "Introduced",
+       "sentence": "A House member introduces the bill, which is referred to a House committee.",
+       "why": "Introduction begins consideration; it does not enact the proposal.",
+       "active": [
+        "house"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "matching-approvals",
+         "label": "Matching-text chamber approvals",
+         "value": "0 of 2"
+        },
+        {
+         "id": "presidential-action",
+         "label": "President",
+         "value": "Not presented"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Bill introduced; not law"
+        }
+       ]
+      },
+      {
+       "id": "house-committee",
+       "label": "House review",
+       "short": "House review",
+       "sentence": "The House committee reviews the bill and reports it for House consideration.",
+       "why": "In this example, the committee recommends advancing the bill without changing its text.",
+       "active": [
+        "house"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "matching-approvals",
+         "label": "Matching-text chamber approvals",
+         "value": "0 of 2"
+        },
+        {
+         "id": "presidential-action",
+         "label": "President",
+         "value": "Not presented"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "House committee reported bill; not law"
+        }
+       ]
+      },
+      {
+       "id": "house-passes",
+       "label": "House vote",
+       "short": "House vote",
+       "sentence": "The House debates and passes the bill, then sends it to the Senate.",
+       "why": "House passage alone is insufficient; the Senate must also approve identical text.",
+       "active": [
+        "house"
+       ],
+       "calloutRegion": "house",
+       "readouts": [
+        {
+         "id": "matching-approvals",
+         "label": "Matching-text chamber approvals",
+         "value": "1 of 2"
+        },
+        {
+         "id": "presidential-action",
+         "label": "President",
+         "value": "Not presented"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "House passed bill; not law"
+        }
+       ]
+      },
+      {
+       "id": "senate-committee",
+       "label": "Senate review",
+       "short": "Senate review",
+       "sentence": "A Senate committee reviews the House-passed bill and reports it for Senate consideration.",
+       "why": "This example follows committee review in both chambers; neither committee substitutes for a chamber's passage vote.",
+       "active": [
+        "senate"
+       ],
+       "calloutRegion": "senate",
+       "readouts": [
+        {
+         "id": "matching-approvals",
+         "label": "Matching-text chamber approvals",
+         "value": "1 of 2"
+        },
+        {
+         "id": "presidential-action",
+         "label": "President",
+         "value": "Not presented"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Senate committee reported bill; not law"
+        }
+       ]
+      },
+      {
+       "id": "senate-passes",
+       "label": "Senate vote",
+       "short": "Senate vote",
+       "sentence": "The Senate passes exactly the text that the House passed.",
+       "why": "If the Senate changed the text, both chambers would need to approve an identical final version.",
+       "active": [
+        "senate"
+       ],
+       "calloutRegion": "senate",
+       "readouts": [
+        {
+         "id": "matching-approvals",
+         "label": "Matching-text chamber approvals",
+         "value": "2 of 2"
+        },
+        {
+         "id": "presidential-action",
+         "label": "President",
+         "value": "Not presented"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Congress passed identical text; not yet law"
+        }
+       ]
+      },
+      {
+       "id": "presented",
+       "label": "President",
+       "short": "Presented",
+       "sentence": "The bill approved by both chambers is presented to the President.",
+       "why": "Congressional passage and presidential signature are distinct actions on this route.",
+       "active": [
+        "president"
+       ],
+       "calloutRegion": "president",
+       "readouts": [
+        {
+         "id": "matching-approvals",
+         "label": "Matching-text chamber approvals",
+         "value": "2 of 2"
+        },
+        {
+         "id": "presidential-action",
+         "label": "President",
+         "value": "Received; decision pending"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Presented to President; not yet law"
+        }
+       ]
+      },
+      {
+       "id": "law",
+       "label": "Law",
+       "short": "Law",
+       "sentence": "The President signs the bill, making it federal law.",
+       "why": "Both chambers approved identical text, and the President completed this route by signing.",
+       "active": [
+        "federal-law"
+       ],
+       "calloutRegion": "federal-law",
+       "readouts": [
+        {
+         "id": "matching-approvals",
+         "label": "Matching-text chamber approvals",
+         "value": "2 of 2"
+        },
+        {
+         "id": "presidential-action",
+         "label": "President",
+         "value": "Signed"
+        },
+        {
+         "id": "status",
+         "label": "Status",
+         "value": "Federal law enacted"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1538,
+  "output": 4837
+ },
+ "usd": 0.048576,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed left-to-right House→Senate→President→Law path with an active-region highlight answers how a bill becomes law, and the matching-approvals readout shows the 0→2 of 2 count."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state 'law' is the last state, with no timing, and it persists until the learner presses Previous or Reset; the control spec says every state persists, including law."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only control is the stage index, with a brief parameter budget of zero. Each step changes the active region, callout and readouts (approvals 0→1→2 of 2, President status, Status line), so the navigation does change the evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The highlight binds to state.active, the callout to state.calloutRegion, state.sentence and state.why, the readouts to state.readouts, the links to variant.links, and the rail to variant.states."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, region labels (House, Senate, President, Federal law), state sentences and Previous/Next/Reset controls consistently name the same chambers and events, ending with the signature that makes the bill law."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth has one active region, a short callout and three readouts, with no deep formula or clutter; the veto remark appears only in the story text."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The approvals counts are correct (0,0,1,1,2,2,2 of 2), the President and Status readouts agree with each state, and the callouts carry the explanation while the readouts carry the counts and status."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.014714
+ }
+}

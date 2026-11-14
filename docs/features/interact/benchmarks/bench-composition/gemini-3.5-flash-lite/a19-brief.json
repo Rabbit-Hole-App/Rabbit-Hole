@@ -1,0 +1,217 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a19",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "how does a volcano erupt?",
+ "ts": "2026-11-14T22:21:36.021Z",
+ "ms": 2792,
+ "raw": "{\n  \"story\": \"Magma chambers fill, pressure builds, gases expand, and magma finally breaches the surface.\",\n  \"aha\": {\n    \"stateId\": \"erupt\",\n    \"observation\": \"Expanding gas bubbles drive the explosive eruption when pressure exceeds containment.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-card\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"values\": \"state.active\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\",\n        \"values\": \"state.why\"\n      }\n    },\n    {\n      \"id\": \"readouts\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Eruption Step\",\n      \"options\": [\"chamber\", \"pressure\", \"erupt\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Volcano Eruption Stages\",\n        \"regions\": [\n          {\n            \"id\": \"chamber\",\n            \"label\": \"Magma Chamber\",\n            \"kind\": \"reservoir\",\n            \"values\": [\"Molten rock accumulates underground\"]\n          },\n          {\n            \"id\": \"conduit\",\n            \"label\": \"Conduit\",\n            \"kind\": \"pathway\",\n            \"values\": [\"Gases dissolve under intense heat\"]\n          },\n          {\n            \"id\": \"crater\",\n            \"label\": \"Summit Crater\",\n            \"kind\": \"vent\",\n            \"values\": [\"Ash and lava burst forth\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"chamber\",\n            \"label\": \"Accumulation\",\n            \"short\": \"Fill\",\n            \"sentence\": \"Magma pools in the deep chamber.\",\n            \"why\": \"Deep storage fills over time.\",\n            \"active\": [\"chamber\"],\n            \"calloutRegion\": \"chamber\",\n            \"readouts\": [\n              {\n                \"id\": \"p1\",\n                \"label\": \"Pressure\",\n                \"value\": \"Low\"\n              }\n            ]\n          },\n          {\n            \"id\": \"pressure\",\n            \"label\": \"Compression\",\n            \"short\": \"Build\",\n            \"sentence\": \"Dissolved gases expand as magma rises.\",\n            \"why\": \"Pressure mounts inside the conduit.\",\n            \"active\": [\"conduit\"],\n            \"calloutRegion\": \"conduit\",\n            \"readouts\": [\n              {\n                \"id\": \"p2\",\n                \"label\": \"Pressure\",\n                \"value\": \"High\"\n              }\n            ]\n          },\n          {\n            \"id\": \"erupt\",\n            \"label\": \"Eruption\",\n            \"short\": \"Burst\",\n            \"sentence\": \"The vent shatters and lava erupts.\",\n            \"why\": \"Gas breakout powers the blast.\",\n            \"active\": [\"crater\"],\n            \"calloutRegion\": \"crater\",\n            \"readouts\": [\n              {\n                \"id\": \"p3\",\n                \"label\": \"Pressure\",\n                \"value\": \"Released\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Magma chambers fill, pressure builds, gases expand, and magma finally breaches the surface.",
+  "aha": {
+   "stateId": "erupt",
+   "observation": "Expanding gas bubbles drive the explosive eruption when pressure exceeds containment."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "values": "state.active"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "values": "state.why"
+    }
+   },
+   {
+    "id": "readouts",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Eruption Step",
+    "options": [
+     "chamber",
+     "pressure",
+     "erupt"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Volcano Eruption Stages",
+     "regions": [
+      {
+       "id": "chamber",
+       "label": "Magma Chamber",
+       "kind": "reservoir",
+       "values": [
+        "Molten rock accumulates underground"
+       ]
+      },
+      {
+       "id": "conduit",
+       "label": "Conduit",
+       "kind": "pathway",
+       "values": [
+        "Gases dissolve under intense heat"
+       ]
+      },
+      {
+       "id": "crater",
+       "label": "Summit Crater",
+       "kind": "vent",
+       "values": [
+        "Ash and lava burst forth"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "chamber",
+       "label": "Accumulation",
+       "short": "Fill",
+       "sentence": "Magma pools in the deep chamber.",
+       "why": "Deep storage fills over time.",
+       "active": [
+        "chamber"
+       ],
+       "calloutRegion": "chamber",
+       "readouts": [
+        {
+         "id": "p1",
+         "label": "Pressure",
+         "value": "Low"
+        }
+       ]
+      },
+      {
+       "id": "pressure",
+       "label": "Compression",
+       "short": "Build",
+       "sentence": "Dissolved gases expand as magma rises.",
+       "why": "Pressure mounts inside the conduit.",
+       "active": [
+        "conduit"
+       ],
+       "calloutRegion": "conduit",
+       "readouts": [
+        {
+         "id": "p2",
+         "label": "Pressure",
+         "value": "High"
+        }
+       ]
+      },
+      {
+       "id": "erupt",
+       "label": "Eruption",
+       "short": "Burst",
+       "sentence": "The vent shatters and lava erupts.",
+       "why": "Gas breakout powers the blast.",
+       "active": [
+        "crater"
+       ],
+       "calloutRegion": "crater",
+       "readouts": [
+        {
+         "id": "p3",
+         "label": "Pressure",
+         "value": "Released"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1102,
+  "output": 974
+ },
+ "usd": 0.002766,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The three regions (chamber, conduit, crater) with the active highlight per step show how pressure builds and drives the eruption, though gas bubbles named in the aha are not a declared mark."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The stepper is learner-driven with no timer, so the erupt state, with the crater highlighted, holds until the learner acts."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex control changes the active region, callout text and pressure readout in each state, so the parameter changes the evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "The rail, picture, callout and readouts all bind to inputs.stepIndex, variant regions and state fields (active, calloutRegion, sentence, why, readouts)."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step options, region labels and callouts consistently name the chamber, conduit and crater and the fill, build and burst events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth shows one changing region per step with a single callout and a single readout, with no clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The values are qualitative (Low, High, Released) and consistent with each step, and the callout locates the region while the readout gives the pressure once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011148
+ }
+}

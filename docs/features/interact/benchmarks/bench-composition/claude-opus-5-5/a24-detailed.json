@@ -1,0 +1,961 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a24",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "how does a random forest combine the predictions of its trees into one answer?",
+ "ts": "2026-11-14T22:32:05.855Z",
+ "ms": 64218,
+ "raw": "{\"story\":\"One input x enters a forest of five trees, each trained on a different bootstrap sample. Step through as each tree routes x to a leaf and casts its prediction. The tally counts votes, or sums values for regression. The formula readout shows how the forest computes its single answer.\",\"aha\":{\"stateId\":\"s7\",\"observation\":\"No single tree decides. Each tree gets one equal vote, and the forest returns the majority class: 3 of 5 trees say spam. For regression, it returns the mean.\"},\"layout\":{\"preset\":\"stepper-states\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"items\":\"variant.states\",\"active\":\"state.id\"},\"presentation\":\"Top rail listing Send x, Tree 1–5, Combine, Answer\"},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"regions\":\"variant.regions\",\"links\":\"variant.links\",\"active\":\"state.active\"},\"presentation\":\"Input x on the left fans out to five tree regions in a column; the trees feed the tally, and the tally feeds the output\"},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"},\"presentation\":\"Faint outline on the regions that were active in the previous step\"},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\",\"reason\":\"state.why\"},\"presentation\":\"Anchored to the tree or tally currently acting; names where, not values\"},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"},\"presentation\":\"Right column: running counts, sum or mean, and the governing formula\"},{\"id\":\"progress\",\"kind\":\"progress\",\"bind\":{\"items\":\"variant.states\",\"completedBefore\":\"state.id\"},\"presentation\":\"Trace under the rail showing completed steps\"}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous / Next buttons that keep their names when disabled at either end; also respond to the arrow keys; 8 states, increment 1\"},{\"id\":\"rule\",\"kind\":\"select\",\"label\":\"Task and combining rule\",\"options\":[\"Classification: majority vote\",\"Regression: average\"],\"default\":0,\"presentation\":\"Switches between the two variants and returns to step 0. Fixed inputs: the same 5 trees and the same x\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to step 0 and the Classification default\"}],\"data\":{\"variants\":[{\"label\":\"Classification: majority vote\",\"regions\":[{\"id\":\"x\",\"label\":\"Email x\",\"kind\":\"input\",\"values\":[\"features: links=7, caps=high, sender=unknown\"]},{\"id\":\"t1\",\"label\":\"Tree 1\",\"kind\":\"tree\",\"values\":[\"leaf: spam\"]},{\"id\":\"t2\",\"label\":\"Tree 2\",\"kind\":\"tree\",\"values\":[\"leaf: ham\"]},{\"id\":\"t3\",\"label\":\"Tree 3\",\"kind\":\"tree\",\"values\":[\"leaf: spam\"]},{\"id\":\"t4\",\"label\":\"Tree 4\",\"kind\":\"tree\",\"values\":[\"leaf: spam\"]},{\"id\":\"t5\",\"label\":\"Tree 5\",\"kind\":\"tree\",\"values\":[\"leaf: ham\"]},{\"id\":\"tally\",\"label\":\"Vote tally\",\"kind\":\"combiner\",\"values\":[\"spam: 3\",\"ham: 2\"]},{\"id\":\"out\",\"label\":\"Forest answer\",\"kind\":\"output\",\"values\":[\"spam\"]}],\"links\":[{\"from\":\"x\",\"to\":\"t1\"},{\"from\":\"x\",\"to\":\"t2\"},{\"from\":\"x\",\"to\":\"t3\"},{\"from\":\"x\",\"to\":\"t4\"},{\"from\":\"x\",\"to\":\"t5\"},{\"from\":\"t1\",\"to\":\"tally\",\"label\":\"vote\"},{\"from\":\"t2\",\"to\":\"tally\",\"label\":\"vote\"},{\"from\":\"t3\",\"to\":\"tally\",\"label\":\"vote\"},{\"from\":\"t4\",\"to\":\"tally\",\"label\":\"vote\"},{\"from\":\"t5\",\"to\":\"tally\",\"label\":\"vote\"},{\"from\":\"tally\",\"to\":\"out\",\"label\":\"mode\"}],\"states\":[{\"id\":\"s0\",\"label\":\"Send x\",\"short\":\"x\",\"active\":[\"x\",\"t1\",\"t2\",\"t3\",\"t4\",\"t5\"],\"calloutRegion\":\"x\",\"sentence\":\"The same email x goes to all five trees. Each tree was trained on its own bootstrap sample.\",\"why\":\"Different training data makes the trees disagree in useful ways.\",\"readouts\":[{\"id\":\"spam\",\"label\":\"Spam votes\",\"value\":\"0\"},{\"id\":\"ham\",\"label\":\"Ham votes\",\"value\":\"0\"},{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"0 / 5\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = mode{h₁(x),…,h₅(x)}\"}]},{\"id\":\"s1\",\"label\":\"Tree 1\",\"short\":\"T1\",\"active\":[\"t1\",\"tally\"],\"calloutRegion\":\"t1\",\"sentence\":\"Tree 1 routes x down its splits to a spam leaf. It casts one vote for spam.\",\"why\":\"Each tree predicts independently.\",\"readouts\":[{\"id\":\"spam\",\"label\":\"Spam votes\",\"value\":\"1\"},{\"id\":\"ham\",\"label\":\"Ham votes\",\"value\":\"0\"},{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"1 / 5\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = mode{h₁(x),…,h₅(x)}\"}]},{\"id\":\"s2\",\"label\":\"Tree 2\",\"short\":\"T2\",\"active\":[\"t2\",\"tally\"],\"calloutRegion\":\"t2\",\"sentence\":\"Tree 2 reaches a ham leaf and votes ham. The trees can disagree.\",\"why\":\"Each tree saw different samples and features.\",\"readouts\":[{\"id\":\"spam\",\"label\":\"Spam votes\",\"value\":\"1\"},{\"id\":\"ham\",\"label\":\"Ham votes\",\"value\":\"1\"},{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"2 / 5\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = mode{h₁(x),…,h₅(x)}\"}]},{\"id\":\"s3\",\"label\":\"Tree 3\",\"short\":\"T3\",\"active\":[\"t3\",\"tally\"],\"calloutRegion\":\"t3\",\"sentence\":\"Tree 3 votes spam, putting spam ahead 2 to 1.\",\"why\":\"Each vote has the same weight.\",\"readouts\":[{\"id\":\"spam\",\"label\":\"Spam votes\",\"value\":\"2\"},{\"id\":\"ham\",\"label\":\"Ham votes\",\"value\":\"1\"},{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"3 / 5\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = mode{h₁(x),…,h₅(x)}\"}]},{\"id\":\"s4\",\"label\":\"Tree 4\",\"short\":\"T4\",\"active\":[\"t4\",\"tally\"],\"calloutRegion\":\"t4\",\"sentence\":\"Tree 4 votes spam. Three of five votes is already a majority.\",\"why\":\"The last tree cannot overturn a majority of 3 out of 5.\",\"readouts\":[{\"id\":\"spam\",\"label\":\"Spam votes\",\"value\":\"3\"},{\"id\":\"ham\",\"label\":\"Ham votes\",\"value\":\"1\"},{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"4 / 5\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = mode{h₁(x),…,h₅(x)}\"}]},{\"id\":\"s5\",\"label\":\"Tree 5\",\"short\":\"T5\",\"active\":[\"t5\",\"tally\"],\"calloutRegion\":\"t5\",\"sentence\":\"Tree 5 votes ham. All five votes are now in the tally.\",\"why\":\"Every tree contributes exactly one vote.\",\"readouts\":[{\"id\":\"spam\",\"label\":\"Spam votes\",\"value\":\"3\"},{\"id\":\"ham\",\"label\":\"Ham votes\",\"value\":\"2\"},{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"5 / 5\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = mode{h₁(x),…,h₅(x)}\"}]},{\"id\":\"s6\",\"label\":\"Combine\",\"short\":\"Σ\",\"active\":[\"tally\"],\"calloutRegion\":\"tally\",\"sentence\":\"The tally takes the mode: spam wins 3 votes to 2.\",\"why\":\"Spam vote share = 3 / 5 = 0.60, which is above one half.\",\"readouts\":[{\"id\":\"spam\",\"label\":\"Spam votes\",\"value\":\"3\"},{\"id\":\"ham\",\"label\":\"Ham votes\",\"value\":\"2\"},{\"id\":\"counted\",\"label\":\"Spam share\",\"value\":\"0.60\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = mode{spam,ham,spam,spam,ham}\"}]},{\"id\":\"s7\",\"label\":\"Answer\",\"short\":\"ŷ\",\"active\":[\"out\",\"t2\",\"t5\"],\"calloutRegion\":\"out\",\"sentence\":\"The forest answers spam, even though Trees 2 and 5 disagreed. The majority outvotes their errors.\",\"why\":\"Majority voting combines many noisy trees into a single, steadier answer.\",\"readouts\":[{\"id\":\"spam\",\"label\":\"Spam votes\",\"value\":\"3\"},{\"id\":\"ham\",\"label\":\"Ham votes\",\"value\":\"2\"},{\"id\":\"counted\",\"label\":\"Spam share\",\"value\":\"0.60\"},{\"id\":\"rule\",\"label\":\"Answer\",\"value\":\"ŷ = spam\"}]}]},{\"label\":\"Regression: average\",\"regions\":[{\"id\":\"x\",\"label\":\"House x\",\"kind\":\"input\",\"values\":[\"3 bed, 120 m², near transit\"]},{\"id\":\"t1\",\"label\":\"Tree 1\",\"kind\":\"tree\",\"values\":[\"leaf: $310k\"]},{\"id\":\"t2\",\"label\":\"Tree 2\",\"kind\":\"tree\",\"values\":[\"leaf: $290k\"]},{\"id\":\"t3\",\"label\":\"Tree 3\",\"kind\":\"tree\",\"values\":[\"leaf: $335k\"]},{\"id\":\"t4\",\"label\":\"Tree 4\",\"kind\":\"tree\",\"values\":[\"leaf: $300k\"]},{\"id\":\"t5\",\"label\":\"Tree 5\",\"kind\":\"tree\",\"values\":[\"leaf: $315k\"]},{\"id\":\"tally\",\"label\":\"Running sum\",\"kind\":\"combiner\",\"values\":[\"Σ = $1550k\"]},{\"id\":\"out\",\"label\":\"Forest answer\",\"kind\":\"output\",\"values\":[\"$310k\"]}],\"links\":[{\"from\":\"x\",\"to\":\"t1\"},{\"from\":\"x\",\"to\":\"t2\"},{\"from\":\"x\",\"to\":\"t3\"},{\"from\":\"x\",\"to\":\"t4\"},{\"from\":\"x\",\"to\":\"t5\"},{\"from\":\"t1\",\"to\":\"tally\",\"label\":\"value\"},{\"from\":\"t2\",\"to\":\"tally\",\"label\":\"value\"},{\"from\":\"t3\",\"to\":\"tally\",\"label\":\"value\"},{\"from\":\"t4\",\"to\":\"tally\",\"label\":\"value\"},{\"from\":\"t5\",\"to\":\"tally\",\"label\":\"value\"},{\"from\":\"tally\",\"to\":\"out\",\"label\":\"÷ 5\"}],\"states\":[{\"id\":\"s0\",\"label\":\"Send x\",\"short\":\"x\",\"active\":[\"x\",\"t1\",\"t2\",\"t3\",\"t4\",\"t5\"],\"calloutRegion\":\"x\",\"sentence\":\"The same house x goes to all five trees. Each tree was trained on its own bootstrap sample.\",\"why\":\"Different training data gives the trees different estimates.\",\"readouts\":[{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"0 / 5\"},{\"id\":\"sum\",\"label\":\"Running sum ($k)\",\"value\":\"0\"},{\"id\":\"mean\",\"label\":\"Running mean ($k, 0.1)\",\"value\":\"—\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = (1/5) Σ hₜ(x)\"}]},{\"id\":\"s1\",\"label\":\"Tree 1\",\"short\":\"T1\",\"active\":[\"t1\",\"tally\"],\"calloutRegion\":\"t1\",\"sentence\":\"Tree 1 routes x to a leaf predicting $310k and adds it to the sum.\",\"why\":\"A leaf predicts the average price of its training houses.\",\"readouts\":[{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"1 / 5\"},{\"id\":\"sum\",\"label\":\"Running sum ($k)\",\"value\":\"310\"},{\"id\":\"mean\",\"label\":\"Running mean ($k, 0.1)\",\"value\":\"310.0\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = (1/5) Σ hₜ(x)\"}]},{\"id\":\"s2\",\"label\":\"Tree 2\",\"short\":\"T2\",\"active\":[\"t2\",\"tally\"],\"calloutRegion\":\"t2\",\"sentence\":\"Tree 2 predicts $290k, which is lower than Tree 1's estimate.\",\"why\":\"Each tree saw different samples and features.\",\"readouts\":[{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"2 / 5\"},{\"id\":\"sum\",\"label\":\"Running sum ($k)\",\"value\":\"600\"},{\"id\":\"mean\",\"label\":\"Running mean ($k, 0.1)\",\"value\":\"300.0\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = (1/5) Σ hₜ(x)\"}]},{\"id\":\"s3\",\"label\":\"Tree 3\",\"short\":\"T3\",\"active\":[\"t3\",\"tally\"],\"calloutRegion\":\"t3\",\"sentence\":\"Tree 3 predicts $335k, the highest estimate so far.\",\"why\":\"High and low errors will partly cancel in the average.\",\"readouts\":[{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"3 / 5\"},{\"id\":\"sum\",\"label\":\"Running sum ($k)\",\"value\":\"935\"},{\"id\":\"mean\",\"label\":\"Running mean ($k, 0.1)\",\"value\":\"311.7\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = (1/5) Σ hₜ(x)\"}]},{\"id\":\"s4\",\"label\":\"Tree 4\",\"short\":\"T4\",\"active\":[\"t4\",\"tally\"],\"calloutRegion\":\"t4\",\"sentence\":\"Tree 4 predicts $300k and adds it to the sum.\",\"why\":\"Each tree has the same weight of 1/5.\",\"readouts\":[{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"4 / 5\"},{\"id\":\"sum\",\"label\":\"Running sum ($k)\",\"value\":\"1235\"},{\"id\":\"mean\",\"label\":\"Running mean ($k, 0.1)\",\"value\":\"308.8\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = (1/5) Σ hₜ(x)\"}]},{\"id\":\"s5\",\"label\":\"Tree 5\",\"short\":\"T5\",\"active\":[\"t5\",\"tally\"],\"calloutRegion\":\"t5\",\"sentence\":\"Tree 5 predicts $315k. All five values are now in the sum.\",\"why\":\"Every tree contributes exactly once.\",\"readouts\":[{\"id\":\"counted\",\"label\":\"Trees counted\",\"value\":\"5 / 5\"},{\"id\":\"sum\",\"label\":\"Running sum ($k)\",\"value\":\"1550\"},{\"id\":\"mean\",\"label\":\"Running mean ($k, 0.1)\",\"value\":\"310.0\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = (1/5) Σ hₜ(x)\"}]},{\"id\":\"s6\",\"label\":\"Combine\",\"short\":\"Σ\",\"active\":[\"tally\"],\"calloutRegion\":\"tally\",\"sentence\":\"The combiner divides the total by the number of trees: 1550 / 5 = 310.\",\"why\":\"The predictions range from 290 to 335 $k.\",\"readouts\":[{\"id\":\"counted\",\"label\":\"Range ($k)\",\"value\":\"290 – 335\"},{\"id\":\"sum\",\"label\":\"Sum ($k)\",\"value\":\"1550\"},{\"id\":\"mean\",\"label\":\"Mean ($k, 0.1)\",\"value\":\"310.0\"},{\"id\":\"rule\",\"label\":\"Rule\",\"value\":\"ŷ = 1550 / 5\"}]},{\"id\":\"s7\",\"label\":\"Answer\",\"short\":\"ŷ\",\"active\":[\"out\",\"t2\",\"t3\"],\"calloutRegion\":\"out\",\"sentence\":\"The forest predicts $310k. The mean cancels Tree 2's low estimate against Tree 3's high one.\",\"why\":\"Averaging reduces the variance of the individual trees.\",\"readouts\":[{\"id\":\"counted\",\"label\":\"Range ($k)\",\"value\":\"290 – 335\"},{\"id\":\"sum\",\"label\":\"Sum ($k)\",\"value\":\"1550\"},{\"id\":\"mean\",\"label\":\"Mean ($k, 0.1)\",\"value\":\"310.0\"},{\"id\":\"rule\",\"label\":\"Answer\",\"value\":\"ŷ = $310k\"}]}]}]}}",
+ "composition": {
+  "story": "One input x enters a forest of five trees, each trained on a different bootstrap sample. Step through as each tree routes x to a leaf and casts its prediction. The tally counts votes, or sums values for regression. The formula readout shows how the forest computes its single answer.",
+  "aha": {
+   "stateId": "s7",
+   "observation": "No single tree decides. Each tree gets one equal vote, and the forest returns the majority class: 3 of 5 trees say spam. For regression, it returns the mean."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "items": "variant.states",
+     "active": "state.id"
+    },
+    "presentation": "Top rail listing Send x, Tree 1–5, Combine, Answer"
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "regions": "variant.regions",
+     "links": "variant.links",
+     "active": "state.active"
+    },
+    "presentation": "Input x on the left fans out to five tree regions in a column; the trees feed the tally, and the tally feeds the output"
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    },
+    "presentation": "Faint outline on the regions that were active in the previous step"
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "target": "state.calloutRegion",
+     "text": "state.sentence",
+     "reason": "state.why"
+    },
+    "presentation": "Anchored to the tree or tally currently acting; names where, not values"
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    },
+    "presentation": "Right column: running counts, sum or mean, and the governing formula"
+   },
+   {
+    "id": "progress",
+    "kind": "progress",
+    "bind": {
+     "items": "variant.states",
+     "completedBefore": "state.id"
+    },
+    "presentation": "Trace under the rail showing completed steps"
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous / Next buttons that keep their names when disabled at either end; also respond to the arrow keys; 8 states, increment 1"
+   },
+   {
+    "id": "rule",
+    "kind": "select",
+    "label": "Task and combining rule",
+    "options": [
+     "Classification: majority vote",
+     "Regression: average"
+    ],
+    "default": 0,
+    "presentation": "Switches between the two variants and returns to step 0. Fixed inputs: the same 5 trees and the same x"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to step 0 and the Classification default"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Classification: majority vote",
+     "regions": [
+      {
+       "id": "x",
+       "label": "Email x",
+       "kind": "input",
+       "values": [
+        "features: links=7, caps=high, sender=unknown"
+       ]
+      },
+      {
+       "id": "t1",
+       "label": "Tree 1",
+       "kind": "tree",
+       "values": [
+        "leaf: spam"
+       ]
+      },
+      {
+       "id": "t2",
+       "label": "Tree 2",
+       "kind": "tree",
+       "values": [
+        "leaf: ham"
+       ]
+      },
+      {
+       "id": "t3",
+       "label": "Tree 3",
+       "kind": "tree",
+       "values": [
+        "leaf: spam"
+       ]
+      },
+      {
+       "id": "t4",
+       "label": "Tree 4",
+       "kind": "tree",
+       "values": [
+        "leaf: spam"
+       ]
+      },
+      {
+       "id": "t5",
+       "label": "Tree 5",
+       "kind": "tree",
+       "values": [
+        "leaf: ham"
+       ]
+      },
+      {
+       "id": "tally",
+       "label": "Vote tally",
+       "kind": "combiner",
+       "values": [
+        "spam: 3",
+        "ham: 2"
+       ]
+      },
+      {
+       "id": "out",
+       "label": "Forest answer",
+       "kind": "output",
+       "values": [
+        "spam"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "x",
+       "to": "t1"
+      },
+      {
+       "from": "x",
+       "to": "t2"
+      },
+      {
+       "from": "x",
+       "to": "t3"
+      },
+      {
+       "from": "x",
+       "to": "t4"
+      },
+      {
+       "from": "x",
+       "to": "t5"
+      },
+      {
+       "from": "t1",
+       "to": "tally",
+       "label": "vote"
+      },
+      {
+       "from": "t2",
+       "to": "tally",
+       "label": "vote"
+      },
+      {
+       "from": "t3",
+       "to": "tally",
+       "label": "vote"
+      },
+      {
+       "from": "t4",
+       "to": "tally",
+       "label": "vote"
+      },
+      {
+       "from": "t5",
+       "to": "tally",
+       "label": "vote"
+      },
+      {
+       "from": "tally",
+       "to": "out",
+       "label": "mode"
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "Send x",
+       "short": "x",
+       "active": [
+        "x",
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5"
+       ],
+       "calloutRegion": "x",
+       "sentence": "The same email x goes to all five trees. Each tree was trained on its own bootstrap sample.",
+       "why": "Different training data makes the trees disagree in useful ways.",
+       "readouts": [
+        {
+         "id": "spam",
+         "label": "Spam votes",
+         "value": "0"
+        },
+        {
+         "id": "ham",
+         "label": "Ham votes",
+         "value": "0"
+        },
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "0 / 5"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = mode{h₁(x),…,h₅(x)}"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Tree 1",
+       "short": "T1",
+       "active": [
+        "t1",
+        "tally"
+       ],
+       "calloutRegion": "t1",
+       "sentence": "Tree 1 routes x down its splits to a spam leaf. It casts one vote for spam.",
+       "why": "Each tree predicts independently.",
+       "readouts": [
+        {
+         "id": "spam",
+         "label": "Spam votes",
+         "value": "1"
+        },
+        {
+         "id": "ham",
+         "label": "Ham votes",
+         "value": "0"
+        },
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "1 / 5"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = mode{h₁(x),…,h₅(x)}"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Tree 2",
+       "short": "T2",
+       "active": [
+        "t2",
+        "tally"
+       ],
+       "calloutRegion": "t2",
+       "sentence": "Tree 2 reaches a ham leaf and votes ham. The trees can disagree.",
+       "why": "Each tree saw different samples and features.",
+       "readouts": [
+        {
+         "id": "spam",
+         "label": "Spam votes",
+         "value": "1"
+        },
+        {
+         "id": "ham",
+         "label": "Ham votes",
+         "value": "1"
+        },
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "2 / 5"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = mode{h₁(x),…,h₅(x)}"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Tree 3",
+       "short": "T3",
+       "active": [
+        "t3",
+        "tally"
+       ],
+       "calloutRegion": "t3",
+       "sentence": "Tree 3 votes spam, putting spam ahead 2 to 1.",
+       "why": "Each vote has the same weight.",
+       "readouts": [
+        {
+         "id": "spam",
+         "label": "Spam votes",
+         "value": "2"
+        },
+        {
+         "id": "ham",
+         "label": "Ham votes",
+         "value": "1"
+        },
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "3 / 5"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = mode{h₁(x),…,h₅(x)}"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Tree 4",
+       "short": "T4",
+       "active": [
+        "t4",
+        "tally"
+       ],
+       "calloutRegion": "t4",
+       "sentence": "Tree 4 votes spam. Three of five votes is already a majority.",
+       "why": "The last tree cannot overturn a majority of 3 out of 5.",
+       "readouts": [
+        {
+         "id": "spam",
+         "label": "Spam votes",
+         "value": "3"
+        },
+        {
+         "id": "ham",
+         "label": "Ham votes",
+         "value": "1"
+        },
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "4 / 5"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = mode{h₁(x),…,h₅(x)}"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Tree 5",
+       "short": "T5",
+       "active": [
+        "t5",
+        "tally"
+       ],
+       "calloutRegion": "t5",
+       "sentence": "Tree 5 votes ham. All five votes are now in the tally.",
+       "why": "Every tree contributes exactly one vote.",
+       "readouts": [
+        {
+         "id": "spam",
+         "label": "Spam votes",
+         "value": "3"
+        },
+        {
+         "id": "ham",
+         "label": "Ham votes",
+         "value": "2"
+        },
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "5 / 5"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = mode{h₁(x),…,h₅(x)}"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Combine",
+       "short": "Σ",
+       "active": [
+        "tally"
+       ],
+       "calloutRegion": "tally",
+       "sentence": "The tally takes the mode: spam wins 3 votes to 2.",
+       "why": "Spam vote share = 3 / 5 = 0.60, which is above one half.",
+       "readouts": [
+        {
+         "id": "spam",
+         "label": "Spam votes",
+         "value": "3"
+        },
+        {
+         "id": "ham",
+         "label": "Ham votes",
+         "value": "2"
+        },
+        {
+         "id": "counted",
+         "label": "Spam share",
+         "value": "0.60"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = mode{spam,ham,spam,spam,ham}"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Answer",
+       "short": "ŷ",
+       "active": [
+        "out",
+        "t2",
+        "t5"
+       ],
+       "calloutRegion": "out",
+       "sentence": "The forest answers spam, even though Trees 2 and 5 disagreed. The majority outvotes their errors.",
+       "why": "Majority voting combines many noisy trees into a single, steadier answer.",
+       "readouts": [
+        {
+         "id": "spam",
+         "label": "Spam votes",
+         "value": "3"
+        },
+        {
+         "id": "ham",
+         "label": "Ham votes",
+         "value": "2"
+        },
+        {
+         "id": "counted",
+         "label": "Spam share",
+         "value": "0.60"
+        },
+        {
+         "id": "rule",
+         "label": "Answer",
+         "value": "ŷ = spam"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "label": "Regression: average",
+     "regions": [
+      {
+       "id": "x",
+       "label": "House x",
+       "kind": "input",
+       "values": [
+        "3 bed, 120 m², near transit"
+       ]
+      },
+      {
+       "id": "t1",
+       "label": "Tree 1",
+       "kind": "tree",
+       "values": [
+        "leaf: $310k"
+       ]
+      },
+      {
+       "id": "t2",
+       "label": "Tree 2",
+       "kind": "tree",
+       "values": [
+        "leaf: $290k"
+       ]
+      },
+      {
+       "id": "t3",
+       "label": "Tree 3",
+       "kind": "tree",
+       "values": [
+        "leaf: $335k"
+       ]
+      },
+      {
+       "id": "t4",
+       "label": "Tree 4",
+       "kind": "tree",
+       "values": [
+        "leaf: $300k"
+       ]
+      },
+      {
+       "id": "t5",
+       "label": "Tree 5",
+       "kind": "tree",
+       "values": [
+        "leaf: $315k"
+       ]
+      },
+      {
+       "id": "tally",
+       "label": "Running sum",
+       "kind": "combiner",
+       "values": [
+        "Σ = $1550k"
+       ]
+      },
+      {
+       "id": "out",
+       "label": "Forest answer",
+       "kind": "output",
+       "values": [
+        "$310k"
+       ]
+      }
+     ],
+     "links": [
+      {
+       "from": "x",
+       "to": "t1"
+      },
+      {
+       "from": "x",
+       "to": "t2"
+      },
+      {
+       "from": "x",
+       "to": "t3"
+      },
+      {
+       "from": "x",
+       "to": "t4"
+      },
+      {
+       "from": "x",
+       "to": "t5"
+      },
+      {
+       "from": "t1",
+       "to": "tally",
+       "label": "value"
+      },
+      {
+       "from": "t2",
+       "to": "tally",
+       "label": "value"
+      },
+      {
+       "from": "t3",
+       "to": "tally",
+       "label": "value"
+      },
+      {
+       "from": "t4",
+       "to": "tally",
+       "label": "value"
+      },
+      {
+       "from": "t5",
+       "to": "tally",
+       "label": "value"
+      },
+      {
+       "from": "tally",
+       "to": "out",
+       "label": "÷ 5"
+      }
+     ],
+     "states": [
+      {
+       "id": "s0",
+       "label": "Send x",
+       "short": "x",
+       "active": [
+        "x",
+        "t1",
+        "t2",
+        "t3",
+        "t4",
+        "t5"
+       ],
+       "calloutRegion": "x",
+       "sentence": "The same house x goes to all five trees. Each tree was trained on its own bootstrap sample.",
+       "why": "Different training data gives the trees different estimates.",
+       "readouts": [
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "0 / 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum ($k)",
+         "value": "0"
+        },
+        {
+         "id": "mean",
+         "label": "Running mean ($k, 0.1)",
+         "value": "—"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = (1/5) Σ hₜ(x)"
+        }
+       ]
+      },
+      {
+       "id": "s1",
+       "label": "Tree 1",
+       "short": "T1",
+       "active": [
+        "t1",
+        "tally"
+       ],
+       "calloutRegion": "t1",
+       "sentence": "Tree 1 routes x to a leaf predicting $310k and adds it to the sum.",
+       "why": "A leaf predicts the average price of its training houses.",
+       "readouts": [
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "1 / 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum ($k)",
+         "value": "310"
+        },
+        {
+         "id": "mean",
+         "label": "Running mean ($k, 0.1)",
+         "value": "310.0"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = (1/5) Σ hₜ(x)"
+        }
+       ]
+      },
+      {
+       "id": "s2",
+       "label": "Tree 2",
+       "short": "T2",
+       "active": [
+        "t2",
+        "tally"
+       ],
+       "calloutRegion": "t2",
+       "sentence": "Tree 2 predicts $290k, which is lower than Tree 1's estimate.",
+       "why": "Each tree saw different samples and features.",
+       "readouts": [
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "2 / 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum ($k)",
+         "value": "600"
+        },
+        {
+         "id": "mean",
+         "label": "Running mean ($k, 0.1)",
+         "value": "300.0"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = (1/5) Σ hₜ(x)"
+        }
+       ]
+      },
+      {
+       "id": "s3",
+       "label": "Tree 3",
+       "short": "T3",
+       "active": [
+        "t3",
+        "tally"
+       ],
+       "calloutRegion": "t3",
+       "sentence": "Tree 3 predicts $335k, the highest estimate so far.",
+       "why": "High and low errors will partly cancel in the average.",
+       "readouts": [
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "3 / 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum ($k)",
+         "value": "935"
+        },
+        {
+         "id": "mean",
+         "label": "Running mean ($k, 0.1)",
+         "value": "311.7"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = (1/5) Σ hₜ(x)"
+        }
+       ]
+      },
+      {
+       "id": "s4",
+       "label": "Tree 4",
+       "short": "T4",
+       "active": [
+        "t4",
+        "tally"
+       ],
+       "calloutRegion": "t4",
+       "sentence": "Tree 4 predicts $300k and adds it to the sum.",
+       "why": "Each tree has the same weight of 1/5.",
+       "readouts": [
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "4 / 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum ($k)",
+         "value": "1235"
+        },
+        {
+         "id": "mean",
+         "label": "Running mean ($k, 0.1)",
+         "value": "308.8"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = (1/5) Σ hₜ(x)"
+        }
+       ]
+      },
+      {
+       "id": "s5",
+       "label": "Tree 5",
+       "short": "T5",
+       "active": [
+        "t5",
+        "tally"
+       ],
+       "calloutRegion": "t5",
+       "sentence": "Tree 5 predicts $315k. All five values are now in the sum.",
+       "why": "Every tree contributes exactly once.",
+       "readouts": [
+        {
+         "id": "counted",
+         "label": "Trees counted",
+         "value": "5 / 5"
+        },
+        {
+         "id": "sum",
+         "label": "Running sum ($k)",
+         "value": "1550"
+        },
+        {
+         "id": "mean",
+         "label": "Running mean ($k, 0.1)",
+         "value": "310.0"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = (1/5) Σ hₜ(x)"
+        }
+       ]
+      },
+      {
+       "id": "s6",
+       "label": "Combine",
+       "short": "Σ",
+       "active": [
+        "tally"
+       ],
+       "calloutRegion": "tally",
+       "sentence": "The combiner divides the total by the number of trees: 1550 / 5 = 310.",
+       "why": "The predictions range from 290 to 335 $k.",
+       "readouts": [
+        {
+         "id": "counted",
+         "label": "Range ($k)",
+         "value": "290 – 335"
+        },
+        {
+         "id": "sum",
+         "label": "Sum ($k)",
+         "value": "1550"
+        },
+        {
+         "id": "mean",
+         "label": "Mean ($k, 0.1)",
+         "value": "310.0"
+        },
+        {
+         "id": "rule",
+         "label": "Rule",
+         "value": "ŷ = 1550 / 5"
+        }
+       ]
+      },
+      {
+       "id": "s7",
+       "label": "Answer",
+       "short": "ŷ",
+       "active": [
+        "out",
+        "t2",
+        "t3"
+       ],
+       "calloutRegion": "out",
+       "sentence": "The forest predicts $310k. The mean cancels Tree 2's low estimate against Tree 3's high one.",
+       "why": "Averaging reduces the variance of the individual trees.",
+       "readouts": [
+        {
+         "id": "counted",
+         "label": "Range ($k)",
+         "value": "290 – 335"
+        },
+        {
+         "id": "sum",
+         "label": "Sum ($k)",
+         "value": "1550"
+        },
+        {
+         "id": "mean",
+         "label": "Mean ($k, 0.1)",
+         "value": "310.0"
+        },
+        {
+         "id": "rule",
+         "label": "Answer",
+         "value": "ŷ = $310k"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 3080,
+  "output": 7814
+ },
+ "usd": 0.1686,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture of x fanning out to five trees, the tally and the output, with votes or leaf values stepping in, answers the question of how the forest combines the trees into one answer."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s7 (Answer) is the final step, so the card stays there with the dissenting trees highlighted until the learner steps back or resets."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The rule select swaps the task between majority vote and average, which changes the leaf values, tally, formula and readouts while the trees and x stay fixed; the step control changes the evidence at each state."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Highlights come from state.active, callouts from calloutRegion, sentence and why, readouts from state.readouts, and links from variant.links, and all of these resolve to declared regions and states."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, the step labels (Send x, Tree 1–5, Combine, Answer), the callouts and the control names consistently refer to the same trees, the tally and the answer."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Each step highlights one tree plus the tally, and the readouts add a count and the formula, so the detail level gives a formula and a count without clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The arithmetic checks out (3 to 2 votes, sum 1550, mean 310, running means 311.7 and 308.8), but callout sentences repeat readout values such as \"3 votes to 2\", \"1550 / 5 = 310\" and \"$310k\", so values are not placed once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.026622
+ }
+}

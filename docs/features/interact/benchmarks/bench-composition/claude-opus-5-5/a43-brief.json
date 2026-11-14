@@ -1,0 +1,13 @@
+{
+ "model": "claude-opus-5-5",
+ "promptId": "a43",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "explain the call stack and the base case in a recursive factorial",
+ "ts": "2026-11-14T22:36:45.619Z",
+ "ms": null,
+ "usd": 0,
+ "composition": null,
+ "error": "api.anthropic.com http 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"You have reached your specified API usage limits. You will regain access on 2026-12-01 at 00:00 UTC.\"},\"request_id\":\"req_011Ch3cwAMxwhpJUUuJMjtcS\"}"
+}

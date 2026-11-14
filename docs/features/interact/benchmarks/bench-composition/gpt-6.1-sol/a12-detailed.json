@@ -1,0 +1,348 @@
+{
+ "model": "gpt-6.1-sol",
+ "promptId": "a12",
+ "set": "A",
+ "subject": null,
+ "depth": "detailed",
+ "request": "what happens during mitosis?",
+ "ts": "2026-11-14T22:32:48.354Z",
+ "ms": 180452,
+ "raw": "{\n  \"story\": \"Begin after DNA replication, with chromosomes inside the nuclear envelope. Follow sister chromatids, centromeres, kinetochores, spindle fibers, and spindle poles through alignment and separation. Compare the starting nucleus with daughter nuclei as nuclear envelopes reform. The cleavage furrow marks cytokinesis beginning, not an additional mitotic phase.\",\n  \"aha\": {\n    \"stateId\": \"telophase\",\n    \"observation\": \"Each daughter nucleus receives the starting chromosome number because mitosis separates copied sister chromatids without copying DNA again.\"\n  },\n  \"layout\": {\n    \"preset\": \"cycle\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"mitosis-rail\",\n      \"kind\": \"step-rail\",\n      \"presentation\": \"Use the approved card shell. Place the story and instructions above the experiment. Show state names, active state, and completed-state trace here only. Parameter-control budget: zero. Navigation budget: one index control and Reset. Every state persists until learner action, including Telophase. Reference captures show Telophase.\",\n      \"bind\": {\n        \"active\": \"state.id\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"mitosis-picture\",\n      \"kind\": \"fixed-picture\",\n      \"presentation\": \"Use the canonical cell-cycle composition and tested parts, assembled directly through frozen sdk8. Arrange fixed snapshots in two columns, read left-to-right and downward. Keep every snapshot visible for comparison; outline the active snapshot. Use a shared chromosome-glyph scale; cell outlines are schematic. Direct-label named structures where present, without adding numerical badges. Preserve chromosome identity labels and redundant shape patterns across snapshots. Above the picture, state: simplified animal cell; prior DNA replication complete; error-free segregation; no further DNA synthesis. Also state: count joined sisters as one chromosome, and separated sisters individually. Use exact integer counts without rounding. No timed motion or fabricated clock.\",\n      \"bind\": {\n        \"active\": \"state.active\",\n        \"links\": \"variant.links\",\n        \"regions\": \"variant.regions\"\n      }\n    },\n    {\n      \"id\": \"mitosis-callout\",\n      \"kind\": \"active-callout\",\n      \"presentation\": \"Anchor the callout to the active cell snapshot without covering chromosomes. Callout text identifies the decisive structure or change, not numerical values. Render the bound reason as the persistent status line.\",\n      \"bind\": {\n        \"reason\": \"state.why\",\n        \"target\": \"state.calloutRegion\",\n        \"text\": \"state.sentence\"\n      }\n    },\n    {\n      \"id\": \"mitosis-counts\",\n      \"kind\": \"value-readout\",\n      \"presentation\": \"Place readouts beneath the picture. Derive exact counts from the depicted chromosome identities, sister multiplicity, and allocation. Formula labels specify whole-cell or daughter-nucleus scope. DNA molecules and chromosomes are counts, not concentration measurements. Keep each measurement here rather than repeating it in callouts.\",\n      \"bind\": {\n        \"values\": \"state.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"mitotic-state\",\n      \"kind\": \"index\",\n      \"presentation\": \"Use Previous and Next. Default index: 0; bounds: 0–5 inclusive; increment: 1. Selection changes the highlighted snapshot, mechanism explanation, and chromosome accounting. Preserve button names when disabled at boundaries. Do not wrap or advance automatically. Provide visible focus and keyboard operation.\",\n      \"items\": \"variant.states\",\n      \"label\": \"Mitotic state\"\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"presentation\": \"Restore the Prepared state and all defaults. Provide visible focus and keyboard operation.\",\n      \"label\": \"Reset\"\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Mitosis in a simplified animal cell\",\n        \"regions\": [\n          {\n            \"id\": \"prepared-cell\",\n            \"label\": \"Prepared: after DNA replication\",\n            \"phases\": [\n              \"Replicated chromosome identities: A, B, C, D.\",\n              \"Each identity has matching sister chromatids joined at the centromere.\",\n              \"Nuclear envelope: intact.\",\n              \"Chromosomes: uncondensed, with identities distinguished schematically for tracking.\",\n              \"Kinetochores: associated with sister centromeres.\",\n              \"Spindle fibers: not attached.\"\n            ]\n          },\n          {\n            \"id\": \"prophase-cell\",\n            \"label\": \"Prophase\",\n            \"phases\": [\n              \"Replicated chromosome identities: A, B, C, D.\",\n              \"Chromosomes: condensed; matching sister chromatids remain joined at centromeres.\",\n              \"Nuclear envelope: still present in this snapshot.\",\n              \"Spindle fibers: assembling between spindle poles.\",\n              \"Kinetochores: not yet attached to spindle fibers.\"\n            ]\n          },\n          {\n            \"id\": \"prometaphase-cell\",\n            \"label\": \"Prometaphase\",\n            \"phases\": [\n              \"Replicated chromosome identities: A, B, C, D.\",\n              \"Nuclear envelope: disassembled.\",\n              \"Sister chromatids: still joined at centromeres.\",\n              \"Spindle fibers: attached to sister kinetochores from opposite spindle poles.\",\n              \"Chromosomes: not yet aligned at the cell equator.\"\n            ]\n          },\n          {\n            \"id\": \"metaphase-cell\",\n            \"label\": \"Metaphase\",\n            \"phases\": [\n              \"Replicated chromosome identities: A, B, C, D.\",\n              \"Chromosomes: aligned at the cell equator.\",\n              \"Sister chromatids: still joined at centromeres.\",\n              \"Sister kinetochores: attached to spindle fibers from opposite spindle poles.\",\n              \"Nuclear envelope: absent.\"\n            ]\n          },\n          {\n            \"id\": \"anaphase-cell\",\n            \"label\": \"Anaphase\",\n            \"phases\": [\n              \"Left spindle-pole allocation: A, B, C, D.\",\n              \"Right spindle-pole allocation: A, B, C, D.\",\n              \"Former sister chromatids: separated; each is now an individual chromosome.\",\n              \"Centromeres and attached kinetochores: separated with their chromosomes.\",\n              \"Attached spindle fibers: shortened, bringing chromosomes toward opposite spindle poles.\",\n              \"Nuclear envelope: absent; the cell remains undivided.\"\n            ]\n          },\n          {\n            \"id\": \"telophase-cell\",\n            \"label\": \"Telophase: matching daughter nuclei\",\n            \"phases\": [\n              \"Left daughter-nucleus allocation: A, B, C, D.\",\n              \"Right daughter-nucleus allocation: A, B, C, D.\",\n              \"Nuclear envelopes: reformed around the separated chromosome sets.\",\n              \"Chromosomes: beginning to decondense; identities remain distinguishable schematically.\",\n              \"Spindle fibers: disassembling.\",\n              \"Cleavage furrow: beginning to divide the cytoplasm; the cell remains connected.\"\n            ]\n          }\n        ],\n        \"links\": [],\n        \"states\": [\n          {\n            \"id\": \"prepared\",\n            \"label\": \"Prepared\",\n            \"short\": \"DNA copied\",\n            \"sentence\": \"Inside the intact nuclear envelope, each chromosome already has matching sister chromatids.\",\n            \"why\": \"This preparation precedes mitosis; the following states redistribute existing DNA rather than replicate it.\",\n            \"active\": [\n              \"prepared-cell\"\n            ],\n            \"calloutRegion\": \"prepared-cell\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-accounting\",\n                \"label\": \"Chromosome count: whole cell\",\n                \"value\": \"8 DNA molecules ÷ 2 molecules per duplicated chromosome = 4 chromosomes\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"DNA allocation\",\n                \"value\": \"Inside the original nucleus; sisters remain joined\"\n              }\n            ]\n          },\n          {\n            \"id\": \"prophase\",\n            \"label\": \"Prophase\",\n            \"short\": \"Condense\",\n            \"sentence\": \"Chromosomes condense while spindle fibers begin assembling outside the nuclear envelope.\",\n            \"why\": \"Condensation changes chromosome packaging, not chromosome number or DNA quantity.\",\n            \"active\": [\n              \"prophase-cell\"\n            ],\n            \"calloutRegion\": \"prophase-cell\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-accounting\",\n                \"label\": \"Chromosome count: whole cell\",\n                \"value\": \"8 DNA molecules ÷ 2 molecules per duplicated chromosome = 4 chromosomes\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"DNA allocation\",\n                \"value\": \"Inside the original nucleus; sisters remain joined\"\n              }\n            ]\n          },\n          {\n            \"id\": \"prometaphase\",\n            \"label\": \"Prometaphase\",\n            \"short\": \"Attach\",\n            \"sentence\": \"The nuclear envelope disassembles, allowing spindle fibers to attach to kinetochores.\",\n            \"why\": \"Opposite-pole attachments position sister chromatids for separation without changing the DNA inventory.\",\n            \"active\": [\n              \"prometaphase-cell\"\n            ],\n            \"calloutRegion\": \"prometaphase-cell\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-accounting\",\n                \"label\": \"Chromosome count: whole cell\",\n                \"value\": \"8 DNA molecules ÷ 2 molecules per duplicated chromosome = 4 chromosomes\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"DNA allocation\",\n                \"value\": \"Within the undivided cell; sisters remain joined\"\n              }\n            ]\n          },\n          {\n            \"id\": \"metaphase\",\n            \"label\": \"Metaphase\",\n            \"short\": \"Align\",\n            \"sentence\": \"Chromosomes align at the equator, with sister kinetochores attached toward opposite spindle poles.\",\n            \"why\": \"Compare this joined-sister arrangement with Anaphase; alignment prepares matching chromosome sets to move apart.\",\n            \"active\": [\n              \"metaphase-cell\"\n            ],\n            \"calloutRegion\": \"metaphase-cell\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-accounting\",\n                \"label\": \"Chromosome count: whole cell\",\n                \"value\": \"8 DNA molecules ÷ 2 molecules per duplicated chromosome = 4 chromosomes\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"DNA allocation\",\n                \"value\": \"Aligned at the equator; sisters remain joined\"\n              }\n            ]\n          },\n          {\n            \"id\": \"anaphase\",\n            \"label\": \"Anaphase\",\n            \"short\": \"Separate\",\n            \"sentence\": \"Sister chromatids separate and move toward opposite spindle poles as individual chromosomes.\",\n            \"why\": \"Chromosome counting changes when sisters separate; no additional DNA is made.\",\n            \"active\": [\n              \"anaphase-cell\"\n            ],\n            \"calloutRegion\": \"anaphase-cell\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-accounting\",\n                \"label\": \"Chromosome count: whole undivided cell\",\n                \"value\": \"8 DNA molecules ÷ 1 molecule per chromosome = 8 chromosomes\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"Allocation at each spindle pole\",\n                \"value\": \"4 chromosomes; 4 DNA molecules\"\n              }\n            ]\n          },\n          {\n            \"id\": \"telophase\",\n            \"label\": \"Telophase\",\n            \"short\": \"Re-form nuclei\",\n            \"sentence\": \"Re-formed nuclear envelopes enclose matching chromosome sets, preserving the starting chromosome complement in each daughter nucleus.\",\n            \"why\": \"Mitosis completes nuclear division; the cleavage furrow begins cytokinesis, which can overlap late mitosis.\",\n            \"active\": [\n              \"telophase-cell\"\n            ],\n            \"calloutRegion\": \"telophase-cell\",\n            \"readouts\": [\n              {\n                \"id\": \"chromosome-accounting\",\n                \"label\": \"Chromosome count: each daughter nucleus\",\n                \"value\": \"4 DNA molecules ÷ 1 molecule per chromosome = 4 chromosomes\"\n              },\n              {\n                \"id\": \"allocation\",\n                \"label\": \"DNA across both daughter nuclei\",\n                \"value\": \"8 DNA molecules total, unchanged from the prepared state\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Begin after DNA replication, with chromosomes inside the nuclear envelope. Follow sister chromatids, centromeres, kinetochores, spindle fibers, and spindle poles through alignment and separation. Compare the starting nucleus with daughter nuclei as nuclear envelopes reform. The cleavage furrow marks cytokinesis beginning, not an additional mitotic phase.",
+  "aha": {
+   "stateId": "telophase",
+   "observation": "Each daughter nucleus receives the starting chromosome number because mitosis separates copied sister chromatids without copying DNA again."
+  },
+  "layout": {
+   "preset": "cycle",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "mitosis-rail",
+    "kind": "step-rail",
+    "presentation": "Use the approved card shell. Place the story and instructions above the experiment. Show state names, active state, and completed-state trace here only. Parameter-control budget: zero. Navigation budget: one index control and Reset. Every state persists until learner action, including Telophase. Reference captures show Telophase.",
+    "bind": {
+     "active": "state.id",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "mitosis-picture",
+    "kind": "fixed-picture",
+    "presentation": "Use the canonical cell-cycle composition and tested parts, assembled directly through frozen sdk8. Arrange fixed snapshots in two columns, read left-to-right and downward. Keep every snapshot visible for comparison; outline the active snapshot. Use a shared chromosome-glyph scale; cell outlines are schematic. Direct-label named structures where present, without adding numerical badges. Preserve chromosome identity labels and redundant shape patterns across snapshots. Above the picture, state: simplified animal cell; prior DNA replication complete; error-free segregation; no further DNA synthesis. Also state: count joined sisters as one chromosome, and separated sisters individually. Use exact integer counts without rounding. No timed motion or fabricated clock.",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "mitosis-callout",
+    "kind": "active-callout",
+    "presentation": "Anchor the callout to the active cell snapshot without covering chromosomes. Callout text identifies the decisive structure or change, not numerical values. Render the bound reason as the persistent status line.",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "mitosis-counts",
+    "kind": "value-readout",
+    "presentation": "Place readouts beneath the picture. Derive exact counts from the depicted chromosome identities, sister multiplicity, and allocation. Formula labels specify whole-cell or daughter-nucleus scope. DNA molecules and chromosomes are counts, not concentration measurements. Keep each measurement here rather than repeating it in callouts.",
+    "bind": {
+     "values": "state.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "mitotic-state",
+    "kind": "index",
+    "presentation": "Use Previous and Next. Default index: 0; bounds: 0–5 inclusive; increment: 1. Selection changes the highlighted snapshot, mechanism explanation, and chromosome accounting. Preserve button names when disabled at boundaries. Do not wrap or advance automatically. Provide visible focus and keyboard operation.",
+    "items": "variant.states",
+    "label": "Mitotic state"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "presentation": "Restore the Prepared state and all defaults. Provide visible focus and keyboard operation.",
+    "label": "Reset"
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Mitosis in a simplified animal cell",
+     "regions": [
+      {
+       "id": "prepared-cell",
+       "label": "Prepared: after DNA replication",
+       "phases": [
+        "Replicated chromosome identities: A, B, C, D.",
+        "Each identity has matching sister chromatids joined at the centromere.",
+        "Nuclear envelope: intact.",
+        "Chromosomes: uncondensed, with identities distinguished schematically for tracking.",
+        "Kinetochores: associated with sister centromeres.",
+        "Spindle fibers: not attached."
+       ]
+      },
+      {
+       "id": "prophase-cell",
+       "label": "Prophase",
+       "phases": [
+        "Replicated chromosome identities: A, B, C, D.",
+        "Chromosomes: condensed; matching sister chromatids remain joined at centromeres.",
+        "Nuclear envelope: still present in this snapshot.",
+        "Spindle fibers: assembling between spindle poles.",
+        "Kinetochores: not yet attached to spindle fibers."
+       ]
+      },
+      {
+       "id": "prometaphase-cell",
+       "label": "Prometaphase",
+       "phases": [
+        "Replicated chromosome identities: A, B, C, D.",
+        "Nuclear envelope: disassembled.",
+        "Sister chromatids: still joined at centromeres.",
+        "Spindle fibers: attached to sister kinetochores from opposite spindle poles.",
+        "Chromosomes: not yet aligned at the cell equator."
+       ]
+      },
+      {
+       "id": "metaphase-cell",
+       "label": "Metaphase",
+       "phases": [
+        "Replicated chromosome identities: A, B, C, D.",
+        "Chromosomes: aligned at the cell equator.",
+        "Sister chromatids: still joined at centromeres.",
+        "Sister kinetochores: attached to spindle fibers from opposite spindle poles.",
+        "Nuclear envelope: absent."
+       ]
+      },
+      {
+       "id": "anaphase-cell",
+       "label": "Anaphase",
+       "phases": [
+        "Left spindle-pole allocation: A, B, C, D.",
+        "Right spindle-pole allocation: A, B, C, D.",
+        "Former sister chromatids: separated; each is now an individual chromosome.",
+        "Centromeres and attached kinetochores: separated with their chromosomes.",
+        "Attached spindle fibers: shortened, bringing chromosomes toward opposite spindle poles.",
+        "Nuclear envelope: absent; the cell remains undivided."
+       ]
+      },
+      {
+       "id": "telophase-cell",
+       "label": "Telophase: matching daughter nuclei",
+       "phases": [
+        "Left daughter-nucleus allocation: A, B, C, D.",
+        "Right daughter-nucleus allocation: A, B, C, D.",
+        "Nuclear envelopes: reformed around the separated chromosome sets.",
+        "Chromosomes: beginning to decondense; identities remain distinguishable schematically.",
+        "Spindle fibers: disassembling.",
+        "Cleavage furrow: beginning to divide the cytoplasm; the cell remains connected."
+       ]
+      }
+     ],
+     "links": [],
+     "states": [
+      {
+       "id": "prepared",
+       "label": "Prepared",
+       "short": "DNA copied",
+       "sentence": "Inside the intact nuclear envelope, each chromosome already has matching sister chromatids.",
+       "why": "This preparation precedes mitosis; the following states redistribute existing DNA rather than replicate it.",
+       "active": [
+        "prepared-cell"
+       ],
+       "calloutRegion": "prepared-cell",
+       "readouts": [
+        {
+         "id": "chromosome-accounting",
+         "label": "Chromosome count: whole cell",
+         "value": "8 DNA molecules ÷ 2 molecules per duplicated chromosome = 4 chromosomes"
+        },
+        {
+         "id": "allocation",
+         "label": "DNA allocation",
+         "value": "Inside the original nucleus; sisters remain joined"
+        }
+       ]
+      },
+      {
+       "id": "prophase",
+       "label": "Prophase",
+       "short": "Condense",
+       "sentence": "Chromosomes condense while spindle fibers begin assembling outside the nuclear envelope.",
+       "why": "Condensation changes chromosome packaging, not chromosome number or DNA quantity.",
+       "active": [
+        "prophase-cell"
+       ],
+       "calloutRegion": "prophase-cell",
+       "readouts": [
+        {
+         "id": "chromosome-accounting",
+         "label": "Chromosome count: whole cell",
+         "value": "8 DNA molecules ÷ 2 molecules per duplicated chromosome = 4 chromosomes"
+        },
+        {
+         "id": "allocation",
+         "label": "DNA allocation",
+         "value": "Inside the original nucleus; sisters remain joined"
+        }
+       ]
+      },
+      {
+       "id": "prometaphase",
+       "label": "Prometaphase",
+       "short": "Attach",
+       "sentence": "The nuclear envelope disassembles, allowing spindle fibers to attach to kinetochores.",
+       "why": "Opposite-pole attachments position sister chromatids for separation without changing the DNA inventory.",
+       "active": [
+        "prometaphase-cell"
+       ],
+       "calloutRegion": "prometaphase-cell",
+       "readouts": [
+        {
+         "id": "chromosome-accounting",
+         "label": "Chromosome count: whole cell",
+         "value": "8 DNA molecules ÷ 2 molecules per duplicated chromosome = 4 chromosomes"
+        },
+        {
+         "id": "allocation",
+         "label": "DNA allocation",
+         "value": "Within the undivided cell; sisters remain joined"
+        }
+       ]
+      },
+      {
+       "id": "metaphase",
+       "label": "Metaphase",
+       "short": "Align",
+       "sentence": "Chromosomes align at the equator, with sister kinetochores attached toward opposite spindle poles.",
+       "why": "Compare this joined-sister arrangement with Anaphase; alignment prepares matching chromosome sets to move apart.",
+       "active": [
+        "metaphase-cell"
+       ],
+       "calloutRegion": "metaphase-cell",
+       "readouts": [
+        {
+         "id": "chromosome-accounting",
+         "label": "Chromosome count: whole cell",
+         "value": "8 DNA molecules ÷ 2 molecules per duplicated chromosome = 4 chromosomes"
+        },
+        {
+         "id": "allocation",
+         "label": "DNA allocation",
+         "value": "Aligned at the equator; sisters remain joined"
+        }
+       ]
+      },
+      {
+       "id": "anaphase",
+       "label": "Anaphase",
+       "short": "Separate",
+       "sentence": "Sister chromatids separate and move toward opposite spindle poles as individual chromosomes.",
+       "why": "Chromosome counting changes when sisters separate; no additional DNA is made.",
+       "active": [
+        "anaphase-cell"
+       ],
+       "calloutRegion": "anaphase-cell",
+       "readouts": [
+        {
+         "id": "chromosome-accounting",
+         "label": "Chromosome count: whole undivided cell",
+         "value": "8 DNA molecules ÷ 1 molecule per chromosome = 8 chromosomes"
+        },
+        {
+         "id": "allocation",
+         "label": "Allocation at each spindle pole",
+         "value": "4 chromosomes; 4 DNA molecules"
+        }
+       ]
+      },
+      {
+       "id": "telophase",
+       "label": "Telophase",
+       "short": "Re-form nuclei",
+       "sentence": "Re-formed nuclear envelopes enclose matching chromosome sets, preserving the starting chromosome complement in each daughter nucleus.",
+       "why": "Mitosis completes nuclear division; the cleavage furrow begins cytokinesis, which can overlap late mitosis.",
+       "active": [
+        "telophase-cell"
+       ],
+       "calloutRegion": "telophase-cell",
+       "readouts": [
+        {
+         "id": "chromosome-accounting",
+         "label": "Chromosome count: each daughter nucleus",
+         "value": "4 DNA molecules ÷ 1 molecule per chromosome = 4 chromosomes"
+        },
+        {
+         "id": "allocation",
+         "label": "DNA across both daughter nuclei",
+         "value": "8 DNA molecules total, unchanged from the prepared state"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1533,
+  "output": 8491
+ },
+ "usd": 0.085106,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed snapshots of chromosomes A–D, sister chromatids, spindle fibers and nuclei show that separating sisters without new DNA gives each daughter nucleus the starting count."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The scene is untimed and advances only through Previous/Next; the aha state (Telophase) persists with no auto-advance, and reference captures show Telophase."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The scene has no parameter by design (budget zero). The single index control changes the active snapshot, callout and chromosome accounting, and the fixed comparison is justified."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The callout and readouts bind to state fields, but variant.links is empty, so no links or arrows connect the snapshots. Also, the prepared region has id \"prepared-cell\" while its state is \"prepared\", which is only a loose match."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state labels and region labels all use the same chromosome identities (A–D), structures and events. The story's note that the furrow marks cytokinesis beginning matches the telophase text."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "Six snapshots with one outlined active cell, two readouts per state and a count formula fit the Deep mitosis density ceiling without extra clutter."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "The counts check out: 8÷2=4, 8÷1=8, 4 per pole with 4 DNA molecules, and 4÷1=4 per daughter nucleus with 8 total. Callouts carry no numbers, and each value appears only in the readouts."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.017422
+ }
+}

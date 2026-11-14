@@ -1,0 +1,236 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "a01",
+ "set": "A",
+ "subject": null,
+ "depth": "brief",
+ "request": "what is gradient descent?",
+ "ts": "2026-11-14T22:19:52.941Z",
+ "ms": 3237,
+ "raw": "{\n  \"story\": \"Gradient descent minimizes loss by shifting parameters against the slope. Each step reduces the error until convergence at the minimum.\",\n  \"aha\": {\n    \"stateId\": \"step3\",\n    \"observation\": \"At the minimum, the gradient approaches zero and updates cease.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"pic\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"reason\": \"variant.states.why\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states.why\",\n        \"target\": \"variant.states.calloutRegion\",\n        \"text\": \"variant.states.sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states.readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Step\",\n      \"options\": [\"Init\", \"Step 1\", \"Step 2\", \"Converged\"]\n    },\n    {\n      \"id\": \"resetBtn\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Gradient Descent Overview\",\n        \"regions\": [\n          {\n            \"id\": \"param\",\n            \"label\": \"Parameter\",\n            \"kind\": \"box\",\n            \"values\": [\"x = 4.0\"]\n          },\n          {\n            \"id\": \"loss\",\n            \"label\": \"Loss Value\",\n            \"kind\": \"box\",\n            \"values\": [\"L = 16.0\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"step0\",\n            \"label\": \"Start\",\n            \"short\": \"Init\",\n            \"sentence\": \"Initialize parameter at an arbitrary high point.\",\n            \"why\": \"Starting point on the loss curve.\",\n            \"calloutRegion\": \"param\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Parameter x\",\n                \"value\": \"4.0\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Loss\",\n                \"value\": \"16.0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step1\",\n            \"label\": \"First Descent\",\n            \"short\": \"Step 1\",\n            \"sentence\": \"Compute gradient and take a step downhill.\",\n            \"why\": \"Steep slope yields a large parameter update.\",\n            \"calloutRegion\": \"param\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Parameter x\",\n                \"value\": \"2.0\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Loss\",\n                \"value\": \"4.0\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step2\",\n            \"label\": \"Second Descent\",\n            \"short\": \"Step 2\",\n            \"sentence\": \"Continue stepping towards the minimum.\",\n            \"why\": \"Slope flattens, reducing update magnitude.\",\n            \"calloutRegion\": \"param\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Parameter x\",\n                \"value\": \"0.5\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Loss\",\n                \"value\": \"0.25\"\n              }\n            ]\n          },\n          {\n            \"id\": \"step3\",\n            \"label\": \"Convergence\",\n            \"short\": \"Done\",\n            \"sentence\": \"Gradient is zero; loss is at its global minimum.\",\n            \"why\": \"No further updates occur.\",\n            \"calloutRegion\": \"loss\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Parameter x\",\n                \"value\": \"0.0\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Loss\",\n                \"value\": \"0.0\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Gradient descent minimizes loss by shifting parameters against the slope. Each step reduces the error until convergence at the minimum.",
+  "aha": {
+   "stateId": "step3",
+   "observation": "At the minimum, the gradient approaches zero and updates cease."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "pic",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "reason": "variant.states.why"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states.why",
+     "target": "variant.states.calloutRegion",
+     "text": "variant.states.sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states.readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Step",
+    "options": [
+     "Init",
+     "Step 1",
+     "Step 2",
+     "Converged"
+    ]
+   },
+   {
+    "id": "resetBtn",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Gradient Descent Overview",
+     "regions": [
+      {
+       "id": "param",
+       "label": "Parameter",
+       "kind": "box",
+       "values": [
+        "x = 4.0"
+       ]
+      },
+      {
+       "id": "loss",
+       "label": "Loss Value",
+       "kind": "box",
+       "values": [
+        "L = 16.0"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "step0",
+       "label": "Start",
+       "short": "Init",
+       "sentence": "Initialize parameter at an arbitrary high point.",
+       "why": "Starting point on the loss curve.",
+       "calloutRegion": "param",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Parameter x",
+         "value": "4.0"
+        },
+        {
+         "id": "r2",
+         "label": "Loss",
+         "value": "16.0"
+        }
+       ]
+      },
+      {
+       "id": "step1",
+       "label": "First Descent",
+       "short": "Step 1",
+       "sentence": "Compute gradient and take a step downhill.",
+       "why": "Steep slope yields a large parameter update.",
+       "calloutRegion": "param",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Parameter x",
+         "value": "2.0"
+        },
+        {
+         "id": "r2",
+         "label": "Loss",
+         "value": "4.0"
+        }
+       ]
+      },
+      {
+       "id": "step2",
+       "label": "Second Descent",
+       "short": "Step 2",
+       "sentence": "Continue stepping towards the minimum.",
+       "why": "Slope flattens, reducing update magnitude.",
+       "calloutRegion": "param",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Parameter x",
+         "value": "0.5"
+        },
+        {
+         "id": "r2",
+         "label": "Loss",
+         "value": "0.25"
+        }
+       ]
+      },
+      {
+       "id": "step3",
+       "label": "Convergence",
+       "short": "Done",
+       "sentence": "Gradient is zero; loss is at its global minimum.",
+       "why": "No further updates occur.",
+       "calloutRegion": "loss",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Parameter x",
+         "value": "0.0"
+        },
+        {
+         "id": "r2",
+         "label": "Loss",
+         "value": "0.0"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1101,
+  "output": 1179
+ },
+ "usd": 0.003278,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "No",
+     "reason": "The fixed-picture only has two boxes (param and loss) showing text values, with no loss curve or slope marks, so the mechanism of descending against the gradient is not drawn."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha is at step3, but the stepIndex control starts at Init and nothing shows that the card holds at the aha; the learner must step through, and the final state is reached only by acting, with no clear hold design."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex control selects different states with different x and loss readouts, so changing it changes the evidence shown."
+    },
+    "4": {
+     "answer": "No",
+     "reason": "The callout targets only the param or loss regions, and there are no gradient, arrow or ghost parts, so the gradient and step-size claims in the text have no bound data (no gradient value is declared)."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, step labels (Init, Step 1, Step 2, Converged) and callout sentences all refer to the same parameter, loss and descent events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The brief depth has a minimal set of parts (a rail, two regions, a callout and a readout) with no clutter."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "Values are consistent with L=x² (4→16, 2→4, 0.5→0.25), but the steps are not consistent with one gradient-descent rule (4→2→0.5→0 does not follow a fixed learning rate), and the values appear in both the regions and the readouts, so they are duplicated."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011814
+ }
+}

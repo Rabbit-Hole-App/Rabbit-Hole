@@ -1,0 +1,262 @@
+{
+ "model": "gemini-3.5-flash-lite",
+ "promptId": "x-water-cycle",
+ "set": "X",
+ "subject": null,
+ "depth": "balanced",
+ "request": "how does the water cycle work?",
+ "ts": "2026-11-14T22:24:40.628Z",
+ "ms": 3382,
+ "raw": "{\n  \"story\": \"Water moves endlessly through Earth's systems. Solar energy drives evaporation from oceans into vapor. Vapor cools and condenses into clouds, forming precipitation that returns water back to land.\",\n  \"aha\": {\n    \"stateId\": \"precipitation\",\n    \"observation\": \"Condensed vapor falls as rain or snow, completing the continuous loop back to earth.\"\n  },\n  \"layout\": {\n    \"preset\": \"stepper-states\",\n    \"width\": 640\n  },\n  \"parts\": [\n    {\n      \"id\": \"rail\",\n      \"kind\": \"step-rail\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"items\": \"variant.states\"\n      }\n    },\n    {\n      \"id\": \"picture\",\n      \"kind\": \"fixed-picture\",\n      \"bind\": {\n        \"active\": \"inputs.stepIndex\",\n        \"regions\": \"variant.regions\",\n        \"reason\": \"variant.states[inputs.stepIndex].why\"\n      }\n    },\n    {\n      \"id\": \"callout\",\n      \"kind\": \"active-callout\",\n      \"bind\": {\n        \"reason\": \"variant.states[inputs.stepIndex].why\",\n        \"target\": \"variant.states[inputs.stepIndex].calloutRegion\",\n        \"text\": \"variant.states[inputs.stepIndex].sentence\"\n      }\n    },\n    {\n      \"id\": \"readout\",\n      \"kind\": \"value-readout\",\n      \"bind\": {\n        \"values\": \"variant.states[inputs.stepIndex].readouts\"\n      }\n    }\n  ],\n  \"controls\": [\n    {\n      \"id\": \"stepIndex\",\n      \"kind\": \"index\",\n      \"label\": \"Cycle Step\",\n      \"options\": [\n        \"evaporation\",\n        \"condensation\",\n        \"precipitation\",\n        \"collection\"\n      ]\n    },\n    {\n      \"id\": \"reset\",\n      \"kind\": \"reset\",\n      \"label\": \"Reset\",\n      \"options\": []\n    }\n  ],\n  \"data\": {\n    \"variants\": [\n      {\n        \"label\": \"Water Cycle Phases\",\n        \"regions\": [\n          {\n            \"id\": \"ocean\",\n            \"label\": \"Ocean\",\n            \"values\": [\"97% water storage\"]\n          },\n          {\n            \"id\": \"atmosphere\",\n            \"label\": \"Atmosphere\",\n            \"values\": [\"Vapor transport\"]\n          },\n          {\n            \"id\": \"clouds\",\n            \"label\": \"Clouds\",\n            \"values\": [\"Condensed droplets\"]\n          },\n          {\n            \"id\": \"mountains\",\n            \"label\": \"Mountains\",\n            \"values\": [\"Runoff source\"]\n          }\n        ],\n        \"states\": [\n          {\n            \"id\": \"evaporation\",\n            \"label\": \"Evaporation\",\n            \"short\": \"Evaporate\",\n            \"sentence\": \"Sunlight warms ocean water, turning liquid into invisible gas.\",\n            \"why\": \"Heat energy changes water state.\",\n            \"active\": [\"ocean\"],\n            \"calloutRegion\": \"ocean\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Phase\",\n                \"value\": \"Liquid to Gas\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Energy Source\",\n                \"value\": \"Solar\"\n              }\n            ]\n          },\n          {\n            \"id\": \"condensation\",\n            \"label\": \"Condensation\",\n            \"short\": \"Condense\",\n            \"sentence\": \"Rising water vapor cools in the upper air and forms clouds.\",\n            \"why\": \"Cooling causes gas to group into droplets.\",\n            \"active\": [\"clouds\"],\n            \"calloutRegion\": \"clouds\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Phase\",\n                \"value\": \"Gas to Liquid\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Altitude\",\n                \"value\": \"High\"\n              }\n            ]\n          },\n          {\n            \"id\": \"precipitation\",\n            \"label\": \"Precipitation\",\n            \"short\": \"Precipitate\",\n            \"sentence\": \"Heavy droplets fall back down as rain, snow, or sleet.\",\n            \"why\": \"Gravity pulls dense droplets downward.\",\n            \"active\": [\"clouds\", \"mountains\"],\n            \"calloutRegion\": \"clouds\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Phase\",\n                \"value\": \"Falling Liquid/Solid\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Force\",\n                \"value\": \"Gravity\"\n              }\n            ]\n          },\n          {\n            \"id\": \"collection\",\n            \"label\": \"Collection\",\n            \"short\": \"Collect\",\n            \"sentence\": \"Water flows across land back into oceans, restarting the cycle.\",\n            \"why\": \"Runoff gathers in lower elevations.\",\n            \"active\": [\"ocean\", \"mountains\"],\n            \"calloutRegion\": \"ocean\",\n            \"readouts\": [\n              {\n                \"id\": \"r1\",\n                \"label\": \"Phase\",\n                \"value\": \"Surface Runoff\"\n              },\n              {\n                \"id\": \"r2\",\n                \"label\": \"Destination\",\n                \"value\": \"Ocean\"\n              }\n            ]\n          }\n        ]\n      }\n    ]\n  }\n}",
+ "composition": {
+  "story": "Water moves endlessly through Earth's systems. Solar energy drives evaporation from oceans into vapor. Vapor cools and condenses into clouds, forming precipitation that returns water back to land.",
+  "aha": {
+   "stateId": "precipitation",
+   "observation": "Condensed vapor falls as rain or snow, completing the continuous loop back to earth."
+  },
+  "layout": {
+   "preset": "stepper-states",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "inputs.stepIndex",
+     "regions": "variant.regions",
+     "reason": "variant.states[inputs.stepIndex].why"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "variant.states[inputs.stepIndex].why",
+     "target": "variant.states[inputs.stepIndex].calloutRegion",
+     "text": "variant.states[inputs.stepIndex].sentence"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "variant.states[inputs.stepIndex].readouts"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "stepIndex",
+    "kind": "index",
+    "label": "Cycle Step",
+    "options": [
+     "evaporation",
+     "condensation",
+     "precipitation",
+     "collection"
+    ]
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "options": []
+   }
+  ],
+  "data": {
+   "variants": [
+    {
+     "label": "Water Cycle Phases",
+     "regions": [
+      {
+       "id": "ocean",
+       "label": "Ocean",
+       "values": [
+        "97% water storage"
+       ]
+      },
+      {
+       "id": "atmosphere",
+       "label": "Atmosphere",
+       "values": [
+        "Vapor transport"
+       ]
+      },
+      {
+       "id": "clouds",
+       "label": "Clouds",
+       "values": [
+        "Condensed droplets"
+       ]
+      },
+      {
+       "id": "mountains",
+       "label": "Mountains",
+       "values": [
+        "Runoff source"
+       ]
+      }
+     ],
+     "states": [
+      {
+       "id": "evaporation",
+       "label": "Evaporation",
+       "short": "Evaporate",
+       "sentence": "Sunlight warms ocean water, turning liquid into invisible gas.",
+       "why": "Heat energy changes water state.",
+       "active": [
+        "ocean"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Phase",
+         "value": "Liquid to Gas"
+        },
+        {
+         "id": "r2",
+         "label": "Energy Source",
+         "value": "Solar"
+        }
+       ]
+      },
+      {
+       "id": "condensation",
+       "label": "Condensation",
+       "short": "Condense",
+       "sentence": "Rising water vapor cools in the upper air and forms clouds.",
+       "why": "Cooling causes gas to group into droplets.",
+       "active": [
+        "clouds"
+       ],
+       "calloutRegion": "clouds",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Phase",
+         "value": "Gas to Liquid"
+        },
+        {
+         "id": "r2",
+         "label": "Altitude",
+         "value": "High"
+        }
+       ]
+      },
+      {
+       "id": "precipitation",
+       "label": "Precipitation",
+       "short": "Precipitate",
+       "sentence": "Heavy droplets fall back down as rain, snow, or sleet.",
+       "why": "Gravity pulls dense droplets downward.",
+       "active": [
+        "clouds",
+        "mountains"
+       ],
+       "calloutRegion": "clouds",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Phase",
+         "value": "Falling Liquid/Solid"
+        },
+        {
+         "id": "r2",
+         "label": "Force",
+         "value": "Gravity"
+        }
+       ]
+      },
+      {
+       "id": "collection",
+       "label": "Collection",
+       "short": "Collect",
+       "sentence": "Water flows across land back into oceans, restarting the cycle.",
+       "why": "Runoff gathers in lower elevations.",
+       "active": [
+        "ocean",
+        "mountains"
+       ],
+       "calloutRegion": "ocean",
+       "readouts": [
+        {
+         "id": "r1",
+         "label": "Phase",
+         "value": "Surface Runoff"
+        },
+        {
+         "id": "r2",
+         "label": "Destination",
+         "value": "Ocean"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "usage": {
+  "input": 1103,
+  "output": 1314
+ },
+ "usd": 0.003616,
+ "stop": "stop",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The fixed picture with ocean, atmosphere, clouds and mountains regions highlighted per step shows the water cycle loop, answering how water circulates, though the drawing's marks are only declared as regions without explicit flow arrows."
+    },
+    "2": {
+     "answer": "No",
+     "reason": "The aha is declared as the precipitation state, but the scene is a stepper whose initial state is presumably evaporation and nothing holds or marks the aha state specifically; the learner just steps through four equal states."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The stepIndex control changes the active regions, callout, reason and readouts for each state, so each step changes the evidence shown."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Rail, picture, callout and readout are all bound to variant.states and regions via stepIndex, and each state's active and calloutRegion ids reference declared regions."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story's evaporation, condensation, precipitation and collection steps match the control options, state labels, callouts and region names consistently."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "At the balanced depth there is one active region set per step with two short readouts and a single callout, so no clutter is added."
+    },
+    "8": {
+     "answer": "No",
+     "reason": "The readouts partly repeat the callout and reason text (e.g. Gravity, Solar), and the ocean region value '97% water storage' is a static figure that is not tied to any state change, so values are not cleanly placed once."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.011984
+ }
+}

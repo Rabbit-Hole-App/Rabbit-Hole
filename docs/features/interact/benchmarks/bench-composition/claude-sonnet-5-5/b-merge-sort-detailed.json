@@ -1,0 +1,142 @@
+{
+ "model": "claude-sonnet-5-5",
+ "promptId": "b-merge-sort",
+ "set": "B",
+ "subject": "merge-sort",
+ "depth": "detailed",
+ "request": "how does merge sort work?",
+ "ts": "2026-11-14T22:36:19.086Z",
+ "ms": 36881,
+ "raw": "{\"story\":\"Merge sort splits eight numbers into halves until each piece is one item, which is already sorted. Then it merges sorted pieces back together. Each merge compares only the front items of two sorted runs. Step through to see 17 comparisons sort all eight.\",\"aha\":{\"stateId\":\"s7\",\"observation\":\"Because both halves are already sorted, the final merge only compares front items: eight numbers need just 7 comparisons, reaching 17 in total.\"},\"layout\":{\"preset\":\"stepper-card\",\"width\":640},\"parts\":[{\"id\":\"rail\",\"kind\":\"step-rail\",\"bind\":{\"active\":\"inputs.step\",\"items\":\"variant.states\"}},{\"id\":\"picture\",\"kind\":\"fixed-picture\",\"bind\":{\"active\":\"state.active\",\"links\":\"variant.links\",\"regions\":\"variant.regions\"}},{\"id\":\"callout\",\"kind\":\"active-callout\",\"bind\":{\"reason\":\"state.why\",\"target\":\"state.calloutRegion\",\"text\":\"state.sentence\"}},{\"id\":\"ghost\",\"kind\":\"previous-state-ghost\",\"bind\":{\"regions\":\"previous.active\"}},{\"id\":\"readout\",\"kind\":\"value-readout\",\"bind\":{\"values\":\"state.readouts\"}},{\"id\":\"trace\",\"kind\":\"progress\",\"bind\":{\"completedBefore\":\"inputs.step\",\"items\":\"variant.states\"}}],\"controls\":[{\"id\":\"step\",\"kind\":\"index\",\"label\":\"Step\",\"items\":\"variant.states\",\"default\":0,\"presentation\":\"Previous and Next buttons; disabled but still named at the first and last step\"},{\"id\":\"reset\",\"kind\":\"reset\",\"label\":\"Reset\",\"presentation\":\"Returns to step 1 (Start)\"}],\"data\":\"[{\\\"variants\\\":[{\\\"label\\\":\\\"Merge sort of 8 numbers: 6 3 8 1 7 2 5 4\\\",\\\"regions\\\":[{\\\"id\\\":\\\"all\\\",\\\"label\\\":\\\"Whole array\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"6\\\",\\\"3\\\",\\\"8\\\",\\\"1\\\",\\\"7\\\",\\\"2\\\",\\\"5\\\",\\\"4\\\"]},{\\\"id\\\":\\\"l4\\\",\\\"label\\\":\\\"Left half\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"6\\\",\\\"3\\\",\\\"8\\\",\\\"1\\\"]},{\\\"id\\\":\\\"r4\\\",\\\"label\\\":\\\"Right half\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"7\\\",\\\"2\\\",\\\"5\\\",\\\"4\\\"]},{\\\"id\\\":\\\"ll\\\",\\\"label\\\":\\\"Pair A\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"6\\\",\\\"3\\\"]},{\\\"id\\\":\\\"lr\\\",\\\"label\\\":\\\"Pair B\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"8\\\",\\\"1\\\"]},{\\\"id\\\":\\\"rl\\\",\\\"label\\\":\\\"Pair C\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"7\\\",\\\"2\\\"]},{\\\"id\\\":\\\"rr\\\",\\\"label\\\":\\\"Pair D\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"5\\\",\\\"4\\\"]},{\\\"id\\\":\\\"mll\\\",\\\"label\\\":\\\"Sorted pair A\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"3\\\",\\\"6\\\"]},{\\\"id\\\":\\\"mlr\\\",\\\"label\\\":\\\"Sorted pair B\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"1\\\",\\\"8\\\"]},{\\\"id\\\":\\\"mrl\\\",\\\"label\\\":\\\"Sorted pair C\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"2\\\",\\\"7\\\"]},{\\\"id\\\":\\\"mrr\\\",\\\"label\\\":\\\"Sorted pair D\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"4\\\",\\\"5\\\"]},{\\\"id\\\":\\\"ml\\\",\\\"label\\\":\\\"Sorted left half\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"1\\\",\\\"3\\\",\\\"6\\\",\\\"8\\\"]},{\\\"id\\\":\\\"mr\\\",\\\"label\\\":\\\"Sorted right half\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"2\\\",\\\"4\\\",\\\"5\\\",\\\"7\\\"]},{\\\"id\\\":\\\"sorted\\\",\\\"label\\\":\\\"Sorted array\\\",\\\"kind\\\":\\\"run\\\",\\\"values\\\":[\\\"1\\\",\\\"2\\\",\\\"3\\\",\\\"4\\\",\\\"5\\\",\\\"6\\\",\\\"7\\\",\\\"8\\\"]}],\\\"links\\\":[{\\\"from\\\":\\\"all\\\",\\\"to\\\":\\\"l4\\\",\\\"label\\\":\\\"split\\\"},{\\\"from\\\":\\\"all\\\",\\\"to\\\":\\\"r4\\\",\\\"label\\\":\\\"split\\\"},{\\\"from\\\":\\\"l4\\\",\\\"to\\\":\\\"ll\\\",\\\"label\\\":\\\"split\\\"},{\\\"from\\\":\\\"l4\\\",\\\"to\\\":\\\"lr\\\",\\\"label\\\":\\\"split\\\"},{\\\"from\\\":\\\"r4\\\",\\\"to\\\":\\\"rl\\\",\\\"label\\\":\\\"split\\\"},{\\\"from\\\":\\\"r4\\\",\\\"to\\\":\\\"rr\\\",\\\"label\\\":\\\"split\\\"},{\\\"from\\\":\\\"ll\\\",\\\"to\\\":\\\"mll\\\",\\\"label\\\":\\\"merge\\\"},{\\\"from\\\":\\\"lr\\\",\\\"to\\\":\\\"mlr\\\",\\\"label\\\":\\\"merge\\\"},{\\\"from\\\":\\\"rl\\\",\\\"to\\\":\\\"mrl\\\",\\\"label\\\":\\\"merge\\\"},{\\\"from\\\":\\\"rr\\\",\\\"to\\\":\\\"mrr\\\",\\\"label\\\":\\\"merge\\\"},{\\\"from\\\":\\\"mll\\\",\\\"to\\\":\\\"ml\\\",\\\"label\\\":\\\"merge\\\"},{\\\"from\\\":\\\"mlr\\\",\\\"to\\\":\\\"ml\\\",\\\"label\\\":\\\"merge\\\"},{\\\"from\\\":\\\"mrl\\\",\\\"to\\\":\\\"mr\\\",\\\"label\\\":\\\"merge\\\"},{\\\"from\\\":\\\"mrr\\\",\\\"to\\\":\\\"mr\\\",\\\"label\\\":\\\"merge\\\"},{\\\"from\\\":\\\"ml\\\",\\\"to\\\":\\\"sorted\\\",\\\"label\\\":\\\"merge\\\"},{\\\"from\\\":\\\"mr\\\",\\\"to\\\":\\\"sorted\\\",\\\"label\\\":\\\"merge\\\"}],\\\"states\\\":[{\\\"id\\\":\\\"s0\\\",\\\"label\\\":\\\"Start\\\",\\\"short\\\":\\\"Start\\\",\\\"sentence\\\":\\\"Eight numbers sit in one unsorted array. Nothing is compared yet.\\\",\\\"why\\\":\\\"This is the input every later step divides and rebuilds.\\\",\\\"calloutRegion\\\":\\\"all\\\",\\\"active\\\":[\\\"all\\\"],\\\"readouts\\\":[{\\\"id\\\":\\\"cmp-step\\\",\\\"label\\\":\\\"Comparisons this step\\\",\\\"value\\\":\\\"0\\\"},{\\\"id\\\":\\\"cmp-total\\\",\\\"label\\\":\\\"Comparisons so far\\\",\\\"value\\\":\\\"0\\\"},{\\\"id\\\":\\\"run\\\",\\\"label\\\":\\\"Longest sorted run\\\",\\\"value\\\":\\\"1\\\"},{\\\"id\\\":\\\"bound\\\",\\\"label\\\":\\\"Worst case, n·log2 n − n + 1\\\",\\\"value\\\":\\\"8×3 − 8 + 1 = 17\\\"}]},{\\\"id\\\":\\\"s1\\\",\\\"label\\\":\\\"Split in half\\\",\\\"short\\\":\\\"Halve\\\",\\\"sentence\\\":\\\"Split the array into a left half and a right half of four items each.\\\",\\\"why\\\":\\\"Splitting needs no comparisons; it only shrinks the problem.\\\",\\\"calloutRegion\\\":\\\"l4\\\",\\\"active\\\":[\\\"all\\\",\\\"l4\\\",\\\"r4\\\"],\\\"readouts\\\":[{\\\"id\\\":\\\"cmp-step\\\",\\\"label\\\":\\\"Comparisons this step\\\",\\\"value\\\":\\\"0\\\"},{\\\"id\\\":\\\"cmp-total\\\",\\\"label\\\":\\\"Comparisons so far\\\",\\\"value\\\":\\\"0\\\"},{\\\"id\\\":\\\"run\\\",\\\"label\\\":\\\"Longest sorted run\\\",\\\"value\\\":\\\"1\\\"},{\\\"id\\\":\\\"bound\\\",\\\"label\\\":\\\"Worst case, n·log2 n − n + 1\\\",\\\"value\\\":\\\"8×3 − 8 + 1 = 17\\\"}]},{\\\"id\\\":\\\"s2\\\",\\\"label\\\":\\\"Split into pairs\\\",\\\"short\\\":\\\"Pairs\\\",\\\"sentence\\\":\\\"Split each half again, giving four pairs: A, B, C and D.\\\",\\\"why\\\":\\\"Halving continues because smaller pieces are easier to sort.\\\",\\\"calloutRegion\\\":\\\"ll\\\",\\\"active\\\":[\\\"l4\\\",\\\"r4\\\",\\\"ll\\\",\\\"lr\\\",\\\"rl\\\",\\\"rr\\\"],\\\"readouts\\\":[{\\\"id\\\":\\\"cmp-step\\\",\\\"label\\\":\\\"Comparisons this step\\\",\\\"value\\\":\\\"0\\\"},{\\\"id\\\":\\\"cmp-total\\\",\\\"label\\\":\\\"Comparisons so far\\\",\\\"value\\\":\\\"0\\\"},{\\\"id\\\":\\\"run\\\",\\\"label\\\":\\\"Longest sorted run\\\",\\\"value\\\":\\\"1\\\"},{\\\"id\\\":\\\"bound\\\",\\\"label\\\":\\\"Worst case, n·log2 n − n + 1\\\",\\\"value\\\":\\\"8×3 − 8 + 1 = 17\\\"}]},{\\\"id\\\":\\\"s3\\\",\\\"label\\\":\\\"Split to singles\\\",\\\"short\\\":\\\"Singles\\\",\\\"sentence\\\":\\\"Split each pair into single items. A run of one item is already sorted.\\\",\\\"why\\\":\\\"This is the base case: the splitting stops here and merging begins.\\\",\\\"calloutRegion\\\":\\\"ll\\\",\\\"active\\\":[\\\"ll\\\",\\\"lr\\\",\\\"rl\\\",\\\"rr\\\"],\\\"readouts\\\":[{\\\"id\\\":\\\"cmp-step\\\",\\\"label\\\":\\\"Comparisons this step\\\",\\\"value\\\":\\\"0\\\"},{\\\"id\\\":\\\"cmp-total\\\",\\\"label\\\":\\\"Comparisons so far\\\",\\\"value\\\":\\\"0\\\"},{\\\"id\\\":\\\"run\\\",\\\"label\\\":\\\"Longest sorted run\\\",\\\"value\\\":\\\"1\\\"},{\\\"id\\\":\\\"bound\\\",\\\"label\\\":\\\"Worst case, n·log2 n − n + 1\\\",\\\"value\\\":\\\"8×3 − 8 + 1 = 17\\\"}]},{\\\"id\\\":\\\"s4\\\",\\\"label\\\":\\\"Merge pairs\\\",\\\"short\\\":\\\"Merge pairs\\\",\\\"sentence\\\":\\\"Merge single items into sorted pairs: 6 and 3 become 3, 6. Each pair takes one comparison.\\\",\\\"why\\\":\\\"Comparing the two fronts of two one-item runs orders the pair.\\\",\\\"calloutRegion\\\":\\\"mll\\\",\\\"active\\\":[\\\"mll\\\",\\\"mlr\\\",\\\"mrl\\\",\\\"mrr\\\"],\\\"readouts\\\":[{\\\"id\\\":\\\"cmp-step\\\",\\\"label\\\":\\\"Comparisons this step\\\",\\\"value\\\":\\\"4\\\"},{\\\"id\\\":\\\"cmp-total\\\",\\\"label\\\":\\\"Comparisons so far\\\",\\\"value\\\":\\\"4\\\"},{\\\"id\\\":\\\"run\\\",\\\"label\\\":\\\"Longest sorted run\\\",\\\"value\\\":\\\"2\\\"},{\\\"id\\\":\\\"bound\\\",\\\"label\\\":\\\"Worst case, n·log2 n − n + 1\\\",\\\"value\\\":\\\"8×3 − 8 + 1 = 17\\\"}]},{\\\"id\\\":\\\"s5\\\",\\\"label\\\":\\\"Merge left half\\\",\\\"short\\\":\\\"Merge left\\\",\\\"sentence\\\":\\\"Merge sorted pairs 3, 6 and 1, 8 by comparing fronts: 3 vs 1, 3 vs 8, 6 vs 8.\\\",\\\"why\\\":\\\"Once one run empties, the rest of the other run is copied without comparing.\\\",\\\"calloutRegion\\\":\\\"ml\\\",\\\"active\\\":[\\\"mll\\\",\\\"mlr\\\",\\\"ml\\\"],\\\"readouts\\\":[{\\\"id\\\":\\\"cmp-step\\\",\\\"label\\\":\\\"Comparisons this step\\\",\\\"value\\\":\\\"3\\\"},{\\\"id\\\":\\\"cmp-total\\\",\\\"label\\\":\\\"Comparisons so far\\\",\\\"value\\\":\\\"7\\\"},{\\\"id\\\":\\\"run\\\",\\\"label\\\":\\\"Longest sorted run\\\",\\\"value\\\":\\\"4\\\"},{\\\"id\\\":\\\"bound\\\",\\\"label\\\":\\\"Worst case, n·log2 n − n + 1\\\",\\\"value\\\":\\\"8×3 − 8 + 1 = 17\\\"}]},{\\\"id\\\":\\\"s6\\\",\\\"label\\\":\\\"Merge right half\\\",\\\"short\\\":\\\"Merge right\\\",\\\"sentence\\\":\\\"Merge 2, 7 and 4, 5 the same way: 2 vs 4, 7 vs 4, 7 vs 5. Then copy 7.\\\",\\\"why\\\":\\\"The right half gets the same treatment, so both halves are now sorted runs.\\\",\\\"calloutRegion\\\":\\\"mr\\\",\\\"active\\\":[\\\"mrl\\\",\\\"mrr\\\",\\\"mr\\\"],\\\"readouts\\\":[{\\\"id\\\":\\\"cmp-step\\\",\\\"label\\\":\\\"Comparisons this step\\\",\\\"value\\\":\\\"3\\\"},{\\\"id\\\":\\\"cmp-total\\\",\\\"label\\\":\\\"Comparisons so far\\\",\\\"value\\\":\\\"10\\\"},{\\\"id\\\":\\\"run\\\",\\\"label\\\":\\\"Longest sorted run\\\",\\\"value\\\":\\\"4\\\"},{\\\"id\\\":\\\"bound\\\",\\\"label\\\":\\\"Worst case, n·log2 n − n + 1\\\",\\\"value\\\":\\\"8×3 − 8 + 1 = 17\\\"}]},{\\\"id\\\":\\\"s7\\\",\\\"label\\\":\\\"Final merge\\\",\\\"short\\\":\\\"Final merge\\\",\\\"sentence\\\":\\\"Merge 1, 3, 6, 8 with 2, 4, 5, 7. Compare only the two front items each time.\\\",\\\"why\\\":\\\"Sorted halves mean the smaller front item is always the next output; seven comparisons place eight items.\\\",\\\"calloutRegion\\\":\\\"sorted\\\",\\\"active\\\":[\\\"ml\\\",\\\"mr\\\",\\\"sorted\\\"],\\\"readouts\\\":[{\\\"id\\\":\\\"cmp-step\\\",\\\"label\\\":\\\"Comparisons this step\\\",\\\"value\\\":\\\"7\\\"},{\\\"id\\\":\\\"cmp-total\\\",\\\"label\\\":\\\"Comparisons so far\\\",\\\"value\\\":\\\"17\\\"},{\\\"id\\\":\\\"run\\\",\\\"label\\\":\\\"Longest sorted run\\\",\\\"value\\\":\\\"8\\\"},{\\\"id\\\":\\\"bound\\\",\\\"label\\\":\\\"Worst case, n·log2 n − n + 1\\\",\\\"value\\\":\\\"8×3 − 8 + 1 = 17\\\"}]}]}]}]\"}",
+ "composition": {
+  "story": "Merge sort splits eight numbers into halves until each piece is one item, which is already sorted. Then it merges sorted pieces back together. Each merge compares only the front items of two sorted runs. Step through to see 17 comparisons sort all eight.",
+  "aha": {
+   "stateId": "s7",
+   "observation": "Because both halves are already sorted, the final merge only compares front items: eight numbers need just 7 comparisons, reaching 17 in total."
+  },
+  "layout": {
+   "preset": "stepper-card",
+   "width": 640
+  },
+  "parts": [
+   {
+    "id": "rail",
+    "kind": "step-rail",
+    "bind": {
+     "active": "inputs.step",
+     "items": "variant.states"
+    }
+   },
+   {
+    "id": "picture",
+    "kind": "fixed-picture",
+    "bind": {
+     "active": "state.active",
+     "links": "variant.links",
+     "regions": "variant.regions"
+    }
+   },
+   {
+    "id": "callout",
+    "kind": "active-callout",
+    "bind": {
+     "reason": "state.why",
+     "target": "state.calloutRegion",
+     "text": "state.sentence"
+    }
+   },
+   {
+    "id": "ghost",
+    "kind": "previous-state-ghost",
+    "bind": {
+     "regions": "previous.active"
+    }
+   },
+   {
+    "id": "readout",
+    "kind": "value-readout",
+    "bind": {
+     "values": "state.readouts"
+    }
+   },
+   {
+    "id": "trace",
+    "kind": "progress",
+    "bind": {
+     "completedBefore": "inputs.step",
+     "items": "variant.states"
+    }
+   }
+  ],
+  "controls": [
+   {
+    "id": "step",
+    "kind": "index",
+    "label": "Step",
+    "items": "variant.states",
+    "default": 0,
+    "presentation": "Previous and Next buttons; disabled but still named at the first and last step"
+   },
+   {
+    "id": "reset",
+    "kind": "reset",
+    "label": "Reset",
+    "presentation": "Returns to step 1 (Start)"
+   }
+  ],
+  "data": "[{\"variants\":[{\"label\":\"Merge sort of 8 numbers: 6 3 8 1 7 2 5 4\",\"regions\":[{\"id\":\"all\",\"label\":\"Whole array\",\"kind\":\"run\",\"values\":[\"6\",\"3\",\"8\",\"1\",\"7\",\"2\",\"5\",\"4\"]},{\"id\":\"l4\",\"label\":\"Left half\",\"kind\":\"run\",\"values\":[\"6\",\"3\",\"8\",\"1\"]},{\"id\":\"r4\",\"label\":\"Right half\",\"kind\":\"run\",\"values\":[\"7\",\"2\",\"5\",\"4\"]},{\"id\":\"ll\",\"label\":\"Pair A\",\"kind\":\"run\",\"values\":[\"6\",\"3\"]},{\"id\":\"lr\",\"label\":\"Pair B\",\"kind\":\"run\",\"values\":[\"8\",\"1\"]},{\"id\":\"rl\",\"label\":\"Pair C\",\"kind\":\"run\",\"values\":[\"7\",\"2\"]},{\"id\":\"rr\",\"label\":\"Pair D\",\"kind\":\"run\",\"values\":[\"5\",\"4\"]},{\"id\":\"mll\",\"label\":\"Sorted pair A\",\"kind\":\"run\",\"values\":[\"3\",\"6\"]},{\"id\":\"mlr\",\"label\":\"Sorted pair B\",\"kind\":\"run\",\"values\":[\"1\",\"8\"]},{\"id\":\"mrl\",\"label\":\"Sorted pair C\",\"kind\":\"run\",\"values\":[\"2\",\"7\"]},{\"id\":\"mrr\",\"label\":\"Sorted pair D\",\"kind\":\"run\",\"values\":[\"4\",\"5\"]},{\"id\":\"ml\",\"label\":\"Sorted left half\",\"kind\":\"run\",\"values\":[\"1\",\"3\",\"6\",\"8\"]},{\"id\":\"mr\",\"label\":\"Sorted right half\",\"kind\":\"run\",\"values\":[\"2\",\"4\",\"5\",\"7\"]},{\"id\":\"sorted\",\"label\":\"Sorted array\",\"kind\":\"run\",\"values\":[\"1\",\"2\",\"3\",\"4\",\"5\",\"6\",\"7\",\"8\"]}],\"links\":[{\"from\":\"all\",\"to\":\"l4\",\"label\":\"split\"},{\"from\":\"all\",\"to\":\"r4\",\"label\":\"split\"},{\"from\":\"l4\",\"to\":\"ll\",\"label\":\"split\"},{\"from\":\"l4\",\"to\":\"lr\",\"label\":\"split\"},{\"from\":\"r4\",\"to\":\"rl\",\"label\":\"split\"},{\"from\":\"r4\",\"to\":\"rr\",\"label\":\"split\"},{\"from\":\"ll\",\"to\":\"mll\",\"label\":\"merge\"},{\"from\":\"lr\",\"to\":\"mlr\",\"label\":\"merge\"},{\"from\":\"rl\",\"to\":\"mrl\",\"label\":\"merge\"},{\"from\":\"rr\",\"to\":\"mrr\",\"label\":\"merge\"},{\"from\":\"mll\",\"to\":\"ml\",\"label\":\"merge\"},{\"from\":\"mlr\",\"to\":\"ml\",\"label\":\"merge\"},{\"from\":\"mrl\",\"to\":\"mr\",\"label\":\"merge\"},{\"from\":\"mrr\",\"to\":\"mr\",\"label\":\"merge\"},{\"from\":\"ml\",\"to\":\"sorted\",\"label\":\"merge\"},{\"from\":\"mr\",\"to\":\"sorted\",\"label\":\"merge\"}],\"states\":[{\"id\":\"s0\",\"label\":\"Start\",\"short\":\"Start\",\"sentence\":\"Eight numbers sit in one unsorted array. Nothing is compared yet.\",\"why\":\"This is the input every later step divides and rebuilds.\",\"calloutRegion\":\"all\",\"active\":[\"all\"],\"readouts\":[{\"id\":\"cmp-step\",\"label\":\"Comparisons this step\",\"value\":\"0\"},{\"id\":\"cmp-total\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"run\",\"label\":\"Longest sorted run\",\"value\":\"1\"},{\"id\":\"bound\",\"label\":\"Worst case, n·log2 n − n + 1\",\"value\":\"8×3 − 8 + 1 = 17\"}]},{\"id\":\"s1\",\"label\":\"Split in half\",\"short\":\"Halve\",\"sentence\":\"Split the array into a left half and a right half of four items each.\",\"why\":\"Splitting needs no comparisons; it only shrinks the problem.\",\"calloutRegion\":\"l4\",\"active\":[\"all\",\"l4\",\"r4\"],\"readouts\":[{\"id\":\"cmp-step\",\"label\":\"Comparisons this step\",\"value\":\"0\"},{\"id\":\"cmp-total\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"run\",\"label\":\"Longest sorted run\",\"value\":\"1\"},{\"id\":\"bound\",\"label\":\"Worst case, n·log2 n − n + 1\",\"value\":\"8×3 − 8 + 1 = 17\"}]},{\"id\":\"s2\",\"label\":\"Split into pairs\",\"short\":\"Pairs\",\"sentence\":\"Split each half again, giving four pairs: A, B, C and D.\",\"why\":\"Halving continues because smaller pieces are easier to sort.\",\"calloutRegion\":\"ll\",\"active\":[\"l4\",\"r4\",\"ll\",\"lr\",\"rl\",\"rr\"],\"readouts\":[{\"id\":\"cmp-step\",\"label\":\"Comparisons this step\",\"value\":\"0\"},{\"id\":\"cmp-total\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"run\",\"label\":\"Longest sorted run\",\"value\":\"1\"},{\"id\":\"bound\",\"label\":\"Worst case, n·log2 n − n + 1\",\"value\":\"8×3 − 8 + 1 = 17\"}]},{\"id\":\"s3\",\"label\":\"Split to singles\",\"short\":\"Singles\",\"sentence\":\"Split each pair into single items. A run of one item is already sorted.\",\"why\":\"This is the base case: the splitting stops here and merging begins.\",\"calloutRegion\":\"ll\",\"active\":[\"ll\",\"lr\",\"rl\",\"rr\"],\"readouts\":[{\"id\":\"cmp-step\",\"label\":\"Comparisons this step\",\"value\":\"0\"},{\"id\":\"cmp-total\",\"label\":\"Comparisons so far\",\"value\":\"0\"},{\"id\":\"run\",\"label\":\"Longest sorted run\",\"value\":\"1\"},{\"id\":\"bound\",\"label\":\"Worst case, n·log2 n − n + 1\",\"value\":\"8×3 − 8 + 1 = 17\"}]},{\"id\":\"s4\",\"label\":\"Merge pairs\",\"short\":\"Merge pairs\",\"sentence\":\"Merge single items into sorted pairs: 6 and 3 become 3, 6. Each pair takes one comparison.\",\"why\":\"Comparing the two fronts of two one-item runs orders the pair.\",\"calloutRegion\":\"mll\",\"active\":[\"mll\",\"mlr\",\"mrl\",\"mrr\"],\"readouts\":[{\"id\":\"cmp-step\",\"label\":\"Comparisons this step\",\"value\":\"4\"},{\"id\":\"cmp-total\",\"label\":\"Comparisons so far\",\"value\":\"4\"},{\"id\":\"run\",\"label\":\"Longest sorted run\",\"value\":\"2\"},{\"id\":\"bound\",\"label\":\"Worst case, n·log2 n − n + 1\",\"value\":\"8×3 − 8 + 1 = 17\"}]},{\"id\":\"s5\",\"label\":\"Merge left half\",\"short\":\"Merge left\",\"sentence\":\"Merge sorted pairs 3, 6 and 1, 8 by comparing fronts: 3 vs 1, 3 vs 8, 6 vs 8.\",\"why\":\"Once one run empties, the rest of the other run is copied without comparing.\",\"calloutRegion\":\"ml\",\"active\":[\"mll\",\"mlr\",\"ml\"],\"readouts\":[{\"id\":\"cmp-step\",\"label\":\"Comparisons this step\",\"value\":\"3\"},{\"id\":\"cmp-total\",\"label\":\"Comparisons so far\",\"value\":\"7\"},{\"id\":\"run\",\"label\":\"Longest sorted run\",\"value\":\"4\"},{\"id\":\"bound\",\"label\":\"Worst case, n·log2 n − n + 1\",\"value\":\"8×3 − 8 + 1 = 17\"}]},{\"id\":\"s6\",\"label\":\"Merge right half\",\"short\":\"Merge right\",\"sentence\":\"Merge 2, 7 and 4, 5 the same way: 2 vs 4, 7 vs 4, 7 vs 5. Then copy 7.\",\"why\":\"The right half gets the same treatment, so both halves are now sorted runs.\",\"calloutRegion\":\"mr\",\"active\":[\"mrl\",\"mrr\",\"mr\"],\"readouts\":[{\"id\":\"cmp-step\",\"label\":\"Comparisons this step\",\"value\":\"3\"},{\"id\":\"cmp-total\",\"label\":\"Comparisons so far\",\"value\":\"10\"},{\"id\":\"run\",\"label\":\"Longest sorted run\",\"value\":\"4\"},{\"id\":\"bound\",\"label\":\"Worst case, n·log2 n − n + 1\",\"value\":\"8×3 − 8 + 1 = 17\"}]},{\"id\":\"s7\",\"label\":\"Final merge\",\"short\":\"Final merge\",\"sentence\":\"Merge 1, 3, 6, 8 with 2, 4, 5, 7. Compare only the two front items each time.\",\"why\":\"Sorted halves mean the smaller front item is always the next output; seven comparisons place eight items.\",\"calloutRegion\":\"sorted\",\"active\":[\"ml\",\"mr\",\"sorted\"],\"readouts\":[{\"id\":\"cmp-step\",\"label\":\"Comparisons this step\",\"value\":\"7\"},{\"id\":\"cmp-total\",\"label\":\"Comparisons so far\",\"value\":\"17\"},{\"id\":\"run\",\"label\":\"Longest sorted run\",\"value\":\"8\"},{\"id\":\"bound\",\"label\":\"Worst case, n·log2 n − n + 1\",\"value\":\"8×3 − 8 + 1 = 17\"}]}]}]}]"
+ },
+ "usage": {
+  "input": 3067,
+  "output": 5957
+ },
+ "usd": 0.065704,
+ "stop": "tool_use",
+ "scores": {
+  "C": {
+   "lines": {
+    "1": {
+     "answer": "Yes",
+     "reason": "The tree of runs with split and merge links shows how sorted halves are merged by comparing only fronts, answering why merge sort needs few comparisons."
+    },
+    "2": {
+     "answer": "Yes",
+     "reason": "The aha state s7 is the final step, and the learner reaches it by pressing Next; nothing advances on its own."
+    },
+    "3": {
+     "answer": "Yes",
+     "reason": "The only input is the step index, and each step changes the active regions, callout and comparison readouts, so every control change alters the evidence."
+    },
+    "4": {
+     "answer": "Yes",
+     "reason": "Active regions, callout target, ghost, readouts and progress all bind to declared state, previous or variant fields, and the region ids and link endpoints resolve."
+    },
+    "5": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "6": {
+     "answer": "Yes",
+     "reason": "The story, state sentences, region labels such as Pair A and Sorted left half, and the step labels all use the same objects and events."
+    },
+    "7": {
+     "answer": "Yes",
+     "reason": "The detailed depth adds a per-step count and the n·log2 n − n + 1 formula without adding extra panels, and the picture stays one fixed tree."
+    },
+    "8": {
+     "answer": "Yes",
+     "reason": "I recomputed 4, 3, 3 and 7 comparisons (running totals 4, 7, 10 and 17) and the bound 17, and all are correct; the bound readout repeats on every step but quantifies once per state."
+    },
+    "9": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    },
+    "10": {
+     "answer": "Unknown",
+     "reason": "needs a render"
+    }
+   }
+  },
+  "cardUsd": 0.025846
+ }
+}
