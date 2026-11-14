@@ -22,6 +22,7 @@ import { modelEvidence } from './explain-evidence.js';
 import { INTERACT_LIMITS, InteractModelError } from './interact-models.js';
 import { briefSchema, expandBrief, referenceFormulaCheck } from '../../web/src/interact-plan-brief.js';
 import { fillSystem, formulaProblems } from './interact-design-fill.js';
+import { templatePrecheck } from './interact-template.js';
 import { DESIGN_AUTHOR_SYSTEM, DESIGN_AUTHOR_TOOL, DESIGN_AUTHOR_VERSION, designAuthorSchema } from './agents/interact-design-author.js';
 import { DESIGN_REVIEW_SYSTEM, DESIGN_REVIEW_TOOL, DESIGN_REVIEW_VERSION, designReviewSchema } from './agents/interact-design-review.js';
 import { DESIGN_REVISE_SYSTEM, DESIGN_REVISE_TOOL, DESIGN_REVISE_VERSION, designReviseSchema } from './agents/interact-design-revise.js';
@@ -186,7 +187,9 @@ async function fillProblems(raw, depth, info, ctx) {
   const fit = typeof ctx.descriptionFit === 'function' ? await descriptionFitProblems(checked.value, await ctx.descriptionFit(checked.value)) : [];
   if (fit.length) return { problems: fit.map(line) };
   const wrong = formulaProblems(referenceFormulaCheck(parsed.value, depth));
-  return wrong.length ? { problems: wrong } : { plan: checked.value };
+  if (wrong.length) return { problems: wrong };
+  const unbuildable = await templatePrecheck(checked.value, ctx); // the build's own checks, here, so the correction hears what Generate would refuse
+  return unbuildable.length ? { problems: unbuildable } : { plan: checked.value };
 }
 export async function fastDesign(job, ctx) {
   const depth = job.depth, info = briefSchema(depth), fast = { kind: 'fast', model: null, calls: 0, fallback: 'none', firstProblem: null, costUsd: 0 };
