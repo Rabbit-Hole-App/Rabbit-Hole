@@ -1,23 +1,25 @@
-# HL-145 screenshots (PARTIAL, evidence only, not release-blocking)
+# HL-145 screenshots (evidence only, not release-blocking)
 
-Status 2026-11-14: the BEFORE set is here. The AFTER set (pink vs yellow, the Ctrl+K dim with pink holes, the two icons, both clicks, the keyboard Ctrl+K linked card) has not run
-to the end yet: a first after run showed the saved passage NOT pink for the derived "linked" board (see Findings), so the capture is being corrected; one final run follows once the combined 144 gate has ended.
+Status 2026-11-14: BEFORE (ctrlk-144) complete; AFTER (hl-145-on-ctrlk f250cd48b) has the pink-vs-yellow, the persistence-after-reload, the Ctrl+K dim with the pink words, and the keyboard Ctrl+K linked card.
+NOT yet captured: the two icons' hover shots and the two camera clicks (A2-A5) and the dim with a saved passage as a second hole (B1): the run crashed on the header icon's hover (the card was off-screen at that zoom)
+and the heavy lock went to the 144 gate's re-run. `capture.mjs` here is corrected (hover after Go to card, fail-soft scenes, measures always written); one more run completes the set when the lock is free.
 
 ## How these were taken (keyless, local, no stack, no model)
 
-`capture.mjs` drives Chromium against `vite preview` of a built dist-dev (BEFORE = explain/ctrlk-144 @ 83f1597cc; AFTER = explain/hl-145-on-ctrlk @ f250cd48b). Every `/api` request is answered by the script; anything
-else off the loopback is refused. Fixture: DERIVED from the v60 board export (`film-explain/bank/board-export-canvas-bcb7f9f6-postwrite-v60.json`): its Markdown file card (en.md, rev e020962c...) and its
-"Split criteria: measuring impurity" card, which in the export has no sourceRef. The server's mint (`POST /api/learn/source-refs`) and the artifact route attaching the minted ref to the card are emulated by the script;
-nothing else is emulated and no model is called.
+`capture.mjs` drives Chromium (a fresh browser context per scene) against `vite preview` of a built dist-dev; every `/api` request is answered by the script, anything off the loopback is refused.
+Fixture DERIVED from the v60 board export (`film-explain/bank/board-export-canvas-bcb7f9f6-postwrite-v60.json`): its Markdown file card (en.md, rev e020962c...) and its "Split criteria: measuring impurity" card
+(no sourceRef in the export). The server's mint (`POST /api/learn/source-refs`) and the artifact route attaching the minted ref to the card are emulated; nothing else; no model call. Route: the owner's `/apps/<id>`.
 
-## Files
+## What the screenshots show
 
-- `before/C1-before-ctrlk-window.png`: keyboard Ctrl+K over the selected heading, on ctrlk-144: the words stay marked in the Highlight YELLOW, the whole page is dimmed (no hole), the passage pill and "Explain selection".
-- `before/C2-before-card-made.png`: after Send: the card is made beside the file card and the Chat has its entry, but the file card shows nothing for the passage (no pink, no icon) and the new card has no source row.
-- `before/measures.json`: `tutorSource: 0` (no persistent mark), `headerButton: null`, `gutterButtons: []`, and the request log: `ARTIFACT sourceRef=-` (no ref minted on the keyboard path) = the owner's "no highlight, no symbol" case.
+- `before/C1-before-ctrlk-window.png` (ctrlk-144): keyboard Ctrl+K over the selected heading: the words are marked YELLOW and the whole page is dimmed with no hole.
+- `before/C2-before-card-made.png`: after Send the card exists but the file card draws nothing for the passage and the card has no source row. `before/measures.json`: `tutorSource: 0`, no `source-refs` request (`ARTIFACT sourceRef=-`): the owner's "no highlight, no symbol".
+- `after/C1-after-ctrlk-window.png` (hl-145-on-ctrlk): same action: the words are PINK and are NOT dimmed (a hole in the dim), the rest of the page dimmed. HL-1 + HL-2.
+- `after/C2-after-card-made.png`: the same keyboard Ctrl+K now mints (`POST /api/learn/source-refs`), the made card carries "Source: en.md" with the Go to highlight icon top right of its header, and the heading in the file card is pink behind it. HL-1 + HL-3.
+- `after/A1-pink-and-yellow.png`, `after/A1b-pink-and-yellow-zoom.png`: a board whose card already carries the ref: the saved heading pink beside the plain Highlight's yellow ("meaning each child contains mostly one class").
+- `after/A1c-after-reload-still-pink.png`: after a hard reload of the page the pink heading is still there (the persistence proof; it is drawn from the card's stored sourceRef).
 
-## Findings so far
+## Notes and one earlier mistake
 
-1. BEFORE confirms the case: the keyboard Ctrl+K path mints no sourceRef (no `POST /api/learn/source-refs` in the log), so the card has no link and the file card draws nothing.
-2. AFTER (first run, request field not yet corrected in the stub): the keyboard path DID mint (`POST /api/learn/source-refs`, `MINT "Split criteria: measuring impurity"`); the stub then missed the ref on the artifact request (the field is `sourceRefId`, not `sourceRef`: capture bug, fixed).
-3. AFTER, derived "linked" board: the yellow Highlight painted, but `tutor-source` had 0 ranges and no header/gutter icons. Static checks show the fixture ref matches (`sourceRefOf`, `explanationsFor`, `resolveQuote` all resolve it in node), so the cause is in the page (the card id was rewritten from `inline-<request>-card` to a new id on load: the script now uses a plain UUID id and logs what the app saves). To be settled by the final run; if the app drops `sourceRef` on load that is a real finding and will be reported as one.
+A first after run showed no pink on the "linked" board. Cause: one shared browser context, so the app's local board draft from the previous scene (a card made before the stub carried the ref) was loaded instead of the fixture. It was a capture defect, not an HL defect; a fresh context per scene fixed it (A1c).
+Not yet proven by screenshot: Go to highlight / Go to card clicks centring the camera (before/after rects), the gutter icon on hover, the dim with a saved passage as a second hole. Unit pins exist for all three (explained-passage.test.mjs).

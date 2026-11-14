@@ -46,8 +46,8 @@ const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n
 const log = [], refs = new Map([[REF_HEADING.id, REF_HEADING]]);
 let quiet = 0, minted = 0;
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1, reducedMotion: 'no-preference' });
-await context.route('**/*', async route => {
+const ctxOpts = { viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1, reducedMotion: 'no-preference' }; // a FRESH context per scene: the app keeps a local draft of the board, and a shared context made scene A load scene C's card (no ref)
+const handler = async route => {
   const request = route.request(), url = new URL(request.url()), method = request.method(), path = url.pathname;
   if (url.origin !== BASE) { log.push(`ABORT outside ${url.hostname}`); return route.abort(); }
   if (!path.startsWith('/api/')) return route.continue();
@@ -96,12 +96,14 @@ await context.route('**/*', async route => {
   if (['/api/watch', '/api/learn/usage', '/api/learn/graph-config', '/api/learn/image-jobs'].includes(path)) return route.fulfill({ json: {} });
   log.push(`404 ${path}`);
   return route.fulfill({ status: 404, json: { error: 'Not found' } });
-});
+};
 
 const measures = {};
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const open = async (board, { yellow = false } = {}) => {
   which = board; highlights = yellow ? [YELLOW] : [];
+  const context = await browser.newContext(ctxOpts);
+  await context.route('**/*', handler);
   const page = await context.newPage();
   page.on('pageerror', error => log.push(`PAGEERROR ${error.message.slice(0, 200)}`));
   await page.goto(`${BASE}/apps/${APP}`);
@@ -164,27 +166,25 @@ const marks = page => page.evaluate(() => ({
   measures.C_after_send = await marks(page);
   measures.C_log = log.filter(line => /MINT|ARTIFACT|source-refs|explain\/jobs/.test(line));
   await shot(page, `C2-${MODE}-card-made`);
-  await page.close();
+  await page.context().close();
 }
 
 if (MODE === 'after') {
   // ---- A: pink beside the yellow Highlight, the two icons, both clicks ----
-  {
+  try {
     const page = await open('linked', { yellow: true });
     await scrollHeading(page); await wait(600);
     await wait(2500);
     measures.A_marks = await marks(page);
     measures.A_dom = await page.evaluate(() => [...document.querySelectorAll('[data-block-id]')].map(el => ({ id: el.getAttribute('data-block-id').slice(0, 8), text: el.innerText.slice(0, 90).replace(/\n/g, ' | '), refs: el.querySelectorAll('[data-source-ref]').length, open: el.querySelectorAll('[data-source-ref-open]').length })));
     await shot(page, 'A1-pink-and-yellow');
+    // The persistence proof: a hard reload of the page (same context, so the app's own local draft is what a reload really uses), then the same marks and icons.
+    await page.reload(); await page.waitForSelector('[data-file-doc-md]', { timeout: 30000 }); await wait(2500); await scrollHeading(page); await wait(800);
+    measures.A_marks_after_reload = await marks(page);
+    await shot(page, 'A1c-after-reload-still-pink');
     const md = await rectOf(page, '[data-file-doc-text]');
     if (md) await shot(page, 'A1b-pink-and-yellow-zoom', { x: md.x, y: md.y, width: Math.min(md.w, 760), height: Math.min(md.h, 520) });
-    // The card's header icon: Go to highlight.
-    const cardSel = `[data-block-id="${linked.id || 'x'}"]`;
-    measures.A_header = await rectOf(page, '[data-source-ref-open]');
-    if (measures.A_header) await page.hover('[data-source-ref-open]');
-    await wait(400);
-    const head = await rectOf(page, '[data-source-ref]');
-    if (head) await shot(page, 'A2-header-go-to-highlight', { x: Math.max(0, head.x - 330), y: Math.max(0, head.y - 40), width: 760, height: 100 });
+    measures.A_header = await rectOf(page, '[data-source-ref-open]'); // off-screen right at this zoom: it is hovered and shot after Go to card has brought the card to the middle
     // Hover the pink passage: Go to card in the gutter.
     const spot = await page.evaluate(text => { const h = [...document.querySelectorAll('[data-file-doc-md] h3')].find(el => el.textContent.trim() === text); const r = h?.getBoundingClientRect(); return r ? { x: r.left + 30, y: r.top + r.height / 2 } : null; }, HEADING);
     if (spot) { await page.mouse.move(spot.x, spot.y); await wait(500); }
@@ -196,18 +196,23 @@ if (MODE === 'after') {
     const before = await rectOf(page, '[data-block-id]:not(:has([data-file-doc-md]))');
     const cards = await page.evaluate(() => [...document.querySelectorAll('[data-block-id]')].map(el => ({ id: el.getAttribute('data-block-id'), md: !!el.querySelector('[data-file-doc-md]'), r: (r => ({ x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }))(el.getBoundingClientRect()) })));
     measures.A_cards_before_card_click = cards;
-    if (g) { await page.click('[data-view-card]'); await wait(1600); }
+    if (g) { await page.click('[data-view-card]', { timeout: 8000 }).catch(error => log.push(`CLICK gutter failed ${error.message.slice(0, 80)}`)); await wait(1600); }
     measures.A_cards_after_card_click = await page.evaluate(() => [...document.querySelectorAll('[data-block-id]')].map(el => ({ id: el.getAttribute('data-block-id'), md: !!el.querySelector('[data-file-doc-md]'), r: (r => ({ x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }))(el.getBoundingClientRect()) })));
+    measures.A_explanation_card_after_go_to_card = await centreOf('[data-block-id]:not(:has([data-file-doc-md]))');
     await shot(page, 'A4-after-go-to-card');
+    const head = await rectOf(page, '[data-source-ref]');
+    if (head) { await page.hover('[data-source-ref-open]', { timeout: 8000 }).catch(() => {}); await wait(400); await shot(page, 'A2-header-go-to-highlight', { x: head.x - 40, y: head.y - 30, width: Math.min(head.w + 80, 520), height: 90 }); }
     // Click Go to highlight in the card header: the camera moves back to the file card, the passage is emphasized.
-    if (measures.A_header) { await page.click('[data-source-ref-open]'); await wait(1200); }
+    if (measures.A_header) { await page.click('[data-source-ref-open]', { timeout: 8000 }).catch(error => log.push(`CLICK header failed ${error.message.slice(0, 80)}`)); await wait(1200); }
     measures.A_cards_after_highlight_click = await page.evaluate(() => [...document.querySelectorAll('[data-block-id]')].map(el => ({ id: el.getAttribute('data-block-id'), md: !!el.querySelector('[data-file-doc-md]'), r: (r => ({ x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }))(el.getBoundingClientRect()) })));
+    measures.A_file_card_after_go_to_highlight = await centreOf('[data-block-id]:has([data-file-doc-md])');
+    measures.A_heading_after_go_to_highlight = await page.evaluate(t => { const h = [...document.querySelectorAll('[data-file-doc-md] h3')].find(el => el.textContent.trim() === t); const r = h?.getBoundingClientRect(); return r ? { y: Math.round(r.top), x: Math.round(r.left) } : null; }, HEADING);
     await shot(page, 'A5-after-go-to-highlight');
     void before; void cardSel;
-    await page.close();
-  }
+    await page.context().close();
+  } catch (error) { log.push(`SCENE FAILED ${marker.slice(0, 12)} ${String(error.message).slice(0, 200)}`); }
   // ---- B: the Ctrl+K dim with holes for the words and the saved pink passage ----
-  {
+  try {
     const page = await open('linked', { yellow: false });
     await scrollHeading(page); await wait(500);
     measures.B_selection = await selectText(page, 'Gini impurity measures the probability that a randomly chosen sample');
@@ -217,8 +222,8 @@ if (MODE === 'after') {
     await wait(1200);
     measures.B_window = await marks(page);
     await shot(page, 'B1-dim-with-pink-holes');
-    await page.close();
-  }
+    await page.context().close();
+  } catch (error) { log.push(`SCENE FAILED ${marker.slice(0, 12)} ${String(error.message).slice(0, 200)}`); }
 }
 writeFileSync(join(OUT, 'measures.json'), JSON.stringify({ mode: MODE, base: BASE, measures, log: log.slice(-80) }, null, 1));
 await browser.close();
