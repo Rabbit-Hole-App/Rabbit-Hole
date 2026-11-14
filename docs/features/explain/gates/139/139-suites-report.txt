@@ -1,0 +1,18 @@
+SUITES: GREEN 4ec260c089631e662809ac382b00aabe14fc905d
+Release 139 = CV-3, STACKED on release 138's candidate 03fc4642f53806bc86317b4e3a4ffe2201b75c5a (chain: main a8ef11d64 <- 134 <- 135 <- 136 <- 136b <- 137 <- 138 <- 139). Branch explain/canvas-2-139: CV-3 e8477cc85 (a card the learner dragged is anchored: it records its world position , saved with the board like dx and dy, and holdAnchors re-offsets it when the column moves under it, so arranging cards and then generating a new one no longer moves the arranged cards; cards never dragged keep the column behaviour; boards saved before load unchanged;  listed as layout in the four content filters area-crop, explain-client, explain-inputs, inline-ai-context), 4ec260c08 (the check-map row for card-anchor.js: scripts/ci/check-map.test.mjs requires one for a new module). Files: packages/web/src/AdaptiveCanvas.jsx, card-anchor.js, card-anchor.test.mjs, area-crop.js, explain-client.js, explain-inputs.js, inline-ai-context.js, scripts/ci/check-map.json. Web only: no control-plane change, no migrations, no config change, no card bytes. Gate run: gate139.sh (139-gate-run.log, each step's output in 139-step-<name>.out), every heavy step under the machine-wide heavy lock, BASE_TREE = the 138 candidate worktree.
+1. scripts/ci tests: 94/95 pass (1 skipped), 0 fail.
+2. scripts/*.test.mjs: 254/254.
+3. control-plane tests: SKIPPED on purpose: no packages/control-plane file in the diff (checked by the gate script and by prep139.sh).
+4. tutor-diagrams tests (includes the svg snapshots test): 1265/1265.
+5. figure-briefs tests: 7/7.
+6. web unit (npm run test:unit): 6900 pass, 27 skipped, 0 fail (6928 tests), on the first run.
+7. web build: exit 0.
+8. property count (int8-props, int8-mixed): max 347 <= 362 and max 358 <= 362.
+9. planner-kind replay vs the 138 candidate: 474 card rows, 0 first picks moved, 0 steer, 0 kind, 0 refs moved, no change.
+10. svg snapshots / illustrations / tutor-diagrams files in the diff against the base: 0 (139-snapshot-diff.txt is empty).
+No smoke (web-only, no card bytes change). Every step was green on its first run (no singly or serial reruns were needed).
+Single small test files (one at a time): card-anchor 8/8, canvas-view 7/7, beside-placement 12/12, card-layout 25/25, area-crop 6/6, explain-client 15/15, explain-inputs 7/7, inline-ai-context 14/14, scripts/ci/check-map.test.mjs 22/22.
+Rebase: CV-3 cherry-picked onto the 138 candidate with no conflicts (the earlier five conflicts, in the four layout lists and the AdaptiveCanvas import block, were resolved when it was rebased on r4: HEAD's CV-5 slot key kept, at added).
+DECISION NEEDED (server, not made here): packages/control-plane/src/learn-boards.js DRAFT_LAYOUT = ['dx','dy','cardLayout','groupId'] would strip at from a share-link visitor's draft, so an anchored card of a guest draft falls back to the column behaviour. Adding at is a server change and turns 139 into a server release; the owner's own boards are unaffected.
+DECISION NEEDED (design): beside-placed cards (CV-4) are not anchored at placement, only cards the learner drags (one line if wanted).
+Not checked: real-board before/after screenshots of CV-3 (need a local stack; taken after the gate, see the evidence message).
