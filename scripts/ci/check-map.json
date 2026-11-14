@@ -1426,7 +1426,9 @@
     "packages/web/src/interact-templates/one-body.js": ["packages/control-plane/test/interact-templates.test.js","packages/control-plane/test/interact-toss-programs.test.js"],
     "packages/web/src/interact-templates/shared.js": ["packages/control-plane/test/interact-templates.test.js","packages/control-plane/test/interact-toss-programs.test.js"],
     "packages/web/src/interact-templates/two-lane.js": ["packages/control-plane/test/interact-templates.test.js","packages/control-plane/test/interact-toss-programs.test.js"],
-    "packages/web/src/interact-toss-programs.js": ["packages/control-plane/test/interact-toss-programs.test.js","packages/control-plane/test/interact-templates.test.js","packages/control-plane/test/interact-bench-author.test.js"]
+    "packages/web/src/interact-toss-programs.js": ["packages/control-plane/test/interact-toss-programs.test.js","packages/control-plane/test/interact-templates.test.js","packages/control-plane/test/interact-bench-author.test.js"],
+    "packages/web/src/interact-plan-brief.js": ["packages/web/src/interact-plan-brief.test.mjs","packages/control-plane/test/interact-plan-brief.test.js"],
+    "packages/web/src/interact-family-vertical-throw.js": ["packages/web/src/interact-plan-brief.test.mjs","packages/control-plane/test/interact-plan-brief.test.js"]
   },
   "previewTier": {
     "packages/control-plane/file-jobs-demo.mjs": {"tier":"preview","why":"only windows-only checks (file-converter-ui-check.mjs, file-step-retry-check.mjs), which no workflow runs (coverage hole, ruling G), and no unit test that run.sh test:unit runs imports it"},
