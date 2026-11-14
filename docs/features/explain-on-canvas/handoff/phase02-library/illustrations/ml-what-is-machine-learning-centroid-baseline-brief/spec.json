@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Training accuracy versus chance",
+    "unit": "%",
+    "bars": [
+      {
+        "label": "Centroid",
+        "value": 100
+      },
+      {
+        "label": "Random expected",
+        "value": 50
+      }
+    ],
+    "caption": "Worked example. Learning beats chance on these training rows."
+  }
+}

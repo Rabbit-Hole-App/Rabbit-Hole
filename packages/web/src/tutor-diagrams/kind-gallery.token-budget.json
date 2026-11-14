@@ -97,6 +97,10 @@
     "block-stack": {
       "tokens": 64,
       "sha256": "98ec371b7e68ff5ac6e3b04346fb7c851d2381b630bca1892c349b4977320c12"
+    },
+    "panels": {
+      "tokens": 132,
+      "sha256": "d4d714da6e78d8e9f72bec9225856f6399ee844d8eb0ff5ca3de294ebdf0d1f5"
     }
   }
 }

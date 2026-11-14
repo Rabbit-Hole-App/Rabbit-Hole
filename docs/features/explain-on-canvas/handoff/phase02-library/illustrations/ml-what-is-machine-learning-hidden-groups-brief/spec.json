@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Nearby inputs form separate blobs",
+    "x": {
+      "label": "First feature",
+      "min": 0,
+      "max": 7
+    },
+    "y": {
+      "label": "Second feature",
+      "min": 0,
+      "max": 7
+    },
+    "series": [
+      {
+        "label": "Unlabelled inputs",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            0,
+            2,
+            1,
+            1,
+            4,
+            6,
+            5,
+            5
+          ],
+          "y": [
+            2,
+            2,
+            1,
+            3,
+            5,
+            5,
+            4,
+            6
+          ]
+        }
+      }
+    ],
+    "caption": "All toy inputs, with targets hidden. Proximity suggests groups without known classes."
+  }
+}

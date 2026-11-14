@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Learn separately from checking",
+    "kind": "flow",
+    "nodes": [
+      {
+        "id": "train",
+        "label": "Fit on training data",
+        "role": "process"
+      },
+      {
+        "id": "reserve",
+        "label": "Keep validation and test separate",
+        "role": "outcome"
+      }
+    ],
+    "edges": [
+      {
+        "from": "train",
+        "to": "reserve"
+      }
+    ],
+    "caption": "Illustrative. Reserve both checking slices before fitting; validation guides tuning, while test is saved for the final check."
+  }
+}
