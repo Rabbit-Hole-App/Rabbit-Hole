@@ -133,9 +133,9 @@ export function CanvasFind({ cards, onFocus, inputRef, hidden }) {
           {query.trim() ? (current >= 0 ? `${current + 1} of ${matches.length}` : `${matches.length} found`) : ''}
         </span>
         <button type="button" aria-label="Previous match" title="Previous match (Shift Enter)" disabled={!matches.length} onClick={() => go(-1)}
-          className="flex h-8 w-7 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><ChevronUp size={15} aria-hidden /></button>
+          className="flex h-8 w-7 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><ChevronUp size={15} aria-hidden /></button>
         <button type="button" aria-label="Next match" title="Next match (Enter)" disabled={!matches.length} onClick={() => go(1)}
-          className="flex h-8 w-7 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><ChevronDown size={15} aria-hidden /></button>
+          className="flex h-8 w-7 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><ChevronDown size={15} aria-hidden /></button>
       </div>
       {query.trim() && !matches.length && <p className="mt-3 text-sm text-ink-2">No matches.</p>}
       <ol className="mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto">

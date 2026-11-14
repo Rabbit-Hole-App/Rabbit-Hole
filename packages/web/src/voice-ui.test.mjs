@@ -45,7 +45,7 @@ test('VOICE-01: off, the mic is the neutral composer button; it waits while a ty
   assert.match(off, /aria-label="Voice mode"/);
   assert.match(off, /aria-pressed="false"/);
   assert.doesNotMatch(off, /disabled/);
-  assert.match(off, /rounded-lg border border-line/, 'COMPOSER_ADD, like the + button');
+  assert.match(off, /rounded-full border border-line/, 'COMPOSER_ADD, like the + button');
   assert.match(buttons(render(VoiceToggle, { voice: voiceIn('off'), disabled: true }))[0], /disabled=""/);
   // At the end of the dock's (or the Chat pane's) leading row, only while off, and disabled while busy (its Stop is in that slot).
   assert.match(ask, /\{\(dock \|\| chat\) && chatControl\}\n\s+\{SHOW_VOICE_TOGGLE && \(dock \|\| chat\) && voice && voice\.state === 'off' && \(chat \? <span [^\n]*><VoiceToggle voice=\{voice\} disabled=\{busy\} \/><\/span> : <VoiceToggle voice=\{voice\} disabled=\{busy\} \/>\)\}\n\s+<\/>\}/);

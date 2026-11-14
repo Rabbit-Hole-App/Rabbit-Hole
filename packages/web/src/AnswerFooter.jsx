@@ -28,8 +28,8 @@ export async function copyAnswer({ text, html }, clipboard = globalThis.navigato
 export const putAnswerFeedback = (messageId, body) => api(`/api/learn/chat/messages/${messageId}/feedback`, { method: 'PUT', body: JSON.stringify(body) });
 export const getAnswerAlternative = messageId => api(`/api/learn/chat/messages/${messageId}`);
 
-const icon = 'flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50';
-const quiet = 'flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-ink-3 opacity-60 hover:bg-hover hover:text-ink hover:opacity-100 focus-visible:opacity-100 group-hover/answer:opacity-100 aria-pressed:text-ink aria-pressed:opacity-100';
+const icon = 'flex h-7 cursor-pointer items-center gap-1.5 rounded-full px-2 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50';
+const quiet = 'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-ink-3 opacity-60 hover:bg-hover hover:text-ink hover:opacity-100 focus-visible:opacity-100 group-hover/answer:opacity-100 aria-pressed:text-ink aria-pressed:opacity-100';
 
 export default function AnswerFooter({ message, latest = false, onCreateExplainCard = null, checkKeep = null, onAddAsCard = null, onLocateCard = null, cardExists = null, onRegenerate = null, onSelectAlternative = null, putFeedback = putAnswerFeedback, copyText = copyAnswer }) {
   const root = useRef(null);
