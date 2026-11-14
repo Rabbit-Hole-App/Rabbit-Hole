@@ -257,6 +257,8 @@ A reference that breaks one fails `reference-content-contract.test.mjs` in the w
 - flow-label-verb-first: Start with the action or the verb of a decision question.
 - math-delimiters: Put each complete mathematical expression inside $…$ delimiters.
 - placeholder-edge-label: Name the condition, transition, or message. Omit optional labels when the arrow already conveys the order.
+- plot-point-label-coordinates: Label a point only to name what it is (a peak, a threshold, an outlier); never label a point with its own coordinates.
+- plot-point-label-count: A plot has at most six labelled points; label a point only to name what it is (a peak, a threshold, an outlier).
 - redundant-comparison: a two-panel comparison whose panels hold the same content, or could be one plot or one grouped bar chart, is refused: draw the shared content once (one plot with a named series per panel, or one grouped bar chart) and keep the panel context in the labels or caption.
 
 Mathematics in a label includes the operators and arrows between formulas: `$a$ → $b$` and `$a$ = $b$` fail because the arrow or sign stands outside the delimiters. Write one span (`$a \to b$`) or use words (`from $a$ to $b$`). A superscript, subscript or Greek letter in a unit or axis name needs its own `$…$` too.

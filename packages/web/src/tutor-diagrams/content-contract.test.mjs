@@ -177,3 +177,25 @@ test('comparison panels with different axes, marks, or units remain separate', (
   const overlapping = plot(1, 2, { series: [{ label: 'Other samples', kind: 'scatter', points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] }] });
   assert.deepEqual(compare(plot(1, 2), overlapping), []);
 });
+
+
+// PL-1: a point is labelled to name what it is; its own coordinates are never a label, and a plot has at most six labelled points.
+const pointPlot = (labels, kind = 'scatter') => ({ kind: 'coordinate-plot', title: 'Samples', x: { label: 'X', min: 0, max: 20 }, y: { label: 'Y', min: 0, max: 40 },
+  series: [{ label: 'Samples', kind, points: labels.map((label, i) => ({ x: i + 1, y: 2 * i + 0.5, ...(label === undefined ? {} : { label }) })) }] });
+test('a point label that restates the point is flagged, a name is not', () => {
+  assert.deepEqual(locations(lint(pointPlot(['1', '2.5', '(3, 4.5)', 'Samples: 4 6.5', 'Peak', undefined]))).filter(([rule]) => rule.startsWith('plot-point')), [
+    ['plot-point-label-coordinates', ['diagram', 'series', 0, 'points', 0, 'label']],
+    ['plot-point-label-coordinates', ['diagram', 'series', 0, 'points', 1, 'label']],
+    ['plot-point-label-coordinates', ['diagram', 'series', 0, 'points', 2, 'label']],
+    ['plot-point-label-coordinates', ['diagram', 'series', 0, 'points', 3, 'label']],
+  ]);
+});
+test('more than six labelled points on one plot are flagged once', () => {
+  assert.deepEqual(locations(lint(pointPlot(['A1', 'B2', 'C3', 'D4', 'E5', 'F6']))), []);
+  assert.deepEqual(locations(lint(pointPlot(['A1', 'B2', 'C3', 'D4', 'E5', 'F6', 'G7']))), [['plot-point-label-count', ['diagram', 'series']]]);
+});
+test('samples.showValues is flagged once at the samples and counts toward the cap', () => {
+  const plot = n => ({ kind: 'coordinate-plot', title: 'Fit', x: { label: 'X', min: 0, max: 30 }, y: { label: 'Y', min: 0, max: 30 }, series: [{ label: 'Fit', kind: 'scatter', samples: { x: { start: 0, step: 1 }, y: Array.from({ length: n }, (_, i) => i + 1), showValues: true } }] });
+  assert.deepEqual(locations(lint(plot(3))), [['plot-point-label-coordinates', ['diagram', 'series', 0, 'samples', 'showValues']]]);
+  assert.deepEqual(locations(lint(plot(8))), [['plot-point-label-coordinates', ['diagram', 'series', 0, 'samples', 'showValues']], ['plot-point-label-count', ['diagram', 'series']]]);
+});

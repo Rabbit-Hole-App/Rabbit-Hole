@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 import { tokenizeMath } from '../math-tokens.js';
-import { plotSeriesPoints } from './ml-plot-spec.js';
+import { MAX_POINT_NOTES, plotSeriesPoints, restatesPoint } from './ml-plot-spec.js';
 
 // Authored display text in the v1 shapes. Structural strings and numeric data stay out of the check.
 const TEXT_FIELDS = new Set([
@@ -169,6 +169,22 @@ function comparisonRepair(diagram) {
   return null;
 }
 
+// A point label names what the point is (a peak, a threshold, an outlier); its own coordinates are never a label, and a plot has at most MAX_POINT_NOTES labelled points.
+// `samples.showValues` prints each point's own y, so it is flagged like an explicit coordinate label (at the samples).
+function lintPlotPoints(diagram, path, report) {
+  let labelled = 0;
+  const flaggedSamples = new Set();
+  diagram.series.forEach((series, i) => plotSeriesPoints(series).forEach((point, j) => {
+    if (!point.label) return;
+    labelled++;
+    if (series.samples && flaggedSamples.has(i)) return;
+    if (series.samples) flaggedSamples.add(i);
+    if (restatesPoint(point.label, point, series.label)) report('plot-point-label-coordinates', [...path, 'series', i, ...(series.samples ? ['samples', 'showValues'] : ['points', j, 'label'])],
+      'Label a point only to name what it is (a peak, a threshold, an outlier); never label a point with its own coordinates.', point.label);
+  }));
+  if (labelled > MAX_POINT_NOTES) report('plot-point-label-count', [...path, 'series'], 'A plot has at most six labelled points; label a point only to name what it is (a peak, a threshold, an outlier).', labelled);
+}
+
 // This authoring check assumes the versioned spec shape. The runtime parser owns structural validation.
 export function lintDiagramContent(spec) {
   const issues = [];
@@ -185,6 +201,7 @@ export function lintDiagramContent(spec) {
       if (key === 'diagram') {
         lintNodes(value, path, report);
         lintEdges(value, path, report);
+        if (value.kind === 'coordinate-plot') lintPlotPoints(value, path, report);
         const repair = comparisonRepair(value);
         if (repair) report('redundant-comparison', [...path, 'panels'], repair);
       }
