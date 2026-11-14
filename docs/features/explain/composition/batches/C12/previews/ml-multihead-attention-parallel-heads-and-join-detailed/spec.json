@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "L1: only B values change; Q/K and weights fixed",
+    "rowLabel": "QKV; weights sum by column",
+    "columnLabel": "Head / position",
+    "columns": [
+      "A/P1",
+      "A/P2",
+      "B/P1",
+      "B/P2"
+    ],
+    "rows": [
+      {
+        "label": "Q",
+        "cells": [
+          1,
+          -1,
+          1,
+          1
+        ]
+      },
+      {
+        "label": "K",
+        "cells": [
+          1,
+          -1,
+          1,
+          -1
+        ]
+      },
+      {
+        "label": "V",
+        "cells": [
+          1,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "label": "weight K1",
+        "cells": [
+          0.881,
+          0.119,
+          0.881,
+          0.881
+        ]
+      },
+      {
+        "label": "weight K2",
+        "cells": [
+          0.119,
+          0.881,
+          0.119,
+          0.119
+        ]
+      },
+      {
+        "label": "weight Pad",
+        "cells": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": -1,
+      "max": 1
+    },
+    "caption": "Toy $H=I_2$; $[Q|K|V]_h=HW_h$; $W_A=((1,1,1),(-1,-1,0))$; $W_B'=((1,1,1),(1,-1,0))$. $A_h^{\\mathrm{valid}}=softmax_{K1,K2}(Q_hK_h^T)$; $d_h=1$; Pad blocked."
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Shared input yields two independent head contexts",
+    "nodes": [
+      {
+        "id": "H",
+        "label": "Supplied H, rows P1/P2",
+        "tensor": {
+          "rows": 2,
+          "columns": 2,
+          "dimensions": "2 × 2",
+          "values": [
+            1,
+            0,
+            0,
+            1
+          ]
+        }
+      },
+      {
+        "id": "A",
+        "label": "Head A contexts, P1/P2",
+        "tensor": {
+          "rows": 2,
+          "columns": 1,
+          "dimensions": "2 × 1",
+          "values": [
+            0.881,
+            0.119
+          ]
+        }
+      },
+      {
+        "id": "B",
+        "label": "Head B contexts, P1/P2",
+        "tensor": {
+          "rows": 2,
+          "columns": 1,
+          "dimensions": "2 × 1",
+          "values": [
+            0.119,
+            0.119
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "H",
+        "to": "A",
+        "label": "Project, score, mix A"
+      },
+      {
+        "from": "H",
+        "to": "B",
+        "label": "Project, score, mix B"
+      }
+    ],
+    "caption": "Supplied toy H; independent projectors score/mix the same keys. Each head returns one context per query. No concat yet."
+  }
+}

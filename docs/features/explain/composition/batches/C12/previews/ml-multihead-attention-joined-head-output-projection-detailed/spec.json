@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Displayed rows change; model head order remains fixed",
+    "nodes": [
+      {
+        "id": "heads",
+        "label": "Displayed head rows B,A",
+        "tensor": {
+          "rows": 2,
+          "columns": 1,
+          "dimensions": "2 × 1",
+          "values": [
+            0.119,
+            0.881
+          ],
+          "name": "One query P1"
+        }
+      },
+      {
+        "id": "z",
+        "label": "Joined model order A,B",
+        "tensor": {
+          "rows": 1,
+          "columns": 2,
+          "dimensions": "1 × 2",
+          "values": [
+            0.881,
+            0.119
+          ]
+        }
+      },
+      {
+        "id": "W",
+        "label": "Supplied learned $W_O$",
+        "tensor": {
+          "rows": 2,
+          "columns": 2,
+          "dimensions": "2 × 2",
+          "values": [
+            1,
+            1,
+            1,
+            -1
+          ]
+        }
+      },
+      {
+        "id": "y",
+        "label": "Projected stream width2",
+        "tensor": {
+          "rows": 1,
+          "columns": 2,
+          "dimensions": "1 × 2",
+          "values": [
+            1,
+            0.762
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "heads",
+        "to": "z",
+        "label": "Lookup model A,B identities"
+      },
+      {
+        "from": "z",
+        "to": "y",
+        "label": "Supply joined coordinates"
+      },
+      {
+        "from": "W",
+        "to": "y",
+        "label": "Apply learned map"
+      }
+    ],
+    "caption": "Display B,A; identity lookup builds model $z=(O_A,O_B)$ in A,B order. Fixed $W_O$ and y. Display bookkeeping, not model equivalence."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Separate outputs join, then project",
+    "nodes": [
+      {
+        "id": "A",
+        "label": "Head A",
+        "tensor": {
+          "rows": 2,
+          "columns": 1,
+          "dimensions": "2 × 1",
+          "values": [
+            0.881,
+            0.119
+          ]
+        }
+      },
+      {
+        "id": "B",
+        "label": "Head B",
+        "tensor": {
+          "rows": 2,
+          "columns": 1,
+          "dimensions": "2 × 1",
+          "values": [
+            0.119,
+            0.119
+          ]
+        }
+      },
+      {
+        "id": "J",
+        "label": "Concat A,B",
+        "tensor": {
+          "rows": 2,
+          "columns": 2,
+          "dimensions": "2 × 2",
+          "values": [
+            0.881,
+            0.119,
+            0.119,
+            0.119
+          ]
+        }
+      },
+      {
+        "id": "Y",
+        "label": "Projected Y",
+        "tensor": {
+          "rows": 2,
+          "columns": 2,
+          "dimensions": "2 × 2",
+          "values": [
+            1,
+            0.762,
+            0.238,
+            0
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "A",
+        "to": "J",
+        "label": "Join A"
+      },
+      {
+        "from": "B",
+        "to": "J",
+        "label": "Join B"
+      },
+      {
+        "from": "J",
+        "to": "Y",
+        "label": "Apply given $W_O$"
+      }
+    ],
+    "caption": "Rows P1,P2. $O_h=A_h^{\\mathrm{valid}}V_h$; $J=[O_A|O_B]$; $W_O=((1,1),(1,-1))$, $Y=JW_O$. Width2 feeds FFN."
+  }
+}

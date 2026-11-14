@@ -1,0 +1,19 @@
+{
+  "base": "2ac6017ece28f5dbbae8758df1a5acefcdccbf89",
+  "added": [
+    "ml-multihead-attention-head-coordinate-slices/320",
+    "ml-multihead-attention-head-coordinate-slices/408",
+    "ml-multihead-attention-head-coordinate-slices/720",
+    "ml-multihead-attention-head-weight-comparison/320",
+    "ml-multihead-attention-head-weight-comparison/408",
+    "ml-multihead-attention-head-weight-comparison/720",
+    "ml-multihead-attention-joined-head-output-projection/320",
+    "ml-multihead-attention-joined-head-output-projection/408",
+    "ml-multihead-attention-joined-head-output-projection/720",
+    "ml-multihead-attention-parallel-heads-and-join/320",
+    "ml-multihead-attention-parallel-heads-and-join/408",
+    "ml-multihead-attention-parallel-heads-and-join/720"
+  ],
+  "changed": [],
+  "removed": []
+}

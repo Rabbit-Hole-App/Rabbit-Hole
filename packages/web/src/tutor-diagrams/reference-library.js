@@ -66,6 +66,7 @@ import { references as compositionModelCapacity } from './composition-model-capa
 import { references as compositionGpt2 } from './composition-gpt2-references.js';
 import { references as compositionLanguageGeneration } from './composition-language-generation-references.js';
 import { references as compositionMusicTokenization } from './composition-music-tokenization-references.js';
+import { references as compositionMultiheadAttention } from './composition-multihead-attention-references.js';
 import { overlays as languageGenerationOverlays } from './topic-language-generation-overlays.js';
 import { overlays as bertOverlays } from './topic-bert-overlays.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
@@ -125,6 +126,7 @@ export const diagramReferences = Object.freeze([
   ...compositionContextualEmbeddings,
   ...compositionModelCapacity, ...compositionGpt2,
   ...compositionLanguageGeneration, ...compositionMusicTokenization,
+  ...compositionMultiheadAttention,
   ...estimationEvaluationReferences,
 ].map(ref => {
   const overlay = transformerOverlays[ref.id] ?? bertOverlays[ref.id] ?? attentionOverlays[ref.id] ?? languageGenerationOverlays[ref.id];

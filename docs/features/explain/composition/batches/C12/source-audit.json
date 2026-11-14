@@ -1,0 +1,125 @@
+{
+  "passed": true,
+  "batch": "C12",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "queueFamilies": 4,
+  "actualAssociations": 4,
+  "sourceHeadings": 16,
+  "newHeadings": 16,
+  "reuseHeadings": 0,
+  "originalFamilyRecordsPreserved": true,
+  "routes": [
+    {
+      "queueId": "ml-multihead-attention-head-coordinate-slices",
+      "referenceId": "ml-multihead-attention-head-coordinate-slices",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-46",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "referenceId": "ml-multihead-attention-head-weight-comparison",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-16",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "referenceId": "ml-multihead-attention-head-weight-comparison",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-20",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "referenceId": "ml-multihead-attention-head-weight-comparison",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-21",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "referenceId": "ml-multihead-attention-head-weight-comparison",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-06",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "referenceId": "ml-multihead-attention-head-weight-comparison",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-07",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "referenceId": "ml-multihead-attention-head-weight-comparison",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-08",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "referenceId": "ml-multihead-attention-head-weight-comparison",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-09",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "referenceId": "ml-multihead-attention-head-weight-comparison",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-47",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "referenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-17",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "referenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-19",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "referenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-multihead-attention/briefs.md#figure-01",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "referenceId": "ml-multihead-attention-joined-head-output-projection",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-18",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "referenceId": "ml-multihead-attention-joined-head-output-projection",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-51",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "referenceId": "ml-multihead-attention-joined-head-output-projection",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-52",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "referenceId": "ml-multihead-attention-joined-head-output-projection",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-53",
+      "lessons": []
+    }
+  ]
+}

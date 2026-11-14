@@ -1,0 +1,25 @@
+{
+  "batch": "C12",
+  "topic": "multihead-attention",
+  "base": "2ac6017ece28f5dbbae8758df1a5acefcdccbf89",
+  "expectedNew": 4,
+  "expectedFamilies": 4,
+  "expectedQueueFamilies": 4,
+  "manifest": "topic-multihead-attention-sources.json",
+  "groups": [
+    {
+      "topic": "multihead-attention",
+      "reference": "composition-multihead-attention-references.js",
+      "data": "topic-multihead-attention-data.js",
+      "test": "topic-multihead-attention-composition.test.mjs"
+    }
+  ],
+  "frozenSourceWorkerSha": "b215a93bbbd153543ca4fb6d60b0cd79600da12e",
+  "rootSourceSha": "5927b70805dc35bd8be26089a093684aac20ea4a",
+  "baseline": {
+    "priorCases": 4056,
+    "references": 510,
+    "authorSingles": 44,
+    "sha256": "ceda6c506c65ac076d12fe339d53aac950499f5b49380e746840911d03ca14ee"
+  }
+}

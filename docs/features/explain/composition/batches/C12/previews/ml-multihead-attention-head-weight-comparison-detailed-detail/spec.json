@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Edited L1 raw scores before the eligible softmax",
+    "rowLabel": "Edited layer/head/query",
+    "columnLabel": "Source key",
+    "columns": [
+      "$K_1=P_1$",
+      "$K_2=P_2$",
+      "Pad"
+    ],
+    "rows": [
+      {
+        "label": "Edit L1/A/P1",
+        "cells": [
+          1,
+          -1,
+          null
+        ]
+      },
+      {
+        "label": "Edit L1/A/P2",
+        "cells": [
+          -1,
+          1,
+          null
+        ]
+      },
+      {
+        "label": "Edit L1/B/P1",
+        "cells": [
+          -1,
+          1,
+          null
+        ]
+      },
+      {
+        "label": "Edit L1/B/P2",
+        "cells": [
+          -1,
+          1,
+          null
+        ]
+      }
+    ],
+    "range": {
+      "min": -1,
+      "max": 1
+    },
+    "caption": "Raw $S_h=Q_h\\widetilde K_h^T/\\sqrt{1}$. Grey Pad blocked before maximum/normalizer. Same edited L1; signed scores, not probabilities."
+  }
+}

@@ -1,0 +1,502 @@
+{
+  "ml-multihead-attention-head-coordinate-slices": {
+    "kind": "transformation",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 514
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 458
+      },
+      "natural": {
+        "requested": 324,
+        "width": 324,
+        "height": 536
+      }
+    }
+  },
+  "ml-multihead-attention-head-coordinate-slices-brief": {
+    "kind": "tensor",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 185
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 151
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 224
+      }
+    }
+  },
+  "ml-multihead-attention-head-coordinate-slices-balanced": {
+    "kind": "transformation",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 514
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 458
+      },
+      "natural": {
+        "requested": 324,
+        "width": 324,
+        "height": 536
+      }
+    }
+  },
+  "ml-multihead-attention-head-coordinate-slices-detailed": {
+    "kind": "transformation",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 514
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 458
+      },
+      "natural": {
+        "requested": 324,
+        "width": 324,
+        "height": 553
+      }
+    }
+  },
+  "ml-multihead-attention-head-weight-comparison": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 509
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 453
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 526
+      }
+    }
+  },
+  "ml-multihead-attention-head-weight-comparison-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 492
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 453
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 509
+      }
+    }
+  },
+  "ml-multihead-attention-head-weight-comparison-brief": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 404
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 365
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 404
+      }
+    }
+  },
+  "ml-multihead-attention-head-weight-comparison-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 509
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 453
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 526
+      }
+    }
+  },
+  "ml-multihead-attention-head-weight-comparison-balanced-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 492
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 453
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 509
+      }
+    }
+  },
+  "ml-multihead-attention-head-weight-comparison-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 503
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 469
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 542
+      }
+    }
+  },
+  "ml-multihead-attention-head-weight-comparison-detailed-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 490
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 451
+      },
+      "natural": {
+        "requested": 364,
+        "width": 364,
+        "height": 507
+      }
+    }
+  },
+  "ml-multihead-attention-parallel-heads-and-join": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 619
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 563
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 619
+      }
+    }
+  },
+  "ml-multihead-attention-parallel-heads-and-join-detail": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 861
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 827
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 917
+      }
+    }
+  },
+  "ml-multihead-attention-parallel-heads-and-join-brief": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 774
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 701
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 825
+      }
+    }
+  },
+  "ml-multihead-attention-parallel-heads-and-join-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 619
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 563
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 619
+      }
+    }
+  },
+  "ml-multihead-attention-parallel-heads-and-join-balanced-detail": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 861
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 827
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 917
+      }
+    }
+  },
+  "ml-multihead-attention-parallel-heads-and-join-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 619
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 563
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 619
+      }
+    }
+  },
+  "ml-multihead-attention-parallel-heads-and-join-detailed-detail": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 883
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 827
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 917
+      }
+    }
+  },
+  "ml-multihead-attention-joined-head-output-projection": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 977
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 870
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 1033
+      }
+    }
+  },
+  "ml-multihead-attention-joined-head-output-projection-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 335
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 279
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 357
+      }
+    }
+  },
+  "ml-multihead-attention-joined-head-output-projection-brief": {
+    "kind": "transformation",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 473
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 434
+      },
+      "natural": {
+        "requested": 366,
+        "width": 366,
+        "height": 473
+      }
+    }
+  },
+  "ml-multihead-attention-joined-head-output-projection-balanced": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 977
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 870
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 1033
+      }
+    }
+  },
+  "ml-multihead-attention-joined-head-output-projection-balanced-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 335
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 279
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 357
+      }
+    }
+  },
+  "ml-multihead-attention-joined-head-output-projection-detailed": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 977
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 887
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 1050
+      }
+    }
+  },
+  "ml-multihead-attention-joined-head-output-projection-detailed-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 335
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 279
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 357
+      }
+    }
+  }
+}

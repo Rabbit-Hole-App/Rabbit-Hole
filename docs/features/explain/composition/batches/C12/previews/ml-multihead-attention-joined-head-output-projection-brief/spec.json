@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "transformation",
+    "title": "Head coordinates join in the declared model order",
+    "before": {
+      "label": "L1 P1 head rows A,B",
+      "items": [
+        {
+          "tensor": {
+            "rows": 2,
+            "columns": 1,
+            "dimensions": "2 × 1",
+            "values": [
+              0.881,
+              0.119
+            ],
+            "name": "Distinct head outputs A,B"
+          }
+        }
+      ]
+    },
+    "operation": "Concatenate A then B; no averaging",
+    "after": {
+      "label": "One query, coordinates A,B",
+      "items": [
+        {
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              0.881,
+              0.119
+            ]
+          }
+        }
+      ]
+    },
+    "links": [
+      {
+        "from": 0,
+        "to": 0,
+        "label": "Preserve model order"
+      }
+    ],
+    "caption": "Toy L1 P1; distinct head scalars join end to end. Width $1+1=2$, not an average."
+  }
+}

@@ -1770,5 +1770,21 @@
   "ml-language-generation-autoregressive-feedback": [
     "growing prefix stop event",
     "encode once generation trace"
+  ],
+  "ml-multihead-attention-head-coordinate-slices": [
+    "aligned head slices",
+    "qkv coordinate partition"
+  ],
+  "ml-multihead-attention-head-weight-comparison": [
+    "layer head patterns",
+    "masked head contrast"
+  ],
+  "ml-multihead-attention-parallel-heads-and-join": [
+    "parallel head outputs",
+    "per query join"
+  ],
+  "ml-multihead-attention-joined-head-output-projection": [
+    "ordered head projection",
+    "concat matrix mixing"
   ]
 }

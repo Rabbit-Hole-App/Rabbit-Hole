@@ -1,0 +1,122 @@
+{
+  "all18InitialViewsInspected": true,
+  "correctedViewsInspected": 9,
+  "unchangedFromInitial": 9,
+  "finalOfficialViews": 18,
+  "allOfficialSpecAnd408SVGByteIdenticalToInspectedFinalExport": true,
+  "sheets": {
+    "overview": 4,
+    "standard": 7,
+    "deep": 7
+  },
+  "rows": [
+    {
+      "view": "ml-multihead-attention-head-coordinate-slices-brief",
+      "spec_jsonSha256": "d9db51b50b54db23f932cb151cd26ca786997893ce88cbd0df49176f08b666b3",
+      "408_svgSha256": "bdce1f146869f4c3c39b216d27f0113a673395ae54b6b6b27acd015ff0c43ea9",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-head-weight-comparison-brief",
+      "spec_jsonSha256": "d48164a84395525feab38ca1d6b760d44f5f09c8d8525b0ee3ef5badf6114a7b",
+      "408_svgSha256": "95b07c62eb46521eeda8d01e3c2d479a21114ef92d162aa2bc1ba15c76fc4453",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-joined-head-output-projection-brief",
+      "spec_jsonSha256": "c09e1689e59886c690b71931b72dafe45ae36339cdef1ee7ab59629975cf7b31",
+      "408_svgSha256": "3684ea8bec85e3b05e59c248782940369dcbc2e2cee97e6ad96adfd506b21655",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-parallel-heads-and-join-brief",
+      "spec_jsonSha256": "d4c440fff7a6c905fd66e1283057890e6595fbb62d29aae8bfbf3705069110a2",
+      "408_svgSha256": "f201b2c84d31a413ae9c4b1c8ef1cdeb0dddead7fc6a3efee86358a037a6c82b",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-head-coordinate-slices-balanced",
+      "spec_jsonSha256": "990c0e83b44a5675cb71afa0ddebef191035070ffc2787300a9a16f5e2df9f96",
+      "408_svgSha256": "5f78928d7c35dadcb1d75bf44d4c8d030fddc2dc3c69970e2cd012c9b740cb6f",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-head-weight-comparison-balanced",
+      "spec_jsonSha256": "3f1472dc4ea36b00b4aaa6da67b171794d871558ef7b0ee950652a1e92392230",
+      "408_svgSha256": "1badb70a86e5b392e2c9e94b8c92f4bfb7a993ab6d8e32de0d55310869411494",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-head-weight-comparison-balanced-detail",
+      "spec_jsonSha256": "8ee1c9e4db15135af38a8366e576c686bb861956c37f64aa942d138da5ac8b32",
+      "408_svgSha256": "7d7b9184088212d74c62d3831281856b3930a3a333843b7c1bed68e7cbeec450",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-joined-head-output-projection-balanced",
+      "spec_jsonSha256": "30ba835227234483406278ad9173e37dd68702393bd7d9931485b043924963b6",
+      "408_svgSha256": "d5525b8db32b94f22f1ec75951fdd97b2c72f0734962b95dc729583428ce3bec",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-joined-head-output-projection-balanced-detail",
+      "spec_jsonSha256": "2c06a72a5d4cefee75c8074f1790e330f7e12daf94ac385e00f997b9f7050d71",
+      "408_svgSha256": "97e77a2a275568612df2a43d2010a784a82efe8f6f794eb9b8fe87f812a94222",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-parallel-heads-and-join-balanced",
+      "spec_jsonSha256": "f696d74a11e1c35ba3816fde437c4810bcbd8fca51f9d2a29688263e18e6a93a",
+      "408_svgSha256": "471520cab226c91d23209101a1964dd703729241371b82aeeff362a774ebddb0",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-parallel-heads-and-join-balanced-detail",
+      "spec_jsonSha256": "65fb07b80c3a38844a27da93039e5c8f4f39459fbb2be0ce68cdf5163281cdda",
+      "408_svgSha256": "2e0f566e78b6ca9e7a66c183ba226c88698b140175f08d1405155b46499aa556",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-head-coordinate-slices-detailed",
+      "spec_jsonSha256": "4e91ba15ac2771f5d7a90bbf5b81435fc163c6e2f27e91219d260b9b332d697e",
+      "408_svgSha256": "aa03943db05e15e21357077f191434963a1523eb31168d186d2516299a379ce5",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-head-weight-comparison-detailed",
+      "spec_jsonSha256": "c937d72a5cc853193979ea268cea5ebdde6138e78dd5af441480f6712c5a36a4",
+      "408_svgSha256": "59a82a9267cfa142498981bacbe51a6b14c286bee5234a3cb052c394abba96b8",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-head-weight-comparison-detailed-detail",
+      "spec_jsonSha256": "52089af9491f07948c3a480b521b7dfc1de8661afa713d6b3d30e1b9b519ece7",
+      "408_svgSha256": "f8bb911f362ed505394afa321fd034d304a7fd7f24d5bbcab187d3c2c40ad7ee",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-joined-head-output-projection-detailed",
+      "spec_jsonSha256": "d1677d605cd3d0a18e54869a43111b26162ad300b40b2abbb9d25cc15b9b1149",
+      "408_svgSha256": "3d958007844a4a150a4b8a7205a1a7eda334bf62a3d12ff7481e6e8cdb1f1e88",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-joined-head-output-projection-detailed-detail",
+      "spec_jsonSha256": "2c06a72a5d4cefee75c8074f1790e330f7e12daf94ac385e00f997b9f7050d71",
+      "408_svgSha256": "97e77a2a275568612df2a43d2010a784a82efe8f6f794eb9b8fe87f812a94222",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-parallel-heads-and-join-detailed",
+      "spec_jsonSha256": "b072344c901c68bd4d56663bee9de3fcdf2bdfd221c28894e9045d073f70968e",
+      "408_svgSha256": "fe0d5c7582fedf08c31f242c739e538a3d8bce7aea080b793ac936f585485f01",
+      "identicalToInspectedFinalExport": true
+    },
+    {
+      "view": "ml-multihead-attention-parallel-heads-and-join-detailed-detail",
+      "spec_jsonSha256": "983d7df794b6ccef600fe55713e397ea9c96350516ae647d96aeb8843b824ab4",
+      "408_svgSha256": "f203a1471367fbc589e86b752c46c7f04d64542fabb7995d7960aecd57e6bc5c",
+      "identicalToInspectedFinalExport": true
+    }
+  ]
+}

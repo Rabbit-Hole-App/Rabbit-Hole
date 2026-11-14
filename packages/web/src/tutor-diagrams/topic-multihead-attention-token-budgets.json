@@ -1,0 +1,128 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-multihead-attention-head-coordinate-slices": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 103,
+          "sha256": "66a68b12ec2d1cd73b86c529cc112b7a9ef0247c97b7849418647db4c4ca8c6a"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 267,
+          "sha256": "ca3f85e4f85aa8fac1837aa615b9d5f172e859af0cb04a3f6d5c8c0ecdef0980"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 260,
+          "sha256": "2709e840e3ad159af4f0344c8f8df1cd8fe6c7dabe97f00303e70bf33a4c7199"
+        }
+      ]
+    },
+    "ml-multihead-attention-head-weight-comparison": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 139,
+          "sha256": "4d728f3743fb45c0dfd59ae8dd0fd14dd3374825bd7d6d3ae828bf9dc71fec65"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 258,
+          "sha256": "d4d6dcb48a985ab0cba6e28699ffe67baccf8aee8f09b81e9baa62514deaca4f"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 239,
+          "sha256": "c75f46c38ed49a05149c2518dfbefa1bd38c3fc8f4bbc2dbd5eaca221059d345"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 265,
+          "sha256": "4c8bce7ff5ebd884511bef3fb64856b532e963c24fb2f0352b1cd343d96607d8"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 185,
+          "sha256": "c387ea1a1d573d092214700f095eee94b5af02c6b1cd0f8b79302ac207fec8dd"
+        }
+      ]
+    },
+    "ml-multihead-attention-parallel-heads-and-join": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 226,
+          "sha256": "93d19805c1acd8027bf837fcd569f91814ec69f3036814a7241a410a3ec23369"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 284,
+          "sha256": "92423bda5bc32bf13f87a01487508b081832ba425322df012ef5dcf01dd5888e"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 296,
+          "sha256": "8d8e56bb652243fa8d0d4fabbd49f0251ef30b5ebe4bad95d9f12da7f0c5b4b4"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 286,
+          "sha256": "d1cc97ac78db01211e3cdb1323ff3688814d665dfe5da294a47de2ee1b849b6b"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 297,
+          "sha256": "e3395442da32b4d70cb0b4b7a431b7aa05a768d7e1daa60b8e0e3412915ae491"
+        }
+      ]
+    },
+    "ml-multihead-attention-joined-head-output-projection": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 178,
+          "sha256": "1e74e41f4c86bc9afdad17357cdca79291a5acb4c2a0de3d12400730b0f6af46"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 287,
+          "sha256": "aab11d0b31945501c3d8358c963c0b79ed742df3af462bf4ea7ea3e2a81e3312"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 113,
+          "sha256": "57b866a19c59b03cb583bfd320c228316628da8052ed5c29630cb502d0d4d4a2"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 284,
+          "sha256": "6721501cbfbe11000c3a478cfed7ac6aaff4f64c2f9f249a291b927360d9dcf4"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 113,
+          "sha256": "57b866a19c59b03cb583bfd320c228316628da8052ed5c29630cb502d0d4d4a2"
+        }
+      ]
+    }
+  }
+}

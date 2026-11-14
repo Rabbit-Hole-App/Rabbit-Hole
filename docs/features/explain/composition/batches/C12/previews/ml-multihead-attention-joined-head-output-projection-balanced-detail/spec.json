@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "The selected projected vector reaches the next FFN",
+    "blocks": [
+      {
+        "id": "y",
+        "label": "Projected y at L1 P1",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              1,
+              0.762
+            ]
+          }
+        }
+      },
+      {
+        "id": "ffn",
+        "label": "Next FFN",
+        "dims": "input width2"
+      }
+    ],
+    "caption": "The selected projection has width2 and becomes the input to the next feedforward network."
+  }
+}

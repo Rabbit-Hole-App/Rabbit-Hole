@@ -1,0 +1,927 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 4056,
+  "changedPriorPicks": [],
+  "sourceHeadings": 16,
+  "uniqueSourcePrompts": 13,
+  "sourceCases": 48,
+  "sourceHits": 48,
+  "actualPlannedAuthorSchemaChecks": 48,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-multihead-attention-head-coordinate-slices",
+      "expectedFamily": "ml-multihead-attention-head-coordinate-slices",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-46",
+      "prompt": "Splitting into heads partitions the projected coordinates into independent smaller groups.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-head-coordinate-slices",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-coordinate-slices",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-coordinate-slices",
+      "preparedId": "ml-multihead-attention-head-coordinate-slices",
+      "preparedSchemaValid": true,
+      "kind": "tensor",
+      "collision": false,
+      "plannedKinds": [
+        "tensor"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-coordinate-slices",
+      "expectedFamily": "ml-multihead-attention-head-coordinate-slices",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-46",
+      "prompt": "Splitting into heads partitions the projected coordinates into independent smaller groups.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-head-coordinate-slices",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-coordinate-slices",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-coordinate-slices",
+      "preparedId": "ml-multihead-attention-head-coordinate-slices",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-coordinate-slices",
+      "expectedFamily": "ml-multihead-attention-head-coordinate-slices",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-46",
+      "prompt": "Splitting into heads partitions the projected coordinates into independent smaller groups.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-head-coordinate-slices",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-coordinate-slices",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-coordinate-slices",
+      "preparedId": "ml-multihead-attention-head-coordinate-slices",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-16",
+      "prompt": "Each head learns its own projections, so heads can score a sequence differently.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-16",
+      "prompt": "Each head learns its own projections, so heads can score a sequence differently.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-16",
+      "prompt": "Each head learns its own projections, so heads can score a sequence differently.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-20",
+      "prompt": "Two heads can weigh different tokens highly even when they process the same query.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-20",
+      "prompt": "Two heads can weigh different tokens highly even when they process the same query.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-20",
+      "prompt": "Two heads can weigh different tokens highly even when they process the same query.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-21",
+      "prompt": "A combined view of many attention heads can obscure which head produced an edge.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-21",
+      "prompt": "A combined view of many attention heads can obscure which head produced an edge.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-21",
+      "prompt": "A combined view of many attention heads can obscure which head produced an edge.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-06",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-06",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-06",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-07",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-07",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-07",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-08",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-08",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-08",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-09",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-09",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-09",
+      "prompt": "Encoder heads may distribute attention differently over the same valid source positions.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-47",
+      "prompt": "Each head can process the same positions using its own coordinate slices.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-47",
+      "prompt": "Each head can process the same positions using its own coordinate slices.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "expectedFamily": "ml-multihead-attention-head-weight-comparison",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-47",
+      "prompt": "Each head can process the same positions using its own coordinate slices.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-head-weight-comparison",
+      "rawAuthorReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-head-weight-comparison",
+      "preparedId": "ml-multihead-attention-head-weight-comparison",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "expectedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-17",
+      "prompt": "A full attention head returns a context vector at each query position.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "rawAuthorReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedId": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "expectedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-17",
+      "prompt": "A full attention head returns a context vector at each query position.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "rawAuthorReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedId": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "expectedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-17",
+      "prompt": "A full attention head returns a context vector at each query position.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "rawAuthorReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedId": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "expectedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-19",
+      "prompt": "Multi-head attention repeats the score-and-mix computation in parallel, then joins the head outputs.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "rawAuthorReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedId": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "expectedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-19",
+      "prompt": "Multi-head attention repeats the score-and-mix computation in parallel, then joins the head outputs.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "rawAuthorReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedId": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "expectedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-19",
+      "prompt": "Multi-head attention repeats the score-and-mix computation in parallel, then joins the head outputs.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "rawAuthorReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedId": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "expectedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-multihead-attention/briefs.md#figure-01",
+      "prompt": "Parallel heads compare different projections of the same inputs before their outputs are concatenated and projected.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "rawAuthorReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedId": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "expectedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-multihead-attention/briefs.md#figure-01",
+      "prompt": "Parallel heads compare different projections of the same inputs before their outputs are concatenated and projected.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "rawAuthorReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedId": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "expectedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-multihead-attention/briefs.md#figure-01",
+      "prompt": "Parallel heads compare different projections of the same inputs before their outputs are concatenated and projected.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "rawAuthorReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedId": "ml-multihead-attention-parallel-heads-and-join",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-18",
+      "prompt": "The output projection mixes concatenated head vectors into the width used by the next sublayer.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-18",
+      "prompt": "The output projection mixes concatenated head vectors into the width used by the next sublayer.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-18",
+      "prompt": "The output projection mixes concatenated head vectors into the width used by the next sublayer.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-51",
+      "prompt": "Concatenation places the individual head outputs end to end without averaging them.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-51",
+      "prompt": "Concatenation places the individual head outputs end to end without averaging them.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-51",
+      "prompt": "Concatenation places the individual head outputs end to end without averaging them.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-52",
+      "prompt": "The attention output projection learns how to combine coordinates from the joined heads.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-52",
+      "prompt": "The attention output projection learns how to combine coordinates from the joined heads.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-52",
+      "prompt": "The attention output projection learns how to combine coordinates from the joined heads.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-53",
+      "prompt": "The projected attention result restores the width expected by the residual stream.",
+      "depth": "brief",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-53",
+      "prompt": "The projected attention result restores the width expected by the residual stream.",
+      "depth": "balanced",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "expectedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-53",
+      "prompt": "The projected attention result restores the width expected by the residual stream.",
+      "depth": "detailed",
+      "firstFamily": "ml-multihead-attention-joined-head-output-projection",
+      "rawAuthorReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "firstPick": true,
+      "preparedFamily": "ml-multihead-attention-joined-head-output-projection",
+      "preparedId": "ml-multihead-attention-joined-head-output-projection",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

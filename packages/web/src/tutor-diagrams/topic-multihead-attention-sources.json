@@ -1,0 +1,633 @@
+{
+  "batch": "C12",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "baseTree": "eed641130db696e0fb5052a23c3ff37fd031fe22",
+  "families": [
+    {
+      "rank": 60,
+      "source": "illustrated-gpt2",
+      "figure": "46",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-46",
+      "summary": "Splitting into heads partitions the projected coordinates into independent smaller groups.",
+      "kinds": [
+        "tensor",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-multihead-attention-head-coordinate-slices",
+      "proposedTopicSlug": "multihead-attention",
+      "lessons": [],
+      "batch": "C12",
+      "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 7",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "transformation",
+        "tensor"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-multihead-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Coordinate partition into heads; distinct from independent Q/K/V projections and the later concat operation.",
+      "batchTopic": "multihead-attention"
+    },
+    {
+      "rank": 61,
+      "source": "illustrated-transformer",
+      "figure": "16",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-16",
+      "summary": "Each head learns its own projections, so heads can score a sequence differently.",
+      "kinds": [
+        "comparison",
+        "heatmap",
+        "token-links"
+      ],
+      "proposedReferenceId": "ml-multihead-attention-head-weight-comparison",
+      "proposedTopicSlug": "multihead-attention",
+      "lessons": [],
+      "batch": "C12",
+      "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 1",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "comparison",
+        "token-links"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-multihead-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "20",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-20",
+          "summary": "Two heads can weigh different tokens highly even when they process the same query.",
+          "kinds": [
+            "comparison",
+            "token-links"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 5",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-transformer",
+          "figure": "21",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-21",
+          "summary": "A combined view of many attention heads can obscure which head produced an edge.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 6",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "06",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-06",
+          "summary": "Encoder heads may distribute attention differently over the same valid source positions.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 3/5. Compare encoder attention patterns. Implementation rendering 1/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "07",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-07",
+          "summary": "Encoder heads may distribute attention differently over the same valid source positions.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 3/5. Compare encoder attention patterns. Implementation rendering 2/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "08",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-08",
+          "summary": "Encoder heads may distribute attention differently over the same valid source positions.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 3/5. Compare encoder attention patterns. Implementation rendering 3/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "09",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-09",
+          "summary": "Encoder heads may distribute attention differently over the same valid source positions.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 3/5. Compare encoder attention patterns. Implementation rendering 4/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "47",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-47",
+          "summary": "Each head can process the same positions using its own coordinate slices.",
+          "kinds": [
+            "comparison",
+            "token-links"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 8",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same positions compared across independently normalized heads; framework outputs and combined/separate head renderings share one comparison.",
+      "batchTopic": "multihead-attention"
+    },
+    {
+      "rank": 62,
+      "source": "illustrated-transformer",
+      "figure": "17",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-17",
+      "summary": "A full attention head returns a context vector at each query position.",
+      "kinds": [
+        "block-stack",
+        "comparison",
+        "matrix",
+        "tensor",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "proposedTopicSlug": "multihead-attention",
+      "lessons": [],
+      "batch": "C12",
+      "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 2",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "matrix",
+        "block-stack"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-multihead-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "19",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-19",
+          "summary": "Multi-head attention repeats the score-and-mix computation in parallel, then joins the head outputs.",
+          "kinds": [
+            "block-stack",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 4",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "d2l-multihead-attention",
+          "figure": "01",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-multihead-attention/briefs.md#figure-01",
+          "summary": "Parallel heads compare different projections of the same inputs before their outputs are concatenated and projected.",
+          "kinds": [
+            "comparison",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Multi-head attention 1/1. Split into heads and combine again",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated views of the same parallel-head workflow: separate per-query head results before ordered concatenation and projection.",
+      "batchTopic": "multihead-attention"
+    },
+    {
+      "rank": 63,
+      "source": "illustrated-transformer",
+      "figure": "18",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-18",
+      "summary": "The output projection mixes concatenated head vectors into the width used by the next sublayer.",
+      "kinds": [
+        "block-stack",
+        "tensor",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-multihead-attention-joined-head-output-projection",
+      "proposedTopicSlug": "multihead-attention",
+      "lessons": [],
+      "batch": "C12",
+      "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 3",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "transformation",
+        "tensor"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-multihead-attention-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "51",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-51",
+          "summary": "Concatenation places the individual head outputs end to end without averaging them.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 12",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "52",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-52",
+          "summary": "The attention output projection learns how to combine coordinates from the joined heads.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 13",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "53",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-53",
+          "summary": "The projected attention result restores the width expected by the residual stream.",
+          "kinds": [
+            "transformation",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 14",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Successive views of one concat-then-project workflow; concatenation preserves order and is not averaging.",
+      "batchTopic": "multihead-attention"
+    }
+  ],
+  "references": [
+    {
+      "queueId": "ml-multihead-attention-head-coordinate-slices",
+      "referenceId": "ml-multihead-attention-head-coordinate-slices",
+      "mode": "NEW",
+      "topic": "multihead-attention",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "46",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-46",
+        "summary": "Splitting into heads partitions the projected coordinates into independent smaller groups.",
+        "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 7",
+        "kinds": [
+          "transformation",
+          "tensor"
+        ],
+        "gapTypes": [
+          "composition",
+          "numeric-transformation"
+        ],
+        "lessons": []
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Coordinate partition into heads; distinct from independent Q/K/V projections and the later concat operation."
+    },
+    {
+      "queueId": "ml-multihead-attention-head-weight-comparison",
+      "referenceId": "ml-multihead-attention-head-weight-comparison",
+      "mode": "NEW",
+      "topic": "multihead-attention",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "16",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-16",
+        "summary": "Each head learns its own projections, so heads can score a sequence differently.",
+        "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 1",
+        "kinds": [
+          "comparison",
+          "token-links"
+        ],
+        "gapTypes": [
+          "composition"
+        ],
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "20",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-20",
+          "summary": "Two heads can weigh different tokens highly even when they process the same query.",
+          "kinds": [
+            "comparison",
+            "token-links"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 5",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-transformer",
+          "figure": "21",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-21",
+          "summary": "A combined view of many attention heads can obscure which head produced an edge.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 6",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "06",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-06",
+          "summary": "Encoder heads may distribute attention differently over the same valid source positions.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 3/5. Compare encoder attention patterns. Implementation rendering 1/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "07",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-07",
+          "summary": "Encoder heads may distribute attention differently over the same valid source positions.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 3/5. Compare encoder attention patterns. Implementation rendering 2/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "08",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-08",
+          "summary": "Encoder heads may distribute attention differently over the same valid source positions.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 3/5. Compare encoder attention patterns. Implementation rendering 3/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "d2l-transformer",
+          "figure": "09",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-transformer/briefs.md#figure-09",
+          "summary": "Encoder heads may distribute attention differently over the same valid source positions.",
+          "kinds": [
+            "heatmap",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Transformer 3/5. Compare encoder attention patterns. Implementation rendering 4/4",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "47",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-47",
+          "summary": "Each head can process the same positions using its own coordinate slices.",
+          "kinds": [
+            "comparison",
+            "token-links"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 8",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same positions compared across independently normalized heads; framework outputs and combined/separate head renderings share one comparison."
+    },
+    {
+      "queueId": "ml-multihead-attention-parallel-heads-and-join",
+      "referenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "mode": "NEW",
+      "topic": "multihead-attention",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "17",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-17",
+        "summary": "A full attention head returns a context vector at each query position.",
+        "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 2",
+        "kinds": [
+          "matrix",
+          "block-stack"
+        ],
+        "gapTypes": [
+          "composition"
+        ],
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-transformer",
+          "figure": "19",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-19",
+          "summary": "Multi-head attention repeats the score-and-mix computation in parallel, then joins the head outputs.",
+          "kinds": [
+            "block-stack",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 4",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "d2l-multihead-attention",
+          "figure": "01",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-multihead-attention/briefs.md#figure-01",
+          "summary": "Parallel heads compare different projections of the same inputs before their outputs are concatenated and projected.",
+          "kinds": [
+            "comparison",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Multi-head attention 1/1. Split into heads and combine again",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated views of the same parallel-head workflow: separate per-query head results before ordered concatenation and projection."
+    },
+    {
+      "queueId": "ml-multihead-attention-joined-head-output-projection",
+      "referenceId": "ml-multihead-attention-joined-head-output-projection",
+      "mode": "NEW",
+      "topic": "multihead-attention",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-transformer",
+        "figure": "18",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-18",
+        "summary": "The output projection mixes concatenated head vectors into the width used by the next sublayer.",
+        "sequence": "Illustrated Transformer \u00b7 Parallel attention heads \u00b7 step 3",
+        "kinds": [
+          "transformation",
+          "tensor"
+        ],
+        "gapTypes": [
+          "composition",
+          "numeric-transformation"
+        ],
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "51",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-51",
+          "summary": "Concatenation places the individual head outputs end to end without averaging them.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 12",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "52",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-52",
+          "summary": "The attention output projection learns how to combine coordinates from the joined heads.",
+          "kinds": [
+            "transformation",
+            "tensor"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 13",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "53",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-53",
+          "summary": "The projected attention result restores the width expected by the residual stream.",
+          "kinds": [
+            "transformation",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Cached inference and multiple heads \u00b7 step 14",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Successive views of one concat-then-project workflow; concatenation preserves order and is not averaging."
+    }
+  ]
+}

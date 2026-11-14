@@ -1,0 +1,1412 @@
+{
+  "version": 1,
+  "topic": "multihead-attention",
+  "fixture": false,
+  "threshold": 0.8,
+  "hits": 60,
+  "total": 60,
+  "firstPickRate": 1,
+  "passed": true,
+  "byDepth": [
+    {
+      "depth": "brief",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "balanced",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "detailed",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    }
+  ],
+  "prompts": [
+    {
+      "id": "ml-multihead-attention-head-coordinate-slices",
+      "prompt": "Splitting into heads partitions the projected coordinates into independent smaller groups.",
+      "referenceId": "ml-multihead-attention-head-coordinate-slices",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show aligned head slices for all three projected QKV rows at P2.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "tensor"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "tensor",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "tensor",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show aligned head slices for all three projected QKV rows at P2.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show aligned head slices for all three projected QKV rows at P2.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the qkv coordinate partition into Head A and Head B without changing any values.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "tensor"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "tensor",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "tensor",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the qkv coordinate partition into Head A and Head B without changing any values.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace the qkv coordinate partition into Head A and Head B without changing any values.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep identical half-open boundaries in aligned head slices for queries, keys and values.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "tensor"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "tensor",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "tensor",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep identical half-open boundaries in aligned head slices for queries, keys and values.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep identical half-open boundaries in aligned head slices for queries, keys and values.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Rejoin the qkv coordinate partition and recover the original projected rows.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "tensor"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "tensor",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "tensor",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Rejoin the qkv coordinate partition and recover the original projected rows.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Rejoin the qkv coordinate partition and recover the original projected rows.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Edit one projected query coordinate and identify which aligned head slice changes.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "tensor"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "tensor",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "tensor",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Edit one projected query coordinate and identify which aligned head slice changes.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Edit one projected query coordinate and identify which aligned head slice changes.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-head-coordinate-slices",
+          "firstReferenceId": "ml-multihead-attention-head-coordinate-slices",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-coordinate-slices"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-coordinate-slices",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-multihead-attention-head-weight-comparison",
+      "prompt": "Each head learns its own projections, so heads can score a sequence differently.",
+      "referenceId": "ml-multihead-attention-head-weight-comparison",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Compare layer head patterns using the same valid source keys and padding mask.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare layer head patterns using the same valid source keys and padding mask.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare layer head patterns using the same valid source keys and padding mask.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show masked head contrast between a diagonal head and a repeated-key head.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show masked head contrast between a diagonal head and a repeated-key head.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show masked head contrast between a diagonal head and a repeated-key head.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep head and query identities visible in layer head patterns across supplied L1 and L2.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep head and query identities visible in layer head patterns across supplied L1 and L2.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep head and query identities visible in layer head patterns across supplied L1 and L2.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain the broad-versus-isolated masked head contrast without pooling the heads.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain the broad-versus-isolated masked head contrast without pooling the heads.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain the broad-versus-isolated masked head contrast without pooling the heads.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Change only Head B's projector and recompute layer head patterns while Head A stays fixed.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Change only Head B's projector and recompute layer head patterns while Head A stays fixed.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Change only Head B's projector and recompute layer head patterns while Head A stays fixed.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-head-weight-comparison",
+          "firstReferenceId": "ml-multihead-attention-head-weight-comparison",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-head-weight-comparison"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-head-weight-comparison",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-multihead-attention-parallel-heads-and-join",
+      "prompt": "A full attention head returns a context vector at each query position.",
+      "referenceId": "ml-multihead-attention-parallel-heads-and-join",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Trace parallel head outputs for both query positions before concatenating them.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace parallel head outputs for both query positions before concatenating them.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace parallel head outputs for both query positions before concatenating them.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the per query join from independent QKV operands through actual head contexts.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the per query join from independent QKV operands through actual head contexts.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the per query join from independent QKV operands through actual head contexts.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep Head A and Head B separate in parallel head outputs until the ordered join.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep Head A and Head B separate in parallel head outputs until the ordered join.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep Head A and Head B separate in parallel head outputs until the ordered join.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the per query join after changing only Head B's value projector.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the per query join after changing only Head B's value projector.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Recompute the per query join after changing only Head B's value projector.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show parallel head outputs, their ordered columns and the projected width sent to FFN.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show parallel head outputs, their ordered columns and the projected width sent to FFN.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show parallel head outputs, their ordered columns and the projected width sent to FFN.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-parallel-heads-and-join",
+          "firstReferenceId": "ml-multihead-attention-parallel-heads-and-join",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-parallel-heads-and-join"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-multihead-attention-parallel-heads-and-join",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-multihead-attention-joined-head-output-projection",
+      "prompt": "The output projection mixes concatenated head vectors into the width used by the next sublayer.",
+      "referenceId": "ml-multihead-attention-joined-head-output-projection",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show ordered head projection from separate head values through the actual output matrix.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show ordered head projection from separate head values through the actual output matrix.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show ordered head projection from separate head values through the actual output matrix.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace concat matrix mixing while keeping A then B as the model coordinate order.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace concat matrix mixing while keeping A then B as the model coordinate order.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace concat matrix mixing while keeping A then B as the model coordinate order.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain why ordered head projection returns width2 rather than a one-value average.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain why ordered head projection returns width2 rather than a one-value average.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain why ordered head projection returns width2 rather than a one-value average.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Reverse only the displayed head rows and preserve identity during concat matrix mixing.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Reverse only the displayed head rows and preserve identity during concat matrix mixing.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Reverse only the displayed head rows and preserve identity during concat matrix mixing.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show ordered head projection reaching the residual-width input of the next FFN.",
+          "depth": "brief",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show ordered head projection reaching the residual-width input of the next FFN.",
+          "depth": "balanced",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show ordered head projection reaching the residual-width input of the next FFN.",
+          "depth": "detailed",
+          "firstReference": "ml-multihead-attention-joined-head-output-projection",
+          "firstReferenceId": "ml-multihead-attention-joined-head-output-projection",
+          "firstPick": true,
+          "references": [
+            "ml-multihead-attention-joined-head-output-projection"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-multihead-attention-joined-head-output-projection",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        }
+      ]
+    }
+  ]
+}

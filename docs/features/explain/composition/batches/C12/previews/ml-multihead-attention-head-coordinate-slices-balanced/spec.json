@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "transformation",
+    "title": "Partition all projected role rows at the same head bounds",
+    "before": {
+      "label": "L1 P2 rows Q,K,V",
+      "items": [
+        {
+          "label": "Projected coordinates A,B",
+          "tensor": {
+            "rows": 3,
+            "columns": 2,
+            "dimensions": "3 × 2",
+            "values": [
+              -1,
+              1,
+              -1,
+              -1,
+              0,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    "after": {
+      "label": "Same role order in each head",
+      "items": [
+        {
+          "label": "Head A, rows Q,K,V",
+          "tensor": {
+            "rows": 3,
+            "columns": 1,
+            "dimensions": "3 × 1",
+            "values": [
+              -1,
+              -1,
+              0
+            ]
+          }
+        },
+        {
+          "label": "Head B, rows Q,K,V",
+          "tensor": {
+            "rows": 3,
+            "columns": 1,
+            "dimensions": "3 × 1",
+            "values": [
+              1,
+              -1,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    "operation": "Slice $[0:1]$ to A; $[1:2]$ to B",
+    "links": [
+      {
+        "from": 0,
+        "to": 0,
+        "label": "Slice A"
+      },
+      {
+        "from": 0,
+        "to": 1,
+        "label": "Slice B"
+      }
+    ],
+    "caption": "Toy L1 P2. Rows Q,K,V; slices $[0:1]$ to A,$[1:2]$ to B. Each projected width $2=2\\times1$; no values mix."
+  }
+}
