@@ -2,6 +2,7 @@
 // while the window is open, with the window beside them. Pure helpers (no React); the editor and the canvas call them.
 import { cardText } from './canvas-semantics.js';
 import { quoteFromRange } from './learn-wiki-highlights.js';
+import { heldPassage } from './passage-link.js';
 
 // The chip's text: the first 2-3 words, at most `max` characters, the ellipsis inside the chip (owner: [ maximum likelihod.., x ]).
 export function firstWords(text, { words = 3, max = 24 } = {}) {
@@ -59,7 +60,7 @@ export function pickedHighlight(root, blocks, zoom = 1, selection = typeof windo
   if (!rects.length) return null;
   const top = Math.min(...rects.map(rect => rect.top)), cardTop = card.getBoundingClientRect().top;
   return { id, range: spot ? { id, from: spot.from, to: spot.to, text: cardText(block).slice(spot.from, spot.to) } : null,
-    highlight: { id, text, rects, quote: passageQuote(card, block, range), live: range.cloneRange(), alignY: Math.max(0, Math.round((top - cardTop) / (zoom || 1))) } };
+    highlight: { id, text, rects, quote: passageQuote(card, block, range), passage: heldPassage(id, text), live: range.cloneRange(), alignY: Math.max(0, Math.round((top - cardTop) / (zoom || 1))) } };
 }
 
 // The whole card as one context object (owner 2026-11-09): which card it is and everything in it, with the highlighted words flagged: { cardId, cardType, title, highlighted, body (the prose, the

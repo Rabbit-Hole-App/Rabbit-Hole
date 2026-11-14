@@ -353,7 +353,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     // HL-1: over words of a Markdown file card the request carries the draft its source reference is minted from (learn-slash.js mints it before /explain makes anything and stops, with a line to fix, if the file changed),
     // so the card that comes back opens the passage and the passage shows the pink mark; any other card has no draft.
     const sourceDraft = source && highlight.quote ? markdownDraft({ block: source, quote: highlight.quote, app: canWrite() ? fileScope()?.app : null }) : null;
-    return { id: highlight.id, kind: 'card', title: card?.title || '', text: card ? contextMessage(card) : highlight.text.slice(0, 8000), ...(card ? { card } : {}), ...(sourceDraft ? { sourceDraft } : {}), ...(source ? { beside: true, alignY: highlight.alignY } : {}) };
+    return { id: highlight.id, kind: 'card', title: card?.title || '', text: card ? contextMessage(card) : highlight.text.slice(0, 8000), ...(card ? { card } : {}), ...(sourceDraft ? { sourceDraft } : {}), ...(highlight.passage ? { passage: { cardId: highlight.id, ...highlight.passage } } : {}), ...(source ? { beside: true, alignY: highlight.alignY } : {}) };
   };
   const submit = (text, how = mode) => {
     if (readOnly || busy(state.status)) return;

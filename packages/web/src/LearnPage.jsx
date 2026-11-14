@@ -1043,6 +1043,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           startAnimation: async (prompt, options) => { const result = await startAnimation(prompt, { ...options, thread: turn?.thread ?? null, refs: turn?.refs ?? null }); if (result?.blockId) sink?.(result.blockId); return result; },
           startWhiteboard: async (prompt, options) => { const result = await startWhiteboard(prompt, { ...options, thread: turn?.thread ?? null }); if (result?.blockId) sink?.(result.blockId); return result; },
           insertNotebook: () => canvasApi.current?.insertNotebook(),
+          linkPassage: (id, passage) => canvasApi.current?.linkPassage?.(id, passage), // HL-146: the passage of an Explanation card the new card was made from
           insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
           // A paid Generate whose job a card here already shows reveals that card (learn-slash.js existingGeneration).
           blocks: () => canvasApi.current?.blocks?.() || [],
