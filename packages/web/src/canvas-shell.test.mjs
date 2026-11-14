@@ -66,11 +66,11 @@ test('adding a card folds the chat window: the page announces a card count that 
 
 // Owner, 2026-11-13 (replaces the 2026-10-13 in-composer hide icon): the canvas's bottom chat strip has its Minimize as a round
 // button outside the composer, on its left; minimized, the strip is the Rabbit Hole mark on black at the lower right, and the last choice
-// is kept on this device (ui-prefs.js chatStrip). The canvas no longer gives the composer a ComposerHide context, so the composer's
+// lasts for the visit only: every canvas opens with the strip active (owner 2026-11-14). The canvas no longer gives the composer a ComposerHide context, so the composer's
 // own Hide icon (ChatComposer.jsx) never shows in it.
-test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize on its top-left corner, the Rabbit Hole button at the lower right, the choice remembered', () => {
-  assert.match(canvas, /const \[composerHidden, setComposerHidden\] = useState\(\(\) => uiPrefs\(\)\.chatStrip === 'min'\);/);
-  assert.match(canvas, /saveUiPref\('chatStrip', value\)/);
+test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize on its top-left corner, the Rabbit Hole button at the lower right, every canvas opening with it active', () => {
+  assert.match(canvas, /const \[composerHidden, setComposerHidden\] = useState\(false\);/, 'open by default on every canvas, whatever an earlier canvas was left at');
+  assert.doesNotMatch(canvas, /saveUiPref\('chatStrip'|uiPrefs\(\)\.chatStrip/, 'a minimize is not carried to the next canvas');
   assert.doesNotMatch(canvas, /ComposerHide\.Provider/);
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
   assert.match(strip, /\{\/\*[^\n]*\*\/\}\n\s+\{hooks && <div data-hooks-slot[^\n]*\n\s+\{composer\}/, 'the three Curious pills, then the composer');
