@@ -120,7 +120,8 @@ export const CARD_LINES = Object.freeze([1, 2, 3, 4, 6, 7, 8]), UNKNOWN_LINES = 
 export function scorecardRows(text = readFileSync(SCORECARD, 'utf8')) {
   return Object.fromEntries(text.split(/\r?\n/).map(l => /^\| (\d+) \| (.+?) \| (.+?) \|$/.exec(l)).filter(Boolean).map(m => [Number(m[1]), `${m[2]} Evidence for Yes: ${m[3]}`]));
 }
-const cardTool = { name: 'scorecard', description: 'Answer each check Yes or No with one sentence.', input_schema: { type: 'object', properties: Object.fromEntries(CARD_LINES.map(n => [`l${n}`, { type: 'object', properties: { answer: { type: 'string', enum: ['Yes', 'No'] }, reason: str }, required: ['answer', 'reason'] }])), required: CARD_LINES.map(n => `l${n}`) } };
+// flat fields l<n> (Yes/No) and r<n> (the sentence): a nested object per line came back garbled (xml-like text inside the answer) under thinking between_tools
+const cardTool = { name: 'scorecard', description: 'Answer each check Yes or No with one sentence.', input_schema: { type: 'object', properties: Object.fromEntries(CARD_LINES.flatMap(n => [[`l${n}`, { type: 'string', enum: ['Yes', 'No'] }], [`r${n}`, str]])), required: CARD_LINES.flatMap(n => [`l${n}`, `r${n}`]) } };
 export const cardSystem = rows => ['You review a model-composed stepper scene against a rubric. You see only the composition data (no render). For each check answer Yes or No after inspecting the data, with one sentence. Call the scorecard tool once.', '', ...CARD_LINES.map(n => `${n}. ${rows[n]}`)].join('\n');
 
 // ---- transports (one call each; no correction) ----
@@ -154,8 +155,8 @@ export async function scorecardCall(composition, depth, { env, rows }) {
     try {
       const j = await post('https://api.anthropic.com/v1/messages', anthropicHeaders(env), { model: 'claude-sonnet-5-5', max_tokens: 1500, thinking: { type: 'between_tools' }, system: cardSystem(rows), tools: [cardTool], messages: [{ role: 'user', content: JSON.stringify({ depth, composition }) }] }, 180000); // Sonnet 5.5 refuses a forced tool_choice: the tool is asked for in the system text
       const out = j.content?.find(b => b.type === 'tool_use')?.input;
-      if (!CARD_LINES.every(n => ['Yes', 'No'].includes(out?.[`l${n}`]?.answer))) throw new Error('scorecard reply incomplete');
-      return { lines: Object.fromEntries([...CARD_LINES.map(n => [n, out[`l${n}`]]), ...UNKNOWN_LINES.map(n => [n, { answer: 'Unknown', reason: 'needs a render' }])]), usd: usdOf('anthropic', 'claude-sonnet-5-5', { input: j.usage?.input_tokens ?? 0, output: j.usage?.output_tokens ?? 0 }) };
+      if (!CARD_LINES.every(n => ['Yes', 'No'].includes(out?.[`l${n}`]))) throw new Error('scorecard reply incomplete');
+      return { lines: Object.fromEntries([...CARD_LINES.map(n => [n, { answer: out[`l${n}`], reason: String(out[`r${n}`] ?? '').slice(0, 300) }]), ...UNKNOWN_LINES.map(n => [n, { answer: 'Unknown', reason: 'needs a render' }])]), usd: usdOf('anthropic', 'claude-sonnet-5-5', { input: j.usage?.input_tokens ?? 0, output: j.usage?.output_tokens ?? 0 }) };
     } catch (error) { if (attempt) return { lines: null, error: String(error.message).slice(0, 300), usd: 0 }; }
   }
 }
