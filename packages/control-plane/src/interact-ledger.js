@@ -13,10 +13,10 @@ const mvpDesign = fixture => { const depth = typeof fixture === 'string' ? /^tos
 // msDesign is submitted -> proposalReady, the Generate request admitted to awaiting_approval (the first time counts), null while the plan is not ready.
 const designPart = (job, t, mvp) => {
   const fast = job.design?.fast ?? null, stages = t.stages.filter(s => s.stage.startsWith('design_')), calls = stages.reduce((n, s) => n + s.calls, 0), priced = stages.filter(s => s.model !== undefined && s.calls > 0);
-  const opus = !fast && !job.designFixture && calls > 0, model = stages.find(s => s.model)?.model;
+  const dcalls = (job.calls ?? []).filter(c => c.role?.startsWith('design_') && c.status !== 'refused'), opus = !fast && !job.designFixture && calls > 0, model = stages.find(s => s.model)?.model;
   const stageCost = priced.length && priced.every(s => typeof s.costMicros === 'number') ? priced.reduce((n, s) => n + s.costMicros, 0) / 1e6 : null;
   return { designModel: fast?.model ?? (opus ? model?.served ?? model?.requested ?? null : mvp.designModel), designKind: fast?.kind ?? (opus ? 'opus' : mvp.designKind), msFill: mvp.msFill, designFallback: fast ? fast.fallback ?? 'none' : null,
-    designCalls: fast ? fast.calls ?? calls : opus ? calls : null, msDesign: fast || opus ? t.proposalMs : null, designCostUsd: fast ? fast.costUsd ?? stageCost : opus ? stageCost : null };
+    designCalls: fast || opus ? (dcalls.length || (fast?.calls ?? calls)) : null, msDesign: fast || opus ? t.proposalMs : null, designCostUsd: fast || opus ? (dcalls.length ? (dcalls.every(c => typeof c.costMicros === 'number') ? dcalls.reduce((n, c) => n + c.costMicros, 0) / 1e6 : null) : fast?.costUsd ?? stageCost) : null };
 };
 
 // timing: 'v2' is a job whose stage columns are the contiguous wall-clock slices ledgerRow explains (they add up to msTotal); 'v1' is every older row, kept as it was recorded.
