@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "G-C grouped decoder stack",
+    "blocks": [
+      {
+        "id": "x",
+        "label": "Input",
+        "dims": "$d=6,m=12$"
+      },
+      {
+        "id": "na",
+        "label": "Attention RMSNorm",
+        "repeat": 2,
+        "repeatTo": "f"
+      },
+      {
+        "id": "a",
+        "label": "Causal GQA",
+        "dims": "$H=2,G=1,k=3$"
+      },
+      {
+        "id": "nf",
+        "label": "FFN RMSNorm"
+      },
+      {
+        "id": "f",
+        "label": "Dense GELU FFN",
+        "dims": "$6\\to12\\to6$"
+      },
+      {
+        "id": "y",
+        "label": "Output",
+        "dims": "$d=6$"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "na",
+        "to": "a",
+        "merge": "add"
+      },
+      {
+        "kind": "residual",
+        "from": "nf",
+        "to": "f",
+        "merge": "add"
+      }
+    ],
+    "caption": "Toy, fixed $L=2,H=2,G=1$; $m=2d$. Same pre-RMSNorm/GQA path; independent layer parameters."
+  }
+}

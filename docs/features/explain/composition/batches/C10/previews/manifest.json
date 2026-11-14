@@ -1,0 +1,802 @@
+{
+  "ml-model-capacity-depth-width-allocation": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 656
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 622
+      },
+      "natural": {
+        "requested": 331,
+        "width": 331,
+        "height": 656
+      }
+    }
+  },
+  "ml-model-capacity-depth-width-allocation-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 656
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 622
+      },
+      "natural": {
+        "requested": 331,
+        "width": 331,
+        "height": 656
+      }
+    }
+  },
+  "ml-model-capacity-depth-width-allocation-brief": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 377
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 343
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 399
+      }
+    }
+  },
+  "ml-model-capacity-depth-width-allocation-brief-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 377
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 343
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 399
+      }
+    }
+  },
+  "ml-model-capacity-depth-width-allocation-balanced": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 656
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 622
+      },
+      "natural": {
+        "requested": 331,
+        "width": 331,
+        "height": 656
+      }
+    }
+  },
+  "ml-model-capacity-depth-width-allocation-balanced-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 656
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 622
+      },
+      "natural": {
+        "requested": 331,
+        "width": 331,
+        "height": 656
+      }
+    }
+  },
+  "ml-model-capacity-depth-width-allocation-detailed": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 656
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 622
+      },
+      "natural": {
+        "requested": 331,
+        "width": 331,
+        "height": 656
+      }
+    }
+  },
+  "ml-model-capacity-depth-width-allocation-detailed-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 656
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 622
+      },
+      "natural": {
+        "requested": 331,
+        "width": 331,
+        "height": 656
+      }
+    }
+  },
+  "ml-model-capacity-capacity-profiles": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 316
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 277
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 371
+      }
+    }
+  },
+  "ml-model-capacity-capacity-profiles-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 264
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 225
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 299
+      }
+    }
+  },
+  "ml-model-capacity-capacity-profiles-brief": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 244
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 205
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 291
+      }
+    }
+  },
+  "ml-model-capacity-capacity-profiles-brief-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 264
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 225
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 299
+      }
+    }
+  },
+  "ml-model-capacity-capacity-profiles-balanced": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 316
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 277
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 371
+      }
+    }
+  },
+  "ml-model-capacity-capacity-profiles-balanced-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 264
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 225
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 299
+      }
+    }
+  },
+  "ml-model-capacity-capacity-profiles-detailed": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 316
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 277
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 371
+      }
+    }
+  },
+  "ml-model-capacity-capacity-profiles-detailed-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 264
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 225
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 299
+      }
+    }
+  },
+  "ml-model-capacity-block-parameter-accounting": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 414
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 319
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 431
+      }
+    }
+  },
+  "ml-model-capacity-block-parameter-accounting-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 396.6744186046512
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 357.6744186046512
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 435.6744186046512
+      }
+    }
+  },
+  "ml-model-capacity-block-parameter-accounting-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 375
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 290
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 410
+      }
+    }
+  },
+  "ml-model-capacity-block-parameter-accounting-brief-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 396.6744186046512
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 357.6744186046512
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 435.6744186046512
+      }
+    }
+  },
+  "ml-model-capacity-block-parameter-accounting-balanced": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 414
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 319
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 431
+      }
+    }
+  },
+  "ml-model-capacity-block-parameter-accounting-balanced-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 396.6744186046512
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 357.6744186046512
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 435.6744186046512
+      }
+    }
+  },
+  "ml-model-capacity-block-parameter-accounting-detailed": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 414
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 319
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 431
+      }
+    }
+  },
+  "ml-model-capacity-block-parameter-accounting-detailed-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 244
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 205
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 252
+      }
+    }
+  },
+  "ml-gpt2-task-input-format": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 632
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 475
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 775
+      }
+    }
+  },
+  "ml-gpt2-task-input-format-detail": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 615
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 440
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 812
+      }
+    }
+  },
+  "ml-gpt2-task-input-format-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 332
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 247
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 403
+      }
+    }
+  },
+  "ml-gpt2-task-input-format-brief-detail": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 354
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 269
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 443
+      }
+    }
+  },
+  "ml-gpt2-task-input-format-balanced": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 632
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 475
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 775
+      }
+    }
+  },
+  "ml-gpt2-task-input-format-balanced-detail": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 615
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 440
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 812
+      }
+    }
+  },
+  "ml-gpt2-task-input-format-detailed": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 615
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 475
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 758
+      }
+    }
+  },
+  "ml-gpt2-task-input-format-detailed-detail": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 615
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 440
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 812
+      }
+    }
+  },
+  "ml-gpt2-overview-and-expanded-block": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 399
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 343
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 416
+      }
+    }
+  },
+  "ml-gpt2-overview-and-expanded-block-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 455,
+        "height": 655
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 616
+      },
+      "natural": {
+        "requested": 455,
+        "width": 455,
+        "height": 655
+      }
+    }
+  },
+  "ml-gpt2-overview-and-expanded-block-brief": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 316
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 260
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 333
+      }
+    }
+  },
+  "ml-gpt2-overview-and-expanded-block-brief-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 455,
+        "height": 571
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 532
+      },
+      "natural": {
+        "requested": 455,
+        "width": 455,
+        "height": 571
+      }
+    }
+  },
+  "ml-gpt2-overview-and-expanded-block-balanced": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 399
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 343
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 416
+      }
+    }
+  },
+  "ml-gpt2-overview-and-expanded-block-balanced-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 455,
+        "height": 655
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 616
+      },
+      "natural": {
+        "requested": 455,
+        "width": 455,
+        "height": 655
+      }
+    }
+  },
+  "ml-gpt2-overview-and-expanded-block-detailed": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 399
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 360
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 416
+      }
+    }
+  },
+  "ml-gpt2-overview-and-expanded-block-detailed-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 455,
+        "height": 655
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 616
+      },
+      "natural": {
+        "requested": 455,
+        "width": 455,
+        "height": 655
+      }
+    }
+  }
+}

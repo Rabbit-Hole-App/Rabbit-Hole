@@ -1626,6 +1626,36 @@
       "width": 720,
       "height": 854
     },
+    "ml-gpt2-overview-and-expanded-block/320": {
+      "sha256": "e99ae2de5f3014e9e811e84c1fce9f861e63ed9c0984b82d76da3ef014b0bd03",
+      "width": 320,
+      "height": 416
+    },
+    "ml-gpt2-overview-and-expanded-block/408": {
+      "sha256": "ae87e11ff1912a4aa90927f80663c38ce52f34fd5fc3e01ae14abfa0e1d47b1b",
+      "width": 408,
+      "height": 399
+    },
+    "ml-gpt2-overview-and-expanded-block/720": {
+      "sha256": "51b4280531428609a17586dd2aa9b5bc3b1204c00cc1d6e9056f338e02a33d6a",
+      "width": 720,
+      "height": 360
+    },
+    "ml-gpt2-task-input-format/320": {
+      "sha256": "86e66cee64b4c02362ecd7e72ff885d1ac8699efde0e238f39a73724cfcb457a",
+      "width": 320,
+      "height": 775
+    },
+    "ml-gpt2-task-input-format/408": {
+      "sha256": "76adb5c325de7c4b3f818573bc356d304f26ccf46a58483223a5163bb5ce81f7",
+      "width": 408,
+      "height": 632
+    },
+    "ml-gpt2-task-input-format/720": {
+      "sha256": "31cf42963f25fe5ef743964e03df85c250b6e1404d7810d36f1e035a50a51f96",
+      "width": 720,
+      "height": 475
+    },
     "ml-gpu-matmul/320": {
       "sha256": "f65f2f618bb5d45e9b051af7c653b8649f9847f4e05f603cde13f5be10a91e57",
       "width": 506,
@@ -2210,6 +2240,51 @@
       "sha256": "f6458aa91ddad12504bf562a5e87b0c90eb8c73a7cbfc8da8ed4b84bdb230c16",
       "width": 720,
       "height": 427
+    },
+    "ml-model-capacity-block-parameter-accounting/320": {
+      "sha256": "0a6cb982619bf0bc961b86a11a90ae3ceed517308559c402e112b4d928506250",
+      "width": 320,
+      "height": 431
+    },
+    "ml-model-capacity-block-parameter-accounting/408": {
+      "sha256": "e9acef929566d469531d9e800419d689da16f48a77138db929c13dcd3f6a3a27",
+      "width": 408,
+      "height": 414
+    },
+    "ml-model-capacity-block-parameter-accounting/720": {
+      "sha256": "be5e66545ec5d34235b98d10b9fe24bd5599b40339d5590de32885318531fe79",
+      "width": 720,
+      "height": 319
+    },
+    "ml-model-capacity-capacity-profiles/320": {
+      "sha256": "38373aaa5898ccbbbb6c58081a03ff25e2fa2e3524ebebc8da1a11e72a4c12eb",
+      "width": 320,
+      "height": 371
+    },
+    "ml-model-capacity-capacity-profiles/408": {
+      "sha256": "f0ff0bdc6268ec8d7f0d1d25b845128fc145d7690f505ac822bd129eda317bb7",
+      "width": 408,
+      "height": 316
+    },
+    "ml-model-capacity-capacity-profiles/720": {
+      "sha256": "12efffcdc2df769bc0560bb09e60c87494f5dfb08cff025ad4858502b94b7c9d",
+      "width": 720,
+      "height": 277
+    },
+    "ml-model-capacity-depth-width-allocation/320": {
+      "sha256": "c39a7acfe6f77be2d11e1b6436be9485ace632b1dfbcb2230494e38cce67c0d4",
+      "width": 320,
+      "height": 656
+    },
+    "ml-model-capacity-depth-width-allocation/408": {
+      "sha256": "61d474fbf4c97aa52bbdac63cba50792e7fa7e5de4237e9d830013ca730dafdd",
+      "width": 408,
+      "height": 656
+    },
+    "ml-model-capacity-depth-width-allocation/720": {
+      "sha256": "d763b54c5d5082643afc3b1d2ea350afac3638123951110e9b09fa370802928d",
+      "width": 720,
+      "height": 639
     },
     "ml-model-evaluation-schedule-run-diagnostics/320": {
       "sha256": "43148a066206d7b6aa178a8795a57f729366c2204f17026f3b11a7f632b45f0e",

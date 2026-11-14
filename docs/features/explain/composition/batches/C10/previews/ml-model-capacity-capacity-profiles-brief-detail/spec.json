@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Paper-reported BERT configuration sizes",
+    "unit": "M params",
+    "bars": [
+      {
+        "label": "BERT Base L12 d768",
+        "value": 110
+      },
+      {
+        "label": "BERT Large L24 d1024",
+        "value": 340
+      }
+    ],
+    "caption": "Reported BERT totals: rounded millions, not toy sums. Shared encoder design; size alone does not measure task performance."
+  }
+}

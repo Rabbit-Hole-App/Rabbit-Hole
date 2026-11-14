@@ -1,0 +1,109 @@
+{
+  "passed": true,
+  "batch": "C10",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "queueFamilies": 5,
+  "actualAssociations": 5,
+  "sourceHeadings": 13,
+  "newHeadings": 13,
+  "reuseHeadings": 0,
+  "originalFamilyRecordsPreserved": true,
+  "routes": [
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-06",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-05",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-12",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-17",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-03",
+      "lessons": [
+        "19"
+      ]
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-06",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-05",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-model-capacity-block-parameter-accounting",
+      "referenceId": "ml-model-capacity-block-parameter-accounting",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-56",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-model-capacity-block-parameter-accounting",
+      "referenceId": "ml-model-capacity-block-parameter-accounting",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-58",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "referenceId": "ml-gpt2-task-input-format",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-22",
+      "lessons": [
+        "08",
+        "13"
+      ]
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "referenceId": "ml-gpt2-task-input-format",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-59",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "referenceId": "ml-gpt2-task-input-format",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-61",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-gpt2-overview-and-expanded-block",
+      "referenceId": "ml-gpt2-overview-and-expanded-block",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-28",
+      "lessons": []
+    }
+  ]
+}

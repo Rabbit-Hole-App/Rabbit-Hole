@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Observed translation targets versus chosen summary continuations",
+    "columns": [
+      "Decoder prefix",
+      "Next token"
+    ],
+    "rows": [
+      {
+        "id": "T0",
+        "heading": "T0 observed",
+        "cells": [
+          "$<s>$birds fly$<d>$",
+          "Observed: oiseaux"
+        ]
+      },
+      {
+        "id": "G0",
+        "heading": "G0 chosen",
+        "cells": [
+          "$<s>$Crews reopen a trail.$<d>$",
+          "Chosen: Trail"
+        ]
+      }
+    ],
+    "caption": "$\\text{<s>}$ start, $\\text{<d>}$ boundary, $\\text{</s>}$ stop. One $\\theta_D$; observed T targets vs chosen G continuations, not model predictions."
+  }
+}

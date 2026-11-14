@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "variant": "stacked",
+    "title": "Tables plus independently learned blocks and final norm",
+    "unit": "Params",
+    "bars": [
+      {
+        "label": "Token",
+        "value": 8
+      },
+      {
+        "label": "Position",
+        "value": 12
+      },
+      {
+        "label": "Independent blocks",
+        "value": 148
+      },
+      {
+        "label": "Final LN",
+        "value": 4
+      }
+    ],
+    "caption": "Toy $L=2$, block $48+18+8=74$ (weights,biases,norms). Tied output reused; no output bias. Sum shown from parts."
+  }
+}

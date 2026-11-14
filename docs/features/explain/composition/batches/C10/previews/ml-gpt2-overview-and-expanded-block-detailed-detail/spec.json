@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Pre-LayerNorm full attention and FFN branches",
+    "blocks": [
+      {
+        "id": "x",
+        "label": "Input",
+        "dims": "$d=2$"
+      },
+      {
+        "id": "na",
+        "label": "Attention LayerNorm"
+      },
+      {
+        "id": "a",
+        "label": "Causal full MHA"
+      },
+      {
+        "id": "nf",
+        "label": "FFN LayerNorm"
+      },
+      {
+        "id": "f",
+        "label": "Dense GELU FFN",
+        "dims": "$2\\to8\\to2$"
+      },
+      {
+        "id": "y",
+        "label": "Output",
+        "dims": "$d=2$"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "na",
+        "to": "a",
+        "merge": "add"
+      },
+      {
+        "kind": "residual",
+        "from": "nf",
+        "to": "f",
+        "merge": "add"
+      }
+    ],
+    "callouts": [
+      {
+        "node": "a",
+        "label": "Residual 1: add input"
+      },
+      {
+        "node": "f",
+        "label": "Residual 2: add post-attention"
+      }
+    ],
+    "caption": "$\\text{GPT-2}$-style toy, pre-LayerNorm causal full MHA; $d=2,m=8$. Each shortcut bypasses its normalization and branch, then adds."
+  }
+}

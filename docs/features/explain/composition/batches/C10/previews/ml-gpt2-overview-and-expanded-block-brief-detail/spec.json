@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Two combined branches retain both norms and shortcuts",
+    "blocks": [
+      {
+        "id": "x",
+        "label": "Input",
+        "dims": "$d=2$"
+      },
+      {
+        "id": "ar",
+        "label": "Attention LayerNorm and causal full MHA"
+      },
+      {
+        "id": "fr",
+        "label": "FFN LayerNorm and dense GELU FFN",
+        "dims": "$2\\to8\\to2$"
+      },
+      {
+        "id": "y",
+        "label": "Output",
+        "dims": "$d=2$"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "ar",
+        "to": "ar",
+        "merge": "add"
+      },
+      {
+        "kind": "residual",
+        "from": "fr",
+        "to": "fr",
+        "merge": "add"
+      }
+    ],
+    "callouts": [
+      {
+        "node": "ar",
+        "label": "Residual 1: add input"
+      },
+      {
+        "node": "fr",
+        "label": "Residual 2: add post-attention"
+      }
+    ],
+    "caption": "$\\text{GPT-2}$-style toy, pre-LayerNorm causal full MHA; $d=2,m=8$. Each shortcut bypasses its normalization and branch, then adds."
+  }
+}

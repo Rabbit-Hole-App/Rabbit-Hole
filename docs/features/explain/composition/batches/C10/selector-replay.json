@@ -1,0 +1,756 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 3762,
+  "changedPriorPicks": [],
+  "sourceHeadings": 13,
+  "uniqueSourcePrompts": 13,
+  "sourceCases": 39,
+  "sourceHits": 39,
+  "actualPlannedAuthorSchemaChecks": 39,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-06",
+      "prompt": "Deeper BERT configurations repeat the same encoder block type more times.",
+      "depth": "brief",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-06",
+      "prompt": "Deeper BERT configurations repeat the same encoder block type more times.",
+      "depth": "balanced",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-06",
+      "prompt": "Deeper BERT configurations repeat the same encoder block type more times.",
+      "depth": "detailed",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-05",
+      "prompt": "A compact decoder can shrink its layer stack while keeping grouped-query attention and a dense token update.",
+      "depth": "brief",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-05",
+      "prompt": "A compact decoder can shrink its layer stack while keeping grouped-query attention and a dense token update.",
+      "depth": "balanced",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-05",
+      "prompt": "A compact decoder can shrink its layer stack while keeping grouped-query attention and a dense token update.",
+      "depth": "detailed",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-12",
+      "prompt": "Small decoder capacity can be allocated to more narrow layers instead of fewer wide layers.",
+      "depth": "brief",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-12",
+      "prompt": "Small decoder capacity can be allocated to more narrow layers instead of fewer wide layers.",
+      "depth": "balanced",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-12",
+      "prompt": "Small decoder capacity can be allocated to more narrow layers instead of fewer wide layers.",
+      "depth": "detailed",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-17",
+      "prompt": "Matching depth and attention grouping does not imply matching token-state or feed-forward widths.",
+      "depth": "brief",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-17",
+      "prompt": "Matching depth and attention grouping does not imply matching token-state or feed-forward widths.",
+      "depth": "balanced",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "expectedFamily": "ml-model-capacity-depth-width-allocation",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-17",
+      "prompt": "Matching depth and attention grouping does not imply matching token-state or feed-forward widths.",
+      "depth": "detailed",
+      "firstFamily": "ml-model-capacity-depth-width-allocation",
+      "rawAuthorReferenceId": "ml-model-capacity-depth-width-allocation",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-depth-width-allocation",
+      "preparedId": "ml-model-capacity-depth-width-allocation",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "expectedFamily": "ml-model-capacity-capacity-profiles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-03",
+      "prompt": "The same model architecture can be trained at substantially different parameter counts.",
+      "depth": "brief",
+      "firstFamily": "ml-model-capacity-capacity-profiles",
+      "rawAuthorReferenceId": "ml-model-capacity-capacity-profiles",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-capacity-profiles",
+      "preparedId": "ml-model-capacity-capacity-profiles",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "expectedFamily": "ml-model-capacity-capacity-profiles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-03",
+      "prompt": "The same model architecture can be trained at substantially different parameter counts.",
+      "depth": "balanced",
+      "firstFamily": "ml-model-capacity-capacity-profiles",
+      "rawAuthorReferenceId": "ml-model-capacity-capacity-profiles",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-capacity-profiles",
+      "preparedId": "ml-model-capacity-capacity-profiles",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "expectedFamily": "ml-model-capacity-capacity-profiles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-03",
+      "prompt": "The same model architecture can be trained at substantially different parameter counts.",
+      "depth": "detailed",
+      "firstFamily": "ml-model-capacity-capacity-profiles",
+      "rawAuthorReferenceId": "ml-model-capacity-capacity-profiles",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-capacity-profiles",
+      "preparedId": "ml-model-capacity-capacity-profiles",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "expectedFamily": "ml-model-capacity-capacity-profiles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-06",
+      "prompt": "Increasing a model's depth and width increases its parameter count.",
+      "depth": "brief",
+      "firstFamily": "ml-model-capacity-capacity-profiles",
+      "rawAuthorReferenceId": "ml-model-capacity-capacity-profiles",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-capacity-profiles",
+      "preparedId": "ml-model-capacity-capacity-profiles",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "expectedFamily": "ml-model-capacity-capacity-profiles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-06",
+      "prompt": "Increasing a model's depth and width increases its parameter count.",
+      "depth": "balanced",
+      "firstFamily": "ml-model-capacity-capacity-profiles",
+      "rawAuthorReferenceId": "ml-model-capacity-capacity-profiles",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-capacity-profiles",
+      "preparedId": "ml-model-capacity-capacity-profiles",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "expectedFamily": "ml-model-capacity-capacity-profiles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-06",
+      "prompt": "Increasing a model's depth and width increases its parameter count.",
+      "depth": "detailed",
+      "firstFamily": "ml-model-capacity-capacity-profiles",
+      "rawAuthorReferenceId": "ml-model-capacity-capacity-profiles",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-capacity-profiles",
+      "preparedId": "ml-model-capacity-capacity-profiles",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "expectedFamily": "ml-model-capacity-capacity-profiles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-05",
+      "prompt": "BERT has base and large configurations that share an encoder design but differ in capacity.",
+      "depth": "brief",
+      "firstFamily": "ml-model-capacity-capacity-profiles",
+      "rawAuthorReferenceId": "ml-model-capacity-capacity-profiles",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-capacity-profiles",
+      "preparedId": "ml-model-capacity-capacity-profiles",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "expectedFamily": "ml-model-capacity-capacity-profiles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-05",
+      "prompt": "BERT has base and large configurations that share an encoder design but differ in capacity.",
+      "depth": "balanced",
+      "firstFamily": "ml-model-capacity-capacity-profiles",
+      "rawAuthorReferenceId": "ml-model-capacity-capacity-profiles",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-capacity-profiles",
+      "preparedId": "ml-model-capacity-capacity-profiles",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "expectedFamily": "ml-model-capacity-capacity-profiles",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-05",
+      "prompt": "BERT has base and large configurations that share an encoder design but differ in capacity.",
+      "depth": "detailed",
+      "firstFamily": "ml-model-capacity-capacity-profiles",
+      "rawAuthorReferenceId": "ml-model-capacity-capacity-profiles",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-capacity-profiles",
+      "preparedId": "ml-model-capacity-capacity-profiles",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-block-parameter-accounting",
+      "expectedFamily": "ml-model-capacity-block-parameter-accounting",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-56",
+      "prompt": "A GPT-2 block uses separate learned matrices for attention and the positionwise feed-forward network.",
+      "depth": "brief",
+      "firstFamily": "ml-model-capacity-block-parameter-accounting",
+      "rawAuthorReferenceId": "ml-model-capacity-block-parameter-accounting",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-block-parameter-accounting",
+      "preparedId": "ml-model-capacity-block-parameter-accounting",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-block-parameter-accounting",
+      "expectedFamily": "ml-model-capacity-block-parameter-accounting",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-56",
+      "prompt": "A GPT-2 block uses separate learned matrices for attention and the positionwise feed-forward network.",
+      "depth": "balanced",
+      "firstFamily": "ml-model-capacity-block-parameter-accounting",
+      "rawAuthorReferenceId": "ml-model-capacity-block-parameter-accounting",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-block-parameter-accounting",
+      "preparedId": "ml-model-capacity-block-parameter-accounting",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-block-parameter-accounting",
+      "expectedFamily": "ml-model-capacity-block-parameter-accounting",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-56",
+      "prompt": "A GPT-2 block uses separate learned matrices for attention and the positionwise feed-forward network.",
+      "depth": "detailed",
+      "firstFamily": "ml-model-capacity-block-parameter-accounting",
+      "rawAuthorReferenceId": "ml-model-capacity-block-parameter-accounting",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-block-parameter-accounting",
+      "preparedId": "ml-model-capacity-block-parameter-accounting",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-block-parameter-accounting",
+      "expectedFamily": "ml-model-capacity-block-parameter-accounting",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-58",
+      "prompt": "A model's total parameter count sums the sizes of lookup tables and the independently learned matrices in each layer.",
+      "depth": "brief",
+      "firstFamily": "ml-model-capacity-block-parameter-accounting",
+      "rawAuthorReferenceId": "ml-model-capacity-block-parameter-accounting",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-block-parameter-accounting",
+      "preparedId": "ml-model-capacity-block-parameter-accounting",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-block-parameter-accounting",
+      "expectedFamily": "ml-model-capacity-block-parameter-accounting",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-58",
+      "prompt": "A model's total parameter count sums the sizes of lookup tables and the independently learned matrices in each layer.",
+      "depth": "balanced",
+      "firstFamily": "ml-model-capacity-block-parameter-accounting",
+      "rawAuthorReferenceId": "ml-model-capacity-block-parameter-accounting",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-block-parameter-accounting",
+      "preparedId": "ml-model-capacity-block-parameter-accounting",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-model-capacity-block-parameter-accounting",
+      "expectedFamily": "ml-model-capacity-block-parameter-accounting",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-58",
+      "prompt": "A model's total parameter count sums the sizes of lookup tables and the independently learned matrices in each layer.",
+      "depth": "detailed",
+      "firstFamily": "ml-model-capacity-block-parameter-accounting",
+      "rawAuthorReferenceId": "ml-model-capacity-block-parameter-accounting",
+      "firstPick": true,
+      "preparedFamily": "ml-model-capacity-block-parameter-accounting",
+      "preparedId": "ml-model-capacity-block-parameter-accounting",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "expectedFamily": "ml-gpt2-task-input-format",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-22",
+      "prompt": "The original GPT wraps different task inputs in token sequences that share one pretrained decoder.",
+      "depth": "brief",
+      "firstFamily": "ml-gpt2-task-input-format",
+      "rawAuthorReferenceId": "ml-gpt2-task-input-format",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-task-input-format",
+      "preparedId": "ml-gpt2-task-input-format",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "expectedFamily": "ml-gpt2-task-input-format",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-22",
+      "prompt": "The original GPT wraps different task inputs in token sequences that share one pretrained decoder.",
+      "depth": "balanced",
+      "firstFamily": "ml-gpt2-task-input-format",
+      "rawAuthorReferenceId": "ml-gpt2-task-input-format",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-task-input-format",
+      "preparedId": "ml-gpt2-task-input-format",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "expectedFamily": "ml-gpt2-task-input-format",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-22",
+      "prompt": "The original GPT wraps different task inputs in token sequences that share one pretrained decoder.",
+      "depth": "detailed",
+      "firstFamily": "ml-gpt2-task-input-format",
+      "rawAuthorReferenceId": "ml-gpt2-task-input-format",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-task-input-format",
+      "preparedId": "ml-gpt2-task-input-format",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "expectedFamily": "ml-gpt2-task-input-format",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-59",
+      "prompt": "A decoder-only model can learn translation by reading source and target in one delimited sequence.",
+      "depth": "brief",
+      "firstFamily": "ml-gpt2-task-input-format",
+      "rawAuthorReferenceId": "ml-gpt2-task-input-format",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-task-input-format",
+      "preparedId": "ml-gpt2-task-input-format",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "expectedFamily": "ml-gpt2-task-input-format",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-59",
+      "prompt": "A decoder-only model can learn translation by reading source and target in one delimited sequence.",
+      "depth": "balanced",
+      "firstFamily": "ml-gpt2-task-input-format",
+      "rawAuthorReferenceId": "ml-gpt2-task-input-format",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-task-input-format",
+      "preparedId": "ml-gpt2-task-input-format",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "expectedFamily": "ml-gpt2-task-input-format",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-59",
+      "prompt": "A decoder-only model can learn translation by reading source and target in one delimited sequence.",
+      "depth": "detailed",
+      "firstFamily": "ml-gpt2-task-input-format",
+      "rawAuthorReferenceId": "ml-gpt2-task-input-format",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-task-input-format",
+      "preparedId": "ml-gpt2-task-input-format",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "expectedFamily": "ml-gpt2-task-input-format",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-61",
+      "prompt": "A decoder can generate a summary after a prompt containing the document and a delimiter.",
+      "depth": "brief",
+      "firstFamily": "ml-gpt2-task-input-format",
+      "rawAuthorReferenceId": "ml-gpt2-task-input-format",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-task-input-format",
+      "preparedId": "ml-gpt2-task-input-format",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "expectedFamily": "ml-gpt2-task-input-format",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-61",
+      "prompt": "A decoder can generate a summary after a prompt containing the document and a delimiter.",
+      "depth": "balanced",
+      "firstFamily": "ml-gpt2-task-input-format",
+      "rawAuthorReferenceId": "ml-gpt2-task-input-format",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-task-input-format",
+      "preparedId": "ml-gpt2-task-input-format",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "expectedFamily": "ml-gpt2-task-input-format",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-61",
+      "prompt": "A decoder can generate a summary after a prompt containing the document and a delimiter.",
+      "depth": "detailed",
+      "firstFamily": "ml-gpt2-task-input-format",
+      "rawAuthorReferenceId": "ml-gpt2-task-input-format",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-task-input-format",
+      "preparedId": "ml-gpt2-task-input-format",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-overview-and-expanded-block",
+      "expectedFamily": "ml-gpt2-overview-and-expanded-block",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-28",
+      "prompt": "An architecture overview intentionally leaves out lower-level details like residuals and normalization.",
+      "depth": "brief",
+      "firstFamily": "ml-gpt2-overview-and-expanded-block",
+      "rawAuthorReferenceId": "ml-gpt2-overview-and-expanded-block",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-overview-and-expanded-block",
+      "preparedId": "ml-gpt2-overview-and-expanded-block",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-overview-and-expanded-block",
+      "expectedFamily": "ml-gpt2-overview-and-expanded-block",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-28",
+      "prompt": "An architecture overview intentionally leaves out lower-level details like residuals and normalization.",
+      "depth": "balanced",
+      "firstFamily": "ml-gpt2-overview-and-expanded-block",
+      "rawAuthorReferenceId": "ml-gpt2-overview-and-expanded-block",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-overview-and-expanded-block",
+      "preparedId": "ml-gpt2-overview-and-expanded-block",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-gpt2-overview-and-expanded-block",
+      "expectedFamily": "ml-gpt2-overview-and-expanded-block",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-28",
+      "prompt": "An architecture overview intentionally leaves out lower-level details like residuals and normalization.",
+      "depth": "detailed",
+      "firstFamily": "ml-gpt2-overview-and-expanded-block",
+      "rawAuthorReferenceId": "ml-gpt2-overview-and-expanded-block",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-overview-and-expanded-block",
+      "preparedId": "ml-gpt2-overview-and-expanded-block",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

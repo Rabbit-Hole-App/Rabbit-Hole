@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Distinct learned matrix shapes and projector jobs",
+    "columns": [
+      "Weight shape",
+      "Job"
+    ],
+    "rows": [
+      {
+        "id": "qkv",
+        "heading": "Joint QKV",
+        "cells": [
+          "$2\\times6$",
+          "Q/K/V"
+        ]
+      },
+      {
+        "id": "attention",
+        "heading": "Attention output",
+        "cells": [
+          "$2\\times2$",
+          "Mix heads"
+        ]
+      },
+      {
+        "id": "expand",
+        "heading": "FFN expand",
+        "cells": [
+          "$2\\times8$",
+          "d to m expansion"
+        ]
+      },
+      {
+        "id": "restore",
+        "heading": "FFN restore",
+        "cells": [
+          "$8\\times2$",
+          "m to d restoration"
+        ]
+      }
+    ],
+    "caption": "Same projector jobs. Untying adds $Vd=4\\times2=8$; existing block/table/norm terms fixed, no output bias."
+  }
+}

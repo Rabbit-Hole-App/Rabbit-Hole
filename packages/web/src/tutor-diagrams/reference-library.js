@@ -62,6 +62,8 @@ import { references as compositionNormalization } from './composition-normalizat
 import { references as compositionPositionalEncoding } from './composition-positional-encoding-references.js';
 import { references as compositionEmbeddings } from './composition-embeddings-references.js';
 import { references as compositionContextualEmbeddings } from './composition-contextual-embeddings-references.js';
+import { references as compositionModelCapacity } from './composition-model-capacity-references.js';
+import { references as compositionGpt2 } from './composition-gpt2-references.js';
 import { overlays as bertOverlays } from './topic-bert-overlays.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
@@ -118,6 +120,7 @@ export const diagramReferences = Object.freeze([
   ...compositionLanguageTraining, ...compositionSummarization,
   ...compositionNormalization, ...compositionPositionalEncoding, ...compositionEmbeddings,
   ...compositionContextualEmbeddings,
+  ...compositionModelCapacity, ...compositionGpt2,
   ...estimationEvaluationReferences,
 ].map(ref => {
   const overlay = transformerOverlays[ref.id] ?? bertOverlays[ref.id] ?? attentionOverlays[ref.id];

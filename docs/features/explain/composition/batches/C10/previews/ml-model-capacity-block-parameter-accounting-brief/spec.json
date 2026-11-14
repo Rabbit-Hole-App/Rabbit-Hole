@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Distinct learned matrix shapes and projector jobs",
+    "columns": [
+      "Weight shape",
+      "Job"
+    ],
+    "rows": [
+      {
+        "id": "qkv",
+        "heading": "Joint QKV",
+        "cells": [
+          "$2\\times6$",
+          "Q/K/V"
+        ]
+      },
+      {
+        "id": "attention",
+        "heading": "Attention output",
+        "cells": [
+          "$2\\times2$",
+          "Mix heads"
+        ]
+      },
+      {
+        "id": "ffn",
+        "heading": "FFN expand / restore",
+        "cells": [
+          "$2\\times8$; $8\\times2$",
+          "Expand d to m; restore m to d"
+        ]
+      }
+    ],
+    "caption": "Full-MHA toy: $d=2,m=8$. Shapes name learned matrices, not supplied numeric weights; distinct FFN expansion and restoration."
+  }
+}

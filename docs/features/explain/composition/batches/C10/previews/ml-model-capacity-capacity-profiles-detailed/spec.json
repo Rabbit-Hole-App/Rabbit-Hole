@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Same full-MHA recipe, different layer and width choices",
+    "unit": "Params",
+    "bars": [
+      {
+        "label": "A L2 d2",
+        "value": 172
+      },
+      {
+        "label": "B L3 d2",
+        "value": 246
+      },
+      {
+        "label": "C L2 d4",
+        "value": 536
+      },
+      {
+        "label": "D L3 d4",
+        "value": 780
+      }
+    ],
+    "caption": "Computed toys: A to B adds 74 independent parameters; A to C gives 536 at fixed $L=2$. Same tables/final norm for A to B."
+  }
+}

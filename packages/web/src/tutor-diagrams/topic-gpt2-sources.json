@@ -1,0 +1,575 @@
+{
+  "batch": "C10",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "baseTree": "4336a23de4d293d9f14eb8e5537757b63832d3ea",
+  "families": [
+    {
+      "rank": 50,
+      "source": "illustrated-bert",
+      "figure": "06",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-06",
+      "summary": "Deeper BERT configurations repeat the same encoder block type more times.",
+      "kinds": [
+        "block-stack",
+        "comparison"
+      ],
+      "proposedReferenceId": "ml-model-capacity-depth-width-allocation",
+      "proposedTopicSlug": "model-capacity",
+      "lessons": [],
+      "batch": "C10",
+      "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 2",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "comparison",
+        "block-stack"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-model-capacity-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "llm-architecture-gallery",
+          "figure": "05",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-05",
+          "summary": "A compact decoder can shrink its layer stack while keeping grouped-query attention and a dense token update.",
+          "kinds": [
+            "block-stack",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Compact dense decoder scale comparison",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "llm-architecture-gallery",
+          "figure": "12",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-12",
+          "summary": "Small decoder capacity can be allocated to more narrow layers instead of fewer wide layers.",
+          "kinds": [
+            "comparison",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Compare compact scaling with figure 5",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "llm-architecture-gallery",
+          "figure": "17",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-17",
+          "summary": "Matching depth and attention grouping does not imply matching token-state or feed-forward widths.",
+          "kinds": [
+            "comparison",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Compare with figure 16",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same unchanged block recipe shown at different repeat counts and state widths. Encoder versus decoder is a named recipe variant, not an implied equality of attention masks or learned parameters.",
+      "batchTopic": "gpt2"
+    },
+    {
+      "rank": 51,
+      "source": "illustrated-gpt2",
+      "figure": "03",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-03",
+      "summary": "The same model architecture can be trained at substantially different parameter counts.",
+      "kinds": [
+        "bar-chart",
+        "comparison",
+        "matrix"
+      ],
+      "proposedReferenceId": "ml-model-capacity-capacity-profiles",
+      "proposedTopicSlug": "model-capacity",
+      "lessons": [
+        "19"
+      ],
+      "batch": "C10",
+      "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 3",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "bar-chart",
+        "matrix"
+      ],
+      "representativeLessons": [
+        "19"
+      ],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-model-capacity-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "06",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-06",
+          "summary": "Increasing a model's depth and width increases its parameter count.",
+          "kinds": [
+            "matrix",
+            "bar-chart"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 6",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-bert",
+          "figure": "05",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-05",
+          "summary": "BERT has base and large configurations that share an encoder design but differ in capacity.",
+          "kinds": [
+            "comparison",
+            "bar-chart"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 1",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated capacity comparisons: depth/width settings and parameter totals, without inferring quality or speed from size.",
+      "batchTopic": "gpt2"
+    },
+    {
+      "rank": 52,
+      "source": "illustrated-gpt2",
+      "figure": "56",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-56",
+      "summary": "A GPT-2 block uses separate learned matrices for attention and the positionwise feed-forward network.",
+      "kinds": [
+        "block-stack",
+        "matrix",
+        "waterfall"
+      ],
+      "proposedReferenceId": "ml-model-capacity-block-parameter-accounting",
+      "proposedTopicSlug": "model-capacity",
+      "lessons": [],
+      "batch": "C10",
+      "sequence": "Illustrated GPT-2 \u00b7 Feed-forward computation and parameters \u00b7 step 3",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "block-stack",
+        "matrix"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-model-capacity-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "58",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-58",
+          "summary": "A model's total parameter count sums the sizes of lookup tables and the independently learned matrices in each layer.",
+          "kinds": [
+            "waterfall",
+            "matrix"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Feed-forward computation and parameters \u00b7 step 5",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Consecutive matrix-shape and parameter-total views of one toy decoder. The shape inventory is the mechanism and the checked table/block subtotal is its derived consequence; keep the different projection jobs.",
+      "batchTopic": "gpt2"
+    },
+    {
+      "rank": 53,
+      "source": "illustrated-bert",
+      "figure": "22",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-22",
+      "summary": "The original GPT wraps different task inputs in token sequences that share one pretrained decoder.",
+      "kinds": [
+        "comparison",
+        "flow",
+        "timeline",
+        "transformation"
+      ],
+      "proposedReferenceId": "ml-gpt2-task-input-format",
+      "proposedTopicSlug": "gpt2",
+      "lessons": [
+        "08",
+        "13"
+      ],
+      "batch": "C10",
+      "sequence": "Illustrated BERT \u00b7 Decoder pretraining and task adaptation \u00b7 step 4",
+      "gapTypes": [
+        "composition",
+        "numeric-transformation"
+      ],
+      "representativeKinds": [
+        "transformation",
+        "comparison"
+      ],
+      "representativeLessons": [
+        "08",
+        "13"
+      ],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-gpt2-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "59",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-59",
+          "summary": "A decoder-only model can learn translation by reading source and target in one delimited sequence.",
+          "kinds": [
+            "flow",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 1",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "61",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-61",
+          "summary": "A decoder can generate a summary after a prompt containing the document and a delimiter.",
+          "kinds": [
+            "timeline",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 3",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same task-fields-to-delimited-decoder-input pattern; translation, summarization and task wrappers preserve their source/target boundaries.",
+      "batchTopic": "gpt2",
+      "flowReturnRequirement": "not-required-by-brief"
+    },
+    {
+      "rank": 54,
+      "source": "illustrated-gpt2",
+      "figure": "28",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-28",
+      "summary": "An architecture overview intentionally leaves out lower-level details like residuals and normalization.",
+      "kinds": [
+        "block-stack",
+        "comparison"
+      ],
+      "proposedReferenceId": "ml-gpt2-overview-and-expanded-block",
+      "proposedTopicSlug": "gpt2",
+      "lessons": [],
+      "batch": "C10",
+      "sequence": "Illustrated GPT-2 \u00b7 One pass through GPT-2 \u00b7 step 14",
+      "gapTypes": [
+        "composition"
+      ],
+      "representativeKinds": [
+        "block-stack",
+        "comparison"
+      ],
+      "representativeLessons": [],
+      "representativeGapTypes": [
+        "composition"
+      ],
+      "proposedModule": "packages/web/src/tutor-diagrams/composition-gpt2-references.js",
+      "priority": {
+        "tier": 2,
+        "band": "transformer-attention",
+        "basis": "Figure subject and operation; lesson links are metadata only."
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "High-level versus expanded architecture: residuals and normalization are deliberately omitted in the overview.",
+      "batchTopic": "gpt2"
+    }
+  ],
+  "references": [
+    {
+      "queueId": "ml-model-capacity-depth-width-allocation",
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "mode": "NEW",
+      "topic": "model-capacity",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-bert",
+        "figure": "06",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-06",
+        "summary": "Deeper BERT configurations repeat the same encoder block type more times.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "llm-architecture-gallery",
+          "figure": "05",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-05",
+          "summary": "A compact decoder can shrink its layer stack while keeping grouped-query attention and a dense token update.",
+          "kinds": [
+            "block-stack",
+            "comparison"
+          ],
+          "lessons": [],
+          "sequence": "Compact dense decoder scale comparison",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "llm-architecture-gallery",
+          "figure": "12",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-12",
+          "summary": "Small decoder capacity can be allocated to more narrow layers instead of fewer wide layers.",
+          "kinds": [
+            "comparison",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Compare compact scaling with figure 5",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "llm-architecture-gallery",
+          "figure": "17",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/llm-architecture-gallery/briefs.md#figure-17",
+          "summary": "Matching depth and attention grouping does not imply matching token-state or feed-forward widths.",
+          "kinds": [
+            "comparison",
+            "block-stack"
+          ],
+          "lessons": [],
+          "sequence": "Compare with figure 16",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same unchanged block recipe shown at different repeat counts and state widths. Encoder versus decoder is a named recipe variant, not an implied equality of attention masks or learned parameters."
+    },
+    {
+      "queueId": "ml-model-capacity-capacity-profiles",
+      "referenceId": "ml-model-capacity-capacity-profiles",
+      "mode": "NEW",
+      "topic": "model-capacity",
+      "lessons": [
+        "19"
+      ],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "03",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-03",
+        "summary": "The same model architecture can be trained at substantially different parameter counts.",
+        "lessons": [
+          "19"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "06",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-06",
+          "summary": "Increasing a model's depth and width increases its parameter count.",
+          "kinds": [
+            "matrix",
+            "bar-chart"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Language modelling \u00b7 step 6",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-bert",
+          "figure": "05",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-05",
+          "summary": "BERT has base and large configurations that share an encoder design but differ in capacity.",
+          "kinds": [
+            "comparison",
+            "bar-chart"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated BERT \u00b7 Encoder architecture \u00b7 step 1",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Repeated capacity comparisons: depth/width settings and parameter totals, without inferring quality or speed from size."
+    },
+    {
+      "queueId": "ml-model-capacity-block-parameter-accounting",
+      "referenceId": "ml-model-capacity-block-parameter-accounting",
+      "mode": "NEW",
+      "topic": "model-capacity",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "56",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-56",
+        "summary": "A GPT-2 block uses separate learned matrices for attention and the positionwise feed-forward network.",
+        "lessons": []
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "58",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-58",
+          "summary": "A model's total parameter count sums the sizes of lookup tables and the independently learned matrices in each layer.",
+          "kinds": [
+            "waterfall",
+            "matrix"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Feed-forward computation and parameters \u00b7 step 5",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Consecutive matrix-shape and parameter-total views of one toy decoder. The shape inventory is the mechanism and the checked table/block subtotal is its derived consequence; keep the different projection jobs."
+    },
+    {
+      "queueId": "ml-gpt2-task-input-format",
+      "referenceId": "ml-gpt2-task-input-format",
+      "mode": "NEW",
+      "topic": "gpt2",
+      "lessons": [
+        "08",
+        "13"
+      ],
+      "source": {
+        "source": "illustrated-bert",
+        "figure": "22",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-22",
+        "summary": "The original GPT wraps different task inputs in token sequences that share one pretrained decoder.",
+        "lessons": [
+          "08",
+          "13"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "illustrated-gpt2",
+          "figure": "59",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-59",
+          "summary": "A decoder-only model can learn translation by reading source and target in one delimited sequence.",
+          "kinds": [
+            "flow",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 1",
+          "gapTypes": [
+            "composition"
+          ]
+        },
+        {
+          "source": "illustrated-gpt2",
+          "figure": "61",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-61",
+          "summary": "A decoder can generate a summary after a prompt containing the document and a delimiter.",
+          "kinds": [
+            "timeline",
+            "transformation"
+          ],
+          "lessons": [],
+          "sequence": "Illustrated GPT-2 \u00b7 Applying decoder-only models \u00b7 step 3",
+          "gapTypes": [
+            "composition",
+            "numeric-transformation"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same task-fields-to-delimited-decoder-input pattern; translation, summarization and task wrappers preserve their source/target boundaries."
+    },
+    {
+      "queueId": "ml-gpt2-overview-and-expanded-block",
+      "referenceId": "ml-gpt2-overview-and-expanded-block",
+      "mode": "NEW",
+      "topic": "gpt2",
+      "lessons": [],
+      "source": {
+        "source": "illustrated-gpt2",
+        "figure": "28",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-28",
+        "summary": "An architecture overview intentionally leaves out lower-level details like residuals and normalization.",
+        "lessons": []
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "High-level versus expanded architecture: residuals and normalization are deliberately omitted in the overview."
+    }
+  ],
+  "allocationDepthScopes": [
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "source": "illustrated-bert",
+      "figure": "06",
+      "depth": "overview",
+      "ordinaryStandardCoverage": false
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "source": "llm-architecture-gallery",
+      "figure": "05",
+      "depth": "standard",
+      "ordinaryStandardCoverage": true
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "source": "llm-architecture-gallery",
+      "figure": "12",
+      "depth": "standard",
+      "ordinaryStandardCoverage": true
+    },
+    {
+      "referenceId": "ml-model-capacity-depth-width-allocation",
+      "source": "llm-architecture-gallery",
+      "figure": "17",
+      "depth": "deep",
+      "ordinaryStandardCoverage": false
+    }
+  ]
+}

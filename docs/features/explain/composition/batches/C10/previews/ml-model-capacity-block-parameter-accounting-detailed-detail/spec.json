@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Untying the output adds only one separate matrix",
+    "unit": "Params",
+    "bars": [
+      {
+        "label": "Tied",
+        "value": 172
+      },
+      {
+        "label": "Untied",
+        "value": 180
+      }
+    ],
+    "caption": "Same terms $8+12+148+4$. Untied adds $Vd=4\\times2=8$ only; no output bias. Block inventory unchanged."
+  }
+}

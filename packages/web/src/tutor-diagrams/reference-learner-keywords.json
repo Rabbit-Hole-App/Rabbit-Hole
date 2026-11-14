@@ -1730,5 +1730,25 @@
   "ml-contextual-embeddings-layer-pooling-evaluation": [
     "frozen pooling F1 comparison",
     "fixed cohort layer readouts"
+  ],
+  "ml-model-capacity-depth-width-allocation": [
+    "matched recipe depth widths",
+    "independent layer stack allocation"
+  ],
+  "ml-model-capacity-capacity-profiles": [
+    "same recipe parameter magnitudes",
+    "depth width count profiles"
+  ],
+  "ml-model-capacity-block-parameter-accounting": [
+    "projection shape accounting",
+    "lookup block sum"
+  ],
+  "ml-gpt2-task-input-format": [
+    "serialized task wrapper fields",
+    "observed versus chosen prefixes"
+  ],
+  "ml-gpt2-overview-and-expanded-block": [
+    "collapsed decoder detail",
+    "omitted normalization shortcuts"
   ]
 }

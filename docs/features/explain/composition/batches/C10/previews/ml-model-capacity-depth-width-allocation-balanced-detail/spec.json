@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "G-B grouped decoder stack",
+    "blocks": [
+      {
+        "id": "x",
+        "label": "Input",
+        "dims": "$d=2,m=8$"
+      },
+      {
+        "id": "na",
+        "label": "Attention RMSNorm",
+        "repeat": 3,
+        "repeatTo": "f"
+      },
+      {
+        "id": "a",
+        "label": "Causal GQA",
+        "dims": "$H=2,G=1,k=1$"
+      },
+      {
+        "id": "nf",
+        "label": "FFN RMSNorm"
+      },
+      {
+        "id": "f",
+        "label": "Dense GELU FFN",
+        "dims": "$2\\to8\\to2$"
+      },
+      {
+        "id": "y",
+        "label": "Output",
+        "dims": "$d=2$"
+      }
+    ],
+    "edges": [
+      {
+        "kind": "residual",
+        "from": "na",
+        "to": "a",
+        "merge": "add"
+      },
+      {
+        "kind": "residual",
+        "from": "nf",
+        "to": "f",
+        "merge": "add"
+      }
+    ],
+    "caption": "Toy pre-RMSNorm causal GQA, dense GELU. $L=3,H=2,G=1$; independent layer parameters."
+  }
+}

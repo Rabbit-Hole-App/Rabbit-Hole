@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "An overview deliberately collapses decoder internals",
+    "blocks": [
+      {
+        "id": "x",
+        "label": "Input",
+        "dims": "$d=2$"
+      },
+      {
+        "id": "block",
+        "label": "Collapsed $\\text{GPT-2}$ toy block",
+        "detail": 2
+      },
+      {
+        "id": "y",
+        "label": "Output",
+        "dims": "$d=2$"
+      }
+    ],
+    "caption": "$\\text{GPT-2}$-style full-MHA/GELU toy. Overview omits 2 LayerNorm stages and 2 residual shortcuts; open detail."
+  }
+}

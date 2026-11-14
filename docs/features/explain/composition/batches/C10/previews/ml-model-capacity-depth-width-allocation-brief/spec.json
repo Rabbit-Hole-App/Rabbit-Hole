@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "E2 independent encoder stack",
+    "blocks": [
+      {
+        "id": "x",
+        "label": "Input token states",
+        "dims": "$d=2,m=8$"
+      },
+      {
+        "id": "recipe",
+        "label": "Post-LN bidirectional MHA and dense GELU",
+        "repeat": 2
+      },
+      {
+        "id": "y",
+        "label": "Contextual output",
+        "dims": "$d=2,m=8$"
+      }
+    ],
+    "caption": "Toy: independent learned layer sets $\\theta_{E2,1},\\theta_{E2,2}$. Same encoder recipe, no shared layer weights."
+  }
+}

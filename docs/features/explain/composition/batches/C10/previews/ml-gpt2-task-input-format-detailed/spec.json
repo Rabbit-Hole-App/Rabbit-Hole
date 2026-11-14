@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Reorder calls, retain candidate identities",
+    "columns": [
+      "Serialized input",
+      "Readout role"
+    ],
+    "rows": [
+      {
+        "id": "single",
+        "heading": "Single",
+        "cells": [
+          "$<s>$bright day$<r>$",
+          "Final rC"
+        ]
+      },
+      {
+        "id": "pair",
+        "heading": "Pair",
+        "cells": [
+          "$<s>$rain$<d>$wet$<r>$",
+          "Final rE"
+        ]
+      },
+      {
+        "id": "similarityAB",
+        "heading": "Similarity AB",
+        "cells": [
+          "$<s>$hot$<d>$warm$<r>$",
+          "Keep rAB"
+        ]
+      },
+      {
+        "id": "similarityBA",
+        "heading": "Similarity BA",
+        "cells": [
+          "$<s>$warm$<d>$hot$<r>$",
+          "Keep rBA"
+        ]
+      },
+      {
+        "id": "choiceB",
+        "heading": "Choice B",
+        "cells": [
+          "$<s>$sky$<d>$green$<r>$",
+          "Separate rB"
+        ]
+      },
+      {
+        "id": "choiceA",
+        "heading": "Choice A",
+        "cells": [
+          "$<s>$sky$<d>$blue$<r>$",
+          "Separate rA"
+        ]
+      }
+    ],
+    "caption": "Order B,A; stable $(A,r_A),(B,r_B)$ pairs. Shared $\\theta_W$; combine rAB/rBA, candidates separate."
+  }
+}

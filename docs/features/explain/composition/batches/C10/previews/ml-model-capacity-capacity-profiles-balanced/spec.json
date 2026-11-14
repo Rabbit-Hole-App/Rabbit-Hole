@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Same full-MHA recipe, different layer and width choices",
+    "unit": "Params",
+    "bars": [
+      {
+        "label": "A L2 d2",
+        "value": 172
+      },
+      {
+        "label": "B L3 d2",
+        "value": 246
+      },
+      {
+        "label": "C L2 d4",
+        "value": 536
+      },
+      {
+        "label": "D L3 d4",
+        "value": 780
+      }
+    ],
+    "caption": "Computed toys: $V=4,P=6,m=4d$. Biased full MHA, 2 affine norms/block, final affine norm, tied output."
+  }
+}
