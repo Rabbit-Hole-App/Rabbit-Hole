@@ -1,0 +1,43 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": [
+    {
+      "id": "ml-linear-regression-linear-unit-single",
+      "panelReferenceId": "ml-linear-regression-linear-unit",
+      "chosenPanel": "Linear unit",
+      "reason": "Input features feed one weighted-sum unit with weights and bias, preserving the affine unit structure rather than only its output value.",
+      "kind": "block-stack",
+      "tokens": 51,
+      "sha256": "e5fd749e4aa6d6371afdeb0010cb91195fa12b04bfbacaf589b403907605b0fe"
+    },
+    {
+      "id": "ml-neural-networks-hidden-layer-single",
+      "panelReferenceId": "ml-neural-networks-hidden-layer",
+      "chosenPanel": "After ReLU",
+      "reason": "After ReLU exposes the nonlinear hidden features before the readout instead of showing only the final prediction.",
+      "kind": "bar-chart",
+      "tokens": 40,
+      "sha256": "a469b201e8866b1b9db2960218bd42f9b069eae1f36f292aa870371c7d16d962"
+    },
+    {
+      "id": "ml-regularization-regularized-objective-single",
+      "panelReferenceId": "ml-regularization-regularized-objective",
+      "chosenPanel": "Objective parts",
+      "reason": "Stacked data fit and weight penalty show how both terms sum to the regularized objective.",
+      "kind": "bar-chart",
+      "tokens": 50,
+      "sha256": "4242551be7d092bb3b35e27ac315a853a5f8f43bcf9f0df414c4f4c510c8f1b8",
+      "authorSchemaNote": "Optional total omitted; unchanged computed parts sum to the rendered whole."
+    },
+    {
+      "id": "ml-regularization-dropout-mask-single",
+      "panelReferenceId": "ml-regularization-dropout-mask",
+      "chosenPanel": "Training output",
+      "reason": "Training output retains both the temporary mask and inverted-dropout rescaling rather than stopping at the unscaled mask.",
+      "kind": "coordinate-plot",
+      "tokens": 120,
+      "sha256": "b3e294301167ab9539cf472d687db0c9fdae02a5636834b31154045cddd0fb0f"
+    }
+  ]
+}

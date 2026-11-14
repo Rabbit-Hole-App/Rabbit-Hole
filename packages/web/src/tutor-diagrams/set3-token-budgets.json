@@ -785,6 +785,46 @@
         "tokens": 100,
         "sha256": "b96fae73469a3602dd4d5feec5f429a6327c202589acc40633aa4ef2c0bbc0fd"
       }
+    },
+    "ml-linear-regression-linear-unit": {
+      "panel": {
+        "tokens": 199,
+        "sha256": "fd3dfb5f9b08d2dd0fd5c8cfffdcb83c240d7f5b17b2557dc81f252fbf538a7e"
+      },
+      "single": {
+        "tokens": 51,
+        "sha256": "e5fd749e4aa6d6371afdeb0010cb91195fa12b04bfbacaf589b403907605b0fe"
+      }
+    },
+    "ml-neural-networks-hidden-layer": {
+      "panel": {
+        "tokens": 226,
+        "sha256": "6d92a32d251120fd558816f82f46c1e24b6f7e72b1c3cb96d80aab30330f2299"
+      },
+      "single": {
+        "tokens": 40,
+        "sha256": "a469b201e8866b1b9db2960218bd42f9b069eae1f36f292aa870371c7d16d962"
+      }
+    },
+    "ml-regularization-regularized-objective": {
+      "panel": {
+        "tokens": 206,
+        "sha256": "77ed15cc733e6abdbeadf4338bce0f741c90ba68814b5cf965f8f8257b63e488"
+      },
+      "single": {
+        "tokens": 50,
+        "sha256": "4242551be7d092bb3b35e27ac315a853a5f8f43bcf9f0df414c4f4c510c8f1b8"
+      }
+    },
+    "ml-regularization-dropout-mask": {
+      "panel": {
+        "tokens": 297,
+        "sha256": "2e908ba6b4a68fe6db9f2282e6a36726547c576244c7e4dc2f65c15c657f3101"
+      },
+      "single": {
+        "tokens": 120,
+        "sha256": "b3e294301167ab9539cf472d687db0c9fdae02a5636834b31154045cddd0fb0f"
+      }
     }
   }
 }

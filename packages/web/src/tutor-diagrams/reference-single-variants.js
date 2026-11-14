@@ -5,6 +5,7 @@ import { architectureSingleSpecs } from './illustration-architecture-references.
 import { transformerMultiheadReference, transformerMultiheadSingleSpec } from './transformer-multihead-reference.js';
 import { figureChapterSingleSpecs } from './figure-chapter-single-specs.js';
 import { softmaxSingleSpec } from './topic-logistic-regression-references.js';
+import { regularizationSingleSpecs } from './composition-regularization-single-specs.js';
 
 const panelsById = new Map(diagramReferences.map(ref => [ref.id, ref]));
 
@@ -14,6 +15,7 @@ export const singleDiagramReferences = Object.freeze(
     [transformerMultiheadReference.id]: transformerMultiheadSingleSpec,
     ...figureChapterSingleSpecs,
     'ml-logistic-regression-softmax': softmaxSingleSpec, // the panels reference's one-diagram variant, built from the topic's data module
+    ...regularizationSingleSpecs,
   }).filter(([panelReferenceId]) => panelsById.has(panelReferenceId)).map(([panelReferenceId, { spec, useWhen }]) => {
     const { id, keywords, prompts, lessons } = panelsById.get(panelReferenceId);
     return {
