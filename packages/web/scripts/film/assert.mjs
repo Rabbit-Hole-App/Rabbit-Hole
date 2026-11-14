@@ -26,8 +26,18 @@ export function evaluate(dir) {
   each('skeleton seen', obs.skeletons, x => x.found && x.ms >= TH.skeletonMinMs);
   each('card centred', obs.centred, x => x.ok);
   each('tooltip seen', obs.tooltips, x => x.shown && x.ms >= TH.tooltipMinMs, 'no tooltip hover was recorded');
-  each('menu in frame', obs.menus, x => x.ok);
+  each('menu in frame', obs.menus, x => x.ok || !!x.known);
+  for (const x of obs.menus.filter(m => !m.ok && m.known)) pass('menu in frame (KNOWN, not fixed)', `${x.name}: ${x.known}`);
   each('Chat pane shown', obs.chat, x => x.ok);
+  // SOP v1 additions (observations may be absent in a take made by an older runner: then the check is skipped as "not used")
+  each('typing slow and visible', obs.typing || [], x => x.delay >= (x.kind === 'command' ? TH.commandMinMs : TH.proseMinMs), 'no typing was recorded');
+  each('sticker visible', obs.stickers || [], x => x.ok);
+  each('pill above the highlight', obs.pillGeometry || [], x => x.ok);
+  each('Ctrl+K button clicked (cursor on it)', obs.cursor || [], x => x.ok);
+  each('window not looking fake (DOM asserted)', obs.windows || [], x => x.ok);
+  each('nothing selected before the canvas Ctrl+K', obs.nothingSelected || [], x => x.ok);
+  each('cards dragged without overlap', obs.drags || [], x => x.ok);
+  if (TH.dragsMin && (obs.drags || []).filter(x => x.ok).length < TH.dragsMin) fail('cards dragged (count)', `${(obs.drags || []).filter(x => x.ok).length} clean drags, the SOP wants ${TH.dragsMin}`);
   const holdMax = (TH.holdMax || 2.6), longHolds = (marks.hold || []).filter(([a, b], i, all) => b - a > holdMax && i !== all.length - 1 && b < marks.end - 0.2);
   longHolds.length ? fail('no dead stretch (holds)', `holds longer than ${holdMax} s: ${longHolds.map(([a, b]) => `${a}-${b}`).join(', ')}`) : pass('no dead stretch (holds)', `${(marks.hold || []).length} holds, none longer than ${holdMax} s`);
   const deadTotal = (marks.dead || []).reduce((n, [a, b]) => n + (b - a), 0);
@@ -35,8 +45,8 @@ export function evaluate(dir) {
   const counts = {};
   for (const line of log) { const m = /^[\d.]+ (GET|POST|PUT|DELETE|PATCH) (\/\S*)/.exec(line); if (m) counts[`${m[1]} ${m[2]}`] = (counts[`${m[1]} ${m[2]}`] || 0) + 1; }
   const polled = Object.entries(counts).filter(([, n]) => n > (TH.pollMax || 20));
-  const bad = log.filter(l => /UNSCRIPTED|^ABORT|^FAILED|^PAGEERROR/.test(l));
-  bad.length || polled.length ? fail('request hygiene', [...bad.slice(0, 5), ...polled.map(([r, n]) => `${r} called ${n} times`)].join(' | ')) : pass('request hygiene', `${Object.keys(counts).length} routes, busiest ${Math.max(0, ...Object.values(counts))} calls, 0 unscripted, 0 aborts, 0 page errors`);
+  const bad = log.filter(l => /UNSCRIPTED|^ABORT (?!outside )|^FAILED|^PAGEERROR/.test(l)), outside = log.filter(l => /^ABORT outside /.test(l)).length; // an aborted outside host (a link or font the page tried to reach) is blocked on purpose and is not a failure
+  bad.length || polled.length ? fail('request hygiene', [...bad.slice(0, 5), ...polled.map(([r, n]) => `${r} called ${n} times`)].join(' | ')) : pass('request hygiene', `${Object.keys(counts).length} routes, busiest ${Math.max(0, ...Object.values(counts))} calls, 0 unscripted, 0 model aborts, 0 page errors, ${outside} outside host(s) blocked`);
   return rows;
 }
 

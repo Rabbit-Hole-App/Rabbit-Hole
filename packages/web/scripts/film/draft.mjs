@@ -38,7 +38,7 @@ for (const row of rows) console.log(`${row.ok ? 'PASS' : 'FAIL'}  ${row.name}: $
 if (rows.some(row => !row.ok)) { console.error(`DRAFT REFUSED: the beat checklist failed: ${rows.filter(row => !row.ok).map(row => row.name).join(', ')}`); process.exit(4); }
 // 3. render 480p (veryfast: the approval loop wants speed)
 const ramp = cfg.ramp || {};
-r = run('render.mjs', [take, prefix], { FAST: String(ramp.fast ?? 1.4), TRIM: String(ramp.trim ?? 0), REV: String(ramp.rev ?? 2.2), DEAD: String(ramp.dead ?? 3), PRESET: 'veryfast', CRF: '24', SIZE: '854:480' }); show(r);
+r = run('render.mjs', [take, prefix], { FAST: String(ramp.fast ?? 1.4), TRIM: String(ramp.trim ?? 0), REV: String(ramp.rev ?? 2.2), DEAD: String(ramp.dead ?? 3), PRESET: 'veryfast', CRF: '23', SIZE: '854:480' }); show(r);
 if (r.status !== 0 || !existsSync(mp4)) { console.error(`DRAFT REFUSED: the render failed (exit ${r.status})`); process.exit(5); }
 // 4. the OUTPUT must have no still stretch longer than stillMax (the intended read holds are <= 2.5 s)
 r = run('deadcheck.mjs', [mp4, '0.8']); show(r);

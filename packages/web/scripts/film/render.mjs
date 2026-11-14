@@ -66,4 +66,4 @@ const code = await done;
 if (code !== 0) throw new Error(`ffmpeg exit ${code}`);
 const seconds = ((Date.now() - t0) / 1000).toFixed(1);
 console.log(`ok ${out} ${(statSync(out).size / 1048576).toFixed(1)} MiB, ${meta.width}x${meta.height}, ${((to - from) / FPS).toFixed(1)} s of video, encode ${seconds} s`);
-writeFileSync(`${outPrefix}.render.json`, JSON.stringify({ out, width: meta.width, height: meta.height, seconds: (to - from) / FPS, encodeSeconds: Number(seconds), segments: segments.length, realSeconds, scriptSeconds: end - start, preset: PRESET, crf: CRF }, null, 1));
+writeFileSync(`${outPrefix}.render.json`, JSON.stringify({ out, width: process.env.SIZE ? Number(process.env.SIZE.split(":")[0]) : meta.width, height: process.env.SIZE ? Number(process.env.SIZE.split(":")[1]) : meta.height, seconds: (to - from) / FPS, encodeSeconds: Number(seconds), segments: segments.length, realSeconds, scriptSeconds: end - start, preset: PRESET, crf: CRF }, null, 1));

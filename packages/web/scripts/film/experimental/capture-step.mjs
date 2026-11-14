@@ -1,4 +1,4 @@
-// EXPERIMENTAL, UNPROVEN: the frame-stepped 4K take (virtual clock via Playwright page.clock, the Web Animations API for CSS animations, a JS camera tween, one true 3840x2160 screenshot per 33 ms step). Snapshot of the first film's experiment taken 2026-11-14 while it was still being tried: it is film-specific (beats, bank keys and selectors are hard-coded), not config-driven, and was not shown to reproduce the page faithfully. If it is made to work, port its stepping into capture.mjs as a mode, do not copy this file.
+// EXPERIMENTAL SNAPSHOT of the film fork's frame-stepped take, copied read-only from C:/s/spec/film-explain/capture-step.mjs at 2026-11-14 03:14 PT (generated there by make-step.mjs from the film's own capture.mjs). It produced the v1 4K (take-s4: virtual clock via Playwright page.clock + the Web Animations API for CSS animations + a JS camera tween + one true 3840x2160 screenshot per 33.3 ms step, 0 page errors, no stalls). It is FILM-SPECIFIC (beats, bank keys and selectors hard-coded, reads film.config.json for typing speeds only), not config-driven: porting its stepping into capture.mjs as a mode is the next step; do not copy this file for another video.
 // FILM: "/explain around a markdown". Records the take from the REAL Rabbit Hole canvas (dist-dev of explain/video-canvas under vite preview). Adapted from the landing AI-Tutor kit
 // (C:/s/spec/film-explain/kit/landing-tutor/capture/capture.mjs): same camera (CSS transform on <body>, eased, never below 1x), same cursor + click ring, same request log. Changes: the app id,
 // the board (the markdown only), and /api/learn/artifact + /api/learn/ask answered from the answer bank (bank/bank.json) in script order with a scripted delay.
@@ -14,6 +14,7 @@ const WEB = process.cwd();
 const { chromium } = createRequire(join(WEB, 'package.json'))('@playwright/test');
 const F = 'C:/s/spec/film-explain/';
 const OUT = process.argv[2] || `${F}take-1`;
+const TYPING = { prose_ms: 30, command_ms: 60, ...(JSON.parse(readFileSync(F + "film.config.json", "utf8")).typing || {}) };
 mkdirSync(OUT, { recursive: true });
 const BASE = process.env.BASE || 'http://127.0.0.1:5480';
 if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(BASE)) throw Error('capture runs against a loopback preview only');
@@ -136,9 +137,9 @@ await context.addInitScript(({ noOverride }) => {
       #rh-ring{position:fixed;z-index:2147483646;pointer-events:none;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:#2383e233;border:2px solid #2383e2aa;opacity:0}
       #rh-ring.on{animation:rh-ring .5s ease-out}
       @keyframes rh-ring{0%{opacity:1;transform:scale(.35)}100%{opacity:0;transform:scale(1.15)}}
-      #rh-key{position:fixed;left:50%;top:9%;z-index:2147483645;pointer-events:none;display:flex;gap:10px;transform:translateX(-50%) scale(.9);opacity:0;transition:opacity .18s,transform .18s}
+      #rh-key{position:fixed;left:50%;top:13%;z-index:2147483645;pointer-events:none;display:flex;gap:10px;transform:translateX(-50%) scale(.9);opacity:0;transition:opacity .18s,transform .18s}
       #rh-key.on{opacity:1;transform:translateX(-50%) scale(1)}
-      #rh-key span{font:600 30px/1 Inter,system-ui,sans-serif;color:#20211f;background:#fff;border:2px solid #20211f;border-bottom-width:6px;border-radius:12px;padding:12px 20px;box-shadow:0 8px 24px #0003}`;
+      #rh-key span{font:700 56px/1 Inter,system-ui,sans-serif;color:#fff;background:#20211f;border:3px solid #fff;border-bottom-width:9px;border-radius:16px;padding:18px 32px;box-shadow:0 12px 36px #0006}`;
     const cursor = document.createElement('div');
     cursor.id = 'rh-cursor';
     cursor.innerHTML = '<svg viewBox="0 0 32 40" width="26" height="32"><path d="M3 2v29l8-7 6 13 6-3-6-12h12Z" fill="white" stroke="#20211f" stroke-width="2.5" stroke-linejoin="round"/></svg>';
@@ -159,7 +160,7 @@ await context.addInitScript(({ noOverride }) => {
       window.__vt = v; const c = camNow(); if (document.body) document.body.style.transform = `translate(${c.tx}px, ${c.ty}px) scale(${c.s})`;
       for (const a of document.getAnimations()) { if (a.__vt0 === undefined) { a.__vt0 = v - (Number(a.currentTime) || 0); a.pause(); } a.currentTime = v - a.__vt0; }
     };
-    window.__key = () => { keycap.classList.add('on'); setTimeout(() => keycap.classList.remove('on'), 1200); };
+    window.__key = () => { keycap.classList.add('on'); setTimeout(() => keycap.classList.remove('on'), 1400); };
     const caption = document.createElement('div');
     caption.id = 'rh-cap';
     caption.style.cssText = 'position:fixed;left:50%;bottom:7%;z-index:2147483645;pointer-events:none;transform:translateX(-50%);opacity:0;transition:opacity .25s;font:600 30px/1.2 Inter,system-ui,sans-serif;color:#fff;background:#20211fe6;border-radius:14px;padding:14px 26px;box-shadow:0 8px 24px #0004';
@@ -222,7 +223,7 @@ if (process.env.SCREENCAST) {
           if (Date.now() - t0 < 15000) { await new Promise(res => setTimeout(res, 200)); continue; }
           const s = await Promise.race([cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 90, optimizeForSpeed: true }).catch(() => null), new Promise(res => setTimeout(() => res(null), 8000))]);
           r = s && Buffer.from(s.data, 'base64');
-        } else r = await page.screenshot({ type: 'jpeg', quality: 92, scale: 'device', timeout: 15000 }).catch(() => null);
+        } else r = await page.screenshot({ type: 'jpeg', quality: 92, scale: 'device', timeout: 150000 }).catch(() => null);
         if (!r) continue;
         const n = frameLog.length;
         frameLog.push({ n, ts, w: VW * DSF, h: VH * DSF });
@@ -239,7 +240,7 @@ const stepStats = { shots: 0, shotMs: [] };
 globalThis.stepOn = true;
 const finishStep = async () => {
   await Promise.all(frameWrites);
-  writeFileSync(join(OUT, 'frames.json'), JSON.stringify({ frames: frameLog }));
+writeFileSync(join(OUT, 'frames.json'), JSON.stringify({ frames: frameLog }));
 };
 globalThis.stepper = (async () => {
   mkdirSync(frameDir, { recursive: true });
@@ -251,7 +252,7 @@ globalThis.stepper = (async () => {
       const due = waiters.filter(x => x[0] <= target + 1e-6).sort((p, q) => p[0] - q[0])[0];
       if (!due) break;
       waiters.splice(waiters.indexOf(due), 1); vt = Math.max(vt, due[0]); due[1]();
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 30));
     }
     vt = target;
     await page.clock.runFor(dt);
@@ -259,7 +260,7 @@ globalThis.stepper = (async () => {
     await new Promise(resolve => setTimeout(resolve, 25)); // real time: lets the script's reaction (a click, a key) reach the page before the frame
     if (inside) {
       const s = Date.now();
-      const buf = await page.screenshot({ type: 'jpeg', quality: 92, scale: 'device', timeout: 30000 }).catch(() => null);
+      const buf = await page.screenshot({ type: 'jpeg', quality: 92, scale: 'device', timeout: 300000 }).catch(() => null);
       if (buf) { const n = frameLog.length; frameLog.push({ n, ts: vt / 1000, w: VW * DSF, h: VH * DSF }); stepStats.shots++; stepStats.shotMs.push(Date.now() - s); frameWrites.push(import('node:fs/promises').then(fs => fs.writeFile(join(frameDir, `f${String(n).padStart(6, '0')}.jpg`), buf))); }
     }
     if (STOPAT && vt / 1000 >= STOPAT) {
@@ -287,6 +288,11 @@ const camera = async (r, ms = 550, max = 2.4, free = false) => {
   let tx = VW / 2 - s * (r.x + r.w / 2), ty = VH / 2 - s * (r.y + r.h / 2);
   // free: the subject is centred exactly even at the screen's edge (the margin beyond the canvas is blank page); otherwise the camera never shows past the page.
   if (!free) { tx = Math.min(0, Math.max(VW - s * VW, tx)); ty = Math.min(0, Math.max(VH - s * VH, ty)); }
+  // owner note: pans too fast -> the nominal move x1.28, plus the distance (screen travel and zoom change), clamped 700..1100 ms (800+ ms overview moves 1100..1250); rendered at 1.0x, never ramped
+  const travelFrac = Math.hypot(tx - cam.tx, ty - cam.ty) / Math.hypot(VW, VH) + Math.abs(s - cam.s) * 0.25, ms0 = ms;
+  ms = Math.round(ms0 >= 800 ? Math.min(1250, Math.max(1100, ms0 * 1.28 + travelFrac * 300)) : Math.min(1100, Math.max(700, ms0 * 1.28 + travelFrac * 450)));
+  log.push('CAMERA move ' + ms0 + ' -> ' + ms + ' ms (travel ' + travelFrac.toFixed(2) + ', zoom ' + cam.s.toFixed(2) + ' -> ' + s.toFixed(2) + ')');
+  marks.reveal.push([at(), at() + (ms + 60) / 1000]);
   cam = { s, tx, ty };
   await page.evaluate(([c, d]) => window.__camTo(c, d), [cam, ms]);
   await pause(ms + 60);
@@ -307,7 +313,20 @@ const glide = async (x, y, steps = 14) => {
 const press = async () => { await pause(120); await page.mouse.down(); await pause(70); await page.mouse.up(); await pause(220); };
 const click = async locator => { const b = await locator.boundingBox(); await glide(b.x + b.width / 2, b.y + b.height / 2); await press(); };
 const hover = async (locator, ms = 600) => { const b = await locator.boundingBox(); await glide(b.x + b.width / 2, b.y + b.height / 2); await pause(ms); };
-const typed = async (text, delay) => { const a = at(), k = Math.max(1, Math.floor(33.3 / Math.max(1, delay))); for (let i = 0; i < text.length; i += k) { await page.keyboard.type(text.slice(i, i + k)); await vsleep(delay * Math.min(k, text.length - i)); } marks.typing.push([a, at()]); };
+const typed = async (text, delayArg) => {
+  const delay = delayArg >= 20 ? TYPING.command_ms : TYPING.prose_ms, a = at(), k = Math.max(1, Math.floor(33.3 / Math.max(1, delay)));
+  const fieldText = () => page.evaluate(() => { const e = document.activeElement; return e ? (typeof e.value === 'string' ? e.value : (e.textContent || '')) : ''; });
+  for (let i = 0; i < text.length; i += k) {
+    const chunk = text.slice(i, i + k), before = (await fieldText()).length;
+    await page.keyboard.type(chunk);                                                  // real key events, per frame-chunk on the virtual clock
+    for (let tries = 0; tries < 3; tries++) { const have = (await fieldText()).length - before; if (have >= chunk.length) break; log.push('RETRY dropped key ' + JSON.stringify(chunk.slice(Math.max(0, have)))); await page.keyboard.type(chunk.slice(Math.max(0, have))); }
+    await vsleep(delay * chunk.length);
+  }
+  const typedNow = await fieldText(), ok = typedNow.endsWith(text);
+  log.push('TYPED ' + (ok ? 'ok' : 'MISMATCH') + ' ' + text.length + ' chars at ' + delay + ' ms/key: ' + JSON.stringify(text.slice(0, 40)));
+  if (!ok) throw new Error('typed text does not equal the sentence: ' + JSON.stringify(typedNow.slice(-80)));
+  marks.typing.push([a, at()]);
+};
 const shot = async name => { if (process.env.SHOTS) await page.screenshot({ path: join(process.env.SHOTS, `${name}.png`) }).catch(() => {}); };
 const toComposer = async () => camera(await rectOf(composer, 30), 500, 2.1);
 const cardWith = title => page.locator('[data-block-id]').filter({ hasText: title }).first();
@@ -315,9 +334,9 @@ const cardWith = title => page.locator('[data-block-id]').filter({ hasText: titl
 const slashExplain = async () => {
   await click(field); await typed('/explain', 30); await pause(250);
   const option = page.locator('[data-slash-picker] [role="option"]').first();
-  await option.waitFor({ timeout: 5000 });
+  await option.waitFor({ timeout: 50000 });
   await click(option);
-  await composer.locator('[data-command-token]').waitFor({ timeout: 4000 }).catch(() => log.push('WARN no command pill after the picker click'));
+  await composer.locator('[data-command-token]').waitFor({ timeout: 40000 }).catch(() => log.push('WARN no command pill after the picker click'));
   await page.waitForTimeout(500);                                                       // the pill is held in view (a real beat, 0.5 s)
   marks.hold.push([at() - 0.5, at()]);
 };
@@ -345,7 +364,7 @@ const chooseDepth = async (scope, level, hold) => {
   log.push(`T ${at()} depth: clicked`);
   // The drop-down opens upward and to the right of its button: frame the button and the whole menu (>= its own width free), never the button alone.
   const drop = scope.locator('[data-depth-menu] [role="menu"]');
-  await drop.waitFor({ state: 'visible', timeout: 3000 });
+  await drop.waitFor({ state: 'visible', timeout: 30000 });
   log.push(`T ${at()} depth: menu visible`);
   await page.evaluate(() => { window.__rawRects = true; });
   const m = await page.evaluate(() => { const r = document.querySelector('[data-depth-menu] [role="menu"]').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, vw: innerWidth }; });
@@ -369,7 +388,7 @@ const scrollMarkdownTo = async heading => {
 };
 try {
   await page.goto(`${BASE}/apps/${APP}`);
-  await field.waitFor({ timeout: 30000 });
+  await field.waitFor({ timeout: 300000 });
   await page.waitForTimeout(2000);
   await field.evaluate(node => node.blur());
   marks.start = at();
@@ -380,19 +399,19 @@ try {
   const uploadAt = at();
   await click(page.getByRole('menubar').getByRole('menuitem', { name: 'Insert' }));
   const uploadItem = page.getByRole('menuitem', { name: 'Upload a file' });
-  await uploadItem.waitFor({ timeout: 4000 });
+  await uploadItem.waitFor({ timeout: 40000 });
   await shot('b0a1'); await pause(900);                                                // the menu is read
   await click(uploadItem);
   await page.locator('input[type="file"][multiple]:not([data-attach-input]):not([data-attach-input])').first().setInputFiles({ name: 'en.md', mimeType: 'text/markdown', buffer: markdown });
   const destination = page.locator('[data-upload-destination]');
-  await destination.waitFor({ timeout: 6000 });
+  await destination.waitFor({ timeout: 60000 });
   await shot('b0a2'); await pause(900);                                                // where the file goes
   await click(destination.locator('[data-upload-choice="canvas"]'));
   const importDialog = page.locator('[data-file-import-dialog]');
-  await importDialog.getByRole('button', { name: 'Add to canvas' }).waitFor({ timeout: 6000 });
+  await importDialog.getByRole('button', { name: 'Add to canvas' }).waitFor({ timeout: 60000 });
   await shot('b0a3'); await pause(900);                                                // how it is added: Markdown card
   await click(importDialog.getByRole('button', { name: 'Add to canvas' }));
-  await page.locator('[data-file-doc-md]').first().waitFor({ timeout: 20000 });         // the markdown card lands (its upload shows while the scripted save waits)
+  await page.locator('[data-file-doc-md]').first().waitFor({ timeout: 200000 });         // the markdown card lands (its upload shows while the scripted save waits)
   marks.reveal.push([uploadAt, at() + 0.8]);
   await pause(500);
   await shot('b0a4');
@@ -404,7 +423,7 @@ try {
   let layoutNow = await card0.getAttribute('data-card-layout');
   if (layoutNow !== 'scrollable') {                                                    // fallback: the card's menu row "Full content" (right click on the header)
     await page.mouse.click(cardBox.x + 120, cardBox.y + 40, { button: 'right' }); await pause(300);
-    await page.getByRole('menuitem', { name: /Full content/ }).first().click({ timeout: 3000 }).catch(() => {}); await pause(500);
+    await page.getByRole('menuitem', { name: /Full content/ }).first().click({ timeout: 30000 }).catch(() => {}); await pause(500);
     layoutNow = await card0.getAttribute('data-card-layout');
   }
   log.push(`LAYOUT after the toggle: ${layoutNow}`);
@@ -419,7 +438,7 @@ try {
   await typed(P1, 9); await pause(260); await page.keyboard.press('Enter');
   await showSkeleton();                                                                 // the skeleton card: spinner, "Creating /explain", the sweep, for the whole wait
   await shot('b1sk');
-  await cardWith('Decision Tree Feature Regions').waitFor({ timeout: 25000 });
+  await cardWith('Decision Tree Feature Regions').waitFor({ timeout: 250000 });
   await pause(400);
   await camera(await rectOf(cardWith('Decision Tree Feature Regions'), 30), 600, 1.6, true); // the new card, centred
   await shot('b1'); await pause(1800);
@@ -430,7 +449,7 @@ try {
   await typed(P2, 9); await pause(260); await page.keyboard.press('Enter');
   await showSkeleton();
   await shot('b2sk');
-  await cardWith('Decision Tree Traversal').waitFor({ timeout: 25000 });
+  await cardWith('Decision Tree Traversal').waitFor({ timeout: 250000 });
   await pause(400);
   await camera(await rectOf(cardWith('Decision Tree Traversal'), 30), 600, 1.6, true);
   await shot('b2'); await pause(1500);
@@ -459,15 +478,18 @@ try {
   await click(r1.locator('[data-ask="card"]'));
   await showSkeleton(await rectOf(card2, 20), 1.4);                                      // the skeleton beside its parent
   await shot('b4sk');
-  await cardWith('Searching for the Best Threshold').waitFor({ timeout: 25000 });
+  await cardWith('Searching for the Best Threshold').waitFor({ timeout: 250000 });
   await pause(400);
   await camera(union(await rectOf(card2, 20), await rectOf(cardWith('Searching for the Best Threshold'), 20)), 600, 1.5, true);
   await shot('b4'); await pause(1500);
+  const diagState = async label => { if (!process.env.DIAG) return; await page.evaluate(() => { window.__rawRects = true; }); const d = await page.evaluate(sentence => { const root = document.querySelector('[data-file-doc-md]'), sc = root.closest('[data-scroll]'); let r = null; const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); for (let n = w.nextNode(); n; n = w.nextNode()) { const i = n.textContent.indexOf(sentence); if (i >= 0) { const g = document.createRange(); g.setStart(n, i); g.setEnd(n, i + 10); const b = g.getBoundingClientRect(); r = [Math.round(b.x), Math.round(b.y)]; break; } } const chain = []; for (let e = root; e && chain.length < 8; e = e.parentElement) { const cs = getComputedStyle(e); chain.push(e.tagName + (e.getAttribute('data-scroll') !== null ? '[scroll]' : '') + ':' + cs.overflowY + ':' + e.scrollTop + '/' + e.scrollHeight + '/' + e.clientHeight); } const b = sc.getBoundingClientRect(); return { scrollTop: sc.scrollTop, scrollH: sc.scrollHeight, clientH: sc.clientHeight, box: [Math.round(b.x), Math.round(b.y), Math.round(b.width), Math.round(b.height)], sentence: r, chain }; }, PASSAGE); await page.evaluate(() => { window.__rawRects = false; }); log.push('DIAG ' + label + ' ' + JSON.stringify(d)); };
   // B5: highlight the Bagging sentence, [Ctrl+K], Enter
   await field.evaluate(node => node.blur()).catch(() => {});
   await camera({ x: 0, y: 0, w: VW, h: VH }, 400, 1);
   await page.keyboard.press('Shift+Digit1'); await pause(800);                         // the canvas view back on everything: the markdown card fully on screen
+  await diagState('before scroll');
   await scrollMarkdownTo('Random forests: the power of ensembles');
+  await diagState('after scrollMarkdownTo');
   await page.evaluate(() => { window.__rawRects = true; });
   const where = await page.evaluate(sentence => {                                         // the sentence mid-card in the markdown's own scroller; its rectangle
     const root = document.querySelector('[data-file-doc-md]'), scroller = root.closest('[data-scroll]');
@@ -486,6 +508,7 @@ try {
   await page.evaluate(() => { window.__rawRects = false; });
   if (!where) throw Error('the P3 sentence is not in the rendered markdown');
   await pause(300);
+  await diagState('after where-scroll');
   if (!process.env.NOCAM_B5) await camera({ x: where.cardX - 20, y: where.y - 140, w: where.cardW + 40, h: 360 }, 600, 2.0);
   await page.evaluate(() => { window.__rawRects = true; });
   const span = await page.evaluate(sentence => {
@@ -504,6 +527,7 @@ try {
   }, PASSAGE);
   await page.evaluate(() => { window.__rawRects = false; });
   if (!span) throw Error('the P3 sentence is not in the rendered markdown');
+  await diagState('after camera');
   await glide(span.x1, span.y1, 14); await pause(150); await page.mouse.down(); await glide(span.x2, span.y2, 24);
   await page.mouse.up(); await pause(250);
   // The drag is the visual; the selection must be exactly the sentence (a drag that ends near a line end can run on into the next paragraph), so what is selected is checked and, only if it differs, set to the sentence.
@@ -521,10 +545,12 @@ try {
     return null;
   }, PASSAGE);
   log.push(`SEL exact after drag: ${exact}`);
+  await diagState('after drag+selection');
+  if (process.env.DIAG === 'stop') { writeFileSync(join(OUT, 'requests.log'), log.join(String.fromCharCode(10))); throw new Error('DIAG stop'); }
 
   await pause(400);
   const toolbar = page.locator('[data-file-doc-selection-toolbar]');
-  await toolbar.waitFor({ timeout: 8000 });
+  await toolbar.waitFor({ timeout: 80000 });
   await pause(300);
   // The camera frames what is on screen now: the toolbar (it sits right above the selection) and the selected sentence together, so neither is cut off.
   await page.evaluate(() => { window.__rawRects = true; });
@@ -533,21 +559,54 @@ try {
   const selFree = { x: (selBox.x - cam.tx) / cam.s - 30, y: (selBox.y - cam.ty) / cam.s - 30, w: selBox.w / cam.s + 60, h: selBox.h / cam.s + 60 };
   await camera(union(await rectOf(toolbar, 30), selFree), 450, 2.0);
   await shot('b5a');
-  await hover(toolbar.locator('[data-quick-ask]'), 400);
-  await page.evaluate(() => window.__key());                                            // the Ctrl K key-cap sticker (recording page only)
+  // (owner a) the pill sits directly above the highlight, both in view and inside the card's visible area: asserted here, then held 1.0 s so the viewer sees "text highlighted -> a pill appears"
+  {
+    const tbr = await toolbar.boundingBox(), tb = { x: tbr.x, y: tbr.y, w: tbr.width, h: tbr.height };
+    await page.evaluate(() => { window.__rawRects = true; });
+    const sb = await page.evaluate(() => { const r = window.getSelection().getRangeAt(0).getClientRects()[0]; return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+    const scr = await page.locator('[data-file-doc-md]').locator('xpath=ancestor::*[@data-scroll][1]').boundingBox(), sc = { x: scr.x, y: scr.y, w: scr.width, h: scr.height };   // Playwright's own box: always raw screen px
+    await page.evaluate(() => { window.__rawRects = false; });
+    const gap = (sb.y - (tb.y + tb.h)) / cam.s;
+    const inView = r => r.x >= 0 && r.y >= 0 && r.x + r.w <= VW && r.y + r.h <= VH;
+    const inCard = (r, c) => r.x >= c.x - 2 && r.x + r.w <= c.x + c.w + 2 && r.y >= c.y - 2 && r.y + r.h <= c.y + c.h + 2;
+    const okPill = gap >= -6 && gap <= 60 && inView(tb) && inView(sb) && inCard(sb, sc);
+    log.push(`PILL geometry: gap pill-bottom to selection-top ${gap.toFixed(0)} layout px (needs -6..60), pill in view ${inView(tb)}, selection in view ${inView(sb)}, selection inside the card's visible area ${inCard(sb, sc)} => ${okPill ? 'ok' : 'ASSERT FAIL'}`);
+    if (!okPill) console.error('ASSERT FAIL pill geometry', JSON.stringify({ tb, sb, sc, gap }));
+  }
+  await pause(1000);                                                                    // text highlighted -> a pill appears: held
+  // (owner b) the cursor glides onto the pill's [Ctrl+K] button, stays 600 ms, the click ring shows on that button, then the window opens
+  const quick = toolbar.locator('[data-quick-ask]');
+  await hover(quick, 600);
+  {
+    const qb = await quick.boundingBox();
+    const on = lastX >= qb.x && lastX <= qb.x + qb.width && lastY >= qb.y && lastY <= qb.y + qb.height;
+    log.push(`CURSOR on the pill's Ctrl+K button before the click: ${on ? 'ok' : 'ASSERT FAIL'} (cursor ${Math.round(lastX)},${Math.round(lastY)}; button ${Math.round(qb.x)},${Math.round(qb.y)} ${Math.round(qb.width)}x${Math.round(qb.height)})`);
+    if (!on) console.error('ASSERT FAIL cursor not on the Ctrl+K button');
+  }
+  await page.evaluate(() => window.__key());                                            // the Ctrl K key-cap sticker (recording page only), at the button press
+  const pillRect = await rectOf(toolbar, 30);
   await press();
-  await page.locator('[data-inline-ai]').waitFor({ timeout: 15000 });
-  await camera(await rectOf(page.locator('[data-inline-ai]'), 60), 450, 2.2);
+  await page.locator('[data-inline-ai]').waitFor({ timeout: 150000 });
+  {
+    const info = await page.evaluate(() => { const ai = document.querySelector('[data-inline-ai]'), m = ai && ai.querySelector('[data-inline-mode-current]');
+      return { present: !!ai, role: ai && ai.getAttribute('role'), ariaLabel: ai && ai.getAttribute('aria-label'), ariaModal: ai && ai.getAttribute('aria-modal'), dataInlineAi: !!ai && ai.hasAttribute('data-inline-ai'), modeCurrent: m && m.getAttribute('data-inline-mode-current'),
+        modeIsFixedLabel: !!(m && m.hasAttribute('data-inline-mode-label')), hasModeDropdown: !!(ai && ai.querySelector('[data-inline-mode-toggle]')), modeText: m && m.textContent.trim(), status: ai && ai.getAttribute('data-status') }; });
+    log.push('CHECKLIST Ctrl+K window opened from the pill (over highlighted words): ' + JSON.stringify(info));
+    const ok = info.present && info.role === 'dialog' && info.dataInlineAi && info.modeCurrent === 'explain' && info.modeIsFixedLabel && !info.hasModeDropdown && info.modeText === 'Explain selection';
+    log.push('ASSERT the window is the product\'s own Explain-selection dialog (role=dialog, data-inline-ai, data-inline-mode-current=explain, fixed label, no dropdown): ' + (ok ? 'ok' : 'ASSERT FAIL'));
+    if (!ok) console.error('ASSERT FAIL Ctrl+K window attributes', JSON.stringify(info));
+  }
+  await camera(union(await rectOf(page.locator('[data-inline-ai]'), 40), selFree, pillRect), 450, 1.8);   // the window with the dimmed highlighted card and the pill's origin behind it
   await shot('b5b'); await pause(1200);
   const enterAt = at();
   await page.keyboard.press('Enter');
   // The window previews the card it made ("Adds this card to the canvas when you accept"): the preview is read, then Accept (a real click) puts the card on the canvas.
   const accept = page.locator('[data-inline-ai]').getByRole('button', { name: 'Accept' });
-  await accept.waitFor({ timeout: 25000 });
-  await camera(await rectOf(page.locator('[data-inline-ai]'), 60), 450, 2.2);
+  await accept.waitFor({ timeout: 250000 });
+  await camera(union(await rectOf(page.locator('[data-inline-ai]'), 60), selFree), 450, 1.5);
   await shot('b5pre'); await pause(2200);
   await click(accept);
-  await cardWith('Bootstrap Coverage Limit').waitFor({ timeout: 15000 });
+  await cardWith('Bootstrap Coverage Limit').waitFor({ timeout: 150000 });
   marks.reveal.push([enterAt, at() + 0.8]);
   await pause(400);
   await camera(await rectOf(cardWith('Bootstrap Coverage Limit'), 30), 600, 1.6, true);   // the card Ctrl+K made, centred
@@ -555,10 +614,36 @@ try {
   // B6: Ctrl+K on the empty canvas, /explain at Brief (the window's own Depth menu)
   await page.mouse.move(VW * 0.4, VH * 0.9); // an empty part of the canvas
   await camera({ x: 0, y: 0, w: VW, h: VH }, 600, 1.6);
-  await glide(VW * 0.42, VH * 0.9, 14); await press();                                  // a click on empty canvas
+  // B6 starts from NOTHING selected: a click on truly empty canvas (hit-tested), then asserted (no selected card, no text selection, no selection toolbar); a card still selected -> Escape, then another empty spot
+  {
+    const nothingSelected = () => page.evaluate(() => ({ cards: document.querySelectorAll('[data-block-id][aria-current="true"]').length, text: String(window.getSelection()).length, toolbar: !!document.querySelector('[data-file-doc-selection-toolbar]') }));
+    const emptySpots = await page.evaluate(({ w, h }) => {
+      const bad = '[data-block-id],[data-chat-pane],[data-card-slot],button,[role="toolbar"],[role="menu"],[role="dialog"],input,textarea,svg,a,[data-minimap],[data-inline-ai]';
+      const out = [];
+      for (const fy of [0.9, 0.84, 0.78, 0.93, 0.72, 0.15, 0.2]) for (const fx of [0.42, 0.3, 0.52, 0.2, 0.62, 0.1]) { const x = w * fx, y = h * fy, el = document.elementFromPoint(x, y); if (el && !el.closest(bad)) out.push([Math.round(x), Math.round(y)]); }
+      return out;
+    }, { w: VW, h: VH });
+    let state = null, spot = null;
+    for (const [x, y] of emptySpots.slice(0, 6)) {
+      await glide(x, y, 14); await press();
+      state = await nothingSelected();
+      if (state.cards || state.text || state.toolbar) { await page.keyboard.press('Escape'); await pause(150); state = await nothingSelected(); }
+      if (!state.cards && !state.text && !state.toolbar) { spot = [x, y]; break; }
+    }
+    log.push('ASSERT B6 starts from nothing selected (a click on empty canvas at ' + JSON.stringify(spot) + '; selected cards ' + (state && state.cards) + ', text selection chars ' + (state && state.text) + ', selection toolbar ' + (state && state.toolbar) + ') => ' + (spot ? 'ok' : 'ASSERT FAIL'));
+    if (!spot) throw Error('B6 could not start from nothing selected: ' + JSON.stringify(state));
+  }
   await page.evaluate(() => window.__key());                                            // the Ctrl K key-cap sticker (recording page only)
   await page.keyboard.press('Control+k');
-  await page.locator('[data-inline-ai]').waitFor({ timeout: 15000 });
+  await page.locator('[data-inline-ai]').waitFor({ timeout: 150000 });
+  log.push('CHECKLIST Ctrl+K window opened by the chord on the empty canvas: ' + JSON.stringify(await page.evaluate(() => { const ai = document.querySelector('[data-inline-ai]'), m = ai && ai.querySelector('[data-inline-mode-current]');
+    return { present: !!ai, role: ai && ai.getAttribute('role'), ariaLabel: ai && ai.getAttribute('aria-label'), modeCurrent: m && m.getAttribute('data-inline-mode-current'), hasModeDropdown: !!(ai && ai.querySelector('[data-inline-mode-toggle]')), hasPromptField: !!(ai && ai.querySelector('[data-inline-prompt]')) }; })));
+  {
+    const w = await page.evaluate(() => { const ai = document.querySelector('[data-inline-ai]'); return { present: !!ai, hasPrompt: !!(ai && ai.querySelector('[data-inline-prompt]')), hasDropdown: !!(ai && ai.querySelector('[data-inline-mode-toggle]')), fixedLabel: !!(ai && ai.querySelector('[data-inline-mode-label]')), selectedCards: document.querySelectorAll('[data-block-id][aria-current="true"]').length }; });
+    const ok = w.present && w.hasPrompt && w.hasDropdown && !w.fixedLabel && w.selectedCards === 0;
+    log.push('ASSERT B6 window is the empty-canvas Ctrl+K (placeholder prompt field, mode dropdown, no fixed Explain-selection label, no selected card): ' + JSON.stringify(w) + ' => ' + (ok ? 'ok' : 'ASSERT FAIL'));
+    if (!ok) throw Error('B6 window is not the empty-canvas mode: ' + JSON.stringify(w));
+  }
   await camera(await rectOf(page.locator('[data-inline-ai]'), 60), 450, 2.0);
   await typed('/explain', 30); await pause(300);
   log.push('DEBUG window picker: ' + JSON.stringify(await page.evaluate(() => ({ value: (document.querySelector('[data-inline-prompt]') || {}).value, options: [...document.querySelectorAll('[data-inline-ai] [role="option"], [data-inline-ai] [role="listbox"] *')].map(e => e.textContent.trim().slice(0, 40)).slice(0, 6), pill: !!document.querySelector('[data-inline-command]') }))));
@@ -577,7 +662,7 @@ try {
   await page.keyboard.press('Enter');
   // A typed command makes its card directly (no preview): the card lands where the window was.
   const gini = page.locator('[data-block-id]').filter({ has: page.getByText('Gini Impurity vs Entropy', { exact: true }) }).first();
-  await gini.waitFor({ timeout: 25000 });
+  await gini.waitFor({ timeout: 250000 });
   marks.reveal.push([enter6, at() + 0.8]);
   await pause(400);
   await camera(await rectOf(gini, 30), 600, 1.6, true);                                  // the card, centred
@@ -585,31 +670,40 @@ try {
   // B6b: "click and position the cards": at the overview, the cursor takes the new card by its handle and drops it in a free spot; a caption says so
   await camera({ x: 0, y: 0, w: VW, h: VH }, 800, 1);
   await field.evaluate(node => node.blur()).catch(() => {}); await page.keyboard.press('Shift+Digit1'); await pause(900);
-  await page.evaluate(() => window.__cap('Click and drag cards anywhere', 3800));
-  const handle = gini.locator('[data-drag-handle]').first();
-  await hover(gini, 250);
-  const hb = await handle.boundingBox(), gb = await gini.boundingBox();
-  const others = [];
-  for (const b of await page.locator('[data-block-id]').all()) { const bb = await b.boundingBox(); if (bb && Math.abs(bb.x - gb.x) + Math.abs(bb.y - gb.y) > 4) others.push(bb); }
-  let target = null, best = 1e9;
-  for (let x = 40; x <= VW - gb.width - 40; x += 40) for (let y = 40; y <= VH - gb.height - 40; y += 40) {
-    const hit = others.some(o => x < o.x + o.width + 20 && x + gb.width + 20 > o.x && y < o.y + o.height + 20 && y + gb.height + 20 > o.y);
-    const d = Math.hypot(x - gb.x, y - gb.y);
-    if (!hit && d >= 220 && d < best) { best = d; target = { x, y }; }
+  await page.evaluate(() => window.__cap('Click and drag cards anywhere', 7200));
+  // B6b: three cards, one after another, each taken by its header handle and dropped in a free spot (250-350 px away, no overlap, chosen by the rects)
+  const paneBox = await pane.boundingBox();
+  const rectsOtherThan = async gb => { const out = paneBox ? [paneBox] : []; for (const b of await page.locator('[data-block-id]').all()) { const bb = await b.boundingBox(); if (bb && Math.abs(bb.x - gb.x) + Math.abs(bb.y - gb.y) > 4) out.push(bb); } return out; };
+  const overlaps = (x, y, gb, others, gap) => others.some(o => x < o.x + o.width + gap && x + gb.width + gap > o.x && y < o.y + o.height + gap && y + gb.height + gap > o.y);
+  const dragged = [];
+  for (const [name, card] of [['Gini Impurity vs Entropy', gini], ['Bootstrap Coverage Limit', cardWith('Bootstrap Coverage Limit')], ['Decision Tree Feature Regions', cardWith('Decision Tree Feature Regions')]]) {
+    const gb = await card.boundingBox();
+    if (!gb) { log.push('DRAG skipped (card not found): ' + name); continue; }
+    const hb = await card.locator('[data-drag-handle]').first().boundingBox(), others = await rectsOtherThan(gb);
+    let target = null, best = 1e9;
+    for (let x = 40; x <= VW - gb.width - 40; x += 20) for (let y = 40; y <= VH - gb.height - 40; y += 20) {
+      const d = Math.hypot(x - gb.x, y - gb.y);
+      if (d >= 250 && d <= 350 && !overlaps(x, y, gb, others, 24) && Math.abs(d - 300) < best) { best = Math.abs(d - 300); target = { x, y }; }
+    }
+    if (!target || !hb) { log.push('DRAG skipped (no free spot 250-350 px away or no handle): ' + name); continue; }
+    const a = at(), px = hb.x + hb.width / 2, py = hb.y + hb.height / 2, dx = target.x - gb.x, dy = target.y - gb.y;
+    await glide(px, py); await pause(120);                                             // the cursor takes the header handle
+    await page.mouse.down(); await pause(80);
+    for (let i = 1; i <= 24; i++) { const e = i / 24, k = e < 0.5 ? 4 * e * e * e : 1 - Math.pow(-2 * e + 2, 3) / 2; await page.mouse.move(px + dx * k, py + dy * k); await page.waitForTimeout(28); }
+    lastX = px + dx; lastY = py + dy;
+    await page.mouse.up(); await pause(400);                                           // the 0.4 s settle
+    marks.reveal.push([a, at()]);
+    const nb = await card.boundingBox(), after = await rectsOtherThan(nb), clash = overlaps(nb.x, nb.y, nb, after, 0);
+    dragged.push(name);
+    log.push('DRAG ' + name + ' from (' + Math.round(gb.x) + ',' + Math.round(gb.y) + ') to (' + Math.round(nb.x) + ',' + Math.round(nb.y) + ') size ' + Math.round(nb.width) + 'x' + Math.round(nb.height) + ' planned (' + target.x + ',' + target.y + ') overlap=' + clash + ' took ' + (at() - a).toFixed(2) + ' s');
+    if (clash) log.push('ASSERT FAIL drag landing overlaps another card: ' + name);
   }
-  log.push(`DRAG target ${JSON.stringify(target)} from ${Math.round(gb.x)},${Math.round(gb.y)} (${others.length} other cards)`);
-  if (target) {
-    await glide(hb.x + hb.width / 2, hb.y + hb.height / 2, 14); await pause(250);
-    await page.mouse.down(); await pause(120);
-    await glide(hb.x + hb.width / 2 + (target.x - gb.x), hb.y + hb.height / 2 + (target.y - gb.y), 30);
-    await page.mouse.up(); await pause(300);
-  }
-  await pause(1000);
+  log.push('DRAGGED ' + dragged.length + ' cards: ' + dragged.join(' | '));
   // B7: the whole arrangement, held, the end
   await page.mouse.move(VW * 0.5, VH * 0.97, { steps: 10 });
   await page.screenshot({ path: join(OUT, 'poster.jpg'), type: 'jpeg', quality: 90 });
   log.push('LAYOUT (id x y w h, page px at the final fit) ' + JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('[data-block-id]')].map(e => { const r = e.getBoundingClientRect(); return [e.getAttribute('data-block-id').slice(0, 8), Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height), (e.innerText || '').slice(0, 24).replace(/\n/g, ' ')]; }))));
-  await pause(2500);                                                                    // the overview is held, no drift
+  await pause(2500);                                                                    // the overview on the rearranged layout is held 2.5 s, no drift
   marks.end = at();
 } catch (error) {
   await page.screenshot({ path: join(OUT, 'failed.png') }).catch(() => {});

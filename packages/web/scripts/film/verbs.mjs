@@ -7,8 +7,10 @@ import { isAbsolute, join } from 'node:path';
 export const VERBS = {
   goto: ['url'], 'wait-for': ['on'], blur: [], start: [], end: [], hold: ['ms'], shot: ['name'], click: ['on'], hover: ['on'], type: ['text'], press: [], 'mouse-press': [],
   camera: [], 'scroll-into-view': ['on'], 'scroll-heading': ['text'], 'slash-command': ['field', 'option', 'pill'], 'choose-depth': ['scope', 'level'], skeleton: [], 'wait-card': [], 'set-files': ['on', 'name', 'file'],
-  'toggle-layout': ['card'], 'select-text': ['container', 'text', 'toolbar'], 'drag-to-free-spot': ['card'], caption: ['text', 'ms'], sticker: [], stamp: ['name'], mark: ['kind'],
+  'toggle-layout': ['card'], 'select-text': ['container', 'text', 'toolbar'], 'drag-cards': ['cards'], caption: ['text', 'ms'], sticker: [], stamp: ['name'], mark: ['kind'],
   'click-empty': ['x', 'y'], fit: [], expect: ['on', 'as'], 'dump-layout': [], poster: [],
+  // SOP v1 assertions and helpers: remember a rectangle for a later camera `include`, the pill above the highlight, the Ctrl+K window is the product's own (mode explain|empty), start from nothing selected
+  remember: ['on'], 'assert-pill-above': ['toolbar'], 'assert-window': ['mode'], 'nothing-selected': [],
 };
 export const MARK_KINDS = ['typing', 'reveal', 'depth', 'hold', 'dead', 'cut', 'upload', 'camera', 'hover', 'act'];
 
@@ -66,7 +68,10 @@ export function checkConfig(cfg, dataDir) {
   } else if (cfg.files?.bank) warnings.push(`bank file not found at ${bankFile} (set FILM_DATA): bank keys not checked`);
   for (const [key, value] of Object.entries(cfg.files || {})) if (key !== 'bank' && !existsSync(resolveData(cfg, value, dataDir))) warnings.push(`file "${key}" not found at ${resolveData(cfg, value, dataDir)} (set FILM_DATA)`);
   const r = cfg.ramp || {};
-  need(r.fast >= 1 && r.fast <= 2.5, 'ramp.fast must be between 1 and 2.5 (the SOP says 1.4; a faster ramp is a deviation to state in the report)');
-  if (r.fast !== 1.4) warnings.push(`ramp.fast is ${r.fast}, the SOP says 1.4: state the deviation in the draft's note`);
+  need(r.fast >= 1 && r.fast <= 2.5, 'ramp.fast must be between 1 and 2.5 (SOP v1: 1.4-1.8 outside the 1.0x windows)');
+  if (r.fast < 1.4 || r.fast > 1.8) warnings.push(`ramp.fast is ${r.fast}, SOP v1 says 1.4-1.8: state the deviation in the draft's note`);
+  const ty = cfg.typing || {};
+  for (const [key, min] of [['prose_ms', 40], ['command_ms', 70]]) if (ty[key] !== undefined) need(ty[key] >= min, `typing.${key} is ${ty[key]}: SOP v1 wants the typing slow and visible (prose 45, commands 80; at least ${min})`);
+  for (const [i, beat] of (cfg.beats || []).entries()) if (beat.do === 'type' && beat.delay !== undefined) warnings.push(`beats[${i}]: type with an explicit delay ${beat.delay} overrides typing.prose_ms/command_ms`);
   return { errors, warnings };
 }
