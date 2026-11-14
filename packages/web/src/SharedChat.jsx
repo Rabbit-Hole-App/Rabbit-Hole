@@ -126,7 +126,7 @@ export default function SharedChat({ token, viewer, context = null, draft = null
         <button type="button" aria-label="Remove selected card context" title="Remove selected card context" onClick={onClearTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
       </div>}
       <div className={stripHost ? '' : 'mt-2 shrink-0'}>
-        <ChatComposer multiline dock={!!stripHost} pill={!!stripHost} onMinimize={stripHost ? () => window.dispatchEvent(new Event('rh-strip-minimize')) : null} value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} disabled={embed && session === 'checking'} onStop={() => flight.current?.abort()} maxLength={4000} placeholder="Ask about this canvas" />
+        <ChatComposer multiline value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} disabled={embed && session === 'checking'} onStop={() => flight.current?.abort()} maxLength={4000} placeholder="Ask about this canvas" />
       </div>
       </>, regionHost)}
       {embed && session === 'blocked' && (

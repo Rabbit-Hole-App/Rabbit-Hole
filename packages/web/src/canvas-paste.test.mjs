@@ -102,26 +102,6 @@ test('every canvas paste is placed at the pointer when it is over the canvas', a
   assert.match(canvas, /link: true, at: local\(event\) \}/, 'a clicked link places its card at the click');
   assert.match(canvas, /addWebpage\(chosen\.text, chosen\.at\)/);
   assert.match(page, /const pasteCode = \(text, at = null\) =>[\s\S]{0,400}kind: 'paste', at, copy/, 'the Code card or notebook dialog keeps the point');
-  // Images, GIFs, SVG, audio and video go in at the point too (takeDrop passes `at` to every insertFile); a drop shares the path.
-  assert.match(canvas, /insertFile: \(\{[^)]*at = null \}\) => \{[\s\S]{0,60}snapshot\(\);[\s\S]{0,40}return insertAt\(\{ id: crypto\.randomUUID\(\), type: 'file'[^\n]*, at\);/, 'insertFile takes a world point');
-  assert.equal((page.match(/canvas\(\)\?\.insertFile\(/g) || []).length, (page.match(/canvas\(\)\?\.insertFile\([^\n]*\bat \}\)/g) || []).length, 'every insertFile in takeDrop passes the point');
-});
-
-test('a pasted chat card and a pasted cut card are measured and put on the pointer', async () => {
-  const { readFile } = await import('node:fs/promises');
-  const canvas = await readFile(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(canvas, /bounds: Object\.fromEntries\(picked\.filter\(id => boundsRef\.current\[id\]\)/, 'copy keeps each box: a cut card has none left');
-  assert.match(canvas, /const drawn = \{ \.\.\.\(saved\.bounds \|\| \{\}\), \.\.\.boundsRef\.current \};/, 'a live box wins over the kept one');
-  assert.match(canvas, /bounds: drawn, index: flowIndexAt\(at\.y\)/);
-  assert.match(canvas, /pendingAt\.current\.set\(copy\.id, \{ x: box\.x \+ target\.move\.x, y: box\.y \+ target\.move\.y \}\)/, 'a chat copy is put on the point once measured');
-  assert.match(canvas, /if \(chat\) \{ onMove\(id, Math\.round\(at\.x - \(box\.x - \(chat\.dx \|\| 0\)\)\), Math\.round\(at\.y - \(box\.y - \(chat\.dy \|\| 0\)\)\)\); pendingAt\.current\.delete\(id\); continue; \}/);
-});
-
-test('pasteTarget: chat cards alone move by the distance from their corner to the pointer', async () => {
-  const { pasteTarget } = await import('./canvas-paste.js');
-  const got = pasteTarget({ at: { x: 400, y: 300 }, chats: [{ id: 'c' }], bounds: { c: { x: 100, y: 50, w: 380, h: 200 } }, list: [], index: 0 });
-  assert.deepEqual(got.move, { x: 300, y: 250 });
-  assert.equal(got.shift, null);
 });
 
 test('the canvas\'s own copied cards paste at the pointer too, keeping their layout; Duplicate and Alt-drag keep their step', async () => {

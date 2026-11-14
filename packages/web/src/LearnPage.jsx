@@ -933,12 +933,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       if (kind === 'pdf') { await takePdf(file); continue; }
       // SVG and audio: a stored source once the file client is injected (media-storage.js); everything else a board asset.
       if (kind === 'svg' || kind === 'audio') {
-        try { canvas()?.insertFile({ ...(await (await import('./media-storage.js')).storeMedia(file, media)), at }); } catch (problem) { toast(`${file.name}: ${problem.message}`); }
+        try { canvas()?.insertFile(await (await import('./media-storage.js')).storeMedia(file, media)); } catch (problem) { toast(`${file.name}: ${problem.message}`); }
         continue;
       }
       const assetKey = `drop:${crypto.randomUUID()}`;
       await cacheAsset(assetKey, file);
-      if (kind !== 'image') { canvas()?.insertFile({ assetKey, kind: kind === 'gif' ? 'image' : kind, label: file.name, meta: media?.meta, at }); continue; }
+      if (kind !== 'image') { canvas()?.insertFile({ assetKey, kind: kind === 'gif' ? 'image' : kind, label: file.name, meta: media?.meta }); continue; }
       let stored = null;
       try {
         const body = new FormData();
@@ -947,7 +947,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         stored = await response.json();
         if (!response.ok) throw new Error(stored?.error || 'Upload failed');
       } catch (problem) { toast(`${file.name}: ${problem.message}. The card is here, but the tutor will not see this image.`); stored = null; }
-      const blockId = canvas()?.insertFile({ assetKey, kind: 'image', label: stored?.title || file.name, mediaId: stored?.id || null, meta: media?.meta, at });
+      const blockId = canvas()?.insertFile({ assetKey, kind: 'image', label: stored?.title || file.name, mediaId: stored?.id || null, meta: media?.meta });
       if (stored && blockId) {
         setImageContext({ blockId, id: stored.id, title: stored.title });
         registerSource({ id: `image:${blockId}`, kind: 'image', label: stored.title });
