@@ -109,7 +109,7 @@ export const stubPick = async (env, { request }, { families }) => {
 async function loadPick(dry) {
   const pickMod = await import('../../packages/control-plane/src/interact-design-pick.js').catch(error => { if (dry) return null; throw error; });
   const famMod = await import('../../packages/control-plane/src/interact-families.js').catch(error => { if (dry) return null; throw error; });
-  const registry = famMod && (famMod.FAMILIES ?? famMod.families ?? famMod.default);
+  const registry = famMod && (famMod.INTERACT_FAMILIES ?? famMod.FAMILIES ?? famMod.families ?? famMod.default);
   return { pickFamily: dry || !pickMod ? stubPick : pickMod.pickFamily, registry: registry ?? [VERTICAL_THROW_FALLBACK] };
 }
 
