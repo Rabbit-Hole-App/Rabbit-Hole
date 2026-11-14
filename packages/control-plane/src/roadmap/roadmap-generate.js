@@ -56,7 +56,9 @@ export function authorInput(rec, limits = ROADMAP_LIMITS, env = {}) {
   const visuals = rec.format === 'explanation' ? (rec.visualRequirements ?? deriveVisualRequirements(requirementText({ original: said?.original, revisions: said?.revisions }))) : null;
   if (visuals?.unsupported) return { failed: fail('unsupported_capability', 'required_visual_unsupported', { error: visuals.unsupported }) };
   // CORE.09: the frozen Depth rides as the request's Depth, so the roadmap gets the same Explanation target and budget as a direct question.
-  return { input: { command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && depthOf(rec.depth) !== 'balanced' ? { depth: depthOf(rec.depth) } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
+  // planned: true keeps generateArtifact from running the JEV planner prototype (EXPLANATION_PLANNER) at dispatch: the quote hashed the request WITHOUT a plan, so a body that gained one would
+  // never match it (request_mismatch, every card failed; found on the first live course run, owner 2026-11-14). The roadmap has its own planner.
+  return { input: { planned: true, command: 'explain', args: `${rec.stepTitle}: ${rec.stepGoal}`.slice(0, ARGS_CAP), selection: null, context, ...(rec.depth && depthOf(rec.depth) !== 'balanced' ? { depth: depthOf(rec.depth) } : {}), ...(visuals?.items?.length ? { visualRequirements: visuals } : {}) },
     options: { only: [rec.format], systemSuffix: roadmapCardSuffix(rec), repairs: 0, title: rec.stepTitle, profile: resolveExplanationProfile(cardProfileId(env)) } };
 }
 
@@ -85,7 +87,7 @@ export async function quoteRoadmapCard(env, rec, { limits = ROADMAP_LIMITS } = {
 //   deps.figureStore: { org, email, app, boardId } the roadmap's board owner, where an EXP-13 picture is kept; deps.figureAdapter: an image adapter double (tests).
 export async function generateRoadmapCard(env, access, ref, deps = {}) {
   if (!validateAccess(access).ok) return { outcome: 'forbidden' };
-  const { loadAccepted, withProviderCall, limits = ROADMAP_LIMITS, generate = generateArtifact, callModel = loggedModel('artifact', planModel), figureStore = null, figureAdapter = null } = deps;
+  const { loadAccepted, withProviderCall, limits = ROADMAP_LIMITS, generate = generateArtifact, callModel = loggedModel('artifact', planModel), callModelFor = null, figureStore = null, figureAdapter = null } = deps; // callModelFor(transport): roadmap-run's call-row and checkpoint wrapper around a given transport (a fast-chain step)
   if (typeof loadAccepted !== 'function' || typeof withProviderCall !== 'function') return { outcome: 'unavailable', code: 'adapter_not_wired' };
   const rec = await loadAccepted(env, access, ref);
   if (!rec) return { outcome: 'unavailable', code: 'not_accepted' };
@@ -116,7 +118,7 @@ export async function generateRoadmapCard(env, access, ref, deps = {}) {
   // EXP-13: each picture attempt is its own stable operation on the step hold (stage illustration), never the author's one call.
   const scope = async (e, n) => { const scoped = await withProviderCall(e, { proposalId: rec.proposalId, proposalVersion: rec.proposalVersion, cardId: rec.cardId, stage: 'illustration', call: n, retry: rec.retry ?? 0, authorizationId: ref.authorizationId }); return scoped?.opId ? scoped.env : scoped; };
   let out;
-  try { out = await generate(env, built.input, { callModel: metered, meterStep: meter, ...built.options, figures: { store: figureStore, scope, ...(figureAdapter ? { adapter: figureAdapter } : {}) } }); }
+  try { out = await generate(env, built.input, { callModel: metered, meterStep: inner => meter(callModelFor ? callModelFor(inner) : inner), ...built.options, figures: { store: figureStore, scope, ...(figureAdapter ? { adapter: figureAdapter } : {}) } }); }
   catch (error) {
     if (['operation_budget', 'request_mismatch', 'request_over_bound'].includes(error?.message)) return fail('terminal_validation_failure', error.message, { calls: call });
     // A call that may have reached the provider (roadmap-run.js marks it) is never retried blind: its outcome is reconciled first.
