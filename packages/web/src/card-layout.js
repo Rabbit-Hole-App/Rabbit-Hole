@@ -29,11 +29,15 @@ export function switchCardLayout(block, mode, box, minimum) {
 }
 // corner: the bottom-right resize (owner 2026-11-08: a Full content card keeps it). It takes a Full card out of Full at the dragged size: a card that
 // opened full (fullLength, no slot) becomes an ordinary sized card (its w and h, no layout), one with a slot turns Scrollable at that size in it.
-export function resizeCardLayout(block, width, height, dx, minimum, corner = false) {
+// BUG 5 (canvas-cards): a learner's corner resize does not reflow the column. The first one records the footprint the card had before the drag (`slot`, the outer w and h of its box); the card
+// is then drawn at its new size absolutely inside that footprint (CanvasNode, as a Scrollable card already is), so the cards, notes and items below keep their places - a card made bigger overlaps
+// them instead of pushing them. Later resizes change the card, never the slot; a card that already has one (its own or a card layout's) keeps it. Saved with the block, so a reload draws the same.
+export const cornerSlot = (own, before) => own ?? (positive(before?.w) && positive(before?.h) ? { w: Math.round(before.w), h: Math.round(before.h) } : null);
+export function resizeCardLayout(block, width, height, dx, minimum, corner = false, slot = null) {
  if (!block.cardLayout || !supportsCardLayout(block)) return block;
  const layout = block.cardLayout;
  if (layout.mode === 'full' && corner) {
-  if (!layout.slot) { const { cardLayout: _full, ...sized } = block; return { ...sized, w: width, h: height }; }
+  if (!layout.slot) { const { cardLayout: _full, ...sized } = block; return { ...sized, w: width, h: height, ...(slot ? { slot: cornerSlot(block.slot, slot) } : null) }; }
   return { ...block, cardLayout: { ...layout, mode: 'scrollable', scrollableSize: { w: width, h: height } } };
  }
  if (layout.mode === 'full') return { ...block, dx: Number.isFinite(dx) ? dx : block.dx, cardLayout: { ...layout, fullWidth: fitWidth(width, widthLimits(minimum)) } };

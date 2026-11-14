@@ -156,3 +156,36 @@ test('an opened Explanation section grows the frame, never squeezes the core; th
  assert.match(canvas,/block\.sourceRef && !headerSource\(block\) && <SourceRefChip/);
  assert.deepEqual(fitFrame(undefined,520+120,true),{height:undefined,maxHeight:640});
 });
+
+// BUG 5 (canvas-cards): a learner's corner resize does not reflow the column. The first one records the footprint the card had before the drag; the column keeps reading that footprint,
+// so the cards under it keep their places; later resizes change the card, never the slot; the slot is saved with the block (a reload draws the same). Built on BUG 2: the card inside its
+// footprint is held at the learner's size (fitFrame minHeight = maxHeight), whatever its content.
+import {cornerSlot} from './card-layout.js';
+const GAP=20;
+// The column as the browser lays it out: each block's footprint is its slot when it has one, else its own height; a card's y is the sum of what is above it.
+const columnY=blocks=>{let y=0;return Object.fromEntries(blocks.map(block=>{const at=y;y+=(block.slot?.h??block.h)+GAP;return [block.id,at];}));};
+const corner=(block,before,w,h)=>({...block,w,h,slot:cornerSlot(block.slot,before)}); // what CanvasNode commits for a plain card
+test('resizing a middle card taller leaves the card below where it was; twice leaves the slot as the first drag set it; a reload draws the same',()=>{
+ const blocks=[{id:'a',w:440,h:300},{id:'b',w:440,h:260},{id:'c',w:440,h:300}];
+ const before=columnY(blocks);
+ const grown=blocks.map(block=>block.id==='b'?corner(block,{w:440,h:260},700,600):block);
+ assert.deepEqual(columnY(grown),before,'the card below keeps its measured y when the middle card is made taller');
+ assert.deepEqual(grown[1].slot,{w:440,h:260},'the slot is the box before the drag');
+ assert.deepEqual([grown[1].w,grown[1].h],[700,600],'the card itself takes the dragged size');
+ const again=grown.map(block=>block.id==='b'?corner(block,{w:700,h:600},500,150):block);
+ assert.deepEqual(again[1].slot,{w:440,h:260},'a later resize changes the card, never the slot');
+ assert.deepEqual(columnY(again),before,'smaller than the slot: the neighbours still do not move');
+ assert.deepEqual(columnY(JSON.parse(JSON.stringify(again))),before,'saved with the block: a reload draws the same');
+ assert.deepEqual(columnY(blocks.map(block=>({...block,h:block.id==='b'?600:block.h}))).c,before.c+340,'reproduction: without a slot the block below is pushed by the growth');
+});
+test('cornerSlot keeps an existing slot and refuses a box it cannot read; a Full card without a slot becomes a sized card with its footprint',()=>{
+ assert.deepEqual(cornerSlot({w:1,h:2},{w:440,h:260}),{w:1,h:2});
+ assert.deepEqual(cornerSlot(null,{w:440.4,h:259.6}),{w:440,h:260});
+ assert.equal(cornerSlot(null,{w:0,h:260}),null);
+ const full={id:'x',type:'explanation',cardLayout:{mode:'full',fullWidth:560}};
+ const sized=resizeCardLayout(full,700,500,null,undefined,true,{w:560,h:380});
+ assert.deepEqual(sized,{id:'x',type:'explanation',w:700,h:500,slot:{w:560,h:380}});
+ assert.deepEqual(resizeCardLayout(full,700,500,null,undefined,true),{id:'x',type:'explanation',w:700,h:500},'no footprint given: as before');
+ const slotted={id:'y',type:'explanation',cardLayout:{mode:'full',fullWidth:560,slot:{w:560,h:380}}};
+ assert.equal(resizeCardLayout(slotted,700,500,null,undefined,true,{w:1,h:1}).cardLayout.slot.h,380,'a card layout\'s slot is unchanged');
+});
