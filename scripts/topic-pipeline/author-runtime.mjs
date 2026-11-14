@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { lintAuthoredFiles, lintOverlays, lintReferences, countSpecTokens } from './checks/reference-linter.mjs';
 import { contractChecker, contractFlags } from './checks/content-contract.mjs';
+import { geometryChecker, geometryFlags } from './checks/geometry-lint.mjs';
 import { selectAtDepth, depths } from './coverage.mjs';
 import { runParaphraseReplay } from './checks/paraphrase-replay.mjs';
 
@@ -90,6 +91,7 @@ async function inspect() {
   }
   const { parseTutorDiagram } = await load('packages/web/src/tutor-diagrams/spec.js');
   const lintContent = await contractChecker(load);
+  const geometry = await geometryChecker(load, root);
   const specErrors = [];
   for (const reference of own) for (const key of ['overview', 'standard', 'deep']) {
     const value = reference.depths?.[key] ?? reference;
@@ -100,6 +102,7 @@ async function inspect() {
       try { parseTutorDiagram(spec); }
       catch (error) { specErrors.push({ id: reference.id, depth: key, rule: 'spec', severity: 'error', detail: `${field}: ${String(error.message).slice(0, 1500)}` }); continue; }
       if (lintContent) assertions.push(...contractFlags(lintContent, { id: reference.id, depth: key, field, spec })); // reported with the linter's flags, not instead of them
+      if (geometry) assertions.push(...geometryFlags(geometry, { id: reference.id, depth: key, field, spec })); // RD-3: a new reference ships with no geometry violation
     }
     if (value.detailSpec && countSpecTokens(value.detailSpec) > 300) assertions.push({ id: reference.id, depth: key, rule: 1, severity: 'error', detail: 'detailSpec exceeds 300 cl100k tokens.' });
   }
@@ -174,6 +177,7 @@ async function prevalidate() {
   const module = await import(pathToFileURL(join(scratch, input.entry)).href);
   const { parseTutorDiagram } = await load('packages/web/src/tutor-diagrams/spec.js');
   const lintContent = await contractChecker(load);
+  const geometry = await geometryChecker(load, root);
   const own = [...(module.references ?? [])], flags = [];
   for (const reference of own) for (const key of ['overview', 'standard', 'deep']) {
     const value = reference.depths?.[key];
@@ -183,6 +187,7 @@ async function prevalidate() {
       try { parseTutorDiagram(spec); }
       catch (error) { flags.push({ id: reference.id, depth: key, rule: 'spec', severity: 'error', detail: `${field}: ${String(error.message).slice(0, 1500)}` }); continue; }
       if (lintContent) flags.push(...contractFlags(lintContent, { id: reference.id, depth: key, field, spec }));
+      if (geometry) flags.push(...geometryFlags(geometry, { id: reference.id, depth: key, field, spec }));
     }
   }
   const rows = [];

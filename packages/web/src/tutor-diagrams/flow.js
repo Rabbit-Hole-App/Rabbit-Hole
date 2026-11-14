@@ -235,11 +235,13 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
   })
     .sort((a, b) => a.active - b.active).map(wire => wire.element); // the route is drawn last, over any wire it crosses
   const annotations = [];
+  const labelBoxes = new Map(); // geometry only (geometry-lint.js): where each inline edge label was placed
   let bottom = y;
   for (const route of routed.filter(route => route.words.length)) {
     const { edge, words } = route;
     const bounds = labelBounds(route, routed, width);
     if (bounds) {
+      labelBoxes.set(edge, bounds);
       annotations.push(h('g', null,
         h('rect', { ...bounds, fill: SURFACE }),
         label(words, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, { size: EDGE_TEXT })));
@@ -274,5 +276,21 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
       ...(labelHeight ? [label(lines, cx, top + labelHeight / 2, { tone: 'onFill' })] : []),
       h('g', { 'data-tutor-node-tensor': '', transform: `translate(${cx - strip.width / 2} ${top + stripOffset})` }, ...strip.elements));
   });
-  return { width, height: bottom + PAD, elements: [...wires, ...annotations, ...shapes] };
+  return { width, height: bottom + PAD, elements: [...wires, ...annotations, ...shapes], geometry: flowGeometry(width, bottom + PAD, placements, routed, labelBoxes) };
+}
+
+// The layout as numbers, for geometry-lint.js (RD-3): node shapes with their text boxes, routed wires, inline edge-label boxes. Read-only; nothing here is drawn.
+function flowGeometry(width, height, placements, routed, labelBoxes) {
+  const nodes = Array.from(placements.values(), node => {
+    const { id, cx, y, width: w, height: h2, role, lines, offset, strip, labelHeight, contentHeight } = node;
+    const size = lines?.fontSize ?? 14, step = lineHeight(size);
+    const centerY = strip ? y + (h2 - contentHeight) / 2 + (labelHeight ?? 0) / 2 : y + h2 / 2 + offset;
+    const text = (strip && !labelHeight ? [] : lines ?? []).map((line, index, all) => {
+      const textW = textWidth(line, size), middle = centerY + (index - (all.length - 1) / 2) * step;
+      return { x: cx - textW / 2, y: middle - size / 2, width: textW, height: size };
+    });
+    return { id, role, shape: role === 'decision' ? 'diamond' : role === 'outcome' && !strip ? 'capsule' : 'box', x: cx - w / 2, y, width: w, height: h2, text };
+  });
+  const edges = routed.map(({ edge, points }) => ({ from: edge.from, to: edge.to, points: points.map(point => [...point]), label: labelBoxes.get(edge) ? { ...labelBoxes.get(edge) } : null }));
+  return { width, height, nodes, edges };
 }
