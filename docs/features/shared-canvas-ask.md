@@ -8,7 +8,7 @@ sees, and nothing is written to the owner's board, threads or any owner data. Ke
 ## Guest Chat (SHARE-03, owner brief 2026-10-22 section 5)
 
 Supersedes the signed-out and placement lines below. Contract: C:/s/spec/share/contract-guest-chat.md.
-- Chat is the right panel's Chat (`SharedChat.jsx`: the normal `ChatMessages` and `ChatComposer`), open by default;
+- Chat is the right panel's Chat (`SharedChat.jsx`: the normal `ChatMessages` and `ChatComposer`), closed by default on a share link or publication (owner 2026-11-14: the composer is then in the bottom strip), open on a member's canvas;
   replies land in that thread, not a floating window over the canvas. Ask in Chat, Explain in Chat and Ask about
   selection (`small:ask-focus`, the selected card) open it with the context attached and never send.
 - Signed out on a public link or publication: one 10-message trial per browser (`rh_guest` HttpOnly cookie, only its
