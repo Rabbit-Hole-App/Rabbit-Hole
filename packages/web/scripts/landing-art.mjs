@@ -10,6 +10,13 @@
 //   node scripts/landing-art.mjs page-banner <name> "<page name>" "<subject>" [--palette "<text>"] [--from <image>]
 //     Nano Banana 2.1, 4:1 2K, the warm print collage of design/examples-collage-prompt.md -> public/landing/<name>-v1.jpg (2800 wide)
 //
+//   node scripts/landing-art.mjs example-canvas <slug> <share-link> "<title>" "<description>" [--category "<text>"] [--only] [--wait <ms>]
+//     The Examples page card for a public canvas: opens the share link in a headless browser in LIGHT mode with the toolbar, the minimap, the Rabbit
+//     Hole Map and the Curious cards hidden, the right panel closed and the Chat strip out of the picture (the device preferences, set before the page
+//     loads), fits the whole canvas into view from far away (Shift+1, Fit canvas), and saves the canvas area as public/landing/example-<slug>-v1.webp.
+//     --only: the Examples page then lists just this canvas (src/landing/examples-data.js is rewritten); without it the page keeps its other cards
+//     and the entry is printed for you to add. The card opens the share link in a new tab. No model call, no cost; needs the share link reachable.
+//
 // --from converts an image you already have (no model call). The key is read by name from small-deploy/.env, never printed.
 // The prompt used is saved to design/art/<output name>.prompt.md. A generation costs a few cents (Flare low about $0.006).
 import fs from 'node:fs';
@@ -159,4 +166,47 @@ if (kind === 'blog-hero' || kind === 'blog-post') {
   if (from) bytes = fs.readFileSync(from);
   else { const prompt = bannerPrompt(page, subject, flag('palette', AMBER)); bytes = await generateBanana(prompt); record(`${name}-banner`, 'Nano Banana 2.1 (gemini-nano-banana-2.1, 4:1, 2K)', prompt); }
   console.log('saved', dest, toJpeg(bytes, dest, 2800));
-} else throw Error('usage: landing-art.mjs blog-hero | page-banner (see the header of this file)');
+} else if (kind === 'example-canvas') {
+  const [slug, link, title, description] = rest;
+  if (!slug || !/^https:\/\/[^/]+\/b\/[A-Za-z0-9_-]{20,64}$/.test(link || '') || !title || !description) throw Error('usage: example-canvas <slug> <https://host/b/token> "<title>" "<description>" [--category "<text>"] [--only] [--wait <ms>]');
+  const { chromium } = await import('@playwright/test');
+  const browser = await chromium.launch();
+  let shot;
+  try {
+    const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 2, colorScheme: 'light' });
+    // Device preferences, read when the page starts (ui-prefs.js, api.js getTheme): light, and none of the canvas's floating tools.
+    await context.addInitScript(() => {
+      try {
+        localStorage.setItem('small.theme', 'light');
+        localStorage.setItem('rh.ui-prefs', JSON.stringify({ toolbar: false, minimap: false, holeMap: false, curious: false, comments: false, rightPanel: false }));
+      } catch { /* storage refused: the page then shows its own defaults */ }
+    });
+    const page = await context.newPage();
+    await page.goto(link, { waitUntil: 'domcontentloaded' });
+    await page.locator('[data-canvas-surface] [data-block-id]').first().waitFor({ timeout: 90000 });
+    // The chat strip and the Curious pills are not part of the picture whatever the preferences say.
+    await page.addStyleTag({ content: '[data-canvas-bottom],[data-canvas-chat-strip],[data-composer-show],[data-hooks-slot]{display:none !important}' });
+    await page.waitForTimeout(Number(flag('wait', 4000))); // cards, plots and diagrams draw after the first block appears
+    await page.mouse.click(800, 500); // focus the canvas, not a card
+    await page.keyboard.press('Shift+Digit1'); // Fit canvas
+    await page.waitForTimeout(2500);
+    shot = await page.locator('[data-canvas-surface]').screenshot({ type: 'png' });
+  } finally { await browser.close(); }
+  const dest = path.join(WEB, 'public/landing', `example-${slug}-v1.webp`), tmp = `${dest}.src.png`;
+  fs.writeFileSync(tmp, shot);
+  const py = `from PIL import Image\nim=Image.open(r'${tmp}').convert('RGB')\nif im.width>2400: im=im.resize((2400,round(im.height*2400/im.width)),Image.LANCZOS)\nim.save(r'${dest}','WEBP',quality=88,method=6)\nprint(im.width,im.height)`;
+  const r = spawnSync('python', ['-c', py], { encoding: 'utf8' });
+  fs.rmSync(tmp, { force: true });
+  if (r.status !== 0) throw Error(`WebP conversion failed: ${r.stderr}`);
+  const [width, height] = r.stdout.trim().split(' ').map(Number);
+  console.log('saved', dest, width + 'x' + height);
+  const entry = `  { slug: '${slug}', category: ${JSON.stringify(flag('category', 'Machine learning'))}, title: ${JSON.stringify(title)}, description: ${JSON.stringify(description)},
+    href: '${link}', external: true, image: { src: '/landing/example-${slug}-v1.webp', w: ${width}, h: ${height}, alt: ${JSON.stringify(`The canvas "${title}" seen from far away: its cards laid out side by side`)} } },`;
+  const file = path.join(WEB, 'src/landing/examples-data.js');
+  if (process.argv.includes('--only')) {
+    const raw = fs.readFileSync(file, 'utf8'), crlf = raw.includes('\r\n'), src = raw.replace(/\r\n/g, '\n');
+    const out = src.replace(/export const examples = \[[\s\S]*?\n\];/, `export const examples = [\n${entry}\n];`);
+    fs.writeFileSync(file, crlf ? out.replace(/\n/g, '\r\n') : out);
+    console.log('examples-data.js now lists only', slug);
+  } else console.log('add this entry to examples-data.js:\n' + entry);
+} else throw Error('usage: landing-art.mjs blog-hero | page-banner | example-canvas (see the header of this file)');
