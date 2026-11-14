@@ -27,8 +27,11 @@ export function SelectionActionsProvider({ sole, hidden = false, narrow = false,
   const register = useCallback(() => { setHosted(count => count + 1); return () => setHosted(count => count - 1); }, []);
   const mac = useMemo(isMac, []);
   const value = useMemo(() => ({ sole, hidden: hidden || busy, narrow, pinned, cut, added, focusLabel: onFocus && !onMinimize ? focusLabel : null, onFocus, onMinimize, onAddToChat, onQuickEdit, mac, hosted, register }), [sole, hidden, busy, narrow, pinned, cut, added, focusLabel, onFocus, onMinimize, onAddToChat, onQuickEdit, mac, hosted, register]);
+  freshest = value; // the newest value, for HoverActions: after it selects a card its own row is gone, and its copy of an action predates the selection
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
+// ponytail: one canvas per page, so one module-level handle.
+let freshest = null;
 
 function Action({ label, chord, Icon, onClick, mac, ...rest }) {
   const hint = chordLabel(chord, mac);
@@ -72,11 +75,10 @@ function Actions({ ctx, mode, className = '', style }) {
 // and then runs the action, which acts on the selection as ever (the handler is read after the selection has re-rendered).
 export function HoverActions({ id, select, minimizable = false }) {
   const ctx = useContext(Ctx);
-  const latest = useRef(ctx);
-  latest.current = ctx;
   if (!ctx || ctx.hidden || ctx.sole === id || (!ctx.onAddToChat && !ctx.onQuickEdit)) return null;
   const press = event => { event.preventDefault(); event.stopPropagation(); };
-  const act = name => { select(id); requestAnimationFrame(() => requestAnimationFrame(() => latest.current?.[name]?.())); };
+  // Select this card, let the canvas re-render with it selected, then run the action from the NEWEST context: the action reads the selection, and the copy this row holds was made before it.
+  const act = name => { select(id); requestAnimationFrame(() => requestAnimationFrame(() => freshest?.[name]?.())); };
   return (
     <div className="pointer-events-auto flex w-max items-center gap-1.5">
       <div role="toolbar" aria-label="Card actions" data-selection-bar="hover" data-thumbnail-hide onPointerDown={press}

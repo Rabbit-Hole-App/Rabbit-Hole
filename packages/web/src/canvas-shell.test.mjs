@@ -41,6 +41,15 @@ test('the bottom strip: the minimap above the zoom row at lower left, the hooks 
   assert.match(read('CanvasMinimap.jsx'), /className="relative overflow-hidden rounded-xl/, 'its frame is in the strip\'s flow');
 });
 
+// Owner 2026-11-13: Add to chat and Quick Edit on a card that is only hovered did nothing. The hover row selects the card and unmounts, and it then ran its own copy of the action,
+// made before the selection existed; the action reads the selection, so it saw none. It must run the newest handler, after the canvas re-rendered with the card selected.
+test('the hover row selects the card, waits for the re-render, then runs the NEWEST action (never its own stale copy)', () => {
+  const actions = read('SelectionActions.jsx');
+  assert.match(actions, /freshest = value;/, 'the provider publishes its newest value on every render');
+  assert.match(actions, /const act = name => \{ select\(id\); requestAnimationFrame\(\(\) => requestAnimationFrame\(\(\) => freshest\?\.\[name\]\?\.\(\)\)\); \};/);
+  assert.doesNotMatch(actions.slice(actions.indexOf('export function HoverActions'), actions.indexOf('A host row')), /latest\.current/, 'no copy held from before the selection');
+});
+
 // Owner 2026-11-13: a card added to the canvas folds the chat window away so the learner can focus on the card; the command's own
 // "Working on /name" pill is gone because the chat already shimmers while it works.
 test('adding a card folds the chat window: the page announces a card count that grew after the board loaded, the window listens', () => {
