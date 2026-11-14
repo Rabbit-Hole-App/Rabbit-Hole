@@ -1,0 +1,12 @@
+ℹ todo 1
+ℹ duration_ms 3898.8953
+✓ build: vite build --outDir dist, dist-dev
+✓ affected-tests: node --test src/tutor-diagrams/flow-capsule.test.mjs src/tutor-diagrams/flow-lanes.test.mjs src/tutor-diagrams/flow-wire-gap.test.mjs src/tutor-diagrams/flow.test.mjs src/tutor-diagrams/geometry-lint.test.mjs src/tutor-diagrams/ml-topology.test.mjs ../../scripts/topic-pipeline/te
+✓ smoke: node --test packages/control-plane/test/explanation-layout.test.js packages/control-plane/test/explanation-fast-chain.test.js packages/control-plane/test/explanation-fast-card.test.js packages/control-plane/test/explanation-prompt-cleanup.test.js packages/control-plane/test/explanation-pl
+✓ preview: wrangler deploy --name rabbit-hole-web-dev-explain-118; GET /library serves /static/app-AseiVgLY.js
+✓ MVP preview of 962b4269 at https://rabbit-hole-web-dev-explain-118.tryrabbithole.workers.dev (build 79411a984d35, record 36893aee03be5e76); broad CI and the release gate are recorded as bypassed
+  To let a push to main release this exact commit: git push rabbit-hole refs/notes/dev-deploys (fetch and merge the remote notes first if it is refused)
+
+===== PREVIEW OK (exit 0). Clone: https://rabbit-hole-web-dev-explain-118.tryrabbithole.workers.dev  (clones refuse sign-in; use the signed-in launcher). Tell Claude: preview done. =====
+LOCK RELEASED r147m
+exit=0
