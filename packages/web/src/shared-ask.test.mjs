@@ -38,7 +38,7 @@ test('the conversation is kept per link and per viewer, and only answered pairs 
 test('Chat sits in the shared page\'s right panel (not over the canvas), with read-only context pills and the selected card', () => {
   assert.doesNotMatch(page, /composer=\{<Shared/, 'no floating answer window over the canvas composer slot');
   assert.match(page, /onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\} \/>/);
-  assert.match(page, /chat=\{<SharedChat token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askBack\?\.draft \?\? null\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\}( onAllowance=\{setGuestRemaining\})? \/>/);
+  assert.match(page, /chat=\{<SharedChat token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askBack\?\.draft \?\? null\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\}( onAllowance=\{setGuestRemaining\})?(?: stripHost=\{panel\.open \? null : stripHost\} onOpenPanel=\{\(\) => panel\.show\('chat'\)\})? \/>/);
   // The normal Chat's transcript and composer components, not a second Chat design.
   assert.match(composer, /import ChatComposer from '\.\/ChatComposer\.jsx';\nimport \{ ChatMessages \} from '\.\/ChatMessages\.jsx';/);
   assert.match(composer, /<ChatMessages msgs=\{msgs\} busy=\{busy\} learnChat /);
@@ -147,4 +147,13 @@ test('F: the shared composer is a plain Q&A box - no +, attachments, model picke
   assert.doesNotMatch(composer.replace(/^\s*\/\/.*$/gm, ''),/SlashCommands|CommandsSheet|ModelPicker|Paperclip|COMPOSER_ADD|type="file"|attachment/i);
   // The question, the history and the selected card's id: the server words the card from the board, never from the request.
   assert.match(composer, /body: \{ message, history, \.\.\.\(target \? \{ selected: target\.id \} : \{\}\) \}/);
+});
+
+test('a published canvas draws the Chat composer in a bottom strip while the right panel is closed, and Send opens the panel (owner 2026-11-14)', () => {
+  const chat = readFileSync(new URL('./SharedChat.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(page, /composer=\{embed \|\| panel\.open \? null : <div ref=\{setStripHost\} data-canvas-chat-strip \/>\}/, 'the canvas offers the strip only while the panel is closed, never in an embed');
+  assert.match(page, /stripHost=\{panel\.open \? null : stripHost\} onOpenPanel=\{\(\) => panel\.show\('chat'\)\}/, 'Chat gets the strip, and Send opens the panel on Chat');
+  assert.match(page, /<SharedPanel keepMounted /, 'the closed panel stays mounted, so the draft and the conversation survive on a narrow screen');
+  assert.match(chat, /where = stripHost \|\| inlineSlot\.current/, 'the composer moves between the panel and the strip without remounting');
+  assert.match(chat, /if \(stripHost\) onOpenPanel\?\.\(\);/, 'sending from the strip opens the panel');
 });
