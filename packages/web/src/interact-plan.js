@@ -215,7 +215,7 @@ const scene = z.object({
   description: text(), runtime, entities: z.array(entity).max(PLAN_LIMITS.entities), quantities: z.array(quantity).max(PLAN_LIMITS.quantities),
   observations: z.array(observation).max(PLAN_LIMITS.observations), checkpoints: z.array(checkpoint).max(PLAN_LIMITS.checkpoints), readoutIds: idList(16),
   // A build template (interact-formula.js TEMPLATE_ROLES) and its roles mapped to quantity ids; both or neither. two-lane nests one role map per lane name.
-  template: z.enum(['one-body', 'two-lane', 'body-plot']).optional(), slots: z.record(z.string().min(1).max(32), z.union([id, z.record(z.string().min(1).max(32), id)])).optional(),
+  template: z.enum(['one-body', 'two-lane', 'body-plot', 'curve-one', 'curve-compare', 'curve-readouts']).optional(), slots: z.record(z.string().min(1).max(32), z.union([id, z.record(z.string().min(1).max(32), id)])).optional(),
   // The words the template draws (interact-formula.js TEMPLATE_WORDS): a flat string map, exactly the template's keys (checked in planProblems), each within its helper's length limit.
   words: z.record(z.string().min(1).max(32), z.string().min(1).max(40)).optional(),
 }).strict();

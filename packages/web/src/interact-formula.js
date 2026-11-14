@@ -1,4 +1,5 @@
 import { PLAN_LIMITS, SCALAR_FUNCTIONS, ScalarExprError, evalScalar, scalarExprProblem } from './interact-plan.js';
+import { curveRoles, curveWords, independent } from './interact-curve-data.js';
 
 // Formula strings for plan quantities (owner brief 2026-11-13 15:35, template build). A quantity's `formula` is text such as `launchSpeed * t - gravity * t^2 / 2`; this file turns it into the
 // bounded ScalarExpr tree (interact-plan.js: data, never code, 32 nodes, 8 levels) with our own recursive-descent parser: no eval, no Function. The six function operations have interval proofs there;
@@ -21,12 +22,16 @@ export const TEMPLATE_ROLES = Object.freeze({
   'one-body': Object.freeze({ lanes: 0, roles: Object.freeze(['height', 'velocity', 'acceleration']) }),
   'two-lane': Object.freeze({ lanes: 2, roles: Object.freeze(['height', 'velocity', 'acceleration']) }),
   'body-plot': Object.freeze({ lanes: 0, roles: Object.freeze(['height', 'velocity', 'acceleration', 'force', 'plotted']) }),
+  'curve-one': Object.freeze({ lanes: 0, roles: curveRoles, independent }),
+  'curve-compare': Object.freeze({ lanes: 0, roles: curveRoles, independent }),
+  'curve-readouts': Object.freeze({ lanes: 0, roles: curveRoles, independent }),
 });
 
 // The words each template draws (owner brief 11: the template holds no wording; the plan's scene.words does). Each entry is [path, maxCharacters, what it is]: the path is where the template reads it
 // (nested, for example "where.top"), the plan stores it flat under the key with the dots turned to underscores ("where_top"). Limits are the sdk helpers' own: a lane heading is at most 24 characters,
 // a lane state line 32, a callout line 40 (sdk-figures.js), a letter beside an arrow 4.
 const WORDS = {
+  ...curveWords,
   'one-body': [['lane', 24, 'heading of the lane'], ['launch', 40, 'label of the launch-height guide'], ['gravity.pulls', 40, 'callout line while gravity pulls the body down'], ['gravity.none', 40, 'callout line when nothing pulls'],
     ['motion.up', 40, 'callout line while the body moves up'], ['motion.top', 40, 'callout line while the body is still for an instant at the top'], ['motion.down', 40, 'callout line while the body moves down'],
     ['where.launch', 32, 'lane state at launch'], ['where.top', 32, 'lane state at the top'], ['where.end', 32, 'lane state when back at the launch height'], ['where.up', 32, 'lane state while rising'], ['where.down', 32, 'lane state while falling'],
@@ -142,11 +147,13 @@ export function parseFormula(text, { names = [], fixed = {}, time = true } = {})
   return tree;
 }
 
-// The names a plan's formulas may read: { names: [number input ids], fixed: { id: number } } (t is always readable).
+// Numeric controls and fixed values, plus a still template's declared independent
+// name. Timed/legacy formulas retain t; a still curve admits x instead of t.
 export function formulaScope(plan) {
   const names = plan.controls.filter(c => c.type === 'number' && c.binding.kind === 'input').map(c => c.binding.id);
   const fixed = Object.fromEntries(Object.entries(plan.mode.fixedValues ?? {}).filter(([, v]) => typeof v === 'number' && Number.isFinite(v)));
-  return { names, fixed };
+  const independent = TEMPLATE_ROLES[plan.scene.template]?.independent;
+  return { names: [...names, ...(independent ? [independent.id] : [])], fixed, ...(independent ? { time: false } : {}) };
 }
 
 // -> { formula, switchAt?, formulaAfter? } as ScalarExpr trees, or null when the quantity has no formula. Throws ScalarExprError, the message naming the quantity and which text failed.
