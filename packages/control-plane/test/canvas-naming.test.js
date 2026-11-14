@@ -133,6 +133,18 @@ test('a rename to a title another of the owner\'s canvases has is refused with t
   assert.equal(free.body.name, other.name, 'a rename never changes the canonical id');
 });
 
+test('a canvas in Trash keeps its title: a new canvas steps to "(2)", a rename to it is refused, and Restore never collides (owner 2026-11-14)', async t => {
+  const f = setup(t);
+  const a = await f.create('ana', 'Foo');
+  assert.equal((await f.call('POST', `/api/apps/${a.name}/trash`, { as: 'ana' })).status, 200);
+  assert.equal((await f.create('ana', 'Foo')).title, 'Foo (2)', 'a new canvas never reuses a trashed title');
+  const other = await f.create('ana', 'Bar');
+  const refused = await f.call('PATCH', `/api/apps/${other.name}`, { as: 'ana', body: { title: 'foo' } });
+  assert.deepEqual([refused.status, refused.body.code], [409, 'title_taken'], 'a rename to a trashed title is refused');
+  assert.equal((await f.call('POST', `/api/apps/${a.name}/untrash`, { as: 'ana' })).body.title, 'Foo');
+  assert.deepEqual(await f.titles('ana'), ['Bar', 'Foo', 'Foo (2)'], 'after Restore every title is still unique');
+});
+
 test('duplicate titles saved before the rule never touch routing or identity, can still be opened and renamed away, and are not refused for being what they are', async t => {
   const f = setup(t);
   const a = await f.create('ana', 'Same');
