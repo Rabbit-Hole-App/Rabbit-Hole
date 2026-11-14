@@ -213,3 +213,9 @@ test('approvedBy names who approved the plan; a fast-path job is one number from
   assert.deepEqual([fast.approvedBy, learner.approvedBy, none.approvedBy], ['fast-path', 'learner', null]);
   assert.deepEqual([fast.msTotal, learner.msTotal], [10000, 3000]);
 });
+
+test('a gap job that never had a plan still names its prompt and depth in the row built from a saved detail (diagnostics.request)', () => {
+  const detail = { job: { id: 'ej_gap', stage: 'failed', stopReason: 'design_gap' }, diagnostics: { calls: [], timing: { stages: [], marks: {} }, findings: [], request: { prompt: 'How does a hash map work?', depth: 'balanced' }, designFast: { kind: 'opus', fallback: 'gap', calls: 0, pick: { family: null, probabilities: { 'vertical-throw': 0, 'curve-sliders': 0.01, none: 0.99 } } } } };
+  const row = ledgerRow(jobFromDetail(detail));
+  assert.equal(row.prompt, 'How does a hash map work?'); assert.equal(row.depth, 'balanced'); assert.equal(row.designFallback, 'gap'); assert.match(row.pickProbabilities, /"none":0.99/);
+});

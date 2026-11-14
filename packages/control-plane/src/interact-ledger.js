@@ -100,7 +100,7 @@ export function ledgerRow(job) {
 }
 
 // The job-shaped fields of a detail=1 response ({ job, scenePlan, diagnostics }), for a run the server did not compute a row for (the saved evidence, an older clone).
-export const jobFromDetail = ({ job, scenePlan, diagnostics: d }) => ({ id: job.id, plan: scenePlan?.plan, planHash: scenePlan?.hash ?? null, stage: job.stage, stopReason: job.stopReason,
+export const jobFromDetail = ({ job, scenePlan, diagnostics: d }) => ({ id: job.id, plan: scenePlan?.plan, planHash: scenePlan?.hash ?? null, stage: job.stage, stopReason: job.stopReason, ...(d.request ? { prompt: d.request.prompt, depth: d.request.depth } : {}), // request: the prompt and depth a dev clone exposes, so a gap row (a job that never had a plan) still names them
   calls: d.calls, timing: d.timing, findings: d.findings, build: d.build ?? null, bench: d.bench ?? null, ...(d.designFast ? { design: { fast: d.designFast } } : {}) }); // designFast: the fast design record the clone exposes (diagnostics), so a saved response keeps the design and pick columns
 
 // The ledger table: the same columns, factual first; a null cell is empty.
