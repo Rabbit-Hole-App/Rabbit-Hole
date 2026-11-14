@@ -355,8 +355,6 @@ export function isAllowedAuthoredPath(filePath, { topic, slug } = {}) {
   const topicName = topic ?? slug;
   const topicPattern = topicName ? escaped(topicName) : '[a-z0-9]+(?:-[a-z0-9]+)*';
   if (new RegExp(`^${DIAGRAM_ROOT}/topic-${topicPattern}-(?:[a-z0-9.-]+)\\.(?:js|mjs|json)$`, 'u').test(name)) return true;
-  // Composition references (the composition lane, any subject): composition-<subject>-references.js, JavaScript only, in the diagrams folder itself.
-  if (new RegExp(`^${DIAGRAM_ROOT}/composition-[a-z0-9]+(?:-[a-z0-9]+)*-references\\.js$`, 'u').test(name)) return true;
   if (name === `${DIAGRAM_ROOT}/reference-library.js`) return true;
   if (name === `${DIAGRAM_ROOT}/svg-snapshots.json`) return true;
   if (new RegExp(`^scripts/explain-bench/sets/demo-${topicPattern}\\.json$`, 'u').test(name)) return true;

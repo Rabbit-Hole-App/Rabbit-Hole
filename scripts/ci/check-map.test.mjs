@@ -11,7 +11,7 @@ test('tool handoff component stays a manual fixture and never grants automatic r
  assert.match(map.checks['inline-evidence-handoff-component.mjs'].why,/All retrieval intercepted/);
 });
 test('every tracked executable file has a class (a new file is classified in the push that adds it)', () => {
-  const files = execFileSync('git', ['ls-files'], { encoding: 'utf8', maxBuffer: 1 << 26 }).trim().split('\n'); // the tracked-file list passed 1 MiB (the default buffer) with release 136's files
+  const files = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).trim().split('\n');
   const unclassified = files.filter(f => classify(f, map) === 'unmapped');
   assert.deepEqual(unclassified, []);
 });
