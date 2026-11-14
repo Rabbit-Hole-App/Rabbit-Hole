@@ -11,12 +11,12 @@
       },
       {
         "id": "f",
-        "label": "Create Features Again",
+        "label": "Return to Build Features",
         "role": "outcome"
       },
       {
         "id": "d",
-        "label": "Publish Model",
+        "label": "Release Model",
         "role": "process"
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "id": "c",
-        "label": "Collect Data Again",
+        "label": "Return to Collect Data",
         "role": "outcome"
       },
       {

@@ -132,18 +132,18 @@ function b2Workflow(depth) {
     const ids = 'abcdefgh'.split('');
     const returnIds = 'ij'.split('');
     const stageId = stage => ids[w.stages.indexOf(stage)];
-    const actionLabel = stage => ['Feature Engineering', 'Deploy', 'Monitor'].includes(stage) ? `Run ${stage}` : stage;
+    const actionLabel = stage => ({ 'Feature Engineering': 'Build Features', Deploy: 'Release Model', Monitor: 'Check Performance' })[stage] ?? stage;
     return {
       title: 'Full ML workflow', kind: 'flow',
       nodes: [
         ...w.stages.map((stage, index) => ({ id: ids[index], label: actionLabel(stage), role: stage === w.feedback[0].from ? 'decision' : 'process' })),
-        ...w.feedback.map((edge, index) => ({ id: returnIds[index], label: `Repeat ${edge.to}`, role: 'outcome' }))
+        ...w.feedback.map((edge, index) => ({ id: returnIds[index], label: `Return to ${actionLabel(edge.to)}`, role: 'outcome' }))
       ],
       edges: [
         ...ids.slice(1).map((to, index) => ({ from: ids[index], to, ...(w.stages[index] === w.feedback[0].from ? { label: 'good enough' } : {}) })),
         ...w.feedback.map((edge, index) => ({ from: stageId(edge.from), to: returnIds[index], label: edge.condition }))
       ],
-      caption: `Illustrative. Clean and Explore: ${w.cleanPercentRange.join('–')}% time. Forward links $${w.stageCount}-1=${w.forwardTransitions}$. Returns unrolled.`
+      caption: `Illustrative. Clean and Explore: ${w.cleanPercentRange.join('–')}% time. Forward links $${w.stageCount}-1=${w.forwardTransitions}$. The two returns loop back to feature engineering and data collection.`
     };
   }
   const steps = depth === 'overview'
@@ -160,10 +160,10 @@ function b2WorkflowDetail() {
     title: 'Evaluation and monitoring returns', kind: 'flow',
     nodes: [
       { id: 'e', label: 'Evaluate Model', role: 'decision' },
-      { id: 'f', label: 'Create Features Again', role: 'outcome' },
-      { id: 'd', label: 'Publish Model', role: 'process' },
+      { id: 'f', label: 'Return to Build Features', role: 'outcome' },
+      { id: 'd', label: 'Release Model', role: 'process' },
       { id: 'm', label: 'Check Performance', role: 'decision' },
-      { id: 'c', label: 'Collect Data Again', role: 'outcome' },
+      { id: 'c', label: 'Return to Collect Data', role: 'outcome' },
       { id: 'k', label: 'Keep Monitoring', role: 'outcome' }
     ],
     edges: [

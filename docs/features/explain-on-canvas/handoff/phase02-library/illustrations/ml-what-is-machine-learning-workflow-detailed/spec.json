@@ -16,7 +16,7 @@
       },
       {
         "id": "c",
-        "label": "Run Feature Engineering",
+        "label": "Build Features",
         "role": "process"
       },
       {
@@ -36,22 +36,22 @@
       },
       {
         "id": "g",
-        "label": "Run Deploy",
+        "label": "Release Model",
         "role": "process"
       },
       {
         "id": "h",
-        "label": "Run Monitor",
+        "label": "Check Performance",
         "role": "process"
       },
       {
         "id": "i",
-        "label": "Repeat Feature Engineering",
+        "label": "Return to Build Features",
         "role": "outcome"
       },
       {
         "id": "j",
-        "label": "Repeat Collect Data",
+        "label": "Return to Collect Data",
         "role": "outcome"
       }
     ],
@@ -96,6 +96,6 @@
         "label": "performance drops"
       }
     ],
-    "caption": "Illustrative. Clean and Explore: 60–80% time. Forward links $8-1=7$. Returns unrolled."
+    "caption": "Illustrative. Clean and Explore: 60–80% time. Forward links $8-1=7$. The two returns loop back to feature engineering and data collection."
   }
 }
