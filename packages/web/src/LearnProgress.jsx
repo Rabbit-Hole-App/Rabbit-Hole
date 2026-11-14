@@ -77,7 +77,7 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
       <div className="flex shrink-0 items-center gap-2 pb-1">
         <h2 id="progress-title" ref={heading} tabIndex={-1} className="min-w-0 flex-1 text-sm font-semibold text-ink outline-none">{managing ? 'Progress: Learning Goals' : 'Progress'}</h2>
         <button type="button" data-progress-close onClick={onClose} aria-label="Close Progress" title="Close Progress"
-          className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink"><X size={15} strokeWidth={1.8} aria-hidden /></button>
+          className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><X size={15} strokeWidth={1.8} aria-hidden /></button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto pt-2 pb-4">
         {!managing && model.state === 'no_goal' && <div data-progress-empty className="flex flex-col items-start gap-3">

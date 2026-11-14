@@ -55,7 +55,7 @@ export default function PanelHeader({ tab, onTab, pinned, onPin = null, onClose,
           <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={pending ? `${label}, ${tocPending} proposal${tocPending === 1 ? '' : 's'} to review` : label} title={title}
             aria-selected={tab === id} aria-disabled={disabled || undefined} tabIndex={tab === id ? 0 : -1}
             onClick={disabled ? undefined : () => onTab(id, true)}
-            className={`relative flex h-8 w-[30px] shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${tab === id ? 'bg-(--nav-selected-bg) text-(--nav-selected-fg)' : disabled ? 'cursor-default text-ink-3 opacity-60' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+            className={`relative flex h-8 w-[30px] shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${tab === id ? 'bg-(--nav-selected-bg) text-(--nav-selected-fg)' : disabled ? 'cursor-default text-ink-3 opacity-60' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
             {id === 'comments' && commentsOn && commentsUnread > 0 && <span data-unread-dot aria-hidden className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-accent ring-1 ring-white" />}
             {pending && <span data-toc-pending aria-hidden className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-accent ring-1 ring-white" />}
             <Icon size={16} strokeWidth={1.8} aria-hidden />
@@ -65,13 +65,13 @@ export default function PanelHeader({ tab, onTab, pinned, onPin = null, onClose,
       <div className="ml-4 flex shrink-0 items-center gap-0.5">
         {companion && (() => { const name = companionLabel(companion.views); return (
           <button type="button" data-panel-companion aria-label={name} title={name} aria-pressed={companion.open} onClick={companion.onToggle}
-            className={`flex h-8 w-[30px] items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${companion.open ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><PanelLeft size={16} strokeWidth={1.8} aria-hidden /></button>
+            className={`flex h-8 w-[30px] items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${companion.open ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><PanelLeft size={16} strokeWidth={1.8} aria-hidden /></button>
         ); })()}
         {onPin && <button type="button" data-panel-pin aria-label="Keep sidebar open" title="Keep sidebar open" aria-pressed={pinned} onClick={() => onPin(!pinned)}
-          className={`flex h-8 w-[30px] items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${pinned ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+          className={`flex h-8 w-[30px] items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${pinned ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
           <Pin size={16} strokeWidth={1.8} fill={pinned ? 'currentColor' : 'none'} aria-hidden /></button>}
         <button type="button" data-panel-close aria-label="Close sidebar" title="Close sidebar" onClick={onClose}
-          className="flex h-8 w-[30px] items-center justify-center rounded-full text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60"><X size={16} strokeWidth={1.8} aria-hidden /></button>
+          className="flex h-8 w-[30px] items-center justify-center rounded-md text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60"><X size={16} strokeWidth={1.8} aria-hidden /></button>
       </div>
     </div>
   );
@@ -85,18 +85,18 @@ export function CompanionHeader({ views, view, onView, onClose, actions = null }
   return (
     <div data-companion-header className="flex h-12 shrink-0 items-center gap-1 border-b border-line px-2">
       <button type="button" data-companion-back onClick={onClose} aria-label="Back to chat" title="Back to chat"
-        className="flex h-8 shrink-0 items-center gap-1 rounded-full px-2 text-sm text-ink-2 hover:bg-hover hover:text-ink lg:hidden"><ArrowLeft size={15} strokeWidth={1.8} aria-hidden />Chat</button>
+        className="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm text-ink-2 hover:bg-hover hover:text-ink lg:hidden"><ArrowLeft size={15} strokeWidth={1.8} aria-hidden />Chat</button>
       <div role="group" aria-label="Viewer" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none]">
         {views.map(({ id, label, Icon }) => (
           <button key={id} type="button" data-companion-view={id} aria-pressed={view === id} onClick={() => onView(id)}
-            className={`flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-sm ${view === id ? 'bg-hover font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+            className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm ${view === id ? 'bg-hover font-medium text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
             <Icon size={15} strokeWidth={1.8} aria-hidden />{label}
           </button>
         ))}
       </div>
       {actions}
       <button type="button" data-companion-close onClick={onClose} aria-label="Close viewer" title="Close viewer"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink max-lg:hidden"><X size={15} strokeWidth={1.8} aria-hidden /></button>
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink max-lg:hidden"><X size={15} strokeWidth={1.8} aria-hidden /></button>
     </div>
   );
 }
@@ -133,9 +133,9 @@ export function CanvasFind({ cards, onFocus, inputRef, hidden }) {
           {query.trim() ? (current >= 0 ? `${current + 1} of ${matches.length}` : `${matches.length} found`) : ''}
         </span>
         <button type="button" aria-label="Previous match" title="Previous match (Shift Enter)" disabled={!matches.length} onClick={() => go(-1)}
-          className="flex h-8 w-7 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><ChevronUp size={15} aria-hidden /></button>
+          className="flex h-8 w-7 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><ChevronUp size={15} aria-hidden /></button>
         <button type="button" aria-label="Next match" title="Next match (Enter)" disabled={!matches.length} onClick={() => go(1)}
-          className="flex h-8 w-7 items-center justify-center rounded-full text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><ChevronDown size={15} aria-hidden /></button>
+          className="flex h-8 w-7 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40"><ChevronDown size={15} aria-hidden /></button>
       </div>
       {query.trim() && !matches.length && <p className="mt-3 text-sm text-ink-2">No matches.</p>}
       <ol className="mt-2 min-h-0 flex-1 space-y-0.5 overflow-y-auto">

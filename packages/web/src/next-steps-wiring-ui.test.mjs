@@ -163,12 +163,12 @@ test('the hook card header: Refresh and Minimize, loading and failure kept besid
   html = card({ ...live, refresh_state: 'loading' });
   assert.match(html, /<button[^>]*data-next-steps-refresh[^>]*disabled=""[^>]*aria-busy="true"/, 'one refresh at a time');
   assert.equal((html.match(/data-next-step="/g) || []).length, 3, 'the hooks stay while it loads');
-  html = card({ ...live, refresh_state: 'error', refresh_reason: 'failed' });
-  assert.match(html, /role="alert"[^>]*>Could not refresh; these suggestions stay\.<button[^>]*>Try again<\/button>/);
-  assert.equal((html.match(/data-next-step="/g) || []).length, 3);
-  html = card({ ...live, refresh_state: 'error', refresh_reason: 'limited' });
-  assert.match(html, /Refresh limit reached for now/);
-  assert.doesNotMatch(html, /Try again/);
+  // Owner 2026-11-13: a failed or limited refresh shows no message; the three suggestions stay.
+  for (const refresh_reason of ['failed', 'limited']) {
+    html = card({ ...live, refresh_state: 'error', refresh_reason });
+    assert.doesNotMatch(html, /Could not refresh|Refresh limit|Try again|role="alert"/);
+    assert.equal((html.match(/data-next-step="/g) || []).length, 3);
+  }
   assert.doesNotMatch(card(set('ready')), /data-next-steps-refresh/);
   // Minimize and Restore are the card's own state: no select(), no refresh(), no request.
   assert.match(ask, /onClick=\{\(\) => setMinimized\(false\)\}/);

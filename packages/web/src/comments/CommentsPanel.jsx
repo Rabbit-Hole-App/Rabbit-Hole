@@ -123,7 +123,7 @@ function ThreadList({ list, about, status, setStatus, audience, setAudience, obj
             </button>
           </li>
         ))}
-        {list.cursor && <li><button type="button" data-more-threads onClick={onMore} className="w-full rounded-full px-2 py-1.5 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">Load more</button></li>}
+        {list.cursor && <li><button type="button" data-more-threads onClick={onMore} className="w-full rounded-lg px-2 py-1.5 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">Load more</button></li>}
       </ol>
     </>
   );
@@ -285,7 +285,7 @@ function ThreadView({ client, about, id, hidden, objectLive, onFocusAnchor, onBa
       {STATE_NOTE[thread.anchor_state] && <p data-anchor-state={thread.anchor_state} className="mb-2 text-xs text-ink-3">{STATE_NOTE[thread.anchor_state]}</p>}
       {failed && <p role="alert" className="mb-2 text-xs text-red-700">{failed}</p>}
       <ol ref={scroller} onScroll={scrolled} data-comment-messages className="-mx-2 mb-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
-        {data.before && <li><button type="button" data-earlier-replies onClick={earlier} className="w-full rounded-full px-2 py-1 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">Earlier replies</button></li>}
+        {data.before && <li><button type="button" data-earlier-replies onClick={earlier} className="w-full rounded-lg px-2 py-1 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">Earlier replies</button></li>}
         {messages.map(message => <Message key={message.id} message={message} audience={thread.audience} owner={about.role === 'owner'} client={client} act={act}
           publish={thread.audience === 'members' && about.can.post_public ? { threadId: thread.id, onDone: made => { onChange(); onOpen?.(made); } } : null} />)}
       </ol>

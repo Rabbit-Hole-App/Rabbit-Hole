@@ -253,12 +253,7 @@ export function NextStepsCard({ steps, onPick, minimized: held = null, onMinimiz
     <section ref={frame} data-next-steps={steps.status} data-next-steps-refresh-state={steps.refresh_state || undefined} aria-label="Curious where this goes?" className="flex w-full flex-wrap items-stretch gap-1.5">
       <NextStepsHeader steps={steps} onMinimize={controlled ? null : () => setMinimized(true)} />
       {steps.refresh_state === 'loading' && <span role="status" className="sr-only">Refreshing suggestions</span>}
-      {steps.refresh_state === 'error' && (
-        <p role="alert" data-next-steps-refresh-error className="order-last flex w-full items-center gap-2 text-xs text-ink-2">
-          {steps.refresh_reason === 'limited' ? 'Refresh limit reached for now; these suggestions stay.' : 'Could not refresh; these suggestions stay.'}
-          {steps.refresh_reason !== 'limited' && <button type="button" onClick={() => steps.refresh()} className="font-medium text-ink underline-offset-2 hover:underline">Try again</button>}
-        </p>
-      )}
+      {/* A failed or limited refresh says nothing (owner 2026-11-13): the suggestions simply stay. */}
       {steps.options.map(hook => (
         <button key={hook.id} type="button" data-next-step={hook.id} data-next-section={hook.section?.id} aria-label={hook.section ? `${hook.hook} (${sectionNote(hook.section)})` : undefined} disabled={!!working} aria-busy={working === hook.id || undefined} onClick={() => pick(hook)}
           title={hook.section ? `${hook.hook} (${sectionNote(hook.section)})` : hook.hook}
@@ -320,7 +315,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // Curious's own toggle (owner 2026-11-13): in the canvas strip's toolbar, next to the / control; LearnPage owns the state (curiousToggle: { min, set }).
   const curiousButton = stripMode && curiousToggle ? (
     <button type="button" data-curious-toggle aria-label={curiousToggle.min ? 'Show suggestions' : 'Hide suggestions'} aria-pressed={!curiousToggle.min} title={curiousToggle.min ? 'Show the suggestions' : 'Hide the suggestions'} onMouseDown={event => event.preventDefault()} onClick={() => curiousToggle.set(!curiousToggle.min)}
-      className={cn(COMPOSER_TOOL, !curiousToggle.min && 'text-accent')}><CircleHelp size={16} strokeWidth={1.7} /></button>) : null;
+      className={cn(COMPOSER_TOOL, !curiousToggle.min && 'bg-hover text-accent hover:text-accent')}><CircleHelp size={16} strokeWidth={1.7} /></button>) : null;
   // The window above the strip (owner 2026-11-13): sending from the strip leaves the right panel closed and opens this small fixed-height window, which holds
   // the conversation (moved here without remounting) and can be minimized or maximized; a send reopens a minimized one.
   const [windowSeen, setWindowSeen] = useState(false), [winState, setWinState] = useState('normal');
@@ -338,7 +333,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // Minimized, the window is gone completely; this button in the strip's toolbar (next to the Curious toggle) shows it again, and hides it while it is open.
   const chatWindowButton = stripMode && windowHost && windowSeen ? (
     <button type="button" data-chat-window-toggle aria-label={winState === 'min' ? 'Show chat' : 'Hide chat'} aria-pressed={winState !== 'min'} title={winState === 'min' ? 'Show the chat' : 'Hide the chat'} onMouseDown={event => event.preventDefault()} onClick={() => setWinState(winState === 'min' ? 'normal' : 'min')}
-      className={cn(COMPOSER_TOOL, winState !== 'min' && 'text-accent')}><MessageSquare size={16} strokeWidth={1.7} /></button>) : null;
+      className={cn(COMPOSER_TOOL, winState !== 'min' && 'bg-hover text-accent hover:text-accent')}><MessageSquare size={16} strokeWidth={1.7} /></button>) : null;
   const regionHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
   const inlineSlot = useRef(null);
   useLayoutEffect(() => { const where = stripMode ? stripHost : inlineSlot.current; if (where && regionHost.parentNode !== where) where.appendChild(regionHost); });

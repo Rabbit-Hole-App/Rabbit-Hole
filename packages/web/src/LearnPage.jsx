@@ -2415,7 +2415,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
             onClick={() => goBack('/apps')}
-            className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
+            className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
           <div data-header-group className={OWNER_HEADER_GROUP}>
           {/* One line, never wrapped (owner r35): in a project, [project] › [canvas selector]. The project name is plain text
               (owner brief 2026-10-16 item 2: project management lives in Home and the Library, which rename it); the name is
