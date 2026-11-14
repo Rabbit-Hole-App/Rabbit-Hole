@@ -1,14 +1,80 @@
 {
   "version": 1,
   "diagram": {
-    "title": "Retrain when evaluation is weak",
-    "kind": "cycle",
-    "steps": [
-      "Feature Engineering",
-      "Split Data",
-      "Train Model",
-      "Evaluate"
+    "title": "Full ML workflow",
+    "kind": "flow",
+    "nodes": [
+      {
+        "id": "a",
+        "label": "Collect Data",
+        "role": "process"
+      },
+      {
+        "id": "b",
+        "label": "Clean and Explore",
+        "role": "process"
+      },
+      {
+        "id": "c",
+        "label": "Create Features",
+        "role": "process"
+      },
+      {
+        "id": "d",
+        "label": "Split Data",
+        "role": "process"
+      },
+      {
+        "id": "e",
+        "label": "Train Model",
+        "role": "process"
+      },
+      {
+        "id": "f",
+        "label": "Evaluate",
+        "role": "process"
+      },
+      {
+        "id": "g",
+        "label": "Publish Model",
+        "role": "process"
+      },
+      {
+        "id": "h",
+        "label": "Check Performance",
+        "role": "outcome"
+      }
     ],
-    "caption": "Illustrative. Evaluate returns to Feature Engineering if not good enough. The full workflow has $8$ stages."
+    "edges": [
+      {
+        "from": "a",
+        "to": "b"
+      },
+      {
+        "from": "b",
+        "to": "c"
+      },
+      {
+        "from": "c",
+        "to": "d"
+      },
+      {
+        "from": "d",
+        "to": "e"
+      },
+      {
+        "from": "e",
+        "to": "f"
+      },
+      {
+        "from": "f",
+        "to": "g"
+      },
+      {
+        "from": "g",
+        "to": "h"
+      }
+    ],
+    "caption": "Illustrative. Clean and Explore: 60–80% of time. $8-1=7$ forward links; see feedback inset."
   }
 }

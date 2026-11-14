@@ -239,6 +239,8 @@ test('workflow preserves separate detailed stages and both labelled feedback ret
   const cleanRange = [6 / 10, 8 / 10].map(f => f * 10 ** 2);
   assert.deepStrictEqual(w.cleanPercentRange, cleanRange);
   const renderedSteps = [...stages.slice(0, -2).map((s, i) => i === 1 ? `${s} · ${cleanRange.join('–')}% time` : s), stages.slice(-2).join(' / ')];
+  assert.strictEqual(ref.spec.diagram.kind, 'cycle');
+  assert.strictEqual(ref.depths.overview.spec.diagram.kind, 'cycle');
   assert.deepStrictEqual(ref.spec.diagram.steps, renderedSteps);
   assert.ok(ref.depths.overview.spec.diagram.steps.length < ref.spec.diagram.steps.length);
   const renderedCount = renderedSteps.length;
@@ -247,30 +249,56 @@ test('workflow preserves separate detailed stages and both labelled feedback ret
   assert.strictEqual(renderedCount - 1, forwardCount);
   expectedFeedback.forEach(e => [e.from, e.to, e.condition].forEach(s => assert.ok(ref.spec.diagram.caption.includes(s))));
   const deep = ref.depths.deep.spec.diagram;
-  assert.strictEqual(deep.kind, 'cycle');
-  assert.deepStrictEqual(deep.steps, stages.slice(2, 6));
-  assert.strictEqual(deep.steps[0], expectedFeedback[0].to);
-  assert.strictEqual(deep.steps.at(-1), expectedFeedback[0].from);
-  assert.strictEqual(deep.caption, `Illustrative. Evaluate returns to Feature Engineering if not good enough. The full workflow has $${stageCount}$ stages.`);
+  assert.strictEqual(deep.kind, 'flow');
+  assert.strictEqual(deep.nodes.length, stageCount);
+  assert.deepStrictEqual(deep.nodes.map(node => node.label), ['Collect Data', 'Clean and Explore', 'Create Features', 'Split Data', 'Train Model', 'Evaluate', 'Publish Model', 'Check Performance']);
+  assert.strictEqual(deep.edges.length, transitions);
+  assert.deepStrictEqual(deep.edges, deep.nodes.slice(1).map((node, index) => ({ from: deep.nodes[index].id, to: node.id })));
+  assert.ok(deep.nodes.slice(0, -1).every(node => node.role === 'process'));
+  assert.strictEqual(deep.nodes.at(-1).role, 'outcome');
+  assert.strictEqual(deep.caption, `Illustrative. Clean and Explore: ${cleanRange.join('–')}% of time. $${stageCount}-1=${transitions}$ forward links; see feedback inset.`);
   const detail = ref.depths.deep.detailSpec.diagram;
-  assert.strictEqual(detail.kind, 'tree');
-  assert.strictEqual(detail.layout, 'hierarchy');
-  assert.ok(detail.nodes.every(node => !Object.hasOwn(node, 'side')));
+  assert.strictEqual(detail.kind, 'flow');
+  const byId = Object.fromEntries(detail.nodes.map(node => [node.id, node]));
+  assert.deepStrictEqual(detail.nodes.map(node => node.label), ['Evaluate Model', 'Create Features Again', 'Publish Model', 'Check Performance', 'Collect Data Again', 'Keep Monitoring']);
   assert.strictEqual(new Set(detail.nodes.map(node => node.label)).size, detail.nodes.length);
-  const stageNodes = detail.nodes.slice(0, stageCount);
-  assert.deepStrictEqual(stageNodes.map(node => node.label), stages.map((stage, index) => index === 1 ? `${stage} · ${cleanRange.join('–')}% time` : stage));
-  assert.ok(!Object.hasOwn(stageNodes[0], 'parent'));
-  stageNodes.slice(1).forEach((node, index) => assert.strictEqual(node.parent, stageNodes[index].id));
-  assert.strictEqual(stageNodes[stages.indexOf('Deploy')].edgeLabel, 'good enough');
-  const feedbackNodes = detail.nodes.slice(stageCount);
-  assert.strictEqual(feedbackNodes.length, expectedFeedback.length);
-  expectedFeedback.forEach((edge, index) => {
-    const node = feedbackNodes[index];
-    assert.strictEqual(node.parent, stageNodes[stages.indexOf(edge.from)].id);
-    assert.strictEqual(node.label, `${edge.to} again`);
-    assert.strictEqual(node.edgeLabel, edge.condition);
-  });
-  assert.strictEqual(detail.caption, `Illustrative. $${stageCount}-1=${transitions}$ forward links. Labelled feedback returns are unrolled.`);
+  assert.deepStrictEqual(detail.edges, [
+    { from: 'e', to: 'f', label: expectedFeedback[0].condition },
+    { from: 'e', to: 'd', label: 'good enough' },
+    { from: 'd', to: 'm' },
+    { from: 'm', to: 'c', label: expectedFeedback[1].condition },
+    { from: 'm', to: 'k', label: 'stable' }
+  ]);
+  assert.strictEqual(byId.e.role, 'decision');
+  assert.strictEqual(byId.m.role, 'decision');
+  assert.strictEqual(byId.f.role, 'outcome');
+  assert.strictEqual(byId.c.role, 'outcome');
+  assert.ok(detail.caption.includes('Feedback is unrolled'));
+  for (const flow of [deep, detail]) {
+    const ids = new Set(flow.nodes.map(node => node.id));
+    const roots = flow.nodes.filter(node => !flow.edges.some(edge => edge.to === node.id));
+    assert.strictEqual(roots.length, 1);
+    const visited = new Set();
+    const visit = (id, ancestors) => {
+      assert.ok(!ancestors.has(id), 'Feedback must be unrolled, not a flow cycle');
+      visited.add(id);
+      const path = new Set([...ancestors, id]);
+      flow.edges.filter(edge => edge.from === id).forEach(edge => { assert.ok(ids.has(edge.to)); visit(edge.to, path); });
+    };
+    visit(roots[0].id, new Set());
+    assert.strictEqual(visited.size, ids.size);
+    flow.nodes.forEach(node => {
+      const outgoing = flow.edges.filter(edge => edge.from === node.id);
+      if (node.role === 'decision') {
+        assert.ok(outgoing.length >= 2 && outgoing.length <= 3);
+        assert.ok(outgoing.every(edge => edge.label));
+        assert.strictEqual(new Set(outgoing.map(edge => edge.label)).size, outgoing.length);
+      }
+      if (node.role === 'process') assert.ok(outgoing.length <= 1);
+      if (node.role === 'outcome') assert.strictEqual(outgoing.length, 0);
+      assert.match(node.label, /^(Collect|Clean|Create|Split|Train|Evaluate|Publish|Check|Keep)\b/);
+    });
+  }
   const split = b2Ref(b2Ids[1]), percentages = d.split.weights.map(v => 10 ** 2 * v / b2Sum(d.split.weights));
   assert.deepStrictEqual(d.split.percentages, percentages);
   assert.strictEqual(d.split.totalPercent, b2Sum(percentages));

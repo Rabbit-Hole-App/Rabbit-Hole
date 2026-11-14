@@ -1,63 +1,66 @@
 {
   "version": 1,
   "diagram": {
-    "title": "Full workflow and labelled returns",
-    "kind": "tree",
-    "layout": "hierarchy",
+    "title": "Evaluation and monitoring returns",
+    "kind": "flow",
     "nodes": [
       {
-        "id": "a",
-        "label": "Collect Data"
-      },
-      {
-        "id": "b",
-        "label": "Clean and Explore · 60–80% time",
-        "parent": "a"
-      },
-      {
-        "id": "c",
-        "label": "Feature Engineering",
-        "parent": "b"
-      },
-      {
-        "id": "d",
-        "label": "Split Data",
-        "parent": "c"
-      },
-      {
         "id": "e",
-        "label": "Train Model",
-        "parent": "d"
+        "label": "Evaluate Model",
+        "role": "decision"
       },
       {
         "id": "f",
-        "label": "Evaluate",
-        "parent": "e"
+        "label": "Create Features Again",
+        "role": "outcome"
       },
       {
-        "id": "g",
-        "label": "Deploy",
-        "parent": "f",
-        "edgeLabel": "good enough"
+        "id": "d",
+        "label": "Publish Model",
+        "role": "process"
       },
       {
-        "id": "h",
-        "label": "Monitor",
-        "parent": "g"
+        "id": "m",
+        "label": "Check Performance",
+        "role": "decision"
       },
       {
-        "id": "i",
-        "label": "Feature Engineering again",
-        "parent": "f",
-        "edgeLabel": "not good enough"
+        "id": "c",
+        "label": "Collect Data Again",
+        "role": "outcome"
       },
       {
-        "id": "j",
-        "label": "Collect Data again",
-        "parent": "h",
-        "edgeLabel": "performance drops"
+        "id": "k",
+        "label": "Keep Monitoring",
+        "role": "outcome"
       }
     ],
-    "caption": "Illustrative. $8-1=7$ forward links. Labelled feedback returns are unrolled."
+    "edges": [
+      {
+        "from": "e",
+        "to": "f",
+        "label": "not good enough"
+      },
+      {
+        "from": "e",
+        "to": "d",
+        "label": "good enough"
+      },
+      {
+        "from": "d",
+        "to": "m"
+      },
+      {
+        "from": "m",
+        "to": "c",
+        "label": "performance drops"
+      },
+      {
+        "from": "m",
+        "to": "k",
+        "label": "stable"
+      }
+    ],
+    "caption": "Illustrative. Feedback is unrolled: the named outcomes resume the corresponding stage of the main workflow."
   }
 }
