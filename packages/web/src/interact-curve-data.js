@@ -1,6 +1,7 @@
 // Pure family/template declarations shared with validation without a cycle.
 export const independent = Object.freeze({ id: 'x', domain: Object.freeze([-6, 6]) });
 export const bounds = Object.freeze([0, 1]);
+export const markerInput = 'xMarker';
 export const templates = Object.freeze(['curve-one', 'curve-compare', 'curve-readouts']);
 export const curveRoles = Object.freeze(['y', 'slope', 'yAtMarker']);
 const common = [

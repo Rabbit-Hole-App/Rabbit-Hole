@@ -1,8 +1,9 @@
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
 import { parseQuantity } from './interact-formula.js';
 import { evalScalar, scalarInterval } from './interact-plan.js';
-import { independent, bounds, effects, templates, curveRoles } from './interact-curve-data.js';
-export { independent, bounds, effects, templates };
+import { independent, bounds, effects, templates, curveRoles, markerInput } from './interact-curve-data.js';
+import { checkCurvePlan } from './interact-curve-check.js';
+export { independent, bounds, effects, templates, markerInput };
 
 export const pickCriterion = 'One quantity as a function of another, drawn as a curve whose shape a few parameters change; no motion over time.';
 export const FAMILY = Object.freeze({
@@ -124,6 +125,8 @@ export function referenceValue(role, x, p) {
 }
 export function referenceCheck(brief, depth) {
   const info = infoOf(depth), fixed = fixedOf(depth), names = info.inputs.map(([id]) => id), parsed = {}, failures = [];
+  const invariant = checkCurvePlan(expandBrief(brief, depth), { independent, bounds, effects, markerInput });
+  if (!invariant.ok) return { ok: false, failures: invariant.failures };
   for (const role of info.roles) {
     try {
       if (brief.formulas[role].switchAt !== null || brief.formulas[role].formulaAfter !== null) throw new Error('a still curve has one continuous rule');
@@ -154,4 +157,4 @@ export function context({ slots, parsed, numberInputs, quantities }) {
     units: Object.fromEntries(['y', 'slope', 'yAtMarker'].map(role => [role, quantities.get(slots[role])?.unit ?? ''])),
   };
 }
-export const curveSliders = Object.freeze({ id: FAMILY.id, FAMILY, INPUTS, ROLES, LIMITS, scalars, referenceCheck, expandBrief, extractBrief, familyDescription, formulaGrammar, formulaRules, templates, context, independent, bounds, effects, pickCriterion });
+export const curveSliders = Object.freeze({ id: FAMILY.id, FAMILY, INPUTS, ROLES, LIMITS, scalars, referenceCheck, expandBrief, extractBrief, familyDescription, formulaGrammar, formulaRules, templates, context, independent, bounds, effects, markerInput, pickCriterion });
