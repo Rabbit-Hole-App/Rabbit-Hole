@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "width": 408,
+  "previews": [
+    {
+      "id": "ml-linear-regression-linear-unit-brief",
+      "referenceId": "ml-linear-regression-linear-unit",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C01/previews/ml-linear-regression-linear-unit-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C01/previews/ml-linear-regression-linear-unit-brief/408.svg"
+    },
+    {
+      "id": "ml-neural-networks-hidden-layer-brief",
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C01/previews/ml-neural-networks-hidden-layer-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C01/previews/ml-neural-networks-hidden-layer-brief/408.svg"
+    },
+    {
+      "id": "ml-regularization-dropout-mask-brief",
+      "referenceId": "ml-regularization-dropout-mask",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C01/previews/ml-regularization-dropout-mask-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C01/previews/ml-regularization-dropout-mask-brief/408.svg"
+    },
+    {
+      "id": "ml-regularization-regularized-objective-brief",
+      "referenceId": "ml-regularization-regularized-objective",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C01/previews/ml-regularization-regularized-objective-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C01/previews/ml-regularization-regularized-objective-brief/408.svg"
+    }
+  ],
+  "numbers": []
+}

@@ -1521,6 +1521,21 @@
       "width": 720,
       "height": 583
     },
+    "ml-linear-regression-linear-unit/320": {
+      "sha256": "12adcfa4ca5c6a39387580951463b192443ebfffc73b3641095c3a04de381dfd",
+      "width": 623,
+      "height": 274
+    },
+    "ml-linear-regression-linear-unit/408": {
+      "sha256": "12adcfa4ca5c6a39387580951463b192443ebfffc73b3641095c3a04de381dfd",
+      "width": 623,
+      "height": 274
+    },
+    "ml-linear-regression-linear-unit/720": {
+      "sha256": "fde981c6eb4b115d7db69dccc2cb063ab2efa57127d3da0701339029a2c99a7a",
+      "width": 720,
+      "height": 274
+    },
     "ml-linear-regression-normal-equation/320": {
       "sha256": "46656576bfc53a7697381654cece6bd708445371671f944338a54592060dfb40",
       "width": 320,
@@ -1881,6 +1896,21 @@
       "width": 720,
       "height": 641
     },
+    "ml-neural-networks-hidden-layer/320": {
+      "sha256": "74ef5f279f62789c45aa9924b54e909b4f07cfa26d77695627d1c47ecf25fbbd",
+      "width": 658,
+      "height": 274
+    },
+    "ml-neural-networks-hidden-layer/408": {
+      "sha256": "74ef5f279f62789c45aa9924b54e909b4f07cfa26d77695627d1c47ecf25fbbd",
+      "width": 658,
+      "height": 274
+    },
+    "ml-neural-networks-hidden-layer/720": {
+      "sha256": "c38e5ec3ab5f3c3f9c13931d65b3a67fd2358f4861ff503c2d2fe97845e57cc6",
+      "width": 720,
+      "height": 274
+    },
     "ml-one-hot-encoding-transformation/320": {
       "sha256": "0389e6fa9c273ff58bacc0aaebb2b92b4c55c215c7bcb3acad43313d62c39b71",
       "width": 405,
@@ -2045,6 +2075,36 @@
       "sha256": "b9046c4ffe242a744fdce81fbc14f52e323f05f93d0e7577c940bedeb2ff32bf",
       "width": 720,
       "height": 1575
+    },
+    "ml-regularization-dropout-mask/320": {
+      "sha256": "4583f21aa7fd70262e5f17606cd047eec67a506dcc5445f0a94cdbd37aaab6c9",
+      "width": 602,
+      "height": 284
+    },
+    "ml-regularization-dropout-mask/408": {
+      "sha256": "4583f21aa7fd70262e5f17606cd047eec67a506dcc5445f0a94cdbd37aaab6c9",
+      "width": 602,
+      "height": 284
+    },
+    "ml-regularization-dropout-mask/720": {
+      "sha256": "9c2907504fce658709509078073b7f1ecbff315d2ce7c0d0d8a6e54ced0bfa4f",
+      "width": 720,
+      "height": 310
+    },
+    "ml-regularization-regularized-objective/320": {
+      "sha256": "4413768400f559d9621376b519f754d396613f9b835bd13b1cf7bb26ec59b7d2",
+      "width": 407,
+      "height": 349
+    },
+    "ml-regularization-regularized-objective/408": {
+      "sha256": "df5707ef6b86a95ce22d5e96e0379e1b60ba9443822b605f752f03d1d4153d43",
+      "width": 408,
+      "height": 349
+    },
+    "ml-regularization-regularized-objective/720": {
+      "sha256": "76287fcf419fdf6d13da2c9002014f8b69c45ab6d3a108522f3433bdf0a679aa",
+      "width": 720,
+      "height": 397
     },
     "ml-repeated-sample-fits/320": {
       "sha256": "ce69e264b75a24ba3dd855a439241c7a0709527b8ed5c7273f40733d140eae2c",

@@ -40,6 +40,8 @@ import { figureChapterReferences } from './figure-chapter-references.js';
 import { lessonDecisionTreesReferences } from './lesson-decision-trees-references.js';
 import { references as topicLinearRegressionReferences } from './topic-linear-regression-references.js';
 import { references as topicLogisticRegressionReferences } from './topic-logistic-regression-references.js';
+import { references as compositionNeuralNetworks } from './composition-neural-networks-references.js';
+import { references as compositionRegularization } from './composition-regularization-references.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
 
@@ -84,6 +86,7 @@ export const diagramReferences = Object.freeze([
   ...topicLinearRegressionReferences,
 
   ...topicLogisticRegressionReferences,
+  ...compositionNeuralNetworks, ...compositionRegularization,
   ...estimationEvaluationReferences,
 ].map(ref => {
   const topics = learnerKeywords[ref.id];
