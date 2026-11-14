@@ -1,0 +1,2520 @@
+{
+  "passed": true,
+  "rows": [
+    {
+      "id": "c02-1",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "brief",
+      "firstHit": "ml-attention-scaled-score-normalization",
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization",
+          "useWhen": "Show attention score scaling and normalized position weights for one query; not a full-sequence score matrix, value-vector mixing or next-token probabilities.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Scaled attention weights",
+              "caption": "Toy query. Positive position weights sum to one.",
+              "kind": "panels",
+              "panels": [
+                {
+                  "diagram": {
+                    "title": "Raw matches",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 2
+                      },
+                      {
+                        "label": "B",
+                        "value": 1
+                      },
+                      {
+                        "label": "C",
+                        "value": 3
+                      }
+                    ]
+                  }
+                },
+                {
+                  "diagram": {
+                    "title": "Position weights",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 0.284
+                      },
+                      {
+                        "label": "B",
+                        "value": 0.14
+                      },
+                      {
+                        "label": "C",
+                        "value": 0.576
+                      }
+                    ],
+                    "variant": "stacked",
+                    "total": 1
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "operation": "$\\text{scale + softmax}$"
+                }
+              ],
+              "shared": [
+                "classes",
+                "colours"
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-1",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "balanced",
+      "firstHit": "ml-attention-scaled-score-normalization",
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization",
+          "useWhen": "Show attention score scaling and normalized position weights for one query; not a full-sequence score matrix, value-vector mixing or next-token probabilities.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Scaled attention weights",
+              "caption": "Toy $q=(1,1)$; keys A $(2,0)$, B $(0,1)$, C $(1,2)$. Raw matches are dot products; head width $d_k=2$.",
+              "kind": "panels",
+              "panels": [
+                {
+                  "diagram": {
+                    "title": "Raw matches",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 2
+                      },
+                      {
+                        "label": "B",
+                        "value": 1
+                      },
+                      {
+                        "label": "C",
+                        "value": 3
+                      }
+                    ]
+                  }
+                },
+                {
+                  "diagram": {
+                    "title": "Scaled matches",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 1.414
+                      },
+                      {
+                        "label": "B",
+                        "value": 0.707
+                      },
+                      {
+                        "label": "C",
+                        "value": 2.121
+                      }
+                    ]
+                  }
+                },
+                {
+                  "diagram": {
+                    "title": "Position weights",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 0.284
+                      },
+                      {
+                        "label": "B",
+                        "value": 0.14
+                      },
+                      {
+                        "label": "C",
+                        "value": 0.576
+                      }
+                    ],
+                    "variant": "stacked",
+                    "total": 1
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "operation": "$\\div\\sqrt{2}$"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "operation": "softmax"
+                }
+              ],
+              "shared": [
+                "classes",
+                "colours"
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-1",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "detailed",
+      "firstHit": "ml-attention-scaled-score-normalization",
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization",
+          "useWhen": "Show attention score scaling and normalized position weights for one query; not a full-sequence score matrix, value-vector mixing or next-token probabilities.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Scaled attention weights",
+              "caption": "Toy $q′=2q$; fixed keys. Positive query scaling keeps order and changes concentration.",
+              "kind": "panels",
+              "panels": [
+                {
+                  "diagram": {
+                    "title": "Raw matches",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 4
+                      },
+                      {
+                        "label": "B",
+                        "value": 2
+                      },
+                      {
+                        "label": "C",
+                        "value": 6
+                      }
+                    ]
+                  }
+                },
+                {
+                  "diagram": {
+                    "title": "Scaled matches",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 2.828
+                      },
+                      {
+                        "label": "B",
+                        "value": 1.414
+                      },
+                      {
+                        "label": "C",
+                        "value": 4.243
+                      }
+                    ]
+                  }
+                },
+                {
+                  "diagram": {
+                    "title": "Position weights",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 0.187
+                      },
+                      {
+                        "label": "B",
+                        "value": 0.045
+                      },
+                      {
+                        "label": "C",
+                        "value": 0.768
+                      }
+                    ],
+                    "variant": "stacked",
+                    "total": 1
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "operation": "$\\div\\sqrt{2}$"
+                },
+                {
+                  "from": 1,
+                  "to": 2,
+                  "operation": "softmax"
+                }
+              ],
+              "shared": [
+                "classes",
+                "colours"
+              ]
+            }
+          },
+          "detailSpec": {
+            "version": 1,
+            "diagram": {
+              "title": "Query scale changes concentration",
+              "caption": "Toy query doubled; keys fixed. Position order and total stay the same.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Original query",
+                  "diagram": {
+                    "title": "Original query",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 0.284
+                      },
+                      {
+                        "label": "B",
+                        "value": 0.14
+                      },
+                      {
+                        "label": "C",
+                        "value": 0.576
+                      }
+                    ],
+                    "variant": "stacked",
+                    "total": 1
+                  }
+                },
+                {
+                  "heading": "Doubled query",
+                  "diagram": {
+                    "title": "Doubled query",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 0.187
+                      },
+                      {
+                        "label": "B",
+                        "value": 0.045
+                      },
+                      {
+                        "label": "C",
+                        "value": 0.768
+                      }
+                    ],
+                    "variant": "stacked",
+                    "total": 1
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-2",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "brief",
+      "firstHit": "ml-model-evaluation-training-diagnostics",
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "useWhen": "Show illustrative dropout loss and held-out accuracy diagnostics; not a dropout mask, a learning-rate policy, or a guarantee of improved generalization.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Dropout metric summaries",
+              "caption": "Illustrative recorded predictions; loss and accuracy describe different aspects of this history.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Loss",
+                  "diagram": {
+                    "title": "Loss",
+                    "kind": "bar-chart",
+                    "unit": "nats",
+                    "variant": "grouped",
+                    "categories": [
+                      "Epoch 1",
+                      "Epoch 4"
+                    ],
+                    "series": [
+                      {
+                        "label": "Training",
+                        "values": [
+                          0.714,
+                          0.29
+                        ]
+                      },
+                      {
+                        "label": "Held-out",
+                        "values": [
+                          0.714,
+                          0.317
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Held-out accuracy",
+                  "diagram": {
+                    "title": "Held-out accuracy",
+                    "kind": "bar-chart",
+                    "unit": "%",
+                    "bars": [
+                      {
+                        "label": "Epoch 1",
+                        "value": 50
+                      },
+                      {
+                        "label": "Epoch 4",
+                        "value": 100
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-2",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "balanced",
+      "firstHit": "ml-model-evaluation-training-diagnostics",
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "useWhen": "Show illustrative dropout loss and held-out accuracy diagnostics; not a dropout mask, a learning-rate policy, or a guarantee of improved generalization.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Dropout diagnostics",
+              "caption": "Illustrative recorded predictions, not an optimizer guarantee.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Loss",
+                  "diagram": {
+                    "title": "Loss",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Epoch",
+                      "min": 1,
+                      "max": 4,
+                      "integerTicks": true
+                    },
+                    "y": {
+                      "label": "BCE loss",
+                      "min": 0,
+                      "max": 1,
+                      "unit": "nats"
+                    },
+                    "series": [
+                      {
+                        "label": "Training",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            0.714,
+                            0.456,
+                            0.359,
+                            0.29
+                          ]
+                        }
+                      },
+                      {
+                        "label": "Held-out",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            0.714,
+                            0.506,
+                            0.399,
+                            0.317
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Held-out accuracy",
+                  "diagram": {
+                    "title": "Held-out accuracy",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Epoch",
+                      "min": 1,
+                      "max": 4,
+                      "integerTicks": true
+                    },
+                    "y": {
+                      "label": "Accuracy",
+                      "min": 0,
+                      "max": 100,
+                      "unit": "%"
+                    },
+                    "series": [
+                      {
+                        "label": "Held-out",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            50,
+                            75,
+                            100,
+                            100
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "sharedAxes": [
+                "x"
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-2",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "detailed",
+      "firstHit": "ml-model-evaluation-training-diagnostics",
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "useWhen": "Show illustrative dropout loss and held-out accuracy diagnostics; not a dropout mask, a learning-rate policy, or a guarantee of improved generalization.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Dropout diagnostics",
+              "caption": "Illustrative recorded predictions; binary cross entropy $L=-y\\ln p-(1-y)\\ln(1-p)$.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Loss",
+                  "diagram": {
+                    "title": "Loss",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Epoch",
+                      "min": 1,
+                      "max": 4,
+                      "integerTicks": true
+                    },
+                    "y": {
+                      "label": "BCE loss",
+                      "min": 0,
+                      "max": 1,
+                      "unit": "nats"
+                    },
+                    "series": [
+                      {
+                        "label": "Training",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            0.714,
+                            0.456,
+                            0.359,
+                            0.29
+                          ]
+                        }
+                      },
+                      {
+                        "label": "Held-out",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            0.714,
+                            0.506,
+                            0.399,
+                            0.317
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Held-out accuracy",
+                  "diagram": {
+                    "title": "Held-out accuracy",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Epoch",
+                      "min": 1,
+                      "max": 4,
+                      "integerTicks": true
+                    },
+                    "y": {
+                      "label": "Accuracy",
+                      "min": 0,
+                      "max": 100,
+                      "unit": "%"
+                    },
+                    "series": [
+                      {
+                        "label": "Held-out",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            50,
+                            75,
+                            100,
+                            100
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "sharedAxes": [
+                "x"
+              ]
+            }
+          },
+          "detailSpec": {
+            "version": 1,
+            "diagram": {
+              "title": "One correct prediction can lose less",
+              "caption": "Illustrative H2, true class 0; wrong-class probabilities stay below threshold 0.5, so both predictions are correct.",
+              "kind": "panels",
+              "panels": [
+                {
+                  "diagram": {
+                    "title": "Class-one p by epoch",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "3",
+                        "value": 0.4
+                      },
+                      {
+                        "label": "4",
+                        "value": 0.32
+                      }
+                    ]
+                  }
+                },
+                {
+                  "diagram": {
+                    "title": "BCE by epoch (nats)",
+                    "kind": "bar-chart",
+                    "bars": [
+                      {
+                        "label": "3",
+                        "value": 0.511
+                      },
+                      {
+                        "label": "4",
+                        "value": 0.386
+                      }
+                    ]
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "operation": "Compute BCE"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-3",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "brief",
+      "firstHit": "ml-model-evaluation-schedule-run-diagnostics",
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "useWhen": "Show an illustrative fixed-rate accuracy plateau and training heldout gap; not a learning-rate decay curve or a guarantee that a schedule improves generalization.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "A held-out accuracy plateau",
+              "caption": "Illustrative predictions at fixed rate $\\eta=0.1$; not an optimizer guarantee.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Training loss",
+                  "diagram": {
+                    "title": "Training loss",
+                    "kind": "bar-chart",
+                    "unit": "nats",
+                    "bars": [
+                      {
+                        "label": "Epoch 2",
+                        "value": 0.543
+                      },
+                      {
+                        "label": "Epoch 4",
+                        "value": 0.226
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Correct predictions",
+                  "diagram": {
+                    "title": "Correct predictions",
+                    "kind": "bar-chart",
+                    "unit": "of 4",
+                    "variant": "grouped",
+                    "categories": [
+                      "Epoch 2",
+                      "Epoch 4"
+                    ],
+                    "series": [
+                      {
+                        "label": "Training",
+                        "values": [
+                          3,
+                          4
+                        ]
+                      },
+                      {
+                        "label": "Held-out",
+                        "values": [
+                          3,
+                          3
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-3",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "balanced",
+      "firstHit": "ml-model-evaluation-schedule-run-diagnostics",
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "useWhen": "Show an illustrative fixed-rate accuracy plateau and training heldout gap; not a learning-rate decay curve or a guarantee that a schedule improves generalization.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Fixed-rate diagnostics",
+              "caption": "Illustrative predictions; fixed $\\eta=0.1$, no optimizer guarantee.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Accuracy",
+                  "diagram": {
+                    "title": "Accuracy",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Epoch",
+                      "min": 1,
+                      "max": 4,
+                      "integerTicks": true
+                    },
+                    "y": {
+                      "label": "Accuracy",
+                      "min": 0,
+                      "max": 100,
+                      "unit": "%"
+                    },
+                    "series": [
+                      {
+                        "label": "Training",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            50,
+                            75,
+                            100,
+                            100
+                          ]
+                        }
+                      },
+                      {
+                        "label": "Held-out",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            50,
+                            75,
+                            75,
+                            75
+                          ]
+                        }
+                      }
+                    ],
+                    "annotations": [
+                      {
+                        "kind": "band",
+                        "label": "Gap opens",
+                        "axis": "x",
+                        "from": 2,
+                        "to": 4
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Training loss",
+                  "diagram": {
+                    "title": "Training loss",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Epoch",
+                      "min": 1,
+                      "max": 4,
+                      "integerTicks": true
+                    },
+                    "y": {
+                      "label": "BCE loss",
+                      "min": 0,
+                      "max": 1,
+                      "unit": "nats"
+                    },
+                    "series": [
+                      {
+                        "label": "Training",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            0.714,
+                            0.543,
+                            0.382,
+                            0.226
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "sharedAxes": [
+                "x"
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-3",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "detailed",
+      "firstHit": "ml-model-evaluation-schedule-run-diagnostics",
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "useWhen": "Show an illustrative fixed-rate accuracy plateau and training heldout gap; not a learning-rate decay curve or a guarantee that a schedule improves generalization.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Fixed-rate diagnostics",
+              "caption": "Illustrative predictions; $\\eta=0.1$; gap 25 percentage points.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Accuracy",
+                  "diagram": {
+                    "title": "Accuracy",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Epoch",
+                      "min": 1,
+                      "max": 4,
+                      "integerTicks": true
+                    },
+                    "y": {
+                      "label": "Accuracy",
+                      "min": 0,
+                      "max": 100,
+                      "unit": "%"
+                    },
+                    "series": [
+                      {
+                        "label": "Training",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            50,
+                            75,
+                            100,
+                            100
+                          ]
+                        }
+                      },
+                      {
+                        "label": "Held-out",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            50,
+                            75,
+                            75,
+                            75
+                          ]
+                        }
+                      }
+                    ],
+                    "annotations": [
+                      {
+                        "kind": "band",
+                        "label": "Gap opens",
+                        "axis": "x",
+                        "from": 2,
+                        "to": 4
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Training loss",
+                  "diagram": {
+                    "title": "Training loss",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Epoch",
+                      "min": 1,
+                      "max": 4,
+                      "integerTicks": true
+                    },
+                    "y": {
+                      "label": "BCE loss",
+                      "min": 0,
+                      "max": 1,
+                      "unit": "nats"
+                    },
+                    "series": [
+                      {
+                        "label": "Training",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            1,
+                            2,
+                            3,
+                            4
+                          ],
+                          "y": [
+                            0.714,
+                            0.543,
+                            0.382,
+                            0.226
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "sharedAxes": [
+                "x"
+              ]
+            }
+          },
+          "detailSpec": {
+            "version": 1,
+            "diagram": {
+              "title": "One training case crosses the threshold",
+              "caption": "Illustrative true class 0; T2 becomes correct, H2 stays wrong at threshold 0.5.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "T2 Training",
+                  "diagram": {
+                    "title": "T2 Training",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Epoch",
+                      "min": 2,
+                      "max": 3,
+                      "integerTicks": true
+                    },
+                    "y": {
+                      "label": "Class-one probability",
+                      "min": 0,
+                      "max": 1
+                    },
+                    "series": [
+                      {
+                        "label": "Class one",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            2,
+                            3
+                          ],
+                          "y": [
+                            0.55,
+                            0.45
+                          ]
+                        }
+                      }
+                    ],
+                    "annotations": [
+                      {
+                        "kind": "reference-line",
+                        "label": "Decision threshold",
+                        "axis": "y",
+                        "value": 0.5
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "H2 Held-out",
+                  "diagram": {
+                    "title": "H2 Held-out",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Epoch",
+                      "min": 2,
+                      "max": 3,
+                      "integerTicks": true
+                    },
+                    "y": {
+                      "label": "Class-one probability",
+                      "min": 0,
+                      "max": 1
+                    },
+                    "series": [
+                      {
+                        "label": "Class one",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            2,
+                            3
+                          ],
+                          "y": [
+                            0.55,
+                            0.6
+                          ]
+                        }
+                      }
+                    ],
+                    "annotations": [
+                      {
+                        "kind": "reference-line",
+                        "label": "Decision threshold",
+                        "axis": "y",
+                        "value": 0.5
+                      }
+                    ]
+                  }
+                }
+              ],
+              "sharedAxes": [
+                "x",
+                "y"
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-4",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "brief",
+      "firstHit": "ml-time-series-recursive-rollout",
+      "referenceId": "ml-time-series-recursive-rollout",
+      "firstPick": true,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "useWhen": "Show measured inputs replaced by predictions during recursive rollout; NOT one-step forecasting alone or horizon-only comparisons.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Predictions become inputs",
+              "caption": "Worked example. $f(x)=0.5x+1$.",
+              "kind": "coordinate-plot",
+              "x": {
+                "label": "Time",
+                "min": 1,
+                "max": 8
+              },
+              "y": {
+                "label": "Reading",
+                "min": 0,
+                "max": 10
+              },
+              "series": [
+                {
+                  "label": "Observed",
+                  "kind": "line",
+                  "samples": {
+                    "x": {
+                      "start": 1,
+                      "step": 1
+                    },
+                    "y": [
+                      4,
+                      6,
+                      8,
+                      6,
+                      8,
+                      10,
+                      8,
+                      10
+                    ]
+                  }
+                },
+                {
+                  "label": "Recursive",
+                  "kind": "line",
+                  "samples": {
+                    "x": [
+                      5,
+                      6,
+                      7,
+                      8
+                    ],
+                    "y": [
+                      4,
+                      3,
+                      2.5,
+                      2.25
+                    ]
+                  }
+                }
+              ],
+              "annotations": [
+                {
+                  "kind": "reference-line",
+                  "label": "Origin",
+                  "axis": "x",
+                  "value": 4
+                },
+                {
+                  "kind": "reference-line",
+                  "label": "Mean",
+                  "axis": "y",
+                  "value": 7.5
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-4",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "balanced",
+      "firstHit": "ml-time-series-recursive-rollout",
+      "referenceId": "ml-time-series-recursive-rollout",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "useWhen": "Show measured inputs replaced by predictions during recursive rollout; NOT one-step forecasting alone or horizon-only comparisons.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Forecast feedback",
+              "caption": "Worked example. $f(x)=0.5x+1$; recursion reuses predictions.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Traces",
+                  "diagram": {
+                    "title": "Traces",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Time",
+                      "min": 1,
+                      "max": 8
+                    },
+                    "y": {
+                      "label": "Reading",
+                      "min": 0,
+                      "max": 10
+                    },
+                    "series": [
+                      {
+                        "label": "Observed",
+                        "kind": "line",
+                        "samples": {
+                          "x": {
+                            "start": 1,
+                            "step": 1
+                          },
+                          "y": [
+                            4,
+                            6,
+                            8,
+                            6,
+                            8,
+                            10,
+                            8,
+                            10
+                          ]
+                        }
+                      },
+                      {
+                        "label": "Recursive",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            5,
+                            6,
+                            7,
+                            8
+                          ],
+                          "y": [
+                            4,
+                            3,
+                            2.5,
+                            2.25
+                          ]
+                        }
+                      },
+                      {
+                        "label": "One-step",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            5,
+                            6,
+                            7,
+                            8
+                          ],
+                          "y": [
+                            4,
+                            5,
+                            6,
+                            5
+                          ]
+                        }
+                      }
+                    ],
+                    "annotations": [
+                      {
+                        "kind": "reference-line",
+                        "label": "Origin",
+                        "axis": "x",
+                        "value": 4
+                      },
+                      {
+                        "kind": "reference-line",
+                        "label": "Mean",
+                        "axis": "y",
+                        "value": 7.5
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Inputs",
+                  "diagram": {
+                    "title": "Inputs",
+                    "kind": "matrix",
+                    "columns": [
+                      "First",
+                      "Next"
+                    ],
+                    "rows": [
+                      {
+                        "heading": "Recursive",
+                        "cells": [
+                          "Measured",
+                          "Predicted"
+                        ]
+                      },
+                      {
+                        "heading": "One-step",
+                        "cells": [
+                          "Measured",
+                          "Measured"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-4",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "detailed",
+      "firstHit": "ml-time-series-recursive-rollout",
+      "referenceId": "ml-time-series-recursive-rollout",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "useWhen": "Show measured inputs replaced by predictions during recursive rollout; NOT one-step forecasting alone or horizon-only comparisons.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Forecast feedback",
+              "caption": "Worked example. $f(x)=0.5x+1$; $s=f(s)$.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Traces",
+                  "diagram": {
+                    "title": "Traces",
+                    "kind": "coordinate-plot",
+                    "x": {
+                      "label": "Time",
+                      "min": 1,
+                      "max": 8
+                    },
+                    "y": {
+                      "label": "Reading",
+                      "min": 0,
+                      "max": 10
+                    },
+                    "series": [
+                      {
+                        "label": "Observed",
+                        "kind": "line",
+                        "samples": {
+                          "x": {
+                            "start": 1,
+                            "step": 1
+                          },
+                          "y": [
+                            4,
+                            6,
+                            8,
+                            6,
+                            8,
+                            10,
+                            8,
+                            10
+                          ]
+                        }
+                      },
+                      {
+                        "label": "Recursive",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            5,
+                            6,
+                            7,
+                            8
+                          ],
+                          "y": [
+                            4,
+                            3,
+                            2.5,
+                            2.25
+                          ]
+                        }
+                      },
+                      {
+                        "label": "One-step",
+                        "kind": "line",
+                        "samples": {
+                          "x": [
+                            5,
+                            6,
+                            7,
+                            8
+                          ],
+                          "y": [
+                            4,
+                            5,
+                            6,
+                            5
+                          ]
+                        }
+                      }
+                    ],
+                    "annotations": [
+                      {
+                        "kind": "reference-line",
+                        "label": "Origin",
+                        "axis": "x",
+                        "value": 4
+                      },
+                      {
+                        "kind": "reference-line",
+                        "label": "Mean",
+                        "axis": "y",
+                        "value": 7.5
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Inputs",
+                  "diagram": {
+                    "title": "Inputs",
+                    "kind": "matrix",
+                    "columns": [
+                      "First",
+                      "Next"
+                    ],
+                    "rows": [
+                      {
+                        "heading": "Recursive",
+                        "cells": [
+                          "Measured",
+                          "Predicted"
+                        ]
+                      },
+                      {
+                        "heading": "One-step",
+                        "cells": [
+                          "Measured",
+                          "Measured"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "detailSpec": {
+            "version": 1,
+            "diagram": {
+              "title": "Move the forecast origin",
+              "caption": "Worked example. $f(x)=0.5x+1$. A newly measured seed changes the path; the fixed point stays the same.",
+              "kind": "coordinate-plot",
+              "x": {
+                "label": "Time",
+                "min": 1,
+                "max": 8
+              },
+              "y": {
+                "label": "Reading",
+                "min": 0,
+                "max": 10
+              },
+              "series": [
+                {
+                  "label": "Observed",
+                  "kind": "line",
+                  "samples": {
+                    "x": {
+                      "start": 1,
+                      "step": 1
+                    },
+                    "y": [
+                      4,
+                      6,
+                      8,
+                      6,
+                      8,
+                      10,
+                      8,
+                      10
+                    ]
+                  }
+                },
+                {
+                  "label": "Earlier origin",
+                  "kind": "line",
+                  "samples": {
+                    "x": [
+                      5,
+                      6,
+                      7,
+                      8
+                    ],
+                    "y": [
+                      4,
+                      3,
+                      2.5,
+                      2.25
+                    ]
+                  }
+                },
+                {
+                  "label": "Later origin",
+                  "kind": "line",
+                  "samples": {
+                    "x": [
+                      6,
+                      7,
+                      8
+                    ],
+                    "y": [
+                      5,
+                      3.5,
+                      2.75
+                    ]
+                  }
+                }
+              ],
+              "annotations": [
+                {
+                  "kind": "reference-line",
+                  "label": "Origin",
+                  "axis": "x",
+                  "value": 4
+                },
+                {
+                  "kind": "reference-line",
+                  "label": "Later origin",
+                  "axis": "x",
+                  "value": 5
+                },
+                {
+                  "kind": "reference-line",
+                  "label": "Mean",
+                  "axis": "y",
+                  "value": 7.5
+                },
+                {
+                  "kind": "reference-line",
+                  "label": "Fixed point",
+                  "axis": "y",
+                  "value": 2
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-5",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "brief",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "useWhen": "Show input style shift with a fixed class rule on independently drawn domains; not changed label meanings or a time-series forecast.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Different styles, same classes",
+              "caption": "Selected examples; A round, B square.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Training",
+                  "diagram": {
+                    "title": "Training",
+                    "kind": "sample-set",
+                    "samples": [
+                      {
+                        "id": "t1",
+                        "label": "Dark",
+                        "class": "A"
+                      },
+                      {
+                        "id": "t3",
+                        "label": "Dark",
+                        "class": "B"
+                      }
+                    ],
+                    "groups": [
+                      {
+                        "id": "training",
+                        "label": "Independent draw",
+                        "members": [
+                          "t1",
+                          "t3"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Deployment",
+                  "diagram": {
+                    "title": "Deployment",
+                    "kind": "sample-set",
+                    "samples": [
+                      {
+                        "id": "d2",
+                        "label": "Light",
+                        "class": "A"
+                      },
+                      {
+                        "id": "d3",
+                        "label": "Light",
+                        "class": "B"
+                      }
+                    ],
+                    "groups": [
+                      {
+                        "id": "deployment",
+                        "label": "Independent draw",
+                        "members": [
+                          "d2",
+                          "d3"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-5",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "balanced",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "useWhen": "Show input style shift with a fixed class rule on independently drawn domains; not changed label meanings or a time-series forecast.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Different styles, same classes",
+              "caption": "Independent draws; round is A, square is B in both domains.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Training",
+                  "diagram": {
+                    "title": "Training",
+                    "kind": "sample-set",
+                    "samples": [
+                      {
+                        "id": "t1",
+                        "label": "Dark round",
+                        "class": "A"
+                      },
+                      {
+                        "id": "t2",
+                        "label": "Dark round",
+                        "class": "A"
+                      },
+                      {
+                        "id": "t3",
+                        "label": "Dark square",
+                        "class": "B"
+                      },
+                      {
+                        "id": "t4",
+                        "label": "Light square",
+                        "class": "B"
+                      }
+                    ],
+                    "groups": [
+                      {
+                        "id": "training",
+                        "label": "Independent draw",
+                        "members": [
+                          "t1",
+                          "t2",
+                          "t3",
+                          "t4"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Deployment",
+                  "diagram": {
+                    "title": "Deployment",
+                    "kind": "sample-set",
+                    "samples": [
+                      {
+                        "id": "d1",
+                        "label": "Dark round",
+                        "class": "A"
+                      },
+                      {
+                        "id": "d2",
+                        "label": "Light round",
+                        "class": "A"
+                      },
+                      {
+                        "id": "d3",
+                        "label": "Light square",
+                        "class": "B"
+                      },
+                      {
+                        "id": "d4",
+                        "label": "Light square",
+                        "class": "B"
+                      }
+                    ],
+                    "groups": [
+                      {
+                        "id": "deployment",
+                        "label": "Independent draw",
+                        "members": [
+                          "d1",
+                          "d2",
+                          "d3",
+                          "d4"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-5",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "detailed",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "useWhen": "Show input style shift with a fixed class rule on independently drawn domains; not changed label meanings or a time-series forecast.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Count input styles in each domain",
+              "caption": "Count dark and light cards in each independently drawn domain.",
+              "kind": "bar-chart",
+              "unit": "Cards",
+              "variant": "grouped",
+              "categories": [
+                "Dark",
+                "Light"
+              ],
+              "series": [
+                {
+                  "label": "Training",
+                  "values": [
+                    3,
+                    1
+                  ]
+                },
+                {
+                  "label": "Deployment",
+                  "values": [
+                    1,
+                    3
+                  ]
+                }
+              ]
+            }
+          },
+          "detailSpec": {
+            "version": 1,
+            "diagram": {
+              "title": "Both target classes remain represented",
+              "caption": "Round is A; square is B in both independent domains.",
+              "kind": "bar-chart",
+              "unit": "Cards",
+              "variant": "grouped",
+              "categories": [
+                "A",
+                "B"
+              ],
+              "series": [
+                {
+                  "label": "Training",
+                  "values": [
+                    2,
+                    2
+                  ]
+                },
+                {
+                  "label": "Deployment",
+                  "values": [
+                    2,
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-6",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "brief",
+      "firstHit": "ml-distribution-shift-concept-shift",
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift",
+          "useWhen": "Show conditional label change across invented naming settings on the same inputs; not a shift in input frequency or class balance.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Same dark round cards, different names",
+              "caption": "Invented studios name the same fixed input differently.",
+              "kind": "panels",
+              "panels": [
+                {
+                  "diagram": {
+                    "title": "Elm",
+                    "kind": "bar-chart",
+                    "unit": "Cards",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 3
+                      },
+                      {
+                        "label": "B",
+                        "value": 0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "diagram": {
+                    "title": "Ash",
+                    "kind": "bar-chart",
+                    "unit": "Cards",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 0
+                      },
+                      {
+                        "label": "B",
+                        "value": 3
+                      }
+                    ]
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "operation": "Change rule"
+                }
+              ],
+              "shared": [
+                "classes",
+                "colours"
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-6",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "balanced",
+      "firstHit": "ml-distribution-shift-concept-shift",
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift",
+          "useWhen": "Show conditional label change across invented naming settings on the same inputs; not a shift in input frequency or class balance.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Same dark round cards, different names",
+              "caption": "Invented studios name the same fixed input differently.",
+              "kind": "panels",
+              "panels": [
+                {
+                  "label": "Round is A; square is B",
+                  "diagram": {
+                    "title": "Elm",
+                    "kind": "bar-chart",
+                    "unit": "Cards",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 3
+                      },
+                      {
+                        "label": "B",
+                        "value": 0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "label": "Round is B; square is A",
+                  "diagram": {
+                    "title": "Ash",
+                    "kind": "bar-chart",
+                    "unit": "Cards",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 0
+                      },
+                      {
+                        "label": "B",
+                        "value": 3
+                      }
+                    ]
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "operation": "Change label rule"
+                }
+              ],
+              "shared": [
+                "classes",
+                "colours"
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-6",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "detailed",
+      "firstHit": "ml-distribution-shift-concept-shift",
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift",
+          "useWhen": "Show conditional label change across invented naming settings on the same inputs; not a shift in input frequency or class balance.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Same light square cards, different names",
+              "caption": "Same 8 inputs in both studios; 8 labels change; each still has 4 A and 4 B.",
+              "kind": "panels",
+              "panels": [
+                {
+                  "label": "Round is A; square is B",
+                  "diagram": {
+                    "title": "Elm",
+                    "kind": "bar-chart",
+                    "unit": "Cards",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 0
+                      },
+                      {
+                        "label": "B",
+                        "value": 3
+                      }
+                    ]
+                  }
+                },
+                {
+                  "label": "Round is B; square is A",
+                  "diagram": {
+                    "title": "Ash",
+                    "kind": "bar-chart",
+                    "unit": "Cards",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 3
+                      },
+                      {
+                        "label": "B",
+                        "value": 0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "operation": "Change label rule"
+                }
+              ],
+              "shared": [
+                "classes",
+                "colours"
+              ]
+            }
+          },
+          "detailSpec": {
+            "version": 1,
+            "diagram": {
+              "title": "Count all cards under each naming rule",
+              "caption": "8 fixed inputs; all 8 labels change, but class totals stay equal.",
+              "kind": "panels",
+              "panels": [
+                {
+                  "diagram": {
+                    "title": "Elm",
+                    "kind": "bar-chart",
+                    "unit": "Cards",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 4
+                      },
+                      {
+                        "label": "B",
+                        "value": 4
+                      }
+                    ]
+                  }
+                },
+                {
+                  "diagram": {
+                    "title": "Ash",
+                    "kind": "bar-chart",
+                    "unit": "Cards",
+                    "bars": [
+                      {
+                        "label": "A",
+                        "value": 4
+                      },
+                      {
+                        "label": "B",
+                        "value": 4
+                      }
+                    ]
+                  }
+                }
+              ],
+              "links": [
+                {
+                  "from": 0,
+                  "to": 1,
+                  "operation": "Change label rule"
+                }
+              ],
+              "shared": [
+                "classes",
+                "colours"
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-5-alias",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "brief",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "useWhen": "Show input style shift with a fixed class rule on independently drawn domains; not changed label meanings or a time-series forecast.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Different styles, same classes",
+              "caption": "Selected examples; A round, B square.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Training",
+                  "diagram": {
+                    "title": "Training",
+                    "kind": "sample-set",
+                    "samples": [
+                      {
+                        "id": "t1",
+                        "label": "Dark",
+                        "class": "A"
+                      },
+                      {
+                        "id": "t3",
+                        "label": "Dark",
+                        "class": "B"
+                      }
+                    ],
+                    "groups": [
+                      {
+                        "id": "training",
+                        "label": "Independent draw",
+                        "members": [
+                          "t1",
+                          "t3"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Deployment",
+                  "diagram": {
+                    "title": "Deployment",
+                    "kind": "sample-set",
+                    "samples": [
+                      {
+                        "id": "d2",
+                        "label": "Light",
+                        "class": "A"
+                      },
+                      {
+                        "id": "d3",
+                        "label": "Light",
+                        "class": "B"
+                      }
+                    ],
+                    "groups": [
+                      {
+                        "id": "deployment",
+                        "label": "Independent draw",
+                        "members": [
+                          "d2",
+                          "d3"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-5-alias",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "balanced",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "useWhen": "Show input style shift with a fixed class rule on independently drawn domains; not changed label meanings or a time-series forecast.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Different styles, same classes",
+              "caption": "Independent draws; round is A, square is B in both domains.",
+              "kind": "comparison",
+              "variant": "panels",
+              "panels": [
+                {
+                  "heading": "Training",
+                  "diagram": {
+                    "title": "Training",
+                    "kind": "sample-set",
+                    "samples": [
+                      {
+                        "id": "t1",
+                        "label": "Dark round",
+                        "class": "A"
+                      },
+                      {
+                        "id": "t2",
+                        "label": "Dark round",
+                        "class": "A"
+                      },
+                      {
+                        "id": "t3",
+                        "label": "Dark square",
+                        "class": "B"
+                      },
+                      {
+                        "id": "t4",
+                        "label": "Light square",
+                        "class": "B"
+                      }
+                    ],
+                    "groups": [
+                      {
+                        "id": "training",
+                        "label": "Independent draw",
+                        "members": [
+                          "t1",
+                          "t2",
+                          "t3",
+                          "t4"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "heading": "Deployment",
+                  "diagram": {
+                    "title": "Deployment",
+                    "kind": "sample-set",
+                    "samples": [
+                      {
+                        "id": "d1",
+                        "label": "Dark round",
+                        "class": "A"
+                      },
+                      {
+                        "id": "d2",
+                        "label": "Light round",
+                        "class": "A"
+                      },
+                      {
+                        "id": "d3",
+                        "label": "Light square",
+                        "class": "B"
+                      },
+                      {
+                        "id": "d4",
+                        "label": "Light square",
+                        "class": "B"
+                      }
+                    ],
+                    "groups": [
+                      {
+                        "id": "deployment",
+                        "label": "Independent draw",
+                        "members": [
+                          "d1",
+                          "d2",
+                          "d3",
+                          "d4"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c02-5-alias",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "detailed",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "useWhen": "Show input style shift with a fixed class rule on independently drawn domains; not changed label meanings or a time-series forecast.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Count input styles in each domain",
+              "caption": "Count dark and light cards in each independently drawn domain.",
+              "kind": "bar-chart",
+              "unit": "Cards",
+              "variant": "grouped",
+              "categories": [
+                "Dark",
+                "Light"
+              ],
+              "series": [
+                {
+                  "label": "Training",
+                  "values": [
+                    3,
+                    1
+                  ]
+                },
+                {
+                  "label": "Deployment",
+                  "values": [
+                    1,
+                    3
+                  ]
+                }
+              ]
+            }
+          },
+          "detailSpec": {
+            "version": 1,
+            "diagram": {
+              "title": "Both target classes remain represented",
+              "caption": "Round is A; square is B in both independent domains.",
+              "kind": "bar-chart",
+              "unit": "Cards",
+              "variant": "grouped",
+              "categories": [
+                "A",
+                "B"
+              ],
+              "series": [
+                {
+                  "label": "Training",
+                  "values": [
+                    2,
+                    2
+                  ]
+                },
+                {
+                  "label": "Deployment",
+                  "values": [
+                    2,
+                    2
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    }
+  ],
+  "collisions": [],
+  "changedPriorPicks": [],
+  "priorCases": 2937,
+  "parity": "Offline prior-pick parity with deterministic source-kind JEV plans"
+}
