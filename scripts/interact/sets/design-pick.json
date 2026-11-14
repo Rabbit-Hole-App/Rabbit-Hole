@@ -21,7 +21,7 @@
   "id": 4,
   "prompt": "Does a heavier ball thrown upward come down faster?",
   "label": "vertical-throw",
-  "note": ""
+  "note": "owner 2026-11-14 00:40: stays vertical-throw, but only the Deep (detailed) card has mass"
  },
  {
   "id": 5,
@@ -62,8 +62,8 @@
  {
   "id": 11,
   "prompt": "Show me velocity versus time for a ball tossed straight up.",
-  "label": "vertical-throw",
-  "note": ""
+  "label": "either",
+  "note": "owner 2026-11-14 00:40: ambiguous (a velocity-time curve of a toss); label either, excluded from the wrong and missed counts"
  },
  {
   "id": 12,
@@ -93,7 +93,7 @@
   "id": 16,
   "prompt": "How does gravity's force on a ball change with its mass during a toss?",
   "label": "vertical-throw",
-  "note": ""
+  "note": "owner 2026-11-14 00:40: stays vertical-throw, but only the Deep (detailed) card has mass"
  },
  {
   "id": 17,
@@ -194,8 +194,8 @@
  {
   "id": 33,
   "prompt": "How does a pendulum's period depend on its length?",
-  "label": "none",
-  "note": "an over-time scene that no family covers yet"
+  "label": "curve-sliders",
+  "note": "owner 2026-11-14 00:40: relabelled from none; a pendulum period against its length is a curve a parameter changes (the earlier note \"an over-time scene that no family covers yet\" no longer applies to this one)"
  },
  {
   "id": 34,

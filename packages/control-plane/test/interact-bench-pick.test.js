@@ -8,6 +8,13 @@ const L = 'vertical-throw';
 const row = (id, depth, p, ms = 800, extra = {}) => ({ list: L, id: String(id), depth, rep: 0, probabilities: p, ms, ...extra });
 const vt = (v, none = 1 - v) => ({ 'vertical-throw': v, none });
 
+test('label either (an ambiguous prompt) is never a wrong fit and never a missed fit, whatever the pick does', () => {
+  const set = [{ id: 11, label: 'either' }, { id: 1, label: 'vertical-throw' }];
+  const rows = [row(11, 'brief', vt(0.95)), row(11, 'balanced', vt(0.1)), row(11, 'detailed', null), row(1, 'brief', vt(0.95))];
+  const b = aggregate(rows, set)[L].byThreshold[0.7];
+  assert.deepEqual([b.wrongPrompts, b.missedPrompts, b.wrongCalls, b.missedCalls, b.passes], [[], [], 0, 0, true]);
+});
+
 test('decide: a family fits only when it is the top choice and reaches the threshold; no answer is a gap', () => {
   assert.equal(decide(row(1, 'brief', vt(0.8)), 0.7), 'vertical-throw');
   assert.equal(decide(row(1, 'brief', vt(0.8)), 0.9), null);

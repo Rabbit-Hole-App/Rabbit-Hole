@@ -38,12 +38,13 @@ const RULES = [
 // card's own style (interact-description-fit.js estimateLines) 130 to 200 characters is 2 to 4 lines at all three. The rest are the plan's own bounds (PLAN_LIMITS) and each word's own maximum.
 const LIMITS = [
   'title: at most 120 characters. story: at most 3000 characters. instructions: at most 300 characters.',
-  'cardDescription: exactly two sentences of 130 to 200 characters in all, one plain paragraph with no line break and no markdown (one sentence is one line and is refused; so is anything over 4 lines).',
+  'cardDescription: exactly two sentences of 130 to 200 characters in all, one plain paragraph with no line break and no markdown (under 130 characters is one line and is refused; so is anything over 4 lines; never split it with a line break).',
   'Every word is at most the number of characters its key states.',
+  'A formula reads only the names t, launchSpeed, gravity and (at the Deep depth) mass; any other name (apexTime, apexHeight, launchHeight) is refused.',
 ];
 
-export function fillSystem(depth, schemaInfo) {
-  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, '', '## Formulas', GRAMMAR, ...RULES, '', 'Return the brief only: no prose.'].join('\n');
+export function fillSystem(depth, schemaInfo, describe = familyDescription) {
+  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, describe(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, '', '## Formulas', GRAMMAR, ...RULES, '', 'Return the brief only: no prose.'].join('\n');
 }
 
 
