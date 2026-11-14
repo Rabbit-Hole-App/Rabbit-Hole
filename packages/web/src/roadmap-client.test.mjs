@@ -61,8 +61,11 @@ test('invitation: two exact choices and the drop sentence; never deferred for ty
   assert.equal(invitationOf(reduce(initialState(), { type: 'invitation', invitation: null, suppressed: view('invitation-suppressed').suppressed })), null);
 });
 
-test('an invitation is not shown over an unfinished roadmap', () => {
-  assert.equal(invitationOf(reduce(withView('status-active-proposal-pending'), { type: 'invitation', invitation: view('invitation-offered').invitation })), null);
+test('an invitation is shown over any roadmap but a course being made (owner 2026-11-14: Create a course replaces the rest)', () => {
+  const offered = view('invitation-offered').invitation;
+  assert.ok(invitationOf(reduce(withView('status-active-proposal-pending'), { type: 'invitation', invitation: offered })), 'a plan or an unfinished course does not hide it');
+  const running = withView('status-active-proposal-pending', { view: { ...view('status-active-proposal-pending'), course: { running: true, total: 2, made: 0, failed: 0 } } });
+  assert.equal(invitationOf(reduce(running, { type: 'invitation', invitation: offered })), null, 'a course being made does');
 });
 
 test('409: the response replaces local state with the current view and shows the plain sentence', () => {

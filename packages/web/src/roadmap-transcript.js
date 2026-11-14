@@ -3,7 +3,7 @@
 // saved (chat-persist.js saveTutorEntry) in the roadmap's bound thread with a versioned private record (tutor: { v: 1, kind, seq, ids });
 // seq grows with the entry's stage, so the server updates it in place and never regresses it. Actions are resolved against the live state
 // at render time (RoadmapTranscript.jsx): a stored entry with no live counterpart keeps its labels, disabled, and can never replay an action.
-import { acceptedPlanOf, canStartCourse, chatOf, draftOf } from './roadmap-client.js';
+import { acceptedPlanOf, canRetryCourse, canStartCourse, chatOf, draftOf } from './roadmap-client.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 import { STRINGS } from './roadmap-strings.js';
 
@@ -104,11 +104,11 @@ export function entriesOf(state, { invitation = null, route = null, boundary = n
   const accepted = acceptedPlanOf(view);
   if (accepted && rm.acceptedPlanVersion != null) {
     const open = isUnfinishedRoadmap(rm.state);
-    push(acceptedClientId(rid, rm.acceptedPlanVersion), 'accepted', 1, STRINGS.roadmapReady(), { roadmapId: rid, planVersion: rm.acceptedPlanVersion }, [
+    push(acceptedClientId(rid, rm.acceptedPlanVersion), 'accepted', 1, (!view.course?.running && view.course?.failed > 0 ? STRINGS.courseSummary(view.course.made, view.course.total, view.course.failed) : STRINGS.roadmapReady()), { roadmapId: rid, planVersion: rm.acceptedPlanVersion }, [
       ...(open && canStartCourse(state) ? [act('generate_course', STRINGS.generateCourse, {}, { primary: true, green: true })] : []),
+      ...(open && canRetryCourse(state) ? [act('try_again', STRINGS.tryAgain, {}, { primary: true, green: true })] : []),
       act('open_toc', STRINGS.openToc, {}, { blue: true }),
-      ...(open ? [act('edit_roadmap', STRINGS.editRoadmap, {}, { disabled: pending })] : []),
-      ...(open ? [act('end', STRINGS.end)] : []),
+      ...(open ? [act('edit_roadmap', STRINGS.editRoadmap, {}, { disabled: pending || !!view.course?.running })] : []), // no End roadmap (owner 2026-11-14): a new file replaces the course, and Cancel stops a run
     ]);
   }
   // No per-card entries (owner 2026-11-14): a course makes every card from one Generate course; its progress is the overlay on the canvas and each row's status in the table of contents.
@@ -128,7 +128,7 @@ export function outcomeOf(entry, { live = true, acceptedPlanVersion = null } = {
 }
 // A stored entry's action ids as their labels, for history (always disabled: a stored entry with no live counterpart never acts).
 const LABELS = { route_new: STRINGS.startNewChat, route_stay: STRINGS.stayHere, explain_on_canvas: STRINGS.explain, keep_here: STRINGS.keepHere, accept_roadmap: STRINGS.acceptRoadmap,
-  edit_roadmap: STRINGS.editRoadmap, open_toc: STRINGS.openToc, generate_course: STRINGS.generateCourse, end: STRINGS.end };
+  edit_roadmap: STRINGS.editRoadmap, open_toc: STRINGS.openToc, generate_course: STRINGS.generateCourse, try_again: STRINGS.tryAgain };
 export const historyActions = tutor => [...new Set(tutor?.actions || [])].filter(id => LABELS[id] && !['open_toc'].includes(id)).map(id => ({ id, label: LABELS[id], run: { kind: id }, disabled: true }));
 
 // Edit roadmap (UI.03): the composer's existing edit-target pill (chat-workspace.jsx editing, ContextChips EditTargetPill) aimed at this roadmap

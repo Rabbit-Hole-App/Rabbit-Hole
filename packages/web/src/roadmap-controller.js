@@ -257,6 +257,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     answer: fields => mutateView(`answer:${state.view?.question?.id}`, key => routes.answer(state.view, { questionId: state.view.question.id, ...fields }, key)),
     // Create a course (owner 2026-11-14): one gesture per press and run; the answer is the view with the run in it.
     startCourse: () => mutateView(`course:start:${state.view?.roadmap.id}:${state.view?.roadmap.revision}`, key => routes.startCourse(state.view, key)),
+    retryCourse: () => mutateView(`course:retry:${state.view?.roadmap.id}:${state.view?.roadmap.revision}`, key => routes.retryCourse(state.view, key)),
     stopCourse: () => mutateView(`course:stop:${state.view?.roadmap.id}:${state.view?.roadmap.revision}`, key => routes.stopCourse(state.view, key)),
     linkCard: (cardId, reason) => mutateView(`link:${cardId}`, key => routes.linkCard(state.view, cardId, reason, key)),
     end: () => mutateView(`end:${state.view?.roadmap.id}`, key => routes.end(state.view, key)),

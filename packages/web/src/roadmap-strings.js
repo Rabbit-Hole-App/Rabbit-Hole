@@ -51,7 +51,7 @@ export const STRINGS = Object.freeze({
   recoveryDone: 'Resolved', routedNew: 'Started a new chat', routedStay: 'Stayed in this chat', draftAccepted: 'Roadmap accepted', draftReplaced: 'Replaced by a newer draft',
   routeChoice: name => `You’ve added **${name}**. Start a new chat for this document or stay here?`,
   inviteDrop: name => `You’ve added **${name}**. Would you like me to create a course from it?`,
-  boundary: name => `You’ve added **${name}**. This canvas already has a roadmap in progress, so I’ll keep it here. To start a separate roadmap for it, use End roadmap on the current one first.`,
+  boundary: name => `You’ve added **${name}**. A course is being made on this canvas, so I’ll keep it here. Drop it again when the course is done.`, // owner 2026-11-14: one course per canvas, no End roadmap
   generatingRoadmap: 'Generating roadmap', roadmapPrepared: name => `I’ve prepared a roadmap for **${name}**.`,
   roadmapParameters: 'Roadmap parameters', roadmapDraft: 'Roadmap draft', scope: 'Scope', fullContent: name => `Full content · ${name}`, selectedPassage: 'Selected passage',
   roadmapMode: 'Roadmap', modeExplanations: 'Explanations only', modePractice: 'Explanations + practice', practiceUnavailable: 'Practice is not available yet',
@@ -60,7 +60,10 @@ export const STRINGS = Object.freeze({
   // Create a course (owner 2026-11-14): the button, the progress over the canvas, and why a run stopped.
   generateCourse: 'Generate course', courseMaking: 'Generating your course', didYouKnow: 'Did you know',
   courseProgress: (made, total) => `${made} of ${total} cards made`, courseNow: title => `Making ${title}`, courseFailed: n => (n === 1 ? '1 could not be made' : `${n} could not be made`),
-  courseStopped: { allowance: 'Your credits ran out, so the course stopped. The cards already made are on the canvas.', blocked: 'The course stopped at a card that could not be prepared. The cards already made are on the canvas.' },
+  tryAgain: 'Try again', courseSummary: (made, total, failed) => `${made} of ${total} cards made. ${failed === 1 ? '1 could not be made' : `${failed} could not be made`}.`,
+  courseStopped: { allowance: 'Your credits ran out, so the course stopped. The cards already made are on the canvas.', blocked: 'The course stopped at a card that could not be prepared. The cards already made are on the canvas.',
+    source_changed: 'The file changed after the plan was made, so the course stopped. Edit the plan to continue.', failures: 'Several cards in a row could not be made, so the course stopped. Use Try again in a moment.',
+    safety: 'The course stopped because a card could not be made safely. The cards already made are on the canvas.', incomplete: 'Some cards could not be made. Use Try again.' },
   nextCard: 'Next card', editCard: 'Edit card', goToCard: 'Go to card', goToText: 'Go to highlighted text',
   stage: { proposed: 'Proposed card', accepting: 'Accepting', generating: 'Generating', checking: 'Checking', saving: 'Saving', ready: 'Ready on the canvas', failed: 'Not made', skipped: 'Skipped', cancelled: 'Cancelled' },
   formatName: { explanation: 'Explanation', table: 'Table' },

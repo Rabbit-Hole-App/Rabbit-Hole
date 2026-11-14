@@ -5,7 +5,7 @@
 // Owner 2026-11-14: a course is made from one Generate course, so the per-card offer is gone: no overlay anchor, no plain-Tab accept, no proposal editor.
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { createRoadmapController } from './roadmap-controller.js';
-import { canStartCourse, chatOf, courseOf, invitationOf, lessonSourcesOf, tocOf } from './roadmap-client.js';
+import { canRetryCourse, canStartCourse, chatOf, courseOf, invitationOf, lessonSourcesOf, tocOf } from './roadmap-client.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 
 const METHODS = ['hasBlock', 'insertCard', 'persist', 'boardRevision', 'savedHas', 'settled', 'readOnly', 'sourceRev', 'sourceName', 'instruction', 'depth', 'sources'];
@@ -34,7 +34,7 @@ export function useRoadmap({ api, boardId, host, enabled = true, mode = 'auto', 
   return {
     lessonSources: () => lessonSourcesOf(controller.getState(), hostRef.current?.sources?.() || []),
     state, controller, active: !!state.view && state.flag !== 'off' && isUnfinishedRoadmap(state.view.roadmap.state), toc: tocOf(state), lines: chatOf(state), invitation: invitationOf(state),
-    canStartCourse: canStartCourse(state), course: courseOf(state), startCourse: () => controller.startCourse(), stopCourse: () => controller.stopCourse(),
+    canStartCourse: canStartCourse(state), canRetryCourse: canRetryCourse(state), course: courseOf(state), startCourse: () => controller.startCourse(), stopCourse: () => controller.stopCourse(), retryCourse: () => controller.retryCourse(),
     acceptPlan: () => controller.acceptPlan(), go, restoreCard: resultId => controller.restoreCard(resultId), sourceReady: key => controller.sourceReady(key), expectInvitation: () => controller.expectInvitation(),
     on: enabled && !!boardId && state.flag !== 'off', // the roadmap runs on this canvas: its lines render in Chat's transcript (RoadmapTranscript.jsx)
   };

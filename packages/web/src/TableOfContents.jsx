@@ -266,6 +266,7 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
       {goal && <p data-toc-goal title={goal} className="mb-4 shrink-0 line-clamp-2 text-[13px] leading-normal break-words text-ink-2"><span className="font-medium text-ink">Goal</span> · {goal}</p>}
       {top}
       {roadmap?.canStartCourse && !readOnly && <div className="mb-3 shrink-0"><Button type="button" size="sm" variant="primary" data-toc-generate-course onClick={() => roadmap.startCourse()}>Generate course</Button></div>}
+      {roadmap?.canRetryCourse && !readOnly && <div className="mb-3 shrink-0"><Button type="button" size="sm" variant="primary" data-toc-try-again onClick={() => roadmap.retryCourse()}>Try again</Button></div>}
       {shown && <ProposalCard proposal={shown} outline={outline} canvasApi={canvasApi} onDone={() => onProposal?.(null)} />}
       {list(tree, 0)}
       {adding && (

@@ -22,7 +22,7 @@ export function RoadmapCanvas({ roadmap }) {
   const stopped = st?.view?.course?.stopped, run = st?.view?.roadmap?.id + ':' + (st?.view?.course?.stopped ?? '');
   const toldStop = useRef(null);
   useEffect(() => {
-    if (!stopped || !STRINGS.courseStopped[stopped] || toldStop.current === run) return;
+    if (!stopped || !STRINGS.courseStopped[stopped] || toldStop.current === run || (stopped === 'incomplete' && !(st?.view?.course?.failed > 0))) return;
     toldStop.current = run;
     toast(STRINGS.courseStopped[stopped], { tone: 'error' });
   }, [stopped, run]);

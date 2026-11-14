@@ -103,7 +103,7 @@ export async function roadmapView(db, access, roadmap) {
   const shown = draftPlan ?? plan;
   // The course run (roadmap-course.js; owner 2026-11-14): whether it is running, how many cards are made, the one being made and the fun facts for the wait.
   const run = scopeJson.course ?? null;
-  const course = run ? { running: !!run.running, stopped: run.stopped ?? null, total: steps.length, made: steps.filter(s => ['saving', 'ready'].includes(s.stage)).length, failed: steps.filter(s => s.stage === 'failed').length,
+  const course = run ? { running: !!run.running, stopped: run.stopped ?? null, total: steps.length, made: steps.filter(s => ['saving', 'ready'].includes(s.stage)).length, failed: steps.filter(s => ['incomplete', 'skipped'].includes(s.state) && results.some(r => r.stepId === s.id && r.stage === 'failed')).length,
     current: steps.find(s => ['generating', 'checking'].includes(s.stage))?.title ?? null, facts: Array.isArray(run.facts) ? run.facts : [] } : null;
   // A blocked card offer (roadmap-lifecycle.js recordOfferBlocked), shown only while its step still waits with no offer: the Chat recovery entry's one question or help.
   const held = scopeJson.offerRecovery, blockedStep = held && stepOf(held.stepId);

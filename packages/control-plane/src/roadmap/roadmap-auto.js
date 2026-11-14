@@ -67,6 +67,8 @@ export async function autoProposalHandler(env, event, { now = nowSeconds() } = {
   if (event.kind === 'card_delivered' || event.kind === 'card_failed') {
     const running = await accessForRoadmap(db, event);
     const roadmap = running && await readRoadmap(db, running, event.roadmap_id);
+    // Once a course has run, the per-card automatic offer is retired for that roadmap (owner 2026-11-14): a stopped course offers nothing by itself.
+    if (roadmap && courseOf(roadmap) && !courseOf(roadmap).running) return { done: true };
     if (roadmap && courseOf(roadmap)?.running) {
       const next = await advanceCourse(env, running, event.roadmap_id, { compose: deps.compose, revalidate: deps.revalidate || revalidateSourceAsJob, callModel: deps.callModel, factsInline: true, now });
       return next.status === 'unresolved' ? { retry: true } : { done: true };

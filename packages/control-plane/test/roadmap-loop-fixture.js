@@ -83,7 +83,7 @@ export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 
   const env = { ...w.env, ROADMAP_ENABLED: flag, ...envExtra, LEARN_MEDIA: { get: async key => (key in objects ? { text: async () => objects[key] } : null) } };
   const m = models({ plans }), p = provider(script);
   registerRoadmapHandlers({ callModel: m.callModel, checkCallModel: m.callModel, classify: classifier, base: p.base });
-  const deps = { identity: async () => ({ org: 'team', email: 'u-alice@example.test', userId: 'u-alice' }), ...roadmapDeps(env, null, { settings }) };
+  const deps = { identity: async () => ({ org: 'team', email: 'u-alice@example.test', userId: 'u-alice' }), ...roadmapDeps(env, null, { settings, readSourceOptions: { minWords: 0 } }) }; // the fixtures' Markdown is a few lines: the 100-word check is tested in roadmap-course.test.js
   const call = (method, path, payload) => roadmapRoute(path.split('?')[0], new Request(`${ORIGIN}${path}`, { method, headers: { 'content-type': 'application/json' }, body: payload ? JSON.stringify(payload) : undefined }), env, deps);
   const json = async (method, path, payload) => { const r = await call(method, path, payload); return { status: r.status, body: await r.json() }; };
   const status = async () => (await json('GET', `/api/learn/roadmap?boardId=${BOARD}`)).body;
