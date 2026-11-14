@@ -1105,3 +1105,6 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 
 /* The tool buttons on the canvas strip's pills are round on hover and press, not square (owner 2026-11-13). Only the buttons themselves: a menu's items are deeper and keep their shape. */
 [data-composer-tools] > button, [data-composer-tools] > * > button { border-radius: 9999px; }
+
+/* While a card or the canvas is being dragged the card action pill (Enter, Add to chat, Quick Edit, Minimize) is hidden (owner 2026-11-13). */
+body.canvas-dragging [data-card-chrome-row] { display: none; }
