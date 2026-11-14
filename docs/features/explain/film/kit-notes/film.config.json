@@ -1,0 +1,4 @@
+{
+  "_note": "Typing speed of the take, in ms per key (owner 02:35: always show the typing slower; the v1 takes used prose 9 / command 30). prose_ms types questions and any prose; command_ms types slash commands (/explain). Mirror these keys in the kit config.",
+  "typing": { "prose_ms": 45, "command_ms": 80 }
+}
