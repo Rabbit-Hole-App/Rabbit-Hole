@@ -5438,7 +5438,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const picked = selectedRef.current.find(drawn);
     if (picked) return picked;
     if (lastExplain.current && drawn(lastExplain.current)) return lastExplain.current;
-    return [...blocksRef.current].reverse().find(block => explainCard(block) && drawn(block.id))?.id ?? null;
+    return [...blocksRef.current].reverse().find(block => explainCard(block) && drawn(block.id))?.id
+      ?? blocksRef.current.find(block => block.type === 'file' && block.kind === 'markdown' && drawn(block.id))?.id ?? null; // no explanation card yet: the markdown the learner is reading is what the first card goes beside
   };
   const insertAtView = (block, into = null) => {
     perfMark(block.id, 'insert');
