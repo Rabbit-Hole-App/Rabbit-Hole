@@ -71,6 +71,7 @@ const json = (body, status = 200) => Response.json(body, { status, headers: { 'C
 const fail = (message, status = 400, code = null) => Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
 const TERMINAL = new Set(['ready', 'failed', 'cancelled']);
+const CHAIN_MAX_HOPS = 16, CHAIN_BUDGET_MS = 20000; // INTERACT_CHAIN: at most this many stages, and this much wall time, per alarm
 // Where the request came from (CapabilityDecision.source): explicit /explain, the picker, a command-bearing Ctrl+K, a
 // submitted suggestion, the shared router, or the Tutor's chosen tool.
 const SOURCES = ['explicit', 'picker', 'command', 'suggestion', 'classified', 'tutor'];
@@ -965,14 +966,28 @@ export class ExplainJobs {
 
   async alarm() {
     await this.state.storage.setAlarm(Date.now() + 30000); // re-armed first: a terminated isolate still gets a recovery turn
-    let active = false;
+    let active = false; const started = Date.now();
     for (const [, snapshot] of await this.state.storage.list({ prefix: 'job:' })) {
       const job = await this.get(snapshot.id);
       if (!job || TERMINAL.has(job.stage) && !job.inFlight && !job.bench?.pending && !job.bench?.running || job.stage === 'awaiting_approval') continue;
       active = true;
-      try { await this.advance(job); } catch (error) { await this.failed(job, error); }
+      try { await this.advance(job); await this.chain(job, started); } catch (error) { await this.failed(job, error); }
     }
     if (active) await this.wake(1000); else await this.state.storage.deleteAlarm?.();
+  }
+
+  // INTERACT_CHAIN=on (an interact job only; default off): the stages of one job run back to back inside this alarm instead of waiting about a second for the next one (each hop cost the alarm's wake delay).
+  // Every stage still saves before the next starts, so a crash resumes at the last saved stage, and the 30 s recovery alarm above is the resume point. The chain stops at a terminal job, at awaiting_approval, at a call in flight,
+  // when a stage changed nothing (no save: the alarm loop retries it as before) and after CHAIN_BUDGET_MS since this alarm began (the next alarm continues): the stages of a template build are CPU-light, a model stage is awaited either way.
+  async chain(job, started) {
+    if (this.env.INTERACT_CHAIN !== 'on' || !job.flow) return;
+    let prev = job; const budget = Number(this.env.INTERACT_CHAIN_BUDGET_MS ?? CHAIN_BUDGET_MS);
+    for (let hop = 0; hop < CHAIN_MAX_HOPS && Date.now() - started < budget; hop++) {
+      const next = await this.get(job.id);
+      if (!next || TERMINAL.has(next.stage) || next.stage === 'awaiting_approval' || next.inFlight || next.updatedAt === prev.updatedAt) return;
+      prev = next;
+      await this.advance(next);
+    }
   }
 
   // An in-flight call this object is not running was interrupted (restart, eviction): whether the provider accepted it is
