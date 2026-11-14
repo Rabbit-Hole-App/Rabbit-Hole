@@ -258,7 +258,7 @@ export function TermNote({ layer }) {
 }
 
 const ACTION = 'grid h-7 w-7 place-items-center rounded-[5px] p-0 text-ink-2 hover:bg-active hover:text-accent focus-visible:bg-active focus-visible:text-accent disabled:cursor-default disabled:opacity-45';
-// The three suggested questions below the reading flow (approved card 07 .suggestions). Ask here and Ask in a new card reveal on hover or focus.
+// The three suggested questions below the reading flow (approved card 07 .suggestions). Ask in chat and Ask in a new card reveal on hover or focus.
 export function Suggestions({ layer }) {
   const { suggestions, pending, host, canEdit } = layer;
   if (!suggestions.length || !host?.ask || !canEdit) return null;
@@ -269,7 +269,7 @@ export function Suggestions({ layer }) {
         <li key={question.id} data-explanation-suggestion={question.id} className="group/row flex min-h-9 items-center justify-between gap-1.5 rounded-md bg-hover py-0.5 pr-1 pl-2.5 text-[13px] leading-snug text-ink hover:bg-active focus-within:bg-active">
           <span id={`q-${question.id}`} className="min-w-0 select-text"><MdInline text={question.text} mathOnly /></span>
           <span className="pointer-events-none flex shrink-0 items-center gap-0.5 opacity-0 group-focus-within/row:pointer-events-auto group-focus-within/row:opacity-100 group-hover/row:pointer-events-auto group-hover/row:opacity-100">
-            <button type="button" data-ask="here" title="Ask here" aria-label="Ask here" aria-describedby={`q-${question.id}`} disabled={busy} aria-busy={pending?.qid === question.id && pending.destination === 'here' ? 'true' : undefined}
+            <button type="button" data-ask="here" title="Ask in chat" aria-label="Ask in chat" aria-describedby={`q-${question.id}`} disabled={busy} aria-busy={pending?.qid === question.id && pending.destination === 'here' ? 'true' : undefined}
               onPointerDown={event => event.stopPropagation()} onClick={() => layer.askSuggestion(question, 'here')} className={ACTION}><MessageSquare size={16} aria-hidden="true" /></button>
             <button type="button" data-ask="card" title="Ask in a new card" aria-label="Ask in a new card" aria-describedby={`q-${question.id}`} disabled={busy} aria-busy={pending?.qid === question.id && pending.destination === 'card' ? 'true' : undefined}
               onPointerDown={event => event.stopPropagation()} onClick={() => layer.askSuggestion(question, 'card')} className={ACTION}><GitBranch size={16} aria-hidden="true" /></button>
