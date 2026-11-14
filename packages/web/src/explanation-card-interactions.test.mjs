@@ -179,7 +179,7 @@ test('a card edited after authoring (another revision) shows no pills and no sug
   assert.ok($('[data-follow-up-toggle]'), 'the follow-up conversation is not tied to the old text');
 });
 
-test('suggestions: three questions; Ask here and Ask in a new card per row; send captures card, revision and question; cleared once, after admission', async () => {
+test('suggestions: three questions; Ask in chat and Ask in a new card per row; send captures card, revision and question; cleared once, after admission', async () => {
   const card = await envelope();
   const calls = [], saved = [];
   let admit = null;
@@ -187,7 +187,7 @@ test('suggestions: three questions; Ask here and Ask in a new card per row; send
   await mount(card, { host, onChangeQuiet: next => saved.push(next) });
   const rows = $$('[data-explanation-suggestion]');
   assert.deepEqual(rows.map(row => row.textContent), card.interactions.questions.map(q => q.text));
-  assert.deepEqual([...rows[0].querySelectorAll('button')].map(b => b.getAttribute('aria-label')), ['Ask here', 'Ask in a new card']);
+  assert.deepEqual([...rows[0].querySelectorAll('button')].map(b => b.getAttribute('aria-label')), ['Ask in chat', 'Ask in a new card']);
   assert.ok(before($('[data-explanation-flow] [data-explanation-field]'), $('[data-explanation-suggestions]')), 'below the reading');
   const [here, branch] = rows[1].querySelectorAll('button');
   await click(here);
