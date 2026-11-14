@@ -1,0 +1,41 @@
+{
+  "jobId": "ej_4dadd6d6d9ac4f598dda57165d1e2721",
+  "plan": "toss-mvp-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 32096,
+  "ms": 6676,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "ball.toss / axis.h",
+      "message": "The scene scale does not match the traced heights. The axis puts zero at y=243, and the scale is about 13.25 px per m. The launch mark is at y=243, but the held drop ball is at y=226.09, only about 1.28 m above it. The traced apex is 3.276 m, which is 1.276 m above launch (the plan adds a 2.0 m ground offset). Drawn ball heights therefore use a launch-relative scale, while the axis and the traced heights are ground-referenced (tossedHeight = 2 at launch). The axis label and ticks are inconsistent with the quantities."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "object": "axis.h",
+      "message": "The apex is 14.5 m, above the axis max of 13.2. The ball is drawn at y=77, which is 12.5 m above the launch mark. That matches 14.5 − 2 m relative to launch, not the axis value of 14.5 m. The drawn position contradicts the traced height on the labelled axis."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "lane.drop.state",
+      "message": "The drop lane state text reads 'Held at' and the lane's other text reads 'Balcony level'. Presumably the state line is split into two texts. As traced, the state reads 'Held at', which is truncated and misleading, since the ball is held at the apex height and not at balcony level. The same problem shows in 'Returned to' at the end. The callout readings (the numeric text) do not appear in the texts list, so the readouts cannot be verified against the frame."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "minor",
+      "object": "claim sameAfterRelease",
+      "message": "At the top, the dropped ball's acceleration is already -g, while the gate is shown opening. This is consistent with the piecewise definition. The observation topMoves has no readout, so only the quantities support it."
+    }
+  ]
+}

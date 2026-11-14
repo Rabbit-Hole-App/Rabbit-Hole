@@ -205,7 +205,7 @@ test('the precheck names the arrow the template cannot draw; the pinned Deep pla
 });
 
 test('a Detailed brief the template cannot draw gets ONE correction naming the arrow, then the corrected brief passes (template build on)', async t => {
-  const goodDeep = extractBrief(referencePlans.tossDeep), s = fastStack(t, { answers: [extractBrief(GRAVITY_ONE), goodDeep], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
+  const goodDeep = extractBrief(referencePlans.tossDeep); goodDeep.words.where_end = 'Back at start'; const s = fastStack(t, { answers: [extractBrief(GRAVITY_ONE), goodDeep], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
   const { body } = await s.create({ depth: 'detailed' });
   const { job } = await s.design(body.job.id);
   assert.equal(job.design.fast.kind, 'fast'); assert.equal(job.approval?.by, 'fast-path', 'the corrected brief passed and the fast path approved it'); assert.equal(s.fills.length, 2); assert.deepEqual(s.model.roles(), []);
@@ -227,4 +227,19 @@ test('a fast pass is approved by the system with the same signed plan and builds
   const { body: fb } = await f.create({ depth: 'balanced' });
   const { job: fallen } = await f.design(fb.job.id);
   assert.equal(fallen.stage, 'awaiting_approval'); assert.equal(fallen.approval, null); assert.deepEqual(f.built, []); assert.ok(fallen.pendingProposal);
+});
+
+// The captured clipped-word plans (2026-11-14 clean fast set, balanced ej_a8376a99 and detailed ej_e46d9796): the model's lane headings leave less room than its state words, and sdk.panel cut the words on the card.
+const CLIPPED = name => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
+test('the precheck names a state word the card would cut; the pinned plans and a fitting plan pass it', async () => {
+  const capabilities = await designCapabilities(BUILD, { evidence: [] });
+  const balanced = await templatePrecheck(CLIPPED('fast-balanced-clipped-words-plan.json'), { env: BUILD, capabilities }, { words: true });
+  assert.ok(balanced.some(p => /^words: "Starting upward" is drawn as "Starting"/.test(p)), balanced.join(' | '));
+  assert.ok(balanced.some(p => /^words: "Held at apex" is drawn as "Held at"/.test(p)), balanced.join(' | '));
+  const detailed = await templatePrecheck(CLIPPED('fast-detailed-clipped-words-plan.json'), { env: BUILD, capabilities }, { words: true });
+  assert.ok(detailed.length && detailed.every(p => /^words: ".+" is drawn as ".+"/.test(p)), detailed.join(' | '));
+  const fits = clone(CLIPPED('fast-balanced-clipped-words-plan.json'));
+  Object.assign(fits.scene.words, { lane_first: 'Toss', lane_second: 'Drop', first_where_launch: 'At launch', first_where_end: 'Back at start', second_where_end: 'Back at start', second_where_falling: 'Falling' });
+  assert.deepEqual(await templatePrecheck(fits, { env: BUILD, capabilities }, { words: true }), []);
+  const pinned = await designCapabilities(BUILD, { evidence: [{ id: 'kinematics_note' }] }); assert.deepEqual(await templatePrecheck(referencePlans.tossStandard, { env: BUILD, capabilities: pinned }, { words: true }), []); const deep = await templatePrecheck(referencePlans.tossDeep, { env: BUILD, capabilities: pinned }, { words: true }); assert.equal(deep.length, 1, 'the approved Deep card already draws "Back at launch height" as "Back at launch"'); assert.deepEqual(await templatePrecheck(referencePlans.tossDeep, { env: BUILD, capabilities: pinned }), [], 'the words guard is off unless asked');
 });

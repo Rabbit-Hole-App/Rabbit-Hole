@@ -1,0 +1,34 @@
+{
+  "jobId": "ej_0fd062d1523142b1a58a2bbbc6f1bd20",
+  "plan": "toss-mvp-brief",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 22726,
+  "ms": 5781,
+  "findings": [
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "object": "ball.toss",
+      "message": "At launch speed 8 the apex height is 3.265 m. The ball is drawn at y=60, which is 170 px above the launch line. That is about 52 px/m. At speed 5 the ball is drawn 66.4 px above the line for 1.2755 m, which is also about 52 px/m. So the scale is consistent. However, the top of the callout sits at y=40, close to the lane top at y=34. The fastest toss therefore almost fills the scale. A higher launch speed would probably leave the lane. This cannot be judged from the captures."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "major",
+      "object": "vec.v",
+      "message": "At the end, the ball is at the launch mark with v=-5. The v arrow runs from y=230 to y=290, which is below the lane box bottom at y=266. It extends outside the lane. The state text 'Back Down' is also inconsistent with the other state labels, though this is minor."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "minor",
+      "object": "vec.v",
+      "message": "The scene description says there is a callout that names the motion and shows gravity, and no number readouts. The callout boxes have no text in the frame. The readouts motionState and gravityState are present only as readouts, so the callout content cannot be verified. The velocity arrow at the start is 60 px for v=5. At v=2.5 it is 30 px. This is proportional, which is correct."
+    }
+  ]
+}

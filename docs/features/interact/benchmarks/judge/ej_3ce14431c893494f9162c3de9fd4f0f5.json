@@ -1,0 +1,41 @@
+{
+  "jobId": "ej_3ce14431c893494f9162c3de9fd4f0f5",
+  "plan": "toss-mvp-detailed",
+  "depth": "detailed",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 27796,
+  "ms": 6819,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "ball.toss",
+      "message": "The height ruler is 175 px long for 0 to 13.2 m, which is about 13.26 px/m. At the default inputs the apex is 1.27551 m, so it should sit about 16.9 px above the launch mark. The ball at the top is at y=226.09 against a launch mark at y=243, which matches. The fast-toss apex of 12.5 m is at y=77.28, a rise of 165.7 px, which also matches. The scale is consistent, so this is not a defect."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "vec.a",
+      "message": "The acceleration arrow is 33.3 px long for 9.8 m/s² (about 3.4 px per m/s²). The velocity arrow is 60 px for 5 m/s (12 px per m/s). The two arrows use different scales and the plan does not explain why. At the fast-toss state the arrow is 13.6 px for 4 m/s², which is consistent with its own scale. Even so, a unit-less visual comparison of v and a is misleading."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "major",
+      "object": "callout.toss",
+      "message": "The callout boxes appear in the frame, but the frames show no text for the velocity, acceleration and force lines. The required readouts are in the readouts data, so I cannot confirm from the frames that the callout shows them. I also cannot confirm that the top frame shows a zero velocity arrow, though vec.v is correctly absent there."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "plot.vt",
+      "message": "The time axis on the plot runs 0 to 5 s and the scale is fixed. The current-state marker position cannot be checked from the frame, so the linked marker claim is unsupported. The 'before' observation is also only partly supported. At 0.10 s before the top, v=0.98, which is correct."
+    }
+  ]
+}
