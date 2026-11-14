@@ -39,6 +39,9 @@ export const routes = {
   // The roadmap's one Tutor Chat thread (first writer wins on the server; the answer is the view with the thread now bound).
   thread: (view, threadId) => ({ method: 'POST', path: `${BASE}/${view.roadmap.id}/thread`, body: { boardId: view.roadmap.boardId, threadId } }),
   end: (view, actionKey) => mutate(view, 'end', {}, actionKey),
+  // Create a course (owner 2026-11-14): Generate course makes every card of the accepted plan; Cancel stops new cards.
+  startCourse: (view, actionKey) => mutate(view, 'course/start', {}, actionKey),
+  stopCourse: (view, actionKey) => mutate(view, 'course/stop', {}, actionKey),
 };
 function mutate(view, tail, fields, actionKey) {
   const { id, boardId, revision } = view.roadmap;
@@ -102,20 +105,10 @@ const unfinished = view => !!view && isUnfinishedRoadmap(view.roadmap.state);
 const resultsOf = view => view?.results || [];
 const askMode = state => state.mode === 'ask';
 
-// The compact pill and its overlay. Ask/off only stop UNSOLICITED offers (the server makes none); an offer it made stays acceptable (explicit action, UI.03 bullet 7).
-// acceptable comes from the server (a held or blocked version is not accept-ready); the busy latch stops a second request.
-export function pillOf(state) {
-  const view = state.view, proposal = view?.proposal;
-  if (!enabled(state) || !proposal || view.roadmap.state !== 'active' || proposal.state !== 'pending') return null;
-  const gesture = `accept:${proposal.id}:${proposal.version}`;
-  return {
-    proposalId: proposal.id, version: proposal.version, title: proposal.title, description: proposal.description, format: proposal.format,
-    source: relationTitle(proposal), sourceKey: proposal.sourceRelation?.sourceRef?.source?.key || proposal.sourceRelation?.source?.key || null, position: proposal.position, accept: proposal.acceptable === true && !state.editing && !state.busy.includes(gesture), accepting: state.busy.includes(gesture), gesture,
-    cancelGesture: `cancel:${proposal.id}:${proposal.version}`, link: proposal.link || null, stepId: proposal.stepId, canEdit: state.view.edit === true && !proposal.link,
-    // UI.04/08: the first card is Accept (canvas: attached Accept [Tab] | Cancel); any proposal after accepted work is Next card (canvas: the bottom pill). Same action.
-    next: isNext(view, proposal), label: isNext(view, proposal) ? NEXT_CARD : STRINGS.accept,
-  };
-}
+// The compact pill and its overlay: RETIRED (owner 2026-11-14). A course is made from one Generate course (roadmap-course.js on the server), so no card is offered for a click: there
+// is no Accept, Cancel, Next card or Tab on the canvas or in Chat. The first offer Accept plan still leaves pending is taken by Generate course. Everything that read the pill
+// (the canvas slot's offer, the overlay, Tab, the edit pill) now reads null and draws nothing.
+export const pillOf = () => null;
 export const NEXT_CARD = STRINGS.nextCard;
 export const isNext = (view, proposal) => resultsOf(view).some(r => r.stepId !== proposal.stepId);
 
@@ -142,6 +135,21 @@ export function canProposeNext(state) {
 // The ToC's roadmap (UI.02): the ACCEPTED plan only, as rows for the existing outline tree (learn-outline-model.js withRoadmap). A draft never
 // leaks here; while a revision is a Chat draft the accepted tree stays. No parameters, stopping point, actions or conversation: those are Chat's.
 // null = nothing accepted (flag off, no roadmap, or only a draft).
+// Whether Generate course is offered: an accepted plan with cards still to make, no run in progress and no start in flight.
+export function canStartCourse(state) {
+  const view = state.view;
+  return !!view && enabled(state) && view.roadmap.state === 'active' && !!acceptedPlanOf(view) && !view.course?.running && !state.busy.some(g => g.startsWith('course:')) && (view.steps || []).some(s => s.state === 'planned' || s.state === 'proposed');
+}
+// The run the progress over the canvas shows, or null: a start in flight (the count is the plan's, nothing made yet) or a running course with a card still to be made or placed.
+export function courseOf(state) {
+  const view = state.view;
+  if (!view || !enabled(state) || view.roadmap.state !== 'active') return null;
+  const steps = view.steps || [], starting = state.busy.some(g => g.startsWith('course:start'));
+  const run = view.course;
+  if (!run?.running) return starting ? { total: steps.length, made: 0, failed: 0, current: null, facts: [] } : null;
+  if (steps.every(s => ['ready', 'failed', 'skipped', 'cancelled'].includes(s.stage))) return null; // nothing left to make or place
+  return { total: run.total ?? steps.length, made: run.made ?? 0, failed: run.failed ?? 0, current: run.current ?? null, facts: run.facts || [] };
+}
 export function tocOf(state) {
   const view = state.view || state.past;
   if (!enabled(state) || !view || !acceptedPlanOf(view)) return null;
@@ -151,7 +159,7 @@ export function tocOf(state) {
     steps: view.steps.map(s => {
       const result = resultsOf(view).find(r => r.stepId === s.id), removed = result?.delivery === 'removed';
       const nav = stepNav(s, view), stage = s.stage && s.stage !== 'planned' ? s.stage : nav?.kind === 'proposal' ? 'proposed' : null;
-      return { id: s.id, position: s.position, title: s.title, source: s.sourceRef ? { kind: 'source' } : null, description: s.goal || '', format: STRINGS.formatName[s.format] || s.format || '', state: s.state,
+      return { id: s.id, position: s.position, section: s.section || null, title: s.title, source: s.sourceRef ? { kind: 'source' } : null, description: s.goal || '', format: STRINGS.formatName[s.format] || s.format || '', state: s.state,
         status: (stage ? STRINGS.stage[stage] : null) || STRINGS.stepState[s.state] || s.state, removed, nav, resultId: removed && state.view ? result.id : null }; // the kept tree of a finished roadmap has no live view to restore into: no Restore
     }),
   };

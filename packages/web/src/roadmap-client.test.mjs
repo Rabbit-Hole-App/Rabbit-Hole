@@ -27,17 +27,6 @@ test('every status fixture reduces to a view the UI can render, with a state fro
   }
 });
 
-test('pill: only a pending acceptable proposal on an active roadmap; held/cancelled/none show nothing', () => {
-  const pill = pillOf(withView('status-active-proposal-pending'));
-  assert.equal(pill.accept, true);
-  assert.equal(pill.source, 'Gradient descent notes.md');
-  for (const name of ['status-held-for-checking', 'status-cancelled-paused', 'status-failed-card', 'status-proposed-plan', 'status-completed']) assert.equal(pillOf(withView(name)), null, name);
-  const held = withView('status-active-proposal-pending'); held.view = { ...held.view, proposal: { ...held.view.proposal, state: 'held', acceptable: false } };
-  assert.equal(pillOf(held), null);
-  const unacceptable = withView('status-active-proposal-pending'); unacceptable.view = { ...unacceptable.view, proposal: { ...unacceptable.view.proposal, acceptable: false } };
-  assert.equal(pillOf(unacceptable).accept, false, 'visible but not accept-ready');
-});
-
 test('no price, credit, cost or model text on any surface in any state (D24)', () => {
   const banned = /\$|credit|cost|price|estimate|maximum|opus|sonnet|claude|token/i;
   for (const name of statusNames()) {
@@ -53,19 +42,6 @@ test('no price, credit, cost or model text on any surface in any state (D24)', (
 
 test('held result: a status line, never any result text', () => {
   assert.deepEqual(chatOf(withView('status-held-for-checking')).map(l => l.text), [STRINGS.checking]);
-});
-
-test('Ask mode pauses unsolicited initiative: no invitation, no plan-ready line; an offer the server made stays acceptable (explicit action, UI.03); accepted progress still reads', () => {
-  const asked = { ...withView('status-active-proposal-pending'), mode: 'ask' };
-  assert.equal(pillOf(asked).accept, true, 'Accept / Next card / Tab work in Ask without changing the preference');
-  assert.equal(pillOf(asked).gesture, pillOf(withView('status-active-proposal-pending')).gesture, 'one gesture for every surface, so one coalesced request');
-  assert.equal(offerOf(asked).accept, true, 'Chat Accept works in Ask too');
-  const inv = reduce({ ...initialState(), mode: 'ask' }, { type: 'invitation', invitation: view('invitation-offered').invitation });
-  assert.equal(invitationOf(inv).id, inv.invitation.id);
-  assert.ok(!chatOf({ ...withView('status-proposed-plan'), mode: 'ask' }).some(l => l.id === 'plan'));
-  const generating = { ...withView('status-held-for-checking'), mode: 'ask' };
-  assert.equal(tocOf(generating).steps[0].state, 'generating');
-  assert.equal(chatOf(generating).length, 1, 'held line stays');
 });
 
 test('invitation: two exact choices and the drop sentence; never deferred for typing or answering; dismissal scopes to that invitation', () => {
@@ -107,41 +83,13 @@ test('stale-version display: a slow older poll never rolls the screen back', () 
   assert.equal(reduce(newest, { type: 'view', view: view('status-delivered-next-ready') }).view.roadmap.revision, 10);
 });
 
-test('insufficient credits: the response sentence is shown, the proposal stays pending and acceptable', () => {
-  const body = view('error-insufficient-allowance');
-  const state = reduce(withView('status-active-proposal-pending'), { type: 'refused', message: body.error, current: body.current });
-  assert.equal(state.notice, body.error);
-  assert.equal(pillOf(state).accept, true);
-});
-
 test('flag off (404 roadmap_disabled): all roadmap UI disappears', () => {
   const state = reduce(withView('status-active-proposal-pending'), { type: 'flag_off' });
   assert.equal(tocOf(state), null); assert.equal(pillOf(state), null); assert.deepEqual(chatOf(state), []);
   assert.equal(reduce(state, { type: 'view', view: view('status-active-proposal-pending') }).flag, 'on', 'a served view restores the UI when the flag returns');
 });
 
-test('accept busy latch: a second gesture on the same proposal version is not accept-ready', () => {
-  let state = withView('status-active-proposal-pending');
-  const { gesture } = pillOf(state);
-  state = reduce(state, { type: 'begin', gesture });
-  assert.equal(pillOf(state).accept, false);
-  state = reduce(state, { type: 'end', gesture });
-  assert.equal(pillOf(state).accept, true);
-});
-
 const key = (over = {}) => ({ key: 'Tab', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, repeat: false, isComposing: false, keyCode: 9, ...over });
-test('Tab ownership truth table (D18)', () => {
-  const pill = pillOf(withView('status-active-proposal-pending'));
-  const ok = { event: key(), pill };
-  assert.equal(tabAccepts(ok), true);
-  const no = [
-    ['shift', { event: key({ shiftKey: true }) }], ['ctrl', { event: key({ ctrlKey: true }) }], ['meta', { event: key({ metaKey: true }) }], ['alt', { event: key({ altKey: true }) }],
-    ['repeat', { event: key({ repeat: true }) }], ['ime', { event: key({ isComposing: true }) }], ['229', { event: key({ keyCode: 229 }) }],
-    ['other key', { event: key({ key: 'Enter' }) }], ['no pill', { pill: null }], ['accept in flight', { pill: { ...pill, accept: false } }],
-    ['field/composer/dialog/menu/widget', { blocked: true }], ['editor open', { editorOpen: true }], ['presenting', { presenting: true }], ['read-only', { readOnly: true }],
-  ];
-  for (const [name, over] of no) assert.equal(tabAccepts({ ...ok, ...over }), false, name);
-});
 
 test('idempotent delivery: the same minted card is inserted once however often deliver runs (reload, second device, lost ack)', () => {
   const body = view('result-deliver-response');
@@ -274,19 +222,6 @@ test('acceptPlan binds the displayed draft version (contracts.md draft.version),
 });
 
 // --- Fix A: Tab through the real acceptance sequence, the indicator once the server field is true, honest acknowledgement ---------
-test('Tab while the accept is in flight still belongs to the proposal (no focus jump), but it never asks for a second accept', () => {
-  let state = withView('status-active-proposal-pending');
-  const { gesture } = pillOf(state);
-  state = reduce(state, { type: 'begin', gesture });
-  const pill = pillOf(state);
-  assert.equal(pill.accept, false);
-  assert.equal(pill.accepting, true);
-  const ctx = over => ({ event: key(), pill, blocked: false, editorOpen: false, presenting: false, readOnly: false, ...over });
-  assert.equal(tabAccepts(ctx()), true, 'Tab is swallowed, not passed to the browser');
-  assert.equal(tabAccepts(ctx({ pill: { ...pill, accepting: false } })), false, 'a version that is not accept-ready and not accepting keeps normal Tab');
-  assert.equal(tabAccepts(ctx({ editorOpen: true })), false, 'the editor still owns Tab');
-  assert.equal(tabAccepts(ctx({ blocked: true })), false, 'a field still owns Tab');
-});
 
 test('the first proposal takes the keyboard only from nothing or from Accept plan, never from a field or another control, or while typing', () => {
   const el = (tagName, selectors = []) => ({ tagName, ownerDocument: { documentElement: {} }, matches: sel => selectors.includes(sel) });
@@ -306,7 +241,6 @@ test('Accept roadmap reports busy at once so the Chat button shows Accepting and
   state = reduce(state, { type: 'begin', gesture });
   assert.equal(accept(state).disabled, true);
   assert.equal(accept(state).label, 'Accepting');
-  assert.equal(pillOf(withView('status-active-proposal-pending')).accepting, false);
 });
 
 test('accepted work says what the server says in Chat: making; nothing invented', () => {
@@ -327,15 +261,6 @@ test('the natural flow: focus on Accept plan is not Tab-owned (the defect), the 
 });
 
 // UI.04/05/08: the first offer is Accept, a later one Next card; both are the same acceptance (gesture, route, version) the canvas, Chat and eligible Tab share.
-test('pillOf: first offer Accept, a later one Next card, one gesture and route for every surface', () => {
-  const first = pillOf(withView('status-active-proposal-pending'));
-  assert.deepEqual([first.next, first.label], [false, 'Accept']);
-  const later = withView('status-delivered-next-ready'), pill = pillOf(later);
-  assert.deepEqual([pill.next, pill.label], [true, 'Next card']);
-  assert.equal(pill.gesture, `accept:${later.view.proposal.id}:${later.view.proposal.version}`);
-  assert.deepEqual(routes.acceptProposal(later.view, 'ak_x').body, { boardId: later.view.roadmap.boardId, revision: later.view.roadmap.revision, proposalVersion: later.view.proposal.version, actionKey: 'ak_x' });
-  assert.equal(tabAccepts({ event: { key: 'Tab' }, pill }), true, 'eligible Tab accepts the same Next card offer');
-});
 
 test('a dropped Markdown file waits for its invitation (owner 2026-11-14): waiting turns on, and the invitation, a failure or the timeout turn it off', () => {
   const waiting = reduce(initialState(), { type: 'waiting', on: true });

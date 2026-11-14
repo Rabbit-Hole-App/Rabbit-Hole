@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { initialState, invitationOf, reduce } from './roadmap-client.js';
-import { ensureTutorThread, entriesOf, historyActions, invitationClientId, invitationThreadId, mdName, occupied, restoredDraft, roadmapEditTarget, roadmapThreadClientId, stepClientId, threadCandidate, toSave } from './roadmap-transcript.js';
+import { ensureTutorThread, entriesOf, historyActions, invitationClientId, invitationThreadId, mdName, occupied, restoredDraft, roadmapEditTarget, roadmapThreadClientId, threadCandidate, toSave } from './roadmap-transcript.js';
 import { responseKind } from './chat-response-kind.js';
 import { createRoadmapController } from './roadmap-controller.js';
 
@@ -105,45 +105,19 @@ test('UI.03 / BE.03: Edit roadmap targets the existing composer pill, stashes th
   assert.doesNotMatch(readFileSync(new URL('./use-roadmap.js', import.meta.url), 'utf8'), /data-toc-composer|divert/, 'no ToC composer diversion');
 });
 
-test('UI.02/UI.03: acceptance adds one summary entry with Open table of contents (primary blue), Edit roadmap, End roadmap; Propose next step only with no offer', () => {
+test('UI.02/UI.03 and Create a course: acceptance adds one summary entry with Generate course (primary), Open table of contents, Edit, End roadmap; no per-card entries and no Propose next step (owner 2026-11-14)', () => {
   const pending = entriesOf(at('status-active-proposal-pending')).find(e => e.kind === 'accepted');
-  assert.deepEqual(labels(pending), ['Open table of contents', 'Edit', 'End roadmap']);
-  assert.equal(pending.actions[0].blue, true);
-  assert.match(pending.content, /^Your roadmap is ready\. We’ll start with “/);
+  assert.deepEqual(labels(pending), ['Generate course', 'Open table of contents', 'Edit', 'End roadmap']);
+  assert.equal(pending.actions[0].primary, true);
+  assert.equal(pending.actions[1].blue, true);
+  assert.match(pending.content, /^Your table of contents is ready\. Generate the course to make every card\./);
+  assert.equal(entriesOf(at('status-active-proposal-pending')).some(e => e.kind === 'step'), false, 'a course has no per-card entries');
   const paused = entriesOf(at('status-cancelled-paused')).find(e => e.kind === 'accepted');
-  assert.deepEqual(labels(paused), ['Open table of contents', 'Edit', 'Propose next step', 'End roadmap']);
+  assert.equal(paused.actions.some(a => a.id === 'propose_next'), false, 'Propose next step is gone');
   const completed = entriesOf(at('status-completed'));
   assert.deepEqual(labels(completed.find(e => e.kind === 'accepted')), ['Open table of contents'], 'no End or Edit after the finite end');
   assert.equal(completed.at(-1).kind, 'done');
   assert.match(completed.at(-1).content, /stopping point/);
-});
-
-test('UI.08: one lifecycle entry per card, Accept first then Next card, stale or busy actions disabled, ready keeps Go to card, never Retry', () => {
-  const first = at('status-active-proposal-pending'), view = first.view;
-  const step = entriesOf(first).find(e => e.kind === 'step');
-  assert.equal(step.clientId, stepClientId(view.proposal.stepId));
-  assert.deepEqual(labels(step), ['Accept', 'Cancel', 'Go to card', 'Go to highlighted text']);
-  assert.equal(step.tutor.proposalId, view.proposal.id);
-  assert.match(step.content, /Proposed card/);
-  const accepting = entriesOf(reduce(first, { type: 'begin', gesture: `accept:${view.proposal.id}:${view.proposal.version}` })).find(e => e.kind === 'step');
-  assert.equal(accepting.clientId, step.clientId, 'the same entry advances');
-  assert.equal(accepting.tutor.stage, 'accepting');
-  assert.ok(accepting.seq > step.seq);
-  assert.equal(accepting.actions.find(a => a.id === 'accept').disabled, true, 'busy: disabled');
-  const ask = entriesOf({ ...first, mode: 'ask' }).find(e => e.kind === 'step');
-  assert.equal(ask.actions.find(a => a.id === 'accept').disabled, false, 'explicit Accept works in Ask');
-  const later = entriesOf(at('status-delivered-next-ready'));
-  const steps = later.filter(e => e.kind === 'step');
-  assert.equal(steps[0].tutor.stage, 'ready');
-  assert.deepEqual(labels(steps[0]), ['Go to card', 'Go to highlighted text']);
-  assert.match(steps[0].tutor.cardId, /^cd_/);
-  assert.equal(steps[1].actions[0].label, 'Next card', 'a subsequent proposal is Next card');
-  const failed = entriesOf(at('status-failed-card')).filter(e => e.kind === 'step' && e.tutor.stage === 'failed');
-  assert.equal(failed.length, 1);
-  assert.match(failed[0].content, /could not be made/);
-  for (const name of ['status-failed-card', 'status-delivered-next-ready', 'status-cancelled-paused']) for (const e of entriesOf(at(name))) assert.ok(!labels(e).some(l => /retry|replace|omit|accept plan|edit plan/i.test(l)), name);
-  const cancelled = entriesOf(at('status-cancelled-paused')).find(e => e.tutor.stage === 'cancelled');
-  assert.deepEqual(labels(cancelled), [], 'a cancelled card has no actions');
 });
 
 test('a Tutor entry is not an ordinary answer (no Regenerate, Add as card, Explore next)', () => {
@@ -185,8 +159,8 @@ test('RoadmapTranscript renders entries through ChatMessage with the controls th
   const pending = render(at('status-active-proposal-pending'));
   assert.match(pending, /data-roadmap-review[^>]*>Open table of contents</);
   assert.match(pending, /bg-primary-fill[^"]*"[^>]*data-roadmap-review|data-roadmap-review[^>]*bg-primary-fill/, 'main ui.jsx Button primary');
-  assert.match(pending, /data-roadmap-accept[^>]*>Accept<\/button>/);
-  assert.match(pending, /data-roadmap-cancel[^>]*>Cancel</);
+  assert.match(pending, /data-roadmap-generate-course[^>]*>Generate course<\/button>/, 'owner 2026-11-14: one Generate course, no per-card Accept or Cancel');
+  assert.doesNotMatch(pending, /data-roadmap-accept=|data-roadmap-cancel|data-roadmap-propose-next/);
   assert.doesNotMatch(render(at('status-failed-card')), />(Retry|Replace|Omit)</);
   assert.match(render(at('create-response-draft')), /Generating roadmap/);
 });
@@ -276,23 +250,3 @@ test('RoadmapTranscript opens a thread only for an invitation: the silent bindin
 
 // UI.04 / roadmap 3.8: the Chat step entry shows the same exact passage as the canvas slot (useStepExcerpt), only when ready and non-empty;
 // an unreadable one says so; the excerpt is never part of the saved message.
-test('a step entry shows the slot\'s exact excerpt when ready, the honest line when unavailable, nothing when there is no reference or while loading', async () => {
-  const state = at('status-active-proposal-pending'), step = state.view.steps[0], id = step.sourceRef?.id;
-  assert.ok(id, 'the fixture step has a minted reference');
-  const entry = entriesOf(state).find(e => e.kind === 'step');
-  assert.equal(entry.sourceRef.id, id);
-  assert.ok(!entry.content.includes('EXACT'), 'the excerpt is not in the stored content');
-  assert.ok(!JSON.stringify(entry.tutor).includes('EXACT'), 'nor in the tutor record');
-  lib.forgetExcerpts();
-  assert.doesNotMatch(render(state), /data-roadmap-excerpt/, 'loading: nothing');
-  await lib.stepExcerpt(async () => ({ refs: [{ id, status: 'current', excerpt: 'EXACT quoted passage' }] }), chat.canvas, id);
-  const ready = render(state);
-  assert.match(ready, /<blockquote data-roadmap-excerpt[^>]*>EXACT quoted passage<\/blockquote>/);
-  lib.forgetExcerpts();
-  await lib.stepExcerpt(async () => ({ refs: [{ id, status: 'changed' }] }), chat.canvas, id);
-  assert.match(render(state), /data-roadmap-excerpt-unavailable[^>]*>The passage is not available right now\.</);
-  assert.doesNotMatch(render(state), /data-roadmap-excerpt[ >]/);
-  const noRef = at('status-active-proposal-pending', v => ({ ...v, steps: v.steps.map(s => ({ ...s, sourceRef: null })), proposal: { ...v.proposal, sourceRelation: { ...v.proposal.sourceRelation, sourceRef: null } } }));
-  assert.doesNotMatch(render(noRef), /data-roadmap-excerpt/, 'no reference: no excerpt, no unavailable line');
-  lib.forgetExcerpts();
-});

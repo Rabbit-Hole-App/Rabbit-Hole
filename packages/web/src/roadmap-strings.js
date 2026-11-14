@@ -56,7 +56,11 @@ export const STRINGS = Object.freeze({
   roadmapParameters: 'Roadmap parameters', roadmapDraft: 'Roadmap draft', scope: 'Scope', fullContent: name => `Full content · ${name}`, selectedPassage: 'Selected passage',
   roadmapMode: 'Roadmap', modeExplanations: 'Explanations only', modePractice: 'Explanations + practice', practiceUnavailable: 'Practice is not available yet',
   acceptRoadmap: 'Accept', editRoadmap: 'Edit', openToc: 'Open table of contents', superseded: 'Replaced by a newer draft',
-  roadmapReady: first => (first ? `Your roadmap is ready. We’ll start with “${first}”.` : 'Your roadmap is ready.'),
+  roadmapReady: () => 'Your table of contents is ready. Generate the course to make every card.', // owner 2026-11-14 (was: We’ll start with the first card)
+  // Create a course (owner 2026-11-14): the button, the progress over the canvas, and why a run stopped.
+  generateCourse: 'Generate course', courseMaking: 'Generating your course', didYouKnow: 'Did you know',
+  courseProgress: (made, total) => `${made} of ${total} cards made`, courseNow: title => `Making ${title}`, courseFailed: n => (n === 1 ? '1 could not be made' : `${n} could not be made`),
+  courseStopped: { allowance: 'Your credits ran out, so the course stopped. The cards already made are on the canvas.', blocked: 'The course stopped at a card that could not be prepared. The cards already made are on the canvas.' },
   nextCard: 'Next card', editCard: 'Edit card', goToCard: 'Go to card', goToText: 'Go to highlighted text',
   stage: { proposed: 'Proposed card', accepting: 'Accepting', generating: 'Generating', checking: 'Checking', saving: 'Saving', ready: 'Ready on the canvas', failed: 'Not made', skipped: 'Skipped', cancelled: 'Cancelled' },
   formatName: { explanation: 'Explanation', table: 'Table' },

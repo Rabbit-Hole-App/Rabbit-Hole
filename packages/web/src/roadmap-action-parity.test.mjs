@@ -18,21 +18,3 @@ const afterFirstCancel = view => {
   const [first, second] = view.steps;
   return { ...view, steps: [{ ...first, state: 'cancelled' }, { ...second, state: 'planned' }], proposal: { ...view.proposal, stepId: second.id }, results: [] };
 };
-
-test('after a first Cancel then manual Propose next step Chat and Canvas name the offer the same (nothing was accepted yet: Accept)', () => {
-  const state = at('status-active-proposal-pending', afterFirstCancel);
-  assert.equal(pillOf(state).label, 'Accept', 'canvas');
-  assert.equal(chatLabel(state), pillOf(state).label, 'Chat uses the canvas classification');
-});
-
-test('after accepted work the same offer is Next card on both surfaces', () => {
-  const state = at('status-delivered-next-ready');
-  assert.equal(pillOf(state).label, 'Next card');
-  assert.equal(chatLabel(state), 'Next card');
-});
-
-test('the first offer is Accept on both surfaces', () => {
-  const state = at('status-active-proposal-pending');
-  assert.equal(chatLabel(state), 'Accept');
-  assert.equal(pillOf(state).label, 'Accept');
-});
