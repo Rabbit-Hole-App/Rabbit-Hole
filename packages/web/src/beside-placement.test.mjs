@@ -49,9 +49,8 @@ test('the card is placed clear of the source and of every obstacle: no overlap a
 test('wiring: Ask in a new card and Explore ask for a card beside the source with no connector; the slot is as tall as the source; an anchored slot puts the card on its place; reload keeps dx, dy', () => {
   const canvas = src('./AdaptiveCanvas.jsx'), slash = src('./learn-slash.js');
   assert.match(canvas, /\.\.\.\(destination === 'card' \|\| destination === 'follow-up' \|\| destination === 'explore' \? \{ beside: true \} : \{\}\)/);
-  // AR-C3 (release 146): a card from a card is placed by place-sourced.js (right or left, level with the passage or the source's middle); the slot is as tall as the source up to BESIDE_ASSUMED_H
-  assert.match(canvas, /placeSourced\(\{ source, anchorY: Number\.isFinite\(besideDy\) \? source\.y \+ besideDy : null, size: slot, boxes: boardObstacles\(\[anchor\]\), siblings, id, sourceId: anchor, area: null \}\)/);
-  assert.match(canvas, /size = \{ \.\.\.size, h: slot\.h \}/);
+  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy \}\)/);
+  assert.match(canvas, /if \(at\) size = \{ \.\.\.size, h: Math\.round\(source\.h\) \}/);
   // typed /explain (BUG 4): follow the selected or latest explanation card through followPlace, never the column once there is one to follow
   assert.match(canvas, /\(\{ at, size \} = followPlace\(\{ source, size, id, obstacles: boardObstacles\(\[anchor\]\) \}\)\)/);
   assert.match(canvas, /beside \|\| \(follow && !given \? followAnchor\(\) : null\)/);

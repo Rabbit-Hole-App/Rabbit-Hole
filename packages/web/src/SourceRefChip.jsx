@@ -80,8 +80,6 @@ export function SourceRefHeader({ block, app }) {
   if (!ref) return null;
   return <SourceRefHead ref_={ref} status={status} note={note} onOpen={() => setNote(viewPassage(ref, { raw: !!block.stepId }) === 'no-card' ? NO_FILE_CARD : '')} />;
 }
-// HL-3 (owner 2026-11-14): over a Markdown passage the header's button is 'Go to highlight' (the pink passage in the file card); a PDF keeps 'View passage' (the reader at the page).
-export const HEAD_OPEN = ref => (ref?.kind === 'markdown' ? 'Go to highlight' : 'View passage');
 export function SourceRefHead({ ref_: ref, status, note = '', onOpen }) {
   const bad = status && status !== 'current';
   return (
@@ -91,7 +89,7 @@ export function SourceRefHead({ ref_: ref, status, note = '', onOpen }) {
       {bad && <span data-source-ref-note role="status" title={STATUS_TEXT[status]} aria-label={STATUS_TEXT[status]} className="shrink-0">{STATUS_SHORT[status]}</span>}
       {!bad && note && <span data-source-ref-note role="status" className="shrink-0">{note}</span>}
       {navigable(ref) && status === 'current' && (
-        <button type="button" data-source-ref-open data-view-section aria-label={HEAD_OPEN(ref)} title={HEAD_OPEN(ref)} onClick={onOpen}
+        <button type="button" data-source-ref-open data-view-section aria-label="View passage" title="View passage" onClick={onOpen}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"><ScanText size={16} aria-hidden="true" /></button>
       )}
     </span>

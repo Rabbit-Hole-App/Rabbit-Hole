@@ -957,21 +957,3 @@ crashes. The machine was heavily loaded, so times vary.
     again, so each card tool's description now states its long text fields' limits in words (learn-artifact.js).
 - **Always require text** (owner, 2026-10-14). Send stays disabled until something is typed, with or without a
   selection, and Enter on an empty prompt sends nothing and shows nothing. There is no one-click Explain.
-
-## Explained passages: pink mark and the two-way link (HL-1, HL-2, HL-3; owner 2026-11-14)
-
-- **Pink, not yellow.** A passage explained through Ctrl+K is pink (`--color-explained`, `index.css`), apart from the plain Highlight's yellow (`wiki-highlight`, unchanged).
-  While the window is open the words are marked pink (`::highlight(inline-target)`); once the explanation card exists, the passage stays pink in the Markdown file card
-  (`::highlight(tutor-source)`, and the code-line, diagram and section shapes of UI.07, all pink now). The persistent mark is not a second store: it is drawn from the card's
-  `sourceRef` (source-ref.js), which the server holds and the board saves, so a reload, Show more or another browser draws it again, and a changed file draws nothing.
-- **The reference is minted on both Ctrl+K paths.** The selection toolbar's Ctrl+K button in a Markdown file card runs FileDocMarkdown `explain()` (mints at once; LearnPage holds the ref
-  for the one /explain or /interactive line that follows). Ctrl+K from the keyboard over selected Markdown words goes through `pickedHighlight` (`quote` from `passageQuote`) and
-  `InlineAiEditor.highlightSelection`, which adds `sourceDraft`; `learn-slash.js` mints it before anything is made and stops with a line to fix if the file changed. Before HL-1 only the button did.
-- **Through the dim.** The window's dim has holes (`scrimPath`, rects merged by `mergeRects`) for the words being explained and for every explained passage painted in a card
-  (`inline-highlight-mark.js` `explainedSet`/`explainedRects`), so their pink stays at full strength behind the window.
-- **Both ways, one icon (ScanText).** The explanation card's header (top right, the Source line) offers **Go to highlight** over a Markdown passage (**View passage** stays for a PDF);
-  the pink passage shows the same icon in the file card's gutter on hover or keyboard focus, **Go to card**. Both send the camera through `source-refs.js` `goTo` (one line to swap
-  for the shared centring helper) and the passage scrolls to the middle of its own card.
-- **Not covered, needs a decision.** Passages of an Explanation, webpage or other card have no source key, so no `sourceRef` can be minted and no persistent pink or link exists for them
-  (they still get the pink mark while the window is open). That needs a new source-key family and a server change in `control-plane/src/source-refs.js` (and a migration of
-  `learn_source_refs`); not built.

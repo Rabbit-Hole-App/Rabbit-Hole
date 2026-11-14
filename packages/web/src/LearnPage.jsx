@@ -1156,7 +1156,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // stamp: fields the pending card carries from its maker (a Tutor activity's tutor_action and coaching, learn-coaching-materials.js).
   // thread: a promise of the chat thread the line was saved in (or its id); else this canvas's open chat thread, so a brief
   // that needs review has a place to appear. refs: ContextRef[] (refsForSend), resolved by the server, never read as given.
-  const startExplain = async (prompt, { context = null, image = null, promptUsed = prompt, source = 'explicit', stamp = null, thread = null, refs = null, sourceRef = null, near = null } = {}) => {
+  const startExplain = async (prompt, { context = null, image = null, promptUsed = prompt, source = 'explicit', stamp = null, thread = null, refs = null, sourceRef = null } = {}) => {
     if (explainOff.current || !commentBoard || !prompt.trim()) return null;
     // shortcut: a line save slower than 5 s goes on without its thread (the open one, if any); the job never waits longer.
     const threadId = (await Promise.race([Promise.resolve(thread).catch(() => null), new Promise(done => setTimeout(done, 5000, null))])) || chat?.thread?.id || null;
@@ -1169,7 +1169,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     catch (error) { if (explainDisabled(error)) { explainOff.current = true; return null; } throw error; }
     // usage analytics: a new /explain request makes a brief first (a paid plan), never a generated result
     track('rh_planning_requested', { feature: 'explain', action_id: result.job.id }, { once: `plan:${result.job.id}` });
-    const blockId = canvasApi.current?.placeExplain({ ...withPrompt(explainPendingBlock({ job: result.job, prompt, threadId }), promptUsed), ...(stamp || {}) }, { near: near || (sourceRef && passageSites.current.get(sourceRef)) || null });
+    const blockId = canvasApi.current?.placeExplain({ ...withPrompt(explainPendingBlock({ job: result.job, prompt, threadId }), promptUsed), ...(stamp || {}) }, { near: (sourceRef && passageSites.current.get(sourceRef)) || null });
     return { blockId: blockId || result.job.cardId };
   };
   // /animation (AN-05; control-plane animation-job.js): as /explain v2, one job per press (a repeat of the same line while it is
@@ -1243,11 +1243,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     const onPassage = event => {
       const { sourceRef, text, cardId, rect } = event.detail || {};
       if (!sourceRef || !text) return;
-      // CK-1/CK-2: the passage rect and its card ride into Ctrl+K, so its window stands beside the words and the camera centres them (InlineAiEditor bulbWords); the words are its pill.
       passageRef.current = { sourceRef, text, at: Date.now() };
       // Where this passage is on the canvas now, in world units: its Explain skeleton is placed beside it (AdaptiveCanvas placeExplain).
       passageSites.current.set(sourceRef, { cardId, world: rect ? canvasApi.current?.worldRect?.(rect) ?? null : null });
-      if (!canvasApi.current?.inlineAi?.('explain', { prompt: text, rect, cardId })) toast('Open a canvas you can edit to explain this passage.');
+      if (!canvasApi.current?.inlineAi?.('explain', { prompt: text })) toast('Open a canvas you can edit to explain this passage.');
     };
     window.addEventListener(EXPLAIN_PASSAGE_EVENT, onPassage);
     return () => window.removeEventListener(EXPLAIN_PASSAGE_EVENT, onPassage);
@@ -1339,8 +1338,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // build does not offer the command or the Chat cannot take the turn.
     // Ctrl+K's explicit commands (owner spec 2026-10-29 4.2): the line goes to Chat's own dispatcher, about Ctrl+K's selection, and
     // Chat opens. Answers false when Chat could not take it (another command runs there, or Chat did not open in time).
-    // CK-6: Ctrl+K's /explain with words makes its card here, as learn-slash.js does (the passage's minted ref and words ride it), so no Chat pane opens. null: explain v2 is off here (InlineAiEditor deliverLine then uses Chat).
-    explain: async (words, about = {}) => { const held = heldPassageTarget(about.selection ?? null, `/explain ${words}`, passageRef); return startExplain(words, { context: held?.text ? String(held.text).slice(0, 8000) : null, ...(held?.sourceRef ? { sourceRef: held.sourceRef } : {}), ...(about.selection?.beside && about.selection.id ? { near: { cardId: about.selection.id, alignY: about.selection.alignY } } : {}) }); }, // CK-5: highlighted words of a card: the new card stands beside THAT card at the highlighted line
     handoff: async (line, about = {}) => { const live = chatWorkspace.current; if (!live?.ask) return false; live.panels?.openChat?.(); return (await live.ask({ line, about })) === true; },
     propose: async (command, args, about = {}) => { const live = chatWorkspace.current; if (!isLearnCommand(command) || !live?.ask) return false; live.panels?.openChat?.(); return (await live.ask({ prompt: args, command, about })) !== false; },
     // Current Chat's live transcript and deliberately attached source metadata support the selected edit.

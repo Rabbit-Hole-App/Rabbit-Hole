@@ -43,8 +43,6 @@ test('a passage outside the card is clamped to the card, so the slab stays on th
 test('placeExplain calls it with the source card as an obstacle and falls back to the view without a source box', () => {
   const page = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   const body = page.slice(page.indexOf('placeExplain: (card'), page.indexOf('reconcileCad:'));
-  // CK-5 (release 144): placeExplain now places through place-sourced.js (right or left, level with the line, jitter; the source and every other box are obstacles); the deliveredSpot geometry above stays the
-  // Tutor slots' rule (roadmap placement). The call shape of placeExplain is pinned here.
-  assert.match(body, /placeSourced\(\{ source: box, anchorY: line, size: slot, boxes: \[\.\.\.boardObstacles\(\[source\.id\]\), \.\.\.anchoredBoxes\(slotsRef\.current\)\], siblings, id: card\.id, sourceId: source\.id, area: null \}\)/);
-  assert.match(body, /if \(box\) \{[\s\S]*pendingAt\.current\.set\(added\.id, \{ x: placed\.x, y: placed\.y \}\)[\s\S]*\}\s*blocksRef\.current = \[\.\.\.blocksRef\.current, added\];[\s\S]*insertAtView\(added, into\)/);
+  assert.match(body, /deliveredSpot\(\{ w: EXPLAIN_PENDING_SIZE\.width, h: 360 \}, proposalAnchor\(box, near\.world\), \[\.\.\.boardObstacles\(\[source\.id\]\), \.\.\.anchoredBoxes\(slotsRef\.current\), box\]/);
+  assert.match(body, /if \(box\) \{[\s\S]*pendingAt\.current\.set\(added\.id, spot\)[\s\S]*\}\s*blocksRef\.current = \[\.\.\.blocksRef\.current, added\];[\s\S]*insertAtView\(added, into\)/);
 });

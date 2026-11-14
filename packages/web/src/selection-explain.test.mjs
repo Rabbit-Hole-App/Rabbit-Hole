@@ -102,17 +102,18 @@ const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
 test('the bulb opens Ctrl+K with the passage as the words and NO command pill; the router picks the command; it never starts the job itself', () => {
   const page = read('./LearnPage.jsx');
   const listener = page.slice(page.indexOf('const onPassage'), page.indexOf('window.addEventListener(EXPLAIN_PASSAGE_EVENT'));
-  assert.ok(listener.includes("inlineAi?.('explain', { prompt: text, rect, cardId })"), 'words only, and where they are (CK-1): no command, so no command pill');
+  assert.ok(listener.includes("inlineAi?.('explain', { prompt: text })"), 'words only: no command, so no pill');
   assert.doesNotMatch(listener, /command/);
   assert.doesNotMatch(page, /HIGHLIGHT_EXPLAIN_COMMAND/);
   assert.doesNotMatch(read('./source-refs.js'), /HIGHLIGHT_EXPLAIN_COMMAND/);
   assert.doesNotMatch(listener, /startExplain/);
   const editor = read('./InlineAiEditor.jsx');
   assert.ok(editor.includes('useState(preset?.command ?? null)'), 'a preset with no command leaves the pill off');
-  assert.ok(editor.includes("useState(preset?.command ? preset?.prompt ?? '' : '')"), 'CK-2: the passage is a pill, the box starts empty');
-  // The bulb's passage (a preset with no command) is handled like highlighted words: no router (CK-3 decision 2026-11-14), Enter runs /explain, and no selection target is given for it (the minted ref rides heldPassageTarget).
-  assert.ok(editor.includes("const overPassage = !!(highlight || (preset && !preset.command)) && !out.handoff"), 'the bulb passage is handled like highlighted words');
-  assert.doesNotMatch(editor, /transport\.route/);
+  assert.ok(editor.includes("useState(preset?.prompt ?? '')"));
+  // The router also asks about the bulb's passage (a preset with no command), and Chat gets no selection target for it, exactly as the old preset gave.
+  assert.ok(editor.includes("if ((highlight || (preset && !preset.command)) && !out.handoff"), 'the bulb passage is routed like highlighted words');
+  assert.ok(editor.includes("selection: (highlight?.text ?? preset.prompt ?? '').slice(0, 1500)"));
+  assert.ok(editor.includes('config.handoff(line, { selection: highlight ? highlightSelection() : null })'));
 });
 
 test('a command the router picks for the bulb passage still carries the minted ref and the passage (heldPassageTarget), once', async () => {
@@ -142,44 +143,4 @@ test('a Markdown selection offers the shared four-button toolbar (Ctrl+K, Add to
   assert.match(add, /quote\.exact\.length > EXCERPT_LIMIT/);
   assert.match(add, /chat\.addToChat\(selectionRef\(/);
   assert.doesNotMatch(add, /putHighlight|generate|send|startExplain/);
-});
-
-// CK-1, CK-2, CK-3 (release 144): the Markdown bulb's passage is placed and framed like highlighted words; the passage is a pill and the box starts empty; Explain selection makes its card directly.
-test('CK-1: the bulb passage (a preset with its rect) is placed and framed like highlighted words; only the real Range is marked', () => {
-  const editor = read('./InlineAiEditor.jsx');
-  assert.ok(editor.includes('const bulbWords = useMemo(() => (!highlight && preset && !preset.command && preset.rect ?'));
-  assert.ok(editor.includes('const words = highlight || bulbWords;'));
-  assert.ok(editor.includes('const restore = canvas.frameWords(span, { w: W, h: FRAME_ROOM, gap: 10 });'));
-  assert.ok(editor.includes('if (!words || !origin) return null;') && editor.includes('if (!highlight?.live) return undefined;'), 'the placement follows `words`; the mark needs the real Range');
-});
-
-test('CK-2: the passage is a pill (title: the full text) and the box starts empty; an empty box over a passage explains the passage', () => {
-  const editor = read('./InlineAiEditor.jsx');
-  assert.ok(editor.includes("const passageText = highlight?.text ?? (preset && !preset.command ? preset.prompt || '' : '');"));
-  assert.ok(editor.includes("useState(preset?.command ? preset?.prompt ?? '' : '')"));
-  assert.ok(editor.includes('{passageText && <span data-inline-chip title={passageText}'));
-  assert.ok(editor.includes("const asked = String(prompt).trim() || passageText;"));
-  assert.ok(editor.includes('!(outgoing.trim() || (passageText && !command))'), 'Enter and the Send button work with an empty box over a passage');
-});
-
-test('CK-3: Explain selection over a passage makes its card through /explain (skeleton, then the card), never a preview; a note, Edit and the paid proposal keep Accept / Reject; the router is not asked', () => {
-  const editor = read('./InlineAiEditor.jsx');
-  assert.ok(editor.includes("if (overPassage && config.handoff) {"));
-  assert.ok(editor.includes("deliver(`/${typedOf('explanation')} ${asked}`,") && editor.includes('{ selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }'), 'the written /explain (id explanation), not /interactive');
-  assert.ok(editor.includes("const autoCard = mode === 'explain' && state.preview?.kind === 'card';"), 'the inline card fallback is accepted by itself');
-  assert.ok(editor.includes("!busy(status) && !autoCard && (") && editor.includes("(preview && status !== 'proposal' && !autoCard) && ("), 'no Accept or Reject, no preview text, for that card only');
-  assert.ok(editor.includes("preview?.kind === 'note'") && editor.includes("status === 'proposal' && ("), 'notes and the paid proposal keep their own review');
-});
-
-// CK-5: BOTH placement points of a card made from a passage call the shared placeSourced (right or left, level with the line, no overlap, nothing moves); CK-4 centres the camera on it.
-test('CK-5: placeExplain (the Ctrl+K v2 job) places through placeSourced at the passage line, writes parentCard, and centres the camera; the highlight card goes there as near.alignY', () => {
-  const canvas = read('./AdaptiveCanvas.jsx').replace(/\r\n/g, '\n'), page = read('./LearnPage.jsx').replace(/\r\n/g, '\n');
-  const at = canvas.indexOf('placeExplain: (card,'), body = canvas.slice(at, canvas.indexOf('reconcileCad:', at));
-  assert.ok(body.includes('placeSourced({ source: box, anchorY: line, size: slot,') && !body.includes('deliveredSpot('), 'one shared helper, no private spot');
-  assert.ok(body.includes('Number.isFinite(near.alignY) ? box.y + near.alignY') && body.includes('parentCard: { id: source.id, dy: Math.round(line - box.y) }'));
-  assert.ok(body.includes("pendingAt.current.set(added.id, { x: placed.x, y: placed.y })") && body.includes('revealAfter(added.id)'), 'placed once; the camera centres on it once measured');
-  assert.ok(page.includes("near = null } = {}) => {") && page.includes('near: near || (sourceRef && passageSites.current.get(sourceRef)) || null'));
-  assert.ok(page.includes('near: { cardId: about.selection.id, alignY: about.selection.alignY }'), 'the highlight card and the highlighted line reach placeExplain');
-  const reserve = canvas.slice(canvas.indexOf('reserve: ({ label,'), canvas.indexOf('placeRoadmapCard:'));
-  assert.ok(reserve.includes('placeSourced({ source, anchorY'), 'reserve({beside}) uses it too');
 });

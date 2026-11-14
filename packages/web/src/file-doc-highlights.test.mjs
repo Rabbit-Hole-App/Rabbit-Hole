@@ -78,19 +78,19 @@ test('Tutor anchors: resolved spans in text order; overlapping cards share one a
   assert.deepEqual(anchors.map(a => [a.start, a.end, a.cards.map(c => c.cardId)]), [[7, 25, ['c1', 'c3']], [26, 37, ['c2']]]);
   assert.deepEqual(tutorAnchors([], resolve), []);
 });
-test('anchor shapes and the Go to card label (HL-3, was View card)', () => {
+test('anchor shapes and the View card label', () => {
   assert.equal(anchorShape({ inDiagram: true, inCode: true }), 'diagram');
   assert.equal(anchorShape({ inCode: true }), 'code');
   assert.equal(anchorShape({ startsAtHeading: true, spansBlocks: true }), 'section');
   assert.equal(anchorShape({ startsAtHeading: true, spansBlocks: false }), 'prose', 'a heading alone is text');
   assert.equal(anchorShape({}), 'prose');
-  assert.equal(viewCardLabel([{ title: 'Why trees, and what a tree actually does' }]), 'Go to card: Why trees, and what a tree actually does');
-  assert.equal(viewCardLabel([{ title: 'A' }, { title: 'B' }]), 'Go to card: 2 cards');
+  assert.equal(viewCardLabel([{ title: 'Why trees, and what a tree actually does' }]), 'View card: Why trees, and what a tree actually does');
+  assert.equal(viewCardLabel([{ title: 'A' }, { title: 'B' }]), 'View card: 2 cards');
 });
 test('the Markdown card wires the Tutor layer apart from learner highlights and transient emphasis, with the View card gutter button', () => {
   const source = readFileSync(new URL('./FileDocMarkdown.jsx', import.meta.url), 'utf8');
   assert.match(source, /CSS\.highlights\.set\('tutor-source'/, 'its own Highlight registry');
-  assert.match(source, /title="Go to card" aria-label=\{viewCardLabel\(anchor\.cards\)\}/);
+  assert.match(source, /title="View card" aria-label=\{viewCardLabel\(anchor\.cards\)\}/);
   assert.match(source, /focus-visible:pointer-events-auto focus-visible:opacity-100/, 'Tab reaches a hidden button and shows it');
   assert.match(source, /focusExplanation\(cardId\); emphasizeCard\(cardId\)/);
   assert.match(readFileSync(new URL('./card-layout.css', import.meta.url), 'utf8'), /::highlight\(tutor-source\)/);
