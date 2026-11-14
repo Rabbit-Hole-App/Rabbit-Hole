@@ -100,9 +100,30 @@ Screenshots for CV-6/CV-7/CV-3 use boards DERIVED from the v60 export (each meas
 
 ## 5. Not finished, and why
 
-- Film `v2-unapproved` 4K + 1080p + poster + sheet of the draft-4 take: started after the gates were done; running under lock `film` when I wrote this. Footage, not a release: no gate.
-- `film/kit` equivalence run (merge-ready decision): started; running under lock `kit`. Never merged; main untouched.
+- Film and kit: both done, see section 6.
 - The 140 MVP record: the fork says it is made on the dev clone but did not report the build and record ids, and the pins file has none. The ids are in the dev-clone log (`C:/s/spec/logs/preview-140-explain-*.log`).
 - 8878 update: after the releases, not before.
 - Lock time lost: about 20 minutes to two orphaned lock holders (a film script's child and a leftover acquire loop). I killed the recorded PIDs and replaced `heavy-lock.sh` with a version that exits when the parent shell is dead.
 - Worktrees kept for the pins (remove after the releases; `rmdir` each `node_modules` junction first): `C:/s/explain-canvas-2`, `C:/s/explain-canvas-3`, `C:/s/explain-base-40a77c`, `C:/s/explain-140`, `C:/s/explain-140-base`, `C:/s/explain-141`, `C:/s/explain-141-base`, `C:/s/explain-smoke` (do not remove).
+
+## 6. Film and kit (not releases; no gate, no CI)
+
+All on `film/evidence`; paths below are inside `docs/features/explain/film/`.
+
+### Film v2-UNAPPROVED (draft-4 take, not owner-approved)
+- Commits on `film/evidence`: `35e0df3909ad9ea3ab13eee4e97fc2c221d0c6f6` (videos) and `a0b529bf9efd0831bd7c6c5decffafb402a5de54` (posters, sheet, checks). Both verified on the remote.
+- `videos/explain-around-markdown-v2-UNAPPROVED-4K.mp4`: 3840x2160, 68,992,309 bytes, 95.0 s.
+- `videos/explain-around-markdown-v2-UNAPPROVED-1080p.mp4`: 1920x1080, 25,922,137 bytes, 95.0 s.
+- `v2-unapproved/`: `poster-v2-4k.jpg`, `poster-v2-1080p.jpg`, `contact-sheet-v2-1080p-3s.png`, `dead-scene-check.txt`, `settings.txt` (holds the sha256 of both MP4s).
+- Encode: libx264 slow, CRF 18, yuv420p TV range, +faststart, silent; the same edit as draft 4 (ramp 1.8x, 1.5 s holds, 3 s waits).
+- Dead-scene check (fork's result): no still stretch over 2.0 s; longest 1.8 s at 43.3 s.
+- Still waiting for the owner's reaction to draft 4 and the numbered notes before anything is called approved.
+
+### film/kit (SOP follow-up: the kit in `packages/web/scripts/film/`)
+- Branch `film/kit` = `2bc0a6b00e804909fb801492bd69e315b322f62a` on top of `1f8d2fa10`; the diff is 10 files, +503/-147, all under `packages/web/scripts/film/`. Not merged; main untouched.
+- Evidence: `film/evidence` `66b0d01f086f28d2a449845790e6232b203abb2d`, directory `kit/` (compare-vs-take-d7.txt, compare-vs-take-s5.txt, kit-checks.json, kit-marks.json, requests.log, kit-draft-output.txt, the 480p draft mp4 and its contact sheet, and the first refused attempt's output).
+- Equivalence against take-d7 and take-s5 (fork's report): 0 UNSCRIPTED, 0 model calls, 0 failed, 0 page errors; 47 routes, 0 flagged; marks 37 reveals, 6 typing, 2 depth; every beat-checklist check passes; output 854x480, 104.9 s, longest still 2.2 s.
+- NOT equivalent: timing. The kit's real-time take is 135.3 s of script and 104.9 s of output, against 102.4 s and 95.0 s for the film's frame-stepped draft 4 and 145.6 s for the real-time d7. Matching needs the frame-stepped mode, which is not ported to the kit (frame-stepped 4K in the kit, per-key retry logging, skeleton shimmer and Stop-button hover are untested).
+- Verdict: merge-ready for scripts and docs only; the owner's rule (merge only after an equivalence run) is met for requests and beats, not for timing.
+- DECISION NEEDED A: merge `film/kit` as a scripts-and-docs-only release (needs a slot, no gate; the owner runs the merge)?
+- DECISION NEEDED B: the chat pane's Depth menu is clipped at the right edge of the 1920 viewport; the film's own v1 and 4K frames (take-s5 frame 843) show the same clipping. Fix the film's framing or leave it? The kit prints a `known` note on that beat.
