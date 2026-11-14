@@ -15,6 +15,8 @@ Defined once as CSS variables on `.blog-page` in `blog-stories.css`.
 | `--hero-plum` | plum | `#8A7AA6` | shading, secondary shapes |
 | `--hero-rose` | rose | `#D9B8C4` | one accent per image, at most |
 | `--hero-sage` | sage | `#B7C2B0` | optional second accent |
+| `--hero-blue` | powder blue | `#A9BCCB` | sky, water, cool coats; added 2026-11-13 so an image need not lean on rose |
+| `--hero-ochre` | ochre | `#D8C08C` | warm tables, caps, coats; added 2026-11-13 |
 
 No pure black or white anywhere in a hero image.
 
@@ -68,3 +70,13 @@ appears.
 | Post | Image | Alt text | Status |
 |---|---|---|---|
 | `rabbit-holes-not-courses` | `rabbit-holes-not-courses-hero.jpg` | The White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat in a hand-tinted engraving of Wonderland, walking through a garden with a tea-party table, playing-card soldiers and a castle behind them. | Generated 2026-11-02 with GPT Image 2.5 Flare at 2048x720, quality high, attempt 4 of 4 (US$0.0239; attempts 1 to 3 were US$0.0123, US$0.0445 and US$0.0235, total about US$0.10). Attempts 1 to 3 were replaced at the owner's request (too simple, then monochrome). Highlights capped at #F4F3EF; 90% JPEG, 0.9 MB. The Cat is a muted grey-lavender tabby, not Disney's pink and purple. |
+
+## Pipeline (owner, 2026-11-13)
+Never ask which model: run `node scripts/landing-art.mjs blog-hero <slug> "<subject sentences>"` from `packages/web`. It uses GPT Image 2.5 Flare at 2048x720 with the prompt above, writes `public/landing/blog/<slug>-hero.jpg` (90% JPEG) and saves the prompt to `design/art/<slug>-hero.prompt.md`. `blog-post <slug> "<subject>"` does the same and also lists a placeholder post first in `blog-posts.js` (card numbers follow publication order, so the first blog is 01; `--palette` swaps the tint sentence). A page header uses `page-banner` (Nano Banana 2.1, 4:1, the warm print collage). A generation costs a few cents. The script header lists the options.
+
+## Characters stay the same (owner, 2026-11-13)
+The look of the White Rabbit, Alice, the Mad Hatter, the Caterpillar and the Cheshire Cat is saved once in `design/art/characters.md` and pasted word for word into every `blog-hero`/`blog-post` prompt, so subject sentences only name a character and say what it does. Edit the sheet there to change a character everywhere. The default tint sentence is now cool (sage, powder blue, ochre, lavender, plum); dusty rose appears only on the Rabbit's jacket.
+The first hero is also saved as `design/art/characters-reference.jpg` and attached to every blog hero call (an image edit), so the model sees the characters as well as reading the sheet. `--no-ref` turns that off.
+
+## A new background and colour scheme every time (owner, 2026-11-13)
+The setting and the colour scheme are saved lists too: `design/art/scenes.md` (garden, library, riverbank, croquet lawn, mushroom forest, courtroom, chess fields) and `design/art/palettes.md` (blue, ochre, lavender, teal, sage; the first hero is `garden` and `rose`). `--scene <name>` and `--palette <name>` pick one; left out, the pipeline picks the first of each that no earlier hero used, and each hero's prompt record names them. The characters and their colours never change; the subject sentences only place them in the scene (the Cheshire Cat sits wherever the scene has a perch).

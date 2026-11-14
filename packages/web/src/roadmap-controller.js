@@ -3,7 +3,7 @@
 // server for the authorized cards, insert each by its server-minted id once, save the board, then acknowledge. Nothing here
 // mints an id, predicts a result or touches a price.
 import { STRINGS } from './roadmap-strings.js';
-import { actionKeys, canProposeNext, deliverable, draftOf, initialState, offerOf, planDelivery, reduce, routes } from './roadmap-client.js';
+import { acceptedPlanOf, actionKeys, deliverable, draftOf, initialState, planDelivery, reduce, routes } from './roadmap-client.js';
 import { markEnd, markStart } from './client-timing.js';
 import { isUnfinishedRoadmap } from './roadmap-contract.js';
 import { FOLLOW_UP_MS, createAutoMeter } from './roadmap-auto.js';
@@ -15,6 +15,7 @@ import { FOLLOW_UP_MS, createAutoMeter } from './roadmap-auto.js';
 export function createRoadmapController({ api, boardId, host, schedule = setTimeout, cancel = clearTimeout, random, now }) {
   let state = initialState(), timer = null, stopped = true;
   const meter = createAutoMeter({ now }), followUps = new Set();
+  let unsaved = 0; // consecutive failed board saves while placing a card
   const listeners = new Set(), keys = actionKeys(random), delivering = new Set(), seen = new Set(), flight = new Map();
   const dispatch = event => { const next = reduce(state, event); if (next !== state) { state = next; listeners.forEach(fn => fn()); } };
   const call = ({ method, path, body }) => api(path, method === 'GET' ? {} : { method, body: JSON.stringify(body) });
@@ -78,7 +79,7 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     flight.set(gesture, run);
     return run;
   }
-  const applyView = body => { if (body?.roadmap !== undefined && (body.roadmap === null || (typeof body.roadmap === 'object' && Array.isArray(body.steps)))) { timeViews(state.view, body); dispatch({ type: 'view', view: body }); meter.observe(state.view); reconcile(); } return body; };
+  const applyView = body => { if (body?.roadmap !== undefined && (body.roadmap === null || (typeof body.roadmap === 'object' && Array.isArray(body.steps)))) { const before = state.view?.roadmap?.id ?? null; timeViews(state.view, body); dispatch({ type: 'view', view: body }); meter.observe(state.view); if ((state.view?.roadmap?.id ?? null) !== before) refreshEarlier(); reconcile(); } return body; };
   const mutateView = (gesture, route) => (state.view ? act(gesture, route).then(applyView) : Promise.resolve(null)); // every roadmap action needs a view to take its revision from
 
   async function refresh() {
@@ -92,6 +93,17 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
       const last = ((await call(routes.history(boardId)))?.roadmaps || []).find(r => r.state === 'completed' || r.state === 'ended');
       if (last) dispatch({ type: 'past', view: await call(routes.view(boardId, last.id)) });
     } catch (error) { refuse(error); }
+  }
+  // Finished courses stay in the contents (roadmap-client.js tocOf `earlier`): the canvas's last three that were accepted and delivered, other than the current one. Never worth a failure.
+  async function refreshEarlier() {
+    if (stopped || host.readOnly?.()) return;
+    try {
+      const current = state.view?.roadmap?.id || state.past?.roadmap?.id || null;
+      const list = ((await call(routes.history(boardId)))?.roadmaps || []).filter(r => (r.state === 'completed' || r.state === 'ended') && r.deliveredCount > 0 && r.id !== current).slice(0, 3);
+      const views = [];
+      for (const r of list) { const v = await call(routes.view(boardId, r.id)); if (v?.roadmap && acceptedPlanOf(v)) views.push(v); }
+      dispatch({ type: 'earlier', views });
+    } catch { /* the contents simply show no earlier courses */ }
   }
   async function refreshInvitation() {
     if (stopped || host.readOnly?.()) return;
@@ -119,7 +131,8 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     // real once the saved board holds the card: otherwise nothing is acknowledged, the result stays undelivered, and the next poll
     // runs this again (the card is already on the canvas and the server hands back the same result: one card, one charge).
     const saved = await host.persist();
-    if (saved?.ok !== true) throw Object.assign(Error('board_not_saved'), { retry: true });
+    if (saved?.ok !== true) { unsaved += 1; if (unsaved === 3) dispatch({ type: 'refused', message: STRINGS.saveFailed }); throw Object.assign(Error('board_not_saved'), { retry: true }); }
+    unsaved = 0;
     for (const cardId of plan.cardIds) {
       if (host.savedHas && !host.savedHas(cardId)) throw Object.assign(Error('board_not_saved'), { retry: true });
       const revision = host.boardRevision?.();
@@ -173,10 +186,11 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     const idleKey = `drop-${key}`.replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 120);
     return call(routes.invite(boardId, [key], idleKey)).then(body => {
       dispatch({ type: 'invitation', invitation: body.invitation, suppressed: body.suppressed });
+      dispatch({ type: 'waiting', on: false });
       markEnd('drop:' + key); // drop_to_invite_ms (LearnPage.jsx starts it at the drop)
       if (body.suppressed?.reason === 'unfinished_roadmap') dispatch({ type: 'boundary', boundary: { key, name: host.sourceName?.(key) || '' } });
       return body;
-    }, error => { reported.delete(key); markEnd('drop:' + key, 'failed'); refuse(error); return null; });
+    }, error => { reported.delete(key); dispatch({ type: 'waiting', on: false }); markEnd('drop:' + key, 'failed'); refuse(error); return null; });
   };
 
   // Fix B (T5): the Depth and instruction the learner confirmed for THIS source in Chat (explain); a part chosen later (R7a) keeps them.
@@ -191,13 +205,19 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
   return {
     getState: () => state,
     subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
-    start() { if (!stopped) return; stopped = false; refresh().then(() => (state.view ? null : refreshInvitation())).then(refreshPast).then(loop); },
+    start() { if (!stopped) return; stopped = false; refresh().then(() => (state.view ? null : refreshInvitation())).then(refreshPast).then(refreshEarlier).then(loop); },
     stop() { stopped = true; if (timer) cancel(timer); timer = null; for (const id of followUps) cancel(id); followUps.clear(); },
     // Delivery-to-visible samples of automatic proposals (roadmap-auto.js): { n, p50, p95 } in milliseconds.
     timings: () => meter.summary(), timingSamples: () => meter.samples(),
     refresh,
     // A supported source finished importing: reported, grouped, once the learner is idle.
     sourceReady: key => report(key), idleTick: () => false,
+    // A Markdown file was just dropped: show the waiting shimmer until its invitation arrives (cleared by it, by a failure, or after a minute so it never sticks).
+    expectInvitation() {
+      if (stopped || host.readOnly?.() || state.view) return;
+      dispatch({ type: 'waiting', on: true });
+      const id = schedule(() => { followUps.delete(id); if (state.waiting) { dispatch({ type: 'waiting', on: false }); dispatch({ type: 'refused', message: STRINGS.prepareFailed }); } }, 60000); followUps.add(id); // no invitation after a minute: say so (never an endless shimmer)
+    },
     setMode(mode) {
       if (mode === state.mode) return;
       dispatch({ type: 'mode', mode });
@@ -248,41 +268,10 @@ export function createRoadmapController({ api, boardId, host, schedule = setTime
     // UI.03: a Depth change or the typed Edit roadmap request is a new draft revision (contracts.md revise; 422 practice_unavailable).
     revise: fields => mutateView(`revise:${state.view?.roadmap.id}:${state.view?.roadmap.revision}`, key => routes.revise(state.view, fields, key)),
     answer: fields => mutateView(`answer:${state.view?.question?.id}`, key => routes.answer(state.view, { questionId: state.view.question.id, ...fields }, key)),
-    // Proposal: the same call from the Accept button and from Tab; a second press joins the first (same gesture).
-    acceptProposal() {
-      const pill = offerOf(state); // explicit in every mode (Chat, canvas, Tab): the same gesture, so one request
-      if (!pill?.accept) return Promise.resolve(null);
-      return mutateView(pill.gesture, key => routes.acceptProposal(state.view, key));
-    },
-    cancelProposal() {
-      const pill = offerOf(state);
-      if (!pill) return Promise.resolve(null);
-      return mutateView(pill.cancelGesture, key => routes.cancelProposal(state.view, key));
-    },
-    proposeNext() {
-      if (!canProposeNext(state)) return Promise.resolve(null);
-      meter.manual();
-      return mutateView(`propose:${state.view.roadmap.id}:${state.view.roadmap.revision}`, key => routes.proposeNext(state.view, key));
-    },
-    // BE.05a: the learner chose the alternative offered when a required format could not be prepared; the same step then gets its own review.
-    recoverOffer({ choice = 'alternative' } = {}) {
-      const held = state.view?.offerRecovery;
-      if (!held || state.view.proposal) return Promise.resolve(null);
-      return mutateView(`recover:${state.view.roadmap.id}:${held.stepId}:${choice}`, key => routes.recover(state.view, held.stepId, choice, key));
-    },
-    // R5: edit the pending proposal. The preview never changes it; Apply (after the server confirms) replaces it with the next version.
-    openEditor() { dispatch({ type: 'edit_open' }); },
-    closeEditor() { const draft = state.draft; dispatch({ type: 'edit_close' }); if (draft && state.view && !stopped) call(routes.discardDraft(state.view, draft)).catch(() => {}); }, // best effort: the Apply guard is the correctness boundary
-    previewEdit(instruction) {
-      const pill = offerOf(state), text = String(instruction || '').trim();
-      if (!pill || !text || !state.editing) return Promise.resolve(null);
-      return act(`draft:${pill.proposalId}:${pill.version}:${text}`, key => routes.draft(state.view, text, key)).then(body => { if (!body) return null; applyView(body); if (body.draft) dispatch({ type: 'draft', draft: body.draft }); return body; });
-    },
-    applyEdit() {
-      const draft = state.draft;
-      if (!draft || !state.view) return Promise.resolve(null);
-      return mutateView(`apply:${draft.draftId}:${draft.revision}`, key => routes.applyDraft(state.view, draft, key)).then(body => { if (body) dispatch({ type: 'edit_close' }); return body; });
-    },
+    // Create a course (owner 2026-11-14): one gesture per press and run; the answer is the view with the run in it.
+    startCourse: () => mutateView(`course:start:${state.view?.roadmap.id}:${state.view?.roadmap.revision}`, key => routes.startCourse(state.view, key)),
+    retryCourse: () => mutateView(`course:retry:${state.view?.roadmap.id}:${state.view?.roadmap.revision}`, key => routes.retryCourse(state.view, key)),
+    stopCourse: () => mutateView(`course:stop:${state.view?.roadmap.id}:${state.view?.roadmap.revision}`, key => routes.stopCourse(state.view, key)),
     linkCard: (cardId, reason) => mutateView(`link:${cardId}`, key => routes.linkCard(state.view, cardId, reason, key)),
     end: () => mutateView(`end:${state.view?.roadmap.id}`, key => routes.end(state.view, key)),
     // Records the roadmap's Tutor thread (RoadmapTranscript.jsx). Rejects on refusal, so the caller can start a fresh thread instead; no error is shown.

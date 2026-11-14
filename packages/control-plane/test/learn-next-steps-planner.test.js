@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PlannerInvalid, journeyCallModel, journeyLogged } from '../src/learn-next-steps-planner.js';
 import { fixtureModel } from '../src/learn-next-steps-fixtures.js';
+import { LEARN_TASKS } from '../src/learn-models.js';
 
 const env = {};
 
@@ -23,13 +24,13 @@ test('journeyCallModel: the fixture model only when SMALL_ENV is test and JOURNE
 
 test('journeyLogged writes one sanitized line per call: task, requested and served model, never the message', async () => {
   const lines = [], log = console.log;
-  const stub = async () => new Response(JSON.stringify({ model: 'claude-sonnet-5-5-20261001', stop_reason: 'tool_use', content: [] }), { status: 200 });
+  const stub = async () => new Response(JSON.stringify({ model: 'gemini-3.5-flash-lite', stop_reason: 'tool_use', content: [] }), { status: 200 });
   console.log = line => lines.push(line);
   try {
-    await journeyLogged(stub)(env, { system: 'S', tools: [{ name: 'tutor_next_steps' }], messages: [{ role: 'user', content: 'input = {"text":"my private answer"}' }] }, 'claude-sonnet-5-5', null);
+    await journeyLogged(stub)(env, { system: 'S', tools: [{ name: 'tutor_next_steps' }], messages: [{ role: 'user', content: 'input = {"text":"my private answer"}' }] }, LEARN_TASKS.tutor_next_steps.model, null);
   } finally { console.log = log; }
   assert.equal(lines.length, 1);
   const line = JSON.parse(lines[0]);
-  assert.deepEqual([line.event, line.task, line.requested, line.source, line.served], ['learn_model', 'tutor_next_steps', 'claude-sonnet-5-5', 'task', 'claude-sonnet-5-5-20261001']);
+  assert.deepEqual([line.event, line.task, line.requested, line.source, line.served], ['learn_model', 'tutor_next_steps', 'gemini-3.5-flash-lite', 'task', 'gemini-3.5-flash-lite']);
   assert.equal(lines[0].includes('private'), false);
 });

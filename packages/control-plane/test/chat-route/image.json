@@ -1,0 +1,31 @@
+{
+  "command": "generate-image",
+  "typed": "image",
+  "about": "A new AI-generated picture or illustration (typed /image). Made, not found.",
+  "cases": [
+    {
+      "text": "Draw me a picture of a fox reading a book under a lantern.",
+      "expect": "generate-image"
+    },
+    {
+      "text": "I want an illustration of a futuristic city at dusk for my cover.",
+      "expect": "generate-image"
+    },
+    {
+      "text": "Create artwork showing a robot teaching a classroom of owls.",
+      "expect": "generate-image"
+    },
+    {
+      "text": "Paint something that captures the feeling of the ocean at night.",
+      "expect": "generate-image"
+    },
+    {
+      "text": "Make a poster-style picture of the solar system in watercolour.",
+      "expect": "generate-image"
+    },
+    {
+      "text": "Can you come up with a logo-like illustration of a rabbit and a spiral?",
+      "expect": "generate-image"
+    }
+  ]
+}

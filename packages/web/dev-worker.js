@@ -43,6 +43,7 @@ import SHELL from './dist-dev/index.html';
 import LANDING from './dist-dev/design/rabbit-hole-hero.html';
 import BLOG from './dist-dev/design/rabbit-hole-blog.html';
 import FEATURES from './dist-dev/design/rabbit-hole-features.html';
+import EXAMPLES from './dist-dev/design/rabbit-hole-examples.html';
 import PRICING from './dist-dev/design/rabbit-hole-pricing.html';
 import MANIFESTO from './dist-dev/design/rabbit-hole-manifesto.html';
 import AUTH from './dist-dev/design/rabbit-hole-auth.html';
@@ -78,6 +79,7 @@ import { runCleanup } from '../control-plane/src/publication-analytics-purge.js'
 import { artifactFetch } from '../control-plane/src/learn-artifact.js';
 import { explanationSummaryRoute } from '../control-plane/src/explanation-summary.js';
 import { chatRouteFetch } from '../control-plane/src/chat-capability-route.js';
+import { chatKeepFetch } from '../control-plane/src/chat-keep-route.js';
 import { inlineDecideFetch, inlineEvidenceFetch, inlineGenerateFetch, inlineRouteFetch, inlineTelemetryFetch } from '../control-plane/src/learn-inline.js';
 import { paidRefusal } from '../control-plane/src/learn-paid.js';
 import { feedbackFetch } from '../control-plane/src/learn-feedback.js';
@@ -158,7 +160,7 @@ const routes = {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Referrer-Policy': 'same-origin' },
       });
     }
-    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/pricing': PRICING, '/manifesto': MANIFESTO}[path.replace(/\/$/, '') || '/'];
+    const publicPage = {'/': LANDING, '/blog': BLOG, '/features': FEATURES, '/examples': EXAMPLES, '/pricing': PRICING, '/manifesto': MANIFESTO}[path.replace(/\/$/, '') || '/'];
     if (typeof publicPage === 'string') return new Response(publicPage, {
       headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
     });
@@ -379,6 +381,8 @@ const routes = {
     if (path === '/api/learn/inline/decide') return inlineDecideFetch(req, env);
     // CR-1: the chat line's capability route decision, before the turn is sent (chat-capability-route.js).
     if (path === '/api/learn/chat/route') return chatRouteFetch(req, env);
+    // Create as card (owner 2026-11-13): whether a finished reply is worth offering as a written /explain card (chat-keep-route.js).
+    if (path === '/api/learn/chat/keep') return chatKeepFetch(req, env);
     if (path === '/api/learn/inline/evidence') return inlineEvidenceFetch(req, env);
     if (path === '/api/learn/inline/generate') return inlineGenerateFetch(req, env);
     if (path === '/api/learn/inline/telemetry') return inlineTelemetryFetch(req, env);

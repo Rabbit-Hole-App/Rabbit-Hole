@@ -4,14 +4,13 @@ import { Menu, toast } from './ui.jsx';
 import { refWhere } from './repo-context.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { rangeLabel, refKey, sameRef } from './chat-context.js';
-import { refIds } from './chat-canvas-context.js';
 import { labelOnlyChip } from './pdf-source.js';
 import { CanvasMentionChip } from './CanvasMention.jsx';
 import { AreaCapturingPill } from './AreaCapturing.jsx';
 import { ON_CANVAS, goToRef, goToSelection } from './pill-target.js';
 
 // Sub-lane A4a owns this file: attached-context chips under the composer text area (brief section 7). A3a mounts it.
-// First a fixed "This canvas" indicator (the canvas scope the server always reads, contract A5), then this conversation's
+// The fixed "This canvas" indicator was removed (owner 2026-11-13; the server still reads the canvas scope, contract A5), so this is this conversation's
 // attached refs and any upload in flight or failed. A click opens the source beside Chat (never attaches); x detaches
 // from this conversation only, never deleting the file or the canvas object.
 export const REF_ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: Image, media: Film, web: Globe, progress: ChartColumnIncreasing, canvas: Shapes };
@@ -76,16 +75,10 @@ export default function ContextChips({ readPaper = null, selection = null, code 
   // hideDocs (the contents' composer): the canvas's own documents are never its context, only what the learner added.
   const chips = chat.context.items.filter(item => (item.attached || item.state !== 'ready') && !(hideDocs && item.ref?.kind === 'doc'));
   const failed = chips.filter(item => item.state === 'failed');
-  // "This canvas" says what goes with a message (whole-canvas context): the coverage line of the package the draft would send,
-  // built on hover or focus, else of the one the last message sent (canvasCoverage: the page sets it whenever it builds one).
-  const preview = () => chat.canvasOps?.canvasContext?.({ request: chat.composer.text, attachments: refIds(chat.context.attached) });
+  // With nothing to show the list is empty and the row leaves no gap (has-[ul:empty]).
   return (
-    <div data-context-chips>
+    <div data-context-chips className="has-[ul:empty]:hidden">
       <ul aria-label="Context for this chat" className="flex flex-wrap items-center gap-1">
-        <li data-canvas-context title={chat.canvasCoverage || 'An overview of this canvas goes with each message'} data-canvas-coverage={chat.canvasCoverage || undefined}
-          tabIndex={0} onPointerEnter={preview} onFocus={preview} className={`${CHIP} bg-hover px-1.5 text-ink-2`}>
-          <Shapes size={14} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-3" /> This canvas
-        </li>
         {chat.editing?.target && <EditTargetPill target={chat.editing.target} onReveal={() => revealProposal(chat, chat.editing.target)} onCancel={chat.editing.clear} />}
         <AreaCapturingPill />
         {selection && !selection.pinned && (() => {
@@ -140,7 +133,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
                 {selected && <span className="shrink-0 text-ink-3">· selected</span>}
               </button>
               {state === 'failed' && <button type="button" onClick={item.retry} aria-label={`Retry uploading ${ref.name}`} title="Retry" className={CHIP_ICON_BUTTON}><RotateCw size={12} aria-hidden /></button>}
-              {!busy && <button type="button" onClick={() => { if (item.dismiss) item.dismiss(); else { chat.context.detach(ref); if (codeSelected(ref)) code.onRemove(ref); else if (selected) selection.onClear?.(); } }}
+              {!busy && <button type="button" onClick={() => { if (item.dismiss) item.dismiss(); else { chat.context.detach(ref); if (codeSelected(ref)) code.onRemove(ref); else if (selected) selection.onClear?.(); else chat.canvasOps?.deselectRef?.(ref); } }}
                 aria-label={item.dismiss ? `Dismiss ${ref.name}` : `Remove ${ref.name} from this chat`} title={item.dismiss ? 'Dismiss' : 'Remove from this chat'} className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>}
             </li>
           );

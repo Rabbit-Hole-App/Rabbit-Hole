@@ -106,6 +106,8 @@ for (const theme of ['light', 'dark']) {
   // centred state, one frame at a time, then read it, so a header that never centres still fails with its real offset.
   const offsetOf = async () => { const h = await box(p.header), c = await box(p.centre); return Math.abs((c.x + c.w / 2) - (h.x + h.w / 2)); };
   const centred = async () => { const end = Date.now() + 5000; let offset = await offsetOf(); while (offset > 2 && Date.now() < end) { await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => resolve()))); offset = await offsetOf(); } return offset; };
+  // A share link opens with the right panel closed (owner 2026-11-14): open it, so "open" is measured open.
+  if (await p.toggle.getAttribute('aria-pressed') === 'false') { await p.toggle.click(); await page.waitForFunction(() => document.querySelector('[data-panel-toggle]').getAttribute('aria-pressed') === 'true'); }
   const openOffset = await centred();
   await p.toggle.click();
   await page.waitForFunction(() => document.querySelector('[data-panel-toggle]').getAttribute('aria-pressed') === 'false');

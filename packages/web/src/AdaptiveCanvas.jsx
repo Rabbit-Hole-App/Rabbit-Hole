@@ -41,7 +41,9 @@ import { outlineFrom, applyTocAction, moveTocSection, toggleTocDone, removeTocEn
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
 import { describeCanvasObject, groupTargetText } from './learn-ask-target.js';
-import { SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx';
+import { HoverActions, SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx';
+// A touch screen has no hover: there the selected card keeps its action row (owner 2026-11-13: elsewhere the row shows on hover, not on click).
+const NO_HOVER = typeof matchMedia === 'function' && matchMedia('(hover: none)').matches;
 import { anchorOf } from './selection-bar-place.js';
 import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner.js';
 import { askDraft } from './agent/scope.js';
@@ -64,7 +66,7 @@ import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow, INPUT_PORT_Y, inputPoint, routeSide, groupFrame, memberPorts } from './learn-connectors.js';
 import { publicExplainBack } from './explain-back-private.js';
 import { INPUT_PROBLEMS, INPUT_SIDE, addInput, describeSource, inputEvidence, inputPills, inputProblem, inputSubmission, isExplainBack, isInputLink } from './explain-inputs.js';
-import { ComposerHide, DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
+import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
@@ -89,7 +91,7 @@ import { cardEvidence } from './area-evidence.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { withFlushedAnimations } from './animation3d/storage.js';
 import { waitingText } from './waiting-text.js';
-import { isWebUrl, looksLikeCode, pasteKind } from './canvas-paste.js';
+import { equationOf, isWebUrl, looksLikeCode, mermaidOf, pasteKind, pasteTarget } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
 import CommentPins, { PIN_DEFAULT } from './comments/CommentPins.jsx';
 import { anchorAt, objectLabel, selectedIn, targetFor } from './comments/anchors.js';
@@ -330,13 +332,30 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // so it never flashes at the default place (UI.06).
 const PLACING = { visibility: 'hidden' };
 const grown = (height, grow) => (height == null ? height : height + grow);
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hoverTools = null, children }) {
   const [lifted, setLifted] = useState(false);
+  // Hover (owner 2026-11-13): the action row shows 150 ms after the pointer rests on the card and leaves 120 ms after it goes, only while no button is down, so it never gets in the way of a drag.
+  // It is this card's own state: a hover change re-renders this card only, never the canvas.
+  const [hovered, setHovered] = useState(false), hoverTimer = useRef(null);
+  // The highlight over the top of the card (index.css) is as tall as the grip strip and the header together.
+  const measureTop = root => { const header = root.querySelector('[data-card-header]'), base = root.getBoundingClientRect().top; root.style.setProperty('--top-h', `${Math.max(24, ((header ? header.getBoundingClientRect().bottom : base + 24 * (zoom || 1)) - base) / (zoom || 1))}px`); };
+  // A press alone changes nothing (the row must not jump when a card is clicked); it hides only once the card is being dragged (a move with a button down).
+  const hoverIn = event => { if (event.buttons) { if (hovered || hoverTimer.current) hoverOff(); return; } measureTop(event.currentTarget); if (hovered) { clearTimeout(hoverTimer.current); hoverTimer.current = null; return; } if (!hoverTimer.current) hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(true); }, 150); };
+  const hoverOut = () => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(false); }, 350); }; // a grace long enough to cross the empty space between the pills
+  const hoverOff = () => { clearTimeout(hoverTimer.current); hoverTimer.current = null; setHovered(false); };
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
   // Open (card-open.js): double-click, Enter, or the Open pill on the one selected card. A chat card never opens.
   const opener = useContext(CardOpen);
   const opens = !chat && opener ? opener.can(id) : null;
+  // The row above a card (owner 2026-11-13): Enter shows on a hovered card and stays on the selected one; the action buttons (Add to chat, Quick Edit, Minimize) show on hover, or on a
+  // touch screen for the selected card. Hover is off while a button is down, so a click that selects keeps Enter even before the pointer moves again.
+  // ONE condition for the whole row (owner 2026-11-13: Enter, Add to chat, Quick Edit and Minimize are seen together or not at all): the card is selected or the pointer is on it.
+  const rowShown = selected || hovered;
+  const showEnter = rowShown && !!opens && (!selected || opener.single === id);
+  // The selected card keeps its buttons whether or not the pointer is on it (owner 2026-11-13: nothing may disappear from it); a card that is only hovered shows its row while the pointer is on it.
+  const showTools = rowShown && !!(selected ? tools : hoverTools);
   const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(id);
   const [cornerDrag, setCornerDrag] = useState(null);
   // A Full card keeps the corner resize (owner 2026-11-08); while it is dragged it is drawn at the dragged size, and a card that opened full
@@ -422,6 +441,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     // exposed as aria-current, and the keyboard focus ring sits outside the selection ring.
     <div ref={card} data-block data-block-id={id} data-card-layout={full ? 'full' : 'scrollable'} {...(chat ? { 'data-chat-block': true } : {})}
       tabIndex={0} role="group" aria-roledescription="card" aria-current={selected ? 'true' : undefined}
+      onPointerEnter={hoverIn} onPointerMove={hoverIn} onPointerLeave={hoverOut}
       // Read before this press selects the card (the selection re-renders before mousedown); a press within a
       // double-click's interval of the last one is that double-click's second press.
       // A press on a card takes the keyboard back from the companion column (its keys stand down while a focus is held
@@ -443,22 +463,26 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           owner 2026-10-29), so it is never under the band (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
           lies over the card or its top port. The one selected card says how it opens: a small Enter (owner 2026-11-08: renamed from Open; its title and name still say what it opens), never a big button on every card
           (touch has no double-click). */}
-      {selected && ((opens && opener.single === id) || tools) && (
-        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
-          {opens && opener.single === id && (
-            <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
-              onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
-              className="pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
-              Enter<ArrowUpRight size={13} />
-            </button>
-          )}
-          {tools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{tools}</div>}
+      {/* ONE component (owner 2026-11-13): Enter, Add to chat, Quick Edit and Minimize are one pill in one fixed place above the card's left edge, seen and not seen together. */}
+      {(showEnter || showTools) && (
+        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex items-end justify-center after:pointer-events-auto after:absolute after:inset-x-0 after:top-full after:h-2 after:content-['']">
+          <div data-card-actions className="pointer-events-auto flex w-max max-w-full items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md">
+            {showEnter && (
+              <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
+                onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
+                className="flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-none px-3 text-xs font-medium whitespace-nowrap text-ink hover:bg-hover">
+                Enter<ArrowUpRight size={13} />
+              </button>
+            )}
+            {showEnter && showTools && <span aria-hidden="true" className="w-px shrink-0 self-stretch bg-line" />}
+            {showTools && <div className="flex items-stretch">{selected ? tools : hoverTools}</div>}
+          </div>
         </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
-      <div data-drag-handle data-drag-zone title="Drag to move this block"
-        className={`flex h-6 shrink-0 cursor-grab items-center justify-center rounded-t-xl active:cursor-grabbing ${ghost ? 'opacity-0 group-hover:opacity-100' : 'hover:bg-hover'}`}>
+      <div data-drag-handle data-drag-zone data-drag-top title="Drag to move this block"
+        className={`flex h-6 shrink-0 cursor-grab items-center justify-center rounded-t-xl active:cursor-grabbing ${ghost ? 'opacity-0 group-hover:opacity-100' : ''}`}>
         {/* The six dots the toolbar and the Rabbit Holes Map grips use (owner 2026-11-08), shown while the card is hovered or focused. */}
         <GripHorizontal data-drag-grip size={13} aria-hidden className={`text-ink-3 ${ghost ? '' : 'opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'}`} />
       </div>
@@ -960,10 +984,15 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      hoverTools={!selected ? <>
+        {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
+        <NotebookButton entry={block} onNotebook={onNotebook} className="h-8 w-8 rounded-none text-ink hover:bg-hover" />
+        <HoverActions id={block.id} select={onSelect} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} />
+      </> : null}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
-        <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
-        <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
+        <NotebookButton entry={block} onNotebook={onNotebook} className="h-8 w-8 rounded-none text-ink hover:bg-hover" />
+        <SelectionActionsHost id={block.id} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}>
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} onExpandHeight={setExpandHeight} />
@@ -1600,7 +1629,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1625,8 +1654,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [renaming, setRenaming] = useState(null); // { id, title, rect }: a card's title being renamed in place (card-rename.js)
   // The right-click Rename and a card header's double-click open the same in-place editor (CardRename context, CardHeader.jsx).
   const startRename = id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: startTitleOf(block, describeBlock(block)?.title), rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); };
-  const [composerHidden, setComposerHidden] = useState(false);
-  const hideComposer = useCallback(() => setComposerHidden(true), []);
+  // The canvas chat strip (owner 2026-11-13): minimized to the Rabbit Hole button at the lower right, and the last choice is kept on
+  // this device (ui-prefs.js chatStrip), so a canvas opens the way the learner left it.
+  const [composerHidden, setComposerHidden] = useState(() => uiPrefs().chatStrip === 'min');
+  const keepStrip = value => { try { saveUiPref('chatStrip', value); } catch { /* storage refused: the choice holds until a reload */ } };
+  const hideComposer = useCallback(() => { setComposerHidden(true); keepStrip('min'); }, []);
+  // Add to chat and the other "show the chat" actions restore the strip when it is minimized and take the focus (chat-workspace.jsx showChat).
+  useEffect(() => {
+    const show = () => { setComposerHidden(false); keepStrip('open'); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] input:not([type="file"]), [data-canvas-composer] textarea')?.focus({ preventScroll: true })); };
+    window.addEventListener('rh-strip-show', show);
+    return () => window.removeEventListener('rh-strip-show', show);
+  }, []);
+  // The strip's Minimize button lives on the pill itself (ChatComposer, which the Chat's AskPanel draws into the strip), so it announces itself here.
+  useEffect(() => { window.addEventListener('rh-strip-minimize', hideComposer); return () => window.removeEventListener('rh-strip-minimize', hideComposer); }, [hideComposer]);
   // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
   useEffect(() => {
     if (!composerHidden) return undefined;
@@ -2147,6 +2187,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => {
     commandsRef.current = {
       deselect: () => setSelected(null),
+      // The Add to chat pill's x (ContextChips): deselect when the selection is exactly what that pill held (a card's id, or a group's cards).
+      deselectRef: ref => {
+        const ids = ref?.range?.cardIds || (typeof ref?.sourceId === 'string' && ref.sourceId.includes(':') ? [ref.sourceId.slice(ref.sourceId.indexOf(':') + 1)] : []);
+        const now = selectedRef.current;
+        if (ids.length && ids.length === now.length && ids.every(id => now.includes(id))) setSelected(null);
+      },
       // /dive: the return point reads and restores these (docs/features/dive-v1.md).
       getView: () => view, setView, select: id => setSelection([id]), block: id => blocksRef.current.find(block => block.id === id) || null,
       // A selected card the Tutor would read no words from (learn-tutor.js cardText reads a title and a body): a chat card, a
@@ -2217,7 +2263,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
       inlineAi: (mode = null, preset = null) => openInline(performance.now(), false, mode, preset), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,
-      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true)),
+      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true, menuPoint.current || cursorAt())),
       duplicate: () => !!pasteIds(selectedRef.current),
       cut: cutSelection, copyStyle: copyStyleCommand, pasteStyle: pasteStyleCommand, lockSelection, nudge,
       // Enter on one selected object: a text box or note opens for typing, a closed shape its words, a line its label.
@@ -2823,7 +2869,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // copy is never locked. step: how far the copies land from their sources.
   // Returns { ids, copies } (copies for Alt-drag to place), or null.
   // clip: a paste from the clipboard, which may name objects since cut or deleted (Duplicate and Alt-drag never do).
-  const pasteIds = (picked, step = 28, clip = false) => {
+  // at: a world point (a paste from the clipboard with the pointer over the canvas, owner 2026-11-14): the copies' top-left corner lands on it and they keep
+  // their layout. Cards go to the column slot at that height with their offsets set so they are drawn at the point; notes, text, equations and marks move by
+  // the same distance. Chat cards, and any card whose slot is not measured yet, keep the step.
+  const pasteIds = (picked, step = 28, clip = false, at = null) => {
     const saved = (clip && clipCopies.current) || {};
     const live = (list, kept = []) => picked.map(id => list.find(entry => entry.id === id) || kept.find(entry => entry.id === id)).filter(Boolean);
     const pickedBlocks = live(blocksRef.current, saved.blocks);
@@ -2845,13 +2894,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const groupFor = entry => wholeGroups.get(entry.groupId)?.id;
     // A copied notebook card gets its own workspace, seeded from the copy of its notebook; a card's references get new ids.
     // An Explain-back copy is a fresh exercise: the learner's answer, attempts and Sketch stay on the original.
-    const copyNode = node => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
-    const blocksCopy = pickedBlocks.map(copyNode);
+    const target = clip && at ? pasteTarget({ at, blocks: pickedBlocks, chats: pickedChats, items: pickedItems, shapes: pickedShapes, list: blocksRef.current, bounds: boundsRef.current, index: flowIndexAt(at.y) }) : null;
+    const copyNode = (node, by = { x: step, y: step }) => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + by.x, dy: node.dy + by.y, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
+    const blocksCopy = pickedBlocks.map(node => copyNode(node, target?.shift || undefined));
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.
     const chatsCopy = pickedChats.map(node => ({ ...copyNode(node), linkFrom: null, status: 'done' }));
-    const itemsCopy = pickedItems.map(item => ({ ...item, id: newId(item.id), groupId: groupFor(item), locked: undefined, x: item.x + step, y: item.y + step, fresh: false }));
-    const shapesCopy = pickedShapes.map(shape => ({ ...shape, id: newId(shape.id), groupId: groupFor(shape), locked: undefined, x1: shape.x1 + step, y1: shape.y1 + step, x2: shape.x2 + step, y2: shape.y2 + step }));
+    const by = target?.move || { x: step, y: step };
+    const itemsCopy = pickedItems.map(item => ({ ...item, id: newId(item.id), groupId: groupFor(item), locked: undefined, x: item.x + by.x, y: item.y + by.y, fresh: false }));
+    const shapesCopy = pickedShapes.map(shape => ({ ...shape, id: newId(shape.id), groupId: groupFor(shape), locked: undefined, x1: shape.x1 + by.x, y1: shape.y1 + by.y, x2: shape.x2 + by.x, y2: shape.y2 + by.y }));
     // Live links first; a saved link only where one of its ends is gone (a cut), never one deleted on its own since.
     const liveIds = new Set(everything().map(entry => entry.id));
     const linkSource = [...present.current.links, ...(saved.links || []).filter(link => !liveIds.has(link.from) || !liveIds.has(link.to))];
@@ -2859,7 +2910,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Each copy lands directly after its source rather than at the end of the
     // column, where on a long canvas it was off-screen and read as nothing
     // having happened.
-    if (blocksCopy.length) setBlocks(previous => {
+    if (blocksCopy.length && target?.shift) setBlocks(previous => [...previous.slice(0, target.index), ...blocksCopy, ...previous.slice(target.index)]);
+    else if (blocksCopy.length) setBlocks(previous => {
       const next = [...previous];
       blocksCopy.forEach((copy, index) => {
         const at = next.findIndex(block => block.id === pickedBlocks[index].id);
@@ -2907,10 +2959,48 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const pasteIdsRef = useRef(pasteIds);
   // Pasted text lands as one text card at the view's centre, as Insert text does, already written.
   const pasteTextRef = useRef(null);
-  pasteTextRef.current = text => {
+  pasteTextRef.current = (text, at = null) => {
     snapshot();
-    const center = viewCenter();
+    const center = at || cursorAt() || viewCenter();
     setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'text', x: center.x - 210, y: center.y - 16, w: 420, text: text.trim(), color, opacity, level }]);
+  };
+  // A paste lands where the pointer is (owner 2026-11-14), not at the top of the column: the last pointer position, in world coordinates, while it is over the
+  // canvas; null when the pointer is elsewhere, and the paste then lands where the learner is looking, as before.
+  const pointerRef = useRef(null);
+  // The menu's Paste row lands at the point the menu was opened on, not at the row the pointer is over now.
+  const menuPoint = useRef(null);
+  useEffect(() => {
+    const move = event => { pointerRef.current = { clientX: event.clientX, clientY: event.clientY }; };
+    window.addEventListener('pointermove', move, { passive: true });
+    return () => window.removeEventListener('pointermove', move);
+  }, []);
+  const cursorAt = () => {
+    const point = pointerRef.current, box = surface.current?.getBoundingClientRect();
+    if (!point || !box || point.clientX < box.left || point.clientX > box.right || point.clientY < box.top || point.clientY > box.bottom) return null;
+    return local(point);
+  };
+  // A card at a world point (its column slot nearest that height, as a drop finds it), else where the learner is looking.
+  const insertAt = (block, at) => {
+    if (!at) return insertAtView(block);
+    const index = flowIndexAt(at.y);
+    setBlocks(previous => [...previous.slice(0, index), block, ...previous.slice(index)]);
+    return revealAfter(block.id);
+  };
+  // Pasted Mermaid source is a Mermaid card and one pasted $$...$$ equation an equation card, placed at the pointer and selected.
+  const pasteRichRef = useRef(null);
+  pasteRichRef.current = (kind, text) => {
+    snapshot();
+    const at = cursorAt();
+    if (kind === 'mermaid') {
+      const block = { ...BLOCK_TYPES.mermaid.sample(), title: 'Diagram', code: mermaidOf(text), showSource: false };
+      insertAt(block, at);
+      setSelection([block.id]);
+      return;
+    }
+    const item = { ...newEquation(at || viewCenter()), latex: equationOf(text), fresh: false };
+    setItems(previous => [...previous, item]);
+    selectedRef.current = [item.id];
+    setSelection([item.id]);
   };
   const dropFilesRef = useRef(onDropFiles);
   dropFilesRef.current = onDropFiles;
@@ -2919,14 +3009,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Add webpage card (WebpageCard.jsx): placed where the learner is looking, capturing; the card makes the one capture request.
   const [urlPaste, setUrlPaste] = useState(null);
   const [webpageAsk, setWebpageAsk] = useState(null);
-  const addWebpage = url => {
+  const addWebpage = (url, at = null) => {
     if (readOnlyRef.current || localCopyRef.current || !isWebUrl(url)) return null;
     let host = url;
     try { host = new URL(url).hostname; } catch { /* isWebUrl parsed it */ }
     const id = crypto.randomUUID();
     askCapture(id);
     snapshot();
-    insertAtView({ id, type: 'webpage', dx: 0, dy: 0, url, title: host, pending: { manifestId: null, lineage: null, status: 'capturing', reason: null, startedAt: Date.now() }, failure: null, scrollTop: 0, scrollLocked: false });
+    insertAt({ id, type: 'webpage', dx: 0, dy: 0, url, title: host, pending: { manifestId: null, lineage: null, status: 'capturing', reason: null, startedAt: Date.now() }, failure: null, scrollTop: 0, scrollLocked: false }, at);
     setSelection([id]);
     return id;
   };
@@ -2941,7 +3031,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setUrlPaste(null);
     chosen?.back?.focus?.();
     if (!chosen) return;
-    if (choice === 'card') addWebpage(chosen.text); else if (choice === 'text') pasteTextRef.current(chosen.text);
+    if (choice === 'card') addWebpage(chosen.text, chosen.at); else if (choice === 'text') pasteTextRef.current(chosen.text, chosen.at); else if (choice === 'tab') window.open(chosen.text, '_blank', 'noopener,noreferrer');
   };
   const pasteCodeRef = useRef(onPasteCode);
   pasteCodeRef.current = onPasteCode;
@@ -4130,8 +4220,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         // the page silently kill the copy.
         const text = window.getSelection();
         if (typing || !selectedRef.current.length || (text && !text.isCollapsed && text.toString())) return;
-        // Cut is copy, then delete - only once the copy succeeded.
-        if ((event.key.toLowerCase() === 'x' ? commands.cut : commands.copy)()) event.preventDefault();
+        // Cut is copy, then delete - only once the copy succeeded. Cut runs the menu's own row, so a locked object and a board that cannot be edited stay as they are.
+        if (event.key.toLowerCase() === 'x') { if (keyActionRef.current('cut').ran) event.preventDefault(); return; }
+        if (commands.copy()) event.preventDefault();
         return;
       }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
@@ -4148,6 +4239,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const paste = event => {
       const active = document.activeElement;
       if (typingIn(active)) return;
+      if (readOnlyRef.current) return; // a view-only board takes no paste
       // Never behind a modal window or an open menu (owner brief 2026-11-02): they own the keyboard, Ctrl/Cmd+V included.
       if (document.querySelector('[role="dialog"][aria-modal="true"]') || menuOpenRef.current || active?.closest?.('[role="menu"]')) return;
       const data = event.clipboardData;
@@ -4155,12 +4247,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const text = data?.getData('text/plain') || '';
       // ponytail: if writing the marker failed, an image copied before the cards still wins.
       const code = !!pasteCodeRef.current && (!!copiedCode(() => sessionStorage, text) || looksLikeCode(text));
-      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current && !localCopyRef.current });
+      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current && !localCopyRef.current, rich: !readOnlyRef.current && !localCopyRef.current });
       // One URL asks first (webcard brief): Paste as text or Add webpage card; nothing is placed or fetched until a choice.
-      if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active }); return; }
-      if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images); return; }
-      if (kind === 'cards' && pasteIdsRef.current(clipboard.current, 28, true)) { event.preventDefault(); return; }
-      if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text); return; }
+      if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active, at: cursorAt() }); return; }
+      if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images, cursorAt()); return; }
+      if (kind === 'cards' && pasteIdsRef.current(clipboard.current, 28, true, cursorAt())) { event.preventDefault(); return; }
+      if (kind === 'mermaid' || kind === 'equation') { event.preventDefault(); pasteRichRef.current(kind, text); return; }
+      if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text, cursorAt()); return; }
       if (kind === 'text') { event.preventDefault(); pasteTextRef.current(text); }
     };
     window.addEventListener('keydown', key, true);
@@ -6190,7 +6283,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const pickMenu = id => {
     const target = menuAt.target;
     setMenuAt(null);
+    menuPoint.current = { x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z };
     const done = runAction(id, target, actionCtx);
+    menuPoint.current = null;
     if (!done.ran && done.reason) toast(done.reason);
   };
   // Escape or Tab gives the focus back to what had it at open (the card, for Shift+F10), else to the clicked card.
@@ -6266,6 +6361,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     <ExplanationHost.Provider value={explanationHost}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
+      // A link in a card's Markdown (Md.jsx data-web-link) asks first, the same popup a pasted link gets: Open in new tab or Add webpage card.
+      // Ctrl, Cmd, Shift, Alt and middle clicks, and a canvas that cannot add cards, keep the browser's own new tab (owner 2026-11-14).
+      onClickCapture={event => {
+        const link = event.target.closest?.('[data-web-link]');
+        if (!link || event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || readOnlyRef.current || localCopyRef.current) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setUrlPaste({ text: link.getAttribute('href'), back: null, link: true, at: local(event) });
+      }}
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.
         const editor = editorRef.current;
@@ -6334,11 +6438,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <SelectionActionBar anchor={barAnchor} box={barBox} />
         {focus && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
         {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
-        {urlPaste && <div role="dialog" aria-label="Paste a link" data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
+        {urlPaste && <div role="dialog" aria-label={urlPaste.link ? 'Open a link' : 'Paste a link'} data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
           onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); choosePaste(null); } }}
           className="absolute top-1/3 left-1/2 z-40 flex w-72 max-w-[calc(100%-2rem)] -translate-x-1/2 flex-col gap-1 rounded-lg border border-line bg-white p-1 shadow-pop">
           <p className="truncate px-2 pt-1 pb-0.5 text-xs text-ink-2" title={urlPaste.text}>{urlPaste.text}</p>
-          <button type="button" autoFocus data-paste-url-choice="text" onClick={() => choosePaste('text')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Type size={14} className="shrink-0 text-ink-2" />Paste as text</button>
+          {urlPaste.link
+            ? <button type="button" autoFocus data-paste-url-choice="tab" onClick={() => choosePaste('tab')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><ArrowUpRight size={14} className="shrink-0 text-ink-2" />Open in new tab</button>
+            : <button type="button" autoFocus data-paste-url-choice="text" onClick={() => choosePaste('text')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Type size={14} className="shrink-0 text-ink-2" />Paste as text</button>}
           <button type="button" data-paste-url-choice="card" onClick={() => choosePaste('card')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Globe size={14} className="shrink-0 text-ink-2" />Add webpage card</button>
         </div>}
         {/* Insert > Webpage: the address, then the capture a pasted link makes. Esc places nothing. */}
@@ -6810,17 +6916,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             a running answer all carry on - and only leaves the view, so it frees its room (fit and reveal stop above the
             small Show button instead). The hooks card's minimized state is its own. */}
         {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
-          <ComposerHide.Provider value={hideComposer}>{composer}</ComposerHide.Provider>
-        </div>}
-        {composer && composerHidden && <div data-composer-show-slot className="flex justify-center max-md:order-2">
-          <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"
-            onClick={() => { setComposerHidden(false); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] textarea, [data-canvas-composer] input[type="text"], [data-canvas-composer] [contenteditable="true"]')?.focus({ preventScroll: true })); }}
-            className="flex h-8 items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs text-ink-2 shadow-md hover:text-ink"><MessageCircle size={13} />Chat<ChevronUp size={13} /></button>
+          {/* The chat window (owner 2026-11-13): sending from the strip opens the conversation here, above the suggestions and the composer. */}
+          {chatWindow}
+          {/* Curious (owner 2026-11-13): the three suggestions are small pills in a row right above the strip, so they leave with it. */}
+          {hooks && <div data-hooks-slot ref={hooksSlot} className={`mb-1.5 empty:hidden ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
+          {composer}
         </div>}
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
-        <div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
-          {hooks && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
+        <div data-canvas-lower-right className="flex items-end justify-end gap-2 md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
+          {hooks && !composer && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
+          {/* The minimized chat strip: the Rabbit Hole mark on black (owner 2026-11-13), at the lower right, beside the Curious icon. */}
+          {composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"
+            onClick={() => { setComposerHidden(false); keepStrip('open'); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] input:not([type="file"]), [data-canvas-composer] textarea')?.focus({ preventScroll: true })); }}
+            className="h-12 w-12 shrink-0 cursor-pointer overflow-hidden rounded-full border-[3px] border-line-strong bg-black shadow-pop transition-transform hover:scale-105 hover:border-ink-2 active:scale-95"><img src="/static/rabbit-hole-white-on-black-128.png" srcSet="/static/rabbit-hole-white-on-black-128.png 1x, /static/rabbit-hole-white-on-black-256.png 2x" alt="" draggable={false} className="h-full w-full object-cover" /></button>}
         </div>
         {/* UI.08: a ready later offer's Next card | Cancel, centred over this strip (the canvas area beside the panel), above the chrome; it stays put while the world pans. */}
         {!readOnly && roadmap && <div data-next-card-slot className="absolute bottom-full left-1/2 mb-2 flex -translate-x-1/2 justify-center empty:hidden"><SurfaceBoundary artifact="next_card_pill"><NextCardPill card={(roadmap.cards || []).find(card => card.next && card.state === 'pending')} onAccept={() => roadmap.onAccept?.()} onCancel={() => roadmap.onCancel?.()} /></SurfaceBoundary></div>}

@@ -1,0 +1,39 @@
+{
+  "command": "course",
+  "typed": "course",
+  "about": "A whole document on the canvas taught as a structured set of lessons: a table of contents, then an explanation for each part.",
+  "cases": [
+    {
+      "text": "Turn this document into lessons I can study from start to finish.",
+      "expect": "course"
+    },
+    {
+      "text": "Build a structured study plan out of the notes I just added.",
+      "expect": "course"
+    },
+    {
+      "text": "Make a full curriculum from this file, with a section for each part.",
+      "expect": "course"
+    },
+    {
+      "text": "I want to learn everything in this Markdown file step by step, lay it out as a program.",
+      "expect": "course"
+    },
+    {
+      "text": "Teach me the whole document as a series of lessons.",
+      "expect": "course"
+    },
+    {
+      "text": "Can you break my notes into a syllabus and write up each lesson?",
+      "expect": "course"
+    },
+    {
+      "text": "Convierte este archivo en un curso para estudiar.",
+      "expect": "course"
+    },
+    {
+      "text": "Make this reading into a proper class I can work through.",
+      "expect": "course"
+    }
+  ]
+}

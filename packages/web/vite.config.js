@@ -79,6 +79,7 @@ export default defineConfig({
         landing: fileURLToPath(new URL('./design/rabbit-hole-hero.html', import.meta.url)),
         blog: fileURLToPath(new URL('./design/rabbit-hole-blog.html', import.meta.url)),
         features: fileURLToPath(new URL('./design/rabbit-hole-features.html', import.meta.url)),
+        examples: fileURLToPath(new URL('./design/rabbit-hole-examples.html', import.meta.url)),
         pricing: fileURLToPath(new URL('./design/rabbit-hole-pricing.html', import.meta.url)),
         manifesto: fileURLToPath(new URL('./design/rabbit-hole-manifesto.html', import.meta.url)),
         auth: fileURLToPath(new URL('./design/rabbit-hole-auth.html', import.meta.url)),

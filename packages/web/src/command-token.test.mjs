@@ -2,6 +2,7 @@
 // message shows the same pill read-only. The token rules (command-token.js) run directly; ChatComposer and ChatMessages
 // are bundled with esbuild and rendered with react-dom/server, as answer-footer.test.mjs does. The owner checks light/dark,
 // narrow width and keyboard use in the browser.
+import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
