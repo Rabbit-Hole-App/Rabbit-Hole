@@ -1,0 +1,53 @@
+{
+  "proof": "temporarily registered generator; full product plan admission pending",
+  "family": "stepper-states",
+  "canonical": "algorithm-over-collection",
+  "depth": "brief",
+  "sdk": "sdk-8",
+  "modelCalls": 0,
+  "sourceBytes": 15216,
+  "referenceSourceBytes": 8887,
+  "manifestBytes": 826,
+  "cases": [
+    {
+      "step": 0,
+      "stateId": "split",
+      "objects": 59,
+      "polylinePoints": 26,
+      "frameEqual": true,
+      "layoutProblems": 0
+    },
+    {
+      "step": 1,
+      "stateId": "singles",
+      "objects": 58,
+      "polylinePoints": 25,
+      "frameEqual": true,
+      "layoutProblems": 0
+    },
+    {
+      "step": 2,
+      "stateId": "halves",
+      "objects": 59,
+      "polylinePoints": 26,
+      "frameEqual": true,
+      "layoutProblems": 0
+    },
+    {
+      "step": 3,
+      "stateId": "finish",
+      "objects": 58,
+      "polylinePoints": 25,
+      "frameEqual": true,
+      "layoutProblems": 0
+    }
+  ],
+  "pending": [
+    "typed scene.data admission",
+    "family brief/fill/check dispatch",
+    "independent state invariants and pins",
+    "dynamic step domains",
+    "later-depth and canonical renderers",
+    "clone fit and live fill"
+  ]
+}

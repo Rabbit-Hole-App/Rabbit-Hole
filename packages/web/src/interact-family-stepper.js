@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
 import { referenceCardWords, referenceComposition } from './interact-stepper-data.js';
+import * as stepperScene from './interact-templates/stepper-scene.js';
 import {
   canonicalIds, DEPTH_LIMITS, WORDS, compositionSchemaFor, parseComposition, plainText, schemaFailures, wordsSchema,
 } from './interact-stepper-schema.js';
@@ -288,19 +289,33 @@ export function referenceBrief(subject, depth = 'balanced') {
   };
 }
 
-// ponytail: the first ordered module commit has no renderer or built-in
-// activation. The reviewed parts commit supplies these actual template modules.
-export const templateModules = Object.freeze({});
+export const parts = stepperScene.parts;
+// These are data instances of the three approved canonical arrangements, not
+// another dispatch table. The caller fills the same closed schemas.
+const freezeData = value => {
+  if (value && typeof value === 'object') { Object.values(value).forEach(freezeData); Object.freeze(value); }
+  return value;
+};
+export const compositions = freezeData(Object.fromEntries(canonicalIds.map(canonical => [canonical,
+  Object.fromEntries(depthNames.map(depth => [depth, referenceComposition(canonical, depth)])),
+])));
+export const templateModules = Object.freeze(Object.fromEntries(templates.map(name => [name, stepperScene])));
 export const fixtureGroups = () => ({});
 export const pins = Object.freeze({ families: Object.freeze({}), plans: Object.freeze({}) });
 export const checkMap = Object.freeze({
-  'packages/web/src/interact-family-stepper.js': ['packages/web/src/interact-family-stepper.test.mjs'],
-  'packages/web/src/interact-stepper-schema.js': ['packages/web/src/interact-family-stepper.test.mjs'],
-  'packages/web/src/interact-stepper-data.js': ['packages/web/src/interact-stepper-data.test.mjs', 'packages/web/src/interact-family-stepper.test.mjs'],
+  'packages/web/src/interact-family-stepper.js': ['packages/web/src/interact-family-stepper.test.mjs', 'packages/control-plane/test/interact-stepper-templates.test.js'],
+  'packages/web/src/interact-stepper-schema.js': ['packages/web/src/interact-family-stepper.test.mjs', 'packages/control-plane/test/interact-stepper-templates.test.js'],
+  'packages/web/src/interact-stepper-data.js': ['packages/web/src/interact-stepper-data.test.mjs', 'packages/web/src/interact-family-stepper.test.mjs', 'packages/control-plane/test/interact-stepper-templates.test.js'],
+  'packages/web/src/interact-stepper-programs.js': ['packages/control-plane/test/interact-stepper-templates.test.js'],
+  'scripts/interact/stepper-reference-frames.mjs': ['packages/control-plane/test/interact-stepper-reference.test.js', 'packages/control-plane/test/interact-stepper-templates.test.js'],
+  ...Object.fromEntries(['step-rail', 'fixed-picture', 'active-callout', 'readouts', 'ghost-previous', 'status-line', 'stepper-scene'].map(name => [
+    `packages/web/src/interact-templates/${name}.js`,
+    ['packages/web/src/interact-templates/stepper-parts.test.mjs', 'packages/control-plane/test/interact-stepper-templates.test.js'],
+  ])),
 });
 export const stepperStates = Object.freeze({
   id, contractVersion: 1, pickCriterion, FAMILY, INPUTS, ROLES, LIMITS, scalars, scalarRoles,
-  independent, coordinate, parameters, templates, templateData, templateModules, fixtureGroups, pins, checkMap,
+  independent, coordinate, parameters, templates, templateData, templateModules, parts, compositions, fixtureGroups, pins, checkMap,
   briefSchema, check, referenceCheck, expandBrief, extractBrief, familyDescription, formulaGrammar, formulaRules,
   context, resolveDomain, resolveSelection, clampSelection,
 });
