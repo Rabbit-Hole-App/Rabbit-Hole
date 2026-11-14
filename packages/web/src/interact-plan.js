@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { canonicalJson, validateVisualBrief } from './explain-contract.js';
 import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, KNOWN_CAPABILITIES } from './explain-program/contract.js';
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
-import { TEMPLATE_ROLES, formulaScope, parseQuantity } from './interact-formula.js';
+import { TEMPLATE_ROLES, TEMPLATE_WORDS, formulaScope, parseQuantity } from './interact-formula.js';
 
 // ScenePlan v1 (docs/features/interact.md section 5, INT-01): the one pure contract shared by design, review, build and the
 // saved card. Server-safe: zod and pure helpers only, no model call, network or DOM. Nothing is stripped or truncated: a plan
@@ -184,6 +184,8 @@ const scene = z.object({
   observations: z.array(observation).max(PLAN_LIMITS.observations), checkpoints: z.array(checkpoint).max(PLAN_LIMITS.checkpoints), readoutIds: idList(16),
   // A build template (interact-formula.js TEMPLATE_ROLES) and its roles mapped to quantity ids; both or neither. two-lane nests one role map per lane name.
   template: z.enum(['one-body', 'two-lane', 'body-plot']).optional(), slots: z.record(z.string().min(1).max(32), z.union([id, z.record(z.string().min(1).max(32), id)])).optional(),
+  // The words the template draws (interact-formula.js TEMPLATE_WORDS): a flat string map, exactly the template's keys (checked in planProblems), each within its helper's length limit.
+  words: z.record(z.string().min(1).max(32), z.string().min(1).max(40)).optional(),
 }).strict();
 const mode = z.object({
   kind: z.enum(['static', 'time', 'experiment']), initialState: text(), fixedValues: z.record(id, scalar), adjustableIds: idList(8),
@@ -333,6 +335,17 @@ export function planProblems(plan) {
       if (lanes.length !== spec.lanes) bad(['scene', 'slots'], 'template_slots', `${main.template} maps exactly ${spec.lanes} lanes, each to its roles (${spec.roles.join(', ')})`);
       for (const lane of lanes) roleMap(main.slots[lane], ['scene', 'slots', lane], spec.roles);
     } else roleMap(main.slots, ['scene', 'slots'], spec.roles);
+  }
+
+  // A template draws no word of its own: the plan's words are exactly the template's keys, each within its limit; words without a template are refused.
+  if (main.words !== undefined && main.template === undefined) bad(['scene', 'words'], 'template_words', 'scene.words belongs to a template: name the template');
+  if (main.template) {
+    const keys = TEMPLATE_WORDS[main.template] ?? [], words = main.words ?? {};
+    if (main.words === undefined) bad(['scene', 'words'], 'template_words', `template ${main.template} needs scene.words (${keys.map(k => k.key).join(', ')})`);
+    else {
+      for (const { key, max } of keys) { if (typeof words[key] !== 'string' || !words[key].trim()) bad(['scene', 'words', key], 'template_words', `scene.words needs "${key}"`); else if (words[key].length > max) bad(['scene', 'words', key], 'template_words', `"${key}" is at most ${max} characters (this one has ${words[key].length})`); }
+      for (const key of Object.keys(words)) if (!keys.some(k => k.key === key)) bad(['scene', 'words', key], 'template_words', `template ${main.template} has no word "${key}"`);
+    }
   }
 
   // Timeline arithmetic over the whole admitted input domain, not only the defaults.

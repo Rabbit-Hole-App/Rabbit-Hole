@@ -302,6 +302,21 @@ const apexQuantities = [
 const launchSpeedQuantity = withFormula(quantity('launchSpeed', 'Launch speed', 'm/s', 'Upward speed at the instant of the throw.', 'Measured at the launch mark, up is positive.'), 'launchSpeed');
 const gravityQuantity = withFormula(quantity('gravity', 'Gravitational acceleration', 'm/s^2', 'Magnitude of the constant downward acceleration.', 'Idealized, no air resistance.'), 'gravity');
 
+// The words each template draws (interact-formula.js TEMPLATE_WORDS), as the three approved cards wrote them before the templates stopped holding wording (owner brief 11).
+const ONE_BODY_WORDS = {
+  lane: 'One toss', launch: 'Launch height', gravity_pulls: 'Gravity pulls down', gravity_none: 'No pull', motion_up: 'Moving up', motion_top: 'Still for an instant', motion_down: 'Moving down',
+  where_launch: 'At launch', where_top: 'At the top', where_end: 'Back at launch height', where_up: 'Rising', where_down: 'Falling', readout_motion: 'Motion', readout_gravity: 'Gravity',
+};
+const TWO_LANE_WORDS = {
+  lane_first: 'Toss', lane_second: 'Drop', first_where_launch: 'At launch', first_where_top: 'At the top', first_where_end: 'At launch height', first_where_up: 'Rising', first_where_down: 'Falling',
+  second_where_held: 'Held in place', second_where_released: 'Just released', second_where_end: 'At launch height', second_where_falling: 'Falling together', launch: 'Launch height', axis_label: 'Height', v: 'v', a: 'a',
+};
+const BODY_PLOT_WORDS = {
+  lane: 'The motion', launch: 'Launch height', axis_label: 'Height', v: 'v', a: 'a', force: 'Fg', where_launch: 'Ready to toss', where_top: 'At the top', where_end: 'Back at launch height', where_up: 'Rising', where_down: 'Falling',
+  plot_heading: 'Velocity over time', plot_yLabel: 'Velocity', plot_line: 'v = u − g t', plot_now: 'now', plot_slope: 'Slope a = ', plot_eq: 'v = ', readout_motion: 'Motion',
+};
+export const TOSS_WORDS = Object.freeze({ 'one-body': Object.freeze(ONE_BODY_WORDS), 'two-lane': Object.freeze(TWO_LANE_WORDS), 'body-plot': Object.freeze(BODY_PLOT_WORDS) });
+
 function tossReferencePlans(h) {
   const runtime = tossRuntime(h);
   const timeline = (label, end, displayOffset, markers) => ({ label, unit: 's', start: 0, end, displayOffset, markers, initialTime: 0, initialPlayback: 'paused', playbackRate: 0.2 });
@@ -323,7 +338,7 @@ function tossReferencePlans(h) {
         withFormula(quantity('velocity', 'Vertical velocity', 'm/s', 'Signed rate of change of height, up positive.', 'Zero at the top.', 'velocity = launchSpeed - gravity * t'), 'launchSpeed - gravity * t'),
         withFormula(quantity('height', 'Height of the ball', 'm', 'Height above the launch mark.', 'Measured from the launch mark, up is positive.', 'height = launchSpeed * t - gravity * t^2 / 2'), 'launchSpeed * t - gravity * t^2 / 2'),
         withFormula(quantity('acceleration', 'Vertical acceleration', 'm/s^2', 'Signed rate of change of velocity.', 'Constant -gravity during flight.'), '-gravity')],
-      template: 'one-body', slots: { height: 'height', velocity: 'velocity', acceleration: 'acceleration' },
+      template: 'one-body', slots: { height: 'height', velocity: 'velocity', acceleration: 'acceleration' }, words: ONE_BODY_WORDS,
       observations: [
         { id: 'motionArrow', text: 'The Motion arrow shortens while the ball rises, is absent at the top and points down while it falls.', quantityIds: ['velocity'], readoutIds: ['motionState'] },
         { id: 'gravityConstant', text: 'The gravity arrow keeps the same direction and length, so gravity pulls down at the top too.', quantityIds: [], readoutIds: ['gravityState'] },
@@ -374,7 +389,7 @@ function tossReferencePlans(h) {
         withFormula(quantity('dropVelocity', 'Drop velocity', 'm/s', 'Signed velocity of the second ball: zero while held, then -gravity * (time from the top).', 'Up is positive.'), '0', 'launchSpeed / gravity', '-gravity * (t - launchSpeed / gravity)'),
         withFormula(quantity('dropAcceleration', 'Drop acceleration', 'm/s^2', 'Net acceleration of the second ball: zero while the gate holds it, -gravity after release.', 'Up is positive.'), '0', 'launchSpeed / gravity', '-gravity'),
         withFormula(quantity('dropHeight', 'Drop height', 'm', 'Height of the second ball: the apex height while held, then equal to the tossed ball.', 'Measured from the launch mark, up is positive.'), 'launchSpeed^2 / (2 * gravity)', 'launchSpeed / gravity', 'launchSpeed * t - gravity * t^2 / 2')],
-      template: 'two-lane', slots: { toss: { height: 'tossedHeight', velocity: 'tossedVelocity', acceleration: 'tossedAcceleration' }, drop: { height: 'dropHeight', velocity: 'dropVelocity', acceleration: 'dropAcceleration' } },
+      template: 'two-lane', slots: { toss: { height: 'tossedHeight', velocity: 'tossedVelocity', acceleration: 'tossedAcceleration' }, drop: { height: 'dropHeight', velocity: 'dropVelocity', acceleration: 'dropAcceleration' } }, words: TWO_LANE_WORDS,
       observations: [
         { id: 'velocityFlips', text: 'The toss velocity reads +0.98, 0.00 and -0.98 m/s at -0.10, 0 and +0.10 s from the top at 9.8 m/s^2.', quantityIds: ['tossedVelocity'], readoutIds: ['tossedVelocity'] },
         { id: 'accelerationConstant', text: 'The toss acceleration stays at -gravity (-9.8 m/s^2 by default) at every instant, including the top.', quantityIds: ['tossedAcceleration'], readoutIds: ['tossedAcceleration'] },
@@ -423,7 +438,7 @@ function tossReferencePlans(h) {
         withFormula(quantity('velocity', 'Vertical velocity', 'm/s', 'Signed rate of change of height, up positive.', 'Zero at the top.', 'velocity = launchSpeed - gravity * t'), 'launchSpeed - gravity * t'),
         withFormula(quantity('acceleration', 'Vertical acceleration', 'm/s^2', 'Slope of the velocity-time line.', 'Constant -gravity.'), '-gravity'),
         withFormula(quantity('force', 'Gravitational force', 'N', 'Magnitude of the downward force of gravity on the ball.', 'Downward.', 'force = mass * gravity'), 'mass * gravity')],
-      template: 'body-plot', slots: { height: 'height', velocity: 'velocity', acceleration: 'acceleration', force: 'force', plotted: 'velocity' },
+      template: 'body-plot', slots: { height: 'height', velocity: 'velocity', acceleration: 'acceleration', force: 'force', plotted: 'velocity' }, words: BODY_PLOT_WORDS,
       observations: [
         { id: 'velocitySamples', text: 'The velocity follows v = u - g t: +0.98, 0.00 and -0.98 m/s at 0.10 s before, at and 0.10 s after the top at 9.8 m/s^2.', quantityIds: ['velocity'], readoutIds: ['velocity'] },
         { id: 'accelerationSlope', text: 'The slope of the velocity line is -gravity at every instant, so the acceleration is nonzero at the top.', quantityIds: ['acceleration'], readoutIds: ['acceleration'] },
@@ -478,7 +493,7 @@ function tossReferencePlans(h) {
         withFormula(quantity('velocity', 'Vertical velocity', 'm/s', 'Signed rate of change of height, up positive.', 'Zero at the top.', 'velocity = launchSpeed - gravity * t'), 'launchSpeed - gravity * t'),
         withFormula(quantity('height', 'Height of the ball', 'm', 'Height above the ground.', 'Measured from the ground, the ledge is at 1.0 m, up is positive.', 'height = 1 + launchSpeed * t - gravity * t^2 / 2'), '1 + launchSpeed * t - gravity * t^2 / 2'),
         withFormula(quantity('acceleration', 'Vertical acceleration', 'm/s^2', 'Signed rate of change of velocity.', 'Constant -gravity during flight.'), '-gravity')],
-      template: 'one-body', slots: { height: 'height', velocity: 'velocity', acceleration: 'acceleration' },
+      template: 'one-body', slots: { height: 'height', velocity: 'velocity', acceleration: 'acceleration' }, words: ONE_BODY_WORDS,
       observations: [
         { id: 'motionArrow', text: 'The Motion arrow shortens while the ball rises, is absent at the top and points down while it falls.', quantityIds: ['velocity'], readoutIds: ['motionState'] },
         { id: 'gravityConstant', text: 'The gravity arrow keeps the same direction and length, so the Moon pulls the ball down at the top too.', quantityIds: ['acceleration'], readoutIds: ['gravityState'] },

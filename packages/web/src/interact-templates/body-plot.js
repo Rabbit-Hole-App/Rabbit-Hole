@@ -9,12 +9,8 @@ export const roles = Object.freeze(['height', 'velocity', 'acceleration', 'force
 export const normalize = slots => slots;
 export const lanesOf = () => [];
 
-export const words = Object.freeze({
-  lane: 'The motion', launch: 'Launch height', axis: { label: 'Height' }, v: 'v', a: 'a', force: 'Fg',
-  where: { launch: 'Ready to toss', top: 'At the top', end: 'Back at launch height', up: 'Rising', down: 'Falling' },
-  plot: { heading: 'Velocity over time', yLabel: 'Velocity', line: 'v = u − g t', now: 'now', slope: 'Slope a = ', eq: 'v = ' },
-  states: { motionState: { label: 'Motion', kind: 'state', labels: ['Ready to toss', 'Rising', 'At the top', 'Falling', 'Back at launch height'], decimals: 0 } },
-});
+// The state readout this template reports, worded by the plan's scene.words.
+export const states = W => ({ motionState: { label: W.readout.motion, kind: 'state', labels: [W.where.launch, W.where.up, W.where.top, W.where.down, W.where.end], decimals: 0 } });
 
 const ceilTo = (value, step) => Number((Math.ceil(value / step - 1e-9) * step).toFixed(9));
 
@@ -29,7 +25,7 @@ export const geometry = range => {
 export function source(ctx) {
   const { slots, geometry: geo } = ctx, plotted = slots.plotted ?? slots.velocity;
   return head(ctx, slots) + String.raw`
-const W = ${J(words)};
+const W = ${J(ctx.words)};
 const U = ${J(ctx.units)};
 const READOUTS = ${J(ctx.readoutIds)};
 export function evaluate({ inputs, time }) {

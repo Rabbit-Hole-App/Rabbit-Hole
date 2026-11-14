@@ -21,6 +21,36 @@ export const TEMPLATE_ROLES = Object.freeze({
   'body-plot': Object.freeze({ lanes: 0, roles: Object.freeze(['height', 'velocity', 'acceleration', 'force', 'plotted']) }),
 });
 
+// The words each template draws (owner brief 11: the template holds no wording; the plan's scene.words does). Each entry is [path, maxCharacters, what it is]: the path is where the template reads it
+// (nested, for example "where.top"), the plan stores it flat under the key with the dots turned to underscores ("where_top"). Limits are the sdk helpers' own: a lane heading is at most 24 characters,
+// a lane state line 32, a callout line 40 (sdk-figures.js), a letter beside an arrow 4.
+const WORDS = {
+  'one-body': [['lane', 24, 'heading of the lane'], ['launch', 40, 'label of the launch-height guide'], ['gravity.pulls', 40, 'callout line while gravity pulls the body down'], ['gravity.none', 40, 'callout line when nothing pulls'],
+    ['motion.up', 40, 'callout line while the body moves up'], ['motion.top', 40, 'callout line while the body is still for an instant at the top'], ['motion.down', 40, 'callout line while the body moves down'],
+    ['where.launch', 32, 'lane state at launch'], ['where.top', 32, 'lane state at the top'], ['where.end', 32, 'lane state when back at the launch height'], ['where.up', 32, 'lane state while rising'], ['where.down', 32, 'lane state while falling'],
+    ['readout.motion', 24, 'label of the Motion state readout'], ['readout.gravity', 24, 'label of the Gravity state readout']],
+  'two-lane': [['lane.first', 24, 'heading of the first lane (the toss)'], ['lane.second', 24, 'heading of the second lane (the released ball)'],
+    ['first.where.launch', 32, 'first lane state at launch'], ['first.where.top', 32, 'first lane state at the top'], ['first.where.end', 32, 'first lane state when back at the launch height'], ['first.where.up', 32, 'first lane state while rising'], ['first.where.down', 32, 'first lane state while falling'],
+    ['second.where.held', 32, 'second lane state while the gate holds the ball'], ['second.where.released', 32, 'second lane state at the instant of release'], ['second.where.end', 32, 'second lane state when back at the launch height'], ['second.where.falling', 32, 'second lane state while both fall together'],
+    ['launch', 40, 'label of the launch-height guide'], ['axis.label', 40, 'title of the height axis'], ['v', 4, 'letter beside a velocity arrow'], ['a', 4, 'letter beside an acceleration arrow']],
+  'body-plot': [['lane', 24, 'heading of the lane'], ['launch', 40, 'label of the launch-height guide'], ['axis.label', 40, 'title of the height axis'], ['v', 4, 'letter beside the velocity arrow'], ['a', 4, 'letter beside the acceleration arrow'], ['force', 4, 'letter of the force in its callout line'],
+    ['where.launch', 32, 'lane state at launch'], ['where.top', 32, 'lane state at the top'], ['where.end', 32, 'lane state when back at the launch height'], ['where.up', 32, 'lane state while rising'], ['where.down', 32, 'lane state while falling'],
+    ['plot.heading', 40, 'heading of the plot'], ['plot.yLabel', 40, 'title of the plot value axis'], ['plot.line', 40, 'legend label of the plotted line'], ['plot.now', 40, 'legend label of the moving dot'], ['plot.slope', 24, 'start of the slope note (a number follows it)'], ['plot.eq', 24, 'start of the equation beside the heading (numbers follow it)'],
+    ['readout.motion', 24, 'label of the Motion state readout']],
+};
+export const wordKey = path => path.split('.').join('_');
+export const TEMPLATE_WORDS = Object.freeze(Object.fromEntries(Object.entries(WORDS).map(([name, list]) => [name, Object.freeze(list.map(([path, max, what]) => Object.freeze({ path, key: wordKey(path), max, what })))])));
+// -> the nested object a template program reads (W.where.top) from the plan's flat scene.words.
+export function nestWords(template, words) {
+  const out = {};
+  for (const { path, key } of TEMPLATE_WORDS[template] ?? []) {
+    const parts = path.split('.'); let at = out;
+    for (const part of parts.slice(0, -1)) at = at[part] ??= {};
+    at[parts.at(-1)] = words[key];
+  }
+  return out;
+}
+
 const fail = (code, message, position, token) => Object.assign(new ScalarExprError(code, message), { position, token });
 const lit = value => ({ op: 'literal', value }), input = id => ({ op: 'input', id });
 const BIN = { '+': 'add', '-': 'subtract', '*': 'multiply', '/': 'divide' };
