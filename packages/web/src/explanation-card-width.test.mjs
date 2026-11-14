@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CARD_CHROME, CARD_FLOOR, MAX_VISUAL_WIDTH, PICTURE_DISPLAY_WIDTH, TILE_FLOOR, diagramWidth, explanationCardWidth, tileWidthFor, widthFor } from './explanation-card-width.js';
+import { naturalSize, renderTutorDiagram } from './tutor-diagrams/TutorDiagram.js';
 import { isMinimized, tileWidth } from './explanation-minimize.js';
 import { references as dataRefs } from './tutor-diagrams/ml-data-references.js';
 import examples from './tutor-diagrams/examples.json' with { type: 'json' };
@@ -35,6 +36,23 @@ test('width rule: prose-only stays at the card\'s 440 (408 of room), a 700 px di
   assert.ok(huge - CARD_CHROME < 1200, 'a 1200 px diagram still scrolls inside it, as before');
   assert.equal(explanationCardWidth({ type: 'quiz', body: 'x' }), undefined, 'only an Explanation');
   assert.equal(explanationCardWidth({ type: 'explanation' }), undefined, 'a pending card with no body keeps the type\'s own width');
+});
+
+// BUG 1 (canvas-cards): the card is sized from its visual. The layouts keep their height whatever the room, so the coordinate plot (a fixed 240 px plot area) drawn in 408
+// is portrait; naturalSize measures it at the 4:3 room (capped at the card's widest ordinary room), every other kind at the room its own layout asks for.
+const gallery = JSON.parse(read('./tutor-diagrams/kind-gallery.json'));
+const plot = gallery.find(e => e.diagram.kind === 'coordinate-plot');
+test('a coordinate plot is drawn landscape: its natural size is 4:3 of its height, capped; a flow keeps the 440 card; the width follows the layout, not a table', () => {
+  const asked = naturalSize(plot, 408, 686), alone = renderTutorDiagram(plot, 408);
+  assert.equal(alone.height, asked.height, 'the layout keeps its height at any room');
+  assert.equal(asked.width, Math.ceil(alone.height * 4 / 3), 'a portrait plot is measured at the room that makes it 4:3');
+  assert.ok(asked.width > alone.width && asked.width <= 686);
+  assert.equal(naturalSize(plot, 408, 500).width, alone.width, 'a cap below the 4:3 room leaves it as drawn');
+  const card686 = explanationCardWidth(card(`${PROSE}\n\n${fence(plot)}\n\nMore.`));
+  assert.equal(card686, asked.width + CARD_CHROME, 'the Explanation card is the plot plus the card chrome');
+  assert.ok(card686 <= 720, 'never above the card preferred width for this rule (FULL_WIDTH.preferred)');
+  assert.equal(naturalSize(ordinary.spec || ordinary).width, 408, 'a flow asks for no more room than it has');
+  assert.equal(diagramWidth(plot), alone.width, 'the tile keeps measuring at the usual room: the plot rule is the card\'s');
 });
 
 test('a picture is displayed at 512 px: the card and its tile widen to fit it (544 + the 2 px border), the wider of picture and diagram wins', () => {
@@ -76,4 +94,14 @@ test('the canvas takes the derived width: wider than its 560 column the card is 
   const COLUMN = 560, widths = [CARD_FLOOR, 707 + CARD_CHROME, PICTURE_DISPLAY_WIDTH + CARD_CHROME], heights = [300, 420, 380];
   let y = 0; const boxes = widths.map((w, i) => { const box = { x: (COLUMN - w) / 2, y, w, h: heights[i] }; y += heights[i] + 20; return box; });
   for (let i = 1; i < boxes.length; i++) assert.ok(boxes[i].y >= boxes[i - 1].y + boxes[i - 1].h, `card ${i} starts below card ${i - 1}`);
+});
+
+// CV-1: a newly generated Explanation opens in Full layout (card-layout.js fullLength), whose width is fixed at that moment: it must be the width the card's visual asks for, not the type's 440.
+import { fullLength } from './card-layout.js';
+test('a new Explanation with a plot opens at the plot\'s card width, not 440; one without a visual keeps 440', () => {
+  const withPlot = card(`${PROSE}\n\n${fence(plot)}\n\nMore.`), prose = card(PROSE);
+  assert.equal(fullLength(withPlot, explanationCardWidth(withPlot) ?? 440).cardLayout.fullWidth, explanationCardWidth(withPlot));
+  assert.ok(explanationCardWidth(withPlot) > 440);
+  assert.equal(fullLength(prose, explanationCardWidth(prose) ?? 440).cardLayout.fullWidth, 440);
+  assert.match(read('./AdaptiveCanvas.jsx'), /fullLength\(added, explanationCardWidth\(added\) \?\? BLOCK_TYPES\[added\.type\]\?\.width\)/, 'the canvas passes the derived width');
 });
