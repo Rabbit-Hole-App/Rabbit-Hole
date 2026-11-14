@@ -1,0 +1,87 @@
+{
+ "reply": {
+  "title": "At the Highest Point of a Vertical Throw",
+  "story": "When you toss a ball straight up into the air, it slows down as it climbs, hangs motionless for an instant at its highest point, and then speeds up on its way back down. Watching this happen, it is natural to wonder about the turning point. At the exact top, the ball's velocity is clearly zero—it has stopped moving upward and has not yet started moving downward. Does that mean its acceleration is also zero at that moment?\n\nPeople often confuse velocity and acceleration because they seem to change together. When a car speeds up, both its speed and its acceleration point forward. But acceleration is the rate at which velocity changes, not the velocity itself. Even though the ball stops moving for a split second at the apex, gravity continues to pull on it with the exact same strength throughout the entire flight.\n\nTo see why the acceleration never drops to zero, we can look at how velocity changes from just before the top to just after. As the ball rises, its upward velocity decreases by about $9.8\\text{ m/s}$ every second. At the very top, the velocity passes smoothly through zero. A fraction of a second later, the velocity becomes a small negative number as the ball starts falling. Because the velocity is constantly decreasing at a steady rate, the rate of change—the acceleration—remains constant and negative the entire time.",
+  "cardDescription": "Explore how a ball's velocity and acceleration behave during a vertical throw. At the apex, velocity is $0\\text{ m/s}$, but acceleration remains $-g$.",
+  "instructions": "Adjust the launch speed and gravity, then press play to observe how velocity changes while acceleration stays constant.",
+  "launchHeight": 0,
+  "launchSpeed": {
+   "min": 2,
+   "max": 10,
+   "default": 5,
+   "step": 0.5
+  },
+  "gravity": {
+   "min": 1,
+   "max": 20,
+   "default": 9.8,
+   "step": 0.1
+  },
+  "mass": {
+   "min": 0.1,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "height": {
+    "formula": "launchSpeed * t - 0.5 * gravity * t^2",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "velocity": {
+    "formula": "launchSpeed - gravity * t",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "acceleration": {
+    "formula": "-gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "force": {
+    "formula": "mass * gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexTime": {
+    "formula": "launchSpeed / gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexHeight": {
+    "formula": "0.5 * launchSpeed * launchSpeed / gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "lane": "Vertical Motion Lane",
+   "launch": "Launch Level",
+   "axis_label": "Height (m)",
+   "v": "v",
+   "a": "a",
+   "force": "F",
+   "where_launch": "At launch",
+   "where_top": "At the apex",
+   "where_end": "Back at start",
+   "where_up": "Rising",
+   "where_down": "Falling",
+   "plot_heading": "Velocity over Time",
+   "plot_yLabel": "Velocity (m/s)",
+   "plot_line": "Velocity",
+   "plot_now": "Current state",
+   "plot_slope": "Slope: ",
+   "plot_eq": "v = ",
+   "readout_motion": "Motion State"
+  }
+ },
+ "usage": {
+  "completion_tokens": 969,
+  "prompt_tokens": 2326,
+  "prompt_tokens_details": {
+   "cached_tokens": 942
+  },
+  "total_tokens": 3295
+ }
+}

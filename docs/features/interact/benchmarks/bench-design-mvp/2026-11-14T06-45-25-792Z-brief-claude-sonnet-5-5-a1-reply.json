@@ -1,0 +1,77 @@
+{
+ "reply": {
+  "cardDescription": "At the top of a throw the ball is still for an instant, so $v=0$. But gravity still pulls, so $a=-g$ even there. Velocity and acceleration are different things.",
+  "formulas": {
+   "height": {
+    "formula": "launchSpeed*t-0.5*gravity*t^2",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "velocity": {
+    "formula": "launchSpeed-gravity*t",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "acceleration": {
+    "formula": "-gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexTime": {
+    "formula": "launchSpeed/gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexHeight": {
+    "formula": "launchSpeed^2/(2*gravity)",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "gravity": {
+   "fixed": 9.8
+  },
+  "instructions": "Press Play and watch the Motion arrow shrink and vanish at the top. Then press At top to stop there and look at the gravity arrow. Change the launch speed and try again.",
+  "launchHeight": 0,
+  "launchSpeed": {
+   "min": 3,
+   "max": 12,
+   "default": 6,
+   "step": 0.5
+  },
+  "story": "Mia tosses a ball straight up and watches it climb, slow down, and pause at the very top. For an instant it does not move at all.\n\n\"Its speed is zero up there,\" she says, \"so nothing must be happening to it. Acceleration must be zero too.\"\n\nIs she right? Velocity tells how fast the height is changing. Acceleration tells how fast the velocity is changing. They are different quantities.\n\nLook at the ball just before the top. It moves up at, say, 0.5 m/s. Just after the top it moves down at 0.5 m/s. In those 0.10 s the velocity changed by about 1 m/s, a change of roughly 9.8 m/s every second. That change does not pause at the top. If it did, the ball would hang there forever.\n\nGravity pulls the ball down the whole time, on the way up, at the top and on the way down. So the acceleration is -9.8 m/s² at every moment, even when the velocity is zero.\n\nRun the experiment. The Motion arrow shrinks, vanishes at the top and reappears pointing down. The gravity arrow never changes. So zero velocity does not mean zero acceleration.",
+  "title": "Is acceleration zero at the top of a throw?",
+  "words": {
+   "lane": "Ball thrown up",
+   "launch": "Launch height",
+   "gravity_pulls": "Gravity pulls down",
+   "gravity_none": "Nothing pulls",
+   "motion_up": "Moving up, slowing",
+   "motion_top": "Still for an instant",
+   "motion_down": "Moving down, speeding up",
+   "where_launch": "At launch",
+   "where_top": "At the top",
+   "where_end": "Back at launch height",
+   "where_up": "Rising",
+   "where_down": "Falling",
+   "readout_motion": "Motion",
+   "readout_gravity": "Gravity"
+  }
+ },
+ "usage": {
+  "input_tokens": 118,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 5309,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 1141,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ }
+}

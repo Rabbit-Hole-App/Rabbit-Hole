@@ -1,0 +1,87 @@
+{
+ "reply": {
+  "title": "The Turnaround: Velocity and Acceleration at the Peak",
+  "story": "When you toss a ball straight up into the air, it slows down as it climbs, stops for a brief instant at its highest point, and then speeds up as it falls back down. Watching this happen, it is natural to wonder about the exact moment the ball reaches its peak. At that very top point, the velocity is clearly zero because the ball is changing direction from upward to downward.\n\nBecause the velocity is zero, people often wonder if the acceleration must also be zero at that exact instant. After all, if something is not moving, does it not mean the forces or changes have stopped? To find out, we can look at what gravity does continuously to the ball from the moment it leaves the hand until it returns.\n\nAs soon as the ball leaves the hand, gravity exerts a constant downward pull on it. This pull does not depend on whether the ball is moving up, resting at the top, or moving down; it depends only on the mass of the ball and the local gravitational field. Therefore, the acceleration remains steady throughout the entire flight, proving that a velocity of zero does not mean the acceleration is zero.",
+  "cardDescription": "Explore how a ball's velocity and acceleration behave during a vertical throw. Even when velocity is zero at the apex, acceleration remains constant at $-g$.",
+  "instructions": "Adjust the launch speed and gravity, then press play to observe the velocity and acceleration vectors.",
+  "launchHeight": 0,
+  "launchSpeed": {
+   "min": 2,
+   "max": 10,
+   "default": 5,
+   "step": 0.5
+  },
+  "gravity": {
+   "min": 1,
+   "max": 20,
+   "default": 9.8,
+   "step": 0.1
+  },
+  "mass": {
+   "min": 0.1,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "height": {
+    "formula": "launchSpeed * t - 0.5 * gravity * t^2",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "velocity": {
+    "formula": "launchSpeed - gravity * t",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "acceleration": {
+    "formula": "0 - gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "force": {
+    "formula": "mass * gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexTime": {
+    "formula": "launchSpeed / gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexHeight": {
+    "formula": "0.5 * launchSpeed * launchSpeed / gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "lane": "Vertical Motion Lane",
+   "launch": "Launch Mark",
+   "axis_label": "Height (m)",
+   "v": "v",
+   "a": "a",
+   "force": "F",
+   "where_launch": "At launch",
+   "where_top": "At the top",
+   "where_end": "Back at start",
+   "where_up": "Rising",
+   "where_down": "Falling",
+   "plot_heading": "Velocity vs Time",
+   "plot_yLabel": "Velocity (m/s)",
+   "plot_line": "Velocity",
+   "plot_now": "Current state",
+   "plot_slope": "Slope: ",
+   "plot_eq": "v = ",
+   "readout_motion": "Motion State"
+  }
+ },
+ "usage": {
+  "completion_tokens": 917,
+  "prompt_tokens": 2326,
+  "prompt_tokens_details": {
+   "cached_tokens": 942
+  },
+  "total_tokens": 3243
+ }
+}

@@ -115,6 +115,7 @@ export async function designAttempt({ depth, model, ctx, save = null, ts = new D
   // The brief against its own strict schema (limits, keys).
   const parsed = info.parse ? info.parse(brief) : { ok: true, value: brief };
   if (parsed && parsed.ok === false) return finish((parsed.problems ?? ['brief: refused']).map(p => (typeof p === 'string' ? p : `${p.path ?? ''} ${p.message ?? ''}`.trim())), { step: 'schema', msExpand: 0, msChecks: 0, msBuild: 0 });
+  try { // anything below that throws on a model-written brief is a failed row (step internal), never a lost run
   const t1 = now();
   let plan;
   try { plan = expandBrief(parsed?.value ?? brief, depth, { catalogueHash: referenceCapabilities.catalogueHash }); } catch (error) { row.msExpand = round1(now() - t1); return finish([`expand: ${clip(error.message, 300)}`], { step: 'expand', msChecks: 0, msBuild: 0 }); }
@@ -122,9 +123,9 @@ export async function designAttempt({ depth, model, ctx, save = null, ts = new D
   // The plan checks (the design stage's own close), the formula check, then the build and its checks.
   const t2 = now();
   const fail = (step, list) => { row.msChecks = round1((row.msChecks ?? 0) + (now() - t2)); return finish(list, { step, msBuild: row.msBuild ?? 0 }); };
-  const job = { id: `design-mvp-${depth}`, plan, planHash: await planHash(plan), capabilities: referenceCapabilities, evidence: [], oracle: null };
   const checked = parseScenePlan(plan, referenceCapabilities);
   if (!checked.ok) return fail('plan', checked.problems.map(p => `${p.path} ${p.message}`));
+  const job = { id: `design-mvp-${depth}`, plan, planHash: await planHash(plan), capabilities: referenceCapabilities, evidence: [], oracle: null };
   const planIssues = [...runtimeProblems(plan, referenceCapabilities), ...captureBudgetProblems(plan)].map(p => (typeof p === 'string' ? p : `${p.path ?? ''} ${p.message ?? ''}`.trim()));
   if (planIssues.length) return fail('plan', planIssues);
   const fitIssues = await descriptionFitProblems(plan, await descriptionFit(plan));
@@ -142,7 +143,8 @@ export async function designAttempt({ depth, model, ctx, save = null, ts = new D
   row.msChecks = round1(row.msChecks + (now() - t4));
   if (result.status !== 'captured') return finish(result.status === 'failed' ? result.failure.problems : [`${result.status}: ${clip(result.reason ?? '')}`], { step: 'checks', oracleChecked: result.check?.oracle?.checked ?? null });
   const mismatch = matchProblems(plan, pinned);
-  return finish(mismatch, { step: mismatch.length ? 'match' : 'done', oracleChecked: result.det?.coverage?.oracle?.checked ?? null});
+  return finish(mismatch, { step: mismatch.length ? 'match' : 'done', oracleChecked: result.det?.coverage?.oracle?.checked ?? null });
+  } catch (error) { return finish([`internal: ${clip(error?.message ?? error, 300)}`], { step: 'internal' }); }
 }
 
 export async function runDesign({ models, depths, nOf, concurrency = 2, capUsd = Infinity, env, scripted = null, write = true, out = OUT, say = () => {} }) {

@@ -1,0 +1,7 @@
+{
+ "error": {
+  "code": "schema_mismatch",
+  "message": "The structured result does not match its schema: $.launchSpeed: expected object; $.max: not an allowed field; $.default: not an allowed field; $.step: not an allowed field; $.gravity: expected object",
+  "problems": null
+ }
+}
