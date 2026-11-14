@@ -1,4 +1,4 @@
-import { TEACHING_STYLE } from './teaching-theme.js';
+import { TEACHING_FONT, TEACHING_STYLE } from './teaching-theme.js';
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react';
 import { layouts } from './layouts.js';
 import { isExtendedPlot } from './ml-plot-spec.js';
@@ -29,7 +29,7 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
   const element = h('svg', {
     xmlns: 'http://www.w3.org/2000/svg', width, height, viewBox: `0 0 ${width} ${height}`, role: 'img',
     'aria-label': describeTutorDiagram(document),
-    fontFamily: teaching ? 'Inter, Liberation Sans, Arial, sans-serif' : 'Arial, Liberation Sans, sans-serif',
+    fontFamily: teaching ? TEACHING_FONT : 'Arial, Liberation Sans, sans-serif',
     style: { display: 'block', maxWidth: 'none', marginInline: 'auto', ...(teaching ? TEACHING_STYLE : {}) },
     'data-tutor-diagram': diagram.kind,
   },
@@ -40,6 +40,17 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
   h('g', { transform: `translate(0 ${titleHeight})` }, ...layout.elements),
   caption.height ? caption.draw(width / 2, titleHeight + layout.height + captionHeight / 2 - 2) : null);
   return { width, height, element };
+}
+
+// A diagram's natural size, measured without mounting (renderTutorDiagram runs the layout, title and caption exactly as the card draws them). Every layout asks for the
+// room it needs (a dense flow, a tree, a long label is wider than `room`), so that is its natural width; one layout keeps a fixed height whatever the room and spends extra
+// room only on width: the coordinate plot (a 240 px tall plot area). Drawn in `room` it is taller than wide, so it is measured once more at the width that makes it 4:3, capped at `cap`.
+export function naturalSize(spec, room = DEFAULT_WIDTH, cap = MAX_WIDTH) {
+  const first = renderTutorDiagram(spec, room);
+  const wide = Math.ceil(first.height * 4 / 3);
+  if (parseTutorDiagram(spec).diagram.kind !== 'coordinate-plot' || first.width >= wide || wide > cap) return { width: first.width, height: first.height };
+  const second = renderTutorDiagram(spec, wide);
+  return { width: second.width, height: second.height };
 }
 
 export default function TutorDiagram({ spec, fallback = null }) {
@@ -71,7 +82,7 @@ export default function TutorDiagram({ spec, fallback = null }) {
 }
 
 function isTeachingDiagram(d) {
-  if (['heatmap', 'sample-set', 'histogram', 'box-plot'].includes(d.kind)) return true;
+  if (['heatmap', 'sample-set', 'histogram', 'box-plot', 'panels'].includes(d.kind)) return true;
   if (['panels', 'visual', 'grouped', 'stacked'].includes(d.variant)) return true;
   if (['scaled-lanes', 'teaching', 'hierarchy', 'dendrogram', 'graph'].includes(d.layout)) return true;
   if (d.kind === 'tree') return d.highlightPath || d.nodes.some(n => n.edgeLabel || n.detail || n.count !== undefined || n.pruned);

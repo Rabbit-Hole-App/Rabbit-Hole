@@ -9,11 +9,12 @@ import { renderTutorDiagram } from './TutorDiagram.js';
 
 const parents = diagramReferences.filter(({ id, spec: { diagram } }) =>
   (diagram.kind === 'comparison' && ((diagram.panels ?? diagram.columns).length === 2 || id === 'ml-fit-quality-comparison')) || // three panels, but its learner prompt (what is overfitting?) needs one multi-series plot (owner 2026-11-08)
-  (diagram.kind === 'transformation' && diagram.variant === 'visual'),
+  (diagram.kind === 'transformation' && diagram.variant === 'visual') ||
+  diagram.kind === 'panels',
 );
 
 test('all two-panel references have exactly one linked single-diagram variant', () => {
-  assert.equal(parents.length, 31); // 23 release references plus eight figure chapters.
+  assert.equal(parents.length, 43); // 23 release references, eight figure chapters, the linear-regression normal-equation comparison, the logistic softmax panels, the four C01 panels references (linear unit, hidden layer, regularized objective, dropout mask) and the six C02 panels references: the answer panel is the variant.
   assert.deepEqual(singleDiagramReferences.map(r => r.panelReferenceId).sort(), parents.map(r => r.id).sort());
   for (const single of singleDiagramReferences) {
     const panel = parents.find(r => r.id === single.panelReferenceId);

@@ -19,7 +19,9 @@ Object.assign(process.env, { VITE_POSTHOG_TOKEN: TOKEN, VITE_POSTHOG_HOST: HOST,
 const web = fileURLToPath(new URL('..', import.meta.url)).replaceAll('\\', '/');
 const APP = '\0usage-analytics-app';
 const bundled = await build({ configFile: false, root: web, logLevel: 'error',
-  plugins: [{ name: 'usage-analytics-app', resolveId: id => (id === 'usage-analytics-app' ? APP : null), load: id => (id !== APP ? null : `
+  // The public pages ship with the banner hidden (landing/analytics.js SHOW_LANDING_CONSENT_BANNER, owner 2026-11-14; unit-tested in analytics-banner.test.mjs).
+  // This check drives the banner itself on those pages, so it bundles the real entry with the flag restored.
+  plugins: [{ name: 'landing-banner-restored', transform(code, id) { if (!id.replaceAll('\\', '/').endsWith('/src/landing/analytics.js')) return null; const on = code.replace('SHOW_LANDING_CONSENT_BANNER = false', 'SHOW_LANDING_CONSENT_BANNER = true'); assert.notEqual(on, code, 'the landing banner flag is still named SHOW_LANDING_CONSENT_BANNER'); return on; } }, { name: 'usage-analytics-app', resolveId: id => (id === 'usage-analytics-app' ? APP : null), load: id => (id !== APP ? null : `
     import { startAppAnalytics } from '${web}src/analytics-config.js';
     import { currentAnalytics, track } from '${web}src/usage-analytics.js';
     startAppAnalytics();

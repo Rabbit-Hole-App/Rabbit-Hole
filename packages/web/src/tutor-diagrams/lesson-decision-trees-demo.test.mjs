@@ -31,11 +31,14 @@ for (const [name, prompt] of demo) {
 
 test('short learner requests reach the lesson while existing definition prompts keep their picks', () => {
   const picks = prompt => selectDiagramReferences({ prompt }).map(ref => ref.id);
-  for (const ref of diagramReferences.filter(ref => ref.id.startsWith('ml-trees-'))) {
+  const lessonRefs = diagramReferences.filter(ref => ref.id.startsWith('ml-trees-'));
+  for (const ref of lessonRefs) {
     assert.ok(ref.shortKeywords.length >= 2);
     for (const phrase of ref.shortKeywords) {
       assert.ok(ref.keywords.includes(phrase));
-      assert.ok(picks(`show me the ${phrase}`).includes(ref.id), `${ref.id} / ${phrase}`);
+      // Release 129 (Q3): when the steer fires only the steered reference is sent, so a phrase that two lesson references share reaches the lesson through whichever of them the steer picks.
+      const sharing = lessonRefs.filter(other => other.shortKeywords.includes(phrase)).map(other => other.id);
+      assert.ok(picks(`show me the ${phrase}`).some(id => sharing.includes(id)), `${ref.id} / ${phrase}`);
     }
   }
   assert.deepEqual(picks('what is gini impurity'), ['tree-impurity-mixtures']);

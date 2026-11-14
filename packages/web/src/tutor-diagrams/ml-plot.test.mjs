@@ -407,3 +407,41 @@ test('nearest-centroid reference computes each center from its displayed samples
     close(distance(centers[0]), distance(centers[1]));
   }
 });
+
+test('the log-scale suffix is added once: an axis label that already says it is not extended again', () => {
+  const count = svg => (svg.match(/log scale/g) || []).length;
+  const d = plot();
+  d.x = { label: 'Number of trees · log scale', min: 1, max: 100, scale: 'log' };
+  d.series[0].points = [{ x: 1, y: 0.1 }, { x: 10, y: 0.5 }, { x: 100, y: 0.9 }];
+  d.y = { label: 'Accuracy', min: 0, max: 1 };
+  const said = render(d).svg;
+  assert.doesNotMatch(said, /log scale · log scale/);
+  assert.equal(count(said), count(said.replace('Number of trees · log scale', '')) + 1, 'the x label shows it exactly once');
+  d.x.label = 'Number of trees';
+  assert.match(render(d).svg, /Number of trees · log scale/);
+});
+
+
+// PL-1: a point label that only restates its point is dropped, and a plot keeps at most six point notes (the data marks stay).
+const labelled = (labels, extra = {}) => ({ ...plot(), x: { label: 'X', min: 0, max: 20 }, y: { label: 'Y', min: 0, max: 40 }, series: [{ label: 'Samples', kind: 'scatter', ...extra, points: labels.map((label, i) => ({ x: i + 1, y: 2 * i + 0.5, ...(label === undefined ? {} : { label }) })) }] });
+const badges = svg => marks(svg, 'data-tutor-plot-badge').length;
+test('point labels that only restate the point get no note, and the marks stay', () => {
+  const { svg } = render(labelled(['1', '2.5', '(3, 4.5)', 'Samples: 4', 'Peak', undefined]));
+  assert.equal(badges(svg), 1, 'only the label that names something keeps a badge');
+  assert.equal(marks(svg, 'data-tutor-coordinate-point').length, 6, 'every data mark stays');
+});
+test('more than six labelled points keep six notes, the first in series order, and every mark', () => {
+  const names = ['Start', 'Dip', 'Rise', 'Peak', 'Drop', 'Floor', 'Late', 'Final'];
+  const { svg } = render(labelled(names));
+  assert.equal(badges(svg), 6);
+  assert.equal(marks(svg, 'data-tutor-coordinate-point').length, 8);
+  const noted = marks(svg, 'data-tutor-plot-badge').map(m => m.value);
+  assert.deepEqual(noted, ['1', '2', '3', '4', '5', '6']);
+  assert.ok(!svg.includes('Late: (7') && !svg.includes('Final: (8'), 'the seventh and eighth names have no list line');
+});
+test('showValues prints the y of each point, so those labels get no note either', () => {
+  const d = { ...plot(), x: { label: 'X', min: 0, max: 20 }, y: { label: 'Y', min: 0, max: 20 }, series: [{ label: 'Fit', kind: 'step', samples: { x: { start: 0, step: 1 }, y: [1, 2, 3, 4, 5], showValues: true } }] };
+  assert.equal(badges(render(d).svg), 0);
+  const explicit = { ...d, series: [{ label: 'Fit', kind: 'step', points: [0, 1, 2, 3, 4].map(i => ({ x: i, y: i + 1, label: String(i + 1) })) }] };
+  assert.equal(badges(render(explicit).svg), 0, 'the compact and the explicit form agree');
+});

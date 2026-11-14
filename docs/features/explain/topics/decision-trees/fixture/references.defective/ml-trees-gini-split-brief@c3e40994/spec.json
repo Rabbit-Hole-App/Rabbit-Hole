@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "Compare the two sides",
+    "columns": [
+      "Class 0",
+      "Class 1",
+      "Gini"
+    ],
+    "rows": [
+      {
+        "heading": "Left",
+        "cells": [
+          "4",
+          "0",
+          "0"
+        ]
+      },
+      {
+        "heading": "Right",
+        "cells": [
+          "1",
+          "3",
+          "0.375"
+        ]
+      },
+      {
+        "heading": "After",
+        "cells": [
+          "—",
+          "—",
+          "0.1875"
+        ]
+      }
+    ],
+    "caption": "Worked example. A pure side has zero Gini."
+  }
+}

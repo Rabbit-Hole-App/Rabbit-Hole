@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Errors on the plotted training subset",
+    "kind": "matrix",
+    "columns": [
+      "Squared error sum",
+      "Mean squared error"
+    ],
+    "rows": [
+      {
+        "heading": "Underfit",
+        "cells": [
+          "5.375",
+          "$\\frac{5.375}{3}$"
+        ]
+      },
+      {
+        "heading": "Good fit",
+        "cells": [
+          "0.1875",
+          "$\\frac{0.1875}{3}$"
+        ]
+      },
+      {
+        "heading": "Overfit",
+        "cells": [
+          "0",
+          "$\\frac{0}{3}$"
+        ]
+      }
+    ],
+    "caption": "Illustrative subset. Each mean divides the squared-error sum by the plotted training count. Training fit alone cannot prove generalization."
+  }
+}

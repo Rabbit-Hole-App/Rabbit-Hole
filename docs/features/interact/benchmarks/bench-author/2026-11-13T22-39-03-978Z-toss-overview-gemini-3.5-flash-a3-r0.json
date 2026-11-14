@@ -1,0 +1,79 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time }) {\n  const v0 = inputs.launchSpeed;\n  const g = 9.8;\n  const tTop = v0 / g;\n  const clampedT = Math.min(time, 2 * tTop);\n  const hMax = (v0 * v0) / (2 * g);\n  const v = v0 - g * clampedT;\n  const h = v0 * clampedT - 0.5 * g * clampedT * clampedT;\n\n  let motionStateStr = 'Moving up';\n  if (Math.abs(v) < 0.05 || Math.abs(clampedT - tTop) < 0.01) {\n    motionStateStr = 'Still for an instant';\n  } else if (v < 0) {\n    motionStateStr = 'Moving down';\n  }\n  const gravityStateStr = 'Gravity pulls down';\n\n  const objects = [];\n\n  const panel = sdk.panel({\n    x: 20,\n    y: 20,\n    w: 600,\n    h: 380,\n    title: 'Vertical Toss Scene',\n    state: motionStateStr,\n    id: 'lane.toss'\n  });\n  objects.push(...panel);\n\n  const axisX = 140;\n  const axisY = 60;\n  const axisLen = 300;\n  const maxScaleH = 1.6;\n  const axis = sdk.axis('axis.height', {\n    x: axisX,\n    y: axisY,\n    length: axisLen,\n    orientation: 'y',\n    min: 0,\n    max: maxScaleH,\n    ticks: [0, 0.4, 0.8, 1.2, 1.6],\n    label: 'Height',\n    unit: 'm'\n  });\n  objects.push(axis);\n\n  const ballX = 320;\n  const ballY = axisY + axisLen - (h / maxScaleH) * axisLen;\n  const ball = sdk.circle('ball.toss', ballX, ballY, 28);\n  objects.push(ball);\n\n  if (Math.abs(v) >= 0.05) {\n    const vecV = sdk.vector('vec.v', { x: ballX, y: ballY }, {\n      value: v,\n      direction: 'up',\n      scale: 15,\n      label: 'v'\n    });\n    objects.push(...vecV);\n  }\n\n  const vecA = sdk.vector('vec.a', { x: ballX + 60, y: ballY }, {\n    value: -g,\n    direction: 'up',\n    scale: 4,\n    label: 'a'\n  });\n  objects.push(...vecA);\n\n  const callout = sdk.callout(ballX + 110, ballY - 20, [motionStateStr, gravityStateStr], {\n    id: 'callout.toss'\n  });\n  objects.push(...callout);\n\n  const readouts = [\n    { id: 'motionState', value: motionStateStr },\n    { id: 'gravityState', value: gravityStateStr }\n  ];\n\n  const quantities = {\n    launchSpeed: v0,\n    gravity: g,\n    apexTime: tTop,\n    apexHeight: hMax,\n    velocity: v,\n    height: h\n  };\n\n  return { frame: sdk.frame(objects, { width: 640, height: 420, readouts }), quantities };\n}",
+    "manifest": {
+     "title": "The ball stops rising. Gravity doesn’t stop.",
+     "summary": "Watch a tossed ball slow to a stop at the top and fall back down while gravity pulls downward continuously.",
+     "description": "A vertical axis shows the height of a tossed ball over time. As it rises, its upward velocity arrow shrinks to zero at the apex before pointing downward, while the gravity arrow remains constant.",
+     "assumptions": [
+      "Gravity fixed at 9.8 m/s^2, no air resistance, up is positive."
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.0204081632653061,
+     "timeline": {
+      "label": "Time since launch",
+      "displayOffset": 0,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "motionState",
+       "label": "Motion state",
+       "kind": "state",
+       "labels": [
+        "Moving up",
+        "Still for an instant",
+        "Moving down"
+       ]
+      },
+      {
+       "id": "gravityState",
+       "label": "Gravity state",
+       "kind": "state",
+       "labels": [
+        "Gravity pulls down"
+       ]
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "completion_tokens": 1428,
+  "prompt_tokens": 8330,
+  "prompt_tokens_details": {
+   "cached_tokens": 6910
+  },
+  "total_tokens": 9758
+ }
+}

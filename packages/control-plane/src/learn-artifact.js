@@ -1,5 +1,5 @@
 import { planExplanation, planShape, cardVisuals, visualKinds, visualsStatement, plannerEnabled } from './explanation-planner.js';
-import { selectDiagramReferences, selectWithSteer, preferSingleVariants, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
+import { selectWithSteer, selectForAuthor, diagramReferenceContext, PHASE02_DIAGRAM_GUIDANCE, bundledAuthorSchema, diagramBundle } from './explanation-references.js';
 // Learn Artifact Generation v1 (docs/features/learn-artifact-generation.md):
 // learner command -> semantic family -> constrained primitive choice ->
 // validated declarative spec -> canvas block.
@@ -26,6 +26,7 @@ import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, fal
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
+import { archiveExplanation } from './learn-storage.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
 import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
@@ -69,6 +70,7 @@ const GATES = {
 import { withAttemptKind, noteUsageResult } from './learn-usage.js';
 import { celerisExplainRoute } from './explain-celeris-dev.js';
 import { generateWithFallbacks } from './explanation-fast-chain.js';
+import { restoreLatexIn } from './latex-escapes.js';
 import { formulaSamplerEnabled, withFormulaSeries, fillFormulaSeries, FORMULA_SERIES_GUIDANCE } from './explanation-formula-series.js';
 export { ARTIFACT_SYSTEM };
 
@@ -132,12 +134,11 @@ export function prepareArtifactAuthorRequest(env, input, { only = null, systemSu
   const requiredKinds = asked.filter(item => item.kind === 'diagram' && item.diagramKind).map(item => item.diagramKind);
   // Owner 2026-11-08: with a plan, the gallery example comes from the planner's chosen kind (below); the learner-word shape fallback (explanation-references.js) is used
   // only when the planner was asked and gave no plan (it timed out or failed; owner 2026-11-08), never when it is off or a plan exists. A two-panel reference goes out as its single-diagram variant unless the planned kind is the comparison.
-  const topicalReferences = ready.includes('explanation') ? preferSingleVariants(selectDiagramReferences({
+  const topicalReferences = ready.includes('explanation') ? selectForAuthor({
     prompt: input.args || request.prompt,
     context: { selection: request.selection, context: input.context, documents: input.documents },
-    requiredKinds, shapeFallback: !!input.planned && !input.plan, depth: input.depth,
-    plannedKinds: visualKinds(resolved), // the resolved kinds, filtered to before any keyword scoring
-  }), { plannedKind: input.plan?.kind, requiredKinds }) : [];
+    asked, planned: input.planned, depth: input.depth, plan: input.plan,
+  }).references : [];
   // Planner prototype: the gallery example of the card's kind, at the card's depth, goes first, before any topical reference.
   const shape = input.plan && visualKinds(resolved)[0] ? planShape({ kind: visualKinds(resolved)[0] }, validDepth(input.depth) || DEFAULT_DEPTH) : null, diagramReferences = shape ? [shape, ...topicalReferences] : topicalReferences;
   // A1 (owner 2026-11-08): a fast-chain author gets the fixed schema bundle its references and required kinds steer to (explanation-references.js); the plan
@@ -155,12 +156,12 @@ const askedItems = input => (input.visualRequirements?.items ?? []).filter(i => 
 // reference that qualifies by its direct score (explanation-references.js topicalReferenceKind) sets the plan's diagram kind (kindSource 'reference', plannerKind kept); the picture visuals,
 // and the plan's `fixed`, are untouched. Applied once where the plan is made and again, idempotently, where the author request is built, so the statement, the shape example, the
 // reference and every later check (missing visual, repair, fallback) read the same kind. A picture-only plan, two diagrams, or an earlier override: unchanged.
-export function planWithReferenceKind(input) {
+export function planWithReferenceKind(input, { excludeReferencePrefixes = [] } = {}) {
   const plan = input?.plan;
   if (plan?.planner !== 'jev' || plan.kindSource || !input.args || askedItems(input).some(i => i.kind === 'diagram' && i.diagramKind)) return input;
   const diagrams = (plan.visuals ?? []).filter(v => v?.type === 'diagram');
   if (diagrams.length !== 1) return input;
-  const hit = selectWithSteer({ prompt: input.args, requiredKinds: [], plannedKinds: [], shapeFallback: false, depth: input.depth }).steer;
+  const hit = selectWithSteer({ prompt: input.args, requiredKinds: [], plannedKinds: [], shapeFallback: false, depth: input.depth, excludeReferencePrefixes }).steer;
   if (!hit || [hit.kind, hit.referenceKind].includes(plan.kind)) return input; // a planned comparison with a two-panel comparison reference agrees: the comparison is the point
   console.log(JSON.stringify({ event: 'explanation_plan_kind_from_reference', plannerKind: plan.kind ?? null, reference: hit.id, referenceKind: hit.kind, steerSource: hit.source, score: hit.score }));
   return { ...input, plan: { ...plan, plannerKind: plan.kind ?? null, kind: hit.kind, kindSource: 'reference', visuals: plan.visuals.map(v => (v === diagrams[0] ? { type: 'diagram', kind: hit.kind } : v)) } };
@@ -168,7 +169,7 @@ export function planWithReferenceKind(input) {
 // What a last-resort simplified diagram is drawn as: the card's planned kind when there is a plan (flow, cycle or sequence; any other kind becomes a flow), else the learner's words (explanation-visuals.js fallbackKind).
 const simplifiedKind = input => { if (input.plan?.planner !== 'jev') return fallbackKind(input.args); const kind = visualKinds(cardVisuals(input.plan, askedItems(input)))[0]; return ['flow', 'cycle', 'sequence'].includes(kind) ? kind : 'flow'; };
 
-export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, meterStep = null } = {}) {
+export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null, meterStep = null } = {}) {
   // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
@@ -187,9 +188,11 @@ export async function generateArtifact(env, input, { callModel: injected = null,
     if (input.plan?.planner === 'jev' && input.visualRequirements?.items?.some(i => i.implied)) { const items = input.visualRequirements.items.filter(i => !i.implied), { visualRequirements, ...rest } = input; input = items.length ? { ...rest, visualRequirements: { ...visualRequirements, items } } : rest; }
   }
   const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
+  // Card archive: what this card was made from, on the caller's `trace` option (artifactFetch). A fast-chain step overwrites it with the step that ran last.
+  if (trace) Object.assign(trace, { plan: input.plan ?? null, plannerKind: input.plan?.plannerKind ?? input.plan?.kind ?? null, references: (prepared.diagramReferences ?? []).filter(r => !r.shape).map(r => r.id), shapeId: (prepared.diagramReferences ?? []).find(r => r.shape)?.id ?? null, models: { author: prepared.model ?? null, repair: prepared.repairModel ?? null } });
   if (prepared.result) return prepared;
   // A fast-chain profile runs each provider step through this same function with that step's transport injected (explanation-fast-chain.js).
-  if ((!injected || meterStep) && prepared.profile?.roles.author.adapter === 'fast-chain') return generateWithFallbacks(env, input, { only, systemSuffix, repairs, title, profile: prepared.profile, figures, meterStep }, generateArtifact);
+  if ((!injected || meterStep) && prepared.profile?.roles.author.adapter === 'fast-chain') return generateWithFallbacks(env, input, { only, systemSuffix, repairs, title, profile: prepared.profile, figures, trace, meterStep }, generateArtifact);
   const baseCall = injected || loggedModel('artifact', planModel);
   const { request, ready, messages, body, model } = prepared;
   const binding = prepared.profile ? await explanationProfileBinding(prepared.profile) : null; // what this card's model was chosen by, saved with the result
@@ -203,12 +206,13 @@ export async function generateArtifact(env, input, { callModel: injected = null,
     const result = await response.json();
     const calls = result.content?.filter(part => part.type === 'tool_use') || [];
     if (calls.length !== 1) throw new Error('The model returned no artifact.');
-    return { result, call: calls[0] };
+    return { result, call: { ...calls[0], input: restoreLatexIn(calls[0].input) } }; // \frac written with one backslash arrives as a form feed (latex-escapes.js)
   };
   const verify = block => sceneVerdict(env, callModel, input.args, block);
   let { result, call } = await ask(messages);
   // At most one repair: the first failure goes back to the model once.
   for (let attempt = 0; ; attempt++) {
+    if (trace) trace.answers = attempt + 1; // card archive: the answers asked for (1 = no repair)
     if (call.name === CLARIFY.name) {
       const question = typeof call.input?.question === 'string' ? call.input.question.trim().slice(0, 300) : '';
       if (question) return { result: 'clarification', question };
@@ -427,6 +431,10 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   // explanation (DEPTH_COMMANDS) get none, whatever was sent.
   const depth = !DEPTH_COMMANDS.includes(body.command) ? DEFAULT_DEPTH : body.depth !== undefined ? validDepth(body.depth)
     : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
+  // Card archive: one record per request that reaches the author, success or failure (learn-storage.js archiveExplanation: logged, never thrown). No email, only the user id.
+  const trace = {}, started = Date.now();
+  const archive = (outcome, extra = {}) => archiveExplanation(env, { id: crypto.randomUUID(), at: new Date(started).toISOString(), ms: Date.now() - started, release: env.RELEASE_SHA ?? null, userId: access.user_id ?? null, app: body.app, board: typeof body.board === 'string' ? body.board : null,
+    request: { command: body.command, args: body.args || '', selection: body.selection || null, hasContext: Boolean(body.context), depth, sourceRefId: body.sourceRefId ?? null }, ...trace, outcome, ...extra });
   let celeris = null; // DEV ONLY (explain-celeris-dev.js): declared outside the try so a refused request can still report what the route saw
   try {
     // E1: what the learner explicitly asked the written card to contain, read from their own words on the server; a picture the library does not draw is told now, before any call.
@@ -441,11 +449,12 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
       const row = await ownerRow(env, owner, body.app, typeof body.board === 'string' ? body.board : 'main').catch(() => null);
       return { org: owner.org, email: owner.email, app: body.app, boardId: row?.id ?? null };
     };
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store } });
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store }, trace });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
+    await archive(out?.result ?? null, { repaired: out?.repaired ?? null, profile: out?.profile ?? null, steps: out?.attempts ?? null, error: out?.error ?? null, returned: out?.block ?? null });
     const done = celeris ? { ...out, devModel: celeris.served() } : out;
     return json(passage && done?.block ? { ...done, block: { ...done.block, sourceRef: passage } } : done);
   }
-  catch (error) { await giveBack(); return json({ error: error.message, ...(error.code ? { code: error.code } : {}), ...(error.attempts ? { attempts: error.attempts } : {}), ...(celeris ? { devModel: celeris.served() } : {}) }, 502); } // code/attempts: the fast chain's failure reason and steps
+  catch (error) { await giveBack(); await archive('error', { error: String(error.message).slice(0, 300), code: error.code ?? null }); return json({ error: error.message, ...(error.code ? { code: error.code } : {}), ...(error.attempts ? { attempts: error.attempts } : {}), ...(celeris ? { devModel: celeris.served() } : {}) }, 502); } // code/attempts: the fast chain's failure reason and steps
 }

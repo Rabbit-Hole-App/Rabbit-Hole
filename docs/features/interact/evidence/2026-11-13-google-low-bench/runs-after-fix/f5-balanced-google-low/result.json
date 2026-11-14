@@ -1,0 +1,13 @@
+{
+  "url": "https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev/apps/canvas-c1ad0b97",
+  "app": "canvas-c1ad0b97",
+  "boardId": "6aa87816-4446-44dd-b3b4-89ed5a72584b",
+  "jobId": "ej_ae4c2f3b16f74fb0b4c717cab0086c0e",
+  "depth": "balanced",
+  "profile": "google-low",
+  "stage": "failed",
+  "stopReason": "error",
+  "failure": "The build_repair call ended without a known outcome (timeout). It is not resent and its cost is unknown.",
+  "ms": 24203,
+  "detailStatus": 200
+}

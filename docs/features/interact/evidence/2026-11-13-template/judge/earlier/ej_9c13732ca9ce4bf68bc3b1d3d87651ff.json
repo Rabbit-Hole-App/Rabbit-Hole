@@ -1,0 +1,31 @@
+{
+  "jobId": "ej_9c13732ca9ce4bf68bc3b1d3d87651ff",
+  "plan": "toss-deep",
+  "depth": "detailed",
+  "profile": "opus-baseline",
+  "buildKind": "model",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 30124,
+  "ms": 6499,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The layout says the default inputs read 0 to 0.816327 s. The scheduled states use launch speed 4 and gravity 9.8, and the card ends at 0.816327 s, which matches that range. The plan's observation text and the description both cite 0.98 m/s at 0.10 s before the top, and the cp-before capture shows 0.98 m/s at t=0.308163 s. That matches. Even so, the start state does not match the plan's default launch-speed quantities and the 'launch speed 2/5' scrubber examples. This is only a mild concern."
+    },
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "message": "The ball is drawn at y=85.38 with the height axis at 360 and length 290 for 0 to 2.2 m. Height 2.0833 m gives y=360-2.0833*131.8=85.4, which is correct. The callout boxes were placed at y=62 to 146 and the ball is near the top of the scene. The acceleration arrow length is 24 px at g=6, against 39.2 px at g=9.8, so it scales with g. That is fine. However, the velocity arrow and the 'v' label are absent at the top, which is acceptable. The velocity readout is 0. The callout texts (velocity, acceleration and force values) are not exposed in the frames, so I cannot verify the callout content or the claim that the force is shown as a downward gravitational force."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "minor",
+      "message": "The frames show the callout only as empty boxes. The readout values live in the traces, but the drawn callout text cannot be judged from what I was shown. The callout widens from 156 to 166 px at 29.4 N, which is plausible. The velocity-time graph geometry looks consistent: the marker sits on the zero line at the top."
+    }
+  ]
+}

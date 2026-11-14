@@ -1,0 +1,121 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time }) {\n  const u = Number(inputs.launchSpeed);\n  const g = Number(inputs.gravity);\n  const m = Number(inputs.mass);\n\n  const apexTime = u / g;\n  const apexHeight = (u * u) / (2 * g);\n  const tTotal = 2 * apexTime;\n\n  const t = Math.min(Math.max(0, time), tTotal);\n\n  const height = u * t - 0.5 * g * t * t;\n  const velocity = u - g * t;\n  const acceleration = -g;\n  const force = m * g;\n\n  let motionState = \"At the top\";\n  if (t === 0) {\n    motionState = \"Ready to toss\";\n  } else if (Math.abs(t - apexTime) < 0.015) {\n    motionState = \"At the top\";\n  } else if (t < apexTime) {\n    motionState = \"Rising\";\n  } else if (t >= tTotal - 0.005) {\n    motionState = \"Back at launch height\";\n  } else {\n    motionState = \"Falling\";\n  }\n\n  const laneWidth = 270;\n  const laneHeight = 350;\n  const yTop = 50;\n\n  const leftLane = sdk.panel({\n    id: \"lane.motion\",\n    x: 20,\n    y: yTop,\n    w: laneWidth,\n    h: laneHeight,\n    title: \"The motion\",\n    state: motionState\n  });\n\n  const rightLane = sdk.panel({\n    id: \"lane.vt\",\n    x: 310,\n    y: yTop,\n    w: laneWidth,\n    h: laneHeight,\n    title: \"Velocity over time\",\n    state: \"v = u - g t\"\n  });\n\n  const axisX = 75;\n  const axisYMin = yTop + 300;\n  const axisLength = 240;\n  const axisMaxVal = 2.2;\n\n  const motionAxis = sdk.axis(\"axis.height\", {\n    x: axisX,\n    y: axisYMin,\n    length: axisLength,\n    orientation: \"y\",\n    min: 0,\n    max: axisMaxVal,\n    ticks: [0, 0.5, 1.0, 1.5, 2.0],\n    label: \"Height\",\n    unit: \"m\"\n  });\n\n  const ballPixelY = axisYMin - (height / axisMaxVal) * axisLength;\n  const ballPixelX = axisX + 45;\n\n  const ball = sdk.circle(\"ball.toss\", ballPixelX, ballPixelY, 26, { role: \"learner\" });\n\n  const vScale = 15;\n  const vecV = sdk.vector(\"vec.v\", \n    { x: ballPixelX - 18, y: ballPixelY },\n    { value: velocity, direction: \"up\", scale: vScale, label: \"v\" },\n    { role: \"observed\" }\n  );\n\n  const vecA = sdk.vector(\"vec.a\",\n    { x: ballPixelX + 18, y: ballPixelY },\n    { value: acceleration, direction: \"up\", scale: 10, label: \"a\" },\n    { role: \"warning\" }\n  );\n\n  const calloutLines = [\n    \"v = \" + sdk.format(velocity, 2) + \" m/s\",\n    \"a = \" + sdk.format(acceleration, 1) + \" m/s²\",\n    \"Fg = \" + sdk.format(force, 1) + \" N\"\n  ];\n  const callout = sdk.callout(ballPixelX + 32, ballPixelY - 30, calloutLines, {\n    id: \"callout.toss\",\n    role: \"neutral\"\n  });\n\n  const points = [];\n  const stepCount = 20;\n  for (let i = 0; i <= stepCount; i++) {\n    const pT = (tTotal * i) / stepCount;\n    const pV = u - g * pT;\n    points.push({ x: pT, y: pV });\n  }\n\n  const plotVt = sdk.plot(\"plot.vt\", {\n    x: 320,\n    y: yTop + 40,\n    w: 240,\n    h: 260,\n    axes: {\n      x: { label: \"Time\", min: 0, max: 1.8, unit: \"s\" },\n      y: { label: \"Velocity\", min: -5.5, max: 5.5, unit: \"m/s\" }\n    },\n    series: [\n      {\n        label: \"v(t)\",\n        kind: \"line\",\n        points: points\n      }\n    ]\n  });\n\n  const objects = [\n    ...leftLane,\n    ...rightLane,\n    motionAxis,\n    ball,\n    ...vecV,\n    ...vecA,\n    ...callout,\n    plotVt\n  ];\n\n  return {\n    frame: {\n      width: 640,\n      height: 420,\n      objects: objects,\n      readouts: [\n        { id: \"velocity\", value: velocity },\n        { id: \"acceleration\", value: acceleration },\n        { id: \"force\", value: force },\n        { id: \"motionState\", value: motionState }\n      ]\n    },\n    quantities: {\n      launchSpeed: u,\n      gravity: g,\n      mass: m,\n      apexTime: apexTime,\n      apexHeight: apexHeight,\n      height: height,\n      velocity: velocity,\n      acceleration: acceleration,\n      force: force\n    }\n  };\n}\n",
+    "manifest": {
+     "title": "Zero velocity. Nonzero acceleration.",
+     "summary": "At the highest point of a vertical throw, the velocity reaches zero while gravity continues to pull downward at a constant acceleration.",
+     "description": "Two panels show a tossed ball on a vertical axis and its velocity-time curve. Moving through time shows zero velocity at the top while acceleration and gravitational force remain constant.",
+     "assumptions": [
+      "No air resistance, up is positive."
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "gravity",
+       "label": "Gravity",
+       "unit": "m/s^2",
+       "default": 9.8,
+       "min": 6,
+       "max": 12,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "mass",
+       "label": "Mass",
+       "unit": "kg",
+       "default": 1,
+       "min": 0.2,
+       "max": 3,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.6666666666666667,
+     "timeline": {
+      "label": "Time since launch",
+      "displayOffset": 0,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "before",
+        "label": "Top -0.10 s",
+        "time": 0.30816326530612237
+       },
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       },
+       {
+        "id": "after",
+        "label": "Top +0.10 s",
+        "time": 0.5081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "velocity",
+       "label": "Vertical velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "acceleration",
+       "label": "Vertical acceleration",
+       "unit": "m/s^2",
+       "decimals": 1
+      },
+      {
+       "id": "force",
+       "label": "Gravitational force",
+       "unit": "N",
+       "decimals": 1
+      },
+      {
+       "id": "motionState",
+       "label": "Motion state",
+       "kind": "state",
+       "labels": [
+        "Ready to toss",
+        "Rising",
+        "At the top",
+        "Falling",
+        "Back at launch height"
+       ]
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "completion_tokens": 2332,
+  "prompt_tokens": 9687,
+  "prompt_tokens_details": {
+   "cached_tokens": 8202
+  },
+  "total_tokens": 12019
+ }
+}

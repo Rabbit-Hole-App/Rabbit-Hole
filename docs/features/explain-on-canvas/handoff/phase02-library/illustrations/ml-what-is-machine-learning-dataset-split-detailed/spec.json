@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Separate learning, tuning and final checking",
+    "kind": "block-stack",
+    "orientation": "horizontal",
+    "blocks": [
+      {
+        "id": "train",
+        "label": "Training · learn parameters",
+        "dims": "70%"
+      },
+      {
+        "id": "validation",
+        "label": "Validation · tune hyperparameters",
+        "dims": "15%"
+      },
+      {
+        "id": "test",
+        "label": "Test · sacred final check",
+        "dims": "15%"
+      }
+    ],
+    "caption": "Illustrative. $70+15+15=100$ percent. Labels, not widths, give proportions. Check test data only at the end."
+  }
+}

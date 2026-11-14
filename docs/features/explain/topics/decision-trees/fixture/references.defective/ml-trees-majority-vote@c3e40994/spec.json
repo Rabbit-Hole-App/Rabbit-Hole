@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Forest vote for row J",
+    "bars": [
+      {
+        "label": "Class 0 · T1",
+        "value": 1
+      },
+      {
+        "label": "Class 1 · T2, T3",
+        "value": 2
+      }
+    ],
+    "caption": "Worked example. For J, x is 6 and y is 1. Class 1 gets 2 of 3 votes."
+  }
+}

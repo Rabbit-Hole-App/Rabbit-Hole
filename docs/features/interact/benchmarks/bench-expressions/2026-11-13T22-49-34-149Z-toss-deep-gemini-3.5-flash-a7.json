@@ -1,0 +1,65 @@
+{
+ "reply": {
+  "quantities": {
+   "launchSpeed": {
+    "op": "input",
+    "id": "launchSpeed"
+   },
+   "gravity": {
+    "op": "input",
+    "id": "gravity"
+   },
+   "mass": {
+    "op": "input",
+    "id": "mass"
+   },
+   "apexTime": {
+    "op": "divide",
+    "id": "launchSpeed/gravity candidate node parsing step placeholder (replaced in output formatting below if required but object is structured recursively)"
+   },
+   "apexHeight": {
+    "op": "divide",
+    "id": "dummy"
+   },
+   "height": {
+    "op": "subtract",
+    "id": "dummy"
+   },
+   "velocity": {
+    "op": "subtract",
+    "id": "dummy"
+   },
+   "acceleration": {
+    "op": "subtract",
+    "id": "dummy"
+   },
+   "force": {
+    "op": "multiply",
+    "id": "dummy"
+   }
+  },
+  "moments": {
+   "before": {
+    "op": "subtract",
+    "id": "dummy"
+   },
+   "top": {
+    "op": "divide",
+    "id": "dummy"
+   },
+   "heavyTop": {
+    "op": "divide",
+    "id": "dummy"
+   },
+   "fastTop": {
+    "op": "divide",
+    "id": "dummy"
+   }
+  }
+ },
+ "usage": {
+  "completion_tokens": 401,
+  "prompt_tokens": 1493,
+  "total_tokens": 1894
+ }
+}

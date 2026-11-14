@@ -1,0 +1,307 @@
+{
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
+ "plan": {
+  "planner": "jev",
+  "ms": 88,
+  "kind": "coordinate-plot",
+  "fixed": true,
+  "offered": null,
+  "treatment": "mechanism",
+  "confidence": 0.86,
+  "physical": 0.09,
+  "pictures": 0,
+  "diagrams": 1,
+  "physicalOverride": null
+ },
+ "raw": [
+  {
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "coordinate-plot"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "coordinate-plot",
+    "kindSource": "reference",
+    "plannerKind": "sample-set",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.86,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.63,
+     "isPhysical": 0.09,
+     "needsWorkedExample": 0.85
+    },
+    "ms": 88
+   },
+   "references": [
+    "shape-coordinate-plot",
+    "ml-trees-bootstrap-coverage"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Bootstrap omission by training set size",
+       "caption": "Worked example. Omission with replacement is $(1-1/n)^n$. Limit $1/e\\approx0.368$ gives expected coverage $1-0.368=0.632$.",
+       "kind": "coordinate-plot",
+       "x": {
+        "label": "Training rows n",
+        "min": 1,
+        "max": 20,
+        "integerTicks": true
+       },
+       "y": {
+        "label": "Chance a row is omitted",
+        "min": 0,
+        "max": 0.4
+       },
+       "series": [
+        {
+         "label": "Omission after n draws",
+         "kind": "line",
+         "samples": {
+          "x": {
+           "start": 1,
+           "step": 1
+          },
+          "y": [
+           0,
+           250,
+           296,
+           316,
+           328,
+           335,
+           340,
+           344,
+           346,
+           349,
+           350,
+           352,
+           353,
+           354,
+           355,
+           356,
+           357,
+           357,
+           358,
+           358
+          ],
+          "divisor": 1000
+         }
+        }
+       ],
+       "annotations": [
+        {
+         "kind": "reference-line",
+         "label": "Omission limit",
+         "axis": "y",
+         "value": 0.368
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "coordinate-plot"
+   ]
+  }
+ ],
+ "row": {
+  "id": "ml-trees-bootstrap-coverage",
+  "set": "demo-lesson04",
+  "run": 1,
+  "depth": "standard",
+  "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+  "canvas": "canvas-bb4ede4c",
+  "startedAt": "2026-11-09T19:49:19.174Z",
+  "http": 200,
+  "totalMs": 5814,
+  "delivered": true,
+  "failure": null,
+  "authoredBy": {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite"
+  },
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "repaired": false,
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "authorCalls": 1,
+  "pictures": 0,
+  "ledgerUsd": 0.003258,
+  "estUsd": 0.008,
+  "costUsd": 0.003258,
+  "costSource": "ledger",
+  "steer": [
+   {
+    "plannerKind": "sample-set",
+    "reference": "ml-trees-bootstrap-coverage",
+    "referenceKind": "coordinate-plot",
+    "steerSource": "reference",
+    "score": 50
+   }
+  ],
+  "repairCauses": [],
+  "corrected": [],
+  "diagramCorrections": null,
+  "visualFallback": null,
+  "proseLists": 0,
+  "unknownKeysStripped": {
+   "events": 0,
+   "keys": 0
+  },
+  "picturesDropped": [],
+  "raw": [
+   {
+    "attempt": 0,
+    "plan": {
+     "visuals": [
+      {
+       "type": "diagram",
+       "kind": "coordinate-plot"
+      }
+     ],
+     "depthTreatment": "mechanism",
+     "kind": "coordinate-plot",
+     "kindSource": "reference",
+     "plannerKind": "sample-set",
+     "fixed": true,
+     "confidence": {
+      "kind": 0.86,
+      "visualType": 1
+     },
+     "flags": {
+      "needsPlot": 0.63,
+      "isPhysical": 0.09,
+      "needsWorkedExample": 0.85
+     },
+     "ms": 88
+    },
+    "references": [
+     "shape-coordinate-plot",
+     "ml-trees-bootstrap-coverage"
+    ],
+    "visuals": [
+     {
+      "k": "diagram",
+      "spec": {
+       "version": 1,
+       "diagram": {
+        "title": "Bootstrap omission by training set size",
+        "caption": "Worked example. Omission with replacement is $(1-1/n)^n$. Limit $1/e\\approx0.368$ gives expected coverage $1-0.368=0.632$.",
+        "kind": "coordinate-plot",
+        "x": {
+         "label": "Training rows n",
+         "min": 1,
+         "max": 20,
+         "integerTicks": true
+        },
+        "y": {
+         "label": "Chance a row is omitted",
+         "min": 0,
+         "max": 0.4
+        },
+        "series": [
+         {
+          "label": "Omission after n draws",
+          "kind": "line",
+          "samples": {
+           "x": {
+            "start": 1,
+            "step": 1
+           },
+           "y": [
+            0,
+            250,
+            296,
+            316,
+            328,
+            335,
+            340,
+            344,
+            346,
+            349,
+            350,
+            352,
+            353,
+            354,
+            355,
+            356,
+            357,
+            357,
+            358,
+            358
+           ],
+           "divisor": 1000
+          }
+         }
+        ],
+        "annotations": [
+         {
+          "kind": "reference-line",
+          "label": "Omission limit",
+          "axis": "y",
+          "value": 0.368
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "kinds": [
+     "coordinate-plot"
+    ]
+   }
+  ],
+  "modelCalls": [
+   {
+    "served": "gemini-3.5-flash-lite",
+    "status": 200,
+    "outcome": "completed",
+    "error": null,
+    "ms": 5624
+   }
+  ]
+ },
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "tokens": {
+  "input": 3917,
+  "output": 833,
+  "authorUsd": 0.003258,
+  "pictureUsd": 0
+ },
+ "totalMs": 5814,
+ "costUsd": 0.003258
+}

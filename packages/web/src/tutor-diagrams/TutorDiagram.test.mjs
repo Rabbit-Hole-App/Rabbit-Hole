@@ -13,7 +13,7 @@ import kindGallery from './kind-gallery.json' with { type: 'json' };
 const fixtures = JSON.parse(readFileSync(new URL('./examples.json', import.meta.url), 'utf8'));
 for (const kind of ['heatmap', 'sample-set', 'histogram', 'box-plot']) fixtures.push(diagramReferences.find(r => r.spec.diagram.kind === kind).spec);
 
-fixtures.push(...kindGallery.filter(spec => ILLUSTRATION_KINDS.includes(spec.diagram.kind)));
+fixtures.push(...kindGallery.filter(spec => ILLUSTRATION_KINDS.includes(spec.diagram.kind) || spec.diagram.kind === 'panels'));
 
 test('every fixture renders deterministically, with a readable SVG and the shared surface', () => {
   const shapes = tutorDiagramJsonSchema.properties.diagram;
@@ -87,7 +87,8 @@ test('a narrow embedding caption keeps its complete native SVG fallback and inli
   assert.match(caption, /data-tutor-tex="\$x_p=e_p\+PE_p\$"/);
   const fallback = caption.slice(caption.lastIndexOf('data-explanation-skip'));
   const lines = [...fallback.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map(([, line]) => line);
-  assert.equal(lines.join(' '), 'Four entries shown per row. Add position with x_p=e_p+PE_p.');
+  // Owner decision 2026-11-12 (readable fallback for maths): the native text writes subscripts and exponents as Unicode.
+  assert.equal(lines.join(' '), 'Four entries shown per row. Add position with xₚ=eₚ+PEₚ.');
 });
 
 test('the Gini and entropy caption shows both formulas with and without XHTML support', () => {

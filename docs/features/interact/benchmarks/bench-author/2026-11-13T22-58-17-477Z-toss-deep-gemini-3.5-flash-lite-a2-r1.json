@@ -1,0 +1,120 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time, seed, state }) { const launchSpeed = inputs.launchSpeed ?? 4.0; const gravity = inputs.gravity ?? 9.8; const mass = inputs.mass ?? 1.0; const t = time ?? 0.0; const velocity = launchSpeed - gravity * t; const height = launchSpeed * t - 0.5 * gravity * t * t; const acceleration = -gravity; const force = mass * gravity; const apexTime = launchSpeed / gravity; const apexHeight = (launchSpeed * launchSpeed) / (2 * gravity); let motionState = \"Ready to toss\"; if (t > 0 && t < apexTime - 0.05) motionState = \"Rising\"; else if (t >= apexTime - 0.05 && t <= apexTime + 0.05) motionState = \"At the top\"; else if (t > apexTime + 0.05 && height > 0) motionState = \"Falling\"; else if (height <= 0 && t > 0) motionState = \"Back at launch height\"; const objects = []; objects.push(...sdk.panel({ x: 20, y: 35, w: 290, h: 360, title: \"Motion\", state: motionState })); objects.push(sdk.groundMark(\"ground\", 165, 335, 120, \"Launch mark\")); const ballY = 325 - height * 80; objects.push(sdk.circle(\"ball.toss\", 165, ballY, 24, { role: \"observed\" })); objects.push(sdk.axis(\"axis.height\", { x: 75, y: 115, length: 220, orientation: \"y\", min: 0, max: 2.2, ticks: [0, 0.5, 1.0, 1.5, 2.0], label: \"Height\", unit: \"m\" })); objects.push(...sdk.vector(\"vec.v\", { x: 195, y: ballY }, { value: velocity, direction: \"up\" }, { scale: 15, label: \"v\" })); objects.push(...sdk.vector(\"vec.a\", { x: 215, y: ballY }, { value: acceleration, direction: \"up\" }, { scale: 15, label: \"a\" })); objects.push(...sdk.callout(230, ballY - 25, [\"v: \" + velocity.toFixed(2) + \" m/s\", \"a: \" + acceleration.toFixed(2) + \" m/s^2\", \"Fg: \" + force.toFixed(1) + \" N\"], { id: \"callout.toss\" })); const plotPoints = []; const stepCount = 20; const maxT = 1.6666666666666667; for (let i = 0; i <= stepCount; i++) { const pt = (i / stepCount) * maxT; const pv = launchSpeed - gravity * pt; plotPoints.push({ x: pt, y: pv }); } objects.push(sdk.plot(\"plot.vt\", { x: 330, y: 35, w: 290, h: 360, axes: { x: { label: \"Time\", min: 0, max: 1.8, unit: \"s\" }, y: { label: \"Velocity\", min: -5.5, max: 5.5, unit: \"m/s\" } }, series: [{ label: \"v(t)\", kind: \"line\", points: plotPoints }] })); objects.push(sdk.text(\"plot.vt.note\", 340, 370, \"Slope a = -g\", { role: \"neutral\" })); return { frame: { width: 640, height: 420, objects: objects, readouts: [{ id: \"velocity\", value: velocity }, { id: \"acceleration\", value: acceleration }, { id: \"force\", value: force }, { id: \"motionState\", value: motionState }] }, quantities: { launchSpeed: launchSpeed, gravity: gravity, mass: mass, apexTime: apexTime, apexHeight: apexHeight, height: height, velocity: velocity, acceleration: acceleration, force: force } }; }",
+    "manifest": {
+     "title": "Zero velocity. Nonzero acceleration.",
+     "summary": "At the top, velocity is zero, but the acceleration remains -g and the downward force is mg.",
+     "description": "A vertical ball toss showing that velocity is zero at the apex while acceleration and gravitational force remain constant.",
+     "assumptions": [
+      "No air resistance, up is positive.",
+      "Idealized uniform gravity."
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "gravity",
+       "label": "Gravity",
+       "unit": "m/s^2",
+       "default": 9.8,
+       "min": 6,
+       "max": 12,
+       "step": 0.1
+      },
+      {
+       "type": "number",
+       "id": "mass",
+       "label": "Mass",
+       "unit": "kg",
+       "default": 1,
+       "min": 0.2,
+       "max": 3,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.6666666666666667,
+     "instructions": "Change launch speed or gravity, then press Play. Compare readings near the top.",
+     "timeline": {
+      "label": "Time since launch",
+      "displayOffset": 0,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "before",
+        "label": "Top -0.10 s",
+        "time": 0.30816326530612237
+       },
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       },
+       {
+        "id": "after",
+        "label": "Top +0.10 s",
+        "time": 0.5081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "velocity",
+       "label": "Velocity",
+       "unit": "m/s",
+       "decimals": 2
+      },
+      {
+       "id": "acceleration",
+       "label": "Acceleration",
+       "unit": "m/s^2",
+       "decimals": 2
+      },
+      {
+       "id": "force",
+       "label": "Force",
+       "unit": "N",
+       "decimals": 1
+      },
+      {
+       "id": "motionState",
+       "label": "Motion State",
+       "kind": "state",
+       "labels": [
+        "Ready to toss",
+        "Rising",
+        "At the top",
+        "Falling",
+        "Back at launch height"
+       ]
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "completion_tokens": 1878,
+  "prompt_tokens": 10100,
+  "total_tokens": 11978
+ }
+}

@@ -1,0 +1,46 @@
+{
+ "reply": {
+  "quantities": {
+   "launchSpeed": {
+    "formula": "launchSpeed",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "gravity": {
+    "formula": "gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexTime": {
+    "formula": "launchSpeed / gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexHeight": {
+    "formula": "1 + (launchSpeed * launchSpeed) / (gravity + gravity)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "velocity": {
+    "formula": "launchSpeed - (gravity * t)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "height": {
+    "formula": "1 + (launchSpeed * t) - (gravity * t * t) / 2",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "acceleration": {
+    "formula": "0 - gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  }
+ },
+ "usage": {
+  "completion_tokens": 283,
+  "prompt_tokens": 863,
+  "total_tokens": 1146
+ }
+}

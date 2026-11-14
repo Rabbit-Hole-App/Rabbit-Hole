@@ -53,6 +53,12 @@ test('the ready card takes the frame-derived size, not the placeholder; a learne
   assert.deepEqual([resized.w, resized.h], [500, 300], 'a deliberate resize carries over');
 });
 
+test('a composed /interact card is one heading row (40 px) taller than a plain program card of the same frame, so its scene keeps its full height', () => {
+  const ready = explainResultBlock(pending(), RECORDED.job, RECORDED.block), frame = { w: 640, h: 420 };
+  const composed = { ...ready, interact: { version: 1, composition: { stub: true } } };
+  assert.equal(sizeFor(composed, frame).height - sizeFor(ready, frame).height, 40);
+});
+
 test('a spinner and shimmer beside the server\'s stage only while it works', () => {
   for (const stage of ['queued', 'preparing', 'authoring', 'rendering']) {
     const html = render(pending(stage));

@@ -1,0 +1,82 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time, seed, state }) { const launchSpeed = inputs.launchSpeed; const gravity = 9.8; const height = launchSpeed * time - 0.5 * gravity * time * t; const velocity = launchSpeed - gravity * time; const heightPx = 300 - height * 50; const ball = sdk.circle('ball.toss', 320, heightPx, 24, { role: 'output' }); const vecV = sdk.vector('vec.v', { x: 320, y: heightPx }, { value: velocity, direction: 'up' }, { scale: 10, label: 'v' }); const vecA = sdk.vector('vec.a', { x: 340, y: heightPx }, { value: -9.8, direction: 'up' }, { scale: 5, label: 'a' }); let motionStateText = 'Moving up'; if (Math.abs(velocity) < 0.1) { motionStateText = 'Still for an instant'; } else if (velocity < 0) { motionStateText = 'Moving down'; } const callout = sdk.callout(370, heightPx - 20, [motionStateText, 'Gravity pulls down']); const axis = sdk.axis('axis.height', { x: 260, y: 350 }, 300, 'y', 0, 3, [0, 1, 2, 3], 'Height', 'm'); const ground = sdk.groundMark('ground', 320, 350, 60, 'Launch'); const panel = sdk.panel({ x: 40, y: 30, w: 560, h: 380, title: 'Vertical Motion', state: motionStateText }); const frame = sdk.frame([panel, axis, ground, ball, vecV, vecA, callout]); const quantities = { launchSpeed, gravity, velocity, height }; const readouts = [{ id: 'motionState', value: motionStateText }, { id: 'gravityState', value: 'Pulling down' }]; return { frame: { width: 640, height: 420, objects: frame, readouts }, quantities }; }",
+    "manifest": {
+     "title": "The ball stops rising. Gravity doesn't stop.",
+     "summary": "Gravity slows the ball on the way up and speeds it up on the way down. At the top, the ball is still for an instant while gravity continues to pull it downward.",
+     "description": "A vertical scale with a ball moving up and down. A blue velocity arrow shrinks to zero at the apex and points downward during descent, while a constant warm dashed gravity vector points downward throughout.",
+     "assumptions": [
+      "Gravity fixed at 9.8 m/s^2",
+      "No air resistance",
+      "Up is positive"
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.0204081632653061,
+     "instructions": "Change launch speed, then press Play. At the top, playback pauses so you can inspect the arrows.",
+     "timeline": {
+      "label": "Time since launch",
+      "displayOffset": 0,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "motionState",
+       "label": "Motion State",
+       "kind": "state",
+       "labels": [
+        "Moving up",
+        "Still for an instant",
+        "Moving down"
+       ]
+      },
+      {
+       "id": "gravityState",
+       "label": "Gravity",
+       "kind": "state",
+       "labels": [
+        "Pulling down"
+       ]
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "completion_tokens": 1099,
+  "prompt_tokens": 8330,
+  "prompt_tokens_details": {
+   "cached_tokens": 5659
+  },
+  "total_tokens": 9429
+ }
+}

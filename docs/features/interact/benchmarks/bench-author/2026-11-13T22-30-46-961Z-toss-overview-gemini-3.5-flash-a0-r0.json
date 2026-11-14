@@ -1,0 +1,12 @@
+{
+ "error": {
+  "code": "schema_mismatch",
+  "message": "The structured result does not match its schema: $.main.program.manifest.readouts[1].labels: fewer than 2 items",
+  "problems": null,
+  "usage": {
+   "completion_tokens": 1670,
+   "prompt_tokens": 8308,
+   "total_tokens": 9978
+  }
+ }
+}

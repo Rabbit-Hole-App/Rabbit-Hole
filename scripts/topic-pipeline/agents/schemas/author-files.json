@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "files"
+  ],
+  "properties": {
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "(?:^packages/web/src/tutor-diagrams/topic-example-topic-(?:data|references|overlays)(?:\\.test)?\\.(?:js|mjs)$|^packages/web/src/tutor-diagrams/topic-example-topic-(?:token-budgets|replay-cases)\\.json$|^packages/web/src/tutor-diagrams/(?:reference-library\\.js|svg-snapshots\\.json)$|^docs/features/explain-on-canvas/handoff/phase02-library/topic-walkthroughs/example-topic\\.md$|^docs/features/explain-on-canvas/handoff/figure-briefs/briefs/(?:[0-9]{2}-)?example-topic\\.md$|^docs/features/explain-on-canvas/handoff/phase02-library/illustrations/ml-example-topic-[a-z0-9-]+/(?:408\\.svg|natural\\.svg|960\\.svg|spec\\.json)$|^scripts/explain-bench/sets/demo-example-topic\\.json$)"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 204800
+          }
+        }
+      }
+    }
+  }
+}

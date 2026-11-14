@@ -1,0 +1,31 @@
+{
+  "jobId": "ej_33000817f3704894b10e657721419aed",
+  "plan": "toss-deep",
+  "depth": "detailed",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 27090,
+  "ms": 5165,
+  "findings": [
+    {
+      "capture": "cp-fastTop",
+      "category": "spec",
+      "severity": "major",
+      "message": "The checkpoint is captured at time 0.833333 s, but the card's own range for launch speed 5 and gravity 6 is 5/6 = 0.833333 s. The ball's apex height is 2.083 m and the scale tops out at 2.2 m, so the position is consistent. However, the plot and the scrubber for this capture are not shown, so the scrubber range cannot be judged. The fast-top checkpoint is therefore only partly supported. The 'later and higher' observation topMoves has no readout and cannot be confirmed from frames alone."
+    },
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The plan's velocitySamples observation (+0.98, 0, -0.98 m/s) is supported for the first two samples. The after-top sample at 0.10 s is not captured, so the -0.98 m/s value is unverified. The start capture's readout shows velocity 4 while the state is 'Ready to toss'. This is acceptable, but no scene text explains it."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "minor",
+      "message": "At the top the velocity arrow vec.v is absent, which is reasonable for v = 0. The acceleration arrow is still drawn, so the card shows a nonzero acceleration at v = 0. The frames do not show the callout text lines, only boxes, so the readout wording cannot be judged. Pixels are not available, so the plot's marker and orange slope segment cannot be judged either."
+    }
+  ]
+}

@@ -152,7 +152,7 @@ test('Ask about selection: one card ref with the passage, title, URL and capture
   assert.doesNotMatch(workspace, /send|ask\(/);
 });
 
-test('zero AI calls: scroll, lock, select, highlight, Copy and Ask reach only the highlights route; the card has no other network path', async () => {
+test('zero AI calls: scroll, lock, select, highlight and Add to chat reach only the highlights route; the card has no other network path', async () => {
   const calls = [];
   const saved = globalThis.fetch;
   globalThis.localStorage ||= { getItem: () => null, setItem() {}, removeItem() {} };
@@ -174,7 +174,7 @@ test('zero AI calls: scroll, lock, select, highlight, Copy and Ask reach only th
   const card = read('WebpageCard.jsx');
   assert.doesNotMatch(card, /fetch\(|\/api\//);
   const imports = [...card.matchAll(/from '\.\/([^']+)'/g)].map(match => match[1]).sort();
-  assert.deepEqual(imports, ['CardHeader.jsx', 'card-rename.js', 'chat-workspace.jsx', 'content-gestures.js', 'file-source-client.js', 'pdf-anchor.js', 'pdf-highlights.js', 'selection-ref.js', 'selection-toolbar.jsx', 'ui.jsx', 'webcard-api.js', 'webcard.js']);
+  assert.deepEqual(imports, ['CardHeader.jsx', 'card-rename.js', 'chat-workspace.jsx', 'content-gestures.js', 'explanation-host.js', 'file-source-client.js', 'pdf-anchor.js', 'pdf-highlights.js', 'selection-ref.js', 'selection-toolbar.jsx', 'ui.jsx', 'webcard-api.js', 'webcard.js']);
   const routes = [...read('webcard-api.js').matchAll(/`(\/api\/[^`$?]+)/g)].map(match => match[1]);
   assert.deepEqual(routes, ['/api/learn/webpages/', '/api/learn/webpages/', '/api/learn/files/']);
   assert.match(read('webcard-api.js'), /result\('\/api\/learn\/webpages', \{ method: 'POST'/);

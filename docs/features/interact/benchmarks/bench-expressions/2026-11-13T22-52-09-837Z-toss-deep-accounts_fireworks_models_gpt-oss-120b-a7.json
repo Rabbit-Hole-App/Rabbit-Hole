@@ -1,0 +1,200 @@
+{
+ "reply": {
+  "quantities": {
+   "launchSpeed": {
+    "op": "input",
+    "id": "launchSpeed"
+   },
+   "gravity": {
+    "op": "input",
+    "id": "gravity"
+   },
+   "mass": {
+    "op": "input",
+    "id": "mass"
+   },
+   "apexTime": {
+    "op": "divide",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "apexHeight": {
+    "op": "divide",
+    "left": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "launchSpeed"
+     }
+    },
+    "right": {
+     "op": "multiply",
+     "left": {
+      "op": "literal",
+      "value": 2
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    }
+   },
+   "height": {
+    "op": "subtract",
+    "left": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "t"
+     }
+    },
+    "right": {
+     "op": "divide",
+     "left": {
+      "op": "multiply",
+      "left": {
+       "op": "input",
+       "id": "gravity"
+      },
+      "right": {
+       "op": "multiply",
+       "left": {
+        "op": "input",
+        "id": "t"
+       },
+       "right": {
+        "op": "input",
+        "id": "t"
+       }
+      }
+     },
+     "right": {
+      "op": "literal",
+      "value": 2
+     }
+    }
+   },
+   "velocity": {
+    "op": "subtract",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "multiply",
+     "left": {
+      "op": "input",
+      "id": "gravity"
+     },
+     "right": {
+      "op": "input",
+      "id": "t"
+     }
+    }
+   },
+   "acceleration": {
+    "op": "multiply",
+    "left": {
+     "op": "literal",
+     "value": -1
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "force": {
+    "op": "multiply",
+    "left": {
+     "op": "input",
+     "id": "mass"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   }
+  },
+  "moments": {
+   "before": {
+    "op": "subtract",
+    "left": {
+     "op": "divide",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    },
+    "right": {
+     "op": "literal",
+     "value": 0.1
+    }
+   },
+   "top": {
+    "op": "divide",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "heavyTop": {
+    "op": "divide",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "fastTop": {
+    "op": "divide",
+    "left": {
+     "op": "input",
+     "id": "launchSpeed"
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   }
+  }
+ },
+ "usage": {
+  "prompt_tokens": 1891,
+  "total_tokens": 2701,
+  "completion_tokens": 810,
+  "prompt_tokens_details": {
+   "cached_tokens": 1890
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 246
+  },
+  "output_tokens_details": {
+   "reasoning_tokens": 246
+  }
+ }
+}

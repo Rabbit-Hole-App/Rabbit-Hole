@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "The ML workflow repeats",
+    "kind": "cycle",
+    "steps": [
+      "Collect Data",
+      "Clean and Explore · 60–80% time",
+      "Feature Engineering",
+      "Split Data",
+      "Train Model",
+      "Evaluate",
+      "Deploy / Monitor"
+    ],
+    "caption": "Illustrative. Evaluate returns to Feature Engineering if not good enough; Monitor returns to Collect Data if performance drops."
+  }
+}

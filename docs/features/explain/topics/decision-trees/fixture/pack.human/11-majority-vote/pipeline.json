@@ -1,0 +1,340 @@
+{
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
+ "plan": {
+  "planner": "jev",
+  "ms": 81,
+  "kind": "flow",
+  "fixed": false,
+  "offered": [
+   "flow",
+   "tree"
+  ],
+  "treatment": "mechanism",
+  "confidence": 0.34,
+  "physical": 0.09,
+  "pictures": 0,
+  "diagrams": 1,
+  "physicalOverride": null
+ },
+ "raw": [
+  {
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "choose": [
+       "flow",
+       "tree"
+      ]
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "flow",
+    "fixed": false,
+    "confidence": {
+     "kind": 0.34,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.2,
+     "isPhysical": 0.09,
+     "needsWorkedExample": 0.72
+    },
+    "ms": 81
+   },
+   "references": [
+    "shape-flow",
+    "ml-trees-majority-vote",
+    "ml-bagging-vote-flow"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Combining Tree Predictions in a Random Forest",
+       "caption": "Each fitted tree votes independently, and the forest aggregates these individual votes into a final class prediction.",
+       "kind": "flow",
+       "nodes": [
+        {
+         "id": "boot",
+         "label": "Bootstrap samples",
+         "role": "fork"
+        },
+        {
+         "id": "a",
+         "label": "Predict with tree 1",
+         "role": "process"
+        },
+        {
+         "id": "b",
+         "label": "Predict with tree 2",
+         "role": "process"
+        },
+        {
+         "id": "c",
+         "label": "Predict with tree 3",
+         "role": "process"
+        },
+        {
+         "id": "vote",
+         "label": "Take a majority vote",
+         "role": "merge"
+        },
+        {
+         "id": "out",
+         "label": "Predict final class",
+         "role": "outcome"
+        }
+       ],
+       "edges": [
+        {
+         "from": "boot",
+         "to": "a",
+         "label": "Tree 1"
+        },
+        {
+         "from": "boot",
+         "to": "b",
+         "label": "Tree 2"
+        },
+        {
+         "from": "boot",
+         "to": "c",
+         "label": "Tree 3"
+        },
+        {
+         "from": "a",
+         "to": "vote"
+        },
+        {
+         "from": "b",
+         "to": "vote"
+        },
+        {
+         "from": "c",
+         "to": "vote"
+        },
+        {
+         "from": "vote",
+         "to": "out"
+        }
+       ],
+       "highlightPath": [
+        "boot",
+        "a",
+        "vote",
+        "out"
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "flow"
+   ]
+  }
+ ],
+ "row": {
+  "id": "ml-trees-majority-vote",
+  "set": "demo-lesson04",
+  "run": 1,
+  "depth": "standard",
+  "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+  "canvas": "canvas-1d9b1370",
+  "startedAt": "2026-11-09T19:49:27.175Z",
+  "http": 200,
+  "totalMs": 3174,
+  "delivered": true,
+  "failure": null,
+  "authoredBy": {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite"
+  },
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "repaired": false,
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "authorCalls": 1,
+  "pictures": 0,
+  "ledgerUsd": 0.003134,
+  "estUsd": 0.008,
+  "costUsd": 0.003134,
+  "costSource": "ledger",
+  "steer": [],
+  "repairCauses": [],
+  "corrected": [],
+  "diagramCorrections": null,
+  "visualFallback": null,
+  "proseLists": 0,
+  "unknownKeysStripped": {
+   "events": 0,
+   "keys": 0
+  },
+  "picturesDropped": [],
+  "raw": [
+   {
+    "attempt": 0,
+    "plan": {
+     "visuals": [
+      {
+       "type": "diagram",
+       "choose": [
+        "flow",
+        "tree"
+       ]
+      }
+     ],
+     "depthTreatment": "mechanism",
+     "kind": "flow",
+     "fixed": false,
+     "confidence": {
+      "kind": 0.34,
+      "visualType": 1
+     },
+     "flags": {
+      "needsPlot": 0.2,
+      "isPhysical": 0.09,
+      "needsWorkedExample": 0.72
+     },
+     "ms": 81
+    },
+    "references": [
+     "shape-flow",
+     "ml-trees-majority-vote",
+     "ml-bagging-vote-flow"
+    ],
+    "visuals": [
+     {
+      "k": "diagram",
+      "spec": {
+       "version": 1,
+       "diagram": {
+        "title": "Combining Tree Predictions in a Random Forest",
+        "caption": "Each fitted tree votes independently, and the forest aggregates these individual votes into a final class prediction.",
+        "kind": "flow",
+        "nodes": [
+         {
+          "id": "boot",
+          "label": "Bootstrap samples",
+          "role": "fork"
+         },
+         {
+          "id": "a",
+          "label": "Predict with tree 1",
+          "role": "process"
+         },
+         {
+          "id": "b",
+          "label": "Predict with tree 2",
+          "role": "process"
+         },
+         {
+          "id": "c",
+          "label": "Predict with tree 3",
+          "role": "process"
+         },
+         {
+          "id": "vote",
+          "label": "Take a majority vote",
+          "role": "merge"
+         },
+         {
+          "id": "out",
+          "label": "Predict final class",
+          "role": "outcome"
+         }
+        ],
+        "edges": [
+         {
+          "from": "boot",
+          "to": "a",
+          "label": "Tree 1"
+         },
+         {
+          "from": "boot",
+          "to": "b",
+          "label": "Tree 2"
+         },
+         {
+          "from": "boot",
+          "to": "c",
+          "label": "Tree 3"
+         },
+         {
+          "from": "a",
+          "to": "vote"
+         },
+         {
+          "from": "b",
+          "to": "vote"
+         },
+         {
+          "from": "c",
+          "to": "vote"
+         },
+         {
+          "from": "vote",
+          "to": "out"
+         }
+        ],
+        "highlightPath": [
+         "boot",
+         "a",
+         "vote",
+         "out"
+        ]
+       }
+      }
+     }
+    ],
+    "kinds": [
+     "flow"
+    ]
+   }
+  ],
+  "modelCalls": [
+   {
+    "served": "gemini-3.5-flash-lite",
+    "status": 200,
+    "outcome": "completed",
+    "error": null,
+    "ms": 2850
+   }
+  ]
+ },
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "tokens": {
+  "input": 4136,
+  "output": 757,
+  "authorUsd": 0.003134,
+  "pictureUsd": 0
+ },
+ "totalMs": 3174,
+ "costUsd": 0.003134
+}

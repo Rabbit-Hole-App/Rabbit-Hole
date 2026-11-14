@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Separate learning, tuning and final checking",
+    "kind": "block-stack",
+    "orientation": "horizontal",
+    "blocks": [
+      {
+        "id": "train",
+        "label": "Training · learn parameters",
+        "dims": "70%"
+      },
+      {
+        "id": "validation",
+        "label": "Validation · tune hyperparameters",
+        "dims": "15%"
+      },
+      {
+        "id": "test",
+        "label": "Test · sacred final check",
+        "dims": "15%"
+      }
+    ],
+    "caption": "Illustrative. Labels show proportions, not block widths. Test data stays untouched until the final check."
+  }
+}

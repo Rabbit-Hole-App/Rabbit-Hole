@@ -1562,5 +1562,45 @@
   "figure-latent-expert-output-normalization": [
     "latent MoE output norm",
     "normalize routed expert outputs"
+  ],
+  "ml-linear-regression-linear-unit": [
+    "affine unit",
+    "weighted feature sum"
+  ],
+  "ml-neural-networks-hidden-layer": [
+    "hidden feature layer",
+    "nonlinear hidden features"
+  ],
+  "ml-regularization-regularized-objective": [
+    "penalized objective",
+    "regularization cost"
+  ],
+  "ml-regularization-dropout-mask": [
+    "temporary dropout mask",
+    "inverted dropout"
+  ],
+  "ml-attention-scaled-score-normalization": [
+    "attention score scaling",
+    "scaled match weights"
+  ],
+  "ml-model-evaluation-training-diagnostics": [
+    "dropout metrics",
+    "loss accuracy traces"
+  ],
+  "ml-model-evaluation-schedule-run-diagnostics": [
+    "fixed rate plateau",
+    "training heldout gap"
+  ],
+  "ml-time-series-recursive-rollout": [
+    "recursive rollout",
+    "forecast feedback"
+  ],
+  "ml-distribution-shift-input-distribution-shift": [
+    "input style shift",
+    "fixed class rule"
+  ],
+  "ml-distribution-shift-concept-shift": [
+    "conditional label change",
+    "changed naming rule"
   ]
 }

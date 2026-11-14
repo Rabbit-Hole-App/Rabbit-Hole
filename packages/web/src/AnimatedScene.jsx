@@ -1,5 +1,7 @@
 import { rasterRuns } from './raster-pixels.js';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { FigureShape, LookShape } from './explain-program/FrameFigures.jsx';
+import { frameLook } from './explain-program/frame-look.js';
+import { Children, cloneElement, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import katex from 'katex';
@@ -13,7 +15,7 @@ import katex from 'katex';
 // no such CSS and rendered every equation as flat, unstyled text. Importing
 // it here directly makes AnimatedScene correct on its own.
 import 'katex/dist/katex.min.css';
-import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, presentationMode, stepAt, validateScene } from './animation-scene.js';
+import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, FIGURE_TYPES, getSceneState, presentationMode, stepAt, validateScene } from './animation-scene.js';
 import { applyInputToBlock, evaluateScene, experimentChanged, resetInputs } from './scene-evaluate.js';
 import { lockedInputNames, revealHiddenInputs } from './scene-activity.js';
 import SceneControls, { CardPager, StepPager } from './SceneControls.jsx';
@@ -24,7 +26,9 @@ import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-s
 import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, estimateTextBox, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
 import { cellInk, heatStyle, identityVar, inkOver, roleVar, selectionStyle, shapeStyle, textObjectInk, textStyle } from './scene-style.js';
-import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle } from './interact-style.js';
+import { INTERACT_BOX_RADIUS, INTERACT_FONT, interactDataStyle, interactMarkColor, interactShapeStyle, interactStrokeColor, interactTextStyle } from './interact-style.js';
+import { INK, PATH, SURFACE, connector } from './tutor-diagrams/primitives.js';
+import { TEACHING_STYLE } from './tutor-diagrams/teaching-theme.js';
 import { escapeYields, withoutSceneHighlight } from './scene-selection.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
@@ -430,6 +434,15 @@ function RunsLabel({ runs, text, x, y, anchor, baseline, type, fill }) {
 // Exported for ProgramScene (explain-program): the same trusted drawing for a generated program's frame, which arrives as a
 // scene plus its state at one moment. fixedView draws exactly the declared width and height instead of fitting the content, so
 // a frame that changes every tick does not rescale; every scene card leaves it off and is framed as before.
+// A composed card's line or arrow: the written diagrams' connector (tutor-diagrams/primitives.js: its stroke widths, round caps and arrowhead geometry),
+// tinted to a role hue only when the colour is neither INK nor the PATH blue the connector already draws.
+function InteractConnector({ from, to, arrow, color }) {
+  const element = connector([[from.x, from.y], [to.x, to.y]], { arrow, path: color === PATH });
+  if (color === PATH || color === INK) return element;
+  const tint = child => cloneElement(child, child.type === 'polygon' ? { fill: color } : { stroke: color });
+  return element.type === 'g' ? cloneElement(element, {}, ...Children.toArray(element.props.children).map(tint)) : tint(element);
+}
+
 export function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [], fixedView = false, interact = false }) {
   const sceneShapeStyle = interact ? interactShapeStyle : shapeStyle;
   const radius = interact ? INTERACT_BOX_RADIUS : 12;
@@ -470,7 +483,9 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
   };
   // The evaluator owns where the camera is; this only spends it. Zoom is about
   // the frame centre, so focusing an object does not also shove it off-screen.
-  const visibleObjects = state.objects.filter(object => object.visible);
+  // A composed card's scene is read for its lanes, bodies and callouts (explain-program/frame-look.js), so the same drawing comes out whoever wrote the program.
+  const sceneObjects = state.objects.filter(object => object.visible);
+  const visibleObjects = interact ? frameLook(sceneObjects, { width: scene.width, height: scene.height }).objects : sceneObjects;
   // A row label drawing leftward from a grid near the default left edge can
   // need more room than x=0 leaves it (see requiredLeftMargin). Widening the
   // canvas only by what is actually needed leaves every scene without the
@@ -519,8 +534,10 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
         if (area.w < 0.02 || area.h < 0.02) return;
         onRegion(area, find(area));
       }}>
-      <svg viewBox={view} fontFamily={interact ? INTERACT_FONT : undefined} className="h-full w-full" style={{ background: 'var(--viz-surface)' }}
+      <svg viewBox={view} fontFamily={interact ? INTERACT_FONT : undefined} className="h-full w-full" style={interact ? { ...TEACHING_STYLE, background: 'var(--viz-surface)' } : { background: 'var(--viz-surface)' }}
         onClick={event => { if (event.target === event.currentTarget && !selecting && (picked || marked)) onPick(null); }}>
+        {/* A composed card's frame is the written diagrams' own: the teaching surface and the same outer rect (tutor-diagrams/TutorDiagram.js). */}
+        {interact && (() => { const [vx, vy, vw, vh] = view.split(' ').map(Number); return <rect x={vx + 0.5} y={vy + 0.5} width={vw - 1} height={vh - 1} rx={12} fill={SURFACE} stroke="var(--color-line)" pointerEvents="none" />; })()}
         {state.connections.map(connection => {
           const from = state.objects.find(object => object.id === connection.from);
           const to = state.objects.find(object => object.id === connection.to);
@@ -530,6 +547,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           // Path length interpolation: the line is drawn, not faded in.
           const tipX = start.x + (end.x - start.x) * connection.progress;
           const tipY = start.y + (end.y - start.y) * connection.progress;
+          if (interact) return <g key={connection.key}><InteractConnector from={start} to={{ x: tipX, y: tipY }} arrow={connection.progress > 0.98} color={INK} /></g>;
           return <line key={connection.key} x1={start.x} y1={start.y} x2={tipX} y2={tipY} style={{ stroke: interact ? interactMarkColor('neutral') : roleVar('neutral') }} strokeWidth={interact ? 1.5 : 2.5} strokeLinecap="round" markerEnd={connection.progress > 0.98 ? (interact ? 'url(#animation-arrow-tinted)' : 'url(#animation-arrow)') : undefined} />;
         })}
         <defs>
@@ -558,6 +576,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           const isPolyline = object.type === 'polyline';
           const isImage = object.type === 'image';
           const isRaster = object.type === 'raster';
+          const isFigure = FIGURE_TYPES.includes(object.type);
           const maths = isEquation ? typeset(shown) : null;
           // A circle is placed by its centre, so its label is centred on the
           // same point; boxes centre inside their frame.
@@ -574,11 +593,12 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           // text object carries its own typography, every other kind draws a
           // caption on the shape beside it. Circle labels borrow the equation
           // scale because it is the only role sized for a short symbol.
-          const type = isData ? textStyle('caption')
-            : isCode ? textStyle('code')
-            : isEquation ? textStyle('equation')
-            : object.type === 'text' ? textStyle(object.typography)
-            : textStyle('body');
+          const styleOf = interact ? interactTextStyle : textStyle;
+          const type = isData ? styleOf('caption')
+            : isCode ? styleOf('code')
+            : isEquation ? styleOf('equation')
+            : object.type === 'text' ? styleOf(object.typography)
+            : styleOf('body');
           // Colour comes from role alone (scene-style.js): a text object with a
           // real role keeps that role's colour (its text-safe variant), and
           // only a neutral one falls back to its typography's ink. A label
@@ -602,7 +622,11 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
               {object.highlighted && !isText && !isData && (isCircle
                 ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2 + 8} fill="none" strokeOpacity="0.28" strokeWidth="8" style={{ stroke: look.stroke }} />
                 : <rect x={object.x - 4} y={object.y - 4} width={(object.w || 0) + 8} height={(object.h || 0) + 8} rx={16} fill="none" strokeOpacity="0.25" strokeWidth="8" style={{ stroke: look.stroke }} />)}
-              {isData
+              {interact && object.look
+                ? <LookShape object={object} />
+                : isFigure
+                ? (interact ? <FigureShape object={object} /> : null) /* axis, plot and diagram are the composed card's: the /animation frame draws nothing for them (validateScene refuses them there) */
+                : isData
                 ? <DataShape object={object} role={role} pop={pop} chosen={chosen} inkAt={inkAt} interact={interact}
                     onInputPick={object.pickInput && lockedInputs.includes(object.pickInput) ? null : onInputPick} />
                 : isRaster
@@ -633,6 +657,9 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                     <polyline points={object.points.map(([px, py]) => `${px},${py}`).join(' ')} fill="none" strokeLinecap="round" strokeLinejoin="round"
                       clipPath={object.clip ? `url(#${clipPrefix}-${object.id})` : undefined} style={{ stroke: wireInk, strokeWidth: look.strokeWidth }} />
                   </>)
+                : isStroke && interact
+                ? <InteractConnector from={{ x: object.from?.x ?? object.x, y: object.from?.y ?? object.y }} to={{ x: object.to?.x ?? object.x, y: object.to?.y ?? object.y }}
+                    arrow={object.type === 'arrow'} color={interactStrokeColor(role, object.identitySlot, { highlighted: object.highlighted, chosen })} />
                 : isStroke
                 ? <line x1={object.from?.x ?? object.x} y1={object.from?.y ?? object.y}
                     x2={object.to?.x ?? object.x} y2={object.to?.y ?? object.y}
@@ -668,7 +695,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                 <RunsLabel runs={object.runs} text={object.label} x={label.x} y={label.y} anchor={label.anchor} baseline={label.baseline}
                   type={{ ...type, fontFamily: type.fontFamily ?? (isCircle ? MONO : undefined) }} fill={labelFill} />
               )}
-              {!maths && !(object.runs && object.textProgress >= 1) && (
+              {!maths && !isFigure && !object.look && !(object.runs && object.textProgress >= 1) && (
                 <text
                   x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}
                   fontSize={type.fontSize}

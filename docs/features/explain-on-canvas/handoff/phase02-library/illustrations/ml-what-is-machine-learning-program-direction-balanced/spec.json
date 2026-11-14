@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "transformation",
+    "title": "Supplied rules versus learned rules",
+    "before": {
+      "label": "Traditional programming",
+      "items": [
+        "Rules and data are inputs",
+        "Program applies the rules",
+        "Output is produced"
+      ]
+    },
+    "after": {
+      "label": "Machine learning",
+      "items": [
+        "Data and expected outputs are inputs",
+        "Learning algorithm fits a model",
+        "Model stores learned rules as parameters"
+      ]
+    },
+    "operation": "Reverse what is supplied and learned",
+    "caption": "Illustrative: rules enter a program but emerge from learning as model parameters."
+  }
+}

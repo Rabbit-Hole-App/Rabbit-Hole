@@ -18,7 +18,7 @@ import { MATH_FORMAT } from './agents/math-format.js';
 import { NUMBER_RULE } from './agents/learn-artifact.js';
 import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'json' };
 import { EXPLANATION_BUDGET, EXPLANATION_CAPS, PARAGRAPH_MAX, validDepth } from './chat-depth.js';
-import { parseTutorDiagram, tutorDiagramJsonSchema, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
+import { parseTutorDiagram, tutorDiagramAuthorJsonSchema, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
 import { flowPaths } from '../../web/src/tutor-diagrams/flow-paths.js';
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
@@ -50,7 +50,7 @@ export const AUTHOR_PICTURE_LIMITS = Object.freeze({ prompt: 200, alt: 120, capt
 export const NO_TEXT_SUFFIX = 'no text, labels, titles or icons';
 export const withNoTextSuffix = prompt => { const p = String(prompt).trim(); return p.toLowerCase().endsWith(NO_TEXT_SUFFIX) ? p : `${p.replace(/[\s.,;:]+$/, '')}. ${NO_TEXT_SUFFIX}`; };
 const VISUAL_ITEM = { oneOf: [
-  shape({ k: { type: 'string', const: 'diagram' }, spec: tutorDiagramJsonSchema }),
+  shape({ k: { type: 'string', const: 'diagram' }, spec: tutorDiagramAuthorJsonSchema }),
   shape({ k: { type: 'string', const: 'picture' }, p: text(AUTHOR_PICTURE_LIMITS.prompt), a: text(AUTHOR_PICTURE_LIMITS.alt), c: text(AUTHOR_PICTURE_LIMITS.caption) }),
 ] };
 // Owner M3 (2026-11-08): a key the author added that the schema does not declare (Gemini wrote `layers` on a comparison) is removed before the card is read,
@@ -62,7 +62,7 @@ const branchFor = (schema, value) => {
   return options.find(o => Object.entries(o.properties ?? {}).some(([k, s]) => s?.const !== undefined && value[k] === s.const))
     ?? options.find(o => (!o.type || o.type === 'object') && (o.required ?? []).every(k => Object.hasOwn(value, k))) ?? null;
 };
-function stripUnknown(value, schema, kind, out) {
+export function stripUnknown(value, schema, kind, out) {
   const s = schema && value && typeof value === 'object' ? branchFor(schema, value) : null;
   if (!s) return value;
   if (Array.isArray(value)) return s.items ? value.map(v => stripUnknown(v, s.items, kind, out)) : value;
@@ -690,7 +690,7 @@ function correctedTimeline(raw) {
 // Owner 2026-11-09 (figure-chapters 02, demo card 03, the 118 3x): a matrix or heatmap whose columns are objects instead of strings, or a matrix whose rows carry ids without the teaching layout,
 // fails validation for a reason the server can read. Only the fields the parser names are touched, and the result applies only if the whole diagram then validates (else the repair gets the original).
 //  a) every column is an object holding an `items` or `cells` array, all of one length: the author wrote the table column by column. It is transposed: each column object becomes a row (its heading,
-//     label, text or title -> the row heading; its items -> the row's cells); the former rows' headings become the column headings when there are as many as items, else "Item 1" to "Item n".
+//     label, text or title -> the row heading; its items -> the row's cells); the former rows' headings become the column headings when there are as many as items; with no such labels nothing is coerced (never "Item 1" to "Item n": release 126).
 //     A heatmap needs numeric cells (numbers or numeric strings), and its range is derived as the minimum and maximum of them. Former rows that carry cells of their own: not transposed.
 //  b) column objects with no array: each becomes its text (heading, then label, text, title).
 //  c) a plain matrix (no teaching layout, no emphasis, no states) with ids on its rows loses the ids, which nothing refers to.
@@ -711,7 +711,10 @@ function coercedMatrixShape(raw) {
       if (d.columns.some(column => !columnText(column))) return { left: 'a column object with no heading, label, text or title' };
       const former = Array.isArray(d.rows) ? d.rows : null;
       if (former && !former.every(row => isObject(row) && !row.cells && columnText({ heading: row.heading ?? row.label }))) return { left: 'rows with cells of their own beside the column lists' };
-      const names = former && former.length === n ? former.map(row => String(row.heading ?? row.label).trim()) : Array.from({ length: n }, (_, i) => `Item ${i + 1}`);
+      // Release 126 (reviewer 2026-11-13, logistic card 11): a transposed table whose items have no real labels is never given Item 1, Item 2. The column objects stay as the author wrote
+      // them and the one repair asks for the labels; only the author's own row headings (as many as items) name the new columns.
+      if (!former || former.length !== n) return { left: 'column lists with no labels for the items (the repair names them; Item 1, Item 2 is never invented)' };
+      const names = former.map(row => String(row.heading ?? row.label).trim());
       const lists = d.columns.map(column => listOf(column));
       if (d.kind === 'heatmap') {
         const cells = lists.map(list => list.map(numericCell));

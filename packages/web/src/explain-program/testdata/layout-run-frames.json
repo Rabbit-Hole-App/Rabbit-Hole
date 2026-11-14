@@ -1,0 +1,972 @@
+[
+ {
+  "run": "run13",
+  "inputs": {
+   "launchSpeed": 5
+  },
+  "time": 0.306,
+  "width": 640,
+  "height": 420,
+  "objects": [
+   {
+    "id": "axisTitle",
+    "kind": "text",
+    "x": 30,
+    "y": 28,
+    "text": "height (m), up +",
+    "align": "start"
+   },
+   {
+    "id": "axis",
+    "kind": "line",
+    "from": {
+     "x": 60,
+     "y": 51.5
+    },
+    "to": {
+     "x": 60,
+     "y": 348.5
+    }
+   },
+   {
+    "id": "tick_m1",
+    "kind": "line",
+    "from": {
+     "x": 54,
+     "y": 310
+    },
+    "to": {
+     "x": 66,
+     "y": 310
+    }
+   },
+   {
+    "id": "tickL_m1",
+    "kind": "text",
+    "x": 46,
+    "y": 315,
+    "text": "-1",
+    "align": "middle"
+   },
+   {
+    "id": "tick_z0",
+    "kind": "line",
+    "from": {
+     "x": 54,
+     "y": 200
+    },
+    "to": {
+     "x": 66,
+     "y": 200
+    }
+   },
+   {
+    "id": "tickL_z0",
+    "kind": "text",
+    "x": 46,
+    "y": 205,
+    "text": "0",
+    "align": "middle"
+   },
+   {
+    "id": "tick_p1",
+    "kind": "line",
+    "from": {
+     "x": 54,
+     "y": 90
+    },
+    "to": {
+     "x": 66,
+     "y": 90
+    }
+   },
+   {
+    "id": "tickL_p1",
+    "kind": "text",
+    "x": 46,
+    "y": 95,
+    "text": "1",
+    "align": "middle"
+   },
+   {
+    "id": "nameT",
+    "kind": "text",
+    "x": 240,
+    "y": 28,
+    "text": "Tossed ball",
+    "align": "middle"
+   },
+   {
+    "id": "nameH",
+    "kind": "text",
+    "x": 460,
+    "y": 28,
+    "text": "Held ball",
+    "align": "middle"
+   },
+   {
+    "id": "launch",
+    "kind": "line",
+    "from": {
+     "x": 210,
+     "y": 213
+    },
+    "to": {
+     "x": 270,
+     "y": 213
+    }
+   },
+   {
+    "id": "launchText",
+    "kind": "text",
+    "x": 74,
+    "y": 218,
+    "text": "Launch mark",
+    "align": "start"
+   },
+   {
+    "id": "apexLine",
+    "kind": "line",
+    "from": {
+     "x": 208,
+     "y": 59.69387755102042
+    },
+    "to": {
+     "x": 272,
+     "y": 59.69387755102042
+    }
+   },
+   {
+    "id": "apexText",
+    "kind": "text",
+    "x": 300,
+    "y": 64.69387755102042,
+    "text": "top 1.276 m",
+    "align": "start"
+   },
+   {
+    "id": "gateA",
+    "kind": "line",
+    "from": {
+     "x": 442,
+     "y": 213
+    },
+    "to": {
+     "x": 459,
+     "y": 213
+    }
+   },
+   {
+    "id": "gateB",
+    "kind": "line",
+    "from": {
+     "x": 461,
+     "y": 213
+    },
+    "to": {
+     "x": 478,
+     "y": 213
+    }
+   },
+   {
+    "id": "gateText",
+    "kind": "text",
+    "x": 522,
+    "y": 218,
+    "text": "Release gate",
+    "align": "start"
+   },
+   {
+    "id": "ballT",
+    "kind": "circle",
+    "x": 240,
+    "y": 82.16980400000001,
+    "w": 24
+   },
+   {
+    "id": "ballH",
+    "kind": "circle",
+    "x": 460,
+    "y": 200,
+    "w": 24
+   },
+   {
+    "id": "vDotT",
+    "kind": "circle",
+    "x": 195,
+    "y": 82.16980400000001,
+    "w": 6
+   },
+   {
+    "id": "vT",
+    "kind": "arrow",
+    "from": {
+     "x": 195,
+     "y": 82.16980400000001
+    },
+    "to": {
+     "x": 195,
+     "y": 62.15780400000001
+    }
+   },
+   {
+    "id": "vTL",
+    "kind": "text",
+    "x": 195,
+    "y": 44.15780400000001,
+    "text": "v",
+    "align": "middle"
+   },
+   {
+    "id": "aT",
+    "kind": "arrow",
+    "from": {
+     "x": 285,
+     "y": 82.16980400000001
+    },
+    "to": {
+     "x": 285,
+     "y": 126.26980400000002
+    }
+   },
+   {
+    "id": "aTL",
+    "kind": "text",
+    "x": 285,
+    "y": 144.26980400000002,
+    "text": "a",
+    "align": "middle"
+   },
+   {
+    "id": "vDotH",
+    "kind": "circle",
+    "x": 415,
+    "y": 200,
+    "w": 6
+   },
+   {
+    "id": "vHL",
+    "kind": "text",
+    "x": 415,
+    "y": 182,
+    "text": "v",
+    "align": "middle"
+   }
+  ]
+ },
+ {
+  "run": "run15",
+  "inputs": {},
+  "time": 0,
+  "width": 640,
+  "height": 440,
+  "objects": [
+   {
+    "id": "axis",
+    "kind": "line",
+    "from": {
+     "x": 100,
+     "y": 57
+    },
+    "to": {
+     "x": 100,
+     "y": 323
+    }
+   },
+   {
+    "id": "axisLabel",
+    "kind": "text",
+    "x": 100,
+    "y": 22,
+    "text": "Height (m), up +",
+    "align": "middle"
+   },
+   {
+    "id": "tickP1",
+    "kind": "text",
+    "x": 58,
+    "y": 100,
+    "text": "+1 m",
+    "align": "start"
+   },
+   {
+    "id": "tick0",
+    "kind": "text",
+    "x": 62,
+    "y": 195,
+    "text": "0 m",
+    "align": "start"
+   },
+   {
+    "id": "tickM1",
+    "kind": "text",
+    "x": 58,
+    "y": 290,
+    "text": "-1 m",
+    "align": "start"
+   },
+   {
+    "id": "level",
+    "kind": "line",
+    "from": {
+     "x": 110,
+     "y": 190
+    },
+    "to": {
+     "x": 600,
+     "y": 190
+    }
+   },
+   {
+    "id": "topLine",
+    "kind": "line",
+    "from": {
+     "x": 205,
+     "y": 146.37755102040816
+    },
+    "to": {
+     "x": 345,
+     "y": 146.37755102040816
+    }
+   },
+   {
+    "id": "topText",
+    "kind": "text",
+    "x": 352,
+    "y": 151.37755102040816,
+    "text": "Top",
+    "align": "start"
+   },
+   {
+    "id": "launchMark",
+    "kind": "line",
+    "from": {
+     "x": 235,
+     "y": 203
+    },
+    "to": {
+     "x": 265,
+     "y": 203
+    }
+   },
+   {
+    "id": "launchMarkLabel",
+    "kind": "text",
+    "x": 110,
+    "y": 214,
+    "text": "Launch mark",
+    "align": "start"
+   },
+   {
+    "id": "gateA",
+    "kind": "line",
+    "from": {
+     "x": 430,
+     "y": 203
+    },
+    "to": {
+     "x": 449,
+     "y": 203
+    }
+   },
+   {
+    "id": "gateB",
+    "kind": "line",
+    "from": {
+     "x": 451,
+     "y": 203
+    },
+    "to": {
+     "x": 470,
+     "y": 203
+    }
+   },
+   {
+    "id": "gateLabel",
+    "kind": "text",
+    "x": 500,
+    "y": 214,
+    "text": "Release gate",
+    "align": "start"
+   },
+   {
+    "id": "tossedLabel",
+    "kind": "text",
+    "x": 250,
+    "y": 22,
+    "text": "Tossed ball",
+    "align": "middle"
+   },
+   {
+    "id": "heldLabel",
+    "kind": "text",
+    "x": 450,
+    "y": 22,
+    "text": "Held ball",
+    "align": "middle"
+   },
+   {
+    "id": "tossedBall",
+    "kind": "circle",
+    "x": 250,
+    "y": 190,
+    "w": 24
+   },
+   {
+    "id": "heldBall",
+    "kind": "circle",
+    "x": 450,
+    "y": 190,
+    "w": 24
+   },
+   {
+    "id": "tvDot",
+    "kind": "circle",
+    "x": 222,
+    "y": 190,
+    "w": 6
+   },
+   {
+    "id": "tossedV",
+    "kind": "arrow",
+    "from": {
+     "x": 222,
+     "y": 190
+    },
+    "to": {
+     "x": 222,
+     "y": 142
+    }
+   },
+   {
+    "id": "tossedVL",
+    "kind": "text",
+    "x": 222,
+    "y": 124,
+    "text": "v",
+    "align": "middle"
+   },
+   {
+    "id": "tossedA",
+    "kind": "arrow",
+    "from": {
+     "x": 278,
+     "y": 190
+    },
+    "to": {
+     "x": 278,
+     "y": 258.6
+    }
+   },
+   {
+    "id": "tossedAL",
+    "kind": "text",
+    "x": 278,
+    "y": 276.6,
+    "text": "a",
+    "align": "middle"
+   },
+   {
+    "id": "hvDot",
+    "kind": "circle",
+    "x": 422,
+    "y": 190,
+    "w": 6
+   },
+   {
+    "id": "heldVL",
+    "kind": "text",
+    "x": 422,
+    "y": 172,
+    "text": "v",
+    "align": "middle"
+   },
+   {
+    "id": "heldAL",
+    "kind": "text",
+    "x": 478,
+    "y": 208,
+    "text": "a",
+    "align": "middle"
+   }
+  ]
+ },
+ {
+  "run": "run15",
+  "inputs": {
+   "launchSpeed": 5
+  },
+  "time": 0.102,
+  "width": 640,
+  "height": 440,
+  "objects": [
+   {
+    "id": "axis",
+    "kind": "line",
+    "from": {
+     "x": 100,
+     "y": 57
+    },
+    "to": {
+     "x": 100,
+     "y": 323
+    }
+   },
+   {
+    "id": "axisLabel",
+    "kind": "text",
+    "x": 100,
+    "y": 22,
+    "text": "Height (m), up +",
+    "align": "middle"
+   },
+   {
+    "id": "tickP1",
+    "kind": "text",
+    "x": 58,
+    "y": 100,
+    "text": "+1 m",
+    "align": "start"
+   },
+   {
+    "id": "tick0",
+    "kind": "text",
+    "x": 62,
+    "y": 195,
+    "text": "0 m",
+    "align": "start"
+   },
+   {
+    "id": "tickM1",
+    "kind": "text",
+    "x": 58,
+    "y": 290,
+    "text": "-1 m",
+    "align": "start"
+   },
+   {
+    "id": "level",
+    "kind": "line",
+    "from": {
+     "x": 110,
+     "y": 190
+    },
+    "to": {
+     "x": 600,
+     "y": 190
+    }
+   },
+   {
+    "id": "topLine",
+    "kind": "line",
+    "from": {
+     "x": 205,
+     "y": 68.8265306122449
+    },
+    "to": {
+     "x": 345,
+     "y": 68.8265306122449
+    }
+   },
+   {
+    "id": "topText",
+    "kind": "text",
+    "x": 352,
+    "y": 73.8265306122449,
+    "text": "Top",
+    "align": "start"
+   },
+   {
+    "id": "launchMark",
+    "kind": "line",
+    "from": {
+     "x": 235,
+     "y": 203
+    },
+    "to": {
+     "x": 265,
+     "y": 203
+    }
+   },
+   {
+    "id": "launchMarkLabel",
+    "kind": "text",
+    "x": 110,
+    "y": 214,
+    "text": "Launch mark",
+    "align": "start"
+   },
+   {
+    "id": "gateA",
+    "kind": "line",
+    "from": {
+     "x": 430,
+     "y": 203
+    },
+    "to": {
+     "x": 449,
+     "y": 203
+    }
+   },
+   {
+    "id": "gateB",
+    "kind": "line",
+    "from": {
+     "x": 451,
+     "y": 203
+    },
+    "to": {
+     "x": 470,
+     "y": 203
+    }
+   },
+   {
+    "id": "gateLabel",
+    "kind": "text",
+    "x": 500,
+    "y": 214,
+    "text": "Release gate",
+    "align": "start"
+   },
+   {
+    "id": "tossedLabel",
+    "kind": "text",
+    "x": 250,
+    "y": 22,
+    "text": "Tossed ball",
+    "align": "middle"
+   },
+   {
+    "id": "heldLabel",
+    "kind": "text",
+    "x": 450,
+    "y": 22,
+    "text": "Held ball",
+    "align": "middle"
+   },
+   {
+    "id": "tossedBall",
+    "kind": "circle",
+    "x": 250,
+    "y": 146.393062,
+    "w": 24
+   },
+   {
+    "id": "heldBall",
+    "kind": "circle",
+    "x": 450,
+    "y": 190,
+    "w": 24
+   },
+   {
+    "id": "tvDot",
+    "kind": "circle",
+    "x": 222,
+    "y": 146.393062,
+    "w": 6
+   },
+   {
+    "id": "tossedV",
+    "kind": "arrow",
+    "from": {
+     "x": 222,
+     "y": 146.393062
+    },
+    "to": {
+     "x": 222,
+     "y": 82.38666199999999
+    }
+   },
+   {
+    "id": "tossedVL",
+    "kind": "text",
+    "x": 222,
+    "y": 64.38666199999999,
+    "text": "v",
+    "align": "middle"
+   },
+   {
+    "id": "tossedA",
+    "kind": "arrow",
+    "from": {
+     "x": 278,
+     "y": 146.393062
+    },
+    "to": {
+     "x": 278,
+     "y": 214.993062
+    }
+   },
+   {
+    "id": "tossedAL",
+    "kind": "text",
+    "x": 278,
+    "y": 232.993062,
+    "text": "a",
+    "align": "middle"
+   },
+   {
+    "id": "hvDot",
+    "kind": "circle",
+    "x": 422,
+    "y": 190,
+    "w": 6
+   },
+   {
+    "id": "heldVL",
+    "kind": "text",
+    "x": 422,
+    "y": 172,
+    "text": "v",
+    "align": "middle"
+   },
+   {
+    "id": "heldAL",
+    "kind": "text",
+    "x": 478,
+    "y": 208,
+    "text": "a",
+    "align": "middle"
+   }
+  ]
+ },
+ {
+  "run": "run15",
+  "inputs": {
+   "launchSpeed": 5
+  },
+  "time": 0.306,
+  "width": 640,
+  "height": 440,
+  "objects": [
+   {
+    "id": "axis",
+    "kind": "line",
+    "from": {
+     "x": 100,
+     "y": 57
+    },
+    "to": {
+     "x": 100,
+     "y": 323
+    }
+   },
+   {
+    "id": "axisLabel",
+    "kind": "text",
+    "x": 100,
+    "y": 22,
+    "text": "Height (m), up +",
+    "align": "middle"
+   },
+   {
+    "id": "tickP1",
+    "kind": "text",
+    "x": 58,
+    "y": 100,
+    "text": "+1 m",
+    "align": "start"
+   },
+   {
+    "id": "tick0",
+    "kind": "text",
+    "x": 62,
+    "y": 195,
+    "text": "0 m",
+    "align": "start"
+   },
+   {
+    "id": "tickM1",
+    "kind": "text",
+    "x": 58,
+    "y": 290,
+    "text": "-1 m",
+    "align": "start"
+   },
+   {
+    "id": "level",
+    "kind": "line",
+    "from": {
+     "x": 110,
+     "y": 190
+    },
+    "to": {
+     "x": 600,
+     "y": 190
+    }
+   },
+   {
+    "id": "topLine",
+    "kind": "line",
+    "from": {
+     "x": 205,
+     "y": 68.8265306122449
+    },
+    "to": {
+     "x": 345,
+     "y": 68.8265306122449
+    }
+   },
+   {
+    "id": "topText",
+    "kind": "text",
+    "x": 352,
+    "y": 73.8265306122449,
+    "text": "Top",
+    "align": "start"
+   },
+   {
+    "id": "launchMark",
+    "kind": "line",
+    "from": {
+     "x": 235,
+     "y": 203
+    },
+    "to": {
+     "x": 265,
+     "y": 203
+    }
+   },
+   {
+    "id": "launchMarkLabel",
+    "kind": "text",
+    "x": 110,
+    "y": 214,
+    "text": "Launch mark",
+    "align": "start"
+   },
+   {
+    "id": "gateA",
+    "kind": "line",
+    "from": {
+     "x": 430,
+     "y": 203
+    },
+    "to": {
+     "x": 449,
+     "y": 203
+    }
+   },
+   {
+    "id": "gateB",
+    "kind": "line",
+    "from": {
+     "x": 451,
+     "y": 203
+    },
+    "to": {
+     "x": 470,
+     "y": 203
+    }
+   },
+   {
+    "id": "gateLabel",
+    "kind": "text",
+    "x": 500,
+    "y": 214,
+    "text": "Release gate",
+    "align": "start"
+   },
+   {
+    "id": "tossedLabel",
+    "kind": "text",
+    "x": 250,
+    "y": 22,
+    "text": "Tossed ball",
+    "align": "middle"
+   },
+   {
+    "id": "heldLabel",
+    "kind": "text",
+    "x": 450,
+    "y": 22,
+    "text": "Held ball",
+    "align": "middle"
+   },
+   {
+    "id": "tossedBall",
+    "kind": "circle",
+    "x": 250,
+    "y": 88.237558,
+    "w": 24
+   },
+   {
+    "id": "heldBall",
+    "kind": "circle",
+    "x": 450,
+    "y": 190,
+    "w": 24
+   },
+   {
+    "id": "tvDot",
+    "kind": "circle",
+    "x": 222,
+    "y": 88.237558,
+    "w": 6
+   },
+   {
+    "id": "tossedV",
+    "kind": "arrow",
+    "from": {
+     "x": 222,
+     "y": 88.237558
+    },
+    "to": {
+     "x": 222,
+     "y": 56.21835800000001
+    }
+   },
+   {
+    "id": "tossedVL",
+    "kind": "text",
+    "x": 222,
+    "y": 38.21835800000001,
+    "text": "v",
+    "align": "middle"
+   },
+   {
+    "id": "tossedA",
+    "kind": "arrow",
+    "from": {
+     "x": 278,
+     "y": 88.237558
+    },
+    "to": {
+     "x": 278,
+     "y": 156.837558
+    }
+   },
+   {
+    "id": "tossedAL",
+    "kind": "text",
+    "x": 278,
+    "y": 174.837558,
+    "text": "a",
+    "align": "middle"
+   },
+   {
+    "id": "hvDot",
+    "kind": "circle",
+    "x": 422,
+    "y": 190,
+    "w": 6
+   },
+   {
+    "id": "heldVL",
+    "kind": "text",
+    "x": 422,
+    "y": 172,
+    "text": "v",
+    "align": "middle"
+   },
+   {
+    "id": "heldAL",
+    "kind": "text",
+    "x": 478,
+    "y": 208,
+    "text": "a",
+    "align": "middle"
+   }
+  ]
+ }
+]

@@ -169,20 +169,24 @@
     "ml-logistic-regression-softmax": {
       "overview": [
         {
-          "tokens": 78,
-          "sha256": "ef589d684c5f8cb11cca4dae4a730d4c0fbfd91e21c683472ad4816d88e5f524"
+          "tokens": 178,
+          "sha256": "d94ffc0aa705efe53533533e8564806df5f4732700e8e280139d36514390c179"
         }
       ],
       "standard": [
         {
-          "tokens": 102,
-          "sha256": "c04dc6d51278f3706d02a0aef4b0df1165039c7bd33d0ca6b1e7ad92e0c89c49"
+          "tokens": 266,
+          "sha256": "0adb033c1eb8fc26033642f83ea85331dd00caf25072e74dad98d07ba49587bc"
         }
       ],
       "deep": [
         {
-          "tokens": 136,
-          "sha256": "acbac2b04d0b9e657aa3df19d3aabe85b4c7cf0f5080ef5c47a0c4a1867c2169"
+          "tokens": 295,
+          "sha256": "9eb8debc7ec0e71d26f27bfa0dee6622c7bce3270cfea688b96887fcb27e56d6"
+        },
+        {
+          "tokens": 275,
+          "sha256": "5db26b34b37011390823e686272f9ceb0fe00d918f70de2ef4e7af536a43143a"
         }
       ]
     },

@@ -1,0 +1,82 @@
+{
+ "reply": {
+  "kind": "scene",
+  "main": {
+   "kind": "program",
+   "program": {
+    "source": "export function evaluate({ inputs, time }) {\n  const launchSpeed = inputs.launchSpeed;\n  const gravity = 9.8;\n  const t = time;\n  const height = launchSpeed * t - 0.5 * gravity * t * t;\n  const velocity = launchSpeed - gravity * t;\n  const apexTime = launchSpeed / gravity;\n  const apexHeight = (launchSpeed * launchSpeed) / (2 * gravity);\n  \n  const clampedH = Math.max(0, height);\n  const scaleY = 300 / 2.5;\n  const baseY = 360;\n  const ballY = baseY - clampedH * scaleY;\n  const ballX = 320;\n  \n  const objects = [];\n  objects.push(sdk.panel({ x: 40, y: 40, w: 560, h: 360, title: \"Vertical Toss\", state: t < apexTime ? \"Moving up\" : (Math.abs(velocity) < 0.1 ? \"Still for an instant\" : \"Moving down\"), id: \"lane.toss\" }));\n  objects.push(sdk.axis(\"axis.height\", { x: 100, y: 360, length: 300, orientation: \"y\", min: 0, max: 2.5, ticks: [0, 0.5, 1.0, 1.5, 2.0, 2.5], label: \"Height\", unit: \"m\" }));\n  objects.push(sdk.groundMark(\"ground.launch\", ballX, baseY, 60, \"Launch\"));\n  \n  if (height >= 0) {\n    objects.push(sdk.circle(\"ball.toss\", ballX, ballY, 24, { role: \"output\" }));\n  }\n  \n  if (Math.abs(velocity) > 0.05) {\n    objects.push(sdk.vector(\"vec.v\", { x: ballX, y: ballY }, { value: velocity, direction: \"up\" }, { scale: 15, minLength: 12, label: \"v\", role: \"output\" }));\n  }\n  \n  objects.push(sdk.vector(\"vec.a\", { x: ballX + 25, y: ballY }, { value: -gravity, direction: \"up\" }, { scale: 5, minLength: 12, label: \"a\", role: \"observed\" }));\n  \n  let motionStateText = \"Moving up\";\n  if (Math.abs(velocity) < 0.05) {\n    motionStateText = \"Still for an instant\";\n  } else if (velocity < 0) {\n    motionStateText = \"Moving down\";\n  }\n  \n  const calloutLines = [\n    motionStateText,\n    \"Gravity pulls down\"\n  ];\n  objects.push(sdk.callout(ballX + 45, ballY - 20, calloutLines, { id: \"callout.toss\" }));\n  \n  const motionStateVal = motionStateText;\n  const gravityStateVal = \"Gravity pulls down\";\n  \n  return {\n    frame: {\n      width: 640,\n      height: 420,\n      objects,\n      readouts: [\n        { id: \"motionState\", value: motionStateVal },\n        { id: \"gravityState\", value: gravityStateVal }\n      ]\n    },\n    quantities: {\n      launchSpeed,\n      gravity,\n      apexTime,\n      apexHeight,\n      velocity,\n      height\n    }\n  };\n}",
+    "manifest": {
+     "title": "The ball stops rising. Gravity doesn’t stop.",
+     "summary": "Gravity slows the ball on the way up and speeds it up on the way down. At the top, the ball is still for an instant while gravity still pulls it downward.",
+     "description": "A ball moves vertically on a height scale. A blue motion arrow shows its velocity, while a dashed warm gravity arrow remains constant downward.",
+     "assumptions": [
+      "Gravity fixed at 9.8 m/s^2",
+      "No air resistance",
+      "Up is positive"
+     ],
+     "inputs": [
+      {
+       "type": "number",
+       "id": "launchSpeed",
+       "label": "Launch speed",
+       "unit": "m/s",
+       "default": 4,
+       "min": 2,
+       "max": 5,
+       "step": 0.1
+      }
+     ],
+     "duration": 1.0204081632653061,
+     "instructions": "Change launch speed, then press Play. At the top, playback pauses so you can inspect the arrows.",
+     "timeline": {
+      "label": "Time since launch",
+      "displayOffset": 0,
+      "playbackRate": 0.2,
+      "markers": [
+       {
+        "id": "top",
+        "label": "Top",
+        "time": 0.4081632653061224
+       }
+      ]
+     },
+     "readouts": [
+      {
+       "id": "motionState",
+       "label": "Motion state",
+       "kind": "state",
+       "labels": [
+        "Moving up",
+        "Still for an instant",
+        "Moving down"
+       ]
+      },
+      {
+       "id": "gravityState",
+       "label": "Gravity state",
+       "kind": "state",
+       "labels": [
+        "Gravity pulls down"
+       ]
+      }
+     ],
+     "capabilities": [
+      "time_playback",
+      "number_inputs",
+      "props",
+      "figures"
+     ]
+    }
+   }
+  },
+  "supporting": []
+ },
+ "usage": {
+  "completion_tokens": 1457,
+  "prompt_tokens": 8330,
+  "prompt_tokens_details": {
+   "cached_tokens": 5659
+  },
+  "total_tokens": 9787
+ }
+}

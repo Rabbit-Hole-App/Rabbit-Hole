@@ -337,6 +337,20 @@
         "tokens": 68,
         "sha256": "264c46beef924af0114efe1469e33b7315db899ed71b4dd765097d82bf0c2f6c"
       }
+    },
+    "panels": {
+      "overview": {
+        "tokens": 138,
+        "sha256": "f91674ce092b5f069f6b79944a899ef73bb40c59e3039a4490b7177fa7b398b8"
+      },
+      "standard": {
+        "tokens": 132,
+        "sha256": "d4d714da6e78d8e9f72bec9225856f6399ee844d8eb0ff5ca3de294ebdf0d1f5"
+      },
+      "deep": {
+        "tokens": 163,
+        "sha256": "c54a52948f94237d97586ea79909f62a9637ebf0894be3d12fb4189097d253fa"
+      }
     }
   },
   "pairs": {
@@ -750,6 +764,126 @@
       "single": {
         "tokens": 129,
         "sha256": "9cab5a5abe822092cc43547035f358936c7e498c5b1b60f1f45bcd7d04310630"
+      }
+    },
+    "ml-linear-regression-normal-equation": {
+      "panel": {
+        "tokens": 115,
+        "sha256": "67372d8e3fd84e58002eb270544356ada93e9a6f99fd00729ffaae6235fae4da"
+      },
+      "single": {
+        "tokens": 175,
+        "sha256": "d07a2f1cbeca6a8a2a9cdf51d4fe430d23337efbd228673558c819952e2c0f57"
+      }
+    },
+    "ml-logistic-regression-softmax": {
+      "panel": {
+        "tokens": 266,
+        "sha256": "0adb033c1eb8fc26033642f83ea85331dd00caf25072e74dad98d07ba49587bc"
+      },
+      "single": {
+        "tokens": 100,
+        "sha256": "b96fae73469a3602dd4d5feec5f429a6327c202589acc40633aa4ef2c0bbc0fd"
+      }
+    },
+    "ml-linear-regression-linear-unit": {
+      "panel": {
+        "tokens": 199,
+        "sha256": "fd3dfb5f9b08d2dd0fd5c8cfffdcb83c240d7f5b17b2557dc81f252fbf538a7e"
+      },
+      "single": {
+        "tokens": 36,
+        "sha256": "6eacb88f5b98476a88282cd7d7e1ad1cfbf1b8b79ee571fe89a6fdf1a7987208"
+      }
+    },
+    "ml-neural-networks-hidden-layer": {
+      "panel": {
+        "tokens": 226,
+        "sha256": "6d92a32d251120fd558816f82f46c1e24b6f7e72b1c3cb96d80aab30330f2299"
+      },
+      "single": {
+        "tokens": 36,
+        "sha256": "519c6e0c4527fd4c2d66cd74d55ab62eee71555bce2f6e28cbeac3b755e863e5"
+      }
+    },
+    "ml-regularization-regularized-objective": {
+      "panel": {
+        "tokens": 206,
+        "sha256": "77ed15cc733e6abdbeadf4338bce0f741c90ba68814b5cf965f8f8257b63e488"
+      },
+      "single": {
+        "tokens": 56,
+        "sha256": "1557f20ffb67551765beb10490f6fbfd5d9508e73d88079cbc409c26addb1f4b"
+      }
+    },
+    "ml-regularization-dropout-mask": {
+      "panel": {
+        "tokens": 297,
+        "sha256": "2e908ba6b4a68fe6db9f2282e6a36726547c576244c7e4dc2f65c15c657f3101"
+      },
+      "single": {
+        "tokens": 77,
+        "sha256": "89b248ecbb1062c07ebb0c14e8fcfd9a033c7ba4494d133957d2c89afc97901e"
+      }
+    },
+    "ml-attention-scaled-score-normalization": {
+      "panel": {
+        "tokens": 254,
+        "sha256": "688b2b7f29d1c00549aeafe182e6a3a5811c839174ceacfb7bc45925de56db5b"
+      },
+      "single": {
+        "tokens": 60,
+        "sha256": "611ebee203d93af28c1b06ff38d299aab185fa51c245ae8f54ffe9a3016ba429"
+      }
+    },
+    "ml-distribution-shift-concept-shift": {
+      "panel": {
+        "tokens": 154,
+        "sha256": "419fc3122ed50498cb42fe2e6ff00d69ea68451271c3823e0c6ad30c730047b7"
+      },
+      "single": {
+        "tokens": 40,
+        "sha256": "e27c62d1d37ddd7a847ebd1fec74cf1183acdc5a892cd0d84298a08ff6bd6aea"
+      }
+    },
+    "ml-model-evaluation-training-diagnostics": {
+      "panel": {
+        "tokens": 281,
+        "sha256": "e07a4f61fd1c9c5ba122cfdfa2c396f1390e96ca569c877d56a914fe0a4173bd"
+      },
+      "single": {
+        "tokens": 95,
+        "sha256": "08d4e032ccf8fd92a78d79bb0b4403ab9cdbe45a00f0df1c86d82060d5425bc8"
+      }
+    },
+    "ml-model-evaluation-schedule-run-diagnostics": {
+      "panel": {
+        "tokens": 298,
+        "sha256": "2e59093ab09e82c1c64cf892cd9f4803ca6c69f32b1f73ec04531fdd4e6372c1"
+      },
+      "single": {
+        "tokens": 102,
+        "sha256": "c0e0b3da96d90e49b7e7bc7de1aa1a2f0185eff8ff6323b485635b1c76930fce"
+      }
+    },
+    "ml-time-series-recursive-rollout": {
+      "panel": {
+        "tokens": 293,
+        "sha256": "6cf8151369854474c492305d85a2ddea7c33d31783ae5722276e086f95a1e387"
+      },
+      "single": {
+        "tokens": 49,
+        "sha256": "af2c0aae648c6d5d23b85ca5b032c010c00294a03b508142032d8fa0b88120c8"
+      }
+    },
+    "ml-distribution-shift-input-distribution-shift": {
+      "panel": {
+        "tokens": 248,
+        "sha256": "e818100dc9081e9af9e6bd99bd21e79bc814405aa082110af4e122e27621a19d"
+      },
+      "single": {
+        "tokens": 103,
+        "sha256": "2597ba9627c2e14ee3e5d8d89cf03d940d978937b21ad06f18379888db1dac4b"
       }
     }
   }

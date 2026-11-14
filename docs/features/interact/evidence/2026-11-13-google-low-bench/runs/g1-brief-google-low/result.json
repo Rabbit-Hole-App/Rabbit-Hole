@@ -1,0 +1,13 @@
+{
+  "url": "https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev/apps/canvas-4ac6a734",
+  "app": "canvas-4ac6a734",
+  "boardId": "31df6872-f45b-4b5a-814a-77b72a0508d9",
+  "jobId": "ej_c2c254c74b2c4dc7b42cdba99c04ab04",
+  "depth": "brief",
+  "profile": "google-low",
+  "stage": "failed",
+  "stopReason": "rounds",
+  "failure": "The explanation did not pass its checks within three corrections. Edit the request and try again.",
+  "ms": 37418,
+  "detailStatus": 200
+}

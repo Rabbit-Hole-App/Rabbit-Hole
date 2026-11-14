@@ -1,0 +1,106 @@
+{
+ "version": 1,
+ "diagram": {
+  "title": "Training and held-out error by depth",
+  "caption": "Illustrative run. Held-out error is lowest at depth 3, then rises as training error falls.",
+  "kind": "coordinate-plot",
+  "x": {
+   "label": "Max depth",
+   "min": 1,
+   "max": 8,
+   "integerTicks": true
+  },
+  "y": {
+   "label": "Error rate",
+   "min": 0,
+   "max": 50,
+   "unit": "%"
+  },
+  "series": [
+   {
+    "label": "Training",
+    "kind": "line",
+    "points": [
+     {
+      "x": 1,
+      "y": 38
+     },
+     {
+      "x": 2,
+      "y": 28
+     },
+     {
+      "x": 3,
+      "y": 20
+     },
+     {
+      "x": 4,
+      "y": 13
+     },
+     {
+      "x": 5,
+      "y": 8
+     },
+     {
+      "x": 6,
+      "y": 4
+     },
+     {
+      "x": 7,
+      "y": 2
+     },
+     {
+      "x": 8,
+      "y": 0
+     }
+    ]
+   },
+   {
+    "label": "Held out",
+    "kind": "line",
+    "points": [
+     {
+      "x": 1,
+      "y": 40
+     },
+     {
+      "x": 2,
+      "y": 31
+     },
+     {
+      "x": 3,
+      "y": 23
+     },
+     {
+      "x": 4,
+      "y": 26
+     },
+     {
+      "x": 5,
+      "y": 29
+     },
+     {
+      "x": 6,
+      "y": 33
+     },
+     {
+      "x": 7,
+      "y": 37
+     },
+     {
+      "x": 8,
+      "y": 43
+     }
+    ]
+   }
+  ],
+  "annotations": [
+   {
+    "kind": "point",
+    "label": "Lowest held-out error",
+    "x": 3,
+    "y": 23
+   }
+  ]
+ }
+}

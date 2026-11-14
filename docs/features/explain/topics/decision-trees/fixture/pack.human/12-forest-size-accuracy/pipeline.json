@@ -1,0 +1,275 @@
+{
+ "run": "2026-11-09T115354-demo-lesson04-balanced-rejudge",
+ "plan": {
+  "planner": "jev",
+  "ms": 72,
+  "kind": "coordinate-plot",
+  "fixed": true,
+  "offered": null,
+  "treatment": "mechanism",
+  "confidence": 0.73,
+  "physical": 0.08,
+  "pictures": 0,
+  "diagrams": 1,
+  "physicalOverride": null
+ },
+ "raw": [
+  {
+   "attempt": 0,
+   "plan": {
+    "visuals": [
+     {
+      "type": "diagram",
+      "kind": "coordinate-plot"
+     }
+    ],
+    "depthTreatment": "mechanism",
+    "kind": "coordinate-plot",
+    "fixed": true,
+    "confidence": {
+     "kind": 0.73,
+     "visualType": 1
+    },
+    "flags": {
+     "needsPlot": 0.96,
+     "isPhysical": 0.08,
+     "needsWorkedExample": 0.57
+    },
+    "ms": 72
+   },
+   "references": [
+    "shape-coordinate-plot",
+    "ml-trees-forest-size-accuracy"
+   ],
+   "visuals": [
+    {
+     "k": "diagram",
+     "spec": {
+      "version": 1,
+      "diagram": {
+       "title": "Test accuracy by forest size",
+       "caption": "Illustrative. Early trees give the largest gains.",
+       "kind": "coordinate-plot",
+       "x": {
+        "label": "Number of trees",
+        "min": 1,
+        "max": 200,
+        "scale": "log"
+       },
+       "y": {
+        "label": "Test accuracy",
+        "min": 0.75,
+        "max": 0.95
+       },
+       "series": [
+        {
+         "label": "Test accuracy",
+         "kind": "line",
+         "points": [
+          {
+           "x": 1,
+           "y": 0.78,
+           "label": "1 tree"
+          },
+          {
+           "x": 5,
+           "y": 0.86,
+           "label": "5 trees"
+          },
+          {
+           "x": 10,
+           "y": 0.89,
+           "label": "10 trees"
+          },
+          {
+           "x": 50,
+           "y": 0.92,
+           "label": "50 trees"
+          },
+          {
+           "x": 200,
+           "y": 0.925,
+           "label": "200 trees"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "kinds": [
+    "coordinate-plot"
+   ]
+  }
+ ],
+ "row": {
+  "id": "ml-trees-forest-size-accuracy",
+  "set": "demo-lesson04",
+  "run": 1,
+  "depth": "standard",
+  "prompt": "how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest?",
+  "canvas": "canvas-41304e01",
+  "startedAt": "2026-11-09T19:49:32.511Z",
+  "http": 200,
+  "totalMs": 3396,
+  "delivered": true,
+  "failure": null,
+  "authoredBy": {
+   "provider": "google",
+   "model": "gemini-3.5-flash-lite"
+  },
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "repaired": false,
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "authorCalls": 1,
+  "pictures": 0,
+  "ledgerUsd": 0.002897,
+  "estUsd": 0.008,
+  "costUsd": 0.002897,
+  "costSource": "ledger",
+  "steer": [],
+  "repairCauses": [],
+  "corrected": [],
+  "diagramCorrections": null,
+  "visualFallback": null,
+  "proseLists": 0,
+  "unknownKeysStripped": {
+   "events": 0,
+   "keys": 0
+  },
+  "picturesDropped": [],
+  "raw": [
+   {
+    "attempt": 0,
+    "plan": {
+     "visuals": [
+      {
+       "type": "diagram",
+       "kind": "coordinate-plot"
+      }
+     ],
+     "depthTreatment": "mechanism",
+     "kind": "coordinate-plot",
+     "fixed": true,
+     "confidence": {
+      "kind": 0.73,
+      "visualType": 1
+     },
+     "flags": {
+      "needsPlot": 0.96,
+      "isPhysical": 0.08,
+      "needsWorkedExample": 0.57
+     },
+     "ms": 72
+    },
+    "references": [
+     "shape-coordinate-plot",
+     "ml-trees-forest-size-accuracy"
+    ],
+    "visuals": [
+     {
+      "k": "diagram",
+      "spec": {
+       "version": 1,
+       "diagram": {
+        "title": "Test accuracy by forest size",
+        "caption": "Illustrative. Early trees give the largest gains.",
+        "kind": "coordinate-plot",
+        "x": {
+         "label": "Number of trees",
+         "min": 1,
+         "max": 200,
+         "scale": "log"
+        },
+        "y": {
+         "label": "Test accuracy",
+         "min": 0.75,
+         "max": 0.95
+        },
+        "series": [
+         {
+          "label": "Test accuracy",
+          "kind": "line",
+          "points": [
+           {
+            "x": 1,
+            "y": 0.78,
+            "label": "1 tree"
+           },
+           {
+            "x": 5,
+            "y": 0.86,
+            "label": "5 trees"
+           },
+           {
+            "x": 10,
+            "y": 0.89,
+            "label": "10 trees"
+           },
+           {
+            "x": 50,
+            "y": 0.92,
+            "label": "50 trees"
+           },
+           {
+            "x": 200,
+            "y": 0.925,
+            "label": "200 trees"
+           }
+          ]
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "kinds": [
+     "coordinate-plot"
+    ]
+   }
+  ],
+  "modelCalls": [
+   {
+    "served": "gemini-3.5-flash-lite",
+    "status": 200,
+    "outcome": "completed",
+    "error": null,
+    "ms": 3200
+   }
+  ]
+ },
+ "response": {
+  "profile": {
+   "id": "google-low",
+   "version": 1,
+   "hash": "7a65d850970c6aad"
+  },
+  "attempts": [
+   {
+    "provider": "google",
+    "model": "gemini-3.5-flash-lite",
+    "outcome": "artifact"
+   }
+  ],
+  "repaired": false
+ },
+ "tokens": {
+  "input": 3863,
+  "output": 695,
+  "authorUsd": 0.002897,
+  "pictureUsd": 0
+ },
+ "totalMs": 3396,
+ "costUsd": 0.002897
+}
