@@ -127,7 +127,7 @@ The Mode, What the scene shows and Controls columns of the three rows below are 
 
 ### curve-sliders — deliverable 1 review gate
 
-Task `384200aa-d510-4b74-a4a6-b33e6a302fd0`. Branch `design/family-curve`, based on `design/fast-path` at `af977cbbca6b82a27d008d6a776de9cb167d84f5`. The three rows above are a new example; the toss rows and historical scores are preserved. **Awaiting reviewer approval; deliverables 2–6 have not started.**
+Task `384200aa-d510-4b74-a4a6-b33e6a302fd0`. Branch `design/family-curve`, based on `design/fast-path` at `af977cbbca6b82a27d008d6a776de9cb167d84f5`. The three rows above are a new example; the toss rows and historical scores are preserved. **Deliverable 1 approved by the owner at 00:50 PT. Deliverable 2 is the bounded formula extension. Deliverable 3 waits for Claude Code to report the family contract merged into fast-path.**
 
 **Reuse.** The approved toss HTML supplies the exact embedded Inter font, palette, card chrome, controls and `/explain` box, dot and connector primitives. Its primitive helpers are copied unchanged. The native 640 px scene scrolls within its viewport on narrow screens; it never scales down. Desktop card width is 676 px. The supplied toss look is the target, rather than the retired dashboard style.
 
@@ -151,6 +151,19 @@ The 15 deterministic tests execute the HTML’s own math/view scripts in Node: c
 4. **A ghost cannot assume extra styling.** sdk-8’s semantic plot supports line/scatter/step, without a per-series opacity or dashed option. Balanced uses the allowed warm tangent and marker. SDK, renderer, toss family, templates and fixtures are unchanged.
 5. **The new fast fill prompt also needs an owner.** While these references were being built, fast-path advanced to `d74736b154fe458b742e5b55050d314b315eda84`. Its new protected file `interact-design-fill.js` imports the toss description, explicitly forbids formula functions and defines `t` as seconds since launch. That text conflicts with an exponential untimed curve even if the local family module and parser are ready. The reviewer must assign the minimal family-aware fill contract to Claude Code before the curve bench; this lane has not edited that file.
 
-**Owner update, 00:20 PT — pick contract.** When deliverable 3 is approved, `interact-family-curve-sliders.js` must also export `pickCriterion`, using the subject-independent sentence: “One quantity as a function of another, drawn as a curve whose shape a few parameters change; no motion over time.” Register the family in `interact-families.js` once that file exists on `design/fast-path`; until then the module exports the string. The module and registry have not been implemented in this reference-only push.
+**Owner update, 00:20 PT — pick contract.** In deliverable 3, `interact-family-curve-sliders.js` must also export `pickCriterion`, using the subject-independent sentence: “One quantity as a function of another, drawn as a curve whose shape a few parameters change; no motion over time.” Register the family in `interact-families.js`, now present on fast-path. No curve module or curve registry entry is part of deliverable 2.
 
-**Next gate:** reviewer approval of these references and rows. Then formula extension, family, templates, invariants and pins in the owner’s order, each pushed separately. The bench family switch and clone driving remain Claude Code’s work. Merge subsequent `design/fast-path` advances as merge commits; never rebase.
+**Owner update, 00:50 PT — rules carried into deliverables 3–4.** The approved HTML is the starting look; apply these consistently when building the family/templates and updating their references:
+
+- Callout = where the marker is; readout row = numerical values. Apply the same split at Standard and Deep.
+- Curve/Tangent legend appears at Standard and Deep only, in the same position at both depths.
+- The scene subtitle derives from the current slider state, like the toss state word; never leave Default steepness hard-coded.
+- The family declares `independent: { id: 'x', domain: [min, max] }` and has no timeline. Claude Code carries it through the contract.
+
+The five gaps above are accepted as recorded. Claude Code owns making the brief schema, generator context and fill text come from the family module (gaps 1, 2 and 5). The independent-variable declaration resolves gap 3; the existing tangent approach resolves gap 4.
+
+**Contract integration during deliverable 2.** Fast-path through `42a8d0c` is merged, including the family contract (`9fbc966` / `695367b`) and callout/readout ownership (`f10a660`). Those are Claude Code’s changes. This push adds only the bounded formula extension, its tests and these handoff notes; the curve family module and templates remain unstarted.
+
+**Deliverable 2 verification.** The six function operations parse, evaluate, emit JavaScript and have interval bounds; limits stay at 32 nodes, 8 levels and 200 formula characters. The commit message carries each interval proof. On the integrated base: web unit command 6,787 passed, 37 skipped, one pre-existing TODO, zero failures; focused control-plane checks 71/71 (four pinned toss plans, round trips, scripted/template frame equality, oracles, gate, new function program, family-contract snapshot and fast design); reference-script checks 15/15; web build passed. The three obsolete grammar/schema assertions were updated: two unknown-function examples now use unsupported sin instead of newly supported sqrt, and the ScalarExpr schema includes its unary branch. No pinned toss data, toss templates, SDK, renderer or protected pipeline file is authored by this formula commit. No model call or deployment was run.
+
+**Next gate:** push deliverable 2 with interval proofs and stop. Deliverable 3 starts only after Claude Code reports the contract change merged into fast-path. The bench family switch and clone driving remain Claude Code’s work. Merge fast-path advances as merge commits; never rebase.

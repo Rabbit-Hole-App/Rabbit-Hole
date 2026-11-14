@@ -29,7 +29,7 @@ test('a wrong sign, a parse error, a missing id and a zero divisor are named by 
   const wrong = checkQuantityFormulas(plan, { ...forPlan(), tossedAcceleration: { formula: 'gravity' } });
   assert.equal(wrong.ok, false);
   assert.ok(wrong.wrongIds.every(w => w.id === 'tossedAcceleration') && wrong.wrongIds.length > 0 && wrong.wrongIds[0].expected < 0 && wrong.wrongIds[0].got > 0, JSON.stringify(wrong.wrongIds[0]));
-  const parse = checkQuantityFormulas(plan, { ...forPlan(), tossedHeight: { formula: 'launchSpeed * sqrt(t)' } });
+  const parse = checkQuantityFormulas(plan, { ...forPlan(), tossedHeight: { formula: 'launchSpeed * sin(t)' } });
   assert.deepEqual(parse.parseErrors.map(e => e.id), ['tossedHeight']);
   const missing = forPlan(); delete missing.dropHeight;
   assert.deepEqual(checkQuantityFormulas(plan, missing).missingIds, ['dropHeight']);

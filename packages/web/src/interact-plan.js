@@ -19,12 +19,16 @@ export const PLAN_LIMITS = Object.freeze({
   playbackRate: 10, // ponytail: no host transport ceiling is defined yet; 10 physics-seconds per wall-second is a sanity bound
 });
 
-// ---- ScalarExpr: bounded arithmetic over literals and declared number inputs. Data, never code: no eval, no strings. ----------
+// ---- ScalarExpr: bounded arithmetic and six whitelisted functions. Data, never code: no eval, no strings. --------------------
 
 export class ScalarExprError extends Error {
   constructor(code, message) { super(message); this.name = 'ScalarExprError'; this.code = code; }
 }
-const BINARY = ['add', 'subtract', 'multiply', 'divide'];
+// Arity is shared by the parser and emitter. Unary nodes are exactly {op,arg};
+// min/max use the existing {op,left,right}. Limits count all function nodes.
+export const SCALAR_FUNCTIONS = Object.freeze({ exp: 1, log: 1, sqrt: 1, abs: 1, min: 2, max: 2 });
+const UNARY = Object.keys(SCALAR_FUNCTIONS).filter(op => SCALAR_FUNCTIONS[op] === 1);
+const BINARY = ['add', 'subtract', 'multiply', 'divide', 'min', 'max'];
 const NAME = /^[A-Za-z][A-Za-z0-9_]{0,31}$/; // a stable id; also a legal program input/action name
 
 // The first structural problem in an expression, or null. Iterative limits first: depth and node count stop the walk, so a
@@ -44,17 +48,26 @@ export function scalarExprProblem(expr) {
     } else if (node.op === 'input') {
       if (keys !== 'id,op') return fail(path, 'an input node is exactly {op:"input", id}');
       if (typeof node.id !== 'string' || !NAME.test(node.id)) return fail([...path, 'id'], 'an input id is a stable id');
+    } else if (UNARY.includes(node.op)) {
+      if (keys !== 'arg,op') return fail(path, `${node.op} is exactly {op, arg}`);
+      walk(node.arg, depth + 1, [...path, 'arg']);
     } else if (BINARY.includes(node.op)) {
       if (keys !== 'left,op,right') return fail(path, `${node.op} is exactly {op, left, right}`);
       walk(node.left, depth + 1, [...path, 'left']);
       walk(node.right, depth + 1, [...path, 'right']);
-    } else fail([...path, 'op'], 'op is one of literal, input, add, subtract, multiply, divide');
+    } else fail([...path, 'op'], 'op is one of literal, input, add, subtract, multiply, divide, exp, log, sqrt, abs, min, max');
   };
   walk(expr, 1, []);
   return problem;
 }
 const checkedExpr = expr => { const problem = scalarExprProblem(expr); if (problem) throw new ScalarExprError('unsafe_expression', problem.message); };
 const finite = number => { if (!Number.isFinite(number)) throw new ScalarExprError('non_finite', 'an expression produced a non-finite number'); return number; };
+// Called only after structural validation has whitelisted the operation.
+const scalarFunction = (op, value, other) => {
+  if (op === 'log' && value <= 0) throw new ScalarExprError('out_of_domain', 'log requires a positive argument');
+  if (op === 'sqrt' && value < 0) throw new ScalarExprError('out_of_domain', 'sqrt requires a non-negative argument');
+  return finite(SCALAR_FUNCTIONS[op] === 1 ? Math[op](value) : Math[op](value, other));
+};
 
 // Evaluate at one point. `domains` ({id:[min,max]}) makes an input outside its declared range a refusal.
 export function evalScalar(expr, values = {}, domains = {}) {
@@ -68,7 +81,9 @@ export function evalScalar(expr, values = {}, domains = {}) {
       if (domain && (value < domain[0] || value > domain[1])) throw new ScalarExprError('out_of_domain', `input "${node.id}" = ${value} is outside ${domain[0]}..${domain[1]}`);
       return value;
     }
+    if (UNARY.includes(node.op)) return scalarFunction(node.op, go(node.arg));
     const left = go(node.left), right = go(node.right);
+    if (node.op === 'min' || node.op === 'max') return scalarFunction(node.op, left, right);
     if (node.op === 'add') return finite(left + right);
     if (node.op === 'subtract') return finite(left - right);
     if (node.op === 'multiply') return finite(left * right);
@@ -81,6 +96,13 @@ export function evalScalar(expr, values = {}, domains = {}) {
 // Sound interval over the whole admitted input domain ({id:[min,max]}). Throws when safety cannot be established (an unknown
 // input, a divisor interval containing zero, overflow). shortcut: plain interval arithmetic loses correlation between repeated
 // inputs, so it can refuse an expression that is in fact safe; widen the language only with a proof, never weaken the refusal.
+// Function proof (owner deliverable 2): exp/log/sqrt are increasing on their
+// domains, so f([a,b])=[f(a),f(b)]; log requires a>0, sqrt a>=0. abs has lower
+// bound 0 exactly when the interval crosses zero, otherwise the smaller
+// endpoint magnitude; its upper bound is the larger magnitude. min/max are
+// increasing in both arguments: their endpoint-wise min/max bound every pair,
+// including correlated inputs. All endpoints must be finite. IEEE exp
+// underflow may include zero, so a following divisor/log still refuses it.
 export function scalarInterval(expr, domains = {}) {
   checkedExpr(expr);
   const bounds = list => [Math.min(...list), Math.max(...list)];
@@ -91,11 +113,21 @@ export function scalarInterval(expr, domains = {}) {
       if (!domain) throw new ScalarExprError('unknown_input', `input "${node.id}" is not a declared number input`);
       return domain;
     }
+    if (UNARY.includes(node.op)) {
+      const [a0, a1] = go(node.arg);
+      if (node.op === 'abs') {
+        const ends = [Math.abs(a0), Math.abs(a1)];
+        return [a0 <= 0 && a1 >= 0 ? 0 : Math.min(...ends), Math.max(...ends)].map(finite);
+      }
+      return [scalarFunction(node.op, a0), scalarFunction(node.op, a1)];
+    }
     const [a0, a1] = go(node.left), [b0, b1] = go(node.right);
     let result;
     if (node.op === 'add') result = [a0 + b0, a1 + b1];
     else if (node.op === 'subtract') result = [a0 - b1, a1 - b0];
     else if (node.op === 'multiply') result = bounds([a0 * b0, a0 * b1, a1 * b0, a1 * b1]);
+    else if (node.op === 'min') result = [Math.min(a0, b0), Math.min(a1, b1)];
+    else if (node.op === 'max') result = [Math.max(a0, b0), Math.max(a1, b1)];
     else {
       if (b0 <= 0 && b1 >= 0) throw new ScalarExprError('division_by_zero', 'a divisor can be zero within the admitted input range');
       result = bounds([a0 / b0, a0 / b1, a1 / b0, a1 / b1]);
@@ -524,6 +556,7 @@ const SCALAR_EXPR_DEF = {
   oneOf: [
     { type: 'object', properties: { op: { const: 'literal' }, value: { type: 'number' } }, required: ['op', 'value'], additionalProperties: false },
     { type: 'object', properties: { op: { const: 'input' }, id: { type: 'string' } }, required: ['op', 'id'], additionalProperties: false },
+    { type: 'object', properties: { op: { enum: UNARY }, arg: { $ref: '#/$defs/ScalarExpr' } }, required: ['op', 'arg'], additionalProperties: false },
     { type: 'object', properties: { op: { enum: BINARY }, left: { $ref: '#/$defs/ScalarExpr' }, right: { $ref: '#/$defs/ScalarExpr' } }, required: ['op', 'left', 'right'], additionalProperties: false },
   ],
 };

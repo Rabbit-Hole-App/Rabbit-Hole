@@ -41,7 +41,7 @@ test('names: t, the inputs and the fixed numbers (a literal); anything else is r
   assert.deepEqual(parseFormula('-gravity', { fixed: { gravity: 9.8 } }), { op: 'literal', value: -9.8 });
   throws('launchSpeed + altitude', 'formula_name', /unknown name "altitude" at character 15/);
   throws('gravity', 'formula_name', /unknown name "gravity"/, { names: [] });
-  throws('sqrt(t)', 'formula_name', /unknown name "sqrt" at character 1/);
+  throws('sin(t)', 'formula_name', /unknown name "sin" at character 1/);
   throws('t', 'formula_name', /not t/, { names: [], time: false });
   assert.throws(() => parseFormula('launchSpeed + altitude', { names }), error => error.position === 14 && error.token === 'altitude');
 });

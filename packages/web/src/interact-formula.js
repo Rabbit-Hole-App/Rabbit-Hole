@@ -1,11 +1,13 @@
-import { PLAN_LIMITS, ScalarExprError, evalScalar, scalarExprProblem } from './interact-plan.js';
+import { PLAN_LIMITS, SCALAR_FUNCTIONS, ScalarExprError, evalScalar, scalarExprProblem } from './interact-plan.js';
 
 // Formula strings for plan quantities (owner brief 2026-11-13 15:35, template build). A quantity's `formula` is text such as `launchSpeed * t - gravity * t^2 / 2`; this file turns it into the
-// existing ScalarExpr tree (interact-plan.js: data, never code, 32 nodes, 8 levels) with our own recursive-descent parser: no eval, no Function. ScalarExpr is NOT widened (its file says: only with a proof);
+// bounded ScalarExpr tree (interact-plan.js: data, never code, 32 nodes, 8 levels) with our own recursive-descent parser: no eval, no Function. The six function operations have interval proofs there;
 // piecewise lives one level up, on the quantity: `formula` applies while t < switchAt, `formulaAfter` from switchAt on (switchAt is over inputs and fixed values only, no t).
 //
-// Grammar: numbers (1, 1.62, .5, 2e-3), identifiers, + - * /, unary minus, parentheses, and `^` with a LITERAL integer exponent 2 to 4 (expanded to multiplies). Nothing else, at most 200 characters.
-//   expr := term (('+'|'-') term)*     term := unary (('*'|'/') unary)*     unary := '-' unary | power     power := primary ('^' INT)?     primary := NUMBER | NAME | '(' expr ')'
+// Grammar: numbers (1, 1.62, .5, 2e-3), identifiers, + - * /, unary minus, parentheses, `^` with a LITERAL integer exponent 2 to 4 (expanded to multiplies),
+// and exp/log/sqrt/abs (one argument), min/max (two). Nothing else, at most 200 characters.
+//   expr := term (('+'|'-') term)*     term := unary (('*'|'/') unary)*     unary := '-' unary | power     power := primary ('^' INT)?
+//   primary := NUMBER | NAME | '(' expr ')' | FUNCTION '(' expr (',' expr)? ')'
 // Readable names: `t`, the plan's number-input ids (`names`), and the keys of mode.fixedValues (`fixed`, a number each; the value becomes a literal). -x on a literal folds to a negative literal.
 // This module imports interact-plan.js and interact-plan.js imports it (plan validation parses the formulas): every use of the other module's bindings is inside a function, never at load time.
 
@@ -56,7 +58,7 @@ const lit = value => ({ op: 'literal', value }), input = id => ({ op: 'input', i
 const BIN = { '+': 'add', '-': 'subtract', '*': 'multiply', '/': 'divide' };
 
 function tokenize(text) {
-  const tokens = [], re = /\s*(?:(\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)|([A-Za-z][A-Za-z0-9_]*)|([-+*/^()])|(\S))/y;
+  const tokens = [], re = /\s*(?:(\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)|([A-Za-z][A-Za-z0-9_]*)|([-+*/^(),])|(\S))/y;
   re.lastIndex = 0;
   for (let m; re.lastIndex < text.length && (m = re.exec(text));) {
     const position = m.index + m[0].length - (m[1] ?? m[2] ?? m[3] ?? m[4]).length;
@@ -66,8 +68,8 @@ function tokenize(text) {
   return tokens;
 }
 
-const nodeCount = node => (node.op === 'literal' || node.op === 'input' ? 1 : 1 + nodeCount(node.left) + nodeCount(node.right));
-const depthOf = node => (node.op === 'literal' || node.op === 'input' ? 1 : 1 + Math.max(depthOf(node.left), depthOf(node.right)));
+const nodeCount = node => (node.op === 'literal' || node.op === 'input' ? 1 : node.arg ? 1 + nodeCount(node.arg) : 1 + nodeCount(node.left) + nodeCount(node.right));
+const depthOf = node => (node.op === 'literal' || node.op === 'input' ? 1 : node.arg ? 1 + depthOf(node.arg) : 1 + Math.max(depthOf(node.left), depthOf(node.right)));
 
 // -> ScalarExpr. `names`: the readable names besides `t` (the number inputs); `fixed`: { id: number } literals; `time: false` makes `t` unreadable (switchAt). Throws ScalarExprError with a position and token.
 export function parseFormula(text, { names = [], fixed = {}, time = true } = {}) {
@@ -82,6 +84,19 @@ export function parseFormula(text, { names = [], fixed = {}, time = true } = {})
     if (!token) throw unexpected(null, 'a number, a name or "("');
     if (token.type === 'num') { const value = Number(token.text); if (!Number.isFinite(value)) throw fail('formula_syntax', `"${token.text}" is not a finite number (character ${token.position + 1})`, token.position, token.text); return lit(value); }
     if (token.type === 'name') {
+      if (Object.hasOwn(SCALAR_FUNCTIONS, token.text) && peek()?.type === '(') {
+        take();
+        const args = [];
+        if (peek()?.type !== ')') {
+          args.push(expr());
+          while (peek()?.type === ',') { take(); args.push(expr()); }
+        }
+        const close = take();
+        if (!close || close.type !== ')') throw unexpected(close, '")"');
+        const arity = SCALAR_FUNCTIONS[token.text];
+        if (args.length !== arity) throw fail('formula_arity', `${token.text} takes ${arity} argument${arity === 1 ? '' : 's'} (got ${args.length}, character ${token.position + 1})`, token.position, token.text);
+        return arity === 1 ? { op: token.text, arg: args[0] } : { op: token.text, left: args[0], right: args[1] };
+      }
       if (token.text in fixed && typeof fixed[token.text] === 'number' && Number.isFinite(fixed[token.text])) return lit(fixed[token.text]);
       if (readable.has(token.text)) return input(token.text);
       throw fail('formula_name', `unknown name "${token.text}" at character ${token.position + 1}${token.text === 't' && !time ? ' (this formula reads inputs and fixed values only, not t)' : `; readable: ${[...readable, ...Object.keys(fixed)].join(', ') || 'none'}`}`, token.position, token.text);
@@ -156,8 +171,10 @@ export function evalQuantity(quantity, inputs, t, domains = {}, fixed = {}) {
   return evalScalar(after ? parsed.formulaAfter : parsed.formula, values, domains);
 }
 
-// ScalarExpr -> a JS expression text using only numeric literals, the readable names, + - * / and parentheses. `allowed` (a Set or array of names) makes any other name a refusal.
-// Division and non-finite results are the caller's concern (evalScalar refuses a zero divisor; plain JS gives Infinity or NaN).
+// ScalarExpr -> JS using numeric literals, readable names, arithmetic and only
+// the six whitelisted Math functions. `allowed` refuses any other input name.
+// Domain/division/non-finite results remain the caller's concern (evalScalar
+// and scalarInterval refuse them; emitted JS follows the same Math semantics).
 export function exprToJs(expr, allowed = null) {
   const problem = scalarExprProblem(expr);
   if (problem) throw new ScalarExprError('unsafe_expression', problem.message);
@@ -165,6 +182,10 @@ export function exprToJs(expr, allowed = null) {
   const go = node => {
     if (node.op === 'literal') return node.value < 0 || Object.is(node.value, -0) ? `(${node.value})` : String(node.value);
     if (node.op === 'input') { if (ok && !ok.has(node.id)) throw new ScalarExprError('unknown_input', `name "${node.id}" is not allowed here`); return node.id; }
+    if (Object.hasOwn(SCALAR_FUNCTIONS, node.op)) {
+      const args = SCALAR_FUNCTIONS[node.op] === 1 ? [go(node.arg)] : [go(node.left), go(node.right)];
+      return `Math.${node.op}(${args.join(', ')})`;
+    }
     return `(${go(node.left)} ${SIGN[node.op]} ${go(node.right)})`;
   };
   return go(expr);
