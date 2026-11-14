@@ -74,28 +74,6 @@ export function plotSeriesPoints(series) {
   });
 }
 
-// Point notes (a numbered badge on the plot plus a list line under it). A label that only restates its point (its x or y as a number, alone or as
-// "(x, y)", with or without the series label) is noise: the mark already carries it. At most MAX_POINT_NOTES labelled points per plot keep a note
-// (the bound `markers` has), the first ones in series order; the rest keep their mark and lose the label. `samples.showValues` labels are each point's own y,
-// so they restate the point too.
-export const MAX_POINT_NOTES = 6;
-const PLAIN_NUMBER = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
-const shownTo = (token, value) => Number.isFinite(value) && Math.abs(Number(token) - value) <= 0.5 * 10 ** -(token.split(/e/i)[0].split('.')[1] ?? '').length + 1e-12;
-export function restatesPoint(label, point, seriesLabel = '') {
-  let text = String(label).trim();
-  if (seriesLabel && text.toLowerCase().startsWith(seriesLabel.toLowerCase())) text = text.slice(seriesLabel.length).replace(/^[\s:·–—-]+/u, '');
-  const tokens = text.replace(/^\(\s*/, '').replace(/\s*\)$/, '').split(/[\s,;:]+/).filter(Boolean);
-  return tokens.length >= 1 && tokens.length <= 2 && tokens.every(token => PLAIN_NUMBER.test(token) && (shownTo(token, point.x) || shownTo(token, point.y)));
-}
-// The `i:j` keys (series, point) that keep a note. `series` carry their expanded `points`.
-export function plotNotedPoints(series) {
-  const kept = new Set();
-  series.forEach((s, i) => s.points.forEach((p, j) => {
-    if (p.label && kept.size < MAX_POINT_NOTES && !restatesPoint(p.label, p, s.label)) kept.add(`${i}:${j}`);
-  }));
-  return kept;
-}
-
 export const isExtendedPlot = d => d.kind === 'coordinate-plot' &&
   (d.series.length > 3 || d.x.scale !== undefined || d.y.scale !== undefined || d.x.integerTicks || d.y.integerTicks || d.annotations !== undefined || d.series.some(s =>
     s.samples || s.endLabel || s.closed || !['line', 'scatter'].includes(s.kind) ||

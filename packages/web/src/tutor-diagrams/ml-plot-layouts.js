@@ -3,7 +3,7 @@ import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.
 import { closedLinePath, monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
 import { TEACHING as T, TEACHING_SERIES, teachingConnector } from './teaching-theme.js';
-import { annotationDescription, axisName, isExtendedPlot, isStackedBar, plotNotedPoints, plotSeriesPoints } from './ml-plot-spec.js';
+import { annotationDescription, axisName, isExtendedPlot, isStackedBar, plotSeriesPoints } from './ml-plot-spec.js';
 
 const PAD = 12;
 const SMALL = 12;
@@ -71,7 +71,6 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
   const d = diagram.series.some(series => series.samples) ? { ...diagram,
     series: diagram.series.map(series => series.samples ? { ...series, points: plotSeriesPoints(series) } : series),
   } : diagram;
-  const noted = plotNotedPoints(d.series); // which labelled points keep a badge + list line (ml-plot-spec.js)
   const endLabels = plotEndLabels(d.series);
   const endGutter = Math.max(endLabels.gutter, sharedLabelSpace?.gutter ?? 0);
   let remainingLabels = endLabels.height;
@@ -201,7 +200,7 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
           fill: 'none', stroke: COLORS[i], strokeWidth: 1.5, 'data-tutor-plot-errorbar': `${p.low},${p.high}` }));
       }
       if (showPlotMarker(series, j)) marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`));
-      if (p.label && noted.has(`${i}:${j}`)) note([cx, cy], `${p.label}: (${p.x}, ${p.y})`);
+      if (p.label) note([cx, cy], `${p.label}: (${p.x}, ${p.y})`);
     });
     const lines = wrap(`${series.label}${hasUncertainty ? ' · low/high interval' : ''}`, width - 2 * PAD - 36);
     const height = Math.max(24, lines.length * lineHeight());
