@@ -1,0 +1,9 @@
+FILM v1 (stepped 4K take, take-s4) - settings and checks. Reading copy; the MP4s are in videos/.
+Take: frame-stepped on a virtual clock (Playwright page.clock + Web Animations time + JS camera), a real 3840x2160 screenshot per 33.3 ms step, 2542 frames, script 84.2 s, 0 page errors, 0 UNSCRIPTED.
+Edit (render.mjs): ramp 1.8x outside 1.0x windows; holds trimmed to 1.5 s (TRIM=1.5); skeleton/menu waits kept up to 3 s (REV=3); no freeze cuts (no stalls in virtual time); the overview hold keeps 2.5 s.
+Result: 71.8 s, 2153 frames at 30 fps; 1.0x for 58.2 s.
+Typing in v1: prose 9 ms/key, slash commands 30 ms/key (owner asks for slower in v2: 30 / 60).
+Encode: libx264 slow CRF 18, yuv420p tv-range, +faststart (moov at byte 36), silent.
+FINAL-4K: 3840x2160, 43,612,680 bytes, sha256 7802c43fc7d47f7347fd92e3fe2ef484ad182f7b5707dfdea4f0d8f5b8a10766.
+FINAL-4K 1080p downscale (lanczos from the 4K frames): 1920x1080, 17,148,627 bytes, sha256 720013509009d31d8918723adb93361a585414238cddbc31e1c74556a6bfffab.
+Dead-scene check (dead-scene-check.txt): 17 short still stretches of 1.0-1.8 s (read holds right after an action, with content on screen), none longer than 2.0 s; longest 1.8 s at 31.6 s. The overview at the end is held 1.6 s still.
