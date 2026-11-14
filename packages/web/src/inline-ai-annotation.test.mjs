@@ -123,9 +123,6 @@ const READERS = {
   'web/src/tutor-diagrams/composition-neural-networks-references.js': 'C01 panels references: links between panels (arrow and operation), not board links',
   'web/src/tutor-diagrams/composition-regularization-references.js': 'C01 panels references: links between panels (arrow and operation), not board links',
   'web/src/tutor-diagrams/topic-linear-regression-references.js': 'the C01 linear-unit panels reference: links between panels, not board links',
-  'web/src/tutor-diagrams/composition-attention-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
-  'web/src/tutor-diagrams/composition-distribution-shift-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
-  'web/src/tutor-diagrams/composition-model-evaluation-references.js': 'C02 panels references: links between panels (arrow and operation), not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {
   const root = new URL('../../', import.meta.url);

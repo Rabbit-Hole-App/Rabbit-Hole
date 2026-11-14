@@ -1,6 +1,6 @@
 # Composition reference queue — subject revision
 
-**Queue approved at 9288dca9d. C01 is approved at 2409cff02 + 767ba06c4; C02 is authorized against the same schema tip 1944b48cf. Later batches still need individual approval. C02 keywords are reviewed with its specs, report and previews.**
+**Queue approved at 9288dca9d. C01 is authorized against schema tip 1944b48cf; later batches still need their own approval. Keywords for C01 are reviewed with its specs, report and previews.**
 
 Revises `899cb5c1d`. The supplied [vocabulary-gap.json](vocabulary-gap.json) and [vocabulary-study.md](vocabulary-study.md) remain verbatim. Briefs remain pinned to `05d5f02f64b474dcf0f830050af4e34907fbdaa8`. [queue.json](queue.json) contains the full inventory and audit.
 
@@ -313,4 +313,4 @@ Every `alsoCovers` member and `dedupeBasis` string is identical to the reviewed 
 
 The four [gaps.md](../../explain-on-canvas/handoff/figure-briefs/gaps.md) tail figures remain excluded. No extra single-kind figures are added beyond the explicitly supplied numeric list. No authoring, previews, token counts, linter/replay results, model calls or stack runs are claimed by this queue.
 
-**C01 approved; C02 authorized.** Author only the six C02 ids against `1944b48cf`; retain each reference's subject and lesson metadata. C02 Standard uses at most two coordinate-plot panels, and every composition fits at 680 px without horizontal scrolling. Rebase both batches after releases 133 and 134 are on main. Claude Code gates the data release with suites, property count and replay zero; no smoke. Later batches await approval. Push branches directly.
+**C01 authorized.** Author only the four C01 ids against `1944b48cf`; retain each reference's lesson metadata. Rebase when release 133 reaches main. Later batches await approval. Push branches directly; do not create another bundle.

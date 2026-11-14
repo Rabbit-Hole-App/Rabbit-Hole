@@ -13,10 +13,9 @@ const explicit = { ...specsA, ...specsB, ...architectureSingleSpecs,
   'ml-logistic-regression-softmax': softmaxSingleSpec, // the panels reference's one-diagram variant, built from the topic's data module
 };
 // Every `panels` reference without an authored variant gets its answer panel (the last panel of its standard figure) as the one-diagram variant, so a panels
-// reference is never sent to the author whole (the kind is not in the author's schema yet). A two-panel comparison without an authored variant gets the same.
-const needsAnswerPanel = ({ kind, variant, panels }) => kind === 'panels' || (kind === 'comparison' && variant === 'panels' && panels.length === 2);
+// reference is never sent to the author whole (the kind is not in the author's schema yet).
 const answerPanels = Object.fromEntries(diagramReferences
-  .filter(ref => needsAnswerPanel(ref.spec.diagram) && !explicit[ref.id])
+  .filter(ref => ref.spec.diagram.kind === 'panels' && !explicit[ref.id])
   .map(ref => [ref.id, { useWhen: ref.useWhen, spec: { version: ref.spec.version, diagram: ref.spec.diagram.panels.at(-1).diagram } }]));
 
 export const singleDiagramReferences = Object.freeze(
