@@ -34,12 +34,12 @@ const LIMITS = [
 ];
 
 // The Deep card draws the acceleration arrow at 3.4 px per m/s^2 and a vector under 12 px is not an arrow (sdk-geometry.js), so the build refused every Deep plan whose gravity range reached 1 (three of three clone runs, 2026-11-14).
-const DEEP_LIMITS = [
+const DEEP_LIMITS = [ // every depth that lets gravity vary (Overview fixes it)
   'gravity: every value of its range is at least 4 (a smaller gravity draws no acceleration arrow and the card is refused). Every marker time is at least 0.',
 ];
 
 export function fillSystem(depth, schemaInfo, family = verticalThrow) {
-  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, family.familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, ...(depth === 'detailed' ? DEEP_LIMITS : []), '', '## Formulas', family.formulaGrammar.join('\n'), ...family.formulaRules, '', 'Return the brief only: no prose.'].join('\n');
+  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, family.familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, ...(depth !== 'brief' ? DEEP_LIMITS : []), '', '## Formulas', family.formulaGrammar.join('\n'), ...family.formulaRules, '', 'Return the brief only: no prose.'].join('\n');
 }
 
 
