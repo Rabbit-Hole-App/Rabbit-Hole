@@ -15267,19 +15267,19 @@
       "height": 524
     },
     "ml-trees-threshold-search-detailed/408": {
-      "sha256": "063d10154a4b43fc268d9f82f2ec65395ed9b0c3169531e3496f14184b85387a",
+      "sha256": "dc0821eb3390472cf666cb76348157489364c78d2e0ff4f02081e6c371b8a855",
       "width": 420,
-      "height": 596
+      "height": 524
     },
     "ml-trees-threshold-search-detailed/960": {
-      "sha256": "a5cac13c27dbf8bcdb09619b94d020ce1479806d12f5dab827a1df34854434b8",
+      "sha256": "471e0316735d8fb89bd7aca3e80b7e69e4ccf456c351357ebfe8da179aeba2f1",
       "width": 720,
-      "height": 596
+      "height": 524
     },
     "ml-trees-threshold-search-detailed/natural": {
-      "sha256": "063d10154a4b43fc268d9f82f2ec65395ed9b0c3169531e3496f14184b85387a",
+      "sha256": "dc0821eb3390472cf666cb76348157489364c78d2e0ff4f02081e6c371b8a855",
       "width": 420,
-      "height": 596
+      "height": 524
     },
     "ml-trees-grown-tree/408": {
       "sha256": "cb9c8f95590f450ce0278cec364bf0d777dc2506fdebe9853d8f331ff2bd4872",
@@ -15807,19 +15807,19 @@
       "height": 539
     },
     "ml-trees-regression-step-fit-detailed/408": {
-      "sha256": "c0531d2dc5ff1f9d4bf845f5b6e301a6404b6c897f9d924571bf940d51c6ac5d",
+      "sha256": "c9b7d6d5088b277a4275a22f6555da3a0d12a30fa0e07368553f1af787028467",
       "width": 420,
-      "height": 635
+      "height": 539
     },
     "ml-trees-regression-step-fit-detailed/960": {
-      "sha256": "e64c1b0af2b6a43e97d73c59b32004dbaefb0f46aadd21771f8c4e6d0b5ba4cf",
+      "sha256": "e5ff2693c561ddf9c8c202b47a224faee66e78ffadde24e566e75c1bdc96b39a",
       "width": 720,
-      "height": 635
+      "height": 539
     },
     "ml-trees-regression-step-fit-detailed/natural": {
-      "sha256": "c0531d2dc5ff1f9d4bf845f5b6e301a6404b6c897f9d924571bf940d51c6ac5d",
+      "sha256": "c9b7d6d5088b277a4275a22f6555da3a0d12a30fa0e07368553f1af787028467",
       "width": 420,
-      "height": 635
+      "height": 539
     },
     "ml-mle-bernoulli-likelihood/408": {
       "sha256": "baafbc7ccb54aa249e32e252579eac3eef2c6218f2f576636b0e0c912c277a98",
