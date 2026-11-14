@@ -76,6 +76,7 @@ import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.j
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { besideSpot, followPlace } from './beside-placement.js';
+import { fitBoxes } from './canvas-view.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
@@ -2064,9 +2065,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // Frame everything on the canvas. An infinite surface you can pan forever needs
   // a way back to your own work.
-  // Notes and text boxes count too - a board of only stickies has to fit.
+  // Notes and text boxes count too - a board of only stickies has to fit; with cards on the board only the cards frame it (canvas-view.js, CV-7).
   // Group frames count too: a Rabbit Hole group's footer sits below its members (owner 2026-10-29).
-  const zoomFit = () => frame([...Object.values(boundsRef.current), ...boxesOf([...shapesRef.current, ...itemsRef.current].map(entry => entry.id)), ...inlineScreenBoxes('[data-group-box]')]);
+  const zoomFit = () => frame(fitBoxes(Object.values(boundsRef.current), inlineScreenBoxes('[data-group-box]'), boxesOf([...shapesRef.current, ...itemsRef.current].map(entry => entry.id))));
   // Stepping frames one section at a time; nothing re-renders, the camera just
   // lands somewhere else, so ink and notes drawn over a section come with it.
   const stepsRef = useRef([]);
