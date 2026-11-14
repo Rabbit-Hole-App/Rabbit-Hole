@@ -1,0 +1,69 @@
+{
+ "label": "after",
+ "base": "http://127.0.0.1:5482",
+ "cards": [
+  {
+   "card": "explanation",
+   "selection": "A decision tree partitions a feature space by making axis-align",
+   "quickAsk": 1,
+   "nearButtons": [
+    "Start a Rabbit Hole from this card",
+    "Minimize",
+    "Add to chat",
+    "Quick Edit",
+    "Prompt",
+    "Ctrl+K",
+    "Add to chat",
+    "Highlight",
+    "Create note",
+    "Connect top",
+    "Insert lesson block",
+    "Select and move"
+   ],
+   "lightbulbs": 0,
+   "unscripted": [
+    "404 /api/learn/context",
+    "404 /api/learn/provenance/apps/canvas-4d6b2a91",
+    "404 /api/learn/coaching",
+    "404 /api/learn/context",
+    "404 /api/learn/context",
+    "404 /api/learn/whiteboard/jobs",
+    "404 /api/learn/c/00000000-0000-4000-8000-000000000001",
+    "404 /api/learn/c/00000000-0000-4000-8000-000000000001/threads",
+    "404 /api/learn/links/00000000-0000-4000-8000-000000000001",
+    "404 /api/learn/card-feedback"
+   ]
+  },
+  {
+   "card": "markdown",
+   "selection": "You have tabular data. Rows are samples, columns are features",
+   "quickAsk": 1,
+   "nearButtons": [
+    "Ctrl+K",
+    "Add to chat",
+    "Highlight",
+    "Create note",
+    "Hexagon",
+    "Star",
+    "Line",
+    "Arrow",
+    "Curved arrow",
+    "Elbow arrow",
+    "Keep tool active — off",
+    "Snap to grid — off"
+   ],
+   "lightbulbs": 0,
+   "unscripted": [
+    "404 /api/learn/context",
+    "404 /api/learn/provenance/apps/canvas-4d6b2a91",
+    "404 /api/learn/coaching",
+    "404 /api/learn/context",
+    "404 /api/learn/context",
+    "404 /api/learn/whiteboard/jobs",
+    "404 /api/learn/c/00000000-0000-4000-8000-000000000001",
+    "404 /api/learn/c/00000000-0000-4000-8000-000000000001/threads",
+    "404 /api/learn/links/00000000-0000-4000-8000-000000000001"
+   ]
+  }
+ ]
+}
