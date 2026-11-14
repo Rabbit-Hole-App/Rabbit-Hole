@@ -123,7 +123,7 @@ test('a Full card renders the corner resize; a corner drag leaves Full at the ne
   const canvas = read('AdaptiveCanvas.jsx');
   assert.match(canvas, /\{!locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block"/, 'the corner shows on Full cards too, never on a locked one');
   assert.doesNotMatch(canvas, /\{!full && !locked && resizable && <button/);
-  assert.match(canvas, /if \(event\.button !== 0 \|\| locked\) return;\n    const element = card\.current;/, 'a Full card can be corner-dragged; a locked one cannot');
+  assert.match(canvas, /if \(event\.button !== 0 \|\| locked\) return;\n    const element = card\.current, before = \{ w: element\.offsetWidth, h: element\.offsetHeight \};/, 'a Full card can be corner-dragged; a locked one cannot');
   assert.match(canvas, /if \(cardLayout\) edit\.resizeCard\?\.\(id, last\.w, last\.h, null, undefined, false, true\);/, 'the release goes through the existing resizeCard, as a corner resize');
   assert.match(canvas, /resizeCardLayout\(block, w, h, x, minimum, corner\)/);
   assert.match(canvas, /if \(cornerDrag && opensSized\) cardLayout = null;\n  const full = cardLayout\?\.mode === 'full' && !cornerDrag;/, 'drawn at the dragged size while dragged');
