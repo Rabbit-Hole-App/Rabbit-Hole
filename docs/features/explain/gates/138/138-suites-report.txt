@@ -1,0 +1,17 @@
+SUITES: GREEN 03fc4642f53806bc86317b4e3a4ffe2201b75c5a
+Release 138 = canvas view, STACKED on release 137's candidate 40a77cecb0a8d9cf6836bc0e9aabc5124179c5a1 (chain: main a8ef11d64 <- 134 <- 135 <- 136 <- 136b <- 137 <- 138). Branch explain/canvas-2-138: CV-7 27f396d48 (Fit canvas frames the cards and their group frames when the board has cards, never a far-off text item, note or mark; a board with no card frames everything as before; canvas-view.js fitBoxes), CV-6 c8568e387 (a board whose cards are off the top of the column opens on its first file card, else its first card, at zoom 0.5 to 1 instead of an empty surface: once, at the first measure, only while the learner has not moved the camera; canvas-view.js framesAnyBlock, firstViewTarget, topView), CV-7 03fc4642f (the check-map row for canvas-view.js: scripts/ci/check-map.test.mjs failed on the unclassified new module before it). Files: packages/web/src/AdaptiveCanvas.jsx, canvas-view.js, canvas-view.test.mjs, scripts/ci/check-map.json. Web only: no control-plane change, no migrations, no config change, no card bytes. Gate run: gate138.sh (138-gate-run.log, each step's output in 138-step-<name>.out), every heavy step under the machine-wide heavy lock, BASE_TREE = a detached worktree of the 137 candidate.
+Cause check (read in the code at the r4 base): CV-7: zoomFit framed the card bounds plus every shape and item unconditionally. CV-6: the opening camera is homeView(controlArea(), COLUMN) set at mount, not a saved camera: a board whose cards were moved off the column by dx/dy opens on an empty surface.
+1. scripts/ci tests: 94/95 pass (1 skipped), 0 fail.
+2. scripts/*.test.mjs: 254/254.
+3. control-plane tests: SKIPPED on purpose: no packages/control-plane file in the diff (checked by the gate script and by prep138.sh).
+4. tutor-diagrams tests (packages/web, src/tutor-diagrams/*.test.mjs, includes the svg snapshots test): 1265/1265.
+5. figure-briefs tests: 7/7.
+6. web unit (npm run test:unit): 6892 pass, 27 skipped, 0 fail (6920 tests), on the first run.
+7. web build: exit 0.
+8. property count (int8-props, int8-mixed): max 347 <= 362 and max 358 <= 362, 0 over 362.
+9. planner-kind replay vs the 137 candidate: 474 card rows, 0 first picks moved, 0 steer, 0 kind, 0 refs moved, no change.
+10. svg snapshots / illustrations / tutor-diagrams files in the diff against the base: 0 (138-snapshot-diff.txt is empty): no snapshot, illustration or reference file changes.
+No smoke (web-only, no card bytes change). No first-run failure to explain: every step was green on its first run (no singly or serial reruns were needed).
+Single small test files run during the rebase (one at a time): canvas-view 7/7, beside-placement 12/12, card-layout 25/25, explanation-card-width 9/9, explanation-full-length 7/7, selection-toolbar 4/4, place-near 3/3, inline-highlight 25/25, scripts/ci/check-map.test.mjs 22/22.
+Rebase: CV-7 and CV-6 applied onto 40a77cecb with no conflicts (AdaptiveCanvas.jsx auto-merged with 137's UX changes); no snapshot or check-map rows were in conflict (the only check-map change is the one new row for canvas-view.js).
+Not checked: the real-board before/after screenshots of the CV-6 opening camera and the CV-7 fit (they need a local stack; taken after the gate, see the evidence message).
