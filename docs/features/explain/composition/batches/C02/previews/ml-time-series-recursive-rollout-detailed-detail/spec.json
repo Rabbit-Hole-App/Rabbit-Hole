@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Move the forecast origin",
+    "x": {
+      "label": "Time",
+      "min": 1,
+      "max": 8
+    },
+    "y": {
+      "label": "Reading",
+      "min": 0,
+      "max": 10
+    },
+    "series": [
+      {
+        "label": "Observed",
+        "kind": "line",
+        "samples": {
+          "x": {
+            "start": 1,
+            "step": 1
+          },
+          "y": [
+            4,
+            6,
+            8,
+            6,
+            8,
+            10,
+            8,
+            10
+          ]
+        }
+      },
+      {
+        "label": "Earlier origin",
+        "kind": "line",
+        "samples": {
+          "x": [
+            5,
+            6,
+            7,
+            8
+          ],
+          "y": [
+            4,
+            3,
+            2.5,
+            2.25
+          ]
+        }
+      },
+      {
+        "label": "Later origin",
+        "kind": "line",
+        "samples": {
+          "x": [
+            6,
+            7,
+            8
+          ],
+          "y": [
+            5,
+            3.5,
+            2.75
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "reference-line",
+        "label": "Origin",
+        "axis": "x",
+        "value": 4
+      },
+      {
+        "kind": "reference-line",
+        "label": "Later origin",
+        "axis": "x",
+        "value": 5
+      },
+      {
+        "kind": "reference-line",
+        "label": "Mean",
+        "axis": "y",
+        "value": 7.5
+      },
+      {
+        "kind": "reference-line",
+        "label": "Fixed point",
+        "axis": "y",
+        "value": 2
+      }
+    ],
+    "caption": "Worked example. $f(x)=0.5x+1$. A newly measured seed changes the path; the fixed point stays the same."
+  }
+}

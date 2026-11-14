@@ -1,4 +1,5 @@
 import * as data from './topic-linear-regression-data.js';
+import { derived as regularizationDerived } from './topic-regularization-data.js';
 import replay from './topic-linear-regression-replay-cases.json' with { type: 'json' };
 const metadata = data.metadata;
 const spec = diagram => ({ version: 1, diagram });
@@ -285,5 +286,28 @@ reference({ id: 'ml-linear-regression-ridge-shrinkage', keywords: ['ridge regres
 reference({ id: 'ml-linear-regression-held-out-row', keywords: ['train test split', 'held out', 'generalization'], useWhen: 'Separate training membership from test membership before solving the line and evaluating the held-out prediction.', overview: { spec: spec(lrFinalHoldout('overview')) }, standard: { spec: spec(lrFinalHoldout('standard')) }, deep: { spec: spec(lrFinalHoldout('deep')) } })], derived: () => ({}) };
 })(),
 ];
+// C01 adds an affine unit without changing the earlier fitted-line references.
+parts.push((() => {
+  const d = regularizationDerived();
+  const p = d.parameters.linear;
+  const output = () => ({ kind: 'bar-chart', title: 'Output', bars: [{ label: 'Bias', value: p.bias }, { label: 'Prediction', value: d.linear.selected.prediction }] });
+  const inputs = () => ({ kind: 'block-stack', title: 'Linear unit', blocks: [{ id: 'x', label: 'Input features' }, { id: 'y', label: 'Weighted sum', inputs: [{ label: '$w,b$' }] }] });
+  const overview = { kind: 'panels', title: 'A linear predictor is one unit', caption: 'Worked example. Every input connects to the same linear output.', panels: [{ diagram: inputs() }, { diagram: output() }], links: [{ from: 0, to: 1, operation: 'Evaluate' }] };
+  const mechanism = deep => ({ kind: 'panels', title: 'Multiply, add, then add the bias',
+    caption: deep ? 'Worked example. $\\Delta\\hat y=w_A\\Delta a$ when the other feature and weights stay fixed.' : `Worked example. $x=(${d.linear.selected.input.join(',')})$, $w=(${p.weights.join(',')})$, $b=${p.bias}$.`,
+    panels: [{ diagram: inputs() }, { diagram: { kind: 'bar-chart', title: 'Weighted terms', bars: d.linear.selected.terms.map((value, i) => ({ label: ['Feature A', 'Feature B'][i], value })) } }, { diagram: output() }],
+    links: [{ from: 0, to: 1, operation: 'Multiply' }, { from: 1, to: 2, operation: '$\\sum+b$' }] });
+  const probe = { kind: 'coordinate-plot', title: 'One feature changes, one stays fixed', caption: `Worked example. Feature B stays $${d.linear.selected.input[1]}$; $w_A=${p.weights[0]}$ is the slope.`,
+    x: { label: 'Feature A', min: d.linear.selected.input[0] - p.bias, max: d.linear.probe.input[0] + p.bias }, y: { label: 'Prediction', min: d.linear.selected.prediction - p.bias, max: d.linear.probe.prediction + p.bias },
+    series: [{ label: 'Same linear unit', kind: 'line', points: [d.linear.selected, d.linear.probe].map(row => ({ x: row.input[0], y: row.prediction })) }] };
+  const paraphrases = ['Show an affine unit with weighted feature contributions and a bias.', 'How does a weighted feature sum become one linear prediction?', 'Trace an affine unit from the inputs through multiplication and summation.', 'Explain a weighted feature sum as a single output unit.', 'Use an affine unit to show what happens when only one feature changes.'];
+  return { references: [{ id: 'ml-linear-regression-linear-unit', topic: 'linear-regression', lessons: ['01', '02'],
+    sources: [{ kind: 'figure-brief', path: 'docs/features/explain-on-canvas/handoff/figure-briefs/d2l-linear-regression/briefs.md#figure-06', revision: '05d5f02f6' }],
+    prompts: ['An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.', ...paraphrases], paraphrases,
+    keywords: ['affine unit', 'weighted feature sum'],
+    useWhen: 'Trace a single affine unit from weighted features to a prediction; not a fitted-line residual plot or a nonlinear hidden layer.',
+    spec: spec(mechanism(false)), depths: { overview: { spec: spec(overview) }, standard: { spec: spec(mechanism(false)) }, deep: { spec: spec(mechanism(true)), detailSpec: spec(probe) } },
+  }], derived: () => ({ c01: regularizationDerived() }) };
+})());
 export const references = Object.freeze(parts.flatMap(part => part.references));
 export function derived() { return Object.assign({}, data.derived(), ...parts.map(part => part.derived?.() ?? {})); }
