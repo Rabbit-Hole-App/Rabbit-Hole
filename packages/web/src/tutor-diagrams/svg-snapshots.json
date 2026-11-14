@@ -1807,19 +1807,19 @@
       "height": 579
     },
     "ml-logistic-regression-softmax/320": {
-      "sha256": "e0d6faf6f4b0031e5beaeb33579ab3503889d06e21789fe2f001af9f005c362e",
+      "sha256": "2635fb497c0ce9c51ee8db59922557289fdeebe12949d85896b3126fe20953d4",
       "width": 622,
-      "height": 359
+      "height": 368
     },
     "ml-logistic-regression-softmax/408": {
-      "sha256": "e0d6faf6f4b0031e5beaeb33579ab3503889d06e21789fe2f001af9f005c362e",
+      "sha256": "2635fb497c0ce9c51ee8db59922557289fdeebe12949d85896b3126fe20953d4",
       "width": 622,
-      "height": 359
+      "height": 368
     },
     "ml-logistic-regression-softmax/720": {
-      "sha256": "f154471c120848c968280717207da3a835039c47465459b55a50130e1b556061",
+      "sha256": "bce8691085fdb89c8105c667ee1e6ebb21b06a0cc2d878afa96fe395b3b47219",
       "width": 720,
-      "height": 382
+      "height": 392
     },
     "ml-logistic-regression-threshold-tradeoff/320": {
       "sha256": "6fd1f219c6171b4bfc781f3ba2b90f9739a77872004832dd3bd1d9424506af74",

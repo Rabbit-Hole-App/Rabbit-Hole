@@ -82,6 +82,18 @@ test('shared classes give the same colour to the same label in every panel; unsh
   assert.equal(colourOf(plain, '2'), colourOf(plain, '1'), 'without sharing the legacy single bar colour stays');
 });
 
+test('values print at one precision per chart inside panels: 3.00 beside 20.09, 0.10 beside 0.66, raw scores to their own longest decimals', () => {
+  const powers = bars('Powers', [['Class 0', 20.09], ['Class 1', 7.39], ['Class 2', 3]]);
+  const scores = bars('Scores', [['Class 0', 3], ['Class 1', 2], ['Class 2', 1.1]]);
+  const shares = { ...probs, variant: 'stacked', total: 1 };
+  const text = markup => [...markup.matchAll(/>([^<>]*)<\/(?:text|tspan)>/g)].map(m => m[1]);
+  const inPanels = text(svg(panels({ panels: [{ diagram: scores }, { diagram: powers }, { diagram: shares }], links: [{ from: 0, to: 1, operation: 'a' }, { from: 1, to: 2, operation: 'b' }] })));
+  for (const want of ['3.0 value', '2.0 value', '1.1 value', '20.09 value', '7.39 value', '3.00 value', 'Class 0: 0.66', 'Class 1: 0.24', 'Class 2: 0.10']) assert.ok(inPanels.join(' ').includes(want), want);
+  // outside a panel a plain bar chart prints as written
+  const alone = text(svg({ version: 1, diagram: powers }));
+  assert.ok(alone.join(' ').includes('3 value') && !alone.join(' ').includes('3.00'), 'a stand-alone chart is unchanged');
+});
+
 test('shared classes also colour the parts of a stacked bar like the plain bars of the other panel', () => {
   const stacked = { ...probs, variant: 'stacked', total: 1 };
   const markup = svg(panels({ shared: ['classes'], panels: [{ label: 'Scores', diagram: logits }, { label: 'Probabilities', diagram: stacked }] }));

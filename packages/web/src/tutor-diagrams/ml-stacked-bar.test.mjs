@@ -51,7 +51,7 @@ test('each part is labelled beside it, labels never overlap, and every width ren
     const { element, width: drawn, height } = renderTutorDiagram(stacked(), width);
     const markup = renderToStaticMarkup(element);
     assert.ok(drawn >= width && height > 0);
-    for (const text of ['Class 0: 0.66', 'Class 1: 0.24', 'Class 2: 0.1', 'Whole bar: 1 probability']) assert.ok(markup.includes(text), `${text} at ${width}`);
+    for (const text of ['Class 0: 0.66', 'Class 1: 0.24', 'Class 2: 0.10', 'Whole bar: 1 probability']) assert.ok(markup.includes(text), `${text} at ${width}`);
     assert.doesNotMatch(markup, /NaN|Infinity|undefined/);
   }
   const ys = [...svg(stacked()).matchAll(/<text[^>]*y="([\d.]+)"[^>]*>(?:<tspan[^>]*>)?Class \d/g)].map(m => Number(m[1]));
