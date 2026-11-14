@@ -184,7 +184,8 @@ async function fillProblems(raw, depth, info, ctx) {
   if (issues.length) return { problems: issues.map(line) };
   // Without a fit measurement the close (design_verifying) stops with its own reason; with one, a bad description is a fill problem the correction can fix.
   const fit = typeof ctx.descriptionFit === 'function' ? await descriptionFitProblems(checked.value, await ctx.descriptionFit(checked.value)) : [];
-  if (fit.length) return { problems: fit.map(line) };
+  // The fit line says how many lines it rendered; the fill reads it as 'split it', so the correction says what to do (the second reply to the bare line inserted a line break and failed 'plain single-paragraph text').
+  if (fit.length) return { problems: fit.map(f => `${line(f)}. Fix: write cardDescription as two sentences of 130 to 200 characters in one paragraph, with no line break`) };
   const wrong = formulaProblems(referenceFormulaCheck(parsed.value, depth));
   return wrong.length ? { problems: wrong } : { plan: checked.value };
 }
