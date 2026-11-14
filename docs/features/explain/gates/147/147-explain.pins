@@ -1,0 +1,5 @@
+LABEL="Release 147: RD-4, the renderer fixes for the geometry lint's remaining classes. The labels of the branches that leave one node stand at one height (RD-4a), no two wires of different edges run side by side closer than 6 px (RD-4b), and the text of an outcome node stays inside its capsule (RD-4c); the geometry lint now reports 0 violations on every reference. Flow diagrams only: 27 SVG snapshot rows in 9 ids change. Web only, no migrations, no config change, no card bytes."
+SHA=962b4269fa874cc30cc8e7775447ca0994467f07
+MAIN_PREV="71415b6b8f30c687e8fa28b83a103fb0d775f495"
+W=C:/s/explain-rd4
+RECOVERY=release/explain-147-rollback-962b4269

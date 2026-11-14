@@ -1,0 +1,10 @@
+snapshots vs BASE 71415b6b8: changed 27, added 0, removed 0
+  figure-parallel-residual-sublayers-brief                   408: 592 -> 592  960: 553 -> 553  natural: 663 -> 663
+  figure-parallel-residual-sublayers-detailed                408: 592 -> 592  960: 553 -> 553  natural: 663 -> 663
+  figure-parallel-residual-sublayers                         408: 592 -> 592  960: 553 -> 553  natural: 663 -> 663
+  flow-converging-arrivals                                   408: 636 -> 628  960: 571 -> 563  natural: 632 -> 624
+  ml-bagging-vote-flow                                       320: 546 -> 534  408: 529 -> 517  720: 489 -> 477
+  ml-batch-score-fallback                                    320: 597 -> 583  408: 571 -> 557  720: 552 -> 510
+  ml-gpu-matmul                                              320: 661 -> 597  408: 661 -> 597  720: 609 -> 545
+  ml-parallel-preprocessing                                  320: 585 -> 587  408: 527 -> 529  720: 527 -> 501
+  ml-what-is-machine-learning-model-choice                   320: 701 -> 705  408: 592 -> 596  720: 592 -> 596

@@ -1,0 +1,12 @@
+✔ review repairs keep distance paths straight, scatter markers foremost and captions renderable (0.5782ms)
+✔ each figure reference parses, lints, and reaches the author at every depth (1116.8373ms)
+✔ batched attention, positions, residual and vocabulary use the existing walkthrough values (0.5763ms)
+✔ walkthrough values agree from token positions through the vocabulary distribution (1.656ms)
+ℹ tests 1292
+ℹ suites 0
+ℹ pass 1292
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 52533.6658
