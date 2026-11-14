@@ -6,7 +6,7 @@
 //
 // The authoring format, exactly: the source is one ES module whose named export is
 //   export function evaluate({ inputs, time, seed, state }) { ...; return { frame, quantities }; }
-// It is synchronous and has no imports (static import fails at load, import() never loads anything). The SDK (sdk.js) is the
+// It is synchronous and has no imports (a static import fails at load, a dynamic one never loads anything). The SDK (sdk.js) is the
 // global `sdk`, defined before the module runs. A source without that named export (a plain global function evaluate, a
 // default export) is invalid_program.
 // A schema 2 (stateful) module also exports initialState({ inputs, seed }) and reduce({ state, event, inputs, time, seed }), each
@@ -17,7 +17,7 @@ import emscriptenModule from '@jitl/quickjs-wasmfile-release-sync/emscripten-mod
 import { LIMITS } from './limits.js';
 import { programSdkSource, SDK_VERSION } from './sdk.js';
 
-// The release-sync variant, with its two parts imported statically instead of through the package's dynamic import(), so the
+// The release-sync variant, with its two parts imported statically instead of through the package's dynamic import call, so the
 // Worker bundle is self-contained: page-worker.js starts it from a Blob, where it can fetch nothing of its own.
 const variant = { type: 'sync', importFFI: async () => QuickJSFFI, importModuleLoader: async () => emscriptenModule };
 
@@ -25,7 +25,7 @@ const variant = { type: 'sync', importFFI: async () => QuickJSFFI, importModuleL
 // heap limit is not reliable in this build (it counts malloc_usable_size, which the WASM build lacks, so large arrays and
 // typed arrays passed a 16 MiB limit up to 2 GiB in runtime.test.mjs). The WASM maximum is the hard memory bound.
 // wasmModule: an already compiled engine (page-worker.js hands one over), so nothing is fetched.
-// shortcut: these lines are newQuickJSWASMModuleFromVariant (0.32.0) minus its dynamic import() of the module class, which would
+// shortcut: these lines are newQuickJSWASMModuleFromVariant (0.32.0) minus its dynamic import call of the module class, which would
 // be a separate chunk the Blob-started Worker cannot fetch; re-check them when the pinned version changes.
 export async function loadEngine(limits = LIMITS, wasmModule) {
   const loader = await newVariant(variant, {
