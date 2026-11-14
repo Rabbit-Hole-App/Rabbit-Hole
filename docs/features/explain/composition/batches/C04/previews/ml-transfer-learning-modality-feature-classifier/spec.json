@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "Distinct inputs, same classifier recipe",
+    "columns": [
+      "Input",
+      "Extractor",
+      "Feature vector",
+      "Classifier"
+    ],
+    "rows": [
+      {
+        "heading": "Text",
+        "cells": [
+          "Short note",
+          "Text encoder",
+          "Text vector",
+          "Text task head"
+        ]
+      },
+      {
+        "heading": "Image",
+        "cells": [
+          "Small image",
+          "Visual backbone",
+          "Image vector",
+          "Image task head"
+        ]
+      }
+    ],
+    "caption": "Separate pipelines: each extractor builds its own feature vector for its own classifier. No shared decoder."
+  }
+}

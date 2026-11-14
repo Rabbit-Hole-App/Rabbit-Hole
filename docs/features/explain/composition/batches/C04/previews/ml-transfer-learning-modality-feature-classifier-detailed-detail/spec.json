@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Image features feed their own classifier",
+    "blocks": [
+      {
+        "id": "encoder",
+        "label": "Visual backbone"
+      },
+      {
+        "id": "features",
+        "label": "Image vector",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 3,
+            "dimensions": "3 features"
+          }
+        }
+      },
+      {
+        "id": "head",
+        "label": "Image task head",
+        "role": "output"
+      }
+    ],
+    "caption": "Symbolic image feature slots. Same recipe does not mean shared feature coordinates or classifier parameter sets."
+  }
+}

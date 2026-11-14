@@ -1614,5 +1614,17 @@
   "ml-transformer-contextual-layer-states": [
     "successive contextual states",
     "position aligned states"
+  ],
+  "ml-transfer-learning-modality-feature-classifier": [
+    "modality classifier pattern",
+    "feature extractor analogy"
+  ],
+  "ml-bert-supervised-class-pairs": [
+    "adaptation message pairs",
+    "text class supervision"
+  ],
+  "ml-bert-summary-token-readout": [
+    "summary row projection",
+    "contextual readout scores"
   ]
 }

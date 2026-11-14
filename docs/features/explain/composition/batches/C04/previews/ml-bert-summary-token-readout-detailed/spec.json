@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Task scores from the selected CLS row",
+    "unit": "Logit",
+    "bars": [
+      {
+        "label": "Notice",
+        "value": 1
+      },
+      {
+        "label": "Request",
+        "value": 2
+      }
+    ],
+    "caption": "Toy $h=(1,2),W=((1,-1),(0,1)),b=(0,1)$; $z=hW+b=(1,2)$. Raw scores in Notice, Request order."
+  }
+}

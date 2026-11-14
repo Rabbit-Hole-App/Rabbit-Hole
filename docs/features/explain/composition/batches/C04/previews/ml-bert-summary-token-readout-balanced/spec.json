@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Read the contextual CLS row",
+    "rowLabel": "Encoder position",
+    "columnLabel": "Feature",
+    "columns": [
+      "f1",
+      "f2"
+    ],
+    "rows": [
+      {
+        "label": "[CLS]",
+        "cells": [
+          1,
+          2
+        ]
+      },
+      {
+        "label": "send",
+        "cells": [
+          2,
+          0
+        ]
+      },
+      {
+        "label": "maps",
+        "cells": [
+          0,
+          1
+        ]
+      },
+      {
+        "label": "[SEP]",
+        "cells": [
+          1,
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 3
+    },
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 0,
+        "column": 1
+      }
+    ],
+    "caption": "Toy Notice, Request order. Select $h=H_{CLS}$; $W=((1,-1),(0,1)),b=(0,1)$; apply $z=hW+b$."
+  }
+}

@@ -1,0 +1,642 @@
+{
+  "ml-transfer-learning-modality-feature-classifier": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 412,
+        "height": 350
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 275
+      },
+      "natural": {
+        "requested": 412,
+        "width": 412,
+        "height": 350
+      }
+    }
+  },
+  "ml-transfer-learning-modality-feature-classifier-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 292
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 227
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 331
+      }
+    }
+  },
+  "ml-transfer-learning-modality-feature-classifier-balanced": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 412,
+        "height": 350
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 275
+      },
+      "natural": {
+        "requested": 412,
+        "width": 412,
+        "height": 350
+      }
+    }
+  },
+  "ml-transfer-learning-modality-feature-classifier-detailed": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 368
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 312
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 385
+      }
+    }
+  },
+  "ml-transfer-learning-modality-feature-classifier-detailed-detail": {
+    "kind": "block-stack",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 368
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 312
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 385
+      }
+    }
+  },
+  "ml-bert-pretraining-families": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 482
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 333
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 558
+      }
+    }
+  },
+  "ml-bert-pretraining-families-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 464
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 349
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 554
+      }
+    }
+  },
+  "ml-bert-pretraining-families-balanced": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 482
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 333
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 558
+      }
+    }
+  },
+  "ml-bert-pretraining-families-detailed": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 499
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 350
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 592
+      }
+    }
+  },
+  "ml-bert-supervised-class-pairs": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 412
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 309
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 430
+      }
+    }
+  },
+  "ml-bert-supervised-class-pairs-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 298
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 227
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 298
+      }
+    }
+  },
+  "ml-bert-supervised-class-pairs-balanced": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 412
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 309
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 430
+      }
+    }
+  },
+  "ml-bert-supervised-class-pairs-detailed": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 412
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 309
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 447
+      }
+    }
+  },
+  "ml-bert-supervised-class-pairs-detailed-detail": {
+    "kind": "sample-set",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 486
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 400
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 508
+      }
+    }
+  },
+  "ml-bert-summary-token-readout": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 452
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 435
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 491
+      }
+    }
+  },
+  "ml-bert-summary-token-readout-brief": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 452
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 435
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 491
+      }
+    }
+  },
+  "ml-bert-summary-token-readout-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 452
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 435
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 491
+      }
+    }
+  },
+  "ml-bert-summary-token-readout-detailed": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 261
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 205
+      },
+      "natural": {
+        "requested": 320,
+        "width": 374,
+        "height": 261
+      }
+    }
+  },
+  "ml-bert-summary-token-readout-detailed-detail": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 452
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 435
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 491
+      }
+    }
+  },
+  "ml-bert-masked-token": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 606
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 538
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 628
+      }
+    }
+  },
+  "ml-bert-masked-token-brief": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 606
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 538
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 606
+      }
+    }
+  },
+  "ml-bert-masked-token-balanced": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 606
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 538
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 628
+      }
+    }
+  },
+  "ml-bert-masked-token-detailed": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 606
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 538
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 645
+      }
+    }
+  },
+  "ml-bert-masked-token-detailed-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 241
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 224
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 280
+      }
+    }
+  },
+  "ml-bert-next-sentence": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 297
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 226
+      },
+      "natural": {
+        "requested": 333,
+        "width": 333,
+        "height": 314
+      }
+    }
+  },
+  "ml-bert-next-sentence-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 297
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 210
+      },
+      "natural": {
+        "requested": 333,
+        "width": 333,
+        "height": 314
+      }
+    }
+  },
+  "ml-bert-next-sentence-balanced": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 297
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 226
+      },
+      "natural": {
+        "requested": 333,
+        "width": 333,
+        "height": 314
+      }
+    }
+  },
+  "ml-bert-next-sentence-detailed": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 314
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 243
+      },
+      "natural": {
+        "requested": 333,
+        "width": 333,
+        "height": 314
+      }
+    }
+  },
+  "ml-bert-task-heads": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 464
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 325
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 500
+      }
+    }
+  },
+  "ml-bert-task-heads-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 442
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 325
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 496
+      }
+    }
+  },
+  "ml-bert-task-heads-balanced": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 464
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 325
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 500
+      }
+    }
+  },
+  "ml-bert-task-heads-detailed": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 464
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 325
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 517
+      }
+    }
+  }
+}

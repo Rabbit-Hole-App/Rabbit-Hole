@@ -1,0 +1,202 @@
+[
+  {
+    "id": "ml-transfer-learning-modality-feature-classifier",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 227
+  },
+  {
+    "id": "ml-transfer-learning-modality-feature-classifier",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 275
+  },
+  {
+    "id": "ml-transfer-learning-modality-feature-classifier",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 329
+  },
+  {
+    "id": "ml-transfer-learning-modality-feature-classifier",
+    "depth": "deep",
+    "field": "detailSpec",
+    "requested": 680,
+    "width": 680,
+    "height": 329
+  },
+  {
+    "id": "ml-bert-pretraining-families",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 349
+  },
+  {
+    "id": "ml-bert-pretraining-families",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 333
+  },
+  {
+    "id": "ml-bert-pretraining-families",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 350
+  },
+  {
+    "id": "ml-bert-supervised-class-pairs",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 227
+  },
+  {
+    "id": "ml-bert-supervised-class-pairs",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 309
+  },
+  {
+    "id": "ml-bert-supervised-class-pairs",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 309
+  },
+  {
+    "id": "ml-bert-supervised-class-pairs",
+    "depth": "deep",
+    "field": "detailSpec",
+    "requested": 680,
+    "width": 680,
+    "height": 400
+  },
+  {
+    "id": "ml-bert-summary-token-readout",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 435
+  },
+  {
+    "id": "ml-bert-summary-token-readout",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 435
+  },
+  {
+    "id": "ml-bert-summary-token-readout",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 205
+  },
+  {
+    "id": "ml-bert-summary-token-readout",
+    "depth": "deep",
+    "field": "detailSpec",
+    "requested": 680,
+    "width": 680,
+    "height": 435
+  },
+  {
+    "id": "ml-bert-masked-token",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 538
+  },
+  {
+    "id": "ml-bert-masked-token",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 538
+  },
+  {
+    "id": "ml-bert-masked-token",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 538
+  },
+  {
+    "id": "ml-bert-masked-token",
+    "depth": "deep",
+    "field": "detailSpec",
+    "requested": 680,
+    "width": 680,
+    "height": 224
+  },
+  {
+    "id": "ml-bert-next-sentence",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 210
+  },
+  {
+    "id": "ml-bert-next-sentence",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 226
+  },
+  {
+    "id": "ml-bert-next-sentence",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 243
+  },
+  {
+    "id": "ml-bert-task-heads",
+    "depth": "overview",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 325
+  },
+  {
+    "id": "ml-bert-task-heads",
+    "depth": "standard",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 325
+  },
+  {
+    "id": "ml-bert-task-heads",
+    "depth": "deep",
+    "field": "spec",
+    "requested": 680,
+    "width": 680,
+    "height": 325
+  }
+]

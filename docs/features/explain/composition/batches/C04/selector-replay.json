@@ -1,0 +1,471 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 3135,
+  "changedPriorPicks": [],
+  "sourceHeadings": 8,
+  "uniqueSourcePrompts": 8,
+  "sourceCases": 24,
+  "sourceHits": 24,
+  "actualPlannedAuthorSchemaChecks": 24,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-transfer-learning-modality-feature-classifier",
+      "expectedFamily": "ml-transfer-learning-modality-feature-classifier",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-11",
+      "prompt": "A visual backbone can pass a learned vector to a classifier just as a text encoder does.",
+      "depth": "brief",
+      "firstFamily": "ml-transfer-learning-modality-feature-classifier",
+      "rawAuthorReferenceId": "ml-transfer-learning-modality-feature-classifier",
+      "firstPick": true,
+      "preparedFamily": "ml-transfer-learning-modality-feature-classifier",
+      "preparedId": "ml-transfer-learning-modality-feature-classifier",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transfer-learning-modality-feature-classifier",
+      "expectedFamily": "ml-transfer-learning-modality-feature-classifier",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-11",
+      "prompt": "A visual backbone can pass a learned vector to a classifier just as a text encoder does.",
+      "depth": "balanced",
+      "firstFamily": "ml-transfer-learning-modality-feature-classifier",
+      "rawAuthorReferenceId": "ml-transfer-learning-modality-feature-classifier",
+      "firstPick": true,
+      "preparedFamily": "ml-transfer-learning-modality-feature-classifier",
+      "preparedId": "ml-transfer-learning-modality-feature-classifier",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-transfer-learning-modality-feature-classifier",
+      "expectedFamily": "ml-transfer-learning-modality-feature-classifier",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-11",
+      "prompt": "A visual backbone can pass a learned vector to a classifier just as a text encoder does.",
+      "depth": "detailed",
+      "firstFamily": "ml-transfer-learning-modality-feature-classifier",
+      "rawAuthorReferenceId": "ml-transfer-learning-modality-feature-classifier",
+      "firstPick": true,
+      "preparedFamily": "ml-transfer-learning-modality-feature-classifier",
+      "preparedId": "ml-transfer-learning-modality-feature-classifier",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-pretraining-lineage",
+      "expectedFamily": "ml-bert-pretraining-families",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-01",
+      "prompt": "BERT belongs to a line of work that combines reusable language representations with Transformer encoders.",
+      "depth": "brief",
+      "firstFamily": "ml-bert-pretraining-families",
+      "rawAuthorReferenceId": "ml-bert-pretraining-families",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-pretraining-families",
+      "preparedId": "ml-bert-pretraining-families",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-pretraining-lineage",
+      "expectedFamily": "ml-bert-pretraining-families",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-01",
+      "prompt": "BERT belongs to a line of work that combines reusable language representations with Transformer encoders.",
+      "depth": "balanced",
+      "firstFamily": "ml-bert-pretraining-families",
+      "rawAuthorReferenceId": "ml-bert-pretraining-families",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-pretraining-families",
+      "preparedId": "ml-bert-pretraining-families",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-pretraining-lineage",
+      "expectedFamily": "ml-bert-pretraining-families",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-01",
+      "prompt": "BERT belongs to a line of work that combines reusable language representations with Transformer encoders.",
+      "depth": "detailed",
+      "firstFamily": "ml-bert-pretraining-families",
+      "rawAuthorReferenceId": "ml-bert-pretraining-families",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-pretraining-families",
+      "preparedId": "ml-bert-pretraining-families",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-supervised-class-pairs",
+      "expectedFamily": "ml-bert-supervised-class-pairs",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-04",
+      "prompt": "Supervised task adaptation needs examples paired with their correct classes.",
+      "depth": "brief",
+      "firstFamily": "ml-bert-supervised-class-pairs",
+      "rawAuthorReferenceId": "ml-bert-supervised-class-pairs",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-supervised-class-pairs",
+      "preparedId": "ml-bert-supervised-class-pairs",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-supervised-class-pairs",
+      "expectedFamily": "ml-bert-supervised-class-pairs",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-04",
+      "prompt": "Supervised task adaptation needs examples paired with their correct classes.",
+      "depth": "balanced",
+      "firstFamily": "ml-bert-supervised-class-pairs",
+      "rawAuthorReferenceId": "ml-bert-supervised-class-pairs",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-supervised-class-pairs",
+      "preparedId": "ml-bert-supervised-class-pairs",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-supervised-class-pairs",
+      "expectedFamily": "ml-bert-supervised-class-pairs",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-04",
+      "prompt": "Supervised task adaptation needs examples paired with their correct classes.",
+      "depth": "detailed",
+      "firstFamily": "ml-bert-supervised-class-pairs",
+      "rawAuthorReferenceId": "ml-bert-supervised-class-pairs",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-supervised-class-pairs",
+      "preparedId": "ml-bert-supervised-class-pairs",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-summary-token-readout",
+      "expectedFamily": "ml-bert-summary-token-readout",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-09",
+      "prompt": "A classifier can read the contextual output at the designated summary token.",
+      "depth": "brief",
+      "firstFamily": "ml-bert-summary-token-readout",
+      "rawAuthorReferenceId": "ml-bert-summary-token-readout",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-summary-token-readout",
+      "preparedId": "ml-bert-summary-token-readout",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-summary-token-readout",
+      "expectedFamily": "ml-bert-summary-token-readout",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-09",
+      "prompt": "A classifier can read the contextual output at the designated summary token.",
+      "depth": "balanced",
+      "firstFamily": "ml-bert-summary-token-readout",
+      "rawAuthorReferenceId": "ml-bert-summary-token-readout",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-summary-token-readout",
+      "preparedId": "ml-bert-summary-token-readout",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-summary-token-readout",
+      "expectedFamily": "ml-bert-summary-token-readout",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-09",
+      "prompt": "A classifier can read the contextual output at the designated summary token.",
+      "depth": "detailed",
+      "firstFamily": "ml-bert-summary-token-readout",
+      "rawAuthorReferenceId": "ml-bert-summary-token-readout",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-summary-token-readout",
+      "preparedId": "ml-bert-summary-token-readout",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-summary-token-readout",
+      "expectedFamily": "ml-bert-summary-token-readout",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-10",
+      "prompt": "A classification head converts one contextual vector into scores for the task classes.",
+      "depth": "brief",
+      "firstFamily": "ml-bert-summary-token-readout",
+      "rawAuthorReferenceId": "ml-bert-summary-token-readout",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-summary-token-readout",
+      "preparedId": "ml-bert-summary-token-readout",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-summary-token-readout",
+      "expectedFamily": "ml-bert-summary-token-readout",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-10",
+      "prompt": "A classification head converts one contextual vector into scores for the task classes.",
+      "depth": "balanced",
+      "firstFamily": "ml-bert-summary-token-readout",
+      "rawAuthorReferenceId": "ml-bert-summary-token-readout",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-summary-token-readout",
+      "preparedId": "ml-bert-summary-token-readout",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-summary-token-readout",
+      "expectedFamily": "ml-bert-summary-token-readout",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-10",
+      "prompt": "A classification head converts one contextual vector into scores for the task classes.",
+      "depth": "detailed",
+      "firstFamily": "ml-bert-summary-token-readout",
+      "rawAuthorReferenceId": "ml-bert-summary-token-readout",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-summary-token-readout",
+      "preparedId": "ml-bert-summary-token-readout",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-masked-token-objective",
+      "expectedFamily": "ml-bert-masked-token",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-23",
+      "prompt": "Masked language modelling recovers a selected missing token from the rest of a bidirectional context.",
+      "depth": "brief",
+      "firstFamily": "ml-bert-masked-token",
+      "rawAuthorReferenceId": "ml-bert-masked-token",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-masked-token",
+      "preparedId": "ml-bert-masked-token",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-masked-token-objective",
+      "expectedFamily": "ml-bert-masked-token",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-23",
+      "prompt": "Masked language modelling recovers a selected missing token from the rest of a bidirectional context.",
+      "depth": "balanced",
+      "firstFamily": "ml-bert-masked-token",
+      "rawAuthorReferenceId": "ml-bert-masked-token",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-masked-token",
+      "preparedId": "ml-bert-masked-token",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-masked-token-objective",
+      "expectedFamily": "ml-bert-masked-token",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-23",
+      "prompt": "Masked language modelling recovers a selected missing token from the rest of a bidirectional context.",
+      "depth": "detailed",
+      "firstFamily": "ml-bert-masked-token",
+      "rawAuthorReferenceId": "ml-bert-masked-token",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-masked-token",
+      "preparedId": "ml-bert-masked-token",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-next-sentence-objective",
+      "expectedFamily": "ml-bert-next-sentence",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-24",
+      "prompt": "The original BERT training setup includes deciding whether a second passage follows a first passage.",
+      "depth": "brief",
+      "firstFamily": "ml-bert-next-sentence",
+      "rawAuthorReferenceId": "ml-bert-next-sentence",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-next-sentence",
+      "preparedId": "ml-bert-next-sentence",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-next-sentence-objective",
+      "expectedFamily": "ml-bert-next-sentence",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-24",
+      "prompt": "The original BERT training setup includes deciding whether a second passage follows a first passage.",
+      "depth": "balanced",
+      "firstFamily": "ml-bert-next-sentence",
+      "rawAuthorReferenceId": "ml-bert-next-sentence",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-next-sentence",
+      "preparedId": "ml-bert-next-sentence",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-next-sentence-objective",
+      "expectedFamily": "ml-bert-next-sentence",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-24",
+      "prompt": "The original BERT training setup includes deciding whether a second passage follows a first passage.",
+      "depth": "detailed",
+      "firstFamily": "ml-bert-next-sentence",
+      "rawAuthorReferenceId": "ml-bert-next-sentence",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-next-sentence",
+      "preparedId": "ml-bert-next-sentence",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-task-head-positions",
+      "expectedFamily": "ml-bert-task-heads",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-25",
+      "prompt": "Different BERT tasks read different positions in the same encoder outputs or attach different task heads.",
+      "depth": "brief",
+      "firstFamily": "ml-bert-task-heads",
+      "rawAuthorReferenceId": "ml-bert-task-heads",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-task-heads",
+      "preparedId": "ml-bert-task-heads",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-task-head-positions",
+      "expectedFamily": "ml-bert-task-heads",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-25",
+      "prompt": "Different BERT tasks read different positions in the same encoder outputs or attach different task heads.",
+      "depth": "balanced",
+      "firstFamily": "ml-bert-task-heads",
+      "rawAuthorReferenceId": "ml-bert-task-heads",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-task-heads",
+      "preparedId": "ml-bert-task-heads",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-bert-task-head-positions",
+      "expectedFamily": "ml-bert-task-heads",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-25",
+      "prompt": "Different BERT tasks read different positions in the same encoder outputs or attach different task heads.",
+      "depth": "detailed",
+      "firstFamily": "ml-bert-task-heads",
+      "rawAuthorReferenceId": "ml-bert-task-heads",
+      "firstPick": true,
+      "preparedFamily": "ml-bert-task-heads",
+      "preparedId": "ml-bert-task-heads",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

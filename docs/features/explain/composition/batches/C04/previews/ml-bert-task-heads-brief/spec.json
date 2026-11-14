@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "One reader, several jobs",
+    "columns": [
+      "Positions read",
+      "Toy output"
+    ],
+    "rows": [
+      {
+        "heading": "Classify a sentence",
+        "cells": [
+          "Summary position",
+          "Wildlife"
+        ]
+      },
+      {
+        "heading": "Classify a pair",
+        "cells": [
+          "Shared summary",
+          "Both describe animals"
+        ]
+      },
+      {
+        "heading": "Tag each word",
+        "cells": [
+          "Every word position",
+          "“seal” is a noun"
+        ]
+      },
+      {
+        "heading": "Find an answer span",
+        "cells": [
+          "First and last answer word",
+          "“a seal”"
+        ]
+      }
+    ],
+    "caption": "The same reading layers return a vector for every position. Different tasks read different positions."
+  }
+}

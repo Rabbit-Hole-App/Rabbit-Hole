@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "Original BERT next-sentence prediction",
+    "columns": [
+      "First sentence",
+      "Second sentence",
+      "Training label"
+    ],
+    "rows": [
+      {
+        "heading": "Actual continuation",
+        "cells": [
+          "a seal glides",
+          "it dives",
+          "IsNext"
+        ]
+      },
+      {
+        "heading": "Random sample",
+        "cells": [
+          "a seal glides",
+          "paint dries",
+          "NotNext"
+        ]
+      }
+    ],
+    "caption": "The second sentence is already supplied. The task is to classify the pair."
+  }
+}

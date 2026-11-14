@@ -1,0 +1,187 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-transfer-learning-modality-feature-classifier": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 82,
+          "sha256": "0678cc4dd643db16dceaa3700c12ab7be33b338bd8d7f3d1b91c874fa9c7fda0"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 97,
+          "sha256": "54eae9360c80259d32daa2b64ccdcc65a7ed5795b975163d4a8f875f27abcb61"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 102,
+          "sha256": "4bd994c432d2de3c4a5c1776d62055efbfe204457a30a2850b7a8a6452f736d5"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 102,
+          "sha256": "d75f494e7e1ef0e3e409250a9b551ddd8330b023e5233be42541e938921e5933"
+        }
+      ]
+    },
+    "ml-bert-pretraining-families": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 135,
+          "sha256": "ed988a91166f4d7a761030d5f6b655b191f98adbf7a1fa24e9b582df2da0a956"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 127,
+          "sha256": "c03f6989c1557d160573b01490530d69a75e6b040f644c7c70b67bc31f579b0b"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 134,
+          "sha256": "8eaa952556e5c356b3b8e13d36301f59d31949a634bf055ea6e2f2bcbd870db6"
+        }
+      ]
+    },
+    "ml-bert-supervised-class-pairs": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 79,
+          "sha256": "5339984fa083ace01c019b2f6d5c4e557feb413bcdd6430bbacb6a054da9b818"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 108,
+          "sha256": "fcecc134c6aad3872da435c994fe8b29f6044fac568d6f6c5bd4ebf6578e9901"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 112,
+          "sha256": "c120280f0cb3255caa093e3bbd1c3808a3bde3e35c4ba0b94ac91375b4b25f00"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 147,
+          "sha256": "42a2a44edabd8c4662d1348db9fec1ca795695f2ad5b85a571da5a591e080d5d"
+        }
+      ]
+    },
+    "ml-bert-summary-token-readout": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 128,
+          "sha256": "5b3b17d8a6b60c26e1c1adb72854725fbd7d57cbab0ce608282ca410d2e6a619"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 164,
+          "sha256": "a4794e51c699aa4441a43dab68e6f1d3423b407c791f2ea1402b3115147aa32c"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 95,
+          "sha256": "0301edca3a755fca8099d1ac6d99a003d3c19b10f082ab132c49a5a0a58ddaa5"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 149,
+          "sha256": "8b70a5c56a14914192a3eb89502421269d89aa16c2be52c41aefe3a1f09402e3"
+        }
+      ]
+    },
+    "ml-bert-masked-token": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 147,
+          "sha256": "c1072732d30b463b38861d178b2a3c32522bddb512ddc51ca6506698a425dd69"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 152,
+          "sha256": "24fa3d5d58f62af180942ed1f2199dbd96ee35b6c339577582067e551aaa4e1c"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 154,
+          "sha256": "a83e2192cf8982e4eb0cf4c7fbe23689574a2754da0515acdaabcdf43677c85e"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 90,
+          "sha256": "450bcf4336eb7b279750e8e40ae468c88664b58f37a457b00c633968da008c54"
+        }
+      ]
+    },
+    "ml-bert-next-sentence": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 93,
+          "sha256": "a3f86679c0c457327ba6380350378cd0c5721a61509ccbb72a5e1d84c5e2d8d2"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 92,
+          "sha256": "2c6287816862fba4b00418b2428ee2d2baf7ea753f7b53fca4ce58d288c7db1e"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 105,
+          "sha256": "b759bc8a650a4c3050214940a1291090c3ca378fad4260694ddc42c9fba73e90"
+        }
+      ]
+    },
+    "ml-bert-task-heads": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 125,
+          "sha256": "7d458116768a8407db0bdcdb26a0739d731ea7389ce794ad73dbf61070c84998"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 135,
+          "sha256": "5154f6ab02c8632bb67bcebc88784c5b35ae10f78f1cf558e2f8a78398e0e9f0"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 143,
+          "sha256": "4c52af0f3b04381e89fb81efa73087caac53fdb0fd602cc5f3d0395813334b98"
+        }
+      ]
+    }
+  }
+}

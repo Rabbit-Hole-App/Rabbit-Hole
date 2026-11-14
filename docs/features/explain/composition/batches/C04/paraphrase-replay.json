@@ -1,0 +1,1067 @@
+{
+  "version": 1,
+  "topic": "bert",
+  "fixture": false,
+  "threshold": 0.8,
+  "hits": 45,
+  "total": 45,
+  "firstPickRate": 1,
+  "passed": true,
+  "byDepth": [
+    {
+      "depth": "brief",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "balanced",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "detailed",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1
+    }
+  ],
+  "prompts": [
+    {
+      "id": "ml-transfer-learning-modality-feature-classifier",
+      "prompt": "A visual backbone can pass a learned vector to a classifier just as a text encoder does.",
+      "referenceId": "ml-transfer-learning-modality-feature-classifier",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Compare the modality classifier pattern for a note and an image.",
+          "depth": "brief",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare the modality classifier pattern for a note and an image.",
+          "depth": "balanced",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare the modality classifier pattern for a note and an image.",
+          "depth": "detailed",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show a feature extractor analogy without merging the feature spaces.",
+          "depth": "brief",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show a feature extractor analogy without merging the feature spaces.",
+          "depth": "balanced",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show a feature extractor analogy without merging the feature spaces.",
+          "depth": "detailed",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How does the modality classifier pattern keep separate task heads?",
+          "depth": "brief",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How does the modality classifier pattern keep separate task heads?",
+          "depth": "balanced",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How does the modality classifier pattern keep separate task heads?",
+          "depth": "detailed",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain a feature extractor analogy with different feature widths.",
+          "depth": "brief",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain a feature extractor analogy with different feature widths.",
+          "depth": "balanced",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain a feature extractor analogy with different feature widths.",
+          "depth": "detailed",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep vision and text parameters separate in the modality classifier pattern.",
+          "depth": "brief",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep vision and text parameters separate in the modality classifier pattern.",
+          "depth": "balanced",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep vision and text parameters separate in the modality classifier pattern.",
+          "depth": "detailed",
+          "firstReference": "ml-transfer-learning-modality-feature-classifier",
+          "firstReferenceId": "ml-transfer-learning-modality-feature-classifier",
+          "firstPick": true,
+          "references": [
+            "ml-transfer-learning-modality-feature-classifier"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-transfer-learning-modality-feature-classifier",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-bert-supervised-class-pairs",
+      "prompt": "Supervised task adaptation needs examples paired with their correct classes.",
+      "referenceId": "ml-bert-supervised-class-pairs",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show adaptation message pairs with supplied Request and Notice classes.",
+          "depth": "brief",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show adaptation message pairs with supplied Request and Notice classes.",
+          "depth": "balanced",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show adaptation message pairs with supplied Request and Notice classes.",
+          "depth": "detailed",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How does text class supervision attach targets to messages?",
+          "depth": "brief",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How does text class supervision attach targets to messages?",
+          "depth": "balanced",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How does text class supervision attach targets to messages?",
+          "depth": "detailed",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Reorder adaptation message pairs without changing their classes.",
+          "depth": "brief",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Reorder adaptation message pairs without changing their classes.",
+          "depth": "balanced",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Reorder adaptation message pairs without changing their classes.",
+          "depth": "detailed",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain text class supervision without showing model guesses.",
+          "depth": "brief",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain text class supervision without showing model guesses.",
+          "depth": "balanced",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain text class supervision without showing model guesses.",
+          "depth": "detailed",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the input and class attached in adaptation message pairs.",
+          "depth": "brief",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the input and class attached in adaptation message pairs.",
+          "depth": "balanced",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the input and class attached in adaptation message pairs.",
+          "depth": "detailed",
+          "firstReference": "ml-bert-supervised-class-pairs",
+          "firstReferenceId": "ml-bert-supervised-class-pairs",
+          "firstPick": true,
+          "references": [
+            "ml-bert-supervised-class-pairs"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-bert-supervised-class-pairs",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-bert-summary-token-readout",
+      "prompt": "A classifier can read the contextual output at the designated summary token.",
+      "referenceId": "ml-bert-summary-token-readout",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show summary row projection from contextual states to class scores.",
+          "depth": "brief",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show summary row projection from contextual states to class scores.",
+          "depth": "balanced",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show summary row projection from contextual states to class scores.",
+          "depth": "detailed",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How are contextual readout scores computed from a selected CLS row?",
+          "depth": "brief",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How are contextual readout scores computed from a selected CLS row?",
+          "depth": "balanced",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How are contextual readout scores computed from a selected CLS row?",
+          "depth": "detailed",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the CLS row fixed while checking summary row projection.",
+          "depth": "brief",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the CLS row fixed while checking summary row projection.",
+          "depth": "balanced",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the CLS row fixed while checking summary row projection.",
+          "depth": "detailed",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain contextual readout scores without calling logits probabilities.",
+          "depth": "brief",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain contextual readout scores without calling logits probabilities.",
+          "depth": "balanced",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain contextual readout scores without calling logits probabilities.",
+          "depth": "detailed",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why can summary row projection leave other contextual output rows unused?",
+          "depth": "brief",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why can summary row projection leave other contextual output rows unused?",
+          "depth": "balanced",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why can summary row projection leave other contextual output rows unused?",
+          "depth": "detailed",
+          "firstReference": "ml-bert-summary-token-readout",
+          "firstReferenceId": "ml-bert-summary-token-readout",
+          "firstPick": true,
+          "references": [
+            "ml-bert-summary-token-readout"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-bert-summary-token-readout",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        }
+      ]
+    }
+  ]
+}

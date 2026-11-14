@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Masked language modelling in BERT",
+    "nodes": [
+      {
+        "id": "left",
+        "label": "“a” before the mask"
+      },
+      {
+        "id": "right",
+        "label": "“glides” after the mask"
+      },
+      {
+        "id": "mask",
+        "label": "State at [MASK]"
+      },
+      {
+        "id": "answer",
+        "label": "Original word “seal”"
+      }
+    ],
+    "edges": [
+      {
+        "from": "left",
+        "to": "mask",
+        "label": "Provides a left cue"
+      },
+      {
+        "from": "right",
+        "to": "mask",
+        "label": "Provides a right cue"
+      },
+      {
+        "from": "mask",
+        "to": "answer",
+        "label": "Predicts the hidden word"
+      }
+    ],
+    "caption": "The model uses the hidden position to score vocabulary candidates. The original token supplies the self-supervised label."
+  }
+}

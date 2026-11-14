@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "The ideas BERT built on",
+    "columns": [
+      "How it reads",
+      "What it learns"
+    ],
+    "rows": [
+      {
+        "heading": "Transformer",
+        "cells": [
+          "Reader and writer",
+          "Translate text"
+        ]
+      },
+      {
+        "heading": "ULMFiT",
+        "cells": [
+          "Reads from the start",
+          "Guess later words"
+        ]
+      },
+      {
+        "heading": "ELMo",
+        "cells": [
+          "Reads both ways",
+          "Guess in each direction"
+        ]
+      },
+      {
+        "heading": "GPT",
+        "cells": [
+          "Writes from earlier words",
+          "Guess later words"
+        ]
+      },
+      {
+        "heading": "BERT",
+        "cells": [
+          "Reads both ways",
+          "Recover hidden words"
+        ]
+      }
+    ],
+    "caption": "Each model learns from text, with different ways of reading it."
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Text features feed their own classifier",
+    "blocks": [
+      {
+        "id": "encoder",
+        "label": "Text encoder"
+      },
+      {
+        "id": "features",
+        "label": "Text vector",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "2 features"
+          }
+        }
+      },
+      {
+        "id": "head",
+        "label": "Text task head",
+        "role": "output"
+      }
+    ],
+    "caption": "Symbolic text feature slots. Same recipe does not mean shared feature coordinates or classifier parameter sets."
+  }
+}

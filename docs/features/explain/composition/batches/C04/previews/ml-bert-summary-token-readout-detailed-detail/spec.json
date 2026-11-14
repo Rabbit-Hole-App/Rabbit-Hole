@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Change other contextual rows",
+    "rowLabel": "Encoder position",
+    "columnLabel": "Feature",
+    "columns": [
+      "f1",
+      "f2"
+    ],
+    "rows": [
+      {
+        "label": "[CLS]",
+        "cells": [
+          1,
+          2
+        ]
+      },
+      {
+        "label": "send",
+        "cells": [
+          0,
+          0
+        ]
+      },
+      {
+        "label": "maps",
+        "cells": [
+          3,
+          3
+        ]
+      },
+      {
+        "label": "[SEP]",
+        "cells": [
+          2,
+          2
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 3
+    },
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 0,
+        "column": 1
+      }
+    ],
+    "caption": "Toy changes after encoding; CLS and head fixed. Scores stay $(1,2)$. Input-word changes need not preserve CLS."
+  }
+}

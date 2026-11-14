@@ -1,0 +1,34 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-transfer-learning-modality-feature-classifier": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 82,
+          "sha256": "0678cc4dd643db16dceaa3700c12ab7be33b338bd8d7f3d1b91c874fa9c7fda0"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 97,
+          "sha256": "54eae9360c80259d32daa2b64ccdcc65a7ed5795b975163d4a8f875f27abcb61"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 102,
+          "sha256": "4bd994c432d2de3c4a5c1776d62055efbfe204457a30a2850b7a8a6452f736d5"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 102,
+          "sha256": "d75f494e7e1ef0e3e409250a9b551ddd8330b023e5233be42541e938921e5933"
+        }
+      ]
+    }
+  }
+}

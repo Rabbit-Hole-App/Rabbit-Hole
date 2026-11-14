@@ -2,14 +2,14 @@
 
 Branch `explain/composition-c03`, based on fixed C02 `f9634af3c` and release133 `a8ef11d64`. Six approved families: **3 NEW + 3 REUSE**, with **17 source headings / 14 unique prompts** traced in [the source manifest](../../../../../../packages/web/src/tutor-diagrams/topic-transformer-sources.json). The [content specification](content-specs.md) precedes implementation. Source lessons remain local to each association; only the explicitly authorized memory catalog lesson `01` is added.
 
-| Queue family | Registered reference | Result | Tokens: Overview / Standard / Deep (+ extra) |
-|---|---|---|---|
-| cross-attention-alignment | same id | NEW | 101 / 136 / 96 (+130) |
-| context-rules | same id | NEW | 93 / 225 / 234 (+116) |
-| encoder-decoder-memory | same id | REUSE | 181 / 181 / 184 |
-| contextual-layer-states | same id | NEW | 120 / 173 / 179 (+126) |
-| cross-position-and-positionwise | `ml-transformer-positionwise-feedforward` | REUSE | 219 / 218 / 225 |
-| decoder-sublayers | `ml-transformer-original-decoder-sublayers` | REUSE | 200 / 211 / 217 |
+| Queue family | Registered reference | Result | Tokens: Overview / Standard / Deep (+ extra) | Added learner keywords |
+|---|---|---|---|---|
+| cross-attention-alignment | same id | NEW | 101 / 136 / 96 (+130) | target source alignment; cross attention axes |
+| context-rules | same id | NEW | 93 / 225 / 234 (+116) | architecture context rules; prior segment context |
+| encoder-decoder-memory | same id | REUSE | 181 / 181 / 184 | translation memory handoff; source prefix streams |
+| contextual-layer-states | same id | NEW | 120 / 173 / 179 (+126) | successive contextual states; position aligned states |
+| cross-position-and-positionwise | `ml-transformer-positionwise-feedforward` | REUSE | 219 / 218 / 225 | cross position exchange; shared per-position network |
+| decoder-sublayers | `ml-transformer-original-decoder-sublayers` | REUSE | 200 / 211 / 217 | decoder residual pattern; three sublayer joins |
 
 NEW ids above have prefix `ml-transformer-`. Full-width alignment grids distinguish target queries from source keys, exclude padding and derive normalized weights and context from the shared toy data. Deep's feature bars expose the computed weighted sum; its extra changes only query scale. Context grids show permissions rather than probabilities. Slot diagrams preserve order/width and distinguish lookup from contextual states and separate learned parameter sets. REUSE visual/data payloads remain unchanged. Keywords and exact aliases are recorded in the source modules; no generic keyword expansion or old-pick movement.
 

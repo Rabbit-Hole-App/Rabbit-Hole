@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Possible fills for the hidden word",
+    "bars": [
+      {
+        "label": "seal",
+        "value": 0.57
+      },
+      {
+        "label": "boat",
+        "value": 0.28
+      },
+      {
+        "label": "bird",
+        "value": 0.15
+      }
+    ],
+    "caption": "Toy probabilities. The observed word is “seal”, so its loss is $-\\ln(0.57)\\approx0.562$."
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-bert-supervised-class-pairs": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 79,
+          "sha256": "5339984fa083ace01c019b2f6d5c4e557feb413bcdd6430bbacb6a054da9b818"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 108,
+          "sha256": "fcecc134c6aad3872da435c994fe8b29f6044fac568d6f6c5bd4ebf6578e9901"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 112,
+          "sha256": "c120280f0cb3255caa093e3bbd1c3808a3bde3e35c4ba0b94ac91375b4b25f00"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 147,
+          "sha256": "42a2a44edabd8c4662d1348db9fec1ca795695f2ad5b85a571da5a591e080d5d"
+        }
+      ]
+    },
+    "ml-bert-summary-token-readout": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 128,
+          "sha256": "5b3b17d8a6b60c26e1c1adb72854725fbd7d57cbab0ce608282ca410d2e6a619"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 164,
+          "sha256": "a4794e51c699aa4441a43dab68e6f1d3423b407c791f2ea1402b3115147aa32c"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 95,
+          "sha256": "0301edca3a755fca8099d1ac6d99a003d3c19b10f082ab132c49a5a0a58ddaa5"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 149,
+          "sha256": "8b70a5c56a14914192a3eb89502421269d89aa16c2be52c41aefe3a1f09402e3"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "Messages paired with supplied classes",
+    "columns": [
+      "Message",
+      "Class"
+    ],
+    "rows": [
+      {
+        "heading": "m1",
+        "cells": [
+          "Send the route.",
+          "Request"
+        ]
+      },
+      {
+        "heading": "m2",
+        "cells": [
+          "Share the map.",
+          "Request"
+        ]
+      },
+      {
+        "heading": "m3",
+        "cells": [
+          "The route is ready.",
+          "Notice"
+        ]
+      },
+      {
+        "heading": "m4",
+        "cells": [
+          "The map is attached.",
+          "Notice"
+        ]
+      }
+    ],
+    "caption": "Toy supplied targets, not predictions. Keep each $(x_i,y_i)$ pair attached when the rows are reordered."
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "width": 408,
+  "previews": [
+    {
+      "id": "ml-bert-masked-token-brief",
+      "referenceId": "ml-bert-masked-token",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-masked-token-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-masked-token-brief/408.svg"
+    },
+    {
+      "id": "ml-bert-next-sentence-brief",
+      "referenceId": "ml-bert-next-sentence",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-next-sentence-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-next-sentence-brief/408.svg"
+    },
+    {
+      "id": "ml-bert-pretraining-families-brief",
+      "referenceId": "ml-bert-pretraining-families",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-pretraining-families-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-pretraining-families-brief/408.svg"
+    },
+    {
+      "id": "ml-bert-summary-token-readout-brief",
+      "referenceId": "ml-bert-summary-token-readout",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-summary-token-readout-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-summary-token-readout-brief/408.svg"
+    },
+    {
+      "id": "ml-bert-supervised-class-pairs-brief",
+      "referenceId": "ml-bert-supervised-class-pairs",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-supervised-class-pairs-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-supervised-class-pairs-brief/408.svg"
+    },
+    {
+      "id": "ml-bert-task-heads-brief",
+      "referenceId": "ml-bert-task-heads",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-task-heads-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-task-heads-brief/408.svg"
+    },
+    {
+      "id": "ml-transfer-learning-modality-feature-classifier-brief",
+      "referenceId": "ml-transfer-learning-modality-feature-classifier",
+      "depth": "brief",
+      "detail": false,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-transfer-learning-modality-feature-classifier-brief/spec.json",
+      "svgFile": "docs/features/explain/composition/batches/C04/previews/ml-transfer-learning-modality-feature-classifier-brief/408.svg"
+    }
+  ],
+  "numbers": [
+    {
+      "id": "ml-bert-summary-token-readout-brief",
+      "referenceId": "ml-bert-summary-token-readout",
+      "depth": "brief",
+      "field": "diagram.columns[0]",
+      "literal": "1",
+      "value": 1,
+      "text": "f1",
+      "start": 1,
+      "end": 2,
+      "sourceKind": "preview-spec",
+      "sourceFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-summary-token-readout-brief/spec.json",
+      "sourceLine": 9,
+      "sourceColumn": 7,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-summary-token-readout-brief/spec.json",
+      "specLine": 9,
+      "specColumn": 7
+    },
+    {
+      "id": "ml-bert-summary-token-readout-brief",
+      "referenceId": "ml-bert-summary-token-readout",
+      "depth": "brief",
+      "field": "diagram.caption",
+      "literal": "2",
+      "value": 2,
+      "text": "Toy bidirectional contextual outputs; one of $2$ features shown. Select the marked CLS row for the head.",
+      "start": 46,
+      "end": 47,
+      "sourceKind": "javascript",
+      "sourceFile": "packages/web/src/tutor-diagrams/composition-bert-references.js",
+      "sourceLine": 22,
+      "sourceColumn": 52,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-summary-token-readout-brief/spec.json",
+      "specLine": 47,
+      "specColumn": 16
+    },
+    {
+      "id": "ml-bert-supervised-class-pairs-brief",
+      "referenceId": "ml-bert-supervised-class-pairs",
+      "depth": "brief",
+      "field": "diagram.rows[0].heading",
+      "literal": "3",
+      "value": 3,
+      "text": "m3",
+      "start": 1,
+      "end": 2,
+      "sourceKind": "preview-spec",
+      "sourceFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-supervised-class-pairs-brief/spec.json",
+      "sourceLine": 12,
+      "sourceColumn": 20,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-supervised-class-pairs-brief/spec.json",
+      "specLine": 12,
+      "specColumn": 20
+    },
+    {
+      "id": "ml-bert-supervised-class-pairs-brief",
+      "referenceId": "ml-bert-supervised-class-pairs",
+      "depth": "brief",
+      "field": "diagram.rows[1].heading",
+      "literal": "1",
+      "value": 1,
+      "text": "m1",
+      "start": 1,
+      "end": 2,
+      "sourceKind": "preview-spec",
+      "sourceFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-supervised-class-pairs-brief/spec.json",
+      "sourceLine": 19,
+      "sourceColumn": 20,
+      "specFile": "docs/features/explain/composition/batches/C04/previews/ml-bert-supervised-class-pairs-brief/spec.json",
+      "specLine": 19,
+      "specColumn": 20
+    }
+  ]
+}

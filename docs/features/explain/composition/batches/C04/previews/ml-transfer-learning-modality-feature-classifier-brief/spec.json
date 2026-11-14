@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "One feature-to-classifier pattern",
+    "columns": [
+      "Feature extractor",
+      "Vector readout"
+    ],
+    "rows": [
+      {
+        "heading": "Text",
+        "cells": [
+          "Text encoder",
+          "Text task head"
+        ]
+      },
+      {
+        "heading": "Image",
+        "cells": [
+          "Visual backbone",
+          "Image task head"
+        ]
+      }
+    ],
+    "caption": "Text and images need different feature extractors. Each task head reads its own learned feature vector."
+  }
+}

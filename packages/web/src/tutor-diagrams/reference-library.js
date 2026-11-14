@@ -49,6 +49,9 @@ import { references as compositionTimeSeries } from './composition-time-series-r
 import { references as compositionDistributionShift } from './composition-distribution-shift-references.js';
 import { references as compositionTransformer } from './composition-transformer-references.js';
 import { overlays as transformerOverlays } from './topic-transformer-overlays.js';
+import { references as compositionBert } from './composition-bert-references.js';
+import { references as compositionTransferLearning } from './composition-transfer-learning-references.js';
+import { overlays as bertOverlays } from './topic-bert-overlays.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
 
@@ -99,9 +102,10 @@ export const diagramReferences = Object.freeze([
   ...compositionAttention, ...compositionModelEvaluation,
   ...compositionTimeSeries, ...compositionDistributionShift,
   ...compositionTransformer,
+  ...compositionBert, ...compositionTransferLearning,
   ...estimationEvaluationReferences,
 ].map(ref => {
-  const overlay = transformerOverlays[ref.id];
+  const overlay = transformerOverlays[ref.id] ?? bertOverlays[ref.id];
   if (overlay) ref = { ...ref, prompts: [...new Set([...ref.prompts, ...overlay.prompts])], keywords: [...new Set([...ref.keywords, ...overlay.keywords])] };
   // C03 owner ruling: retain the source's lesson 01 outside the prompt/keyword-only REUSE overlay. Visuals and data stay unchanged.
   if (ref.id === 'ml-transformer-encoder-decoder-memory') ref = { ...ref, lessons: [...new Set([...ref.lessons, '01'])] };

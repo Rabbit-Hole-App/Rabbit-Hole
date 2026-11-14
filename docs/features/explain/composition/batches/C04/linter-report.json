@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "referenceFlags": [],
+  "overlayFlags": [],
+  "staticFlags": [
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-bert-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    },
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-transfer-learning-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    }
+  ],
+  "authorizedFilenameExceptions": [
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-bert-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    },
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-transfer-learning-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    }
+  ],
+  "visualFlags": [],
+  "previewWrapFlags": [],
+  "errorCount": 0,
+  "warningCount": 0,
+  "metadataChanges": []
+}

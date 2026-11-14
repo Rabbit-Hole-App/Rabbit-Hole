@@ -223,8 +223,19 @@
           "references": 1
         }
       ],
-      "approval": "pending corrected-queue and batch id/keyword approval; schema pinned to 1944b48cf",
-      "mergeNote": "Undersized subject topics merge forward; original subject slugs and modules are retained: transfer-learning (1) into bert."
+      "approval": "Owner authorized overnight continuation on 2026-11-14; data-only on release133 a8ef11d64, gated by tests/replay/receipts/linter/sheets",
+      "mergeNote": "Undersized subject topics merge forward; original subject slugs and modules are retained: transfer-learning (1) into bert.",
+      "verification": {
+        "report": "batches/C04/REPORT.md",
+        "new": 3,
+        "reuse": 4,
+        "testsPassed": 1371,
+        "priorCases": 3135,
+        "moved": 0,
+        "snapshotAdded": 9,
+        "snapshotChanged": 0,
+        "snapshotRemoved": 0
+      }
     },
     {
       "id": "C05",

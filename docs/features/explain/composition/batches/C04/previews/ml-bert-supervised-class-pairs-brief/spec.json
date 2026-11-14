@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "Messages paired with supplied classes",
+    "columns": [
+      "Message",
+      "Class"
+    ],
+    "rows": [
+      {
+        "heading": "m3",
+        "cells": [
+          "The route is ready.",
+          "Notice"
+        ]
+      },
+      {
+        "heading": "m1",
+        "cells": [
+          "Send the route.",
+          "Request"
+        ]
+      }
+    ],
+    "caption": "Toy supervised examples. The task supplies a class with each message; these are not model guesses."
+  }
+}

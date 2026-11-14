@@ -1,0 +1,16 @@
+{
+  "base": "b6346aacfa85dc789f1e31f3ecc4336d892791b9",
+  "added": [
+    "ml-bert-summary-token-readout/320",
+    "ml-bert-summary-token-readout/408",
+    "ml-bert-summary-token-readout/720",
+    "ml-bert-supervised-class-pairs/320",
+    "ml-bert-supervised-class-pairs/408",
+    "ml-bert-supervised-class-pairs/720",
+    "ml-transfer-learning-modality-feature-classifier/320",
+    "ml-transfer-learning-modality-feature-classifier/408",
+    "ml-transfer-learning-modality-feature-classifier/720"
+  ],
+  "changed": [],
+  "removed": []
+}

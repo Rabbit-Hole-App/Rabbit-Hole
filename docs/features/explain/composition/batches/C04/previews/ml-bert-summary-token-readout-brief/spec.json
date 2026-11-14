@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Read the contextual CLS row",
+    "rowLabel": "Encoder position",
+    "columnLabel": "Feature",
+    "columns": [
+      "f1"
+    ],
+    "rows": [
+      {
+        "label": "[CLS]",
+        "cells": [
+          1
+        ]
+      },
+      {
+        "label": "send",
+        "cells": [
+          2
+        ]
+      },
+      {
+        "label": "maps",
+        "cells": [
+          0
+        ]
+      },
+      {
+        "label": "[SEP]",
+        "cells": [
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 3
+    },
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      }
+    ],
+    "caption": "Toy bidirectional contextual outputs; one of $2$ features shown. Select the marked CLS row for the head."
+  }
+}

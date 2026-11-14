@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "sample-set",
+    "title": "Reorder rows, keep the targets",
+    "samples": [
+      {
+        "id": "m3",
+        "label": "The route is ready.",
+        "class": "Notice"
+      },
+      {
+        "id": "m1",
+        "label": "Send the route.",
+        "class": "Request"
+      },
+      {
+        "id": "m4",
+        "label": "The map is attached.",
+        "class": "Notice"
+      },
+      {
+        "id": "m2",
+        "label": "Share the map.",
+        "class": "Request"
+      }
+    ],
+    "groups": [
+      {
+        "id": "notice",
+        "label": "Notice",
+        "members": [
+          "m3",
+          "m4"
+        ]
+      },
+      {
+        "id": "request",
+        "label": "Request",
+        "members": [
+          "m1",
+          "m2"
+        ]
+      }
+    ],
+    "caption": "Toy same messages and supplied classes in a new order; no example is relabelled or duplicated."
+  }
+}
