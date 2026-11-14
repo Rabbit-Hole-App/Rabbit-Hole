@@ -99,6 +99,10 @@ if (check) {
 // The row of a finished job from the clone's own diagnostics (detail=1), once the shadow judge has answered (or 120 s have passed).
 const detailOf = async id => (await api('GET', `/api/learn/explain/jobs/${id}?board=${boardId}&detail=1`)).data;
 const results = []; let spent = 0, stopped = null;
+const shootCard = async (tag, r) => { // the card at rest and at the top
+  const card = page.locator('[data-program-card]').last();
+  try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: `${out}/${tag}-card-rest.png` }); const top = card.getByRole('button', { name: 'At top' }); if (await top.count()) { await top.first().click(); await page.waitForTimeout(800); } await card.screenshot({ path: `${out}/${tag}-card-top.png` }); } catch (e) { r.cardShotError = String(e).slice(0, 120); }
+};
 // The work list: one entry per (run, depth) of the single prompt, or, with --prompts, one per listed prompt at the one depth. expect 'gap' stops at the plan in Chat (Generate is never pressed: the Opus plan would build with Opus).
 const items = promptsFile ? PROMPT_LIST.map(p => ({ n: 1, depth: depths[0], prompt: p.prompt, id: String(p.id), expect: p.expect === 'gap' ? 'gap' : 'fit' })) : Array.from({ length: runs }, (_, i) => depths.map(depth => ({ n: i + 1, depth, prompt, id: null, expect: 'fit' }))).flat();
 outer: for (const { n, depth, prompt, id, expect } of items) {
@@ -110,10 +114,14 @@ outer: for (const { n, depth, prompt, id, expect } of items) {
   // The plan is shown when a new proposal with a Generate button appears in Chat; a job that ends first (failed, cancelled) ends the wait.
   let job = null, shown = false;
   const planWait = page.waitForFunction(count => document.querySelectorAll('[data-generation-proposal] [data-proposal-generate]').length > count, plans0, { timeout: 900000, polling: 'raf' }).then(() => { shown = Date.now(); });
-  const failWait = (async () => { while (!shown) { job ??= (await jobsOf()).find(j => !known.has(j.id)); const s = job && (await api('GET', `/api/learn/explain/jobs/${job.id}?board=${boardId}`)).data?.job; if (s && ['failed', 'cancelled'].includes(s.stage)) return s; await sleep(500); } })();
+  // ready with no proposal ends the wait too: a fast pass built straight through (brief 14).
+  const failWait = (async () => { while (!shown) { job ??= (await jobsOf()).find(j => !known.has(j.id)); const s = job && (await api('GET', `/api/learn/explain/jobs/${job.id}?board=${boardId}`)).data?.job; if (s && ['failed', 'cancelled', 'ready'].includes(s.stage)) return s; await sleep(500); } })();
   const early = await Promise.race([planWait.then(() => null), failWait]);
-  if (early) { Object.assign(r, { jobId: early.id ?? job?.id, stage: early.stage, stopReason: early.stopReason ?? null, failure: early.failure?.message ?? null }); }
-  else {
+  if (early) {
+    Object.assign(r, { jobId: early.id ?? job?.id, stage: early.stage, stopReason: early.stopReason ?? null, failure: early.failure?.message ?? null });
+    // A fast pass has no Generate: one wall-clock number, prompt sent -> card ready (generateToReadyMs stays null).
+    if (early.stage === 'ready') { r.promptToCardMs = Date.now() - tSent; await shootCard(tag, r); }
+  } else {
     r.promptToPlanMs = shown - tSent;
     const proposal = page.locator('[data-generation-proposal][data-proposal-job]').last();
     r.jobId = await proposal.getAttribute('data-proposal-job'); job = { id: r.jobId };
@@ -128,17 +136,15 @@ outer: for (const { n, depth, prompt, id, expect } of items) {
     }
     if (expect !== 'gap') { r.generateToReadyMs = Date.now() - tGen; r.promptToCardMs = r.promptToPlanMs + r.generateToReadyMs; }
     if (expect !== 'gap') Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed });
-    if (end?.stage === 'ready') {
-      const card = page.locator('[data-program-card]').last();
-      try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); const top = card.getByRole('button', { name: 'At top' }); if (await top.count()) { await top.first().click(); await page.waitForTimeout(800); } await card.screenshot({ path: `${out}/${tag}-card-top.png` }); } catch (e) { r.cardShotError = String(e).slice(0, 120); }
-    } else if (expect !== 'gap') await page.screenshot({ path: `${out}/${tag}-${end?.stage ?? 'nostage'}.png` }).catch(() => {});
+    if (end?.stage === 'ready') await shootCard(tag, r);
+    else if (expect !== 'gap') await page.screenshot({ path: `${out}/${tag}-${end?.stage ?? 'nostage'}.png` }).catch(() => {});
   }
   if (r.jobId) {
     for (let t = 0; t < 120000; t += 3000) { const d = await detailOf(r.jobId); if (d?.diagnostics?.bench?.judge || d?.diagnostics?.bench?.error || r.stage !== 'ready' || expect === 'gap') break; await sleep(3000); }
     const led = spawnSync(process.execPath, [join(REPO, 'scripts/interact/ledger.mjs'), '--clone', BASE, '--job', r.jobId, '--board', boardId], { encoding: 'utf8' });
     log(tag, 'ledger:', (led.stdout + led.stderr).trim().slice(0, 200));
     const det = (await detailOf(r.jobId))?.diagnostics, row = det?.ledger ?? null; r.designFast = det?.designFast ?? null; // firstProblem and lastProblem of a fast design that was refused
-    r.ledger = row && Object.fromEntries(['designKind', 'designModel', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'costUsd', 'buildKind', 'pickFamily', 'pickConfidence', 'msPick', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd'].map(k => [k, row[k]]));
+    r.ledger = row && Object.fromEntries(['designKind', 'designModel', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'costUsd', 'buildKind', 'pickFamily', 'pickConfidence', 'msPick', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'msTotal', 'approvedBy'].map(k => [k, row[k]]));
     const fb = row?.designFallback ?? det?.designFast?.fallback ?? null; // which path the design took: the fast fill, the Opus design straight after a pick gap, or the Opus design after a failed correction
     r.path = row ? (fb === 'gap' ? 'opus-gap' : fb === 'after_correction' ? 'opus-after-correction' : row.designKind === 'fast' ? 'fast' : row.designKind) : null;
     spent += Math.max(row?.costUsd ?? 0, row?.designCostUsd ?? 0); // a gap plan's Opus design counts toward --stop-usd
