@@ -123,7 +123,7 @@ function SharedBoard({ token, embed = null }) {
   // The card menu asks From this canvas or Blank too (owner, 2026-10-08); a Next Steps hook starts its step directly.
   const startFromCard = useCallback(cardId => rabbitAsk.current?.(cardId), []);
   // The normal canvas's right panel (SharedCanvasShell.jsx): Chat first, then Find, Table of contents and Comments.
-  const panel = useSharedPanel('chat', false);
+  const panel = useSharedPanel('chat', !!askBack); // closed, but open on the way back from signing in to send: the kept draft and its card are in Chat
   // While the panel is closed the canvas's bottom strip holds the Chat composer (owner 2026-11-14, as on the owner's canvas).
   const [stripHost, setStripHost] = useState(null);
   const { show } = panel;

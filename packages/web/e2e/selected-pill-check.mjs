@@ -286,6 +286,8 @@ const restored = await api(owner, `/api/learn/boards/${canvas.name}/main`, { met
 assert.equal(restored.status, 200, `the shared cards restored: HTTP ${restored.status}`);
 ({ page } = await contextFor(viewer));
 await page.goto(`${BASE}/b/${token}`);
+// A share link opens with the right panel closed (owner 2026-11-14): the pill and the composer are in its Chat.
+await page.locator('[data-panel-toggle]').waitFor({ timeout: 60000 }); if (await page.locator('[data-panel-toggle]').getAttribute('aria-pressed') === 'false') await page.locator('[data-panel-toggle]').click();
 const sharedComposer = page.locator('[data-shared-ask] textarea, [data-shared-ask] input:not([type="file"])').first();
 await sharedComposer.waitFor({ timeout: 60000 }).catch(async error => { await page.screenshot({ path: `${SHOTS}/shared-failed.png` }); throw error; });
 await node(page, KINDS[0]).waitFor({ timeout: 60000 });
