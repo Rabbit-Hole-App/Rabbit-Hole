@@ -278,3 +278,25 @@ test('a roadmap card is quoted and priced on Gemini Flash even when EXPLANATION_
     assert.equal(plain.provider, 'anthropic', 'no Gemini key on this server: the plan model, never a provider without a credential');
   }
 });
+
+test('the production card path: Gemini Flash by the fast chain under the hold, with the JEV planner switched on, one call row, charged once (found on the first live course run)', async t => {
+  const h = await workflow(t);
+  Object.assign(h.env, { ROADMAP_CARD_PROFILE: undefined, GEMINI_API_KEY: 'test-key', EXPLANATION_PLANNER: 'jev', TYPESAFE_API_KEY: 'test-key' }); // what production sets
+  const sent = [], denied = globalThis.fetch;
+  const card = (await (await explanation()('gemini-3.5-flash-lite', {})).json()).content[0].input;
+  globalThis.fetch = async (input, init) => {
+    if (!String(input?.url || input).includes('generativelanguage')) return denied(input, init);
+    sent.push(JSON.parse(init.body));
+    return Response.json({ model: 'gemini-3.5-flash-lite', choices: [{ message: { role: 'assistant', content: JSON.stringify(card) }, finish_reason: 'stop' }], usage: { prompt_tokens: 900, completion_tokens: 400, total_tokens: 1300 } });
+  };
+  const view = await started(h);
+  assert.equal((await start(h, view)).status, 200);
+  for (let i = 0; i < 4; i += 1) await h.run();
+  const first = h.rows('SELECT generation, validation, billing FROM learn_step_results ORDER BY created_at')[0];
+  assert.deepEqual(first, { generation: 'generated', validation: 'passed', billing: 'settled' }, 'the card was made and charged');
+  assert.equal(sent.length, 1, 'one Gemini request for the card');
+  assert.equal(sent[0].model, 'gemini-3.5-flash-lite');
+  const rows = h.rows("SELECT provider, model, checkpoint FROM learn_roadmap_calls WHERE stage = 'generate' ORDER BY rowid");
+  assert.deepEqual(rows[0], { provider: 'google', model: 'gemini-3.5-flash-lite', checkpoint: 'settled' }, 'the call is bound to its own row and checkpoint, priced as Google');
+  assert.equal(h.rows('SELECT COUNT(*) AS n FROM learn_roadmap_calls WHERE stage = \'generate\' AND payer = \'learner\' AND result_id = (SELECT id FROM learn_step_results ORDER BY created_at LIMIT 1)')[0].n, 1, 'exactly one author operation for the card');
+});
