@@ -1,0 +1,5 @@
+LABEL="Release 137: the video-canvas UX stack. One four-button selection toolbar (Ctrl+K, Add to chat, Highlight, Create note) on the explanation, markdown and web cards, placed in the card's own units at any zoom; the suggestion button Ask here is now Ask in chat; a typed /explain follows the markdown card when it is the only card. Web only, no migrations, no config change, no card bytes."
+SHA=40a77cecb0a8d9cf6836bc0e9aabc5124179c5a1
+MAIN_PREV="3534ca428e09c44662252db7b522cc1d28c147d9"
+W=C:/s/explain-137
+RECOVERY=release/explain-137-rollback-40a77cec
