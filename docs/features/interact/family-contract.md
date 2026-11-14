@@ -1,6 +1,6 @@
 # Scene family contract — proposal
 
-**Status: reviewer proposal, 2026-11-14.** This document changes no runtime contract. `registerFamily`, a
+**Status: implementation target from the owner's 2026-11-14 12:05 PT instruction.** This document changes no runtime contract. `registerFamily`, a
 composition schema, reusable renderer parts and `check(brief, depth)` below are proposed interfaces, not implemented
 exports. Claude Code owns the shared schema, registry, generator, pin, oracle, test-selection and benchmark migration.
 The current toss and curve modules remain the compatibility baseline.
@@ -172,14 +172,19 @@ palette and the existing frozen SDK-8 primitives. They are not new SDK helpers, 
 the SDK fingerprint. Each part publishes its binding schema, named anchors/regions, measured bounds and applicable
 layout constraints. The assembler supplies coordinates from an approved preset; the model does not.
 
-| Part | Required binding and ownership |
+| Part id | Required binding and ownership |
 |---|---|
-| Step rail | Current integer selection, ordered state ids/labels and the resolved domain. Labels and selected state agree; it shares the existing control binding rather than keeping a second cursor. |
-| Fixed picture with named regions | An approved picture/picture variant plus stable semantic region ids. Per-state bindings name region visibility, emphasis or admitted state variants. Geometry and anchors belong to the renderer. |
-| Value readout | A declared quantity or typed state field, its label/unit/format and source state. Values derive from that source; a model cannot supply an unrelated display string. |
-| Anchored callout | An existing region/entity/part anchor, bounded word keys and a state predicate. It explains the selected state at that anchor. It does not duplicate the numeric readout row. |
-| Previous-state ghost | The same picture/state schema and a declared predecessor relation. Initial-state behavior is explicit; the ghost cannot claim a previous state when none exists. |
-| Counter/progress | A bounded count or selected position, its denominator/domain and the semantic event being counted. Progress is derived, not an independently editable number. |
+| `step-rail` | Current integer selection, ordered state ids/labels, the aha state id and the resolved domain. It shares the control's cursor. Its completed-trace/progress presentation derives from that selection and introduces no extra cursor or clock. |
+| `fixed-picture` | An approved picture/picture variant plus stable semantic region ids. Per-state bindings name emphasis and admitted payload variants. Geometry and anchors belong to the renderer. |
+| `readouts` | Declared quantities or typed state fields, with label/unit/format and source state. This includes bounded counters and their denominators. Values derive from those sources, not unrelated model-written display strings. |
+| `active-callout` | A scalar existing region/entity/part anchor, bounded word keys and a state predicate. It explains the selected state at that anchor and does not duplicate the numeric readout row. |
+| `ghost-previous` | The same picture/state schema and a declared predecessor relation. At the first state it draws no predecessor; otherwise it reads the preceding admitted state's bindings. |
+| `status-line` | A bounded status id/text from the selected state, with its semantic data source and applicable predicate. TCP's line such as “Server has not yet heard Client” is explicit plan data bound here, rather than prose invented inside the picture renderer. |
+
+These are the owner's six stepper renderer-part modules. Counters live in `readouts`; completed trace/progress is a
+`step-rail` presentation. The approved reference sketches use earlier descriptive kind names; runtime normalization
+must map them explicitly rather than create a second parts registry. `status-line` is an explicit binding addition,
+with the approved TCP appearance preserved.
 
 An unknown part, word key, role, region, state id, variant, source path or incompatible binding type fails with its
 precise brief path. No unbound decoration is accepted: every explanatory highlight, arrow, ghost, number and callout

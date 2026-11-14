@@ -232,6 +232,8 @@ No paid bench was run. Per the 02:55 owner instruction, stop after deliverable 6
 
 ## stepper-states: deliverable 1 review gate
 
+**Owner approval, 2026-11-14 12:05 PT.** The nine cards, composition sketches, guide and scorecard are approved. Runtime implementation follows [the ordered stepper work](../stepper-implementation.md) after Claude Code's registration/sign fixes land. Deep mitosis is the density upper bound. TCP's status sentence is an explicit `status-line` binding; all status copy must come from the selected state.
+
 Owner scope, 2026-11-14: nine reference cards first; scene design now has a composable tier. A family supplies **parts + canonical compositions + rules**. These hand-authored references remain the benchmark/high-fidelity tier. Each HTML has a `.composition.json` companion recording the arrangement, bindings, controls, one aha and the exact computed data used by the drawing. The companion format is a review proposal, not a ScenePlan or an implemented provider schema. No family, SDK, renderer, fill or build code changes in this deliverable.
 
 Implementation sequence: reuse the approved toss/curve shell and primitives; compute subject data and independent assertions; draw the nine cards and data companions; exercise every state and option through the HTML's real scripts; push this review gate; then publish the composition guide, scorecard and family-contract proposal separately. Renderer parts and runtime compositions follow the approved shared contract. The later grid and before/after work remains reference-only.
@@ -275,6 +277,8 @@ Subject verification sources: [TCP, RFC 9293](https://www.rfc-editor.org/rfc/rfc
 
 
 ## Grid with highlights: reference cards
+
+**Carry-forward rule, owner 12:05 PT:** Overview shows one row and the control selects the row. The current multirow confusion/convolution Overview sketches require that revision before grid acceptance; this is not permission to start grid runtime work before the stepper is accepted.
 
 Deliverable 1 only, using the owner's three fallback subjects. These nine native-640 px cards reuse the approved shell, embedded Inter font, teaching primitives, Reset, IndexSlider and choice behavior. No runtime family, parts, schema, registration or pipeline change is included. All experiment values derive from the toy inputs, with independent math checks and the HTMLs' actual handlers exercised. [Source assumptions, primary references, ownership and contract gaps](grid-reference-notes.md).
 

@@ -1,6 +1,6 @@
 # Scene composition guide
 
-**Proposal for owner/reviewer review.** Renderer parts and canonical compositions are not implemented by this documentation change. Pipeline stages stay unchanged.
+**Approved by the owner, 2026-11-14 12:05 PT.** Renderer parts and canonical compositions are not implemented by this documentation change. Pipeline stages stay unchanged.
 
 ## Choose the evidence
 
@@ -19,7 +19,7 @@ Use a family as **tested parts + canonical composition data + rules**. The scene
 
 Name every moving or changing part in the story; keep those names in the picture, controls and explanations. Bind each part's state, geometry, highlight, words and measurements to declared data. Nothing is unbound. A control must change the aha's evidence or experiment, beyond changing a label. Declare assumptions, fixed inputs and each control's effect, default, bounds, increments or options.
 
-For a state stepper, compose a step rail with an active step; a fixed picture with named highlighted regions; value readouts; an anchored active-part callout; a previous-state ghost when needed; and a counter or progress indicator. Pictures can contain array cells, two actors and a wire, or a cell and its phases. Every selected part serves the goal. A step index represents a state, never a fabricated clock.
+For a state stepper, compose a step rail with an active step; a fixed picture with named highlighted regions; readouts and counters; an anchored active-part callout; a previous-state ghost when needed; and a bound status line. Progress/trace belongs to the rail. Pictures can contain array cells, two actors and a wire, or a cell and its phases. Every selected part serves the goal. A step index represents a state, never a fabricated clock.
 
 ## Add mechanism with depth
 
@@ -30,6 +30,8 @@ For a state stepper, compose a step rail with an active step; a fixed picture wi
 | Deep / Detailed | A governing formula or computed count that makes the reasoning inspectable. |
 
 Add mechanism without clutter. Compute measurements from the same state and inputs; declare units, reference points, shared scales and rounding.
+
+Deep mitosis is the density upper bound: add no denser scene. Overview grids show one row, with the control selecting the row; do not display the full matrix at that depth.
 
 ## Keep the card readable
 
