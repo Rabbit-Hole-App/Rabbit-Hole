@@ -11,9 +11,9 @@ export const BESIDE_TRIES = 6;
 // obstacles: every other box on the board. Returns the top-left { x, y } of the first free place to the right in the source's row, or null when none of the first BESIDE_TRIES is free
 // (the caller then keeps the column placement, below).
 // dy: how far below the source's top the card starts (a card made from highlighted words starts level with that line); clamped inside the source's height.
-export function besideSpot(source, size, obstacles, { gap = GAP, tries = BESIDE_TRIES, dy = 0 } = {}) {
+export function besideSpot(source, size, obstacles, { gap = GAP, tries = BESIDE_TRIES, dy = 0, h: roomH = null } = {}) {
   if (!source || !(source.w > 0) || !(source.h > 0)) return null;
-  const w = Math.max(size?.w || 0, BESIDE_ASSUMED_W), h = Math.round(source.h);
+  const w = Math.max(size?.w || 0, BESIDE_ASSUMED_W), h = Math.round(roomH ?? source.h); // roomH: the height the new card is assumed to need (a typed /explain), else as tall as the source
   for (let k = 0; k < tries; k += 1) {
     const spot = { x: source.x + source.w + gap + k * (w + gap), y: source.y + Math.max(0, Math.min(dy || 0, source.h - 40)), w, h };
     if (freeSpot(spot, obstacles)) return { x: Math.round(spot.x), y: Math.round(spot.y) };
@@ -24,7 +24,7 @@ export function besideSpot(source, size, obstacles, { gap = GAP, tries = BESIDE_
 // Typed /explain (canvas-cards BUG 4): the next card goes to the right of the previous one, close and loosely scattered, never overlapping. A deterministic jitter per request:
 // its hash sets how far below the source's top the card starts (0 to 0.35 of the source's height, never more than SCATTER_MAX_DY: a card lands level with the source's top region, also beside a 5,400 px tall Full markdown) and whether the gap is one GAP or two, so no two cards line up exactly and the
 // row still reads left to right. The same request id always gives the same place.
-export const SCATTER_MAX_DY = 120;
+export const SCATTER_MAX_DY = 120, BESIDE_ASSUMED_H = 720; // a typed card is assumed at most 720 x 720: beside a 10,500 px Full markdown it needs a free 720 px, not a free 10,500 px column
 export function scatterOf(requestId, sourceHeight) {
   let hash = 2166136261;
   for (const char of String(requestId)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0;
@@ -35,7 +35,8 @@ export function scatterOf(requestId, sourceHeight) {
 // (deliveredSpot around the source's bottom-right corner plus GAP); never the column. Returns { at, size } - `size` is the slot's, as tall as the source when it is beside it.
 export function followPlace({ source, size, id, obstacles }) {
   const { dy, gap } = scatterOf(id, source.h);
-  const spot = besideSpot(source, size, obstacles, { dy, gap });
-  if (spot) return { at: spot, size: { ...size, h: Math.round(source.h) } };
+  const room = Math.min(Math.round(source.h), BESIDE_ASSUMED_H);
+  const spot = besideSpot(source, size, obstacles, { dy, gap, h: room });
+  if (spot) return { at: spot, size: { ...size, h: room } };
   return { at: deliveredSpot(size, { x: source.x + source.w + GAP, y: source.y + source.h + GAP }, obstacles, null), size };
 }

@@ -100,3 +100,17 @@ test('the scatter offset is capped at 120 px for a tall source and unchanged for
   const first = followPlace({ source: { x: 100, y: 240, w: 440, h: 5400 }, size: { w: 440, h: 400 }, id: 'slot:1', obstacles: [] });
   assert.ok(first.at.y - 240 <= 120, 'followPlace beside a 5,400 px source starts within 120 px of its top');
 });
+
+// CV-4 (real board): beside a very tall source (a 10,500 px Full markdown) the new card needs a free 720 px, not a free column as tall as the source; it stays close, level with the top region.
+import { BESIDE_ASSUMED_H } from './beside-placement.js';
+test('beside a very tall source the card lands next to it, not past every card down its column', () => {
+  const tall = { x: 0, y: 0, w: 699, h: 10500 }, size = { w: 440, h: 330 };
+  const elsewhere = [{ x: 760, y: 3000, w: 700, h: 800 }, { x: 790, y: 9000, w: 460, h: 840 }]; // cards far down the source's right-hand side
+  const placed = followPlace({ source: tall, size, id: 'slot:real-1', obstacles: elsewhere });
+  const { dy, gap } = scatterOf('slot:real-1', tall.h);
+  assert.deepEqual(placed.at, { x: 699 + gap, y: dy }, 'the first free place right of the source, level with its top region');
+  assert.equal(placed.size.h, BESIDE_ASSUMED_H, 'the slot is no taller than a card');
+  assert.ok(besideSpot(tall, size, elsewhere).x > placed.at.x + 700, 'reproduction: a spot as tall as the source is blocked by those cards and lands a whole card further right');
+  const near = followPlace({ source: tall, size, id: 'slot:real-2', obstacles: [{ x: 699, y: 0, w: 800, h: 300 }] });
+  assert.ok(near.at.x > 699 + 700 && near.at.y <= 120, 'a card right beside it pushes the new one one step right, still at the top');
+});
