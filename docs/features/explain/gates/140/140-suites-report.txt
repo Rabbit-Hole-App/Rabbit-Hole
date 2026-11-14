@@ -1,0 +1,16 @@
+SUITES: GREEN 4204cd37b3accafb988cc1c8567563d43daac574
+Release 140 = AR-2 (the v2 terminal-transition archive), branch explain/ar-2-140 -> release/explain-140, STACKED on BASE 4ec260c089631e662809ac382b00aabe14fc905d (139 candidate). Two commits on BASE: 738c83528 (AR-2: explain-job.js, learn-storage.js, explain-job.test.js) and 4204cd37b (test: learner keyword count 401 after 136/136b data, explanation-learner-keywords.test.js). Server code, no migrations, no config change. Base tree for the replay: C:/s/explain-140-base (BASE).
+FIRST RUN (tip 738c83528): ci 94/95, scripts 254/254, control-plane 4600/4602 with ONE failure: test/explanation-learner-keywords.test.js "the restored audit retains all 391 pairs" (401 !== 391); tutor-diagrams pass, figure-briefs 7/7, web unit pass (6928 tests, 0 fail), web build exit 0. Output kept: 140-step-cp.first-run.out and 140-step-*.out. The failure is NOT AR-2 and not a timing test: it fails identically on BASE (C:/s/explain-140-base). reference-learner-keywords.json grew 391 -> 395 (136, C01) -> 401 (136b, C02) with every key still holding 2 phrases; the 136/136b gates skipped control-plane (data-only), so the hardcoded 391 never ran. Fixed in commit 4204cd37b (title and the count, 401).
+FINAL TIP 4204cd37b3accafb988cc1c8567563d43daac574 (every step below ran on it, serially, under the heavy lock; outputs 140-step-<name>-rerun.out, log 140-rerun-run.log):
+1. scripts/ci tests (check-map included): 94/95 pass (1 skipped), 0 fail.
+2. scripts/*.test.mjs: 254/254.
+3. control-plane npm test: 4601/4602 pass (1 skipped), 0 fail (explain-job.test.js 24/24 with the 4 AR-2 tests; explanation-learner-keywords.test.js 2/2).
+4. tutor-diagrams tests (packages/web, src/tutor-diagrams/*.test.mjs): 1265/1265.
+5. figure-briefs tests: 7/7.
+6. web unit (npm run test:unit): 6900/6928 pass (27 skipped), 0 fail.
+7. web build: exit 0 (first pass, 140-step-build.out; the tip differs from the first pass only by one control-plane test file).
+8. property count (int8-props, int8-mixed): max 358 <= 362.
+9. planner-kind replay vs BASE 4ec260c08: 474 card rows, 0 first picks moved, 0 steer, 0 kind, 0 refs moved, no change.
+10. tier-1 smoke with the judge on the final tip: GATE PASS, see 140-gate-report.txt. Spend: generation US$0.2584, judge US$0.507 (157 calls, 4 cached), total US$0.7654.
+11. v2 evidence on a local stack (keyless, no model call): 140-v2-evidence.json / .log. 2 real v2 jobs created and cancelled through the ExplainJobs object, 2 explain-archive/ objects in the stack's R2, each with flow v2, outcome cancelled, user id, no email. Ready / failed / interrupted / retry / failing-bucket are covered by the 4 AR-2 tests in explain-job.test.js. A browser /interactive job (scripted profile) and a model-less simple job stayed in the design stage locally (no terminal state within the wait: the design flow needs a model), so they produced no object; not an archive fault, the job was simply not terminal.
+Notes: the smoke bench and gate-check ran from C:/s/explain-smoke at e7c4e861e. Gate log 140-gate-run.log.

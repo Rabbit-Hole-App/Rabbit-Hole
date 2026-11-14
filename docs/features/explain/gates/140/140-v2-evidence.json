@@ -1,0 +1,42 @@
+{
+ "at": "2026-11-14T14:27:39.666Z",
+ "worktree": "C:/s/explain-140",
+ "base": "http://127.0.0.1:8968",
+ "email": "[test account, not recorded]",
+ "jobs": [
+  {
+   "path": "api-cancel",
+   "jobId": "ej_f9cc133b56364c8496a6405385eb4bf5",
+   "stage": "cancelled"
+  },
+  {
+   "path": "browser-interactive",
+   "error": "locator.waitFor: Timeout 300000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-generation-proposal][data-proposal-job=\"ej_0bf96b24bc664d54a0b7d3994f1e6a62\"] [data-proposal-generate]') to be "
+  }
+ ],
+ "archiveObjects": 2,
+ "objects": [
+  {
+   "key": "explain-archive/2026-11-14/ej_a7d49268f5d7466892a879520ea82c7b.json",
+   "id": "ej_a7d49268f5d7466892a879520ea82c7b",
+   "flow": "v2",
+   "outcome": "cancelled",
+   "attempt": 1,
+   "userId": true,
+   "requestClass": "simple",
+   "hasResult": false,
+   "email": false
+  },
+  {
+   "key": "explain-archive/2026-11-14/ej_f9cc133b56364c8496a6405385eb4bf5.json",
+   "id": "ej_f9cc133b56364c8496a6405385eb4bf5",
+   "flow": "v2",
+   "outcome": "cancelled",
+   "attempt": 1,
+   "userId": true,
+   "requestClass": "simple",
+   "hasResult": false,
+   "email": false
+  }
+ ]
+}

@@ -1,0 +1,26 @@
+--- summary (tail 25 lines of 140-step-ci-rerun.out)
+✔ three retryable errors give up after 3 calls, with 5 s then 15 s backoff (0.1787ms)
+✔ fork checks get the gate env and a shots dir; harness checks get their port and nothing else; everything is stopped (8591.7617ms)
+✔ readiness runs every check three times in a row, each run in its own log and its own line (8586.0719ms)
+✔ a fork check whose stack died under it restarts the stack and reruns once; the first log is kept and the line says so (4961.5017ms)
+✔ a harness-only part never starts the stack (2447.78ms)
+✔ a server that never starts fails its checks without running them; a runner the tier cannot run, or a check the map lacks, is a stop with its fix (3420.243ms)
+✔ a check that exited 0 having executed no assertions fails, whatever it prints; counted lines and "N/N passed" are passes (6795.6846ms)
+✔ a scenario that throws, or a nonzero exit after the log counted N/N, never reads as checks passed (3839.4756ms)
+✔ an empty selection is reported as NOT SELECTED and is not a pass (603.9497ms)
+﹣ the fast-tier stack starts keyless, answers, and stops (0.7996ms) # SKIP
+✔ a control-plane-only change runs the control-plane suite and no build (36.2206ms)
+✔ a web change runs the web suite and one build (dist-dev) (2.9176ms)
+✔ a file whose row names another package's unit tests runs that suite too (3.3534ms)
+✔ a render-package change runs its own suite only (2.8711ms)
+✔ lockfiles, package.json, workflows, scripts/ci, run.sh and an unmapped path run everything and both builds (3.3767ms)
+✔ a broad path runs its package and the suites that span the Workers; docs run nothing (1.6545ms)
+✔ run.sh defines one unit function per suite, in the same order, and test:unit with no suite runs them all (1.6167ms)
+ℹ tests 95
+ℹ suites 0
+ℹ pass 94
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 57452.6657

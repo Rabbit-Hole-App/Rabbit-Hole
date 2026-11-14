@@ -1,0 +1,26 @@
+--- summary (tail 25 lines of 140-record.out)
+✔ a saved pick the picker no longer offers (the old opus-5) reads as Auto; the others are kept (0.4621ms)
+✔ the Settings default model says the pick applies to chat answers only; Learn shows no model at all (4.4941ms)
+✔ a flow node "Exponentiate ($e^x$)" is typeset by KaTeX, with no literal dollar on screen and the TeX in its accessible name (74.1428ms)
+✔ the box grows to hold a formula, which is measured whole, never split, and never taller than its line (17.5265ms)
+✔ TeX KaTeX refuses stays as its source text: no KaTeX markup, no error box, no crash (5.6515ms)
+✔ an edge label and a timeline event with maths are typeset too (16.9669ms)
+✔ the validator accepts maths in labels and counts a formula by what it shows (13.4538ms)
+✔ the card's text alignment reads formulas once, including a caption with a native fallback (37.2964ms)
+ℹ tests 49
+ℹ suites 0
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 1
+ℹ duration_ms 4629.0329
+✓ build: vite build --outDir dist, dist-dev
+✓ affected-tests: node --test test/chat-modes.test.js test/chat-routing-fixtures.test.js test/explain-b2.test.js test/explain-brief.test.js test/explain-capture-manifest.test.js test/explain-card-archive.test.js test/explain-depth.test.js test/explain-edit.test.js test/explain-job.test.js test/explain-m3.test.js test/explain-refine-target.test.js test/explain-render.test.js test/explain-repair.test.js test/explain-stateful.test.js test/explanation-learner-keywords.test.js test/generation-review.test.js test/interact-e2e.test.js test/interact-scripted.test.js test/interact-template.test.js test/learn-chat.test.js test/learn-storage.test.js test/shared-program-card.test.js test/source-refs.test.js (packages/control-plane) [23 test file(s)]
+✓ smoke: node --test packages/control-plane/test/explanation-layout.test.js packages/control-plane/test/explanation-fast-chain.test.js packages/control-plane/test/explanation-fast-card.test.js packages/control-plane/test/explanation-prompt-cleanup.test.js packages/control-plane/test/explanation-planner.test.js packages/control-plane/test/explanation-summary.test.js packages/control-plane/test/depth-names.test.js packages/control-plane/test/chat-gemini.test.js packages/control-plane/test/image-flag-worker.test.js packages/control-plane/test/explanation-batch1-fixes.test.js packages/control-plane/test/explanation-illustration-references.test.js packages/control-plane/test/explanation-marker-sentences.test.js; node --test packages/web/src/explanation-layout-v2.test.mjs packages/web/src/explanation-card-width.test.mjs packages/web/src/explanation-minimize.test.mjs packages/web/src/card-selection.test.mjs packages/web/src/model-choices.test.mjs packages/web/src/tutor-diagrams/diagram-math.test.mjs
+✓ preview: wrangler deploy --name rabbit-hole-web-dev-explain-118; GET /library serves /static/app-CaySgK4n.js
+✓ MVP preview of 4204cd37 at https://rabbit-hole-web-dev-explain-118.tryrabbithole.workers.dev (build 3428ae176b84, record 3c6fec4501e47738); broad CI and the release gate are recorded as bypassed
+  To let a push to main release this exact commit: git push rabbit-hole refs/notes/dev-deploys (fetch and merge the remote notes first if it is refused)
+
+===== PREVIEW OK (exit 0). Clone: https://rabbit-hole-web-dev-explain-118.tryrabbithole.workers.dev  (clones refuse sign-in; use the signed-in launcher). Tell Claude: preview done. =====
+record exit 0

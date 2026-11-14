@@ -1,0 +1,5 @@
+LABEL="Release 140: AR-2, the v2 archive. Every v2 /explain job (Tutor startExplain, /interactive, Edit) is written once per attempt to the media bucket under explain-archive/<date>/<id>.json at its terminal transition (the job record, its result and the user id, never the email); a failed write is logged and never fails the job. Server code only, no migrations, no config change. Stacked on release 139."
+SHA=4204cd37b3accafb988cc1c8567563d43daac574
+MAIN_PREV="4ec260c089631e662809ac382b00aabe14fc905d"
+W=C:/s/explain-140
+RECOVERY=release/explain-140-rollback-4204cd37

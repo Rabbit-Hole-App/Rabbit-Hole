@@ -1,0 +1,26 @@
+--- summary (tail 25 lines of 140-v2-evidence.log)
+   "key": "explain-archive/2026-11-14/ej_a7d49268f5d7466892a879520ea82c7b.json",
+   "id": "ej_a7d49268f5d7466892a879520ea82c7b",
+   "flow": "v2",
+   "outcome": "cancelled",
+   "attempt": 1,
+   "userId": true,
+   "requestClass": "simple",
+   "hasResult": false,
+   "email": false
+  },
+  {
+   "key": "explain-archive/2026-11-14/ej_f9cc133b56364c8496a6405385eb4bf5.json",
+   "id": "ej_f9cc133b56364c8496a6405385eb4bf5",
+   "flow": "v2",
+   "outcome": "cancelled",
+   "attempt": 1,
+   "userId": true,
+   "requestClass": "simple",
+   "hasResult": false,
+   "email": false
+  }
+ ]
+}
+RESULT OK: 2 archive object(s) for 1 v2 job(s), user id present, no email
+exit 0

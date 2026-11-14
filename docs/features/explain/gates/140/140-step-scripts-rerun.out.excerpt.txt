@@ -1,0 +1,26 @@
+--- summary (tail 25 lines of 140-step-scripts-rerun.out)
+✔ a selective note may skip the build only when it ran no web suite; a full note never skips it (0.8574ms)
+✔ verdicts: a note records the suites and pages it ran; without them it is a full run, as before (0.7734ms)
+✔ coverGap: a full note covers any plan; a selective one only its own suites and pages (0.1914ms)
+✔ the lockfile digest is the same from a Windows and a Linux checkout, and covers both lockfiles (16.9122ms)
+✔ the verify workflow is unprivileged and keyless: read-only, no secrets, main excluded, note written by a separate job (0.9606ms)
+✔ runBlockers: a completed success of fast-e2e and verify at exactly this sha passes (0.4418ms)
+✔ runBlockers: a failed, running, queued, cancelled, missing or other-sha fast-e2e run blocks, each with its reason (0.4253ms)
+✔ runBlockers: verify is required the same way, and missing or foreign evidence blocks (0.3171ms)
+✔ runBlockers: the newest attempt wins, a rerun included (0.4476ms)
+✔ the deploy workflows read the runs with actions: read before any install, and pass them to the deciding script (0.9821ms)
+✔ matching evidence and a confirmed successful verify run of this sha: reuse, with the original run link (1.2949ms)
+✔ missing or invalid evidence: verify runs (0.3268ms)
+✔ a run that cannot be confirmed, or fails, or does not match: verify runs (1.3223ms)
+✔ a note whose run covered fewer suites or pages than this push needs is not reused (0.6366ms)
+✔ a pull_request run of the same sha tested a merge tree, not this one: verify runs (0.2665ms)
+✔ verify.yml decides before any install or build, skips them only on a reuse, and writes no new note on a reuse (0.7779ms)
+✔ verify.yml plans the suites before the reuse decision and hands the plan to the reuse, the suites and the note (0.4934ms)
+ℹ tests 254
+ℹ suites 0
+ℹ pass 254
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24477.0587

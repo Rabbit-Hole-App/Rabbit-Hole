@@ -1,0 +1,26 @@
+--- summary (tail 25 lines of 140-smoke.log)
+smoke      r1 hash-table           http=200   2719ms CARD ledger US$0.002492 spent=US$0.2009
+smoke      r1 tokenization         http=200   2273ms CARD ledger US$0.001964 spent=US$0.2029
+smoke      r1 overfitting          http=200   4207ms CARD ledger US$0.004063 spent=US$0.2069
+smoke      r1 merge-sort           http=200   2970ms CARD ledger US$0.002462 spent=US$0.2094
+smoke      r1 rag                  http=200   2874ms CARD ledger US$0.00269 spent=US$0.2121
+smoke      r1 backprop             http=200   3275ms CARD ledger US$0.003267 spent=US$0.2154
+smoke      r1 random-forest        http=200   2577ms CARD ledger US$0.002225 spent=US$0.2176
+smoke      r1 rlhf                 http=200   2414ms CARD ledger US$0.002265 spent=US$0.2198
+smoke      r1 tcp-handshake        http=200   2360ms CARD ledger US$0.002258 spent=US$0.2221
+smoke      r1 batchnorm            http=200   2339ms CARD ledger US$0.002411 spent=US$0.2245
+smoke      r1 nn-layers            http=200   2411ms CARD ledger US$0.002176 spent=US$0.2267
+smoke      r1 cnn                  http=200   8261ms CARD ledger US$0.002763 spent=US$0.2295
+smoke      r1 gan                  http=200   2579ms CARD ledger US$0.002063 spent=US$0.2315
+smoke      r1 roman-empire         http=200   2643ms CARD ledger US$0.002323 spent=US$0.2338
+smoke      r1 two-histograms       http=200   2833ms CARD ledger US$0.002819 spent=US$0.2367
+smoke      r1 ref-box-plot-iqr-fences http=200  10697ms CARD ledger US$0.006589 spent=US$0.2433
+smoke      r1 ml-word2vec-trait-rescale http=200   2941ms CARD ledger US$0.002249 spent=US$0.2455
+smoke      r1 ref-argument-reading http=200   2641ms CARD ledger US$0.002392 spent=US$0.2479
+smoke      r1 ref-t-account-cash   http=200   3015ms CARD ledger US$0.002336 spent=US$0.2502
+smoke      r1 ref-waterfall-cash   http=200   2855ms CARD ledger US$0.002071 spent=US$0.2523
+smoke      r1 ml-transformer-qkv-projections http=200   3266ms CARD ledger US$0.003283 spent=US$0.2556
+smoke      r1 ml-transformer-encoder-stack http=200   3219ms CARD ledger US$0.002821 spent=US$0.2584
+token counts recorded for 66 cards
+judge: 157 calls, 4 cached, US$0.507 of US$2.00
+RESULT PASS cards=66 spent=US$0.2584 report=C:\s\spec\benchmarks\explain-bench\2026-11-14T055517-140-smoke-4204cd37b\report.md

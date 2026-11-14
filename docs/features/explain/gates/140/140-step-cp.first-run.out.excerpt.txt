@@ -1,0 +1,53 @@
+✖ failing tests:
+
+test at test\explanation-learner-keywords.test.js:7:1
+✖ the restored audit retains all 391 pairs of short learner topics (2.712ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  401 !== 391
+  
+      at TestContext.<anonymous> (file:///C:/s/explain-140/packages/control-plane/test/explanation-learner-keywords.test.js:8:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 401,
+    expected: 391,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path C:\s\explain-140\packages\control-plane
+npm error workspace control-plane@1.0.0
+npm error location C:\s\explain-140\packages\control-plane
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c node --test
+--- summary (tail 25 lines of 140-step-cp.first-run.out)
+test at test\explanation-learner-keywords.test.js:7:1
+✖ the restored audit retains all 391 pairs of short learner topics (2.712ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  401 !== 391
+  
+      at TestContext.<anonymous> (file:///C:/s/explain-140/packages/control-plane/test/explanation-learner-keywords.test.js:8:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 401,
+    expected: 391,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+npm error Lifecycle script `test` failed with error:
+npm error code 1
+npm error path C:\s\explain-140\packages\control-plane
+npm error workspace control-plane@1.0.0
+npm error location C:\s\explain-140\packages\control-plane
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c node --test

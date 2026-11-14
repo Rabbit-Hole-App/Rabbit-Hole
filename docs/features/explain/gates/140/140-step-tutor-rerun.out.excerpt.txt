@@ -1,0 +1,26 @@
+--- summary (tail 25 lines of 140-step-tutor-rerun.out)
+✔ the rule-direction transformation gains a parameter-learning formula (0.3297ms)
+✔ taxonomy counts, leaves and depth are recomputed from the hierarchy (0.4652ms)
+✔ hidden groups use inputs alone and recompute every position, radius and count (0.7107ms)
+✔ output comparison recomputes category geometry and regression arithmetic (0.6747ms)
+✔ batch questions, learner keywords and lesson origin remain attached to their own references (0.3914ms)
+✔ workflow preserves every stage and draws labelled feedback to consistent earlier-stage nodes; split arithmetic is recomputed (1.4863ms)
+✔ fit curves and subset errors are independently reconstructed and observations render last (2.193ms)
+✔ bias, variance, noise, totals, axes and minimum are recomputed from toy geometry (0.7019ms)
+✔ each displayed number belongs to shared or batch derived results; every visual is illustrative (1.3694ms)
+✔ final topic references retain their own prompts, learner keywords and lesson origins (0.2981ms)
+✔ centres, radii, boundary and prediction are independently recomputed from the toy rows (0.9719ms)
+✔ accuracy bars and every shown numerical value have recomputed data provenance (1.5137ms)
+✔ suitability flows have valid labeled gates and detailed arithmetic is additional (0.6403ms)
+✔ review repairs keep distance paths straight, scatter markers foremost and captions renderable (0.4854ms)
+✔ each figure reference parses, lints, and reaches the author at every depth (881.3019ms)
+✔ batched attention, positions, residual and vocabulary use the existing walkthrough values (0.4946ms)
+✔ walkthrough values agree from token positions through the vocabulary distribution (1.737ms)
+ℹ tests 1265
+ℹ suites 0
+ℹ pass 1265
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 60743.5958
