@@ -447,9 +447,12 @@ export class ExplainJobs {
       // INTERACT_DESIGN_KIND: unset runs the Opus design; 'fast' the fill path (interact-design.js fastDesign) with the Opus design as its fallback. A misspelling is refused, never silently the other path.
       const designKind = this.env[INTERACT_DESIGN_KIND_SETTING] || null;
       if (designKind !== null && designKind !== 'fast') throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured');
+      // INTERACT_GAP (fast path only): 'message' (default) ends a job whose pick found no family with a plain sentence and no Opus call; 'opus' runs the full Opus design for it (measurement). Pinned on the job; a misspelling is refused.
+      const gap = designKind === 'fast' ? this.env.INTERACT_GAP || 'message' : null;
+      if (gap !== null && gap !== 'message' && gap !== 'opus') throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured');
       const priced = interactReservation(profile, designKind);
       if (priced.preparationMicros == null || priced.generationMicros == null) throw fail('Scene design is not priced for this model profile yet.', 503, 'flow_unpriced'); // an unknown price is never zero
-      Object.assign(job, { flow: { version: 1, switch: 'INTERACT_SCENE_PLAN_ENABLED', ...(designKind ? { designKind } : {}), profile: { id: profile.id, version: profile.version, hash: await interactProfileHash(profile) }, prompts: await designPromptContracts() },
+      Object.assign(job, { flow: { version: 1, switch: 'INTERACT_SCENE_PLAN_ENABLED', ...(designKind ? { designKind } : {}), ...(gap ? { gap } : {}), profile: { id: profile.id, version: profile.version, hash: await interactProfileHash(profile) }, prompts: await designPromptContracts() },
         design: freshDesign(), prepare: true, reservation: { version: INTERACT_POLICY_VERSION, preparationMicros: priced.preparationMicros, generationMicros: priced.generationMicros } });
     }
     // Generation is admitted up front on the direct path; a prepared request is admitted at approve. Refused: nothing is
@@ -1016,7 +1019,7 @@ export class ExplainJobs {
     if (job.stage === 'queued') return this.move(job, job.flow ? 'design_authoring' : job.prepare && !job.approval ? 'preparing' : 'authoring');
     // interact: the design roles' model calls; a dev-only pin (interact-design-pin.js, never in production) answers them from the fixture plan.
     const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: EXPLAIN_LIMITS,
-      ...(job.flow ? { interact: async (role, args) => { const pin = designPinOf(this.env); return (pin && await pinnedDesignCall(pin, job, role, args)) || this.interactCall(job, role, args); }, capabilities: await designCapabilities(this.env, job), buildScene: this.deps.buildScene, designKind: job.flow.designKind,
+      ...(job.flow ? { interact: async (role, args) => { const pin = designPinOf(this.env); return (pin && await pinnedDesignCall(pin, job, role, args)) || this.interactCall(job, role, args); }, capabilities: await designCapabilities(this.env, job), buildScene: this.deps.buildScene, designKind: job.flow.designKind, gap: job.flow.gap,
         // The description fit is a measurement; only the pure estimate exists in a Worker (no DOM), so it runs only when the server setting says so, labelled estimate in the stored receipt.
         descriptionFit: this.deps.descriptionFit ?? (this.env.INTERACT_DESCRIPTION_FIT === 'estimate' ? estimateDescriptionFit : undefined) } : {}) };
     if (this.buildFlow(job)) Object.assign(ctx, { build: await this.loadBuild(job), role: await this.buildRoleCtx(job) });
@@ -1112,8 +1115,8 @@ export class ExplainJobs {
     const d = job.design, now = Date.now();
     const next = to => { endStage(job.timing, 'done'); job.stage = to; beginStage(job.timing, to); };
     const keep = (name, value) => this.state.storage.put(`design:${job.id}:${d.rev}:${name}`, value);
-    if (out.stop) return this.stopWith(job, out.stop.reason, out.stop.category, out.stop.message, !['design_unresolved'].includes(out.stop.reason));
-    if (out.fast) d.fast = out.fast; // the fast path's record (kind, model, calls, fallback, first problem, cost): kept on a pass, a fallback and a refused Opus author alike
+    if (out.fast) d.fast = out.fast; // the fast path's record (kind, model, calls, fallback, first problem, cost): kept on a pass, a fallback, a gap and a refused Opus brief alike
+    if (out.stop) return this.stopWith(job, out.stop.reason, out.stop.category, out.stop.message, !['design_unresolved', 'design_gap'].includes(out.stop.reason));
     if (out.problems) {
       // A reply that cannot be used was still a counted call: the stage tries again while its role has calls left, else the design stops with the reasons.
       const role = { design_authoring: 'author', design_reviewing: 'review', design_revising: 'revise' }[stage];
