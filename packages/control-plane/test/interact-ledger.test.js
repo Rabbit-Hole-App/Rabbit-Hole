@@ -2,7 +2,7 @@
 // (docs/features/interact/evidence/2026-11-12-clone-runs/runs/15-boundary-capture-fix-READY; the copy in fixtures/interact), a real READY run with one repair.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,8 +18,25 @@ test('a job pinned to a toss-mvp-<depth> fixture carries designModel, designKind
   assert.deepEqual([mvp.fixture, mvp.designModel, mvp.designKind, mvp.msFill], ['toss-mvp-balanced', TOSS_MVP_META.balanced.designModel, 'brief-mvp', TOSS_MVP_META.balanced.msFill ?? null]);
   assert.deepEqual([ledgerRow({ ...base, designFixture: 'toss-mvp-detailed' }).designKind, ledgerRow({ ...base, designFixture: 'toss-mvp-detailed' }).designModel], ['brief-mvp', TOSS_MVP_META.detailed?.designModel ?? null], 'a depth with no meta still says brief-mvp');
   for (const fixture of [null, 'toss', 'toss-overview', 'ledge-toss-moon', 'toss-mvp-unknown']) assert.deepEqual([ledgerRow({ ...base, designFixture: fixture }).designModel, ledgerRow({ ...base, designFixture: fixture }).designKind, ledgerRow({ ...base, designFixture: fixture }).msFill], [null, null, null], String(fixture));
-  assert.deepEqual(LEDGER_COLUMNS.slice(-3), ['designModel', 'designKind', 'msFill'], 'the new columns are the last three');
-  assert.match(ledgerMarkdown([mvp]).split('\n')[0], /\| designModel \| designKind \| msFill \|$/, 'the markdown header ends with them');
+  assert.deepEqual(LEDGER_COLUMNS.slice(-7), ['designModel', 'designKind', 'msFill', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd'], 'the design columns are the last seven');
+  assert.match(ledgerMarkdown([mvp]).split('\n')[0], /\| designModel \| designKind \| msFill \| designFallback \| designCalls \| msDesign \| designCostUsd \|$/, 'the markdown header ends with them');
+  assert.deepEqual([mvp.designFallback, mvp.designCalls, mvp.msDesign, mvp.designCostUsd], [null, null, null, null], 'a pinned fixture made no design calls');
+});
+
+test('design columns: the fast record wins, an unpinned job with design calls is the Opus design, msDesign is submitted to proposalReady', () => {
+  const stage = (stage, startedAt, endedAt, calls = 0, model, costMicros) => ({ stage, startedAt, endedAt, calls, inputTokens: 0, outputTokens: 0, images: 0, captures: 0, outcome: null, ...(model ? { model, costMicros, fallback: false } : {}) });
+  const timing = { requestClass: 'interact', cache: null, v: 2, marks: { submitted: 1000, proposalReady: 4100, generate: 9000, result: 11000 },
+    stages: [stage('design_authoring', 1100, 2000, 1, { requested: 'gemini-3.5-flash-lite', served: 'gemini-3.5-flash-lite' }, 2500), stage('design_verifying', 2000, 4100), stage('awaiting_approval', 4100, 9000), stage('authoring', 9000, 11000)] };
+  const base = { ...jobFromDetail(detail()), timing, calls: [] };
+  const fast = ledgerRow({ ...base, design: { fast: { kind: 'fast', model: 'gemini-3.5-flash-lite', calls: 2, fallback: 'after_correction', firstProblem: 'x', costUsd: 0.005 } } });
+  assert.deepEqual([fast.designKind, fast.designModel, fast.designFallback, fast.designCalls, fast.msDesign, fast.designCostUsd], ['fast', 'gemini-3.5-flash-lite', 'after_correction', 2, 3100, 0.005]);
+  const noCost = ledgerRow({ ...base, design: { fast: { kind: 'fast', model: 'm', calls: 1, fallback: 'none' } } });
+  assert.deepEqual([noCost.designCalls, noCost.designCostUsd], [1, 0.0025], 'a fast record without a cost reads the stage records');
+  const opus = ledgerRow({ ...base, timing: { ...timing, stages: [stage('design_authoring', 1100, 2000, 2, { requested: 'claude-opus-5-5', served: 'claude-opus-5-5' }, 400000), ...timing.stages.slice(1)] } });
+  assert.deepEqual([opus.designKind, opus.designModel, opus.designFallback, opus.designCalls, opus.msDesign, opus.designCostUsd], ['opus', 'claude-opus-5-5', null, 2, 3100, 0.4]);
+  const pinned = ledgerRow({ ...base, designFixture: 'toss', timing: { ...timing, stages: [stage('design_authoring', 1100, 2000, 2, { requested: 'x', served: 'x' }, 1)] } });
+  assert.deepEqual([pinned.designKind, pinned.designCalls, pinned.msDesign], [null, null, null], 'a pinned design is neither fast nor opus');
+  assert.equal(ledgerRow({ ...base, timing: { ...timing, stages: [] } }).designKind, null, 'no design calls, no design kind');
 });
 
 const SCRIPT = fileURLToPath(new URL('../../../scripts/interact/ledger.mjs', import.meta.url));
@@ -102,7 +119,7 @@ test('ledger.md renders the run-15 row under the same columns', () => {
   assert.equal(head, `| ${LEDGER_COLUMNS.join(' | ')} |`);
   assert.equal(rule.split('|').length, head.split('|').length);
   assert.match(line, /^\| ej_a7e7bb226e614a02b5a426e30218f615 \| 8f564bdf\w+ \| balanced \| ready \| accepted \|/);
-  assert.match(line, /\| 0\.620628 \|  \| 65860 \| 45 \| 30098 \|  \| 50 \| 76187 \| 49185 \| 221425 \|  \| v1 \| model \|  \|  \|  \|  \|  \|$/); // buildKind, msHopWait, judgeFindingsPath, designModel, designKind and msFill are the last six columns (a model build: buildKind model, no hop wait, no judge findings file, no pinned design)
+  assert.match(line, /\| 0\.620628 \|  \| 65860 \| 45 \| 30098 \|  \| 50 \| 76187 \| 49185 \| 221425 \|  \| v1 \| model \|  \|  \|  \|  \|  \|  \|  \|  \|  \|$/); // buildKind, msHopWait, judgeFindingsPath and the seven design columns are the last ten (a model build: buildKind model, no hop wait, no judge findings file, no pinned design)
 });
 
 test('the script appends one line per job to ledger.jsonl and regenerates ledger.md; a rerun replaces the line (dry run on the saved response, no network)', () => {
@@ -167,4 +184,18 @@ test('timing v2: msTotal is Generate to ready, the stage columns are contiguous 
   const row = ledgerRow(job);
   assert.deepEqual([row.timing, row.msTotal, row.msAuthor, row.msCompose, row.msValidate, row.msRun, row.msCheck, row.msJudge, row.msRepair, row.msReview], ['v2', 1600, 500, 260, 300, 520, 20, 4321, null, null]);
   assert.equal(row.msAuthor + row.msCompose + row.msValidate + row.msRun + row.msCheck, row.msTotal, 'the slices add up to msTotal');
+});
+
+// brief 12 driver: --help works, a missing or wrong --design refuses, and a deploy record for the other design refuses before any session, canvas or model call (offline).
+test('drive-design.mjs: --help, a bad --design and a deploy-record mismatch exit without touching the network', () => {
+  const DRIVE = fileURLToPath(new URL('../../../scripts/interact/drive-design.mjs', import.meta.url)), dir = mkdtempSync(join(tmpdir(), 'drive-design-'));
+  try {
+    const run = (args, record) => { const file = join(dir, 'deploy.json'); if (record) writeFileSync(file, JSON.stringify(record)); const r = spawnSync(process.execPath, [DRIVE, ...args], { encoding: 'utf8', env: { ...process.env, DESIGN_DEPLOY_FILE: file } }); return { code: r.status, out: r.stdout + r.stderr }; };
+    assert.deepEqual([run(['--help']).code, /--design fast\|opus/.test(run(['--help']).out)], [0, true]);
+    assert.equal(run([]).code, 2);
+    assert.equal(run(['--design', 'fast', '--depth', 'huge']).code, 2);
+    const missing = run(['--design', 'fast']); assert.deepEqual([missing.code, /no deploy record/.test(missing.out)], [2, true]);
+    const wrong = run(['--design', 'opus'], { design: 'fast', versionId: 'v-a' }); assert.deepEqual([wrong.code, /deploy record says fast \(v-a\)/.test(wrong.out)], [2, true]);
+    const version = run(['--design', 'fast', '--version', 'v-b'], { design: 'fast', versionId: 'v-a' }); assert.deepEqual([version.code, /--version v-b/.test(version.out)], [2, true]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
