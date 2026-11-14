@@ -50,9 +50,13 @@ test('a fourth plan on the same one-body template (a ball thrown up from a 1 m l
   assert.ok(r.det.coverage.oracle.checked >= 10, `oracle rows checked: ${r.det.coverage.oracle.checked}`);
 });
 
-// Intended differences from the scripted program, by plan: none today. A difference is listed here with the reason, never skipped silently.
-const INTENDED = { tossOverview: { quantities: new Set(['acceleration']) } }; // the Overview plan now carries an acceleration quantity (-gravity) for its slots; the scripted program predates it
+// Intended differences from the scripted program, by plan: the Overview's acceleration quantity, and on Deep the lane heading's state 'Back at launch height', which sdk.panel shortens to its room at a 310 px lane
+// ('Back at launch', cut at a word boundary; the Motion readout still says it whole). A difference is listed here with the reason, never skipped silently.
+const INTENDED = { tossOverview: { quantities: new Set(['acceleration']) }, tossDeep: { texts: { 'lane.toss.state': { 'Back at launch height': 'Back at launch' } } } }; // the Overview plan now carries an acceleration quantity (-gravity) for its slots; the scripted program predates it
 
+// The templates draw on the contract's own 640 px frame (owner 2026-11-13 16:50: the card fits the canvas at 100% zoom) and the scripted programs keep Codex's 892 px geometry, so a frame can no longer be compared
+// coordinate by coordinate. What is compared: the object ids, their kinds, the text of every text object, an axis's label and unit, a plot's series labels, the readouts and the reported quantities.
+// Coordinates, sizes and frame size are EXCLUDED on purpose (the layout rules, the oracles and the headless checks police the geometry of the generated frames instead).
 function framesEqual(name, scripted, generated) {
   const diffs = [], intended = INTENDED[name]?.quantities ?? new Set();
   const cmp = (a, b, path) => {
@@ -60,12 +64,14 @@ function framesEqual(name, scripted, generated) {
     if (a && b && typeof a === 'object' && typeof b === 'object') { for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) cmp(a[k], b[k], `${path}.${k}`); return; }
     if (a !== b) diffs.push(`${path}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`);
   };
+  const texts = INTENDED[name]?.texts ?? {};
+  const content = (o, side, scriptedText) => ({ kind: o.kind, ...(o.kind === 'text' ? { text: side === 'generated' && texts[o.id]?.[scriptedText.get(o.id)] === o.text ? scriptedText.get(o.id) : o.text } : {}), ...(o.kind === 'axis' ? { label: o.label, unit: o.unit, orientation: o.orientation } : {}), ...(o.kind === 'plot' ? { series: o.series, xLabel: o.axes?.x?.label, yLabel: o.axes?.y?.label } : {}) });
   for (const c of scripted.captures) {
     const g = generated.captures.find(x => x.caseId === c.caseId);
     assert.ok(g, `${name}: the generated card has the capture ${c.caseId}`);
-    const byId = trace => Object.fromEntries(trace.objects.map(o => [o.id, o]));
-    cmp(byId(c.trace), byId(g.trace), `${c.caseId}.objects`);
-    cmp(c.trace.frame, g.trace.frame, `${c.caseId}.frame`);
+    const scriptedText = new Map(c.trace.objects.filter(o => o.kind === 'text').map(o => [o.id, o.text]));
+    const byId = (trace, side) => Object.fromEntries(trace.objects.map(o => [o.id, content(o, side, scriptedText)]));
+    cmp(byId(c.trace, 'scripted'), byId(g.trace, 'generated'), `${c.caseId}.objects`);
     cmp(c.trace.readouts, g.trace.readouts, `${c.caseId}.readouts`);
     const ids = new Set([...Object.keys(c.trace.quantities), ...Object.keys(g.trace.quantities)].filter(id => !intended.has(id)));
     for (const id of ids) cmp(c.trace.quantities[id], g.trace.quantities[id], `${c.caseId}.quantities.${id}`);
@@ -77,7 +83,7 @@ test('the generated program draws the same frames as the scripted program at eve
   for (const name of NAMES) {
     const [scripted, generated] = [await runDraft(name, tossDraft(name)), await runDraft(name, generatedDraft(name))];
     assert.ok(scripted.captures.length >= 8, `${name}: ${scripted.captures.length} cases compared`);
-    assert.deepEqual(framesEqual(name, scripted, generated).slice(0, 12), [], `${name}: the generated frames differ from the scripted ones`);
+    assert.deepEqual(framesEqual(name, scripted, generated).slice(0, 12), [], `${name}: the generated frames differ in content from the scripted ones`);
   }
 });
 
@@ -100,10 +106,12 @@ test('a plan the template cannot build is a TemplateError, not a repair: unknown
 });
 
 test('the geometry follows the plan: a larger input range shrinks the scale so the highest rise still fits, a plan with the same range keeps the template\'s own scale', () => {
-  assert.equal(TEMPLATES['one-body'].geometry({ rise: 1.28 }).scale, 200);
+  assert.equal(TEMPLATES['one-body'].geometry({ rise: 1.28 }).scale, 132.8125); // 170 px of rise room on a 640 px frame
+  assert.equal(TEMPLATES['one-body'].geometry({ rise: 0.5 }).scale, 150);
   assert.ok(TEMPLATES['one-body'].geometry({ rise: 3.8 }).scale < 70);
   const standard = TEMPLATES['two-lane'].geometry({ rise: 25 / 12 });
-  assert.deepEqual([standard.scale, standard.axisMax, standard.ticks], [105, 2.2, [0, 0.5, 1, 1.5, 2]]);
+  assert.deepEqual([standard.scale, standard.axisMax, standard.ticks], [79.545455, 2.2, [0, 0.5, 1, 1.5, 2]]);
+  assert.equal(TEMPLATES['two-lane'].geometry({ rise: 1 }).scale, 105);
   const deep = TEMPLATES['body-plot'].geometry({ rise: 25 / 12, end: 10 / 6, plotted: 5 });
   assert.deepEqual([deep.axisMax, deep.timeMax, deep.valueMax], [2.2, 1.8, 5.5]);
 });
