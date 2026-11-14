@@ -1,0 +1,77 @@
+ℹ tests 1168
+ℹ suites 0
+ℹ pass 1164
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 67548.2595
+✖ failing tests:
+
+test at src\tutor-diagrams\lesson-decision-trees-references.test.mjs:22:3
+✖ ml-trees-threshold-search validates, meets the budget and is picked first at all depths (73.2257ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'f848ce0020d73c4d7bcbd7c7724864449eea0f1495f3d6501ac1e1342701e5a6'
+  - '0cd6c7b28f694e2aa604af0a39f0988f54bcebec2fece3b497d43a91bbd2dc8e'
+  
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'f848ce0020d73c4d7bcbd7c7724864449eea0f1495f3d6501ac1e1342701e5a6',
+    expected: '0cd6c7b28f694e2aa604af0a39f0988f54bcebec2fece3b497d43a91bbd2dc8e',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src\tutor-diagrams\lesson-decision-trees-references.test.mjs:22:3
+✖ ml-trees-regression-step-fit validates, meets the budget and is picked first at all depths (190.7902ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '68a48aea23bc21e945ab43a0508983898510849633955dcaf29bb704ea121d1d'
+  - 'e51dfa85b2327c18d819c74d77be44f68e0e0a383341a76d6f22fb5634a4e7fb'
+  
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '68a48aea23bc21e945ab43a0508983898510849633955dcaf29bb704ea121d1d',
+    expected: 'e51dfa85b2327c18d819c74d77be44f68e0e0a383341a76d6f22fb5634a4e7fb',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src\tutor-diagrams\lesson-decision-trees-references.test.mjs:67:1
+✖ scatter and threshold plots use fixture coordinates and recomputed split scores (2.3139ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   undefined,
+  +   undefined,
+  +   undefined
+  -   '0.375',
+  -   '0.1875',
+  -   '0.2083'
+    ]
+  
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ undefined, undefined, undefined ],
+    expected: [ '0.375', '0.1875', '0.2083' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src\tutor-diagrams\lesson-decision-trees-regression-demo.test.mjs:33:1
+✖ the sine series has 25 equally spaced samples and both step fits predict the displayed leaf means (10.0587ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

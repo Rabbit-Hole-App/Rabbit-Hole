@@ -1,0 +1,19 @@
+✔ the batch payload carries the data module, references, tests and replay rows (4.3118ms)
+✔ a valid batch has no flags (2761.7296ms)
+✔ every invalid spec and a wrong kind come back together, before any round is spent (1860.7987ms)
+✔ a typed caption number outside a formula constant is flagged by the file-free linter rules (1198.7082ms)
+✔ renderer-constraints.md is current and lists the refinement messages by kind (71.2174ms)
+✔ a batch that asserts through data.derived() still satisfies the derived-assertion rule (893.6741ms)
+✔ a flow label that is not an action and two nodes with one label are flagged with their contract rule before stage 05 (763.9504ms)
+✔ a placeholder edge label is a contract error, and a label that follows the contract is not (790.9077ms)
+✔ renderer-constraints.md carries the content contract: the rule ids, the unique-label rule and the verb list the release suite uses (51.1431ms)
+✔ every relative import of author-runtime.mjs is copied into the topic worktree by author.mjs (1.4841ms)
+✔ a math-delimiters flag carries the arrow hint, with a real backslash and no tab, and the constraints sheet says the same (35.5589ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9429.5029
