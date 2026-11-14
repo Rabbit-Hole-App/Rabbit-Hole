@@ -3,7 +3,7 @@
 // oracle, sealing and the ledger row are the real path) with INTERACT_DESIGN_FIXTURE=toss, so Depth Brief / Balanced / Detailed give the Overview / Standard / Deep plan.
 //   node scripts/interact/scripted-look.mjs            fresh owner account, fresh canvas, three Generates (Brief, Balanced, Detailed), waits for ready, prints the canvas URL
 //   node scripts/interact/scripted-look.mjs --check    no Generate: session, canvas, signed-in page, jobs route, and the Chat composer + Depth menu the driver needs (headless, read only)
-// Writes C:/s/spec/interact-real/look-canvas.json (base, email, app, boardId, jobs) for open-look.cmd and current.json for ledger.mjs, and appends each job's ledger row (profile scripted).
+// Writes C:/s/spec/interact-real/look-canvas.json (or LOOK_FILE) (base, email, app, boardId, jobs) for open-look.cmd and current.json for ledger.mjs, and appends each job's ledger row (profile scripted).
 // Dev clone only; the test-bypass secret is read BY NAME from small-deploy/.env and never printed. No model is called: a scripted job spends nothing.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -14,6 +14,8 @@ import { dirname, join } from 'node:path';
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const BASE = 'https://rabbit-hole-web-dev-interact.tryrabbithole.workers.dev', DEV_CP = 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
 const ALL_DEPTHS = [['brief', 'Overview'], ['balanced', 'Standard'], ['detailed', 'Deep']];
+// LOOK_FILE=mvp-canvas.json keeps the canvas of another clone setup apart (open-mvp.cmd reads it; the default look-canvas.json is open-template.cmd's); LOOK_TITLE names a new canvas.
+const LOOK_FILE = `C:/s/spec/interact-real/${process.env.LOOK_FILE || 'look-canvas.json'}`, LOOK_TITLE = process.env.LOOK_TITLE || 'Toss look: Overview, Standard, Deep';
 // LOOK_CANVAS=<canvas name> adds cards to that canvas (its board from look-canvas.json) instead of making a new one; LOOK_DEPTHS=brief picks the depths; LOOK_CARD names the card in the output (the ledge card: LOOK_CARD=Ledge).
 const DEPTHS = (process.env.LOOK_DEPTHS ? process.env.LOOK_DEPTHS.split(',').map(d => ALL_DEPTHS.find(([depth]) => depth === d.trim()) ?? [d.trim(), d.trim()]) : ALL_DEPTHS).map(([depth, name]) => [depth, process.env.LOOK_CARD || name]);
 const PROMPT = '/interactive At the highest point of a vertical throw, is acceleration zero because velocity is zero?'; // the prompt of open-preview.cmd
@@ -32,13 +34,13 @@ const api = async (method, path, body) => {
   const r = await fetch(`${BASE}${path}`, { method, headers: { ...UA, cookie: `small_session=${session}`, ...(body ? { 'Content-Type': 'application/json', origin: BASE } : {}) }, body: body ? JSON.stringify(body) : undefined });
   return { status: r.status, data: await r.json().catch(() => null) };
 };
-const previous = (() => { try { return JSON.parse(readFileSync('C:/s/spec/interact-real/look-canvas.json', 'utf8')); } catch { return null; } })();
+const previous = (() => { try { return JSON.parse(readFileSync(LOOK_FILE, 'utf8')); } catch { return null; } })();
 let app, boardId;
 if (process.env.LOOK_CANVAS) {
-  if (previous?.app !== process.env.LOOK_CANVAS) fail('LOOK_CANVAS must be the canvas in look-canvas.json (it holds the board id).');
+  if (previous?.app !== process.env.LOOK_CANVAS) fail(`LOOK_CANVAS must be the canvas in ${LOOK_FILE} (it holds the board id).`);
   ({ app, boardId } = previous);
 } else {
-  const made = await api('POST', '/api/canvases', { title: `Toss look: Overview, Standard, Deep ${Date.now().toString(36)}` });
+  const made = await api('POST', '/api/canvases', { title: `${LOOK_TITLE} ${Date.now().toString(36)}` });
   app = made.data?.name; if (!app) fail(`could not create a canvas (HTTP ${made.status}).`);
   const saved = await api('PUT', `/api/learn/boards/${app}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] } });
   boardId = saved.data?.board_id; if (!boardId) fail(`could not save the canvas board (HTTP ${saved.status}).`);
@@ -109,7 +111,7 @@ for (const [depth, name] of DEPTHS) {
 }
 await browser.close();
 const ready = results.length === DEPTHS.length && results.every(r => r.stage === 'ready');
-writeFileSync('C:/s/spec/interact-real/look-canvas.json', JSON.stringify({ base: BASE, email: EMAIL, app, boardId, createdAt: previous && process.env.LOOK_CANVAS ? previous.createdAt : new Date().toISOString(), scripted: true, jobs: [...(process.env.LOOK_CANVAS ? previous.jobs ?? [] : []), ...results] }, null, 2));
+writeFileSync(LOOK_FILE, JSON.stringify({ base: BASE, email: EMAIL, app, boardId, createdAt: previous && process.env.LOOK_CANVAS ? previous.createdAt : new Date().toISOString(), scripted: true, jobs: [...(process.env.LOOK_CANVAS ? previous.jobs ?? [] : []), ...results] }, null, 2));
 for (const r of results) console.log(`${r.depth.padEnd(8)} -> ${r.card.padEnd(8)} ${r.stage} ${r.jobId} ${r.ms} ms${r.failure ? ` (${r.failure})` : ''}`);
 console.log(ready ? `RESULT OK canvas ${app} board ${boardId} (${EMAIL}): ${url}` : `RESULT FAILED: not all three cards reached ready; canvas ${url}`);
 process.exit(ready ? 0 : 1);

@@ -8,9 +8,11 @@ const { referencePlans } = await interactFixtures();
 // The fixture now carries its formulas, drops and template (brief 7 section 2); these tests start from the same plan with that data taken off, so each case adds only what it names.
 const base = structuredClone(referencePlans.tossStandard);
 for (const q of base.scene.quantities) { delete q.formula; delete q.switchAt; delete q.formulaAfter; }
-delete base.scene.template; delete base.scene.slots;
+delete base.scene.template; delete base.scene.slots; delete base.scene.words;
 const withQ = (id, patch) => { const plan = structuredClone(base); Object.assign(plan.scene.quantities.find(q => q.id === id), patch); return plan; };
-const messages = plan => planProblems(plan).map(p => `${p.code}@${p.path.join('.')}: ${p.message}`);
+// The words a template needs (scene.words) are checked in interact-plan-brief.test.mjs; this file is about formulas, templates and slots, so those problems are left out here.
+const problemsOf = plan => planProblems(plan).filter(p => p.code !== 'template_words');
+const messages = plan => problemsOf(plan).map(p => `${p.code}@${p.path.join('.')}: ${p.message}`);
 const slots = { toss: { height: 'tossedHeight', velocity: 'tossedVelocity', acceleration: 'tossedAcceleration' }, drop: { height: 'dropHeight', velocity: 'dropVelocity', acceleration: 'dropAcceleration' } };
 const oneBody = { height: 'tossedHeight', velocity: 'tossedVelocity', acceleration: 'tossedAcceleration' };
 const templated = patch => { const plan = structuredClone(base); for (const q of plan.scene.quantities) q.formula = '0'; Object.assign(plan.scene, patch); return plan; };
@@ -29,8 +31,8 @@ test('plan validation parses every formula and names the quantity of the first p
 });
 
 test('template and slots come together and are checked against the roles', () => {
-  assert.deepEqual(planProblems(templated({ template: 'two-lane', slots })), []);
-  assert.deepEqual(planProblems(templated({ template: 'one-body', slots: oneBody })), []);
+  assert.deepEqual(problemsOf(templated({ template: 'two-lane', slots })), []);
+  assert.deepEqual(problemsOf(templated({ template: 'one-body', slots: oneBody })), []);
   assert.match(messages(templated({ template: 'two-lane' }))[0], /^template_pair@scene\.slots/);
   assert.match(messages(templated({ slots }))[0], /^template_pair@scene\.template/);
   assert.match(messages(templated({ template: 'two-lane', slots: { toss: slots.toss } }))[0], /two-lane maps exactly 2 lanes/);

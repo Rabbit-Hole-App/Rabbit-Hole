@@ -35,7 +35,7 @@ export const ROLES = Object.freeze({
 // The inputs a depth offers: id, label, unit and what the control is for (the pinned plans' own words).
 export const INPUTS = Object.freeze({
   launchSpeed: { label: 'Launch speed', unit: 'm/s', meaning: 'Upward speed at the instant of the throw.', reference: 'Measured at the launch mark, up is positive.' },
-  gravity: { label: 'Gravity', unit: 'm/s^2', meaning: 'Magnitude of the constant downward acceleration.', reference: 'Idealized, no air resistance.' },
+  gravity: { label: 'Gravity', quantityLabel: 'Gravitational acceleration', unit: 'm/s^2', meaning: 'Magnitude of the constant downward acceleration.', reference: 'Idealized, no air resistance.' },
   mass: { label: 'Mass', unit: 'kg', meaning: 'Mass of the ball.', reference: 'Does not change the motion.' },
 });
 
@@ -134,7 +134,7 @@ export function expandBrief(brief, depth, { catalogueHash = '' } = {}) {
   const playbackRate = Math.max(0.1, Math.round(topDefault / 2.04 * 10) / 10);
   const timeline = (label, displayOffset, markers) => ({ label, unit: 's', start: 0, end: flight, displayOffset, markers, initialTime: 0, initialPlayback: 'paused', playbackRate });
 
-  const input = (id, formulaText) => ({ id, label: INPUTS[id].label, unit: INPUTS[id].unit, meaning: INPUTS[id].meaning, reference: INPUTS[id].reference, formula: formulaText ?? id });
+  const input = (id, formulaText) => ({ id, label: INPUTS[id].quantityLabel ?? INPUTS[id].label, unit: INPUTS[id].unit, meaning: INPUTS[id].meaning, reference: INPUTS[id].reference, formula: formulaText ?? id });
   const role = id => {
     const r = ROLES[id], f = brief.formulas[id];
     return { id, label: r.label, unit: r.unit, meaning: r.meaning, reference: REF[id], ...(r.piecewise ? {} : { relation: `${id} = ${f.formula}` }),

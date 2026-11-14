@@ -7,6 +7,8 @@
 // at the instants of the plan's own checkpoints, its start and its endpoint. Absolute tolerance 1e-6, as the fixture oracle (interact-build-fixtures.js).
 // shortcut: two canonical cases (Standard and Deep). The benchmark corpus (INT-08) is a later item; add a case here with its equations, not a lookup of answers.
 import { evalScalar } from '../../web/src/interact-plan.js';
+import { canonicalJson } from '../../web/src/explain-contract.js';
+import { FAMILY, expandBrief, extractBrief, referenceValue } from '../../web/src/interact-plan-brief.js';
 
 const G = 9.8, U = 3, TOL = 1e-6;
 const SUPPORT_MOMENTS = { velocityBefore: -0.1, velocityTop: 0, velocityAfter: 0.1 }; // seconds from the apex
@@ -137,7 +139,7 @@ function tossCases(plan, { inputControls, defaults, at, tl }) {
 // The toss plan's cases as { caseId: [inputs, elapsedSeconds] } (the ones its oracle's rows are keyed by), or null when the plan is not one of the three toss plans. bench-expressions.mjs evaluates a model's expressions at them.
 export function tossCasesOf(plan) {
   const options = { brief: { gravity: false, mass: false, offset: 0 }, balanced: { gravity: true, mass: false, offset: -1 }, detailed: { gravity: true, mass: true, offset: 0 } }[plan?.depth];
-  const ref = (options && tossReference(plan, plan.depth, options)) || ledgeReference(plan);
+  const ref = (options && tossReference(plan, plan.depth, options)) || ledgeReference(plan) || familyReference(plan);
   return ref ? { cases: tossCases(plan, ref), domains: Object.fromEntries(ref.inputControls.map(c => [c.binding.id, [c.min, c.max]])) } : null;
 }
 
@@ -217,5 +219,40 @@ export function ledgeMoonOracle(plan) {
   return ref && tossOracle(plan, 'ledge-toss-moon', ref, v => ({ velocity: v.velocity, height: LEDGE + v.u * v.t - v.g * v.t * v.t / 2, acceleration: -v.g, apexTime: v.top, apexHeight: LEDGE + v.peak, launchSpeed: v.u, gravity: v.g }), v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a']]);
 }
 
+// ---- The vertical-throw family (brief 11, the design MVP): a plan a model wrote as a plan brief and the code expanded (interact-plan-brief.js) -----------------------------------------------------
+// Its oracle is the reference physics at the plan's OWN ranges (height = h0 + u t - g t^2 / 2, v = u - g t, a = -g, force = m g, the apex pair, the second ball held then falling from the top), plus the arrow rule the
+// toss oracles apply. It exists only for a plan that IS a family expansion: the plan's brief, expanded again, must give the same controls, quantities, slots, words, checkpoints and timeline (the playback rate
+// aside), never matched by guessing. The oracle id is toss-mvp-<depth>, so the ledger names the card.
+const familyShape = plan => canonicalJson({
+  depth: plan.depth, template: plan.scene.template, slots: plan.scene.slots, words: plan.scene.words, readoutIds: plan.scene.readoutIds, fixed: plan.mode.fixedValues, controls: plan.controls,
+  checkpoints: plan.scene.checkpoints.map(c => [c.id, c.time, c.inputOverrides]), timeline: { ...plan.mode.timeline, playbackRate: 0 },
+  quantities: plan.scene.quantities.map(q => [q.id, q.formula ?? (['launchSpeed', 'gravity', 'mass'].includes(q.id) ? q.id : undefined), q.switchAt, q.formulaAfter, q.unit, q.label]),
+});
+
+function familyReference(plan) {
+  const family = FAMILY.depths[plan?.depth];
+  if (!family || plan.mode?.kind !== 'experiment' || plan.scene?.template !== family.template || plan.scene.runtime?.renderer !== 'program' || !plan.mode.timeline || plan.supportingVisuals?.length) return null;
+  let brief;
+  try { brief = extractBrief(plan); if (familyShape(expandBrief(brief, plan.depth, { catalogueHash: plan.scene.runtime.catalogueHash })) !== familyShape(plan)) return null; } catch { return null; }
+  const numbers = plan.controls.filter(c => c.type === 'number' && c.binding.kind === 'input'), tl = plan.mode.timeline, fixedGravity = plan.mode.fixedValues?.gravity;
+  const defaults = Object.fromEntries(numbers.map(c => [c.binding.id, c.default])), domains = Object.fromEntries(numbers.map(c => [c.binding.id, [c.min, c.max]]));
+  return { inputControls: numbers, defaults, at: (expr, inputs) => evalScalar(expr, inputs, domains), gOf: inputs => fixedGravity ?? inputs.gravity, tl, brief };
+}
+
+const ARROWS = {
+  brief: v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a']],
+  balanced: v => [['vec.v.toss', velocityDir(v.velocity), 'v'], ['vec.a.toss', 'down', 'a'], ['vec.v.drop', velocityDir(v.tau > 0 ? -v.g * v.tau : 0), 'v'], ['vec.a.drop', 'down-or-none', 'a']],
+  detailed: v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a'], ['vec.F', 'down-or-none', 'F']],
+};
+
+export function verticalThrowOracle(plan) {
+  const ref = familyReference(plan);
+  if (!ref) return null;
+  const roles = FAMILY.depths[plan.depth].roles, h0 = ref.brief.launchHeight;
+  return tossOracle(plan, `toss-mvp-${plan.depth}`, ref, v => ({
+    ...Object.fromEntries(roles.map(role => [role, role === 'dropAcceleration' && Math.abs(v.tau) < NEAR ? undefined : referenceValue(role, v.t, { v: v.u, g: v.g, m: v.m, h0 })])), launchSpeed: v.u, gravity: v.g, mass: v.m,
+  }), ARROWS[plan.depth]);
+}
+
 // The trusted expected values for this plan, or null when no oracle exists for it (the checks then say so).
-export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan) ?? overviewDropOracle(plan) ?? pendulumPeriodOracle(plan) ?? tossOverviewOracle(plan) ?? tossStandardOracle(plan) ?? tossDeepOracle(plan) ?? ledgeMoonOracle(plan);
+export const interactOracle = plan => standardTossDropOracle(plan) ?? deepTossDropOracle(plan) ?? overviewDropOracle(plan) ?? pendulumPeriodOracle(plan) ?? tossOverviewOracle(plan) ?? tossStandardOracle(plan) ?? tossDeepOracle(plan) ?? ledgeMoonOracle(plan) ?? verticalThrowOracle(plan);
