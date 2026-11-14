@@ -1,0 +1,1 @@
+GATE: PASS(replay) 3534ca428e09c44662252db7b522cc1d28c147d9 data-only (no smoke) stacked on ee9966384ca8c2127ee0b8e6c4ff378089c76ec7 (release 136): ci, pipeline, scripts, tutor-diagrams + snapshots, figure-briefs, web unit, build, property count 358, replay 0 moved. Steps and the one first-pass failure (check-map classes for the C02 files) are in 136b-suites-report.txt.

@@ -1,0 +1,139 @@
+✔ docs run nothing; mapped runs its checks (1.8859ms)
+✔ a broad path runs every Linux-ready check, and lists windows-only ones as not covered (0.1729ms)
+✔ readiness (force) selects every Linux check with no change at all, and lists windows-only ones as not covered (0.0946ms)
+✔ an unmapped executable path is reported and selects no check (0.2472ms)
+✔ unit-test files in a mapped row are listed as unitTests, never as browser checks (0.4728ms)
+✔ a rename selects the checks of both the old and the new path (0.2274ms)
+✔ a deleted mapped file still runs its checks (0.1088ms)
+✔ an edited check file runs itself (0.0857ms)
+✔ baseline: newest green ancestor, else merge-base with main (force-push) (0.1417ms)
+✔ parts are balanced longest first and are deterministic (0.2152ms)
+✔ a runtime-imported markdown file listed broad is broad, never docs (0.2022ms)
+✔ a mapped markdown file stays mapped and selects its checks (0.1444ms)
+✔ notCovered: a broad change lists every windows-only check; a mapped windows-only check runs nothing and is listed (0.0877ms)
+✔ git diff paths with non-ASCII characters are never quoted into the none class (1168.9056ms)
+✔ git diff -z output: renames carry both paths, other statuses one (0.2549ms)
+✔ plan: an unmapped path fails every part with exit 1 and one fix line per path; a clean selection passes (0.3596ms)
+✔ plan: engines lists the non-Chromium browsers of this part only, from check-map.json engine (0.3144ms)
+✔ plan: a selected check missing from check-map.json fails every part with exit 1 and one fix line per check (7.8107ms)
+✔ the CLI refuses a missing, non-numeric or out-of-range --part/--of with exit 2 and a usage line, before any git or gh call (531.1731ms)
+✔ CAD manual checks are registered but never enter automated Linux or readiness execution (26.4612ms)
+✔ CAD source changes retain existing browser regression checks and disclose manual coverage (2.0872ms)
+✔ CAD executor workspace is linked in the lock without introducing third-party dependencies (4.7126ms)
+✔ tool handoff component stays a manual fixture and never grants automatic runtime coverage (7.1783ms)
+✖ every tracked executable file has a class (a new file is classified in the push that adds it) (3628.3912ms)
+✔ every e2e check has a runner and a duration (1.411ms)
+✔ every mapped glob names checks that exist, and every windows-only check says why (4.5296ms)
+✔ every check that launches Firefox or WebKit declares that engine, and only those two are declared (110.1924ms)
+✔ every none glob has a reason, and no reason is orphaned (0.4341ms)
+✔ file conversion mappings report guarded manual coverage without starting its service or demos (5.6305ms)
+✔ import and model paths select their real checks while pointer diagnostics retain both consumers (5.0887ms)
+✔ markdown that the bundles import at run time is broad, not docs (0.8971ms)
+✔ files outside web and control-plane that the bundles import are mapped, not none (3.9154ms)
+✔ nothing reachable from the bundle and worker entries is classed none or docs (864.5357ms)
+✔ the pinned nanoGPT fixture selects the checks that read it (3.9802ms)
+✔ Dive, PanelHeader and FileImportDialog select every check that drives them (6.0199ms)
+✔ broad is exactly the owner list plus the reviewed keep-lines, each with its reason (0.4671ms)
+✔ every mapped row names a Linux check or a CI-run unit test, or is a recorded Preview/Full-tier row (10.6662ms)
+✔ a one-file change in each area is mapped, selects that area's own check and far fewer than the broad set (36.3804ms)
+✔ WhiteboardVideoCard.jsx is no longer shadowed by a broad glob: its row runs (0.8562ms)
+✔ bounded compute check remains manual fixture coverage for both source helpers (0.4199ms)
+✔ source page and derivative browser check remains explicit manual fixture coverage (0.259ms)
+✔ native image replacement remains manual intercepted extraction coverage (0.1744ms)
+✔ a broad selection splits into six parts whose estimated check time each stays under 15 minutes (16.3638ms)
+✔ clipboard fork and trash persistence remains manual browser coverage (0.2978ms)
+✔ new extraction and evidence fixtures remain manual, never automatic integration coverage (33.8616ms)
+✔ extraction and repository inspector source changes identify their actual focused checks (2.1212ms)
+✔ engine-deps.sh parses (94.4352ms)
+✔ no engine: nothing is installed and apt is not touched (186.6891ms)
+✔ libraries, then the preflight, then the browser; apt gets bounded connection timeouts and retries (1224.4293ms)
+✔ a failed first attempt switches apt to archive.ubuntu.com and retries; every engine is passed through (2172.7603ms)
+✔ three failed attempts and a missing package: the preflight names it and fails before any browser download (2613.2866ms)
+✔ a hung apt attempt is cut at its bound and the next attempt runs (4167.7239ms)
+✔ superseded runs on the same branch are cancelled (1.0058ms)
+✔ plan needs nothing and comes first; the parts need the plan; verdict needs both (0.2712ms)
+✔ install never depends on a cache hit (0.2338ms)
+✔ history is fetched so the baseline can be found, and the checkout keeps no credentials (0.1602ms)
+✔ npm and Playwright caches are restored and saved by hand: saved right after install on a miss, never for an empty part (0.4777ms)
+✔ artifact names carry the run attempt, so re-running failed jobs cannot collide (0.1461ms)
+✔ only the real repository runs it, and not for a deleted branch; the verdict follows (0.2416ms)
+✔ the matrix comes from the plan, which selects parts 1..N with the --of N each part passes to affected.mjs (0.8595ms)
+✔ the plan runs before any install or build, fails when affected.mjs exits non-zero, and reads readiness from env only (0.2801ms)
+✔ the plan outputs the non-empty parts as a JSON list, the total count and what the tier does not cover (546.1921ms)
+✔ verdict passes when plan and parts pass, or when the plan selected 0 checks and so the parts were skipped; nothing else (592.7135ms)
+✔ both bundles are built: dist for the control-plane assets, dist-dev with the review flags (0.3579ms)
+✔ the stack is stopped, always, before the persist dir is uploaded (0.1437ms)
+✔ the selection fails the job on exit 2 (bad arguments), warns on an unmapped path, and reports what the tier does not cover (0.3499ms)
+✔ the GitHub token reaches only the selection step (the checks and the stack never see it) (0.1288ms)
+✔ empty parts stop after selection; every later step is gated on the selection output (0.2003ms)
+✔ engine libraries: installed after the Chromium cache save and before the build, only for a part that names an engine, bounded (0.1395ms)
+✔ readiness: the dispatch input reaches the selection and run-part.sh as env only, never inlined in a script (0.2259ms)
+✔ run-part.sh parses (64.7118ms)
+✔ every harness check has a server rule that matches the port its source hard-codes (4.9853ms)
+✔ no workflow line escapes its block: only top-level keys and comments start at column 1 (0.3761ms)
+✔ only transport errors are retried (0.8618ms)
+✔ success on the first try returns stdout, with no check and no sleep (0.7211ms)
+✔ a retryable error then success resends once after 5 s (0.5029ms)
+✔ a retryable error where check() says the mutation landed returns without resending (1.2032ms)
+✔ a non-retryable error is rethrown after one call, without check or sleep (0.4547ms)
+✔ three retryable errors give up after 3 calls, with 5 s then 15 s backoff (0.1676ms)
+✔ fork checks get the gate env and a shots dir; harness checks get their port and nothing else; everything is stopped (8967.7779ms)
+✔ readiness runs every check three times in a row, each run in its own log and its own line (8801.3862ms)
+✔ a fork check whose stack died under it restarts the stack and reruns once; the first log is kept and the line says so (4367.3021ms)
+✔ a harness-only part never starts the stack (1950.0854ms)
+✔ a server that never starts fails its checks without running them; a runner the tier cannot run, or a check the map lacks, is a stop with its fix (3174.2202ms)
+✔ a check that exited 0 having executed no assertions fails, whatever it prints; counted lines and "N/N passed" are passes (5950.8782ms)
+✔ a scenario that throws, or a nonzero exit after the log counted N/N, never reads as checks passed (3527.823ms)
+✔ an empty selection is reported as NOT SELECTED and is not a pass (514.967ms)
+﹣ the fast-tier stack starts keyless, answers, and stops (0.5346ms) # SKIP
+✔ a control-plane-only change runs the control-plane suite and no build (27.5104ms)
+✔ a web change runs the web suite and one build (dist-dev) (1.4039ms)
+✔ a file whose row names another package's unit tests runs that suite too (1.526ms)
+✔ a render-package change runs its own suite only (1.3174ms)
+✔ lockfiles, package.json, workflows, scripts/ci, run.sh and an unmapped path run everything and both builds (1.8628ms)
+✔ a broad path runs its package and the suites that span the Workers; docs run nothing (0.971ms)
+✔ run.sh defines one unit function per suite, in the same order, and test:unit with no suite runs them all (0.8789ms)
+ℹ tests 95
+ℹ suites 0
+ℹ pass 93
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 56945.5377
+
+✖ failing tests:
+
+test at scripts\ci\check-map.test.mjs:13:1
+✖ every tracked executable file has a class (a new file is classified in the push that adds it) (3628.3912ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'packages/web/src/tutor-diagrams/composition-attention-references.js',
+  +   'packages/web/src/tutor-diagrams/composition-distribution-shift-references.js',
+  +   'packages/web/src/tutor-diagrams/composition-model-evaluation-references.js',
+  +   'packages/web/src/tutor-diagrams/composition-time-series-references.js',
+  +   'packages/web/src/tutor-diagrams/topic-attention-data.js',
+  +   'packages/web/src/tutor-diagrams/topic-distribution-shift-data.js',
+  +   'packages/web/src/tutor-diagrams/topic-distribution-shift-replay-cases.json',
+  +   'packages/web/src/tutor-diagrams/topic-distribution-shift-token-budgets.json',
+  +   'packages/web/src/tutor-diagrams/topic-model-evaluation-data.js',
+  +   'packages/web/src/tutor-diagrams/topic-time-series-data.js'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///C:/s/explain-136b/scripts/ci/check-map.test.mjs:16:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'packages/web/src/tutor-diagrams/composition-attention-references.js', 'packages/web/src/tutor-diagrams/composition-distribution-shift-references.js', 'packages/web/src/tutor-diagrams/composition-model-evaluation-references.js', 'packages/web/src/tutor-diagrams/composition-time-series-references.js', 'packages/web/src/tutor-diagrams/topic-attention-data.js', 'packages/web/src/tutor-diagrams/topic-distribution-shift-data.js', 'packages/web/src/tutor-diagrams/topic-distribution-shift-replay-cases.json', 'packages/web/src/tutor-diagrams/topic-distribution-shift-token-budgets.json', 'packages/web/src/tutor-diagrams/topic-model-evaluation-data.js', 'packages/web/src/tutor-diagrams/topic-time-series-data.js' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

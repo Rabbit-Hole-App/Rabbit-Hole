@@ -1,0 +1,5 @@
+LABEL="Release 136b: C02 composition data. The attention, distribution-shift, model-evaluation and time-series panels and comparison references with their toy data, receipts, replay cases and study docs; every panels or two-panel comparison reference without an authored variant sends its answer panel to the author, never the panels kind. Data and docs only, no migrations, no config change."
+SHA=3534ca428e09c44662252db7b522cc1d28c147d9
+MAIN_PREV="ee9966384ca8c2127ee0b8e6c4ff378089c76ec7"
+W=C:/s/explain-136b
+RECOVERY=release/explain-136b-rollback-3534ca42

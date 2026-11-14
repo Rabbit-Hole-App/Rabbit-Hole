@@ -1,0 +1,17 @@
+SUITES: GREEN 3534ca428e09c44662252db7b522cc1d28c147d9
+Release 136b = C02 composition data (Codex explain/composition-c02-r1, three commits, rebased onto release 136 by me), STACKED on 136 = ee9966384ca8c2127ee0b8e6c4ff378089c76ec7 (chain: main a8ef11d64 <- 134 bbd2c581b <- 135 2a31d4d7b <- 136). Branch release/explain-136b = explain/composition-136b. Commits over 136: e5bfc287a C02 content spec, f7f7b9487 C02 data, 03a974817 C02 docs (all Codex, unchanged), then mine: one-diagram variants for panels and two-panel comparison references without an authored variant + the six new set3 pairs + parents count 43; the board-links allowlist entries for the three C02 files; the attention snapshot rows and 15 preview files re-rendered for release 133's two-place formatting; check-map rows for the C02 files (3534ca428).
+Data and docs only: no control-plane, no migrations, no config. Data-only gate (as 131/136): no smoke, no control-plane suite.
+Gate on the stacked tip (136b-gate-run.log, first pass on 906064ca9; 136b-gate-rerun.log, re-run of the failed step on the final SHA; outputs 136b-step-<name>.out / 136b-rerun-ci.out). Heavy lock comp136b around every step.
+1. scripts/ci tests: first pass on 906064ca9: 93/95 pass (1 skipped), 1 FAIL ("every tracked executable file has a class": ten C02 files (four composition-*-references.js, the topic-*-data.js files, the distribution-shift replay cases and token budgets) had no check-map class: an assertion on intended data, the same as for C01); fixed in 3534ca428 (ten rows mapped to Codex's four composition tests); re-run on the final SHA: 94/95 pass (1 skipped), 0 fail. Both runs kept (136b-step-ci.out, 136b-rerun-ci.out).
+2. pipeline linter and author tests (scripts/topic-pipeline/test/*.test.mjs): 83/84 pass (1 skipped), 0 fail. [first pass]
+3. scripts/*.test.mjs: 254/254. [first pass]
+4. tutor-diagrams tests (includes the svg snapshot test): 1265/1265. [first pass]
+5. figure-briefs tests: 7/7. [first pass]
+6. web unit (npm run test:unit): 6876/6904 pass, 27 skipped, 0 fail. [first pass]
+7. web build: exit 0. [first pass]
+8. property count (int8-props, int8-mixed): max 358 <= 362, unchanged. [first pass]
+9. planner-kind replay vs the 136 candidate (worktree C:/s/explain-136 at ee9966384): 474 card rows, 0 first picks, steer, kind or refs moved, no change. [first pass]
+10. svg snapshots vs 136 (3253 rows on 136, 3271 on the candidate): 18 added (ml-attention-scaled-score-normalization, ml-distribution-shift-concept-shift, ml-distribution-shift-input-distribution-shift, ml-model-evaluation-schedule-run-diagnostics, ml-model-evaluation-training-diagnostics, ml-time-series-recursive-rollout, each at 320, 408, 720), 0 removed, 0 changed. Codex's three attention rows were stale against release 133's two-place formatting and were regenerated before this comparison (the update changed exactly ml-attention-scaled-score-normalization/320, /408, /720 of his committed file).
+11. C02 previews (docs/features/explain/composition/batches/C02/previews): re-rendered with the stacked tip's renderer: 15 files differed (all ml-attention-scaled-score-normalization variants and the model-evaluation training-diagnostics detail figure, the value formatting of release 133) and were regenerated; no other preview differs.
+Steps 2-9 ran on 906064ca9; the final commit 3534ca428 adds only the check-map rows (scripts/ci/check-map.json), which no step 2-9 reads; step 1 was re-run on the final SHA.
+Evidence: C:/s/spec/release-queue/136b-*.out, 136b-gate-run.log, 136b-gate-rerun.log.

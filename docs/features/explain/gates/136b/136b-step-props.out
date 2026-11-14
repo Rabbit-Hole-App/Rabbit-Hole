@@ -1,0 +1,10 @@
+prompts 717 max 347 ml-transformer-vocabulary-softmax distribution {"134":195,"143":6,"150":12,"176":29,"186":1,"305":339,"317":130,"347":5}
+contour 317
+unsteered 134
+qkv 150
+top5 347 ml-transformer-vocabulary-softmax | 347 figure-gallery-convolution-before-recurrent-state | 347 figure-gallery-layer-specific-token-lookup | 347 figure-gallery-fine-and-coarse-history-compression | 347 raschka-residual-gain-and-soft-logit-cap
+GATE PASS: max 347 <= 362
+distinct bundle signatures 144 max 358 ml-transformer-qkv-projections + ml-transformer-vocabulary-softmax {"quant":true,"fresh":false,"panels":false,"states":false,"blockStack":true,"tensorHosts":["transformation"]}
+top5 358 ml-transformer-qkv-projections + ml-transformer-vocabulary-softmax | 358 ml-transformer-parallel-attention-heads + ml-transformer-vocabulary-softmax | 354 gradient-descent-contours + ml-transformer-encoder-stack | 354 ml-transformer-vocabulary-softmax + ml-model-evaluation-training-diagnostics | 352 nearest-centroid-boundary + ml-transformer-weighted-values
+over 362: 0 distribution {"129":39,"138":10,"143":1,"144":2,"145":12,"150":1,"154":2,"171":10,"180":1,"181":9,"187":2,"190":1,"197":2,"300":21,"309":2,"312":8,"316":4,"321":1,"328":2,"342":7,"351":1,"352":2,"354":2,"358":2}
+GATE PASS: max 358 <= 362
