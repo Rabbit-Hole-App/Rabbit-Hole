@@ -166,11 +166,11 @@ const ARROWS = {
   balanced: v => [['vec.v.toss', velocityDir(v.velocity), 'v'], ['vec.a.toss', 'down', 'a'], ['vec.v.drop', velocityDir(v.tau > 0 ? -v.g * v.tau : 0), 'v'], ['vec.a.drop', 'down-or-none', 'a']],
   detailed: v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a'], ['vec.F', 'down-or-none', 'F']],
 };
-const FAMILY = { brief: { gravity: false, mass: false, offset: 0 }, balanced: { gravity: true, mass: false, offset: -1 }, detailed: { gravity: true, mass: true, offset: 0 } };
+const LOOSE_OPTIONS = { brief: { gravity: false, mass: false, offset: 0 }, balanced: { gravity: true, mass: false, offset: -1 }, detailed: { gravity: true, mass: true, offset: 0 } };
 
 // brief 11 (the design bench): the arrow-direction rule for ANY plan of the vertical-throw family at its depth (own ranges, own fixed gravity); no numeric rows (the formula check owns the physics). null off the family.
 export function verticalThrowArrowOracle(plan) {
-  const options = FAMILY[plan?.depth], ref = options && tossReference(plan, plan.depth, options, true);
+  const options = LOOSE_OPTIONS[plan?.depth], ref = options && tossReference(plan, plan.depth, options, true);
   return ref && tossOracle(plan, `vertical-throw-${plan.depth}`, ref, () => ({}), ARROWS[plan.depth]);
 }
 
@@ -238,12 +238,6 @@ function familyReference(plan) {
   const defaults = Object.fromEntries(numbers.map(c => [c.binding.id, c.default])), domains = Object.fromEntries(numbers.map(c => [c.binding.id, [c.min, c.max]]));
   return { inputControls: numbers, defaults, at: (expr, inputs) => evalScalar(expr, inputs, domains), gOf: inputs => fixedGravity ?? inputs.gravity, tl, brief };
 }
-
-const ARROWS = {
-  brief: v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a']],
-  balanced: v => [['vec.v.toss', velocityDir(v.velocity), 'v'], ['vec.a.toss', 'down', 'a'], ['vec.v.drop', velocityDir(v.tau > 0 ? -v.g * v.tau : 0), 'v'], ['vec.a.drop', 'down-or-none', 'a']],
-  detailed: v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a'], ['vec.F', 'down-or-none', 'F']],
-};
 
 export function verticalThrowOracle(plan) {
   const ref = familyReference(plan);
