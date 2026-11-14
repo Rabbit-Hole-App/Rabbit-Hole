@@ -1,0 +1,1 @@
+GATE: PASS(replay) ee9966384ca8c2127ee0b8e6c4ff378089c76ec7 data-only (no smoke) stacked on 2a31d4d7bb38d1ef0a981b92a03a2dfae90f3c97: ci, pipeline, scripts, tutor-diagrams + snapshots, figure-briefs, web unit, build, property count 358, replay 0 moved. Steps and the two first-pass failures (stale renderer-constraints.md, board-links allowlist) are in 136-suites-report.txt.

@@ -1,0 +1,15 @@
+✔ keeps source order, a private exact context manifest, and an index with no artwork or prose (63.8355ms)
+✔ checks robots at a redirect destination and never follows a login redirect (13.2176ms)
+✔ pins the 21 lesson pages and begins with the Illustrated Transformer (1.4946ms)
+✔ reads the source caption after a legacy inline figure (1.4676ms)
+✔ refuses a sign-in form returned at the original page URL (0.6848ms)
+✔ the web dev server denies filesystem imports from the figure folder (297.5372ms)
+✔ the web build rejects stylesheet URLs to the figure folder (82.4076ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 983.18

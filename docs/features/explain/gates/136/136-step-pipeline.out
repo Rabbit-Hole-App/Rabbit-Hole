@@ -1,0 +1,191 @@
+✔ agent schemas enforce verdict layers and authored file paths before writes (18.1847ms)
+✔ fixture stages 01, 04 and 07 use source text, defective and corrected previews, and card comparisons with mocked clients (188.8057ms)
+✔ stage 04 runs its verifier batches in parallel and keeps the verdicts in batch order (362.0179ms)
+✔ prompts split into batches in prompt order (1.8759ms)
+✔ merged parts form a loadable references module whose derived() merges every part (21.2665ms)
+✔ registry wiring adds one import and one spread, once (0.836ms)
+✔ failures route to the batch that owns them (0.7231ms)
+✔ round 1 runs the foundation once, then every batch in parallel; the merged files cover the stage (1.1588ms)
+✔ a failure is repaired by calling only the owning batch, with the verbatim feedback (0.8261ms)
+✔ a batch whose call failed is called again next round while finished batches are kept (0.4873ms)
+✔ a reference id used by two batches is rejected with its name (0.2809ms)
+✔ batch and foundation answers are validated against their assignment (3.7818ms)
+✔ the preflight estimate counts one foundation plus ceil(12 / size) batch calls per round at the batch ceiling (0.7663ms)
+✔ replay ids go back to the prompts own id type (numbers in prompts.json) (0.6808ms)
+✔ feedback sent to a re-called batch is capped (0.3919ms)
+✔ references the feedback does not name come back byte-identical from the previous answer (0.4905ms)
+✔ a re-called batch keeps its unnamed references through the whole round loop (0.815ms)
+✔ a re-called batch receives only the references the feedback names, and their feedback (0.7578ms)
+✔ a narrow retry replaces the named references in place and keeps every other reference byte-identical (0.4032ms)
+✔ the batch payload carries the data module, references, tests and replay rows (1.8331ms)
+✔ a valid batch has no flags (1322.2863ms)
+✔ every invalid spec and a wrong kind come back together, before any round is spent (876.7867ms)
+✔ a typed caption number outside a formula constant is flagged by the file-free linter rules (835.0457ms)
+✖ renderer-constraints.md is current and lists the refinement messages by kind (94.805ms)
+✔ a batch that asserts through data.derived() still satisfies the derived-assertion rule (885.4589ms)
+✔ a flow label that is not an action and two nodes with one label are flagged with their contract rule before stage 05 (892.2109ms)
+✔ a placeholder edge label is a contract error, and a label that follows the contract is not (852.5187ms)
+✔ renderer-constraints.md carries the content contract: the rule ids, the unique-label rule and the verb list the release suite uses (62.5502ms)
+✔ every relative import of author-runtime.mjs is copied into the topic worktree by author.mjs (3.1858ms)
+✔ a math-delimiters flag carries the arrow hint, with a real backslash and no tab, and the constraints sheet says the same (42.1739ms)
+✔ author runs in background mode and polls the stored response until it completes (71.8106ms)
+✔ a background poll that times out records unknown usage with the response id (23.6474ms)
+✔ author serializes Responses structured JSON and charges reasoning within output once (7.0963ms)
+✔ reviewer sends PNG and JPEG vision blocks through Messages with configured effort and version (7.0311ms)
+✔ judge uses the smaller configured model and each agent keeps its output ceiling (18.4254ms)
+✔ model and effort flags select only config overrides and their configured prices (11.2247ms)
+✔ malformed JSON is charged before one reask with validation feedback (10.7278ms)
+✔ schema failure stops after two paid attempts without leaking response content (15.0481ms)
+✔ working custom validation errors are included in the single reask (11.163ms)
+✔ Anthropic transport schema drops unsupported constraints while local validation retains them (18.4939ms)
+✔ text and image estimates reject an over-ceiling request before any provider call (4.1155ms)
+✔ preflight spend limit refuses provider calls and actual overrun still saves paid usage (8.4081ms)
+✔ HTTP and transport failures never retry or expose keys, endpoints or response bodies (10.892ms)
+✔ missing config credentials cannot fall back to environment or default endpoints (1.3492ms)
+✔ selected model must be configured and explicit author temperature is honored (5.6516ms)
+✔ composes every selected depth from exporter previews and inventories numeric display text with provenance (91.1607ms)
+✔ includes numeric matrix and tree labels and refuses missing 408 output (25.2469ms)
+✔ prompt schema enforces count, unique ids and wording, kind mix and keywords (3.3949ms)
+✔ resume skips completed stages and an explicit rerun archives later artefacts (51.1054ms)
+✔ STOP-1 through STOP-4 halt and only READY plus --go enters release (89.2095ms)
+✔ set generation uses intended reference, diagram kind and standard depth (0.7092ms)
+✔ coverage reuses only one identical worked kind at all three depths and affirmative judge (1.0789ms)
+✔ coverage passes planner kinds and masks shipped Lesson04 before scoring (151.9509ms)
+✔ a repeated author file path keeps its last entry and is reported (1.0193ms)
+✔ a configured Windows command that starts with a quoted path runs through cmd unchanged (317.8226ms)
+✔ every depth and detail variant folder of an authored reference is allowed (1.3586ms)
+✔ a reference from an earlier round of the same topic is allowed; other topics, stray files and non-topic paths stay out (0.4255ms)
+✔ dependencies are linked into a fresh integration worktree as junctions, once (37.6822ms)
+✔ generated topic set preserves the demo set contract: bare prompt, reference, kind, one standard run (2.5942ms)
+✔ generalised pack exports demo-lesson04 bench-run format and arbitrary topic ids, preserving regeneration history (229.1013ms)
+ℹ Actual saved demo-lesson04 results.json/raw run directory is absent; the test above uses an explicitly synthetic bench-format fixture.
+﹣ pack generalisation on the saved demo-lesson04 run directory (0.45ms) # Reviewer saved demo-lesson04 bench results.json/raw run directory and set are not supplied
+✔ uses coverage selection with an explicit planner for exactly five supplied paraphrases at all depths (4.9505ms)
+✔ reports a weak depth without replacing the aggregate gate and only counts the first reference (1.3971ms)
+✔ requires real supplied paraphrases, expected references, planner and coverage metadata (1.6773ms)
+✔ a label broken inside a word fails with the id, depth, width and the broken word (21.6684ms)
+✔ a label wrapped at a space passes, at every width (39.9624ms)
+✔ the break is found at any line of a three-line label and only inside a word of the label (0.8145ms)
+✔ rule 1: exact compact cl100k counts pass at 300 and fail above 300 at each depth (249.4323ms)
+✔ rule 2: verbatim prompts and short lowercase keywords pass; omissions and keyword violations fail (9.1241ms)
+✔ rule 3: semantic role fields pass; all seven role-word label prefixes fail (3.2174ms)
+✔ rule 4: delimited maths passes; bare commands, scripts and unmatched delimiters fail (2.6762ms)
+✔ rule 5: learner quantities/units pass; unspecified and all forbidden axis labels fail (3.2782ms)
+✔ rule 6: derived data plus an assertion pass; missing exports/numbers/tests and typed display numbers fail (7.9045ms)
+✔ rule 7: a 2-decade logarithmic data series passes; short ranges fail despite wide axis domains (2.4781ms)
+✔ rule 8: one worked reference plus a shape passes; actual same-kind selections and exact duplicates fail (3.3554ms)
+✔ rule 9: smaller Brief and additional Detailed arithmetic pass; equal Brief and unchanged Detailed fail (3.8311ms)
+✔ rule 10: illustrative prefix/N1 marker pass; unmarked illustrative values fail at every depth (1.5933ms)
+✔ rule 11: relative data imports and test-only node:test/node:assert pass; every forbidden API/import fails (11.451ms)
+✔ rule 11: the forbidden-text scan covers js, mjs and json, not markdown prose (1.269ms)
+✔ rule 11: 200 KB/40-file boundaries and topic allowlist pass; excess/escape paths fail (39.0071ms)
+✔ rule 11: an unsafe authored relative dependency is rejected before the entry module can run (40.4458ms)
+✔ rule 11: safe authored closure can import trusted existing tutor-diagrams dependencies (29.5761ms)
+✔ rule 2: overlays receive prompt/keyword checks and preserve verbatim coverage (50.0022ms)
+✔ rule 8 collisions are warnings, authored or not (1.3727ms)
+ℹ tests 84
+ℹ suites 0
+ℹ pass 82
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 14045.9369
+
+✖ failing tests:
+
+test at scripts\topic-pipeline\test\author-prevalidate.test.mjs:64:1
+✖ renderer-constraints.md is current and lists the refinement messages by kind (94.805ms)
+  AssertionError [ERR_ASSERTION]: run: node scripts/topic-pipeline/build-renderer-constraints.mjs
+  + actual - expected
+  ... Skipped lines
+  
+    '# Renderer constraints (generated)\n' +
+      '\n' +
+      'Generated by `build-renderer-constraints.mjs` from the tutor-diagram parser sources; do not edit. The JSON schema excerpt shows shapes and string lengths. These are the additional rules the local parser enforces, by diagram kind. A diagram that breaks one is rejected.\n' +
+      '\n' +
+      '## band\n' +
+  ...
+      '- A bar variant requires categories and series\n' +
+  -   '- A total belongs to one stacked bar (variant stacked with bars)\n' +
+      '- Basic bar charts require bars\n' +
+      '- Category and series labels must be unique\n' +
+      '- Each series needs one value for every entry in categories\n' +
+  +   '- Grouped and stacked variants cannot include legacy bars\n' +
+      '- Grouped or stacked series require an explicit variant\n' +
+  -   '- Grouped variants and stacked series cannot include legacy bars\n' +
+      '\n' +
+      '## box-plot\n' +
+      '\n' +
+      '- An outlier must lie strictly outside the fences, or whiskers when no fences are supplied\n' +
+      '- Fences are outside the shared axis domain\n' +
+  ...
+      '- A highlighted tree path starts at the root\n' +
+  -   '- A link joins two neighbouring panels, from one to the next\n' +
+      '- A list comparison needs columns\n' +
+      '- A list transformation needs an item list\n' +
+      '- A merge height cannot be lower than a child height\n' +
+      '- A merge height must fit the height axis\n' +
+      '- A repeat group must end at a later block\n' +
+      '- A repeat group needs a repeat count\n' +
+  -   '- A shared axis must have the same label, range, unit and scale\n' +
+  -   '- A shared axis requires coordinate plots in every panel\n' +
+  -   '- A single stacked bar uses bars, not categories and series\n' +
+      '- A visual comparison needs two or three child panels\n' +
+      '- A visual comparison uses panels instead of list columns\n' +
+      '- A visual transformation needs a child diagram\n' +
+      '- Block IDs must be unique\n' +
+      '- Callout must refer to a block\n' +
+      '- Callouts require a vertical stack\n' +
+      '- Declare each shared axis only once\n' +
+  -   '- Declare each shared item only once\n' +
+      '- Do not repeat an identity mapping\n' +
+  -   '- Each pair of neighbouring panels has at most one link\n' +
+      '- Each query must use a distinct source index\n' +
+      '- Every dendrogram node needs a numeric height\n' +
+      '- Every output identity needs an explicit mapping\n' +
+      '- Explain whether identities are preserved or explicitly mapped\n' +
+      '- Give one weight per target token in order\n' +
+  ...
+      '- Only a child has an incoming edge label\n' +
+  -   '- Part labels must be unique\n' +
+  -   '- Parts of one stacked bar are positive\n' +
+      '- Preserved identities do not need remapping\n' +
+      '- Preserved identities must contain exactly the same input and output IDs\n' +
+      '- Provide one value for each visible cell\n' +
+      '- Reference an existing row ID\n' +
+      '- Reference an existing zero-based column index\n' +
+  ...
+      '- Shared axes require coordinate plots in every panel\n' +
+  -   '- Shared classes and colours apply to bar charts: every panel must be a bar chart\n' +
+      '- Show at most eight visible cells\n' +
+      '- Side inputs require a vertical stack\n' +
+      '- The cutoff must be inside the dendrogram height axis\n' +
+      '- The graph layout needs one connected relationship graph\n' +
+      '- The highlighted path names an unknown tree node\n' +
+  -   '- The parts add up to …, not the stated total …\n' +
+      '- Time must be within the declared domain\n' +
+      '- Timeline entry IDs must be distinct\n' +
+      '- Use a plot, matrix or sample set with a stable ID on every point, row or sample\n' +
+      '- Use an existing zero-based source index\n' +
+      '- Use at most … characters\n' +
+  ...
+      '\n' +
+  +   '- block-component-name: Use the component name without an action prefix.\n' +
+  +   '- duplicate-node-label: This label repeats …[…]. Name the distinction between the two nodes.\n' +
+  +   '- flow-label-verb-first: Start with the action or the verb of a decision question.\n' +
+  +   '- math-delimiters: Put each complete mathematical expression inside $…$ delimiters.\n' +
+  +   '- placeholder-edge-label: Name the condition, transition, or message. Omit optional labels when the arrow already conveys the order.\n' +
+  +   '- redundant-comparison: a two-panel comparison whose panels hold the same content, or could be one plot or one grouped bar chart, is refused: draw'... 3254 more characters
+  -   '- bloc'... 3860 more characters
+  
+      at TestContext.<anonymous> (file:///C:/s/explain-136/scripts/topic-pipeline/test/author-prevalidate.test.mjs:66:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '# Renderer constraints (generated)\n\nGenerated by `build-renderer-constraints.mjs` from the tutor-diagram parser sources; do not edit. The JSON schema excerpt shows shapes and string lengths. These are the additional rules the local parser enforces, by diagram kind. A diagram that breaks one is rejected.\n\n## band\n\n- A band requires an increasing interval\n- Band must be within the axis bounds\n\n## bar-chart\n\n- A bar variant requires categories and series\n- Basic bar charts require bars\n- Category and series labels must be unique\n- Each series needs one value for every entry in categories\n- Grouped and stacked variants cannot include legacy bars\n- Grouped or stacked series require an explicit variant\n\n## box-plot\n\n- An outlier must lie strictly outside the fences, or whiskers when no fences are supplied\n- Fences are outside the shared axis domain\n- Fences must enclose both whiskers\n- Outlier is outside the shared axis domain\n- Require whiskerLow ≤ q1 ≤ median ≤ q3 ≤ whiskerHigh\n- Summary is outside the shared axis domain\n- The axis maximum must exceed its minimum\n\n## coordinate-plot\n\n- A closed line cannot use an end label or an uncertainty band\n- A closed line needs at least three distinct vertices\n- A line needs at least two points\n- A line or step needs at least two points\n- A right-edge label requires a line ending at the x-axis maximum\n- A segment or vector needs distinct endpoints\n- Circle samples require a closed line\n- Compact samples need one x coordinate per y value\n- Every uncertainty point needs both low and high\n- Integer ticks require linear integer bounds\n- Log axes require a strictly positive domain\n- Only line series can be closed\n- Point is outside the axis bounds\n- Provide either points or compact samples\n- Reference line must be within the axis bounds\n- Sample IDs must be unique within each series\n- Stem series require a linear y domain containing zero\n- Step and uncertainty curves need strictly increasing x values\n- The maximum must be greater than the minimum\n- Uncertainty must be within the axis bounds\n- Uncertainty must satisfy low ≤ y ≤ high\n\n## figure\n\n- A free-body figure needs force vectors\n- Each anchor has at most one callout\n- Only free-body figures take vectors and units\n- Use an anchor present in this figure\n- Vector directions must be unique\n\n## flow\n\n- A decision needs two or three outgoing edges with distinct, non-empty labels (labeled branches)\n- A flow cannot contain a cycle or unreachable nodes\n- A flow needs exactly one root\n- A fork needs at least two simultaneous outgoing routes\n- A merge needs at least two incoming routes and exactly one outgoing route\n- A process can have at most one outgoing edge\n- An edge cannot connect a node to itself\n- An edge cannot repeat the same directed node pair\n- An outcome cannot have outgoing edges\n- Edge refers to an unknown node\n- Flow nodes need unique IDs\n\n## heatmap\n\n- A masked cell cannot be highlighted as a numeric result\n- Cell value is outside the explicit range\n- Every row needs one cell per column\n- Highlight refers to an unknown cell\n- The range maximum must exceed its minimum\n\n## histogram\n\n- A distribution must contain positive mass\n- Bin density must remain finite\n- Bin edges must be strictly increasing\n- Bin proportions must be in [0, 1] and sum to 1\n- Counts must be nonnegative integers\n- Every series needs one value for each shared bin\n- Threshold is outside the bin domain\n- Unequal bin widths require density: true so bar area represents count or proportion\n\n## matrix\n\n- Select layout teaching for more than five columns\n- Select layout teaching for more than six rows\n- Select layout teaching for semantic cell styling\n- Select layout teaching for stable row IDs\n- Teaching rows need stable IDs\n- The number of cells must match the number of columns\n\n## number-line\n\n- Add at least one marker or interval\n- Marker is outside the range\n- Markers need distinct values\n- The maximum must be greater than the minimum\n- Use an increasing interval within the range\n\n## polygon\n\n- A polygon needs nonzero area\n- Point must be within the axis bounds\n- Polygon vertices must be distinct; closure is automatic\n\n## rectangle\n\n- A rectangle requires increasing x and y intervals\n\n## relationship\n\n- A labeled relationship cannot repeat\n- A node needs a label or a tensor\n- A relationship needs two different nodes\n- Every relationship node needs a link\n- Relationship nodes need unique IDs\n- Relationship refers to an unknown node\n\n## sample-set\n\n- An out-of-bag set cannot use replacement\n- Membership refers to an unknown sample ID\n- Omitted IDs must be exactly the samples absent from this group\n- Out-of-bag members must be exactly the samples absent from the referenced draw\n- Out-of-bag membership must reference a different replacement draw\n- Use at most six sample classes\n\n## sequence\n\n- A sequence needs at least one message between different actors\n- Consecutive self-messages need an ordinary message between them\n- Message refers to an unknown actor\n- Sequence actors need unique IDs\n\n## t-account\n\n- Add at least one posting\n\n## timeline\n\n- A lane needs at least one interval or event\n- A legacy timeline needs events\n- A scaled timeline needs a numeric domain and unit\n- A scaled timeline needs labelled lanes\n- Put numeric events inside a lane\n- Select layout scaled-lanes for numeric time data\n- The maximum must be greater than the minimum\n- Use an increasing interval\n- Use at most 32 intervals and events in one teaching timeline\n\n## transformation\n\n- Mapping indices must refer to existing items\n\n## tree\n\n- A binary tree child needs a left or right side\n- A parent can have at most one … child\n- A tree needs one root\n- A tree node side requires the binary layout\n- The root cannot have a side\n- Tree nodes need unique IDs\n- Tree parent refers to an unknown node\n- Tree parents cannot form a cycle\n\n## waterfall\n\n- Debit and credit amounts must be nonnegative\n- Use at most two decimal places\n\n## other checks (diagram kind not inferred; read the message)\n\n- A child count cannot exceed its parent count\n- A dendrogram height axis starts at zero and has a positive maximum\n- A dendrogram leaf has height zero\n- A dendrogram merge needs at least two children\n- A dendrogram requires an explicit merge-height axis\n- A highlighted path cannot enter a pruned branch\n- A highlighted tree path cannot repeat a node\n- A highlighted tree path must follow parent-to-child edges\n- A highlighted tree path starts at the root\n- A list comparison needs columns\n- A list transformation needs an item list\n- A merge height cannot be lower than a child height\n- A merge height must fit the height axis\n- A repeat group must end at a later block\n- A repeat group needs a repeat count\n- A visual comparison needs two or three child panels\n- A visual comparison uses panels instead of list columns\n- A visual transformation needs a child diagram\n- Block IDs must be unique\n- Callout must refer to a block\n- Callouts require a vertical stack\n- Declare each shared axis only once\n- Do not repeat an identity mapping\n- Each query must use a distinct source index\n- Every dendrogram node needs a numeric height\n- Every output identity needs an explicit mapping\n- Explain whether identities are preserved or explicitly mapped\n- Give one weight per target token in order\n- Height axes and cutoffs require the dendrogram layout\n- Horizontal blocks support tensor children\n- Identity notes require the visual variant\n- Mapped identities need explicit input and output correspondences\n- Mapping source must refer to an input identity\n- Mapping target must refer to an output identity\n- Merge heights require the dendrogram layout\n- Merge operators require a vertical stack\n- Normalized query weights must sum to between 0.98 and 1.02\n- Only a child has an incoming edge label\n- Preserved identities do not need remapping\n- Preserved identities must contain exactly the same input and output IDs\n- Provide one value for each visible cell\n- Reference an existing row ID\n- Reference an existing zero-based column index\n- Repeat groups cannot cross\n- Repeat groups require a vertical stack\n- Residual edges require a vertical stack\n- Residual source must refer to a block\n- Residual target must be the source block or a later block\n- Residual target must refer to a block\n- Shared axes must have the same label, range, unit and scale\n- Shared axes require coordinate plots in every panel\n- Show at most eight visible cells\n- Side inputs require a vertical stack\n- The cutoff must be inside the dendrogram height axis\n- The graph layout needs one connected relationship graph\n- The highlighted path names an unknown tree node\n- Time must be within the declared domain\n- Timeline entry IDs must be distinct\n- Use a plot, matrix or sample set with a stable ID on every point, row or sample\n- Use an existing zero-based source index\n- Use at most … characters\n- Use nonblank, single-line diagram text\n- Visual panels and shared axes require the panels variant\n- Visual transformations use stable identity mappings instead of item indices\n- … must be distinct\n- … must be unique\n\n## Content contract (the release suite enforces these on every reference; meet them before stage 05)\n\nA reference that breaks one fails `reference-content-contract.test.mjs` in the web unit suite, so the pipeline refuses it in the author round (rule id `content-contract:<name>`).\n\n- block-component-name: Use the component name without an action prefix.\n- duplicate-node-label: This label repeats …[…]. Name the distinction between the two nodes.\n- flow-label-verb-first: Start with the action or the verb of a decision question.\n- math-delimiters: Put each complete mathematical expression inside $…$ delimiters.\n- placeholder-edge-label: Name the condition, transition, or message. Omit optional labels when the arrow already conveys the order.\n- redundant-comparison: a two-panel comparison whose panels hold the same content, or could be one plot or one grouped bar chart, is refused: draw'... 3254 more characters,
+    expected: '# Renderer constraints (generated)\n\nGenerated by `build-renderer-constraints.mjs` from the tutor-diagram parser sources; do not edit. The JSON schema excerpt shows shapes and string lengths. These are the additional rules the local parser enforces, by diagram kind. A diagram that breaks one is rejected.\n\n## band\n\n- A band requires an increasing interval\n- Band must be within the axis bounds\n\n## bar-chart\n\n- A bar variant requires categories and series\n- A total belongs to one stacked bar (variant stacked with bars)\n- Basic bar charts require bars\n- Category and series labels must be unique\n- Each series needs one value for every entry in categories\n- Grouped or stacked series require an explicit variant\n- Grouped variants and stacked series cannot include legacy bars\n\n## box-plot\n\n- An outlier must lie strictly outside the fences, or whiskers when no fences are supplied\n- Fences are outside the shared axis domain\n- Fences must enclose both whiskers\n- Outlier is outside the shared axis domain\n- Require whiskerLow ≤ q1 ≤ median ≤ q3 ≤ whiskerHigh\n- Summary is outside the shared axis domain\n- The axis maximum must exceed its minimum\n\n## coordinate-plot\n\n- A closed line cannot use an end label or an uncertainty band\n- A closed line needs at least three distinct vertices\n- A line needs at least two points\n- A line or step needs at least two points\n- A right-edge label requires a line ending at the x-axis maximum\n- A segment or vector needs distinct endpoints\n- Circle samples require a closed line\n- Compact samples need one x coordinate per y value\n- Every uncertainty point needs both low and high\n- Integer ticks require linear integer bounds\n- Log axes require a strictly positive domain\n- Only line series can be closed\n- Point is outside the axis bounds\n- Provide either points or compact samples\n- Reference line must be within the axis bounds\n- Sample IDs must be unique within each series\n- Stem series require a linear y domain containing zero\n- Step and uncertainty curves need strictly increasing x values\n- The maximum must be greater than the minimum\n- Uncertainty must be within the axis bounds\n- Uncertainty must satisfy low ≤ y ≤ high\n\n## figure\n\n- A free-body figure needs force vectors\n- Each anchor has at most one callout\n- Only free-body figures take vectors and units\n- Use an anchor present in this figure\n- Vector directions must be unique\n\n## flow\n\n- A decision needs two or three outgoing edges with distinct, non-empty labels (labeled branches)\n- A flow cannot contain a cycle or unreachable nodes\n- A flow needs exactly one root\n- A fork needs at least two simultaneous outgoing routes\n- A merge needs at least two incoming routes and exactly one outgoing route\n- A process can have at most one outgoing edge\n- An edge cannot connect a node to itself\n- An edge cannot repeat the same directed node pair\n- An outcome cannot have outgoing edges\n- Edge refers to an unknown node\n- Flow nodes need unique IDs\n\n## heatmap\n\n- A masked cell cannot be highlighted as a numeric result\n- Cell value is outside the explicit range\n- Every row needs one cell per column\n- Highlight refers to an unknown cell\n- The range maximum must exceed its minimum\n\n## histogram\n\n- A distribution must contain positive mass\n- Bin density must remain finite\n- Bin edges must be strictly increasing\n- Bin proportions must be in [0, 1] and sum to 1\n- Counts must be nonnegative integers\n- Every series needs one value for each shared bin\n- Threshold is outside the bin domain\n- Unequal bin widths require density: true so bar area represents count or proportion\n\n## matrix\n\n- Select layout teaching for more than five columns\n- Select layout teaching for more than six rows\n- Select layout teaching for semantic cell styling\n- Select layout teaching for stable row IDs\n- Teaching rows need stable IDs\n- The number of cells must match the number of columns\n\n## number-line\n\n- Add at least one marker or interval\n- Marker is outside the range\n- Markers need distinct values\n- The maximum must be greater than the minimum\n- Use an increasing interval within the range\n\n## polygon\n\n- A polygon needs nonzero area\n- Point must be within the axis bounds\n- Polygon vertices must be distinct; closure is automatic\n\n## rectangle\n\n- A rectangle requires increasing x and y intervals\n\n## relationship\n\n- A labeled relationship cannot repeat\n- A node needs a label or a tensor\n- A relationship needs two different nodes\n- Every relationship node needs a link\n- Relationship nodes need unique IDs\n- Relationship refers to an unknown node\n\n## sample-set\n\n- An out-of-bag set cannot use replacement\n- Membership refers to an unknown sample ID\n- Omitted IDs must be exactly the samples absent from this group\n- Out-of-bag members must be exactly the samples absent from the referenced draw\n- Out-of-bag membership must reference a different replacement draw\n- Use at most six sample classes\n\n## sequence\n\n- A sequence needs at least one message between different actors\n- Consecutive self-messages need an ordinary message between them\n- Message refers to an unknown actor\n- Sequence actors need unique IDs\n\n## t-account\n\n- Add at least one posting\n\n## timeline\n\n- A lane needs at least one interval or event\n- A legacy timeline needs events\n- A scaled timeline needs a numeric domain and unit\n- A scaled timeline needs labelled lanes\n- Put numeric events inside a lane\n- Select layout scaled-lanes for numeric time data\n- The maximum must be greater than the minimum\n- Use an increasing interval\n- Use at most 32 intervals and events in one teaching timeline\n\n## transformation\n\n- Mapping indices must refer to existing items\n\n## tree\n\n- A binary tree child needs a left or right side\n- A parent can have at most one … child\n- A tree needs one root\n- A tree node side requires the binary layout\n- The root cannot have a side\n- Tree nodes need unique IDs\n- Tree parent refers to an unknown node\n- Tree parents cannot form a cycle\n\n## waterfall\n\n- Debit and credit amounts must be nonnegative\n- Use at most two decimal places\n\n## other checks (diagram kind not inferred; read the message)\n\n- A child count cannot exceed its parent count\n- A dendrogram height axis starts at zero and has a positive maximum\n- A dendrogram leaf has height zero\n- A dendrogram merge needs at least two children\n- A dendrogram requires an explicit merge-height axis\n- A highlighted path cannot enter a pruned branch\n- A highlighted tree path cannot repeat a node\n- A highlighted tree path must follow parent-to-child edges\n- A highlighted tree path starts at the root\n- A link joins two neighbouring panels, from one to the next\n- A list comparison needs columns\n- A list transformation needs an item list\n- A merge height cannot be lower than a child height\n- A merge height must fit the height axis\n- A repeat group must end at a later block\n- A repeat group needs a repeat count\n- A shared axis must have the same label, range, unit and scale\n- A shared axis requires coordinate plots in every panel\n- A single stacked bar uses bars, not categories and series\n- A visual comparison needs two or three child panels\n- A visual comparison uses panels instead of list columns\n- A visual transformation needs a child diagram\n- Block IDs must be unique\n- Callout must refer to a block\n- Callouts require a vertical stack\n- Declare each shared axis only once\n- Declare each shared item only once\n- Do not repeat an identity mapping\n- Each pair of neighbouring panels has at most one link\n- Each query must use a distinct source index\n- Every dendrogram node needs a numeric height\n- Every output identity needs an explicit mapping\n- Explain whether identities are preserved or explicitly mapped\n- Give one weight per target token in order\n- Height axes and cutoffs require the dendrogram layout\n- Horizontal blocks support tensor children\n- Identity notes require the visual variant\n- Mapped identities need explicit input and output correspondences\n- Mapping source must refer to an input identity\n- Mapping target must refer to an output identity\n- Merge heights require the dendrogram layout\n- Merge operators require a vertical stack\n- Normalized query weights must sum to between 0.98 and 1.02\n- Only a child has an incoming edge label\n- Part labels must be unique\n- Parts of one stacked bar are positive\n- Preserved identities do not need remapping\n- Preserved identities must contain exactly the same input and output IDs\n- Provide one value for each visible cell\n- Reference an existing row ID\n- Reference an existing zero-based column index\n- Repeat groups cannot cross\n- Repeat groups require a vertical stack\n- Residual edges require a vertical stack\n- Residual source must refer to a block\n- Residual target must be the source block or a later block\n- Residual target must refer to a block\n- Shared axes must have the same label, range, unit and scale\n- Shared axes require coordinate plots in every panel\n- Shared classes and colours apply to bar charts: every panel must be a bar chart\n- Show at most eight visible cells\n- Side inputs require a vertical stack\n- The cutoff must be inside the dendrogram height axis\n- The graph layout needs one connected relationship graph\n- The highlighted path names an unknown tree node\n- The parts add up to …, not the stated total …\n- Time must be within the declared domain\n- Timeline entry IDs must be distinct\n- Use a plot, matrix or sample set with a stable ID on every point, row or sample\n- Use an existing zero-based source index\n- Use at most … characters\n- Use nonblank, single-line diagram text\n- Visual panels and shared axes require the panels variant\n- Visual transformations use stable identity mappings instead of item indices\n- … must be distinct\n- … must be unique\n\n## Content contract (the release suite enforces these on every reference; meet them before stage 05)\n\nA reference that breaks one fails `reference-content-contract.test.mjs` in the web unit suite, so the pipeline refuses it in the author round (rule id `content-contract:<name>`).\n\n- bloc'... 3860 more characters,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

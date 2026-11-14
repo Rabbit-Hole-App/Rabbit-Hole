@@ -1,0 +1,6 @@
+SUMMARY of 136-rerun-tutor.out (the full output holds text the secret guard refuses to push; counts and failing test names only)
+ℹ tests 1230
+ℹ pass 1230
+ℹ fail 0
+ℹ skipped 0
+ℹ duration_ms 55089.1034
