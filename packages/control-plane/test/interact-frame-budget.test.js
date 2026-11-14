@@ -58,7 +58,7 @@ test('the composition refuses a program sealed with a different budget than the 
   assert.match(JSON.stringify(validateCompositionBindings(declared, dropped)), /frame_budget_mismatch/, 'a program that does not carry the approved budget is refused too');
 });
 
-test('the program contract: the default budget refuses 61 objects; a manifest budget passes max-10 and refuses max+1, in parseGuestResult and parseFrame; normalizeFrame keeps the 60 of the scene gate', () => {
+test('the program contract: the default budget refuses 61 objects; a manifest budget passes max-10 and refuses max+1, in parseGuestResult and parseFrame; the scene gate follows the manifest budget', () => {
   const result = frame => ({ frame, quantities: {} });
   assert.equal(parseGuestResult(result(frameOf(60)), BASE_MANIFEST).ok, true);
   const sixtyOne = parseGuestResult(result(frameOf(61)), BASE_MANIFEST);
@@ -71,9 +71,11 @@ test('the program contract: the default budget refuses 61 objects; a manifest bu
   assert.equal(parseGuestResult(result(frameOf(MAX - 10)), { ...BASE_MANIFEST, frameObjects: 70 }).ok, false, 'a smaller declared budget is the limit');
   assert.equal(parseGuestResult(result(frameOf(70)), { ...BASE_MANIFEST, frameObjects: MAX + 50 }).ok, false, 'a budget above the hard maximum is not honoured (the default applies)');
   assert.equal(parseFrame(frameOf(61)).ok, false); assert.equal(parseFrame(frameOf(MAX), budgeted).ok, true);
-  assert.equal(normalizeFrame(frameOf(61), BASE_MANIFEST).ok, false, 'the card path (manifest without a budget) still stops at 60 objects');
-  // ponytail: the card's own scene gate (validateScene in animation-scene.js, a file the static-render fingerprint hashes) still caps a drawn frame at 60: raising it needs the one-line patch in
-  // evidence/2026-11-14-frame-budget/scene-gate.patch and re-fingerprinted static renders (an owner decision). This assertion flips when that lands.
-  const gated = normalizeFrame(frameOf(MAX - 10), budgeted);
-  assert.equal(gated.ok, false); assert.match(gated.issue, /at most 60/);
+  assert.equal(normalizeFrame(frameOf(61), BASE_MANIFEST).ok, false, 'the card path (manifest without a budget) stops at 60 objects');
+  // The card's own scene gate (validateScene in animation-scene.js) takes the manifest's approved budget: a frame of 100 objects renders in the browser path under a manifest declaring 100 and is refused under one declaring 60.
+  const hundred = normalizeFrame(frameOf(100), { ...BASE_MANIFEST, frameObjects: 100 });
+  assert.equal(hundred.ok, true, hundred.issue); assert.equal(hundred.state.objects.length, 100);
+  assert.equal(normalizeFrame(frameOf(100), { ...BASE_MANIFEST, frameObjects: 60 }).ok, false, 'refused under a manifest declaring 60');
+  assert.equal(normalizeFrame(frameOf(100), BASE_MANIFEST).ok, false, 'refused under a manifest declaring nothing');
+  assert.equal(normalizeFrame(frameOf(MAX - 10), budgeted).ok, true, 'and the card path passes max-10 under a max budget');
 });
