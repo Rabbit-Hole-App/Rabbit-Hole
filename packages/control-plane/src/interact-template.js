@@ -51,11 +51,20 @@ export async function buildTemplate(job, ctx) {
 
 // The build's own checks (generate, seal, headless run, oracle, layout rules) run on a plan at DESIGN time, so a brief the template cannot draw (one the oracle refuses at some checkpoint) is a fill problem the
 // correction sees, not a failure at Generate. [] when the build is not a template build or the plan passes; else the problem lines. Zero model calls.
-export async function templatePrecheck(plan, ctx) {
+export async function templatePrecheck(plan, ctx, { words: checkWords = false } = {}) {
   if (!templateGate(ctx.env, plan)?.ok) return [];
   const job = { id: 'precheck', plan, planHash: await planHash(plan), capabilities: ctx.capabilities, evidence: [], oracle: interactOracle(plan) };
   const built = await buildTemplate(job, ctx);
   if (!built.artifacts) return (built.problems ?? ['the template build refused the plan']).map(p => `template build: ${p}`.slice(0, 300));
   const checked = await captureAndCheck({ ...job, artifacts: built.artifacts, composition: built.composition }, { ...ctx, completeCardUnavailable: true, captureCard: headlessCaptureCard(ctx.env) });
-  return checked.status === 'failed' ? checked.failure.problems.map(p => `template build: ${p}`.slice(0, 300)) : [];
+  if (checked.status === 'failed') return checked.failure.problems.map(p => `template build: ${p}`.slice(0, 300));
+  // A lane's state word shares one line with its heading and sdk.panel cuts it to the room that is left, silently ("Held at" for "Held at apex"): the word the plan names must be the word the card draws.
+  if (!checkWords) return [];
+  const words = Object.values(plan.scene?.words ?? {}).filter(w => typeof w === 'string'), cut = new Map();
+  for (const capture of checked.captures ?? []) for (const { id, text } of capture.trace?.labels ?? []) {
+    if (!id.endsWith('.state') || words.includes(text)) continue;
+    const full = words.find(w => w.length > text.length && w.startsWith(text));
+    if (full) cut.set(full, text);
+  }
+  return [...cut].map(([full, text]) => `words: "${full}" is drawn as "${text}": a lane heading and its state word share one line, so shorten the state word or the heading`.slice(0, 300));
 }
