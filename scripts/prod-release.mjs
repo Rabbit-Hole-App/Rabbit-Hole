@@ -341,7 +341,7 @@ async function release(opts) {
     };
     for (const [name, cwd] of [['rabbit-hole-cp', CP], ['rabbit-hole-app', WEB]]) {
       let out;
-      try { out = run('npx', ['wrangler', 'deploy', '--config', CONFIG, '--message', message], cwd); }
+      try { out = run('npx', ['wrangler', 'deploy', '--config', CONFIG, '--message', message, '--var', `RELEASE_SHA:${sha}`], cwd); } // CF-1: the worker knows its release (archive records, telemetry); a var, so the bundle hash is untouched
       catch (e) { receipt.deployed[name] = 'unknown'; return await rollback(`${name} upload failed (${e.message.split('\n')[0]})`); }
       receipt.deployed[name] = out.match(/Current Version ID: (\S+)/)?.[1] ?? 'unknown';
     }
