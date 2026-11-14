@@ -60,6 +60,7 @@ test('the URL chooser sits behind the canvas paste guards: editors and the compo
 test('Mermaid source pastes as a Mermaid card, an equation as an equation card, only where the canvas is editable', async () => {
   const { mermaidOf, equationOf } = await import('./canvas-paste.js');
   assert.equal(mermaidOf('graph TD\n  A-->B'), 'graph TD\n  A-->B');
+  assert.equal(mermaidOf('graph TD\r\n  A-->B \n'), 'graph TD\r\n  A-->B \n', 'the source is kept exactly as copied');
   assert.equal(mermaidOf('```mermaid\nflowchart LR\n  a-->b\n```'), 'flowchart LR\n  a-->b', 'a mermaid fence around it is dropped');
   assert.equal(mermaidOf('%% note\nsequenceDiagram\n  A->>B: hi'), '%% note\nsequenceDiagram\n  A->>B: hi');
   assert.equal(mermaidOf('Timeline of events\nand what came next'), null, 'prose that starts with a diagram word is not a diagram');

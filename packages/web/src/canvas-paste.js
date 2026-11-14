@@ -18,10 +18,11 @@ export function pasteKind({ images = 0, text = '', marker, copying = false, card
 // ponytail: header words only, no parse; a diagram Mermaid cannot draw shows its own error in the card.
 const MERMAID_HEAD = /^(?:(?:graph|flowchart)\s+(?:TD|TB|BT|RL|LR)\b.*|sequenceDiagram|classDiagram(?:-v2)?|stateDiagram(?:-v2)?|erDiagram|gitGraph.*|quadrantChart|requirementDiagram|(?:pie|journey|mindmap|timeline|gantt)(?:\s+(?:showData|title\b.*|dateFormat\b.*))?)$/;
 export function mermaidOf(text) {
-  let body = String(text || '').replace(/\r\n?/g, '\n').trim();
-  const fence = body.match(/^```\s*mermaid\s*\n([\s\S]*?)\n?```$/i);
-  if (fence) body = fence[1].trim();
-  const lines = body.split('\n').filter(line => line.trim() && !line.trim().startsWith('%%'));
+  // The source is returned exactly as copied (no trim, no line-ending change); only a ```mermaid fence around it is dropped.
+  const raw = String(text || '');
+  const fence = raw.trim().match(/^```\s*mermaid\s*\r?\n([\s\S]*?)\r?\n?```$/i);
+  const body = fence ? fence[1] : raw;
+  const lines = body.split(/\r?\n/).filter(line => line.trim() && !line.trim().startsWith('%%'));
   return lines.length >= 2 && MERMAID_HEAD.test(lines[0].trim()) ? body : null;
 }
 
