@@ -17,7 +17,7 @@
 //     vertical gap (JITTER.siblingGap). The no-loop guard (the head clears the tail by minGap) runs on the jittered slot: it fails -> the jitter halves, then is dropped.
 //     No id: no jitter (the old callers). The amplitudes below are the one block to tune.
 export const SOURCED = Object.freeze({ gap: 96, minGap: 64, gaps: [96, 128, 64, 160], margin: 24, step: 24, windowHeights: 2, columns: 4, columnCost: 200, crossCost: 150, orderCost: 60, edge: 16, maxCoord: 1e7 });
-export const JITTER = Object.freeze({ x: 0.35, y: 40, align: 32, push: 48, pushes: 8, reach: 3, siblingGap: 12 });
+export const JITTER = Object.freeze({ x: 0.35, y: 40, align: 32, push: 48, pushes: 8, spread: 10, reach: 3, siblingGap: 12 });
 
 // FNV-1a, the hash beside-placement.js scatterOf uses: stable across reloads and runs.
 export const hashOf = text => { let hash = 2166136261; for (const char of String(text)) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0; return hash; };
@@ -88,17 +88,20 @@ function bestOnSide(side, ctx, scale) {
 // Anti-grid: a chosen slot column-aligned with a neighbour is pushed sideways (away from it, else the hash's direction) by JITTER.push, then more; the first push that stays free, clears the
 // tail and aligns with nothing wins. Siblings' vertical gaps: a slot whose gap to its nearest same-side sibling repeats another sibling-to-sibling gap is nudged by JITTER.siblingGap.
 function deAlign(pick, ctx) {
-  const { source, size, obstacles, siblings, boxes, dir } = ctx;
+  const { source, size, obstacles, siblings, boxes, dir } = ctx; // dir: the hash direction, for the sibling-gap nudge
   const others = [...boxes.filter(b => !same(b, source)).map(b => ({ b, always: false })), ...siblings.map(s => ({ b: s.box, always: true }))];
   const free = rect => !obstacles.some(box => hits(rect, box, SOURCED.margin)) && clears(source, rect, size, pick.side);
   let out = { x: pick.x, y: pick.y };
   const rect = at => ({ x: at.x, y: at.y, w: size.w, h: size.h });
-  if (aligned(rect(out), others)) {
-    for (let step = 0; step < JITTER.pushes; step += 1) {
-      const push = Math.round(JITTER.push * (1 + step * 0.5)); // 48, 72, 96, ... in the hash's direction first, then the other way
-      const hit = [dir, -dir].map(d => ({ x: out.x + d * push, y: out.y })).find(at => free(rect(at)) && !aligned(rect(at), others));
-      if (hit) { out = hit; break; }
-    }
+  if (siblings.length > 0 || aligned(rect(out), others)) {
+    // A board, not a ramp: next to the source there is little room to move toward it, so ordered pushes always end up stepping away and the fan becomes a diagonal. Instead a second or later child (or any slot that lines up) takes the first free,
+    // non-aligned gap from a deterministic shuffle (hash of the card and source ids) of JITTER.spread gaps spaced JITTER.push apart from the minimum gap outward; none works: the old push by hash direction.
+    // Alternate by sibling index: an even-numbered child prefers a gap wider than the previous child's, an odd one a narrower, so the distances zig-zag instead of stepping one way.
+    const last = siblings.at(-1)?.box, prevGap = last ? (sideOf(source, last) === 'right' ? last.x - (source.x + source.w) : source.x - (last.x + last.w)) : null;
+    const zig = g => (prevGap === null ? 0 : (g > prevGap) === (siblings.length % 2 === 0) ? 0 : 1);
+    const gaps = Array.from({ length: JITTER.spread }, (_, i) => SOURCED.minGap + i * JITTER.push).sort((a, b) => (zig(a) - zig(b)) || hashOf(`${ctx.key}|g|${a}`) - hashOf(`${ctx.key}|g|${b}`));
+    const hit = gaps.map(g => ({ x: pick.side === 'right' ? source.x + source.w + g : source.x - g - size.w, y: out.y })).find(at => free(rect(at)) && !aligned(rect(at), others));
+    if (hit) out = hit;
   }
   const kin = siblings.filter(s => sideOf(source, s.box) === pick.side).map(s => s.box).sort((a, b) => a.y - b.y);
   if (kin.length) {
@@ -121,7 +124,7 @@ export function placeSourced({ source, anchorY = null, size, boxes = [], area = 
   const line = Math.min(source.y + source.h - SOURCED.edge, Math.max(source.y + SOURCED.edge, Number.isFinite(anchorY) ? anchorY : source.y + source.h / 2));
   const obstacles = [source, ...boxes, ...siblings.map(s => s.box)];
   const key = `${sourceId ?? ''}|${id ?? ''}`;
-  const ctx = { source, anchorY: line, size, obstacles, siblings, boxes, jx: id == null ? 0 : unit(`${key}|x`), jy: id == null ? 0 : unit(`${key}|y`), dir: hashOf(`${key}|d`) & 1 ? 1 : -1 };
+  const ctx = { source, anchorY: line, size, obstacles, siblings, boxes, key, jx: id == null ? 0 : unit(`${key}|x`), jy: id == null ? 0 : unit(`${key}|y`), dir: hashOf(`${key}|d`) & 1 ? 1 : -1 };
   for (const scale of id == null ? [0] : [1, 0.5, 0]) { // halve the jitter, then drop it, when the jittered slot has no valid placement (rule f)
     const right = bestOnSide('right', ctx, scale), left = bestOnSide('left', ctx, scale);
     if (!right && !left) continue;

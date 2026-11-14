@@ -199,3 +199,26 @@ test('a fan of 5 and of 8 siblings: every pair of left edges differs by >= 24 px
     }
   }
 });
+
+test('a fan of 5 and of 8: the distances from the source are NOT a ramp (at least two direction changes in anchorY order), still >= 24 px apart, clear of each other and the source', () => {
+  let fans = 0, zigzags = 0;
+  for (const count of [5, 8]) {
+    for (let seed = 0; seed < 6; seed += 1) {
+      const spread = 340, source = box(1000, 0, 600, 200 + count * spread), placed = [], siblings = [];
+      for (let k = 0; k < count; k += 1) {
+        const anchorY = 150 + k * spread;
+        const p = placeSourced({ source, anchorY, size: SIZE, boxes: placed, siblings, id: `r${count}-${seed}-${k}`, sourceId: `rs${seed}` });
+        const b = box(p.x, p.y, SIZE.w, SIZE.h);
+        placed.forEach(o => assert.ok(!overlaps(b, o, SOURCED.margin)));
+        assert.ok((p.side === 'right' ? p.x - 1600 : 1000 - (p.x + SIZE.w)) >= SOURCED.minGap);
+        placed.push(b); siblings.push({ box: b, anchorY });
+      }
+      const lefts = placed.map(b => b.x), away = placed.map(b => (b.x > 1000 ? b.x - 1600 : 1000 - (b.x + SIZE.w))); // away: the distance from the source, so the two sides read the same way
+      for (let i = 0; i < lefts.length; i += 1) for (let j = i + 1; j < lefts.length; j += 1) assert.ok(Math.abs(lefts[i] - lefts[j]) >= 24);
+      const turns = xs => xs.slice(2).filter((x, i) => Math.sign(x - xs[i + 1]) !== Math.sign(xs[i + 1] - xs[i]) && x !== xs[i + 1]).length;
+      fans += 1; if (turns(away) >= 2) zigzags += 1;
+      assert.ok(turns(away) >= 1, `${count}/${seed}: a ramp: ${away.join(' ')}`); // never a pure ramp
+    }
+  }
+  assert.ok(zigzags >= fans - 1, `only ${zigzags} of ${fans} fans have two or more direction changes`); // best effort by the hash: at most one fan of twelve has a single change
+});
