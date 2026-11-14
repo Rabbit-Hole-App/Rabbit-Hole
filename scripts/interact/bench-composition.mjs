@@ -172,9 +172,9 @@ export function scoreRow(saved, spec = partsSpec()) {
 export const yesCount = row => (row.C?.lines ? CARD_LINES.filter(n => row.C.lines[n]?.answer === 'Yes').length : null);
 export const median = xs => { const s = xs.filter(x => Number.isFinite(x)).sort((a, b) => a - b); return s.length ? s[Math.floor((s.length - 1) / 2)] : null; };
 export function summarize(rows) {
-  const main = rows.filter(r => r.set !== 'X'), pct = (n, d) => (d ? Math.round((100 * n) / d) : null), yes = main.map(yesCount).filter(n => n !== null);
-  return { reached: main.length, schemaPct: pct(main.filter(r => r.A.ok).length, main.length), bindsPct: pct(main.filter(r => r.B.ok).length, main.length), meanYes: yes.length ? Math.round((10 * yes.reduce((a, b) => a + b, 0)) / yes.length) / 10 : null,
-    medianMs: median(main.map(r => r.ms)), usd: Math.round(1e4 * rows.reduce((a, r) => a + (r.usd ?? 0), 0)) / 1e4, cardUsd: Math.round(1e4 * rows.reduce((a, r) => a + (r.cardUsd ?? 0), 0)) / 1e4, errors: main.filter(r => r.error).length };
+  const all = rows.filter(r => r.set !== 'X'), main = all.filter(r => !r.error), pct = (n, d) => (d ? Math.round((100 * n) / d) : null), yes = main.map(yesCount).filter(n => n !== null); // reached = calls that returned a reply; a failed call (a usage limit, a timeout) is an error, not a model failure
+  return { reached: main.length, scored: yes.length, schemaPct: pct(main.filter(r => r.A.ok).length, main.length), bindsPct: pct(main.filter(r => r.B.ok).length, main.length), meanYes: yes.length ? Math.round((10 * yes.reduce((a, b) => a + b, 0)) / yes.length) / 10 : null,
+    medianMs: median(main.map(r => r.ms)), usd: Math.round(1e4 * rows.reduce((a, r) => a + (r.usd ?? 0), 0)) / 1e4, cardUsd: Math.round(1e4 * rows.reduce((a, r) => a + (r.cardUsd ?? 0), 0)) / 1e4, errors: all.filter(r => r.error).length };
 }
 export function reportMarkdown(rows, { saveDir = SAVE_DIR, models = MODELS.map(m => m.id), spec = partsSpec() } = {}) {
   const tick = b => (b ? '✓' : '✗'), out = ['# bench-composition: can a model write the stepper scene composition?', '', 'One call per prompt, no correction. Set A: 44 stepper prompts (depths round robin 15/15/14); set B: the three reference subjects at three depths (9). A, B, D are code; C is claude-sonnet-5-5 on rubric lines 1, 2, 3, 4, 6, 7, 8 (lines 5, 9, 10 need a render: Unknown). Prompt 54 (water cycle) is outside the 53.', ''];
@@ -182,17 +182,23 @@ export function reportMarkdown(rows, { saveDir = SAVE_DIR, models = MODELS.map(m
     const mine = rows.filter(r => r.model === model);
     if (!mine.length) { out.push(`## ${model}`, '', 'not run.', ''); continue; }
     const s = summarize(mine);
-    out.push(`## ${model}`, '', '| calls reached of 53 | schema % | binds % | mean Yes of 7 | median ms | composer USD | scorecard USD | errors |', '|---|---|---|---|---|---|---|---|', `| ${s.reached} | ${s.schemaPct ?? '-'} | ${s.bindsPct ?? '-'} | ${s.meanYes ?? '-'} | ${s.medianMs ?? '-'} | ${s.usd} | ${s.cardUsd} | ${s.errors} |`, '',
+    out.push(`## ${model}`, '', '| calls reached of 53 | scorecard scored | schema % | binds % | mean Yes of 7 | median ms | composer USD | scorecard USD | failed calls |', '|---|---|---|---|---|---|---|---|---|', `| ${s.reached} | ${s.scored} | ${s.schemaPct ?? '-'} | ${s.bindsPct ?? '-'} | ${s.meanYes ?? '-'} | ${s.medianMs ?? '-'} | ${s.usd} | ${s.cardUsd} | ${s.errors} |`, '',
       '| reference row | parts kinds | control kinds | state count ±1 | story names regions | aha index |', '|---|---|---|---|---|---|');
-    for (const r of mine.filter(r => r.set === 'B')) out.push(`| ${r.promptId.replace('b-', '')} ${r.depth} | ${r.D ? [r.D.partsKinds, r.D.controlKinds, r.D.stateCount, r.D.storyNamesRegions, r.D.ahaIndex].map(tick).join(' | ') : '- | - | - | - | -'} |`);
+    for (const r of mine.filter(r => r.set === 'B')) out.push(`| ${r.promptId.replace('b-', '')} ${r.depth} | ${r.D && !r.error ? [r.D.partsKinds, r.D.controlKinds, r.D.stateCount, r.D.storyNamesRegions, r.D.ahaIndex].map(tick).join(' | ') : '- | - | - | - | -'} |`);
     out.push('');
   }
-  out.push('## "how does the water cycle work?" at balanced, each model, in full', '');
+  out.push('## State per model (calls that returned, failed calls and their first error, last call saved)', '', '| model | returned of 54 | failed calls | first error | last call saved |', '|---|---|---|---|---|');
+  for (const model of models) {
+    const mine = rows.filter(r => r.model === model), failed = mine.filter(r => r.error), d = join(saveDir, model), stamps = existsSync(d) ? readdirSync(d).filter(x => x.endsWith('.json')).map(x => readJson(join(d, x)).ts).sort() : [];
+    out.push(`| ${model} | ${mine.length - failed.length} | ${failed.length} | ${failed[0] ? String(failed[0].error).replace(/\|/g, '/').slice(0, 220) : '-'} | ${stamps.at(-1) ?? '-'} |`);
+  }
+  out.push('', '## "how does the water cycle work?" at balanced, each model, in full', '');
   for (const model of models) {
     const f = join(saveDir, model, `${WATER.id}-${WATER.depth}.json`);
     out.push(`### ${model}`, '');
     if (!existsSync(f)) { out.push('not run.', ''); continue; }
     const saved = readJson(f), row = scoreRow(saved, spec);
+    if (saved.error) { out.push(`failed call: ${saved.error}`, ''); continue; }
     out.push(`A ${row.A.ok ? 'pass' : `fail (${row.A.problems.join('; ')})`}; B ${row.B.ok ? 'pass' : `fail (${row.B.problems.join('; ')})`}; Yes ${yesCount(row) ?? '-'} of 7; ${saved.ms} ms; US$${saved.usd}`, '', '```json', JSON.stringify(saved.composition, null, 1), '```', '');
   }
   return out.join('\n');
@@ -227,6 +233,7 @@ export async function runModel(model, prompts, { env, system, schema, rows, dir,
     const file = callFile(dir, model.id, p);
     mkdirSync(dirname(file), { recursive: true });
     let saved = resume && existsSync(file) ? readJson(file) : null;
+    if (saved?.error) saved = null; // --resume retries a call that failed (a usage limit, a timeout), never a saved composition
     if (!saved) {
       try {
         const call = scripted ? { ms: 1, raw: '{}', composition: scriptedReply(p), usage: { input: 1, output: 1 }, usd: 0 } : await composeCall(model, { system, request: p.request, depth: p.depth, schema, env });
@@ -238,7 +245,7 @@ export async function runModel(model, prompts, { env, system, schema, rows, dir,
       writeFileSync(file, JSON.stringify(saved, null, 1)); // before any scoring
     }
     reached++; spent += saved.usd ?? 0; shared.total += saved.usd ?? 0;
-    if (saved.composition && !saved.scores?.C) {
+    if (saved.composition && !saved.scores?.C?.lines) { // also a scorecard that failed earlier (--resume scores it now)
       const c = scripted ? { lines: Object.fromEntries([...CARD_LINES, ...UNKNOWN_LINES].map(n => [n, { answer: UNKNOWN_LINES.includes(n) ? 'Unknown' : 'Yes', reason: 'scripted' }])), usd: 0 } : await scorecardCall(saved.composition, saved.depth, { env, rows: shared.cardRows });
       shared.total += c.usd ?? 0; saved.scores = { C: c.lines ? { lines: c.lines } : { lines: null, error: c.error }, cardUsd: c.usd ?? 0 };
       writeFileSync(file, JSON.stringify(saved, null, 1));
