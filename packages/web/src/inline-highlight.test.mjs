@@ -89,9 +89,8 @@ test('wiring: the canvas picks the highlight, the editor draws the chip, the mar
   assert.match(canvas, /placeSourced\(\{ source, anchorY: Number\.isFinite\(besideDy\) \? source\.y \+ besideDy : null, /); // AR-C3: the highlighted line's offset is the anchor of place-sourced.js (the old besideSpot call)
   assert.doesNotMatch(editor, /Remove the highlighted text/, 'the chip has no x');
   assert.match(editor, /data-inline-close/, 'the x belongs to the window');
-  assert.ok(editor.includes("config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: passageText.slice(0, 1500) })"), 'a plain prompt asks the router which command it is, over highlighted words and over the bulb passage');
-  assert.ok(editor.includes('intent.probability >= INTENT_AT'));
-  assert.ok(editor.includes('deliver(line, { selection: highlight ? highlightSelection() : null })'), 'a picked command is delivered (Chat, or the explain job for /explain: CK-6)');
+  assert.doesNotMatch(editor, /transport\.route|INTENT_AT/, 'CK-3 decision 2026-11-14: over highlighted words and the bulb passage the router is not asked; Enter runs /explain');
+  assert.ok(editor.includes('deliver(out.handoff.line, { selection, concept: title })'), 'a typed or picked command is delivered (Chat, or the explain job for /explain: CK-6)');
   assert.doesNotMatch(editor, /askChat/, 'a plain prompt with no command stays in Ctrl+K');
   assert.ok(editor.includes('highlightedCard: highlightedCardMessage()'), 'the in-editor Explain carries the whole card');
   assert.match(read('inline-ai-context.js'), /highlightedCard/);

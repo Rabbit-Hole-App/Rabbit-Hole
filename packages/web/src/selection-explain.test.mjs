@@ -110,10 +110,9 @@ test('the bulb opens Ctrl+K with the passage as the words and NO command pill; t
   const editor = read('./InlineAiEditor.jsx');
   assert.ok(editor.includes('useState(preset?.command ?? null)'), 'a preset with no command leaves the pill off');
   assert.ok(editor.includes("useState(preset?.command ? preset?.prompt ?? '' : '')"), 'CK-2: the passage is a pill, the box starts empty');
-  // The router also asks about the bulb's passage (a preset with no command), and Chat gets no selection target for it, exactly as the old preset gave.
-  assert.ok(editor.includes("const overPassage = !!(highlight || (preset && !preset.command)) && !out.handoff"), 'the bulb passage is routed like highlighted words');
-  assert.ok(editor.includes('selection: passageText.slice(0, 1500)'));
-  assert.ok(editor.includes('deliver(line, { selection: highlight ? highlightSelection() : null })'));
+  // The bulb's passage (a preset with no command) is handled like highlighted words: no router (CK-3 decision 2026-11-14), Enter runs /explain, and no selection target is given for it (the minted ref rides heldPassageTarget).
+  assert.ok(editor.includes("const overPassage = !!(highlight || (preset && !preset.command)) && !out.handoff"), 'the bulb passage is handled like highlighted words');
+  assert.doesNotMatch(editor, /transport\.route/);
 });
 
 test('a command the router picks for the bulb passage still carries the minted ref and the passage (heldPassageTarget), once', async () => {
@@ -163,9 +162,9 @@ test('CK-2: the passage is a pill (title: the full text) and the box starts empt
   assert.ok(editor.includes('!(outgoing.trim() || (passageText && !command))'), 'Enter and the Send button work with an empty box over a passage');
 });
 
-test('CK-3: Explain selection over a passage makes its card through /explain (skeleton, then the card), never a preview; a note, Edit and the paid proposal keep Accept / Reject', () => {
+test('CK-3: Explain selection over a passage makes its card through /explain (skeleton, then the card), never a preview; a note, Edit and the paid proposal keep Accept / Reject; the router is not asked', () => {
   const editor = read('./InlineAiEditor.jsx');
-  assert.ok(editor.includes("if (overPassage && config.handoff && routedChoice !== 'note') {"));
+  assert.ok(editor.includes("if (overPassage && config.handoff) {"));
   assert.ok(editor.includes("deliver(`/${typedOf('explanation')} ${asked}`,") && editor.includes('{ selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }'), 'the written /explain (id explanation), not /interactive');
   assert.ok(editor.includes("const autoCard = mode === 'explain' && state.preview?.kind === 'card';"), 'the inline card fallback is accepted by itself');
   assert.ok(editor.includes("!busy(status) && !autoCard && (") && editor.includes("(preview && status !== 'proposal' && !autoCard) && ("), 'no Accept or Reject, no preview text, for that card only');
