@@ -7,7 +7,7 @@ const round1 = n => Math.round(n * 10) / 10;
 
 // timing: 'v2' is a job whose stage columns are the contiguous wall-clock slices ledgerRow explains (they add up to msTotal); 'v1' is every older row, kept as it was recorded.
 export const LEDGER_COLUMNS = Object.freeze(['jobId', 'planHash', 'depth', 'result', 'stopReason', 'oracleId', 'oracleChecked', 'oracleFailed', 'bindingProblems', 'overlapProblems', 'repairs', 'repairCauses',
-  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait']);
+  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath']);
 
 // What triggered each failed round, in order, `;`-joined, one token per distinct problem of a round: `overlap:text-frame` (a layout rule), `numeric_mismatch` (an oracle code),
 // `program_error:sdk.panel` or `program_error:frame.objects.*.series.*.points` (the guest program's own error), `schema:manifest.readouts.*.labels` (the path a validation problem names),
@@ -72,6 +72,7 @@ export function ledgerRow(job) {
     ...(stages ?? { msAuthor: providerMs ?? authoring, msValidate: stageMs('validating'), msRun: run, msCheck: check, msCompose: compose }), msReview: stageMs('reviewing'), msRepair: stageMs('repairing'),
     msTotal: t.generateToResultMs, msJudge: judge?.ms ?? null, timing: job.timing.v === 2 ? 'v2' : 'v1',
     buildKind: template ? 'template' : calls.some(c => c.role === 'build_author') ? 'model' : null, msHopWait: hopWait,
+    judgeFindingsPath: null, // set by scripts/interact/ledger.mjs when it writes the judge's findings to benchmarks/judge/<jobId>.json (the row itself stays pure)
   };
 }
 

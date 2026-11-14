@@ -15,6 +15,17 @@ const UA = { 'User-Agent': 'rabbit-hole-owner-launcher/1' };
 // The server's own row when the clone computes one (diagnostics.ledger), else the row of the same fields in the response (the saved run-15 evidence).
 export const rowOfDetail = detail => detail?.diagnostics?.ledger ?? ledgerRow(jobFromDetail(detail));
 
+// The shadow judge's findings, in full (capture, category, severity, object, message), written to <ledger dir>/judge/<jobId>.json; the row keeps the counts and gets the path in judgeFindingsPath
+// (relative to the ledger folder). A job with no judge writes no file and its path stays null.
+export function writeJudgeFindings(detail, row, dir = LEDGER_DIR) {
+  const judge = detail?.diagnostics?.bench?.judge;
+  if (!judge) return row;
+  const path = `judge/${row.jobId}.json`;
+  mkdirSync(join(dir, 'judge'), { recursive: true });
+  writeFileSync(join(dir, path), JSON.stringify({ jobId: row.jobId, plan: row.oracleId, depth: row.depth, profile: row.profile, buildKind: row.buildKind, judgeModel: judge.model ?? null, verdict: judge.verdict, costMicros: judge.costMicros ?? null, ms: judge.ms ?? null, findings: judge.findings ?? [] }, null, 2) + '\n');
+  return { ...row, judgeFindingsPath: path };
+}
+
 // One line per row, one job once: a repeat of a job replaces its line, so a rerun never doubles a result.
 export function appendRow(row, dir = LEDGER_DIR) {
   mkdirSync(dir, { recursive: true });
@@ -48,8 +59,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const has = name => process.argv.includes(`--${name}`);
   try {
     const detail = has('from') ? JSON.parse(readFileSync(arg('from'), 'utf8')) : await fetchDetail({ clone: arg('clone'), job: arg('job'), board: arg('board') });
-    const row = rowOfDetail(detail);
+    const dir = has('dir') ? arg('dir') : LEDGER_DIR, row = writeJudgeFindings(detail, rowOfDetail(detail), dir);
     if (row.result === 'running') throw new Error(`job ${row.jobId} has not finished; nothing appended`);
-    console.log(`ledger rows: ${appendRow(row, has('dir') ? arg('dir') : LEDGER_DIR)} (${row.jobId} ${row.result})`);
+    console.log(`ledger rows: ${appendRow(row, dir)} (${row.jobId} ${row.result})`);
   } catch (error) { console.error(`ledger: ${error.message}`); process.exit(1); }
 }

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -91,7 +91,7 @@ test('ledger.md renders the run-15 row under the same columns', () => {
   assert.equal(head, `| ${LEDGER_COLUMNS.join(' | ')} |`);
   assert.equal(rule.split('|').length, head.split('|').length);
   assert.match(line, /^\| ej_a7e7bb226e614a02b5a426e30218f615 \| 8f564bdf\w+ \| balanced \| ready \| accepted \|/);
-  assert.match(line, /\| 0\.620628 \|  \| 65860 \| 45 \| 30098 \|  \| 50 \| 76187 \| 49185 \| 221425 \|  \| v1 \| model \|  \|$/); // buildKind and msHopWait are the last two columns (a model build: buildKind model, no hop wait)
+  assert.match(line, /\| 0\.620628 \|  \| 65860 \| 45 \| 30098 \|  \| 50 \| 76187 \| 49185 \| 221425 \|  \| v1 \| model \|  \|  \|$/); // buildKind, msHopWait and judgeFindingsPath are the last three columns (a model build: buildKind model, no hop wait, no judge findings file)
 });
 
 test('the script appends one line per job to ledger.jsonl and regenerates ledger.md; a rerun replaces the line (dry run on the saved response, no network)', () => {
@@ -102,6 +102,29 @@ test('the script appends one line per job to ledger.jsonl and regenerates ledger
     assert.equal(lines.length, 1);
     assert.deepEqual(lines[0], ledgerRow(jobFromDetail(detail())));
     assert.match(readFileSync(join(dir, 'ledger.md'), 'utf8'), /ej_a7e7bb226e614a02b5a426e30218f615/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('the script writes the full judge findings to judge/<jobId>.json and puts the path in the row; a job with no judge writes no file', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ledger-judge-'));
+  try {
+    const findings = [{ capture: 'start', category: 'spec', severity: 'major', object: 'vec.v', message: 'a quoted finding' }, { capture: 'cp-top', category: 'spec', severity: 'minor', message: 'another' }];
+    const judged = detail(); judged.diagnostics.bench = { ...(judged.diagnostics.bench ?? {}), judge: { model: 'claude-sonnet-5-5', verdict: 'fail', findings, costMicros: 24460, ms: 6871 } };
+    const file = join(dir, 'judged-detail.json'); writeFileSync(file, JSON.stringify(judged));
+    execFileSync(process.execPath, [SCRIPT, '--from', file, '--dir', dir]);
+    const [row] = readFileSync(join(dir, 'ledger.jsonl'), 'utf8').trim().split('\n').map(l => JSON.parse(l));
+    assert.equal(row.judgeFindingsPath, `judge/${row.jobId}.json`);
+    assert.deepEqual([row.judgeVerdict, row.judgeMajor], ['fail', 1], 'the counts stay in the row');
+    const saved = JSON.parse(readFileSync(join(dir, row.judgeFindingsPath), 'utf8'));
+    assert.deepEqual([saved.jobId, saved.verdict, saved.judgeModel], [row.jobId, 'fail', 'claude-sonnet-5-5']);
+    assert.deepEqual(saved.findings, findings, 'every finding, in full');
+    // no judge in the detail: no file, the path stays null
+    const bare = mkdtempSync(join(tmpdir(), 'ledger-nojudge-'));
+    try {
+      execFileSync(process.execPath, [SCRIPT, '--from', FIXTURE, '--dir', bare]);
+      assert.equal(JSON.parse(readFileSync(join(bare, 'ledger.jsonl'), 'utf8').trim()).judgeFindingsPath, null);
+      assert.equal(existsSync(join(bare, 'judge')), false);
+    } finally { rmSync(bare, { recursive: true, force: true }); }
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
