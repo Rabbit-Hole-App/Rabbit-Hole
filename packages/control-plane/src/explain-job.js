@@ -39,7 +39,7 @@ import { consumeProposal, envelopeFor, proposalRecord, proposalState, publishRev
 import { blockedBody, referencesKey, resolveReferences } from './generation-review-refs.js';
 import { isReviewProposal } from '../../web/src/generation-review.js';
 import { needsPreparation, prepareStage } from './explain-brief.js';
-import { INTERACT_LIMITS, INTERACT_POLICY_VERSION, callInteractRole, interactAdapters, interactCallKind, interactFlowEnabled, interactPhase, interactProfileFor, interactProfileHash, interactReservation, resolveInteractProfile, roleBoundMicros } from './interact-models.js';
+import { INTERACT_DESIGN_KIND_SETTING, INTERACT_LIMITS, INTERACT_POLICY_VERSION, callInteractRole, interactAdapters, interactCallKind, interactFlowEnabled, interactPhase, interactProfileFor, interactProfileHash, interactReservation, resolveInteractProfile, roleBoundMicros } from './interact-models.js';
 import { designPinOf, pinnedDesignCall, pinnedFixtureId } from './interact-design-pin.js';
 import { SCRIPTED_PROFILE, scriptedBuildAdapter, scriptedBuildAllowed } from './interact-scripted.js';
 import { DESIGN_BOUNDS, DESIGN_PUBLIC_STATE, DESIGN_ROLE_KEY, DESIGN_STAGES, approvalHashOf, designCapabilities, designPipeline, designPromptContracts, freshDesign, isBlocking, modeToPresentation, runtimeProblems } from './interact-design.js';
@@ -443,9 +443,12 @@ export class ExplainJobs {
     if (interactFlowEnabled(this.env) && payload.requestClass !== 'edit') {
       let profile; try { profile = interactProfileFor(this.env); } catch { throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured'); }
       if (profile.id === SCRIPTED_PROFILE && !scriptedBuildAllowed(this.env)) throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured'); // the scripted profile is dev-only
-      const priced = interactReservation(profile);
+      // INTERACT_DESIGN_KIND: unset runs the Opus design; 'fast' the fill path (interact-design.js fastDesign) with the Opus design as its fallback. A misspelling is refused, never silently the other path.
+      const designKind = this.env[INTERACT_DESIGN_KIND_SETTING] || null;
+      if (designKind !== null && designKind !== 'fast') throw fail('Scene design is not configured here yet.', 503, 'flow_misconfigured');
+      const priced = interactReservation(profile, designKind);
       if (priced.preparationMicros == null || priced.generationMicros == null) throw fail('Scene design is not priced for this model profile yet.', 503, 'flow_unpriced'); // an unknown price is never zero
-      Object.assign(job, { flow: { version: 1, switch: 'INTERACT_SCENE_PLAN_ENABLED', profile: { id: profile.id, version: profile.version, hash: await interactProfileHash(profile) }, prompts: await designPromptContracts() },
+      Object.assign(job, { flow: { version: 1, switch: 'INTERACT_SCENE_PLAN_ENABLED', ...(designKind ? { designKind } : {}), profile: { id: profile.id, version: profile.version, hash: await interactProfileHash(profile) }, prompts: await designPromptContracts() },
         design: freshDesign(), prepare: true, reservation: { version: INTERACT_POLICY_VERSION, preparationMicros: priced.preparationMicros, generationMicros: priced.generationMicros } });
     }
     // Generation is admitted up front on the direct path; a prepared request is admitted at approve. Refused: nothing is
@@ -760,10 +763,10 @@ export class ExplainJobs {
     const key = await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
-      if (current.design.counts[short] + 1 > INTERACT_LIMITS.calls[role]) throw Object.assign(fail(`This scene design reached its ${short} limit.`, 429), { stopReason: 'budget' });
+      if ((current.design.counts[short] ?? 0) + 1 > INTERACT_LIMITS.calls[role]) throw Object.assign(fail(`This scene design reached its ${short} limit.`, 429), { stopReason: 'budget' });
       if (Date.now() >= current.deadline) throw Object.assign(fail(`This explanation reached its time limit while ${current.stage}.`, 409), { stopReason: 'deadline' });
       const boundMicros = roleBoundMicros(profile.roles[role]) ?? 0;
-      current.design.counts[short]++; current.reservedMicros += boundMicros;
+      current.design.counts[short] = (current.design.counts[short] ?? 0) + 1; current.reservedMicros += boundMicros;
       const callKey = `${current.id}-${role}-${current.calls.length + 1}`;
       current.inFlight = { key: callKey, role, at: Date.now() };
       current.calls.push({ key: callKey, role, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros, images: 0, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
@@ -773,7 +776,9 @@ export class ExplainJobs {
     if (!key) throw Object.assign(fail('This explanation changed while it was working.', 409), { abandoned: true });
     this.active.add(job.id);
     let out, error;
-    try { out = await callInteractRole({ env: this.env, profile, adapters: interactAdapters({ env: this.env, callModel: this.interactTransport(job, role) }) }, role, args); } catch (e) { error = e; } finally { this.active.delete(job.id); }
+    // design_fill is the one design role that is not Anthropic: the Worker's fetch behind the same spend admission, as the build roles (buildRoleCtx); the call fence above is its admission.
+    const adapters = role === 'design_fill' ? { 'openai-compatible': { name: 'openai-compatible', call: a => interactAdapters({ env: this.env, fetch: this.interactFetch(job, a.config) })['openai-compatible'].call(a) } } : interactAdapters({ env: this.env, callModel: this.interactTransport(job, role) });
+    try { out = await callInteractRole({ env: this.env, profile, adapters, admit: async () => {}, settle: async () => {} }, role, args); } catch (e) { error = e; } finally { this.active.delete(job.id); }
     await this.locked(async () => {
       const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
       const refused = ['provider_unavailable', 'spend_refused'].includes(error?.code);
@@ -994,7 +999,7 @@ export class ExplainJobs {
     if (job.stage === 'queued') return this.move(job, job.flow ? 'design_authoring' : job.prepare && !job.approval ? 'preparing' : 'authoring');
     // interact: the design roles' model calls; a dev-only pin (interact-design-pin.js, never in production) answers them from the fixture plan.
     const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: EXPLAIN_LIMITS,
-      ...(job.flow ? { interact: async (role, args) => { const pin = designPinOf(this.env); return (pin && await pinnedDesignCall(pin, job, role, args)) || this.interactCall(job, role, args); }, capabilities: await designCapabilities(this.env, job), buildScene: this.deps.buildScene,
+      ...(job.flow ? { interact: async (role, args) => { const pin = designPinOf(this.env); return (pin && await pinnedDesignCall(pin, job, role, args)) || this.interactCall(job, role, args); }, capabilities: await designCapabilities(this.env, job), buildScene: this.deps.buildScene, designKind: job.flow.designKind,
         // The description fit is a measurement; only the pure estimate exists in a Worker (no DOM), so it runs only when the server setting says so, labelled estimate in the stored receipt.
         descriptionFit: this.deps.descriptionFit ?? (this.env.INTERACT_DESCRIPTION_FIT === 'estimate' ? estimateDescriptionFit : undefined) } : {}) };
     if (this.buildFlow(job)) Object.assign(ctx, { build: await this.loadBuild(job), role: await this.buildRoleCtx(job) });
@@ -1091,6 +1096,7 @@ export class ExplainJobs {
     const next = to => { endStage(job.timing, 'done'); job.stage = to; beginStage(job.timing, to); };
     const keep = (name, value) => this.state.storage.put(`design:${job.id}:${d.rev}:${name}`, value);
     if (out.stop) return this.stopWith(job, out.stop.reason, out.stop.category, out.stop.message, !['design_unresolved'].includes(out.stop.reason));
+    if (out.fast) d.fast = out.fast; // the fast path's record (kind, model, calls, fallback, first problem, cost): kept on a pass, a fallback and a refused Opus author alike
     if (out.problems) {
       // A reply that cannot be used was still a counted call: the stage tries again while its role has calls left, else the design stops with the reasons.
       const role = { design_authoring: 'author', design_reviewing: 'review', design_revising: 'revise' }[stage];
@@ -1101,7 +1107,9 @@ export class ExplainJobs {
     if (stage === 'design_authoring') {
       Object.assign(d, { plan: out.plan, planHash: out.planHash, draftHash: out.planHash, problems: out.bindingProblems, review: null, pending: null, changes: [], reviews: [], revisions: [] });
       await keep('draft', { plan: out.plan, planHash: out.planHash, bindingProblems: out.bindingProblems, at: now });
-      next('design_reviewing');
+      // A fast design passed its checks in the fill stage: no review and no reviser, straight to the closing check. A fallback began the Opus design here: its roles are reserved now.
+      if (out.fast?.fallback === 'after_correction') { const profile = resolveInteractProfile(job.flow.profile.id); job.reservation.preparationMicros += interactReservation(profile).preparationMicros; }
+      next(out.fast?.kind === 'fast' ? 'design_verifying' : 'design_reviewing');
     } else if (stage === 'design_reviewing') {
       const followUp = d.revisions.length > 0, blocking = out.review.findings.filter(isBlocking);
       d.review = out.review;

@@ -82,7 +82,7 @@ test('bench_judge: Sonnet 5.5 in every registered profile (never Opus), text onl
     const role = resolveInteractProfile(id).roles.bench_judge;
     assert.deepEqual([role.model, role.pricingKey.model, role.provider, role.adapter, role.maxImages, role.capabilities.vision], ['claude-sonnet-5-5', 'claude-sonnet-5-5', 'anthropic', 'anthropic', 0, true], id);
   }
-  assert.deepEqual(INTERACT_ROLE_IDS.filter(r => resolveInteractProfile('opus-baseline').roles[r].model !== 'claude-opus-5-5'), ['bench_judge']);
+  assert.deepEqual(INTERACT_ROLE_IDS.filter(r => resolveInteractProfile('opus-baseline').roles[r].model !== 'claude-opus-5-5'), ['design_fill', 'bench_judge']); // design_fill is the fast design path's Gemini Flash Lite
 });
 
 test('the reservation is unchanged with the role present: the bench judge is in neither phase, so the allowance check before Generate is the same $8.42 build and $5.68 design worst case', () => {

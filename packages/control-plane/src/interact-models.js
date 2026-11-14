@@ -15,6 +15,7 @@ import { CONTRACT_LIMITS } from '../../web/src/explain-program/contract.js';
 export { InteractModelError, interactAdapters } from './interact-model-adapters.js';
 
 export const INTERACT_POLICY_VERSION = 1;
+export const INTERACT_DESIGN_KIND_SETTING = 'INTERACT_DESIGN_KIND'; // unset = the Opus design (author, review, revise, verify); 'fast' = the fill path with the Opus design as its fallback
 export const INTERACT_PROFILE_SETTING = 'INTERACT_MODEL_PROFILE'; // the server setting; unset or empty means the registry default
 export const INTERACT_BUILD_PROFILE_SETTING = 'INTERACT_BUILD_PROFILE'; // the same choice for the build half (google-low, fireworks-low); INTERACT_MODEL_PROFILE wins when both are set
 export const INTERACT_FALLBACK_SETTING = 'INTERACT_FALLBACK'; // 'off' (benchmarks: a fallback is a failure) runs a role's own provider only, like EXPLANATION_FALLBACK=off
@@ -36,6 +37,8 @@ export const INTERACT_ROLES = deepFreeze({
   design_author: { task: 'interact_design_author', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_author.maxTokens },
   design_review: { task: 'interact_design_review', phase: 'preparation', kind: 'evaluation', calls: 4, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_review.maxTokens },
   design_revise: { task: 'interact_design_revise', phase: 'preparation', kind: 'generation', calls: 3, maxInputBytes: 60000, maxImages: 4, maxOutputTokens: LEARN_TASKS.interact_design_revise.maxTokens },
+  // The fast design path (INTERACT_DESIGN_KIND=fast, brief 12): ONE call that fills a plan brief (interact-design-fill.js), plus one correction. Gemini Flash Lite, never Opus; the profile's design_fill config is below.
+  design_fill: { task: 'interact_design_fill', phase: 'preparation', kind: 'generation', calls: 2, maxInputBytes: 60000, maxImages: 0, maxOutputTokens: 8000 },
   build_author: { task: 'explain_author', phase: 'generation', kind: 'generation', calls: 2, maxInputBytes: 80000, maxImages: 4, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_author },
   build_review: { task: 'explain_review', phase: 'generation', kind: 'evaluation', calls: 5, maxInputBytes: 80000, maxImages: 6, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_review },
   build_repair: { task: 'explain_repair', phase: 'generation', kind: 'repair', calls: 4, maxInputBytes: 80000, maxImages: 2, maxOutputTokens: NEW_FLOW_BUILD_TOKENS.build_repair },
@@ -70,6 +73,9 @@ const fastStep = (role, provider, repair, fallbacks) => {
 const fastProfile = primary => ({ version: 1, extends: 'opus-baseline', roles: Object.fromEntries(['build_author', 'build_repair'].map(role => [role,
   fastStep(role, primary, role === 'build_repair', [fastStep(role, primary === 'google' ? 'fireworks' : 'google', role === 'build_repair')])])) });
 
+// design_fill: Gemini Flash Lite at reasoning low, the fast profile's step for build_author with the fill's own output cap and no fallback chain (a failed fill goes to the Opus design, not to another cheap model).
+const fillRole = () => ({ ...fastStep('design_fill', 'google', false), maxOutputTokens: INTERACT_ROLES.design_fill.maxOutputTokens });
+
 const ADAPTERS = ['anthropic', 'openai-compatible'];
 // The all-Opus role config: the existing automatic-tool approach (one tool on auto), no thinking, effort or fallback setting of its own.
 const opusRole = role => ({
@@ -93,7 +99,7 @@ export const INTERACT_REGISTRY = deepFreeze({
   defaultProfile: 'opus-baseline',
   providers: { anthropic: { credentialRef: 'ANTHROPIC_API_KEY' }, celeris: { credentialRef: 'CELERIS_API_KEY' }, google: { credentialRef: CHAIN_STEPS.google.credentialRef }, fireworks: { credentialRef: CHAIN_STEPS.fireworks.credentialRef } },
   endpointAllowlist: ['https://inference.celeris.ai', ...['google', 'fireworks'].map(p => new URL(CHAIN_ENDPOINTS[p].url).origin)],
-  profiles: { 'opus-baseline': { version: 1, roles: Object.fromEntries(INTERACT_ROLE_IDS.map(role => [role, opusRole(role)])) }, 'google-low': fastProfile('google'), 'fireworks-low': fastProfile('fireworks'),
+  profiles: { 'opus-baseline': { version: 1, roles: Object.fromEntries(INTERACT_ROLE_IDS.map(role => [role, role === 'design_fill' ? fillRole() : opusRole(role)])) }, 'google-low': fastProfile('google'), 'fireworks-low': fastProfile('fireworks'),
     // DEV-ONLY: opus-baseline's roles, but the build roles are answered by interact-scripted.js with no model call; refused unless scriptedBuildAllowed(env) (never in production).
     scripted: { version: 1, extends: 'opus-baseline', roles: {} } },
 });
@@ -177,9 +183,11 @@ export function roleBoundMicros(config) {
 }
 // Preparation (design roles) and generation (build roles) reservations at the profile's call ceilings. A phase with any unpriced role is
 // null and names the roles; it is never a smaller number.
-export function interactReservation(profile) {
-  const perRole = Object.fromEntries(INTERACT_ROLE_IDS.filter(role => INTERACT_ROLES[role].phase !== 'bench').map(role => [role, { calls: INTERACT_ROLES[role].calls, boundMicros: roleBoundMicros(profile.roles[role]) }]));
-  const phase = name => { const roles = INTERACT_ROLE_IDS.filter(r => INTERACT_ROLES[r].phase === name); return roles.some(r => perRole[r].boundMicros == null) ? null : roles.reduce((t, r) => t + perRole[r].calls * perRole[r].boundMicros, 0); };
+// kind 'fast' (INTERACT_DESIGN_KIND=fast): the preparation phase is the fill and its correction only; the Opus design roles are reserved when the fallback starts (interactReservation(profile) alone). Any other kind leaves the fill out.
+export function interactReservation(profile, kind) {
+  const left = role => (kind === 'fast' ? ['design_author', 'design_review', 'design_revise'] : ['design_fill']).includes(role);
+  const perRole = Object.fromEntries(INTERACT_ROLE_IDS.filter(role => INTERACT_ROLES[role].phase !== 'bench' && !left(role)).map(role => [role, { calls: INTERACT_ROLES[role].calls, boundMicros: roleBoundMicros(profile.roles[role]) }]));
+  const phase = name => { const roles = INTERACT_ROLE_IDS.filter(r => INTERACT_ROLES[r].phase === name && !left(r)); return roles.some(r => perRole[r].boundMicros == null) ? null : roles.reduce((t, r) => t + perRole[r].calls * perRole[r].boundMicros, 0); };
   return { version: INTERACT_POLICY_VERSION, profile: { id: profile.id, version: profile.version }, preparationMicros: phase('preparation'), generationMicros: phase('generation'),
     unknownRoles: Object.keys(perRole).filter(r => perRole[r].boundMicros == null), perRole };
 }
