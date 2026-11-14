@@ -22,6 +22,11 @@ active-time or identify event is sent or queued for later, and the server sends 
 - `src/analytics-banner.js` is plain DOM for the app and the public pages, bottom right, not modal, and takes focus only when opened from a
   preferences link. It does not appear in a build without analytics, or for a browser sending DNT or GPC.
 - Change it with "Analytics preferences" in the public footer (`landing/footer-links.js`) or Settings > Privacy & security.
+- The banner is hidden on the public pages for now (owner 2026-11-14): `SHOW_LANDING_CONSENT_BANNER = false` in `src/landing/analytics.js` skips `mountConsentBanner`, so
+  no banner appears there and `data-analytics-choice` is never set, which keeps the Privacy page's "Analytics preferences" button hidden (`footer-links.css`). The public
+  pages still collect only what a saved choice allows (`installUsageAnalytics` is unchanged), and a visitor who never answered stays off. The app keeps the banner and Settings
+  > Privacy & security. Setting the flag to `true` restores the banner and the button. `src/analytics-banner.test.mjs` covers the hidden state and, with the app's banner, that
+  an answer is kept per browser and origin (a private window starts empty, so it asks on every visit: expected, not a bug).
 - Withdrawal stops collection in every tab, drops queued and accrued data, aborts sends in flight, cancels retries, removes the `rh_ph_*` keys
   and deletes the cookie. Nothing else is cleared: sign-in, drafts, recovery and accounting are untouched. It does not delete events already sent.
 - Internal accounts need Accept too: until the owner accepts in his browser, his activity is not collected and identify does not run.
