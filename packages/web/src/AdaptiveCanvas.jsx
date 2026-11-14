@@ -333,7 +333,9 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   // Hover (owner 2026-11-13): the action row shows 150 ms after the pointer rests on the card and leaves 120 ms after it goes, only while no button is down, so it never gets in the way of a drag.
   // It is this card's own state: a hover change re-renders this card only, never the canvas.
   const [hovered, setHovered] = useState(false), hoverTimer = useRef(null);
-  const hoverIn = event => { if (event.buttons) return; if (hovered) { clearTimeout(hoverTimer.current); hoverTimer.current = null; return; } if (!hoverTimer.current) hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(true); }, 150); };
+  // The highlight over the top of the card (index.css) is as tall as the grip strip and the header together.
+  const measureTop = root => { const header = root.querySelector('[data-card-header]'), base = root.getBoundingClientRect().top; root.style.setProperty('--top-h', `${Math.max(24, ((header ? header.getBoundingClientRect().bottom : base + 24 * (zoom || 1)) - base) / (zoom || 1))}px`); };
+  const hoverIn = event => { if (event.buttons) return; measureTop(event.currentTarget); if (hovered) { clearTimeout(hoverTimer.current); hoverTimer.current = null; return; } if (!hoverTimer.current) hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(true); }, 150); };
   const hoverOut = () => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(false); }, 120); };
   const hoverOff = () => { clearTimeout(hoverTimer.current); hoverTimer.current = null; setHovered(false); };
   useEffect(() => () => clearTimeout(hoverTimer.current), []);
@@ -454,9 +456,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           lies over the card or its top port. The one selected card says how it opens: a small Enter (owner 2026-11-08: renamed from Open; its title and name still say what it opens), never a big button on every card
           (touch has no double-click). */}
       {(showEnter || showTools) && (
-        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
-          {/* Bridges the 8px gap between the row and the card, so moving the pointer up to the buttons keeps the card hovered. */}
-          <span aria-hidden="true" className="pointer-events-auto absolute inset-x-0 top-full h-2" />
+        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-end gap-x-2 gap-y-1.5 after:pointer-events-auto after:absolute after:inset-x-0 after:top-full after:h-2 after:content-[''] [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
           {showEnter && (
             <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
               onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
