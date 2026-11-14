@@ -1,5 +1,9 @@
 # R4 decision records (proposed, for the owner)
 
+> **Superseded in part by the owner decision of 2026-11-14 (Create a course).** One Generate course makes every card of the accepted plan; there is no per-card Accept, Cancel, Edit card, Next card,
+> Propose next step, End roadmap, Tab accept or proposal editor any more, the invitation reads **Create a course | Cancel**, the draft **Accept | Edit**, plan steps carry a `section`, cards are authored on
+> Gemini Flash, and a new file replaces the canvas's unfinished roadmap (one course per canvas). Where this document says otherwise, `docs/features/create-a-course.md` wins.
+
 Status: PROPOSED TEXT. Nothing here is adopted. No model call has been made and nothing has been spent. Three separate decisions, kept apart so none delays R1-R3 (manifest, owner update 2026-11-05 item 6): (a) the D2 routing exception, (b) the D43 contextual safety policy, (c) a bounded paid-testing estimate. Section 4 lists the new learner-visible strings. Each record is written so the owner can paste or reject it on its own. The recommendation is mine; the owner decides.
 
 Per the owner rule to list paid dependencies and cost and ask before any spend: section 3 is a request for approval of a number, not an authorization to proceed.

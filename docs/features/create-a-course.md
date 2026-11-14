@@ -58,6 +58,11 @@ Propose next step). The roadmap machinery underneath (plan, hold, quote, one aut
 - **Cards and models.** Cards are authored on Gemini Flash by the fast chain under the roadmap hold (`ROADMAP_CARD_PROFILE`, default `roadmap-gemini` wherever the server holds a Gemini key; no JEV
   planner at dispatch, so the quote matches the request). The plan is explanation cards only.
 
+- **Older roadmaps.** A step planned as a table is authored as an explanation card on Gemini too (`authoredFormat`), so no card of a course runs on the plan model.
+- **Local and dev stacks** have no RoadmapJobs object: a kick drains the due events (`roadmapKick`), as the object's alarm does in production, so a course is not left waiting after a failed card.
+- **Verified live (owner stack, 2026-11-14, real Gemini, over HTTP):** a 4-card and a 7-card course, Cancel and resume, a new file after a finished course, a CRLF/BOM file, two invitations, a changed file (`source_changed`), a provider outage
+  (`failures` after three cards, then Try again made all 7). Safety stops are covered only by the in-memory test (forcing them live needs prohibited content).
+
 ## Retired
 
 Per-card Accept / Cancel / Next card (canvas and Chat), Tab accept, Propose next step, End roadmap, the proposal editor (Ctrl/Cmd+K), the recovery entry and the
