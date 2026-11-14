@@ -78,7 +78,7 @@ import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.j
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { besideSpot, followPlace } from './beside-placement.js';
-import { fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
+import { clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
 import { dragged, holdAnchors } from './card-anchor.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
@@ -3695,16 +3695,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   openOnLeadRef.current = openOnLead;
   useEffect(() => { openOnLeadRef.current(); }, [bounds]);
   // CV-6 (canvas-view.js): a board whose cards were moved off the top of the column (laid out far to the right and down) must not open on an empty surface: once, at the first
-  // measure, if the opening camera frames no card and the learner has not moved the camera, open on the top of the first file card (else the first card).
+  // measure, if the opening camera frames no card and the learner has not moved the camera, open on the top of the first file card (else the first card, else the first chat
+  // exchange). PV-1: a board with no card or exchange at all (text, notes, images, ink, frames) is opened at mount on the cluster of what it holds. A view-only page, a guest's
+  // copy and the editor open the same way: the board state carries no camera, so the opening one is always the homeView set at mount.
   const firstViewDone = useRef(false);
   useEffect(() => {
-    const boxes = Object.values(bounds);
-    if (firstViewDone.current || !boxes.length || !surface.current) return;
+    if (firstViewDone.current || !surface.current) return;
+    const boxes = Object.values(bounds), bare = !blocksRef.current.length && !exchangesRef.current.length;
+    if (!boxes.length && !bare) return; // cards not measured yet: the next measure decides
     firstViewDone.current = true;
     if (manualMoves.current !== openedAt.current || focusRef.current || (opening.current && blocksRef.current[0]?.program)) return;
-    const area = visibleArea();
-    if (framesAnyBlock(viewRef.current, area, boxes)) return;
-    const target = firstViewTarget(blocksRef.current, bounds);
+    const area = visibleArea(), content = bare ? contentBoxes() : boxes;
+    if (!content.length || framesAnyBlock(autoView.current || viewRef.current, area, content)) return;
+    const target = bare ? clusterBox(content, area) : firstViewTarget(blocksRef.current, bounds);
     if (target) setView(autoView.current = topView(target, area));
   }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
