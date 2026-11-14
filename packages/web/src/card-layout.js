@@ -86,7 +86,8 @@ export const clampBox = (w, h, most = 1000) => ({ w: Math.min(1200, Math.max(280
 // FX-EB-10: a content-fitted card (BLOCK_TYPES fitContent: a text card) is never taller than its content. The height it would be
 // held at (saved, dragged or its type's cap) is only a ceiling: its height follows the content as text wraps, feedback appears or
 // a section opens, content above the ceiling scrolls inside, and a saved height above the content leaves no blank space.
-export const fitFrame = (height, maxHeight, fit) => (fit ? { height: undefined, maxHeight: height ?? maxHeight } : { height, maxHeight });
+// A learner's corner resize is a size, not a ceiling: `set` (the learner dragged or saved a height) holds a content-fitted card at exactly that height (minHeight = maxHeight); without it the height stays content-fitted.
+export const fitFrame = (height, maxHeight, fit, set = false) => (fit ? { height: undefined, ...(set && height != null ? { minHeight: height } : null), maxHeight: height ?? maxHeight } : { height, maxHeight });
 // That card's natural height without the rows under its body (`extra`). It reads a card fitFrame leaves unstretched, so the
 // card's own height is its content's (never a stretched flex box's), plus whatever its scroll body hides above the ceiling.
 export function naturalHeight(card, extra = 0) {

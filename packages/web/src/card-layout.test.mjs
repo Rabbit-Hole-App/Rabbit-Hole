@@ -69,6 +69,18 @@ test('the natural height includes content scrolled under a lower ceiling, and le
  assert.equal(naturalHeight(laidOut(fitFrame(900,undefined,true),300,40),40),300,'Sources or reference rows (extra) are not body height');
  assert.equal(naturalHeight({offsetHeight:180,querySelector:()=>null}),180);
 });
+// BUG 2 (canvas-cards): a learner's corner resize is a size, not a ceiling. A set height holds the content-fitted card at exactly that height
+// (a taller drag grows it, a shorter one still scrolls); without a learner-set height nothing changes.
+test('a learner-set height on a content-fitted card is its size: taller grows it, shorter scrolls, unset stays content-fitted',()=>{
+ const box=({height,minHeight=0,maxHeight=Infinity},content)=>height??Math.min(Math.max(content,minHeight),maxHeight);
+ assert.deepEqual(fitFrame(600,undefined,true,true),{height:undefined,minHeight:600,maxHeight:600});
+ assert.equal(box(fitFrame(600,undefined,true,true),310),600,'a taller drag grows the card past its content');
+ assert.equal(box(fitFrame(200,undefined,true,true),310),200,'a shorter drag holds it at 200 (the body scrolls)');
+ assert.equal(box(fitFrame(1000,undefined,true,false),310),310,'no learner-set height: still its content, the old ceiling');
+ assert.deepEqual(fitFrame(undefined,520,true,true),{height:undefined,maxHeight:520},'a set flag with no height changes nothing');
+ assert.deepEqual(fitFrame(600,undefined,false,true),{height:600,maxHeight:undefined},'a card that is not content-fitted is unchanged');
+ assert.equal(clampBox(440,700).h,700,'the commit is no longer limited to the content');
+});
 test('the required height follows the content: wrapping at a narrower width, or feedback appearing, moves the limit',()=>{
  const wide=naturalHeight(laidOut(fitFrame(undefined,760,true),280)),narrow=naturalHeight(laidOut(fitFrame(undefined,760,true),460));
  assert.deepEqual([clampBox(700,900,wide).h,clampBox(320,900,narrow).h],[280,460]);
@@ -139,7 +151,7 @@ test('toggling Full on a quiz, flashcards or walkthrough keeps answers, ratings 
 // source row lives in the header, so the footer row is not drawn a second time.
 test('an opened Explanation section grows the frame, never squeezes the core; the source row counts once',()=>{
  const canvas=readFileSync(new URL('./AdaptiveCanvas.jsx',import.meta.url),'utf8');
- assert.match(canvas,/autoMax \+ refsHeight \+ grow, fit\)/,'the ceiling grows by the opened height');
+ assert.match(canvas,/autoMax \+ refsHeight \+ grow, fit, !!\(cornerDrag\?\.h \|\| size\.h\)\)/,'the ceiling grows by the opened height; a learner-set height is a size');
  assert.match(canvas,/extraHeight \+ refsHeight \+ grow;/,'a corner drag leaves the opened height out of the body');
  assert.match(canvas,/block\.sourceRef && !headerSource\(block\) && <SourceRefChip/);
  assert.deepEqual(fitFrame(undefined,520+120,true),{height:undefined,maxHeight:640});
