@@ -84,8 +84,8 @@ test('the pinned header stands above ONE reading flow that holds the body and th
   assert.match(row.textContent, /Source: en\.md/);
   assert.equal(row.getAttribute('data-source-ref-status'), 'current', 'the server status was read');
   const view = row.querySelector('button[data-view-section]');
-  assert.equal(view.getAttribute('aria-label'), 'View passage', 'the approved card 07 label (GAP-04)');
-  assert.equal(view.getAttribute('title'), 'View passage');
+  assert.equal(view.getAttribute('aria-label'), 'Go to highlight', 'HL-3 (owner 2026-11-14) replaces the card 07 label View passage for a Markdown passage');
+  assert.equal(view.getAttribute('title'), 'Go to highlight');
   assert.match(view.innerHTML, /lucide-scan-text/, 'the ScanText glyph the Markdown View card button shares');
   assert.ok(requests.every(url => url.endsWith('/api/learn/source-refs/resolve')), 'only the status read');
   assert.equal(B.headerSource(card()), true, 'the canvas skips its footer source row for this card (counted once)');

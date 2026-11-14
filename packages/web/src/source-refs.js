@@ -3,6 +3,7 @@
 // (resolveSourceRef) whenever it is shown: an immutable revision means "current" is a fact the server checked, not a guess.
 // `post` is the page's api POST (learn-slash.js's, LearnPage's): { data, status } errors as api() throws them. Pure: no React.
 import { startTiming } from './client-timing.js';
+import { PASSAGE_EVENT, hasExplained } from './passage-link.js';
 import { CREATE_REFUSED, SOURCE_REF_EVENT, explanationsFor, markdownCardOf, navigable, readerRef, sourceRefOf } from './source-ref.js';
 
 export const SOURCE_REFS = '/api/learn/source-refs';
@@ -43,7 +44,8 @@ export function resolveSourceRef(post, app, id, { delay = 0, schedule = setTimeo
 let state = { blocks: [], focus: null, pending: [] };
 const listeners = new Set();
 export const published = () => state;
-const relevant = block => navigable(sourceRefOf(block)) || (block?.kind === 'markdown' && !!block.fileRef?.source?.id);
+// HL-146: a card made from a passage of an Explanation card (fromPassage) and a card holding such a passage (an explained highlight) are published too, so each end can find the other.
+const relevant = block => navigable(sourceRefOf(block)) || (block?.kind === 'markdown' && !!block.fileRef?.source?.id) || !!block?.fromPassage || hasExplained(block);
 export function publishBlocks(blocks, focus = null) {
   const next = (Array.isArray(blocks) ? blocks : []).filter(relevant);
   if (focus === state.focus && next.length === state.blocks.length && next.every((block, i) => block === state.blocks[i])) return;
@@ -59,25 +61,37 @@ export function publishPending(pending) {
   for (const listener of listeners) listener();
 }
 
+// The one place the camera is sent to a card for "Go to highlight" and "Go to card" (HL-3): CK-4's centring helper (canvas-view.js) replaces this one line at the sprint merge.
+const goTo = (focus, cardId, options) => focus?.(cardId, options);
+
 // Card to passage. A PDF opens the companion reader at the page with the passage emphasized (the existing
 // 'small:excerpt-source' event, ExcerptCard.jsx); a Markdown passage focuses its file card, which then emphasizes the quote.
 // Returns what happened, so the chip can say so: 'opened' | 'unavailable' (the ref cannot open) | 'no-card' (the Markdown card is
 // not on this canvas).
 // raw: the card is a roadmap card (stepId), so its Markdown quote is raw Markdown and may be matched folded once the whole file is drawn (source-ref.js resolveRawPassage).
 // range: a Tutor slot's step, which has no quote yet: the plan's raw offsets, read from the file card's own text there.
-export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, emit = event => window.dispatchEvent(event), wait = setTimeout, raw = false, range = null } = {}) {
+export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, emit = event => window.dispatchEvent(event), wait = setTimeout, raw = false, range = null, measure = measurePassage } = {}) {
   if (!navigable(ref)) return 'unavailable';
   if (ref.kind === 'pdf') { emit(new CustomEvent('small:excerpt-source', { detail: { ref: readerRef(ref) } })); return 'opened'; }
   const cardId = markdownCardOf(blocks, ref);
   if (!cardId) return 'no-card';
-  focus?.(cardId);
+  // HL-148: where the passage is drawn now (the card measures its own resolved quote), so the camera can centre THAT at a readable zoom instead of framing the whole card (a 10,000 px file card is 20% when framed).
+  // No rect (a quote that does not resolve, a roadmap raw quote, a card that scrolls inside itself): the card is focused as it always was and the card says what it found.
+  const rect = !raw && !range && ref.anchor?.quote ? measure(cardId, { quote: ref.anchor.quote, rev: ref.source.rev }) : null;
+  goTo(focus, cardId, rect ? { passage: rect } : undefined);
   // The camera moves first; the card paints its emphasis once it is on screen.
   wait(() => emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, quote: ref.anchor?.quote, ...(raw ? { raw: true } : {}), ...(range ? { range } : {}) } })), 250);
   return 'opened';
 }
 
 // The camera to one explanation card (a reader's "View explanation" on a passage that has several).
-export const focusExplanation = (cardId, { focus = state.focus } = {}) => focus?.(cardId);
+export const focusExplanation = (cardId, { focus = state.focus } = {}) => goTo(focus, cardId);
+
+// HL-146 Go to highlight: a card made from a passage of an Explanation card focuses that card, then asks it to bring the pink passage into view (ExplanationInteractions listens for PASSAGE_EVENT).
+export function goToPassage({ cardId, highlightId }, { focus = state.focus, emit = event => window.dispatchEvent(event), wait = setTimeout } = {}) {
+  goTo(focus, cardId);
+  wait(() => emit(new CustomEvent(PASSAGE_EVENT, { detail: { cardId, highlightId } })), 250);
+}
 
 // Passage to explanation: the camera to the first explanation card for this source (at this revision, for a PDF on this page).
 // Returns how many there are.
