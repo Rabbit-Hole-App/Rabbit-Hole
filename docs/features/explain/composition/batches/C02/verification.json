@@ -114,6 +114,8 @@
       "newSourceCases": 21
     },
     "details": "rebase-133.md",
-    "releaseReady": false
-  }
+    "releaseReady": false,
+    "openAssertionsResolvedBy": "fix-133/verification.json"
+  },
+  "latestCorrectnessFix": "fix-133/verification.json"
 }

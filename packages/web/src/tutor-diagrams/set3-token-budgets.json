@@ -785,6 +785,106 @@
         "tokens": 100,
         "sha256": "b96fae73469a3602dd4d5feec5f429a6327c202589acc40633aa4ef2c0bbc0fd"
       }
+    },
+    "ml-linear-regression-linear-unit": {
+      "panel": {
+        "tokens": 199,
+        "sha256": "fd3dfb5f9b08d2dd0fd5c8cfffdcb83c240d7f5b17b2557dc81f252fbf538a7e"
+      },
+      "single": {
+        "tokens": 51,
+        "sha256": "e5fd749e4aa6d6371afdeb0010cb91195fa12b04bfbacaf589b403907605b0fe"
+      }
+    },
+    "ml-neural-networks-hidden-layer": {
+      "panel": {
+        "tokens": 226,
+        "sha256": "6d92a32d251120fd558816f82f46c1e24b6f7e72b1c3cb96d80aab30330f2299"
+      },
+      "single": {
+        "tokens": 40,
+        "sha256": "a469b201e8866b1b9db2960218bd42f9b069eae1f36f292aa870371c7d16d962"
+      }
+    },
+    "ml-regularization-regularized-objective": {
+      "panel": {
+        "tokens": 206,
+        "sha256": "77ed15cc733e6abdbeadf4338bce0f741c90ba68814b5cf965f8f8257b63e488"
+      },
+      "single": {
+        "tokens": 50,
+        "sha256": "4242551be7d092bb3b35e27ac315a853a5f8f43bcf9f0df414c4f4c510c8f1b8"
+      }
+    },
+    "ml-regularization-dropout-mask": {
+      "panel": {
+        "tokens": 297,
+        "sha256": "2e908ba6b4a68fe6db9f2282e6a36726547c576244c7e4dc2f65c15c657f3101"
+      },
+      "single": {
+        "tokens": 120,
+        "sha256": "b3e294301167ab9539cf472d687db0c9fdae02a5636834b31154045cddd0fb0f"
+      }
+    },
+    "ml-attention-scaled-score-normalization": {
+      "panel": {
+        "tokens": 254,
+        "sha256": "688b2b7f29d1c00549aeafe182e6a3a5811c839174ceacfb7bc45925de56db5b"
+      },
+      "single": {
+        "tokens": 117,
+        "sha256": "0a976580118c914ed9ed451c3b508d0746ab4087f0b974f1a0efc887ddab94bd"
+      }
+    },
+    "ml-model-evaluation-training-diagnostics": {
+      "panel": {
+        "tokens": 281,
+        "sha256": "e07a4f61fd1c9c5ba122cfdfa2c396f1390e96ca569c877d56a914fe0a4173bd"
+      },
+      "single": {
+        "tokens": 142,
+        "sha256": "cc931472048dd2240b840c7d0a595c8d3b67277155a27075fd5bbc19fb89eaf9"
+      }
+    },
+    "ml-model-evaluation-schedule-run-diagnostics": {
+      "panel": {
+        "tokens": 298,
+        "sha256": "2e59093ab09e82c1c64cf892cd9f4803ca6c69f32b1f73ec04531fdd4e6372c1"
+      },
+      "single": {
+        "tokens": 147,
+        "sha256": "fe8b33deb2947413d6095f4a333c5a6ef70710f88dc9b66b6e5a85d7459141cd"
+      }
+    },
+    "ml-time-series-recursive-rollout": {
+      "panel": {
+        "tokens": 293,
+        "sha256": "6cf8151369854474c492305d85a2ddea7c33d31783ae5722276e086f95a1e387"
+      },
+      "single": {
+        "tokens": 196,
+        "sha256": "5d5c1d3606e5cd8e1c238cafc61366ccd187e381d2828072b4f1236213f0c895"
+      }
+    },
+    "ml-distribution-shift-input-distribution-shift": {
+      "panel": {
+        "tokens": 248,
+        "sha256": "e818100dc9081e9af9e6bd99bd21e79bc814405aa082110af4e122e27621a19d"
+      },
+      "single": {
+        "tokens": 75,
+        "sha256": "51979e63fe083c668267dad00a7589f332052d6bc0fe5cbbd0757bf8a2f2baca"
+      }
+    },
+    "ml-distribution-shift-concept-shift": {
+      "panel": {
+        "tokens": 154,
+        "sha256": "419fc3122ed50498cb42fe2e6ff00d69ea68451271c3823e0c6ad30c730047b7"
+      },
+      "single": {
+        "tokens": 71,
+        "sha256": "8e35f61203fedc3779c573f7776ada1d3a91f5d7537078f848bc6996c505b8f5"
+      }
     }
   }
 }

@@ -1,0 +1,60 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": [
+    {
+      "id": "ml-attention-scaled-score-normalization-single",
+      "panelReferenceId": "ml-attention-scaled-score-normalization",
+      "chosenPanel": "standard Position weights",
+      "reason": "Normalized position weights carry the distribution point. Omit only optional total, which the author schema excludes; stacked rendering sums the same computed bars.",
+      "kind": "bar-chart",
+      "tokens": 117,
+      "sha256": "0a976580118c914ed9ed451c3b508d0746ab4087f0b974f1a0efc887ddab94bd"
+    },
+    {
+      "id": "ml-model-evaluation-training-diagnostics-single",
+      "panelReferenceId": "ml-model-evaluation-training-diagnostics",
+      "chosenPanel": "standard Loss",
+      "reason": "Training and held-out loss traces preserve their relationship on one common metric scale; the accuracy-only panel loses that relationship.",
+      "kind": "coordinate-plot",
+      "tokens": 142,
+      "sha256": "cc931472048dd2240b840c7d0a595c8d3b67277155a27075fd5bbc19fb89eaf9"
+    },
+    {
+      "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+      "panelReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "chosenPanel": "standard Accuracy",
+      "reason": "Both accuracy traces and the gap-opening annotation expose the held-out plateau and growing training gap; training loss alone cannot show that gap.",
+      "kind": "coordinate-plot",
+      "tokens": 147,
+      "sha256": "fe8b33deb2947413d6095f4a333c5a6ef70710f88dc9b66b6e5a85d7459141cd"
+    },
+    {
+      "id": "ml-time-series-recursive-rollout-single",
+      "panelReferenceId": "ml-time-series-recursive-rollout",
+      "chosenPanel": "standard Traces",
+      "reason": "Observed, recursive and refreshed one-step traces show forecast-feedback divergence together; the input provenance table alone loses its magnitude.",
+      "kind": "coordinate-plot",
+      "tokens": 196,
+      "sha256": "5d5c1d3606e5cd8e1c238cafc61366ccd187e381d2828072b4f1236213f0c895"
+    },
+    {
+      "id": "ml-distribution-shift-input-distribution-shift-single",
+      "panelReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "chosenPanel": "deep Count input styles in each domain",
+      "reason": "Existing grouped counts preserve both independent domains in one leaf, unlike an isolated sample-set panel.",
+      "kind": "bar-chart",
+      "tokens": 75,
+      "sha256": "51979e63fe083c668267dad00a7589f332052d6bc0fe5cbbd0757bf8a2f2baca"
+    },
+    {
+      "id": "ml-distribution-shift-concept-shift-single",
+      "panelReferenceId": "ml-distribution-shift-concept-shift",
+      "chosenPanel": "standard Ash",
+      "reason": "Reuse changed-rule bars. Add parent same-input title and both existing studio rule labels as a caption because one studio leaf alone loses the conditional label-change comparison.",
+      "kind": "bar-chart",
+      "tokens": 71,
+      "sha256": "8e35f61203fedc3779c573f7776ada1d3a91f5d7537078f848bc6996c505b8f5"
+    }
+  ]
+}

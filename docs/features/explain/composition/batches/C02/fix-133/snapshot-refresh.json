@@ -1,0 +1,19 @@
+{
+  "base": "a8ef11d64",
+  "changed": [
+    "ml-attention-scaled-score-normalization/320",
+    "ml-attention-scaled-score-normalization/408",
+    "ml-attention-scaled-score-normalization/720"
+  ],
+  "removed": [],
+  "added": [],
+  "cumulativeFromReceivedC02": [
+    "ml-attention-scaled-score-normalization/320",
+    "ml-attention-scaled-score-normalization/408",
+    "ml-attention-scaled-score-normalization/720",
+    "ml-regularization-regularized-objective/320",
+    "ml-regularization-regularized-objective/408",
+    "ml-regularization-regularized-objective/720"
+  ],
+  "cumulativeRemoved": []
+}

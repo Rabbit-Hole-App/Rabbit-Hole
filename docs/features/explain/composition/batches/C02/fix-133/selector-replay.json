@@ -1,0 +1,348 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 2937,
+  "changedPriorPicks": [],
+  "sourceCases": 21,
+  "sourceHits": 21,
+  "actualPlannedAuthorSchemaChecks": 21,
+  "identityRule": "Prior picks compared by exact original emitted identity. New source cases compared to approved parent id through the library-declared panelReferenceId link; raw author ids retained. Explicit comparison plans keep supported comparisons; panels always use their single.",
+  "rows": [
+    {
+      "id": "c02-1",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "brief",
+      "expectedFamily": "ml-attention-scaled-score-normalization",
+      "firstFamily": "ml-attention-scaled-score-normalization",
+      "rawAuthorReferenceId": "ml-attention-scaled-score-normalization-single",
+      "kind": "bar-chart",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-attention-scaled-score-normalization-single",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-1",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "balanced",
+      "expectedFamily": "ml-attention-scaled-score-normalization",
+      "firstFamily": "ml-attention-scaled-score-normalization",
+      "rawAuthorReferenceId": "ml-attention-scaled-score-normalization-single",
+      "kind": "bar-chart",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-attention-scaled-score-normalization-single",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-1",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "detailed",
+      "expectedFamily": "ml-attention-scaled-score-normalization",
+      "firstFamily": "ml-attention-scaled-score-normalization",
+      "rawAuthorReferenceId": "ml-attention-scaled-score-normalization-single",
+      "kind": "bar-chart",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-attention-scaled-score-normalization-single",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-2",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "brief",
+      "expectedFamily": "ml-model-evaluation-training-diagnostics",
+      "firstFamily": "ml-model-evaluation-training-diagnostics",
+      "rawAuthorReferenceId": "ml-model-evaluation-training-diagnostics",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-model-evaluation-training-diagnostics",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-2",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "balanced",
+      "expectedFamily": "ml-model-evaluation-training-diagnostics",
+      "firstFamily": "ml-model-evaluation-training-diagnostics",
+      "rawAuthorReferenceId": "ml-model-evaluation-training-diagnostics",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-model-evaluation-training-diagnostics",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-2",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "detailed",
+      "expectedFamily": "ml-model-evaluation-training-diagnostics",
+      "firstFamily": "ml-model-evaluation-training-diagnostics",
+      "rawAuthorReferenceId": "ml-model-evaluation-training-diagnostics",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-model-evaluation-training-diagnostics",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-3",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "brief",
+      "expectedFamily": "ml-model-evaluation-schedule-run-diagnostics",
+      "firstFamily": "ml-model-evaluation-schedule-run-diagnostics",
+      "rawAuthorReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-3",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "balanced",
+      "expectedFamily": "ml-model-evaluation-schedule-run-diagnostics",
+      "firstFamily": "ml-model-evaluation-schedule-run-diagnostics",
+      "rawAuthorReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-3",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "detailed",
+      "expectedFamily": "ml-model-evaluation-schedule-run-diagnostics",
+      "firstFamily": "ml-model-evaluation-schedule-run-diagnostics",
+      "rawAuthorReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-4",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "brief",
+      "expectedFamily": "ml-time-series-recursive-rollout",
+      "firstFamily": "ml-time-series-recursive-rollout",
+      "rawAuthorReferenceId": "ml-time-series-recursive-rollout-single",
+      "kind": "coordinate-plot",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-time-series-recursive-rollout-single",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-4",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "balanced",
+      "expectedFamily": "ml-time-series-recursive-rollout",
+      "firstFamily": "ml-time-series-recursive-rollout",
+      "rawAuthorReferenceId": "ml-time-series-recursive-rollout",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-time-series-recursive-rollout",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-4",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "detailed",
+      "expectedFamily": "ml-time-series-recursive-rollout",
+      "firstFamily": "ml-time-series-recursive-rollout",
+      "rawAuthorReferenceId": "ml-time-series-recursive-rollout",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-time-series-recursive-rollout",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-5",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "brief",
+      "expectedFamily": "ml-distribution-shift-input-distribution-shift",
+      "firstFamily": "ml-distribution-shift-input-distribution-shift",
+      "rawAuthorReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-5",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "balanced",
+      "expectedFamily": "ml-distribution-shift-input-distribution-shift",
+      "firstFamily": "ml-distribution-shift-input-distribution-shift",
+      "rawAuthorReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-5",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "detailed",
+      "expectedFamily": "ml-distribution-shift-input-distribution-shift",
+      "firstFamily": "ml-distribution-shift-input-distribution-shift",
+      "rawAuthorReferenceId": "ml-distribution-shift-input-distribution-shift-single",
+      "kind": "bar-chart",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-distribution-shift-input-distribution-shift-single",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-6",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "brief",
+      "expectedFamily": "ml-distribution-shift-concept-shift",
+      "firstFamily": "ml-distribution-shift-concept-shift",
+      "rawAuthorReferenceId": "ml-distribution-shift-concept-shift-single",
+      "kind": "bar-chart",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-distribution-shift-concept-shift-single",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-6",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "balanced",
+      "expectedFamily": "ml-distribution-shift-concept-shift",
+      "firstFamily": "ml-distribution-shift-concept-shift",
+      "rawAuthorReferenceId": "ml-distribution-shift-concept-shift-single",
+      "kind": "bar-chart",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-distribution-shift-concept-shift-single",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-6",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "detailed",
+      "expectedFamily": "ml-distribution-shift-concept-shift",
+      "firstFamily": "ml-distribution-shift-concept-shift",
+      "rawAuthorReferenceId": "ml-distribution-shift-concept-shift-single",
+      "kind": "bar-chart",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-distribution-shift-concept-shift-single",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-5-alias",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "brief",
+      "expectedFamily": "ml-distribution-shift-input-distribution-shift",
+      "firstFamily": "ml-distribution-shift-input-distribution-shift",
+      "rawAuthorReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-5-alias",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "balanced",
+      "expectedFamily": "ml-distribution-shift-input-distribution-shift",
+      "firstFamily": "ml-distribution-shift-input-distribution-shift",
+      "rawAuthorReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "kind": "comparison",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "id": "c02-5-alias",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "detailed",
+      "expectedFamily": "ml-distribution-shift-input-distribution-shift",
+      "firstFamily": "ml-distribution-shift-input-distribution-shift",
+      "rawAuthorReferenceId": "ml-distribution-shift-input-distribution-shift-single",
+      "kind": "bar-chart",
+      "firstPick": true,
+      "actualPreparedReferenceId": "ml-distribution-shift-input-distribution-shift-single",
+      "actualAuthorSchemaValid": true,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}
