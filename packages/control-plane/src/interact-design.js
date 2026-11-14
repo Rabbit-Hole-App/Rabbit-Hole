@@ -20,11 +20,6 @@ import { capabilityGap, compilerSupport } from './explain-author.js';
 import { programEnabled, programTupleFor, statefulEnabled } from './explain-program.js';
 import { modelEvidence } from './explain-evidence.js';
 import { INTERACT_LIMITS, InteractModelError } from './interact-models.js';
-import { briefSchema } from '../../web/src/interact-plan-brief.js';
-import { INTERACT_FAMILIES } from './interact-families.js';
-import { pickFamily, pickThreshold } from './interact-design-pick.js';
-import { fillSystem, formulaProblems } from './interact-design-fill.js';
-import { templatePrecheck } from './interact-template.js';
 import { DESIGN_AUTHOR_SYSTEM, DESIGN_AUTHOR_TOOL, DESIGN_AUTHOR_VERSION, designAuthorSchema } from './agents/interact-design-author.js';
 import { DESIGN_REVIEW_SYSTEM, DESIGN_REVIEW_TOOL, DESIGN_REVIEW_VERSION, designReviewSchema } from './agents/interact-design-review.js';
 import { DESIGN_REVISE_SYSTEM, DESIGN_REVISE_TOOL, DESIGN_REVISE_VERSION, designReviseSchema } from './agents/interact-design-revise.js';
@@ -33,7 +28,7 @@ export const DESIGN_FLOW_VERSION = 1;
 export const DESIGN_STAGES = Object.freeze(['design_authoring', 'design_reviewing', 'design_revising', 'design_verifying']);
 // INT-03-C10: what the learner reads for each server state. The real state stays in diagnostics.
 export const DESIGN_PUBLIC_STATE = Object.freeze({ design_authoring: 'Designing scene', design_reviewing: 'Reviewing scene design', design_revising: 'Updating scene plan', design_verifying: 'Checking scene plan', awaiting_approval: 'Ready to review' });
-export const DESIGN_ROLE_KEY = Object.freeze({ design_author: 'author', design_review: 'review', design_revise: 'revise', design_fill: 'fill' });
+export const DESIGN_ROLE_KEY = Object.freeze({ design_author: 'author', design_review: 'review', design_revise: 'revise' });
 export const DESIGN_BOUNDS = Object.freeze({ author: INTERACT_LIMITS.calls.design_author, review: INTERACT_LIMITS.calls.design_review, revise: INTERACT_LIMITS.calls.design_revise });
 // rev: the design revision number (an Edit makes the next one); pending: a revision from the reviser that awaits verification. Large bodies (every draft, review and
 // revision) are kept under their own storage keys by the job (design:<job>:<rev>:<name>), only the working set lives on the job record.
@@ -148,7 +143,6 @@ async function invoke(ctx, role, input) {
 }
 const issueProblems = error => dedupe(error.issues.map(issue => ({ path: issue.path.join('.'), code: issue.params?.code || issue.code, message: issue.message })));
 
-const withoutTemplate = output => { const { template, slots, words, ...scene } = output?.scene ?? {}; return output?.scene ? { ...output, scene } : output; };
 async function authorOnce(job, ctx, extra = {}) {
   const d = job.design, capabilities = ctx.capabilities;
   const input = { request: job.prompt, depth: job.depth, context: job.context ?? null, evidence: modelEvidence(job.evidence),
@@ -158,13 +152,10 @@ async function authorOnce(job, ctx, extra = {}) {
   if (reply.problems) return reply;
   // Shape first: a plan missing Mode, Controls or anything required is rejected whole (never completed or stripped). A well-formed plan whose
   // controls or runtimes the catalogue cannot back is kept as the draft with those problems, so the reviewer and reviser can revise it before approval.
-  let output = reply.output, parsed = parseScenePlan(output, capabilities);
-  // INTERACT_DESIGN_KIND=fast: an Opus plan that names a template without its slots and words (seen on 2 of 7 Opus plans of the fast clone) is refused whole by the build; the template is dropped, and the model build
-  // runs as it did before the templates (the pick said no family fits, so no template could draw it).
-  if (ctx.designKind === 'fast' && !parsed.ok && parsed.problems.some(problem => /^template_/.test(String(problem.code)))) { output = withoutTemplate(output); parsed = parseScenePlan(output, capabilities); }
+  const parsed = parseScenePlan(reply.output, capabilities);
   let plan = parsed.ok ? parsed.value : null, bindingProblems = parsed.ok ? [] : parsed.problems;
   if (!plan) {
-    const shape = ScenePlanSchema.safeParse(output);
+    const shape = ScenePlanSchema.safeParse(reply.output);
     if (!shape.success) return { problems: dedupe(parsed.problems) };
     plan = shape.data;
   }
@@ -172,92 +163,10 @@ async function authorOnce(job, ctx, extra = {}) {
   return { plan, planHash: await planHash(plan), bindingProblems: dedupe([...bindingProblems, ...runtimeProblems(plan, capabilities)]) };
 }
 
-// ---- the fast design path (INTERACT_DESIGN_KIND=fast, brief 12) ----
-// ONE fill call (role design_fill, Gemini Flash Lite) writes a plan brief; code expands it (interact-plan-brief.js) and checks the result: the brief's own schema, the expansion, the plan's schema and bindings,
-// the runtime and capture budget, the description fit and the reference formulas (no range-match rule). A refusal gets ONE fill correction that names the first problem line; a second refusal sends the same
-// job to the Opus author below (the learner sees no difference). -> { plan, planHash, bindingProblems, fast: { kind: 'fast', ... } } on a pass, { fast: { kind: 'opus', fallback: 'after_correction', ... } } on a fallback.
-const line = problem => (typeof problem === 'string' ? problem : `${problem.path ?? ''} ${problem.message ?? ''}`.trim());
-async function fillProblems(raw, depth, info, ctx, family) {
-  const parsed = info.parse(raw);
-  if (!parsed.ok) return { problems: parsed.problems };
-  let plan;
-  try { plan = family.expandBrief(parsed.value, depth, { catalogueHash: ctx.capabilities.catalogueHash }); } catch (error) { return { problems: [`expand: ${String(error.message).slice(0, 300)}`] }; }
-  // The family's claims cite the reference note (kinematics_note); a job supplies only its own evidence, and a claim with none is checked as a fact, as the Opus plans are.
-  const supplied = new Set(ctx.capabilities.evidenceIds || []);
-  plan = { ...plan, claims: plan.claims.map(c => ({ ...c, evidenceIds: c.evidenceIds.filter(id => supplied.has(id)) })) };
-  const checked = parseScenePlan(plan, ctx.capabilities);
-  if (!checked.ok) return { problems: checked.problems.map(line) };
-  const issues = [...runtimeProblems(checked.value, ctx.capabilities), ...captureBudgetProblems(checked.value)];
-  if (issues.length) return { problems: issues.map(line) };
-  // Without a fit measurement the close (design_verifying) stops with its own reason; with one, a bad description is a fill problem the correction can fix.
-  const fit = typeof ctx.descriptionFit === 'function' ? await descriptionFitProblems(checked.value, await ctx.descriptionFit(checked.value)) : [];
-  // The fit line says how many lines it rendered; the fill reads it as 'split it', so the correction says what to do (the second reply to the bare line inserted a line break and failed 'plain single-paragraph text').
-  if (fit.length) return { problems: fit.map(f => `${line(f)}. Fix: write cardDescription as two sentences of 130 to 200 characters in one paragraph, with no line break (yours is ${checked.value.cardDescription.length} characters)`) };
-  const wrong = formulaProblems(family.referenceCheck(parsed.value, depth));
-  if (wrong.length) return { problems: wrong };
-  const unbuildable = await templatePrecheck(checked.value, ctx, { words: true }); // the build's own checks, here, so the correction hears what Generate would refuse
-  return unbuildable.length ? { problems: unbuildable } : { plan: checked.value };
-}
-// One line that names the fix for the failures a fill repeats (a model cannot count nodes or see what the template draws): appended to the problem the correction shows, never to the recorded first problem.
-const FIXES = [[/this formula needs \d+ nodes/, 'write the formula in a shorter form (split it into a helper quantity or simplify)'], [/markers\.\d+\.time a time before 0/, 'derive every marker time from the plan (0 or later)'], [/arrow ".*" is not drawn at cp-/, 'every gravity value of the range is at least 4'], [/unknown name "\w+"/, 'a formula reads only the names its key lists as readable; write that quantity out as a formula of them'], [/^formula \w+ at \{/, 'check the formula against the meaning of its key; a formula after the switch must start from the value the first formula has at the switch moment (write the elapsed time since the switch as t - switchAt, with switchAt written out as a formula) and write it again']];
-export const fixOf = problem => { const fix = FIXES.find(([pattern]) => pattern.test(problem)); return fix ? `${problem}. Fix: ${fix[1]}` : problem; };
-// The pick (brief 13) runs first: one System One call names the family that fits, or none. A gap (none, below the threshold, a failed or timed out call, no key) goes straight to the Opus design with no fill.
-const pickOf = async (job, ctx) => ctx.env.TYPESAFE_API_KEY
-  ? pickFamily(ctx.env, { request: job.prompt, depth: job.depth }, { families: INTERACT_FAMILIES, threshold: pickThreshold(ctx.env, INTERACT_FAMILIES) })
-  : { family: null, confidence: null, probabilities: null, ms: 0, reason: 'no_key' };
-export async function fastDesign(job, ctx) {
-  const depth = job.depth, fast = { kind: 'fast', model: null, calls: 0, fallback: 'none', firstProblem: null, costUsd: 0 };
-  const pick = await pickOf(job, ctx); fast.pick = pick;
-  const family = INTERACT_FAMILIES.find(f => f.id === pick.family);
-  if (!family) return { fast: { ...fast, kind: 'opus', fallback: 'gap' } };
-  const mod = family.module, info = briefSchema(depth, mod);
-  let problems = [], previous = null;
-  for (let round = 0; round < INTERACT_LIMITS.calls.design_fill; round++) {
-    fast.calls++;
-    try {
-      const done = await ctx.interact('design_fill', { system: fillSystem(depth, info, mod), schema: info.jsonSchema, name: 'return_plan_brief', description: 'Return the plan brief of the scene.',
-        input: { request: job.prompt, depth, ...(round ? { ...(previous ? { previous } : {}), correction: { instruction: 'Your previous brief was refused. Return the WHOLE corrected brief and change only what this problem names.', problems: problems.slice(0, 1).map(fixOf) } } : {}) } });
-      fast.model = done.requested?.model ?? fast.model; fast.costUsd += (done.costMicros ?? 0) / 1e6; previous = done.output;
-      const checked = ctx.env.INTERACT_FAST_FORCE_FILL_FAIL === '1' ? { problems: ['forced fill failure (dev measurement only)'] } : await fillProblems(done.output, depth, info, ctx, mod);
-      if (checked.plan) return { plan: checked.plan, planHash: await planHash(checked.plan), bindingProblems: [], fast };
-      problems = checked.problems;
-    } catch (error) {
-      // A reply that cannot be used, or a provider that did not answer, is a failed fill; a refused spend, a stopped job and a deadline are the job's.
-      if (!(error instanceof InteractModelError) || error.code === 'spend_refused') throw error;
-      fast.costUsd += (error.costMicros ?? 0) / 1e6; problems = [(error.problems?.length ? error.problems[0] : `${error.code}: ${error.message}`).toString().slice(0, 300)];
-      if (error.sent === false) { fast.firstProblem ??= problems[0]; break; } // nothing was sent (a missing credential): a second call would say the same
-    }
-    fast.firstProblem ??= problems[0]; fast.lastProblem = problems[0];
-  }
-  // INTERACT_FAST_OPUS_BRIEF=on: two failed fills of a PICKED family are not sent to the full Opus design (author, review, revise: about US$1 and a plan the template cannot always build); Opus writes the same
-  // plan brief ONCE (the design author role, the same system text, schema, expander and checks) and the plan goes to approval as it is. Anything that goes wrong here still reaches the Opus design below.
-  if (ctx.env.INTERACT_FAST_OPUS_BRIEF === 'on') {
-    try {
-      const done = await ctx.interact('design_author', { system: fillSystem(depth, info, mod), schema: info.jsonSchema, name: 'return_plan_brief', description: 'Return the plan brief of the scene.',
-        input: { request: job.prompt, depth, ...(previous ? { previous } : {}), correction: { instruction: 'Two earlier briefs were refused. Return the WHOLE corrected brief and change only what these problems name.', problems: [...new Set([fast.firstProblem, fast.lastProblem].filter(Boolean))].map(fixOf) } } });
-      fast.costUsd += (done.costMicros ?? 0) / 1e6; fast.opusModel = done.requested?.model ?? null;
-      const checked = await fillProblems(done.output, depth, info, ctx, mod);
-      if (checked.plan) return { plan: checked.plan, planHash: await planHash(checked.plan), bindingProblems: [], fast: { ...fast, kind: 'opus', fallback: 'after_correction', opusBrief: true } };
-      fast.lastProblem = checked.problems[0];
-    } catch (error) {
-      if (!(error instanceof InteractModelError) || error.code === 'spend_refused') throw error;
-      fast.costUsd += (error.costMicros ?? 0) / 1e6; fast.lastProblem = String(error.problems?.[0] ?? error.message).slice(0, 300);
-    }
-  }
-  return { fast: { ...fast, kind: 'opus', fallback: 'after_correction' } };
-}
-
 // A plan the schema refuses is not thrown away on the first slip: real Opus runs lost the whole plan to one over-long entry, a result nested under one key and a malformed timeline
 // (3 of 3 live runs, while the same call usually succeeds). The Author gets ONE correction call that names the exact problems and must return the whole corrected plan; a second
 // refusal stops the design with the problems, as before. The second call is counted and bounded like any other (INTERACT_LIMITS.calls.design_author is 2).
 export async function authorDesign(job, ctx) {
-  // The fast path runs once per design (design.fast is stored by the first result); an Edit or a retried Opus author never re-enters it.
-  let fast;
-  if (ctx.designKind === 'fast' && !job.design.fast) { const out = await fastDesign(job, ctx); if (out.plan) return out; fast = out.fast; }
-  const result = await opusAuthor(job, ctx);
-  return fast ? { ...result, fast } : result;
-}
-async function opusAuthor(job, ctx) {
   const first = await authorOnce(job, ctx);
   if (!first.problems || job.design.counts.author >= DESIGN_BOUNDS.author || !corrects(first.problems)) return first;
   const problems = first.problems.slice(0, 12).map(problem => (problem.path ? problem.path + ': ' : '') + problem.message);
@@ -353,8 +262,7 @@ async function close(job, ctx, plan, hash, diff) {
     fit = await ctx.descriptionFit(plan);
     problems = await descriptionFitProblems(plan, fit);
   }
-  // A fast design has no review to revise from: its checks ran in the fill stage, so a late failure here stops with its reason.
-  if (problems.length) return d.counts.revise < DESIGN_BOUNDS.revise && !(d.fast?.kind === 'fast' && !d.review) ? { next: 'revise', feedback: problems } : planFailure(problems, 'The scene plan could not be closed:');
+  if (problems.length) return d.counts.revise < DESIGN_BOUNDS.revise ? { next: 'revise', feedback: problems } : planFailure(problems, 'The scene plan could not be closed:');
   const checks = d.review?.openChecks || [];
   return { next: 'done', plan, planHash: hash, diff, fit, runtimeHash: await runtimeBindingHash(plan, capabilities),
     // INT-02-C11/C12: an unsettled fact stays open and a visual check is carried to the builder and rendered reviewer; neither is called passed.
