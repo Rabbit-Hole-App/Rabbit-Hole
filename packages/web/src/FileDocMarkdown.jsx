@@ -1,10 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BookOpen, Highlighter, MessageSquarePlus, ScanText, Trash2, X } from 'lucide-react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { BookOpen, ScanText, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
-import { chordBinding, chordLabel, isMac } from './shortcut-owner.js';
-import { ariaKey } from './shortcuts.js';
+import { ExplanationHost } from './explanation-host.js';
 import { Md } from './Md.jsx';
-import { ToolButton, placeNear } from './selection-toolbar.jsx';
+import { SelectionToolbar, placeNear } from './selection-toolbar.jsx';
 import { EXCERPT_LIMIT } from './pdf-anchor.js';
 import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-highlights.js';
 import { canWrite, fileScope } from './file-source-client.js';
@@ -265,6 +264,12 @@ export function MarkdownText({ block, text, children }) {
   // Add to chat: the highlighted passage joins the right-hand Chat composer as a context pill (the webpage card's Ask about selection, the canvas bar's
   // Add to chat): nothing is sent, no highlight or proposal is made, the draft is untouched, and the same passage is not added twice (chat context).
   const chat = useChatWorkspace();
+  // Create note: the canvas's sticky note beside the selection, quoting it (the same host.note the explanation card's toolbar calls).
+  const host = useContext(ExplanationHost);
+  const createNote = quote => {
+    if (!host?.note || !quote?.exact) return;
+    if (host.note({ id: block.id, quote: quote.exact })) { window.getSelection?.()?.removeAllRanges(); setBar(null); }
+  };
   const addToChat = quote => {
     if (quote.exact.length > EXCERPT_LIMIT) { setMessage({ text: `Select up to ${EXCERPT_LIMIT.toLocaleString('en-US')} characters to add to chat.` }); return; }
     const name = String(block.fileRef?.meta?.name || block.label || block.title || 'Markdown').slice(0, 120);
@@ -276,8 +281,6 @@ export function MarkdownText({ block, text, children }) {
     try { await deleteHighlight(h.id, source); setAnswer(previous => previous && { ...previous, highlights: previous.highlights.filter(entry => entry.id !== h.id) }); setMessage(null); }
     catch (problem) { setMessage({ text: `Couldn’t remove the highlight. ${problem.message}`, retry: () => remove(h) }); }
   };
-
-  const mac = isMac(), hint = chordLabel('quick-edit', mac); // the quick-ask chord, as the explanation toolbar shows it
 
   return <div ref={wrap} className="relative flex min-h-0 flex-1 flex-col">
     {message && <div data-file-doc-highlight-notice role={message.retry ? 'alert' : 'status'} className="flex shrink-0 items-center gap-2 border-b border-line px-3 py-1.5 text-xs text-ink-2" onPointerDown={event => event.stopPropagation()}>
@@ -299,12 +302,8 @@ export function MarkdownText({ block, text, children }) {
       </div>
       {children}
     </div>
-    {bar && <div ref={barEl} data-file-doc-selection-toolbar role="toolbar" aria-label="Selected text" className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
-      <Button aria-label={hint} title={hint} aria-keyshortcuts={ariaKey(chordBinding('quick-edit'), mac)} data-quick-ask onMouseDown={event => event.preventDefault()} onClick={() => explain(bar.quote)}
-        className="min-w-8 justify-center px-2 text-ink-2 hover:text-ink"><kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{hint}</kbd></Button>
-      <ToolButton label="Highlight" icon={Highlighter} onClick={() => highlight(bar.quote)} />
-      {chat && <ToolButton label="Add to chat" icon={MessageSquarePlus} onClick={() => addToChat(bar.quote)} />}
-    </div>}
+    {bar && <SelectionToolbar barRef={barEl} data-file-doc-selection-toolbar onQuickAsk={() => explain(bar.quote)} onAddToChat={() => addToChat(bar.quote)} chatDisabled={!chat}
+      onHighlight={() => highlight(bar.quote)} onNote={() => createNote(bar.quote)} noteDisabled={!host?.note} />}
     {menu && <div ref={menuEl} data-file-doc-highlight-menu role="menu" aria-label="Highlight" className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
       {menu.cardId && <button type="button" role="menuitem" data-file-doc-view-explanation autoFocus onClick={() => { const id = menu.cardId; setMenu(null); focusExplanation(id); }} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><BookOpen size={14} className="shrink-0 text-ink-2" />View explanation</button>}
       {menu.h && <button type="button" role="menuitem" autoFocus={!menu.cardId} onClick={() => remove(menu.h)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>}

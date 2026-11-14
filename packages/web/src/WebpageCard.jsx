@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import CardHeader from './CardHeader.jsx';
-import { Copy, ExternalLink, Highlighter, Loader2, Lock, LockOpen, MessageSquarePlus, RotateCw, Trash2, X } from 'lucide-react';
+import { ExternalLink, Loader2, Lock, LockOpen, RotateCw, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
 import { customTitleOf } from './card-rename.js';
-import { Boxes, ToolButton, placeNear } from './selection-toolbar.jsx';
+import { Boxes, SelectionToolbar, placeNear } from './selection-toolbar.jsx';
+import { ExplanationHost } from './explanation-host.js';
 import { EXCERPT_LIMIT, textAnchor, toViewport } from './pdf-anchor.js';
 import { deleteHighlight, listHighlights, newId, putHighlight } from './pdf-highlights.js';
 import { canWrite, fileScope } from './file-source-client.js';
@@ -244,10 +245,10 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
     };
     put();
   };
-  const copy = anchor => {
-    navigator.clipboard?.writeText(anchor.exact).then(() => setMessage({ text: 'Copied' }), () => setMessage({ text: 'Couldn’t copy. Press Ctrl C instead.' }));
-    done();
-  };
+  // UX-1: the Ctrl+K button opens the inline editor over the selected words (the page's own selection, as the key does); Create note puts a sticky note beside the card, quoting them.
+  const host = useContext(ExplanationHost);
+  const quickAsk = () => { if (host?.quickAsk?.()) setBar(null); };
+  const createNote = anchor => { if (host?.note?.({ id: block.id, quote: anchor.exact })) done(); };
   // Ask about selection: Chat opens in Ask with the passage, title, URL and capture as one card ref in its composer. Nothing is sent.
   const ask = anchor => {
     const text = askText(block, anchor.exact);
@@ -319,11 +320,8 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
           </div>
         </div>
       </div>
-      {bar && <div ref={barEl} data-webcard-selection-toolbar role="toolbar" aria-label="Selected text" className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
-        {source && <ToolButton label="Highlight" icon={Highlighter} onClick={() => highlight(bar.anchor)} />}
-        <ToolButton label="Copy" icon={Copy} onClick={() => copy(bar.anchor)} />
-        {chat && !readOnly && <ToolButton label="Ask about selection" icon={MessageSquarePlus} onClick={() => ask(bar.anchor)} />}
-      </div>}
+      {bar && <SelectionToolbar barRef={barEl} data-webcard-selection-toolbar onQuickAsk={() => quickAsk()} quickDisabled={!host?.quickAsk} onAddToChat={() => ask(bar.anchor)} chatDisabled={!chat || readOnly}
+        onHighlight={() => highlight(bar.anchor)} highlightDisabled={!source || readOnly} onNote={() => createNote(bar.anchor)} noteDisabled={!host?.note || readOnly} />}
       {menu && <div ref={menuEl} data-webcard-highlight-menu role="menu" aria-label="Highlight" className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
         <button type="button" role="menuitem" autoFocus onClick={() => removeHighlight(menu.h)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>
       </div>}
