@@ -981,6 +981,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const sendStep = async (step, hook) => {
     if (voice?.on) return voice.say('', { nextStep: step, selectedAt: new Date().toISOString() });
     if (busy) return false;
+    // Owner 2026-11-13: a Curious suggestion always makes a card: /explain on its words, run directly through the command dispatcher (no router, no chat turn).
+    if (slashRef.current?.intercept(`/${typedOf('explanation')} ${hook}`)) return true;
     return (await send(hook)) !== false;
   };
   if (nextStepRef) nextStepRef.current = sendStep; // the page's hook card sends through the dock (LearnPage)
