@@ -8,9 +8,20 @@ const round1 = n => Math.round(n * 10) / 10;
 // A job pinned to toss-mvp-<depth> is a brief-mvp design; the model and the fill time come from the data file's meta of that depth (null when it has none).
 const mvpDesign = fixture => { const depth = typeof fixture === 'string' ? /^toss-mvp-(brief|balanced|detailed)$/.exec(fixture)?.[1] : null, meta = depth ? TOSS_MVP_META[depth] : null; return { designModel: meta?.designModel ?? null, designKind: depth ? 'brief-mvp' : null, msFill: meta?.msFill ?? null }; };
 
+// The design half of the row (brief 12). job.design.fast = { kind: 'fast'|'opus', model, calls, fallback: 'none'|'after_correction', costUsd } is written by the fast design path (INTERACT_DESIGN_KIND=fast); a job with no such record
+// and no pinned fixture that made design calls is the Opus design ('opus'). designCalls and designCostUsd are the fast record's, else the sum of the design_* stage records (costUsd null when a call was unpriced).
+// msDesign is submitted -> proposalReady, the Generate request admitted to awaiting_approval (the first time counts), null while the plan is not ready.
+const designPart = (job, t, mvp) => {
+  const fast = job.design?.fast ?? null, stages = t.stages.filter(s => s.stage.startsWith('design_')), calls = stages.reduce((n, s) => n + s.calls, 0), priced = stages.filter(s => s.model !== undefined && s.calls > 0);
+  const opus = !fast && !job.designFixture && calls > 0, model = stages.find(s => s.model)?.model;
+  const stageCost = priced.length && priced.every(s => typeof s.costMicros === 'number') ? priced.reduce((n, s) => n + s.costMicros, 0) / 1e6 : null;
+  return { designModel: fast?.model ?? (opus ? model?.served ?? model?.requested ?? null : mvp.designModel), designKind: fast?.kind ?? (opus ? 'opus' : mvp.designKind), msFill: mvp.msFill, designFallback: fast ? fast.fallback ?? 'none' : null,
+    designCalls: fast ? fast.calls ?? calls : opus ? calls : null, msDesign: fast || opus ? t.proposalMs : null, designCostUsd: fast ? fast.costUsd ?? stageCost : opus ? stageCost : null };
+};
+
 // timing: 'v2' is a job whose stage columns are the contiguous wall-clock slices ledgerRow explains (they add up to msTotal); 'v1' is every older row, kept as it was recorded.
 export const LEDGER_COLUMNS = Object.freeze(['jobId', 'planHash', 'depth', 'result', 'stopReason', 'oracleId', 'oracleChecked', 'oracleFailed', 'bindingProblems', 'overlapProblems', 'repairs', 'repairCauses',
-  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath', 'designModel', 'designKind', 'msFill']);
+  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath', 'designModel', 'designKind', 'msFill', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd']);
 
 // What triggered each failed round, in order, `;`-joined, one token per distinct problem of a round: `overlap:text-frame` (a layout rule), `numeric_mismatch` (an oracle code),
 // `program_error:sdk.panel` or `program_error:frame.objects.*.series.*.points` (the guest program's own error), `schema:manifest.readouts.*.labels` (the path a validation problem names),
@@ -77,7 +88,7 @@ export function ledgerRow(job) {
     buildKind: template ? 'template' : calls.some(c => c.role === 'build_author') ? 'model' : null, msHopWait: hopWait,
     judgeFindingsPath: null, // set by scripts/interact/ledger.mjs when it writes the judge's findings to benchmarks/judge/<jobId>.json (the row itself stays pure)
     // A job pinned to a toss-mvp-<depth> fixture (the design MVP, brief 11): which model wrote the plan brief, that the design was a brief, and how long the fill took, from the data file's TOSS_MVP_META (the bench row the plan was picked from).
-    ...mvpDesign(job.designFixture),
+    ...designPart(job, t, mvpDesign(job.designFixture)),
   };
 }
 
