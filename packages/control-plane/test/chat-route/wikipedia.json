@@ -1,0 +1,31 @@
+{
+  "command": "wikipedia",
+  "typed": "wikipedia",
+  "about": "Find an encyclopedia article to read.",
+  "cases": [
+    {
+      "text": "Pull up the encyclopedia entry on the Byzantine Empire.",
+      "expect": "wikipedia"
+    },
+    {
+      "text": "I want to read the reference article about the Krebs cycle.",
+      "expect": "wikipedia"
+    },
+    {
+      "text": "Look up the background article on Ada Lovelace.",
+      "expect": "wikipedia"
+    },
+    {
+      "text": "Is there an article that lays out the history of the printing press?",
+      "expect": "wikipedia"
+    },
+    {
+      "text": "Get me the standard reference page on plate tectonics.",
+      "expect": "wikipedia"
+    },
+    {
+      "text": "Bring me the overview article on the French Revolution.",
+      "expect": "wikipedia"
+    }
+  ]
+}

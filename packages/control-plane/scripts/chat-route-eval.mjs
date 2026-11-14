@@ -1,22 +1,20 @@
-// Measures the JEV chat classifier on the labelled set (test/chat-route-prompts.json; owner 2026-11-13). Without --live it only counts the cases.
+// Measures the JEV chat classifier on the labelled files (test/chat-route/*.json, one per slash command; owner 2026-11-13). Without --live it only counts the cases.
 // --live makes one JEV call per case with the real router request (src/chat-capability-route.js decideChat's own pieces) and prints accuracy per command and
 // every miss. These are PAID calls (JEV is billed per call): run it only on the owner's go. Keys are read by name from small-deploy/.env and never printed.
-//   node scripts/chat-route-eval.mjs [--live] [--only <command>] [--out results.json]
-// --only explanation: that command's messages, every chat-answer message and the follow-ups that expect it or a chat answer (what it must be told apart from).
-import { readFileSync, writeFileSync } from 'node:fs';
+//   node scripts/chat-route-eval.mjs [--live] [--only <typed name, e.g. explain>] [--out results.json]
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import '../../web/src/agent/slash-flags-test-on.mjs'; // every command on: this measures the classifier, not which commands ship
 import { askJev, JEV_TRANSPORTS } from '../src/learn-grade-jev.js';
 import { jevTransport } from '../src/learn-inline.js';
 import { ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatRouteRequest, chatRoutesWith, readChatRoute } from '../../web/src/inline-ai-route.js';
 
-const set = JSON.parse(readFileSync(new URL('../test/chat-route-prompts.json', import.meta.url), 'utf8'));
+// One file per slash command in test/chat-route/ (named by its typed name) plus answer.json; --only <typed name> runs that file and answer.json.
+const dir = new URL('../test/chat-route/', import.meta.url);
+const files = Object.fromEntries(readdirSync(dir).filter(name => name.endsWith('.json')).map(name => [name.replace(/\.json$/, ''), JSON.parse(readFileSync(new URL(name, dir), 'utf8'))]));
 const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null;
-const cases = [
-  ...Object.entries(set.capabilities).filter(([expect]) => !only || expect === only).flatMap(([expect, prompts]) => prompts.map(text => ({ text, expect }))),
-  ...set.answer.map(text => ({ text, expect: 'answer' })),
-  ...set.followups.filter(({ expect }) => !only || expect === only || expect === 'answer').map(({ text, expect, history }) => ({ text, expect, history })),
-];
-console.log(`${cases.length} labelled messages: ${Object.keys(set.capabilities).length} commands, ${set.answer.length} chat answers, ${set.followups.length} follow-ups with history`);
+if (only && !files[only]) { console.error(`no file test/chat-route/${only}.json; there are: ${Object.keys(files).join(', ')}`); process.exit(1); }
+const cases = Object.entries(files).filter(([name]) => !only || name === only || name === 'answer').flatMap(([, file]) => file.cases.map(({ text, expect, history }) => ({ text, expect, history })));
+console.log(`${cases.length} labelled messages from ${only ? `${only}.json and answer.json` : `${Object.keys(files).length} files`}, ${cases.filter(item => item.history).length} with chat history`);
 if (!process.argv.includes('--live')) { console.log('dry run: nothing was sent (add --live to call JEV; paid)'); process.exit(0); }
 
 const dotenv = readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8');

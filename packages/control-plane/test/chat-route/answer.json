@@ -1,0 +1,145 @@
+{
+  "command": "answer",
+  "about": "A normal chat answer, no slash command: narrow definitions and lookups, follow-ups about the last reply or the selected card, advice, opinions, yes/no, questions about the tool, small talk, and requests that decline a format.",
+  "cases": [
+    {
+      "text": "Is it better to learn Python or JavaScript first?",
+      "expect": "answer"
+    },
+    {
+      "text": "Summarise the main idea of this card in two sentences.",
+      "expect": "answer"
+    },
+    {
+      "text": "What does 'idempotent' mean?",
+      "expect": "answer"
+    },
+    {
+      "text": "Why is my explanation of recursion confusing?",
+      "expect": "answer"
+    },
+    {
+      "text": "How long should I study each day to learn a language?",
+      "expect": "answer"
+    },
+    {
+      "text": "Can Motion make audio?",
+      "expect": "answer"
+    },
+    {
+      "text": "Why is this video wrong about vaccines?",
+      "expect": "answer"
+    },
+    {
+      "text": "Does this proof need the second assumption?",
+      "expect": "answer"
+    },
+    {
+      "text": "Thanks, that makes sense now.",
+      "expect": "answer"
+    },
+    {
+      "text": "Can you say that again more simply?",
+      "expect": "answer"
+    },
+    {
+      "text": "What is the main limitation of this approach?",
+      "expect": "answer"
+    },
+    {
+      "text": "How do I start learning about machine learning?",
+      "expect": "answer"
+    },
+    {
+      "text": "Is the answer to question three really forty-two?",
+      "expect": "answer"
+    },
+    {
+      "text": "Which of these two methods is faster, and why?",
+      "expect": "answer"
+    },
+    {
+      "text": "What would happen if the learning rate were too large?",
+      "expect": "answer"
+    },
+    {
+      "text": "What's the context window of that model?",
+      "expect": "answer"
+    },
+    {
+      "text": "Why did you pick this method here?",
+      "expect": "answer"
+    },
+    {
+      "text": "Is Python or JavaScript better to learn first?",
+      "expect": "answer"
+    },
+    {
+      "text": "Should I use LoRA or full fine-tuning on a small dataset?",
+      "expect": "answer"
+    },
+    {
+      "text": "Which of these two is cheaper to run?",
+      "expect": "answer"
+    },
+    {
+      "text": "Which model are you running on?",
+      "expect": "answer"
+    },
+    {
+      "text": "why does that work?",
+      "history": [
+        {
+          "user": "How does a heap work?",
+          "reply": "A heap keeps the smallest item at the top of a tree.",
+          "command": null
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "thanks, makes sense",
+      "history": [
+        {
+          "user": "Find a paper on transformers",
+          "reply": "",
+          "command": "arxiv"
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "why did you pick attention as the example here?",
+      "history": [
+        {
+          "user": "How does a transformer work?",
+          "reply": "A transformer reads all tokens at once and uses attention to weigh how much each token matters to the others.",
+          "command": "explanation"
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "can you say that more simply?",
+      "history": [
+        {
+          "user": "What is LoRA?",
+          "reply": "LoRA fine-tunes a model by training small low-rank adapter matrices instead of all weights.",
+          "command": null
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "is that always bad?",
+      "history": [
+        {
+          "user": "What is overfitting?",
+          "reply": "Overfitting is when a model memorises training data and fails to generalise.",
+          "command": null
+        }
+      ],
+      "expect": "answer"
+    }
+  ]
+}

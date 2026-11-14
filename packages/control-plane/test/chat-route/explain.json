@@ -1,0 +1,109 @@
+{
+  "command": "explanation",
+  "typed": "explain",
+  "about": "The written explanation card: the learner wants a whole topic understood, as a question (\"how does a transformer work?\") or a write-up request, and would keep it on the board. Not a narrow definition, a follow-up about the card or the last reply, advice, an opinion, or small talk.",
+  "cases": [
+    {
+      "text": "How does a transformer work?",
+      "expect": "explanation"
+    },
+    {
+      "text": "How do LLMs actually predict the next token?",
+      "expect": "explanation"
+    },
+    {
+      "text": "Why do language models hallucinate?",
+      "expect": "explanation"
+    },
+    {
+      "text": "What is the difference between fine-tuning, LoRA and prompt tuning?",
+      "expect": "explanation"
+    },
+    {
+      "text": "How does backpropagation compute the gradients?",
+      "expect": "explanation"
+    },
+    {
+      "text": "I need a proper write-up of how RLHF turns a base model into an assistant, for my notes.",
+      "expect": "explanation"
+    },
+    {
+      "text": "Write up how attention works so I can refer back to it.",
+      "expect": "explanation"
+    },
+    {
+      "text": "Why does attention need multiple heads?",
+      "expect": "explanation"
+    },
+    {
+      "text": "How does retrieval-augmented generation cut down hallucinations?",
+      "expect": "explanation"
+    },
+    {
+      "text": "What caused the First World War?",
+      "expect": "explanation"
+    },
+    {
+      "text": "How do vaccines train the immune system?",
+      "expect": "explanation"
+    },
+    {
+      "text": "How does compound interest work?",
+      "expect": "explanation"
+    },
+    {
+      "text": "and what about the encoder side?",
+      "history": [
+        {
+          "user": "How does a transformer work?",
+          "reply": "",
+          "command": "explanation"
+        }
+      ],
+      "expect": "explanation"
+    },
+    {
+      "text": "now how does DPO differ from it?",
+      "history": [
+        {
+          "user": "How does RLHF work?",
+          "reply": "",
+          "command": "explanation"
+        },
+        {
+          "user": "thanks",
+          "reply": "You're welcome.",
+          "command": null
+        }
+      ],
+      "expect": "explanation"
+    },
+    {
+      "text": "What does perplexity mean?",
+      "expect": "answer"
+    },
+    {
+      "text": "Why did you use a transformer as the example?",
+      "history": [
+        {
+          "user": "How does attention work?",
+          "reply": "Attention lets each token weigh every other token.",
+          "command": "explanation"
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "Is attention better than an RNN here?",
+      "expect": "answer"
+    },
+    {
+      "text": "Draw how attention flows between the tokens.",
+      "expect": "diagram"
+    },
+    {
+      "text": "Make me a quick quiz on how attention works.",
+      "expect": "quiz"
+    }
+  ]
+}
