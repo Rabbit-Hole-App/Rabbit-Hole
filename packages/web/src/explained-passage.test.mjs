@@ -107,8 +107,8 @@ test('HL-3: one icon, two directions: the card header offers Go to highlight ove
   assert.match(chip, /aria-label=\{HEAD_OPEN\(ref\)\} title=\{HEAD_OPEN\(ref\)\}[\s\S]*<ScanText size=\{16\}/, 'the ScanText icon, in the card header');
   assert.match(md, /title="Go to card" aria-label=\{viewCardLabel\(anchor\.cards\)\}[\s\S]*<ScanText size=\{16\}/, 'the same icon on the passage');
   assert.equal(viewCardLabel([{ title: 'Impurity' }]), 'Go to card: Impurity');
-  assert.match(refs, /const goTo = \(focus, cardId\) => focus\?\.\(cardId\);/);
-  assert.match(refs, /goTo\(focus, cardId\);\r?\n  \/\/ The camera moves first/);
+  assert.match(refs, /const goTo = \(focus, cardId, options\) => focus\?\.\(cardId, options\);/);
+  assert.match(refs, /goTo\(focus, cardId, rect \? \{ passage: rect \} : undefined\);\r?\n  \/\/ The camera moves first/);
   assert.match(refs, /focusExplanation = \(cardId, \{ focus = state\.focus \} = \{\}\) => goTo\(focus, cardId\);/);
   void HEAD_OPEN;
 });

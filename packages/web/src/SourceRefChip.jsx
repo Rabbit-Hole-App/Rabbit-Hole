@@ -18,7 +18,7 @@ const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(bo
 export function useSourceRefIndex(blocks, focus) {
   const latest = useRef(focus);
   latest.current = focus;
-  const stable = useCallback(id => latest.current?.(id), []);
+  const stable = useCallback((id, options) => latest.current?.(id, options), []);
   useEffect(() => { publishBlocks(blocks, stable); }, [blocks, stable]);
   useEffect(() => () => publishBlocks([], null), []);
 }
