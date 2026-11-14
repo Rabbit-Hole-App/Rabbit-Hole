@@ -74,6 +74,8 @@ const browser = await chromium.launch();
 const errors = [], stray = [], offOrigin = [];
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
+// The plot's curve: a polyline of three or more points. A composed card draws an arrow's or a line's own shaft as a two-point polyline (the written diagrams' connector, release 130: the look was approved), so a raw polyline count no longer means a curve.
+const curveLines = scope => scope.locator('[data-program-frame] polyline').evaluateAll(lines => lines.filter(line => (line.getAttribute('points') || '').trim().split(/\s+/).length >= 3).length);
 try {
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
@@ -216,7 +218,7 @@ try {
   });
   await check('10 a structurally different program draws through the same card: fifteen cells and a pointer, no curve', async () => {
     assert.equal(await card('p-search').locator('[data-program-frame] [data-animation-object^="cell-"]').count(), 15);
-    assert.equal(await card('p-search').locator('[data-program-frame] polyline').count(), 0);
+    assert.equal(await curveLines(card('p-search')), 0);
     const before = await card('p-search').locator('[data-program-frame]').textContent();
     await scrub('p-search', 3);
     assert.notEqual(await card('p-search').locator('[data-program-frame]').textContent(), before, 'the caption follows the time');
@@ -326,7 +328,7 @@ try {
     await edit.locator('[data-explain-show="proposed"]').click();
     await edit.locator('[data-program-frame] [data-animation-object^="cell-"]').first().waitFor({ state: 'attached', timeout: 30000 });
     assert.equal(await edit.locator('[data-program-frame] [data-animation-object^="cell-"]').count(), 15, 'the candidate program, not the accepted one');
-    assert.equal(await edit.locator('[data-program-frame] polyline').count(), 0);
+    assert.equal(await curveLines(edit), 0);
     assert.equal(await timeText('p-edit'), '0.0s', 'the preview starts at its own beginning');
     assert.ok(workers.closed >= 1, "the accepted card's host was disposed");
     // A Worker's close reaches Playwright after the next host has started, so wait for it (5 s); a host never closed still fails.
