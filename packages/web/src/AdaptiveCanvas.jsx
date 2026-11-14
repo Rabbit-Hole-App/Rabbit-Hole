@@ -3797,6 +3797,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         ? { ...change, after: preserveCardEditLayout(change.after, boxes[change.id]) } : change) };
     }
     // A placed card (A7) goes at the end of the column, offset to the spot its ghost showed; no other card moves.
+    if (tx.kind === 'card' && tx.block?.type === 'explanation') tx = { ...tx, block: openedExplanation(tx.block) }; // CV-8: a Ctrl+K card (cardTx, applied below by applyTx, never through insertBlock) opens whole like a typed one
     if (tx.kind === 'card' && !tx.after && !tx.end) { const at = flowIndexAtView(); tx = { ...tx, after: blocksRef.current[at - 1]?.id ?? null, first: at === 0 }; }
     if(tx.retainedSources?.length && !inlineAiRef.current?.retainImageSources?.(tx.retainedSources))return false;
     setCardGhost(null);

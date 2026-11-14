@@ -123,6 +123,20 @@ test('openedExplanation: every new Explanation opens in Full layout at its visua
   assert.equal(openedExplanation(anchor), anchor, 'a topic anchor keeps its shape');
   assert.equal(openedExplanation(excerpt), excerpt, 'a PDF excerpt keeps its shape');
   const canvas = read('./AdaptiveCanvas.jsx');
-  assert.equal(canvas.match(/openedExplanation\(/g).length, 3, 'insertBlock, insertImported (no saved size) and placeRoadmapCard use it');
+  assert.equal(canvas.match(/openedExplanation\(/g).length, 4, 'insertBlock, insertImported (no saved size), placeRoadmapCard and the Ctrl+K card transaction use it');
   assert.match(canvas, /placeRoadmapCard: [\s\S]{0,700}openedExplanation\(\{ \.\.\.block, dx: 0, dy: 0 \}\)/, 'the Tutor-made card is opened whole');
+});
+
+// CV-8 (the Ctrl+K path): the inline AI editor's card is a transaction (inline-ai-apply.js cardTx) that the canvas applies with applyTx, never through insertBlock, so it was the one origin
+// with no layout (the 520 px cap, scrolling). The canvas opens its block before applying it.
+import { cardTx, applyTx } from './inline-ai-apply.js';
+test('a Ctrl+K card (cardTx + applyTx) opens whole: the canvas opens its explanation before applying the transaction', () => {
+  const frozen = { ids: [], words: 'explain this passage' }, board = { blocks: [] };
+  const tx = cardTx({ requestId: 'req-1', block: card(`${PROSE}\n\n${fence(plot)}`), frozen, board, route: 'explain' });
+  assert.equal(tx.block.cardLayout, undefined, 'reproduction: the transaction\'s card carries no layout');
+  const opened = { ...tx, block: openedExplanation(tx.block) };
+  const applied = applyTx({ shapes: [], items: [], links: [], blocks: [], groups: [] }, opened).blocks[0];
+  assert.equal(applied.cardLayout.mode, 'full');
+  assert.equal(applied.cardLayout.fullWidth, explanationCardWidth(applied));
+  assert.match(read('./AdaptiveCanvas.jsx'), /if \(tx\.kind === 'card' && tx\.block\?\.type === 'explanation'\) tx = \{ \.\.\.tx, block: openedExplanation\(tx\.block\) \};/, 'the canvas applies it to every card transaction');
 });
