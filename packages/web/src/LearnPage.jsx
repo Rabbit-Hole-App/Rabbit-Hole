@@ -591,6 +591,19 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     },
     // A written Explanation's illustration (IllustrationFigure.jsx, generate-image.js illustrationFrom). Add illustration is removed (EXP-13, owner 2026-11-08), so no card is marked
     // any more; a card marked before then still takes its picture when that plan's job is ready (through the canvas's own updateBlock, one undo step).
+    // A typed "create a course" the router read as one (inline-ai-route.js CHAT_CAPABILITIES.course; ask.jsx): the selected Markdown card, else the only one on this canvas; the same create the invitation's button runs.
+    startCourse: words => {
+      const sources = roadmap.lessonSources?.() ?? null, markdown = (canvasApi.current?.blocks?.() || []).filter(b => b.type === 'file' && b.kind === 'markdown' && b.fileRef?.source?.id);
+      const picked = (canvasApi.current?.selection?.() || []).map(id => markdown.find(b => b.id === id)).find(Boolean) ?? (markdown.length === 1 ? markdown[0] : null);
+      if (!markdown.length) return { notice: { tone: 'info', text: 'Add a Markdown file to this canvas first, then ask for a course.' } };
+      if (!picked) return { notice: { tone: 'question', text: 'Select the Markdown file to make a course from, then ask again.' } };
+      if (roadmap.state.view?.course?.running) return { notice: { tone: 'info', text: 'A course is being made on this canvas. Ask again when it is done.' } };
+      const source = (sources || []).find(s => s.key === `file:${picked.fileRef.source.id}`) ?? { key: `file:${picked.fileRef.source.id}`, rev: picked.fileRef.source.rev, name: picked.label || '' };
+      if (!source.rev) return { notice: { tone: 'info', text: 'This file is still being saved. Try again in a moment.' } };
+      panels.openChat();
+      roadmap.controller.lesson({ depth: chat?.settings?.depth || 'balanced', instruction: String(words || '').trim() || 'Create a course from this document.', source: { key: source.key, rev: source.rev } });
+      return { notice: { tone: 'done', text: 'Making the plan. It appears in Chat for you to review.' } };
+    },
     attachIllustration: (proposalId, illustration) => {
       const block = illustration && pendingBlock(canvasApi.current?.blocks?.(), proposalId);
       if (!block) return null;

@@ -309,6 +309,22 @@
       "text": "what does lora stand for",
       "expect": "answer",
       "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "Summarise the document I added in a few sentences.",
+      "expect": "answer"
+    },
+    {
+      "text": "What does this file say about entropy?",
+      "expect": "answer"
+    },
+    {
+      "text": "Is the second section of my notes correct?",
+      "expect": "answer"
+    },
+    {
+      "text": "How long is the Markdown file on my canvas?",
+      "expect": "answer"
     }
   ]
 }

@@ -273,7 +273,7 @@ export function readyMarkdownSources({ pending, blocks = [], savedBlocks = [] })
 // offered (the button and the typed request then share its gesture); else the ready Markdown sources on the canvas (at most 5; more than one means the
 // model must ask which). sources: the host's [{ key, rev, name }]. -> [{ key, rev, name }] | null
 export function lessonSourcesOf(state, sources = []) {
-  if (!enabled(state) || unfinished(state.view)) return null;
+  if (!enabled(state) || state.view?.course?.running) return null; // owner 2026-11-14: Create a course replaces any other unfinished roadmap; only a course being made blocks a new one
   const iv = state.invitation;
   const known = (sources || []).filter(s => s?.key && s.rev);
   if (iv?.sourceKeys?.length) { const own = known.find(s => s.key === iv.sourceKeys[0]); return own ? [own] : null; }

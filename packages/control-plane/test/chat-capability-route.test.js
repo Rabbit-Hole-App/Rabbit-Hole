@@ -29,7 +29,7 @@ function noFetch(t) {
 
 test('every declared chat capability is a Learn command; proposal flow exactly where the proposal rules require review', () => {
   for (const [id, entry] of Object.entries(CHAT_CAPABILITIES)) {
-    assert.ok(SLASH.some(c => c.name === id && c.places.includes('learn')), `${id} is a Learn command`);
+    assert.ok(entry.standalone || SLASH.some(c => c.name === id && c.places.includes('learn')), `${id} is a Learn command`); // standalone: Create a course, a router-only capability the browser runs (owner 2026-11-14)
     assert.equal(entry.flow === 'proposal', reviewRequired(id), `${id} flow`);
     assert.equal(typeof entry.intent, 'string');
   }
@@ -282,4 +282,14 @@ test('plain words reach /explain only where the server enables /explain v2; off,
   const plain = counted(jev('explain', 0.99));
   assert.equal((await decideWith(plain, 'explain this', { env: on })).route, 'answer');
   assert.equal(plain.calls.length, 0);
+});
+
+test('Create a course (owner 2026-11-14): the router offers it by its declared intent and a confident choice is a direct capability the browser runs; no picker command backs it', async () => {
+  let seen = null;
+  const out = await decideWith(async (env, request) => { seen = request; return jev('course', 0.93); }, 'turn this document into something I can study from start to finish');
+  assert.equal(out.capability, 'course', JSON.stringify(out));
+  assert.equal(out.flow, 'direct');
+  assert.equal(out.route, 'capability:course');
+  assert.ok(JSON.stringify(seen).includes('document they added to the canvas'), 'JEV was shown the capability\'s own intent, not a phrase list');
+  assert.equal(SLASH.some(c => c.name === 'course'), false);
 });
