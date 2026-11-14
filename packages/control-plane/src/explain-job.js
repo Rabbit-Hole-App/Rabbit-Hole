@@ -984,7 +984,7 @@ export class ExplainJobs {
     let prev = job; const budget = Number(this.env.INTERACT_CHAIN_BUDGET_MS ?? CHAIN_BUDGET_MS);
     for (let hop = 0; hop < CHAIN_MAX_HOPS && Date.now() - started < budget; hop++) {
       const next = await this.get(job.id);
-      if (!next || TERMINAL.has(next.stage) || next.stage === 'awaiting_approval' || next.inFlight || next.updatedAt === prev.updatedAt) return;
+      if (!next || TERMINAL.has(next.stage) || next.stage === 'awaiting_approval' || next.inFlight || (next.updatedAt === prev.updatedAt && next.stage === prev.stage)) return; // two saves in one millisecond (a 0 ms stage) are still progress when the stage moved
       prev = next;
       await this.advance(next);
     }
