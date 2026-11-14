@@ -1,5 +1,7 @@
 # /interactive real runs on the dev clone, 2026-11-12
 
+**What this folder holds:** the clone scripts (`scripts/deploy-clone.mjs`, `run-depth.mjs`, `verify-canvases.mjs`, `open-preview.*`) and the first /interactive clone runs. Launcher: `C:\s\spec\interact-real\open-preview.cmd`. Ledger rows: `benchmarks/ledger.jsonl` (the early opus-baseline rows). Build-half summary: `docs/features/interact/build-half.md`.
+
 Evidence for a review of branch `interact/capture-budget` (base `81028bb3f`, main at release 122). Everything here came from real runs on the dev clone
 `rabbit-hole-web-dev-interact` (Cloudflare account of the repository, dev D1, test user `owner-interact-preview@example.com`). No production touch. No secret is in this
 folder: the scripts read keys by name from an uncommitted `.env`. Job, board and canvas ids are dev-clone data.

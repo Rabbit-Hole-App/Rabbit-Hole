@@ -1,5 +1,7 @@
 # Codex match: the look of the three generated scenes next to Codex's three cards (2026-11-13)
 
+**What this folder holds:** static renders of the generated scene next to Codex's three cards (no model call), the look-canvas screenshots and the night canvases' screenshots. Launcher for the live cards: `C:\s\spec\interact-real\open-template.cmd` (the cards of `evidence/2026-11-13-template/`). No ledger rows. Summary: `docs/features/interact/build-half.md`.
+
 Offline: no model call, no deploy, no app. Left, Codex's reference card (`docs/features/interact/references/<depth>-toss-and-drop.html`, its whole `.experiment`: scene, transport, controls).
 Right, the **scene frame** of the scripted sdk-8 program of the same plan (`packages/web/src/interact-toss-programs.js`), drawn by the real `Frame` of `AnimatedScene.jsx` in interact mode, under the card's
 **heading row** (the plan title at the left and the real `ResetButton` at the right; the static page has no Tailwind, so the row's size, colour and spacing are stand-in CSS for `ProgramScene.jsx`'s classes).

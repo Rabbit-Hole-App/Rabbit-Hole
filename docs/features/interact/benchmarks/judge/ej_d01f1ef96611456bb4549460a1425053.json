@@ -1,0 +1,34 @@
+{
+  "jobId": "ej_d01f1ef96611456bb4549460a1425053",
+  "plan": "toss-overview",
+  "depth": "brief",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 23790,
+  "ms": 6551,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "object": "vec.v",
+      "message": "The scene plan says the Motion arrow is a blue arrow with no number readout or equations, but the frame labels the arrows 'v' and 'a'. The plan says the gravity arrow is dashed, and that the Motion arrow and gravity arrow are the only vectors. The frame also has a lane title 'One toss' and a state text such as 'At launch' or 'Rising' that the plan does not describe. The frames cannot show colour or dashing, so the blue Motion arrow and dashed gravity arrow cannot be verified."
+    },
+    {
+      "capture": "cp-rising",
+      "category": "spec",
+      "severity": "major",
+      "object": "vec.v",
+      "message": "Arrow lengths do not match the plan's claims. At launch the speed is 4 m/s and the arrow is 48 px long. At v=2 it is 24 px long, so it is proportional and shortens as the plan says. At v=-4 it is 48 px long, which is fine. The ball heights are inconsistent with the plan's fixed height scale: the launch speed 4 apex is 108.8 px for 0.816 m, which is 133 px/m. The launch speed 5 apex is 170 px for 1.2755 m, which is also 133 px/m. So the scale is consistent. However, the callout text and the 'Gravity pulls down' text are not visible in the frame objects, so the callout wording cannot be verified from the frames. The motionState readout is present in the trace but its drawn text is not."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "minor",
+      "object": "vec.a",
+      "message": "At the top the Motion arrow is absent and the gravity arrow is the same length (48 px) as at the other times, which supports the plan. The frame also labels the arrow 'a', which the plan says is not shown as an equation or number readout."
+    }
+  ]
+}

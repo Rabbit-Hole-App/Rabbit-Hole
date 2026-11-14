@@ -1,0 +1,134 @@
+[
+  {
+    "i": 0,
+    "title": "Zero velocity. Nonzero acceleration.",
+    "notes": [
+      "reset before the drive (an earlier drive had left the card moved)"
+    ],
+    "fit": {
+      "block": {
+        "w": 928,
+        "h": 757
+      },
+      "view": {
+        "w": 1440,
+        "h": 900
+      },
+      "window": {
+        "w": 1440,
+        "h": 900
+      },
+      "wholeBlockVisible": true,
+      "top": 104,
+      "bottom": 861
+    },
+    "restClock": "0.00s",
+    "atTopClock": "0.41s",
+    "sliderChanged": true,
+    "resetClock": "0.00s",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@0.31s",
+    "firstRun": "Pause@0.05s",
+    "secondStop": "Play@0.41s",
+    "playAgainMoved": true
+  },
+  {
+    "i": 1,
+    "title": "A ball on the Moon still stops at the top.",
+    "notes": [
+      "reset before the drive (an earlier drive had left the card moved)"
+    ],
+    "fit": {
+      "block": {
+        "w": 928,
+        "h": 726
+      },
+      "view": {
+        "w": 1440,
+        "h": 900
+      },
+      "window": {
+        "w": 1440,
+        "h": 900
+      },
+      "wholeBlockVisible": true,
+      "top": 174,
+      "bottom": 900
+    },
+    "restClock": "0.00s",
+    "atTopClock": "1.23s",
+    "sliderChanged": true,
+    "resetClock": "0.00s",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@1.23s",
+    "firstRun": "Pause@0.13s > Pause@0.97s",
+    "secondStop": "Replay@2.47s",
+    "playAgainMoved": true
+  },
+  {
+    "i": 2,
+    "title": "Zero velocity isn’t zero acceleration.",
+    "notes": [
+      "reset before the drive (an earlier drive had left the card moved)"
+    ],
+    "fit": {
+      "block": {
+        "w": 928,
+        "h": 717
+      },
+      "view": {
+        "w": 1440,
+        "h": 900
+      },
+      "window": {
+        "w": 1440,
+        "h": 900
+      },
+      "wholeBlockVisible": true,
+      "top": 56,
+      "bottom": 773
+    },
+    "restClock": "−0.41s",
+    "atTopClock": "0.00s",
+    "sliderChanged": true,
+    "resetClock": "−0.41s",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@−0.10s",
+    "firstRun": "Pause@−0.35s",
+    "secondStop": "Play@0.00s",
+    "playAgainMoved": true
+  },
+  {
+    "i": 3,
+    "title": "The ball stops rising. Gravity doesn’t stop.",
+    "notes": [
+      "reset before the drive (an earlier drive had left the card moved)"
+    ],
+    "fit": {
+      "block": {
+        "w": 928,
+        "h": 745
+      },
+      "view": {
+        "w": 1440,
+        "h": 900
+      },
+      "window": {
+        "w": 1440,
+        "h": 900
+      },
+      "wholeBlockVisible": true,
+      "top": 155,
+      "bottom": 900
+    },
+    "restClock": "0.00s",
+    "atTopClock": "0.41s",
+    "sliderChanged": true,
+    "resetClock": "0.00s",
+    "resetDisabledAfter": true,
+    "firstStop": "Play@0.41s",
+    "firstRun": "Pause@0.05s > Pause@0.39s",
+    "secondStop": "Replay@0.82s",
+    "playAgainMoved": true
+  }
+]

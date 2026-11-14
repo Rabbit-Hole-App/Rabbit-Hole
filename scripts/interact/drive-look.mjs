@@ -15,7 +15,7 @@ const secret = (env.match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1] || '').tri
 const session = (await (await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { ...UA, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, secret }) })).json()).session;
 const { chromium } = createRequire('C:/s/explain-layout-web/package.json')('playwright');
 let browser; try { browser = await chromium.launch({ channel: 'chrome', headless: true }); } catch { browser = await chromium.launch({ headless: true }); }
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 await context.addCookies([{ name: 'small_session', value: session, domain: new URL(BASE).hostname, path: '/', httpOnly: true, secure: true, sameSite: 'Lax' }]);
 const page = await context.newPage();
 await page.goto(`${BASE}/apps/${canvas}`);
@@ -25,13 +25,22 @@ const cards = page.locator('[data-program-card]');
 const n = await cards.count(), results = [];
 // The scrubber's clock readout (an element whose whole text is like "0.31s" or "-0.41s") and the transport button's own label (Play, Pause or whatever else the card shows there), read inside the page.
 const clock = card => card.evaluate(el => { const hits = [...el.querySelectorAll('*')].filter(n => !n.children.length && /^[-−]?\d+\.\d\ds$/.test(n.textContent.trim())); return hits.length ? hits.at(-1).textContent.trim() : '?'; });
-const playLabel = card => card.evaluate(el => { const b = [...el.querySelectorAll('button')].find(x => /^(Play|Pause|Replay|Restart|Play again)/.test(x.textContent.trim())); return b ? b.textContent.trim() : `[no transport button: ${[...el.querySelectorAll('button')].map(x => x.textContent.trim() || x.getAttribute('aria-label')).filter(Boolean).join(' | ')}]`; });
+const playLabel = card => card.evaluate(el => { const name = x => (x.textContent.trim() || x.getAttribute('aria-label') || '').trim(); const b = [...el.querySelectorAll('button')].find(x => /^(Play|Pause|Replay|Restart)/.test(name(x))); return b ? name(b) : `[no transport button: ${[...el.querySelectorAll('button')].map(name).filter(Boolean).join(' | ')}]`; });
 for (let i = 0; i < n; i++) {
   const card = cards.nth(i);
   await card.scrollIntoViewIfNeeded();
-  const title = (await card.locator('h2').first().textContent({ timeout: 400 }).catch(() => `card${i}`))?.trim();
+  const title = await card.evaluate(el => { const block = el.closest('[data-block]') || el; return (block.innerText || '').split(String.fromCharCode(10)).map(x => x.trim()).filter(Boolean).find(x => x !== 'Explanation') || ''; });
   const r = { i, title, notes: [] };
-  const shot = async name => card.screenshot({ path: `${OUT}/card${i}-${name}.png` });
+  { const reset0 = card.locator('[data-scene-reset]').first(); if (await reset0.count() && !(await reset0.isDisabled())) { await reset0.click(); await page.waitForTimeout(800); r.notes.push('reset before the drive (an earlier drive had left the card moved)'); } }
+  // The whole block (header to the last control row) against the canvas column's visible area, at this window size: measured after scrolling the block into view.
+  await card.locator('xpath=ancestor::*[@data-block][1]').first().scrollIntoViewIfNeeded().catch(() => {}); await page.waitForTimeout(400);
+  r.fit = await card.evaluate(el => {
+    const block = el.closest('[data-block]') || el, rect = block.getBoundingClientRect();
+    let scroller = block.parentElement; while (scroller && !(/(auto|scroll)/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight)) scroller = scroller.parentElement;
+    const view = scroller ? scroller.getBoundingClientRect() : { top: 0, bottom: innerHeight, left: 0, right: innerWidth };
+    return { block: { w: Math.round(rect.width), h: Math.round(rect.height) }, view: { w: Math.round(view.right - view.left), h: Math.round(view.bottom - view.top) }, window: { w: innerWidth, h: innerHeight }, wholeBlockVisible: rect.top >= 0 && rect.bottom <= innerHeight && rect.left >= 0, top: Math.round(rect.top), bottom: Math.round(rect.bottom) };
+  });
+  const shot = async name => { await card.locator('xpath=ancestor::*[@data-block][1]').first().scrollIntoViewIfNeeded().catch(() => {}); await page.screenshot({ path: `${OUT}/card${i}-${name}-page.png` }); return card.screenshot({ path: `${OUT}/card${i}-${name}.png` }); };
   await shot('rest');
   r.restClock = await clock(card);
   const atTop = card.getByRole('button', { name: 'At top' });
