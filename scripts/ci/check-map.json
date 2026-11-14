@@ -1249,6 +1249,7 @@
     "packages/web/src/tutor-diagrams/set3-token-budgets.json": ["packages/web/src/tutor-diagrams/set3-token-budgets.test.mjs"],
     "packages/web/src/explanation-card-width.js": ["packages/web/src/explanation-card-width.test.mjs"],
     "packages/web/src/beside-placement.js": ["packages/web/src/beside-placement.test.mjs"],
+    "packages/web/src/place-near.js": ["packages/web/src/place-near.test.mjs"],
     "packages/web/src/tutor-diagrams/plot-lines.js": ["packages/web/src/tutor-diagrams/plot-lines.test.mjs", "packages/web/src/tutor-diagrams/ml-plot.test.mjs"],
     "packages/web/src/tutor-diagrams/batch-1-followup-references.js": ["packages/web/src/tutor-diagrams/ml-reference-integration.test.mjs", "packages/web/src/tutor-diagrams/illustration-integration.test.mjs", "packages/control-plane/test/explanation-references.test.js"],
     "packages/control-plane/src/explanation-formula-series.js": ["packages/control-plane/test/explanation-formula-series.test.js"],
