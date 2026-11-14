@@ -467,3 +467,76 @@ test('the reviewer sees the coverage computed for the captures it reviews, and a
   assert.doesNotMatch(await run(coverage('h-old')), /Review sampling/);
   assert.doesNotMatch(await run(undefined), /Review sampling/);
 });
+
+// AR-2: every v2 job is archived at its terminal transition through the AR-1 archiveExplanation (explain-archive/<day>/<id>.json), once per attempt, never failing the job, never carrying the email.
+const archiveBucket = (failing = () => false) => { const puts = []; return { puts, async put(key, body) { if (failing()) throw new Error('r2 down'); puts.push({ key, record: JSON.parse(body) }); } }; };
+
+test('AR-2 a ready job is archived once with the AR-1 record keys, its result and the user id, never the email', async t => {
+  const s = setup(t, { generate: true });
+  const media = archiveBucket(); s.env.LEARN_MEDIA = media; s.env.RELEASE_SHA = 'abc123';
+  const { body } = await s.create();
+  const done = await s.run(body.job.id);
+  assert.equal(done.stage, 'ready');
+  assert.equal(media.puts.length, 1);
+  const { key, record } = media.puts[0];
+  assert.match(key, new RegExp(`^explain-archive/\\d{4}-\\d{2}-\\d{2}/${body.job.id}\\.json$`));
+  assert.deepEqual([record.id, record.outcome, record.userId, record.release, record.flow, record.attempt, record.app], [body.job.id, 'ready', OWNER.userId, 'abc123', 'v2', 1, BOARD.app]);
+  assert.deepEqual([record.request.class, record.request.prompt, record.request.hasContext], ['simple', 'Explain a pendulum.', false]);
+  assert.deepEqual([record.plannerKind, record.references, record.shapeId], [null, [], null], 'the v2 flow selects no library references and runs no planner');
+  assert.equal(record.job.id, body.job.id);
+  assert.equal(record.result.identity.resultId, done.resultId, 'the result:<resultId> object is in the record');
+  assert.ok(record.models.author.requested, 'the model ids of the calls');
+  assert.ok(!JSON.stringify(record).includes(OWNER.email), 'no email anywhere in the record');
+  assert.deepEqual(record.job.owner, { org: OWNER.org, userId: OWNER.userId });
+  await s.actor.save(s.state.data.get(`job:${body.job.id}`)); await s.actor.save(s.state.data.get(`job:${body.job.id}`));
+  assert.equal(media.puts.length, 1, 'once per attempt');
+});
+
+test('AR-2 a failed job is archived, and Retry archives the new attempt as its own object', async t => {
+  let renders = 0;
+  const s = setup(t, { generate: true, pipeline: PIPELINE({ render: async () => { if (renders++ === 0) throw Object.assign(new Error('The renderer is busy.'), { status: 503, category: 'renderer' }); return { captures: ['a'], renders: [{ ok: true }] }; } }) });
+  const media = archiveBucket(); s.env.LEARN_MEDIA = media;
+  const { body } = await s.create();
+  const failed = await s.run(body.job.id);
+  assert.equal(failed.stage, 'failed');
+  assert.deepEqual(media.puts.map(p => [p.record.id, p.record.outcome]), [[body.job.id, 'failed']]);
+  assert.deepEqual([media.puts[0].record.failure.category, media.puts[0].record.result === null], ['renderer', true]);
+  assert.equal((await s.send('retry', { expectedAttempt: 1 }, body.job.id)).status, 202);
+  const done = await s.run(body.job.id);
+  assert.equal(done.stage, 'ready');
+  assert.deepEqual(media.puts.map(p => [p.record.id, p.record.outcome, p.record.attempt]), [[body.job.id, 'failed', 1], [`${body.job.id}.a2`, 'ready', 2]]);
+});
+
+test('AR-2 a cancelled job and an interrupted-call failure are each archived once', async t => {
+  const s = setup(t, { generate: true });
+  const media = archiveBucket(); s.env.LEARN_MEDIA = media;
+  const { body } = await generated(s);
+  assert.equal((await s.send('cancel', {}, body.job.id)).body.job.stage, 'cancelled');
+  assert.deepEqual(media.puts.map(p => [p.record.id, p.record.outcome, p.record.stopReason]), [[body.job.id, 'cancelled', 'stopped']]);
+  const lost = setup(t, { generate: true });
+  const media2 = archiveBucket(); lost.env.LEARN_MEDIA = media2;
+  const made = await generated(lost);
+  const release = lost.model.hold();
+  const running = lost.actor.alarm();
+  for (let i = 0; i < 200 && lost.model.calls.length < 1; i++) await new Promise(r => setTimeout(r, 10));
+  await lost.object().alarm(); // the "restart": the call that never answered is reconciled as unknown and the job fails
+  assert.deepEqual(media2.puts.map(p => [p.record.id, p.record.outcome, p.record.failure.category]), [[made.body.job.id, 'failed', 'transport']]);
+  release(); await running;
+  assert.equal(media2.puts.length, 1, 'the late answer archives nothing more');
+});
+
+test('AR-2 a failing bucket is logged and the job still ends; the next save of the terminal job writes it, once', async t => {
+  const s = setup(t, { generate: true });
+  let failing = true; const media = archiveBucket(() => failing); s.env.LEARN_MEDIA = media;
+  const logs = [], log = console.log; console.log = line => { logs.push(String(line)); }; t.after(() => { console.log = log; });
+  const { body } = await s.create();
+  const done = await s.run(body.job.id);
+  assert.equal(done.stage, 'ready', 'the job is not failed by its archive');
+  assert.ok(logs.some(l => l.includes('explain_archive_failed')));
+  assert.equal(media.puts.length, 0);
+  failing = false;
+  const stored = s.state.data.get(`job:${body.job.id}`);
+  await s.actor.save(stored); await s.actor.save(stored);
+  assert.equal(media.puts.length, 1);
+  assert.equal(media.puts[0].record.outcome, 'ready');
+});

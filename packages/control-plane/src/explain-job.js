@@ -65,12 +65,33 @@ import { readDepth } from './learn-user-settings.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
 import { logJobFailure } from './job-failure-log.js';
+import { archiveExplanation } from './learn-storage.js';
 
 const PREFIX = '/api/learn/explain/jobs';
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const fail = (message, status = 400, code = null) => Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
 const TERMINAL = new Set(['ready', 'failed', 'cancelled']);
+// Card archive for v2 jobs (AR-2; AR-1 is learn-storage.js archiveExplanation, the same path and the same record keys as the /api/learn/artifact cards). One record per
+// terminal transition of an attempt: the whole job (capture bytes and the owner's email left out) and its result:<resultId> object. The v2 flow selects no library references and
+// runs no planner: references [], shapeId null and plannerKind null say so; the scene plan exists only on an /interact job (design.plan). Never the email: only the user id.
+export const archiveRecord = (env, job, result) => {
+  const { owner, captures, ...rest } = job;
+  const email = owner?.email;
+  const models = {};
+  for (const c of job.calls || []) if (c.requested || c.served) models[c.role] = { requested: c.requested ?? null, served: c.served ?? null };
+  const record = {
+    id: job.attempt > 1 ? `${job.id}.a${job.attempt}` : job.id, at: new Date(job.createdAt).toISOString(), ms: Math.max(0, (job.updatedAt || Date.now()) - job.createdAt),
+    release: env.RELEASE_SHA ?? null, userId: owner?.userId ?? null, app: job.app ?? null, board: job.board ?? null, flow: 'v2', attempt: job.attempt,
+    request: { class: job.requestClass, prompt: job.prompt, hasContext: Boolean(job.context), depth: job.depth ?? null, source: job.source ?? null, cardId: job.cardId, baseRevision: job.baseRevision ?? null, interact: Boolean(job.flow) },
+    plan: job.design?.plan ?? null, plannerKind: null, references: [], shapeId: null, profile: job.flow?.profile ?? null, models, counts: job.counts, round: job.round,
+    outcome: job.stage, stopReason: job.stopReason ?? null, failure: job.failure ?? null,
+    job: { ...rest, owner: { org: owner?.org ?? null, userId: owner?.userId ?? null }, captures: (captures || []).map(({ data: _bytes, ...capture }) => capture) },
+    result: result ? { ...result, ...(result.owner ? { owner: { org: result.owner.org ?? null } } : {}) } : null,
+  };
+  // Defence in depth: any other copy of the owner's address (a message, a source) is replaced, whatever field it sits in.
+  return email ? JSON.parse(JSON.stringify(record).split(email).join('[email]')) : record;
+};
 // Where the request came from (CapabilityDecision.source): explicit /explain, the picker, a command-bearing Ctrl+K, a
 // submitted suggestion, the shared router, or the Tutor's chosen tool.
 const SOURCES = ['explicit', 'picker', 'command', 'suggestion', 'classified', 'tutor'];
@@ -351,7 +372,15 @@ export class ExplainJobs {
     return out.value;
   }
   get(id) { return this.state.storage.get(jobKey(id)); }
-  async save(job) { job.updatedAt = Date.now(); await this.state.storage.put(jobKey(job.id), job); }
+  async save(job) { job.updatedAt = Date.now(); if (TERMINAL.has(job.stage) && job.archivedAttempt !== job.attempt) await this.archive(job); await this.state.storage.put(jobKey(job.id), job); }
+  // Every terminal path saves, so this runs once per attempt at its terminal transition, before any prune (prune runs only when a job is created). A write that did not land
+  // leaves the marker unset: the next save of the terminal job tries again. archiveExplanation never throws; a failed archive never fails the job.
+  async archive(job) {
+    try {
+      const result = await this.state.storage.get(`result:${job.resultId}`) ?? null;
+      if (await archiveExplanation(this.env, archiveRecord(this.env, job, result))) job.archivedAttempt = job.attempt;
+    } catch (error) { console.log(JSON.stringify({ event: 'explain_archive_failed', id: job?.id ?? null, error: String(error?.message || error).slice(0, 200) })); }
+  }
   async wake(delay = 50) { const at = Date.now() + delay, current = await this.state.storage.getAlarm?.(); if (!current || current > at) await this.state.storage.setAlarm(at); }
 
   async fetch(req) {
