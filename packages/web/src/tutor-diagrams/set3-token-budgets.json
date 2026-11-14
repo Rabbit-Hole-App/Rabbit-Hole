@@ -337,6 +337,20 @@
         "tokens": 68,
         "sha256": "264c46beef924af0114efe1469e33b7315db899ed71b4dd765097d82bf0c2f6c"
       }
+    },
+    "panels": {
+      "overview": {
+        "tokens": 138,
+        "sha256": "f91674ce092b5f069f6b79944a899ef73bb40c59e3039a4490b7177fa7b398b8"
+      },
+      "standard": {
+        "tokens": 132,
+        "sha256": "d4d714da6e78d8e9f72bec9225856f6399ee844d8eb0ff5ca3de294ebdf0d1f5"
+      },
+      "deep": {
+        "tokens": 163,
+        "sha256": "c54a52948f94237d97586ea79909f62a9637ebf0894be3d12fb4189097d253fa"
+      }
     }
   },
   "pairs": {
@@ -760,6 +774,16 @@
       "single": {
         "tokens": 175,
         "sha256": "d07a2f1cbeca6a8a2a9cdf51d4fe430d23337efbd228673558c819952e2c0f57"
+      }
+    },
+    "ml-logistic-regression-softmax": {
+      "panel": {
+        "tokens": 266,
+        "sha256": "0adb033c1eb8fc26033642f83ea85331dd00caf25072e74dad98d07ba49587bc"
+      },
+      "single": {
+        "tokens": 100,
+        "sha256": "b96fae73469a3602dd4d5feec5f429a6327c202589acc40633aa4ef2c0bbc0fd"
       }
     }
   }

@@ -1807,19 +1807,19 @@
       "height": 579
     },
     "ml-logistic-regression-softmax/320": {
-      "sha256": "de44a6cc4c1e31527233dc0e19c6be48e9ba62d1ec6b362e5933ce01c80daf21",
-      "width": 420,
-      "height": 401
+      "sha256": "e0d6faf6f4b0031e5beaeb33579ab3503889d06e21789fe2f001af9f005c362e",
+      "width": 622,
+      "height": 359
     },
     "ml-logistic-regression-softmax/408": {
-      "sha256": "de44a6cc4c1e31527233dc0e19c6be48e9ba62d1ec6b362e5933ce01c80daf21",
-      "width": 420,
-      "height": 401
+      "sha256": "e0d6faf6f4b0031e5beaeb33579ab3503889d06e21789fe2f001af9f005c362e",
+      "width": 622,
+      "height": 359
     },
     "ml-logistic-regression-softmax/720": {
-      "sha256": "f188a6375aef9ac3a7c0251b5722b414681667e85295846759383edf64786dbc",
+      "sha256": "f154471c120848c968280717207da3a835039c47465459b55a50130e1b556061",
       "width": 720,
-      "height": 384
+      "height": 382
     },
     "ml-logistic-regression-threshold-tradeoff/320": {
       "sha256": "6fd1f219c6171b4bfc781f3ba2b90f9739a77872004832dd3bd1d9424506af74",
@@ -2810,6 +2810,21 @@
       "sha256": "803b6afa2fb969255fa064a1e309f17b61da136baf4a6e9ae18280126fc18bc4",
       "width": 720,
       "height": 209
+    },
+    "shape-panels/320": {
+      "sha256": "62e01b4218be9fd35c6aec3a6ed8d3285e60864484091eafc09b8a9d87138a1b",
+      "width": 388,
+      "height": 255
+    },
+    "shape-panels/408": {
+      "sha256": "a86f89dbe203aa5d33532d5d8e8ce449baffc7a6402a07b71495498a0a58b087",
+      "width": 408,
+      "height": 255
+    },
+    "shape-panels/720": {
+      "sha256": "60a3b3c116bbac4ae65667a639f5a69f92cdf2c93b2b427c165b82692123d65c",
+      "width": 720,
+      "height": 247
     },
     "shape-relationship/320": {
       "sha256": "527d237e93c15528e198eac96ce1d71225dbb560a5e35e3b5849f829fc68c73f",
