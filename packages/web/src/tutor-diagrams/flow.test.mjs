@@ -391,8 +391,28 @@ test('RD-2: a three-branch decision and a decision whose targets share one side 
   assert.deepEqual([408, 720].map(width => digest(layoutFlow(sameSide, width))), ['ec722199f3c665de', '3c0070cc4f645a6c']);
 });
 
-test('RD-2: where a run would be shorter than its label (the swallow card below about 560 px) the old routing is kept byte for byte', () => {
-  assert.deepEqual([320, 408, 440].map(width => digest(layoutFlow(swallow, width))), ['316743c9b72956c7', 'e64b7f5da260d19b', '8d34c9bf49aca868']);
+test('RD-2b: where the targets sit under the side vertices (the swallow card at card widths) each wire drops straight from its vertex and its label stands outside it', () => {
+  for (const width of [320, 408, 440]) {
+    const { elements } = layoutFlow(swallow, width);
+    const diamond = shapeOf(elements, 'aspiration');
+    const wires = elements.filter(element => element.props['data-tutor-edge']).map(pointsFor);
+    for (const [edge, id, vertexX, word, outward] of [['aspiration:defer', 'defer', diamond.left, 'Yes', -1], ['aspiration:proceed', 'proceed', diamond.right, 'No', 1]]) {
+      const points = wireOf(elements, edge), target = shapeOf(elements, id), rect = labelRect(elements, word);
+      assert.deepEqual(points[0], [vertexX, diamond.mid], `${word} leaves its side vertex at ${width}`);
+      assert.equal(points.length, 2, `${word} drops straight at ${width}`);
+      assert.deepEqual(points[1], [vertexX, target.y], `${word} lands on the target top at ${width}`);
+      assert.ok(target.x < vertexX && vertexX < target.x + target.width, `${word} lands inside its target at ${width}`);
+      assert.ok(rect, `${word} label is drawn`);
+      assert.ok(outward < 0 ? rect.x + rect.width <= vertexX - 3 : rect.x >= vertexX + 3, `${word} stands outside the vertex at ${width}`);
+      assert.ok(Math.abs(rect.y + rect.height + 4 - diamond.mid) <= 1, `${word} sits 4 px above the line at ${width}`);
+      for (const other of wires) assert.equal(touches(other, rect), false, `${word} label touches a wire at ${width}`);
+    }
+    assert.equal(wireOf(elements, 'aspiration:defer')[0][1], wireOf(elements, 'aspiration:proceed')[0][1], 'both branches leave at the same height');
+  }
+});
+
+test('RD-2b: at the natural width of the swallow card, where the drop would miss the capsule, the old routing is kept byte for byte', () => {
+  assert.deepEqual([layoutFlow(swallow, 0).width, digest(layoutFlow(swallow, 0)), digest(layoutFlow(swallow, 300))], [283, 'c90af629c7f7cde3', 'f637261122b3b4c6']);
 });
 
 test('RD-2: the highlight path style applies to the routed branch', () => {
