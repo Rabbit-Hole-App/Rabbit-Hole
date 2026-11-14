@@ -1,0 +1,154 @@
+{
+  "id": "ml-gpt2-music-event-tokens",
+  "oldValid": false,
+  "cleanValid": true,
+  "exactRemoval": "three Deep series smooth:false flags only",
+  "removedFields": 3,
+  "oldErrors": [
+    {
+      "instancePath": "/diagram/series/0",
+      "schemaPath": "#/properties/diagram/oneOf/13/properties/series/items/additionalProperties",
+      "keyword": "additionalProperties",
+      "params": {
+        "additionalProperty": "smooth"
+      },
+      "message": "must NOT have additional properties"
+    },
+    {
+      "instancePath": "/diagram/series/1",
+      "schemaPath": "#/properties/diagram/oneOf/13/properties/series/items/additionalProperties",
+      "keyword": "additionalProperties",
+      "params": {
+        "additionalProperty": "smooth"
+      },
+      "message": "must NOT have additional properties"
+    },
+    {
+      "instancePath": "/diagram/series/2",
+      "schemaPath": "#/properties/diagram/oneOf/13/properties/series/items/additionalProperties",
+      "keyword": "additionalProperties",
+      "params": {
+        "additionalProperty": "smooth"
+      },
+      "message": "must NOT have additional properties"
+    },
+    {
+      "instancePath": "/diagram/series/0",
+      "schemaPath": "#/properties/diagram/oneOf/14/properties/series/items/additionalProperties",
+      "keyword": "additionalProperties",
+      "params": {
+        "additionalProperty": "smooth"
+      },
+      "message": "must NOT have additional properties"
+    },
+    {
+      "instancePath": "/diagram/series/1",
+      "schemaPath": "#/properties/diagram/oneOf/14/properties/series/items/additionalProperties",
+      "keyword": "additionalProperties",
+      "params": {
+        "additionalProperty": "smooth"
+      },
+      "message": "must NOT have additional properties"
+    },
+    {
+      "instancePath": "/diagram/series/2",
+      "schemaPath": "#/properties/diagram/oneOf/14/properties/series/items/additionalProperties",
+      "keyword": "additionalProperties",
+      "params": {
+        "additionalProperty": "smooth"
+      },
+      "message": "must NOT have additional properties"
+    }
+  ],
+  "svgRows": [
+    {
+      "width": 320,
+      "svgIdentical": false,
+      "dimensionsIdentical": true,
+      "svgSha256": "b87bef5527007c8f0cfed1891d494cdaccd7b7173ddd2cfddda1ac85aacd3489"
+    },
+    {
+      "width": 408,
+      "svgIdentical": false,
+      "dimensionsIdentical": true,
+      "svgSha256": "e2b47d6454087ce6737e6335a36461995f0425d4937da2debfdcb01f2c432e91"
+    },
+    {
+      "width": 680,
+      "svgIdentical": false,
+      "dimensionsIdentical": true,
+      "svgSha256": "cd038031a650317b712697fcd6dbf143c3b5ca9d85d8f04aa0e590b6f3f2e512"
+    },
+    {
+      "width": 720,
+      "svgIdentical": false,
+      "dimensionsIdentical": true,
+      "svgSha256": "5c80a4af88038273207be6b361da2087d80164ef1e5813aeb11435ec3a5eb215"
+    },
+    {
+      "width": 960,
+      "svgIdentical": false,
+      "dimensionsIdentical": true,
+      "svgSha256": "5c80a4af88038273207be6b361da2087d80164ef1e5813aeb11435ec3a5eb215"
+    }
+  ],
+  "svgRepresentation": "two-point polyline becomes equivalent M/L path",
+  "renderEquivalence": [
+    {
+      "width": 320,
+      "semanticSVGIdentical": true,
+      "pixelPNGIdentical": true,
+      "pngSha256": "d2a92b35db86f9eb7ef29118048219bb6ab209e042d69f6d3401fe1d2d8aa3fc"
+    },
+    {
+      "width": 408,
+      "semanticSVGIdentical": true,
+      "pixelPNGIdentical": true,
+      "pngSha256": "0278c396d8cb4b9f3f385527a33960bc3925f076ee5d4cb40114e6d8aecbc2b9"
+    },
+    {
+      "width": 680,
+      "semanticSVGIdentical": true,
+      "pixelPNGIdentical": true,
+      "pngSha256": "068e7001a3041d4475aee5ca645599df2b6e5540c89d9203f8175bdd9ebded0d"
+    },
+    {
+      "width": 720,
+      "semanticSVGIdentical": true,
+      "pixelPNGIdentical": true,
+      "pngSha256": "8c0e2820dd43c2ae99d4178512d01f2f85a5b86de876ceeff273000cab0ae2dc"
+    },
+    {
+      "width": 960,
+      "semanticSVGIdentical": true,
+      "pixelPNGIdentical": true,
+      "pngSha256": "8c0e2820dd43c2ae99d4178512d01f2f85a5b86de876ceeff273000cab0ae2dc"
+    }
+  ],
+  "snapshotCases": [
+    {
+      "key": "ml-gpt2-music-event-tokens-detailed-detail/408",
+      "available": 408,
+      "semanticSVGIdentical": true,
+      "pixelPNGIdentical": true,
+      "beforeSVGsha256": "e2b47d6454087ce6737e6335a36461995f0425d4937da2debfdcb01f2c432e91",
+      "afterSVGsha256": "0ff1ee1f8788a00b4a30b8201402deb9faf13146195f5df356d49d0cc59e80e0"
+    },
+    {
+      "key": "ml-gpt2-music-event-tokens-detailed-detail/960",
+      "available": 960,
+      "semanticSVGIdentical": true,
+      "pixelPNGIdentical": true,
+      "beforeSVGsha256": "5c80a4af88038273207be6b361da2087d80164ef1e5813aeb11435ec3a5eb215",
+      "afterSVGsha256": "3107e147cdfbc3576e37dcb2488e8fb66002f63348623b01095695b4349abce6"
+    },
+    {
+      "key": "ml-gpt2-music-event-tokens-detailed-detail/natural",
+      "available": 320,
+      "semanticSVGIdentical": true,
+      "pixelPNGIdentical": true,
+      "beforeSVGsha256": "b87bef5527007c8f0cfed1891d494cdaccd7b7173ddd2cfddda1ac85aacd3489",
+      "afterSVGsha256": "d6ca047fb1eae88557acda96a8a6fdd0d51d80aff1c988d057502dd2c8f5ab6f"
+    }
+  ]
+}

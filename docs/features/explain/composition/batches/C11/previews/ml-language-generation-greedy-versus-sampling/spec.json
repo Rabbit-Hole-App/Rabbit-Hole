@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "number-line",
+    "title": "One draw within the complete candidate partition",
+    "min": 0,
+    "max": 1,
+    "intervals": [
+      {
+        "from": 0,
+        "to": 0.078,
+        "startClosed": true,
+        "endClosed": false,
+        "label": "birds"
+      },
+      {
+        "from": 0.078,
+        "to": 0.652,
+        "startClosed": true,
+        "endClosed": false,
+        "label": "fly"
+      },
+      {
+        "from": 0.652,
+        "to": 1,
+        "startClosed": true,
+        "endClosed": false,
+        "label": "<eos>"
+      }
+    ],
+    "markers": [
+      {
+        "value": 0.04,
+        "label": "$u=0.04$: birds"
+      }
+    ],
+    "caption": "Same fixed p; greedy fly, sampled birds. Declared draw $u=0.04$; bounds rounded, decision uses raw CDF."
+  }
+}

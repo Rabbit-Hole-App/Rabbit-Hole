@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Next-word predictions for a fixed prefix",
+    "caption": "The phrase “a small robot sorts” is visible. The bars are alternative guesses for the one blank.",
+    "bars": [
+      {
+        "label": "seeds",
+        "value": 0.62
+      },
+      {
+        "label": "bulbs",
+        "value": 0.278
+      },
+      {
+        "label": "packs",
+        "value": 0.102
+      }
+    ]
+  }
+}

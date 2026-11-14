@@ -1,0 +1,39 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-music-tokenization-music-events-and-time": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 149,
+          "sha256": "b58524e20d5cdf3506b4ad1e2b2428f8073653b550cc6e2de2cf77aba5fdeedc"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 178,
+          "sha256": "c2dd2deab1a8acaa77fd98a4203752698f4d20b36332069f10aba5dfbae04819"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 167,
+          "sha256": "5ddf9c9424b719ae00c3e55010b35e91748b829021375b38212315251a57a5b4"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 186,
+          "sha256": "b36c17193b46db3c43fa873c589225db68211a6ed8baa9e061c68ec2a2d44014"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 165,
+          "sha256": "c53991dc7396c05efd08839ee8a8437e63314660be7b9c8679235e2a05a4787b"
+        }
+      ]
+    }
+  }
+}

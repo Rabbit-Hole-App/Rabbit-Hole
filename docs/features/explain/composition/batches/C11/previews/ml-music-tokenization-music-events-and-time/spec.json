@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Reconstruct every note from the supplied event order",
+    "x": {
+      "label": "Time",
+      "unit": "ms",
+      "min": 0,
+      "max": 750
+    },
+    "y": {
+      "label": "Pitch number",
+      "min": 59,
+      "max": 68,
+      "integerTicks": true
+    },
+    "series": [
+      {
+        "label": "C4",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 60
+          },
+          {
+            "x": 500,
+            "y": 60
+          }
+        ]
+      },
+      {
+        "label": "E4",
+        "kind": "line",
+        "points": [
+          {
+            "x": 250,
+            "y": 64
+          },
+          {
+            "x": 750,
+            "y": 64
+          }
+        ]
+      },
+      {
+        "label": "G4",
+        "kind": "line",
+        "points": [
+          {
+            "x": 500,
+            "y": 67
+          },
+          {
+            "x": 750,
+            "y": 67
+          }
+        ]
+      }
+    ],
+    "caption": "Supplied velocity72. Waits advance time without adding a note; the 3 intervals follow the ordered event groups."
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Every event retains its stable id and accumulated clock",
+    "columns": [
+      "Token IDs",
+      "Ordered events"
+    ],
+    "rows": [
+      {
+        "id": "clock0",
+        "heading": "0 ms",
+        "cells": [
+          "0,1",
+          "Velocity72; Start60"
+        ]
+      },
+      {
+        "id": "clock1",
+        "heading": "250 ms",
+        "cells": [
+          "2,3",
+          "Wait250; Start64"
+        ]
+      },
+      {
+        "id": "clock2",
+        "heading": "500 ms",
+        "cells": [
+          "2,4,5",
+          "Wait250; Release60; Start67"
+        ]
+      },
+      {
+        "id": "clock3",
+        "heading": "750 ms",
+        "cells": [
+          "2,6,7",
+          "Wait250; Release64; Release67"
+        ]
+      }
+    ],
+    "caption": "All performed events in order; equal-clock groups preserve within-clock order. A wait moves time without adding a note."
+  }
+}

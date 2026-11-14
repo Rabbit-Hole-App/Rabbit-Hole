@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Every event retains its stable id and accumulated clock",
+    "columns": [
+      "Token IDs",
+      "Ordered events"
+    ],
+    "rows": [
+      {
+        "id": "clock0",
+        "heading": "0 ms",
+        "cells": [
+          "0,1",
+          "Velocity72; Start60"
+        ]
+      },
+      {
+        "id": "clock1",
+        "heading": "250 ms",
+        "cells": [
+          "2,3",
+          "Wait250; Start64"
+        ]
+      },
+      {
+        "id": "clock2",
+        "heading": "500 ms",
+        "cells": [
+          "2,5,4",
+          "Wait250; Start67; Release60"
+        ]
+      },
+      {
+        "id": "clock3",
+        "heading": "750 ms",
+        "cells": [
+          "2,6,7",
+          "Wait250; Release64; Release67"
+        ]
+      }
+    ],
+    "caption": "Only distinct-pitch simultaneous operations swap; the same vocabulary ids and waits reconstruct identical pitch/onset intervals."
+  }
+}

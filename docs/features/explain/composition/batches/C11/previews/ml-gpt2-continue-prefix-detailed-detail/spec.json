@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "One set of possible continuations",
+    "bars": [
+      {
+        "label": "the",
+        "value": 0.011
+      },
+      {
+        "label": "hall",
+        "value": 0.029
+      },
+      {
+        "label": "light",
+        "value": 0.079
+      },
+      {
+        "label": "flickers",
+        "value": 0.586
+      },
+      {
+        "label": "glows",
+        "value": 0.216
+      },
+      {
+        "label": "dims",
+        "value": 0.079
+      }
+    ],
+    "caption": "Toy probabilities for “the hall light”. The largest bar gives “flickers” with greedy selection."
+  }
+}

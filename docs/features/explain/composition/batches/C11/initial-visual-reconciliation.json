@@ -1,0 +1,283 @@
+{
+  "initialInspectedViews": 39,
+  "finalViews": 39,
+  "identicalSpecs": 30,
+  "identicalSVG408": 30,
+  "changedCount": 9,
+  "pages": 3,
+  "rows": [
+    {
+      "view": "ml-gpt2-continue-prefix-balanced",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "abb46bc2184c80b688b1a006b812ebc215c17ef99e0b0c5f436e1dc393162df3",
+      "svg408Sha256": "b2f4a5c8656bc27908b56988d4fe0543b5e675621e9f2cfe7d7d59ced537f6dd"
+    },
+    {
+      "view": "ml-gpt2-continue-prefix-brief",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "4483c767baf340622600766c9459f6536ac71d611add768467301402775c27f5",
+      "svg408Sha256": "3612ec685e2b94754dd61bf58d9da0cb2785652062f2d2bac953547e76f7a275"
+    },
+    {
+      "view": "ml-gpt2-continue-prefix-detailed",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "b11add04f06f194321ee2f641723d28f8f0edf135b2624dc70a6821000ba7198",
+      "svg408Sha256": "8136c783f6982e8d624eadbcedd7caf78c03bc466de9763f00eddfc83c6cb197"
+    },
+    {
+      "view": "ml-gpt2-continue-prefix-detailed-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "e1bedcb7d944ff906dca9a82eadbfe64a4b0f412adb6bc1e37828db4257ce476",
+      "svg408Sha256": "4663fb1060138b6a3725f3f46df3a0666194482a1deaed9209e521a8ee1443f3"
+    },
+    {
+      "view": "ml-gpt2-music-event-tokens-balanced",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "57dc1b5d195180ed73f10910fe60998a85fb5de1549728987b652d8ef1bb6794",
+      "svg408Sha256": "1f2360311521ba01024432f712630ba85de92c8e9996464af7507ca5ac715014"
+    },
+    {
+      "view": "ml-gpt2-music-event-tokens-brief",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "dc76f8d436611251ca64b3eecbeca890875ac48a34e0986a17e7ebe47eeaccfe",
+      "svg408Sha256": "61670624c5a712e57baca23146be256d263b3fe7c20f67ec7b2f0ceda175e2c8"
+    },
+    {
+      "view": "ml-gpt2-music-event-tokens-detailed",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "21d9ef4e5125bbc862aa54a1dfec55f0e069b517486c3e7442aa597cc68a1566",
+      "svg408Sha256": "1c831a02bc2c0d124ecfdbec7af8d597ef9562965aa792a74e5e276a6d13eaf8"
+    },
+    {
+      "view": "ml-gpt2-music-event-tokens-detailed-detail",
+      "specIdentical": false,
+      "svg408Identical": false,
+      "specSha256": "84d61bcc9d8b893187e32ab947b66cd7af29b6af57ec51fdd21fe06681f1f944",
+      "svg408Sha256": "c5a34e55047e5f5045e5286f9ac5cef091716b2f55b261b9e875bece4c6c0fca"
+    },
+    {
+      "view": "ml-kv-cache-decode-balanced",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "f7113a0bb4f8bb9858a3e4e991c176852b299dae48a59b98e850e2492a0cbbba",
+      "svg408Sha256": "6cd0f3efd5b01fd65e81f670b7a5c0488f9382587e076a4d080ab9af7d056c43"
+    },
+    {
+      "view": "ml-kv-cache-decode-brief",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "f7113a0bb4f8bb9858a3e4e991c176852b299dae48a59b98e850e2492a0cbbba",
+      "svg408Sha256": "6cd0f3efd5b01fd65e81f670b7a5c0488f9382587e076a4d080ab9af7d056c43"
+    },
+    {
+      "view": "ml-kv-cache-decode-detailed",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "f7113a0bb4f8bb9858a3e4e991c176852b299dae48a59b98e850e2492a0cbbba",
+      "svg408Sha256": "6cd0f3efd5b01fd65e81f670b7a5c0488f9382587e076a4d080ab9af7d056c43"
+    },
+    {
+      "view": "ml-language-generation-autoregressive-feedback-balanced",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "9d01c5fd649d08cbe1102d6e70831dee16ba52430fbf883a7fb3c14af5c6ead6",
+      "svg408Sha256": "813605048020e5c04cd2e3863eec63d070b383882596808a94f5fdfc8aa4732c"
+    },
+    {
+      "view": "ml-language-generation-autoregressive-feedback-balanced-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "86259b913fb14d9deff5fd2a6607a83441919d6bd9244da47dd2fdf601117738",
+      "svg408Sha256": "6cb2c988e04657d3746bf5c243d44bc7175d3ba4ac9be3a6e8ca0206c3d8d52a"
+    },
+    {
+      "view": "ml-language-generation-autoregressive-feedback-brief",
+      "specIdentical": false,
+      "svg408Identical": false,
+      "specSha256": "ba5f9aef72ef345b63d0b1ca267752f7829e9714b3656e8e5055564c4aab92eb",
+      "svg408Sha256": "10fbb5ded5fb9ac0022130e1b996395957b98bf59001b987854c05b775f41611"
+    },
+    {
+      "view": "ml-language-generation-autoregressive-feedback-detailed",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "0acb9b3ee80cd3d454d158ce8de0d317b787f5a280b4c4d4bbdafe8a3c434243",
+      "svg408Sha256": "5381aa1373a646b1b0338856a063e29a018a0fb852c2fbde55dab3b21c814211"
+    },
+    {
+      "view": "ml-language-generation-autoregressive-feedback-detailed-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "4304ca3e1d30581266115bbb2abf2fc408319e528660f5be04704279f6712069",
+      "svg408Sha256": "14c091b757c59bc1e28c8c45118e4e558db82983480f9a62322268349ec7dfe4"
+    },
+    {
+      "view": "ml-language-generation-greedy-versus-sampling-balanced",
+      "specIdentical": false,
+      "svg408Identical": false,
+      "specSha256": "a2178dcd2d9b7c3d6b13356ae846c887bd588f2fe9cde232bc16760f3f7e9567",
+      "svg408Sha256": "07d2b0f64737dc169996dc5b43f9f17a0502d49d96cc43384350d056e41007ca"
+    },
+    {
+      "view": "ml-language-generation-greedy-versus-sampling-balanced-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "01b1451dde0ecbd6931e3e84296f71f81d8ad3dd0fc1bc3d418332e8812ccf8e",
+      "svg408Sha256": "3fc0780778503cc090e8b8933847da2454d56a6310e8d131061090f0115ddada"
+    },
+    {
+      "view": "ml-language-generation-greedy-versus-sampling-brief",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "01b1451dde0ecbd6931e3e84296f71f81d8ad3dd0fc1bc3d418332e8812ccf8e",
+      "svg408Sha256": "3fc0780778503cc090e8b8933847da2454d56a6310e8d131061090f0115ddada"
+    },
+    {
+      "view": "ml-language-generation-greedy-versus-sampling-detailed",
+      "specIdentical": false,
+      "svg408Identical": false,
+      "specSha256": "6b40a3f0c21e33e69ab5df3b306409fea2ba08935420d6a46a90d5abfbb548b0",
+      "svg408Sha256": "4277c72984b1d2ce83b3dfcaa23d871e773bcc7e7e8c9106c400ea9892bf0498"
+    },
+    {
+      "view": "ml-language-generation-greedy-versus-sampling-detailed-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "a6e877cfaee8286f298f1eb88d9a6b3e10967d35582dce78b4ca2e1ee6a7e5c3",
+      "svg408Sha256": "b41847975cb511407d9ca5b78c05d5d475e0e3c2747523a4d75ac65d69f2ad93"
+    },
+    {
+      "view": "ml-language-generation-key-value-cache-balanced",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "c39ae7e762ef4d1ec20ca71c5d28cecbc02bd3a7e0bcc7a1f134836e78402aa9",
+      "svg408Sha256": "ee9a66a9dd26f84c1f1cced319d924a5bbfd3f6ec9e401512a98a664227a0d17"
+    },
+    {
+      "view": "ml-language-generation-key-value-cache-balanced-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "bd15b082ee6525d6b82f47a7424c98363b0545b2f70f6b7b739acd9e2eeacaff",
+      "svg408Sha256": "4a826e8259b3b6e1700e87d2bdbd3e2b50756058567fd0e768037c0b3f551031"
+    },
+    {
+      "view": "ml-language-generation-key-value-cache-brief",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "0a97afb3adbe877eddc886d4e80d87f3c9d4a1d0d8a0a546ddaa53b000621e02",
+      "svg408Sha256": "f44cd3b37c6a72092d43a416f0763eb6a93b05dbd431e74bfd3d24c12645a27a"
+    },
+    {
+      "view": "ml-language-generation-key-value-cache-detailed",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "6e9b4aa87aa8cf6d62c39e2d84a9e488a586078655b7b65069da84da5914bf0b",
+      "svg408Sha256": "a7aa20aee7cc9a87bfdb2152c2832c3334f4c93da5a98f1252c068ab2a4afe84"
+    },
+    {
+      "view": "ml-language-generation-key-value-cache-detailed-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "3daf50a9e08b51c73923d583f4f9d4841bc66461f438cd45b2f3277529e5fed0",
+      "svg408Sha256": "e61076f71b15341a80b403e523e9ac7cfb138f848823c0a7d86789be3fcbe72c"
+    },
+    {
+      "view": "ml-language-generation-vocabulary-score-probabilities-balanced",
+      "specIdentical": false,
+      "svg408Identical": false,
+      "specSha256": "eeefd911477826485850027809ccf4b019c9be0cbe0231491945f129f02de449",
+      "svg408Sha256": "a5589bfc6b42fae7e51c29340008aa122c92ac21f41e92166a2fc47467b7a273"
+    },
+    {
+      "view": "ml-language-generation-vocabulary-score-probabilities-balanced-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "36983d98e0cb29fac778eaddaff58759164b135b548f8fca05f3eda338d65f1c",
+      "svg408Sha256": "e7c208996772e3fe2a3a2c423dddcf5a415873ce9ded65de1ae622b7391f7af0"
+    },
+    {
+      "view": "ml-language-generation-vocabulary-score-probabilities-brief",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "36983d98e0cb29fac778eaddaff58759164b135b548f8fca05f3eda338d65f1c",
+      "svg408Sha256": "e7c208996772e3fe2a3a2c423dddcf5a415873ce9ded65de1ae622b7391f7af0"
+    },
+    {
+      "view": "ml-language-generation-vocabulary-score-probabilities-detailed",
+      "specIdentical": false,
+      "svg408Identical": false,
+      "specSha256": "af0e5dd37b6deef48bf0f25c1f36ca4af97fdf56b51d29072e4d1e175f90d692",
+      "svg408Sha256": "0eacb341960de05e1f1e6741d0831eb5a4ba27f1f837ec5c830ce565d5efb0ad"
+    },
+    {
+      "view": "ml-language-generation-vocabulary-score-probabilities-detailed-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "36983d98e0cb29fac778eaddaff58759164b135b548f8fca05f3eda338d65f1c",
+      "svg408Sha256": "e7c208996772e3fe2a3a2c423dddcf5a415873ce9ded65de1ae622b7391f7af0"
+    },
+    {
+      "view": "ml-music-tokenization-music-events-and-time-balanced",
+      "specIdentical": false,
+      "svg408Identical": false,
+      "specSha256": "852542a962cbab5cb62254e9e71514f09534f7040ac5342b3ae84b1c02ca6894",
+      "svg408Sha256": "1c2254c69a9534a767b43f295abf3a18b97283d8fb24832a30c7420307a90455"
+    },
+    {
+      "view": "ml-music-tokenization-music-events-and-time-balanced-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "5ddf9c9424b719ae00c3e55010b35e91748b829021375b38212315251a57a5b4",
+      "svg408Sha256": "efc6e7bd9c35373da4c357e452622ca79e5fa9bcff1180c8e4b8e0fbcb99abc7"
+    },
+    {
+      "view": "ml-music-tokenization-music-events-and-time-brief",
+      "specIdentical": false,
+      "svg408Identical": false,
+      "specSha256": "b58524e20d5cdf3506b4ad1e2b2428f8073653b550cc6e2de2cf77aba5fdeedc",
+      "svg408Sha256": "29b9cf3e36953108007421af948de45919f404ca4c7cefcac80963a3b9697c81"
+    },
+    {
+      "view": "ml-music-tokenization-music-events-and-time-detailed",
+      "specIdentical": false,
+      "svg408Identical": false,
+      "specSha256": "b36c17193b46db3c43fa873c589225db68211a6ed8baa9e061c68ec2a2d44014",
+      "svg408Sha256": "dfe0ffda4c48077b2f0f94f84d1738518e0107ed8900276f465adb47f69eb1d2"
+    },
+    {
+      "view": "ml-music-tokenization-music-events-and-time-detailed-detail",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "c53991dc7396c05efd08839ee8a8437e63314660be7b9c8679235e2a05a4787b",
+      "svg408Sha256": "459418e549aa98d29c2a721f08c9cf181bf49d4563a9af2e1988e8ce2dcd8873"
+    },
+    {
+      "view": "ml-word2vec-prefix-guesses-balanced",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "7b875b73e459d0562967489499ead9fe509fb4baec996b0f186a540a79175e63",
+      "svg408Sha256": "8018ffecb1cd0c984df0a4dcb6ef18278aea0d94d763ec248b52b59f6bd41632"
+    },
+    {
+      "view": "ml-word2vec-prefix-guesses-brief",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "ae255565460ff41c830cb06645c1ba42e04855e35739de5c5461bec2b9e4ad45",
+      "svg408Sha256": "0b09b67a24b436ca2541c8b5da2cbebd414bfa672aa2dd2ff5cc533aa9e24313"
+    },
+    {
+      "view": "ml-word2vec-prefix-guesses-detailed",
+      "specIdentical": true,
+      "svg408Identical": true,
+      "specSha256": "981f49cfcad035b46acb11eb6f094791c90c0c8ecba010f629edd1145dcbeed8",
+      "svg408Sha256": "a9fea45ed17ffb715b7759852555b94f86972698e53977d01936bad7d7d6dd67"
+    }
+  ]
+}

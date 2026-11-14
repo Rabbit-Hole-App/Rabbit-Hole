@@ -1,0 +1,870 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 3876,
+  "changedPriorPicks": [],
+  "sourceHeadings": 15,
+  "uniqueSourcePrompts": 15,
+  "sourceCases": 45,
+  "sourceHits": 45,
+  "actualPlannedAuthorSchemaChecks": 45,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-music-tokenization-music-events-and-time",
+      "expectedFamily": "ml-gpt2-music-event-tokens",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-62",
+      "prompt": "Music can be tokenized into a vocabulary that encodes changes in pitch, timing and loudness.",
+      "depth": "brief",
+      "firstFamily": "ml-gpt2-music-event-tokens",
+      "rawAuthorReferenceId": "ml-gpt2-music-event-tokens",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-music-event-tokens",
+      "preparedId": "ml-gpt2-music-event-tokens",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-music-tokenization-music-events-and-time",
+      "expectedFamily": "ml-gpt2-music-event-tokens",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-62",
+      "prompt": "Music can be tokenized into a vocabulary that encodes changes in pitch, timing and loudness.",
+      "depth": "balanced",
+      "firstFamily": "ml-gpt2-music-event-tokens",
+      "rawAuthorReferenceId": "ml-gpt2-music-event-tokens",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-music-event-tokens",
+      "preparedId": "ml-gpt2-music-event-tokens",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-music-tokenization-music-events-and-time",
+      "expectedFamily": "ml-gpt2-music-event-tokens",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-62",
+      "prompt": "Music can be tokenized into a vocabulary that encodes changes in pitch, timing and loudness.",
+      "depth": "detailed",
+      "firstFamily": "ml-gpt2-music-event-tokens",
+      "rawAuthorReferenceId": "ml-gpt2-music-event-tokens",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-music-event-tokens",
+      "preparedId": "ml-gpt2-music-event-tokens",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-music-tokenization-music-events-and-time",
+      "expectedFamily": "ml-music-tokenization-music-events-and-time",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-63",
+      "prompt": "Note onset, elapsed time and note release events reconstruct a performed phrase with overlapping notes.",
+      "depth": "brief",
+      "firstFamily": "ml-music-tokenization-music-events-and-time",
+      "rawAuthorReferenceId": "ml-music-tokenization-music-events-and-time",
+      "firstPick": true,
+      "preparedFamily": "ml-music-tokenization-music-events-and-time",
+      "preparedId": "ml-music-tokenization-music-events-and-time",
+      "preparedSchemaValid": true,
+      "kind": "coordinate-plot",
+      "collision": false,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-music-tokenization-music-events-and-time",
+      "expectedFamily": "ml-music-tokenization-music-events-and-time",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-63",
+      "prompt": "Note onset, elapsed time and note release events reconstruct a performed phrase with overlapping notes.",
+      "depth": "balanced",
+      "firstFamily": "ml-music-tokenization-music-events-and-time",
+      "rawAuthorReferenceId": "ml-music-tokenization-music-events-and-time",
+      "firstPick": true,
+      "preparedFamily": "ml-music-tokenization-music-events-and-time",
+      "preparedId": "ml-music-tokenization-music-events-and-time",
+      "preparedSchemaValid": true,
+      "kind": "coordinate-plot",
+      "collision": false,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-music-tokenization-music-events-and-time",
+      "expectedFamily": "ml-music-tokenization-music-events-and-time",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-63",
+      "prompt": "Note onset, elapsed time and note release events reconstruct a performed phrase with overlapping notes.",
+      "depth": "detailed",
+      "firstFamily": "ml-music-tokenization-music-events-and-time",
+      "rawAuthorReferenceId": "ml-music-tokenization-music-events-and-time",
+      "firstPick": true,
+      "preparedFamily": "ml-music-tokenization-music-events-and-time",
+      "preparedId": "ml-music-tokenization-music-events-and-time",
+      "preparedSchemaValid": true,
+      "kind": "coordinate-plot",
+      "collision": false,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "expectedFamily": "ml-word2vec-prefix-guesses",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-02",
+      "prompt": "Keyboard suggestions illustrate the same basic next-token task as a language model.",
+      "depth": "brief",
+      "firstFamily": "ml-word2vec-prefix-guesses",
+      "rawAuthorReferenceId": "ml-word2vec-prefix-guesses",
+      "firstPick": true,
+      "preparedFamily": "ml-word2vec-prefix-guesses",
+      "preparedId": "ml-word2vec-prefix-guesses",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "expectedFamily": "ml-word2vec-prefix-guesses",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-02",
+      "prompt": "Keyboard suggestions illustrate the same basic next-token task as a language model.",
+      "depth": "balanced",
+      "firstFamily": "ml-word2vec-prefix-guesses",
+      "rawAuthorReferenceId": "ml-word2vec-prefix-guesses",
+      "firstPick": true,
+      "preparedFamily": "ml-word2vec-prefix-guesses",
+      "preparedId": "ml-word2vec-prefix-guesses",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "expectedFamily": "ml-word2vec-prefix-guesses",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-02",
+      "prompt": "Keyboard suggestions illustrate the same basic next-token task as a language model.",
+      "depth": "detailed",
+      "firstFamily": "ml-word2vec-prefix-guesses",
+      "rawAuthorReferenceId": "ml-word2vec-prefix-guesses",
+      "firstPick": true,
+      "preparedFamily": "ml-word2vec-prefix-guesses",
+      "preparedId": "ml-word2vec-prefix-guesses",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "expectedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-31",
+      "prompt": "A learned projection produces one score for each vocabulary entry and softmax turns those scores into next-token probabilities.",
+      "depth": "brief",
+      "firstFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "rawAuthorReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedId": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "expectedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-31",
+      "prompt": "A learned projection produces one score for each vocabulary entry and softmax turns those scores into next-token probabilities.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "rawAuthorReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedId": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "expectedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-31",
+      "prompt": "A learned projection produces one score for each vocabulary entry and softmax turns those scores into next-token probabilities.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "rawAuthorReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedId": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "expectedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-25",
+      "prompt": "The output layer projects a hidden vector to one score per token in the vocabulary.",
+      "depth": "brief",
+      "firstFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "rawAuthorReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedId": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "expectedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-25",
+      "prompt": "The output layer projects a hidden vector to one score per token in the vocabulary.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "rawAuthorReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedId": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "expectedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-25",
+      "prompt": "The output layer projects a hidden vector to one score per token in the vocabulary.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "rawAuthorReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedId": "ml-language-generation-vocabulary-score-probabilities",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-kv-cache-decode",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-16",
+      "prompt": "The next inference step processes the new token while earlier context remains available.",
+      "depth": "brief",
+      "firstFamily": "ml-kv-cache-decode",
+      "rawAuthorReferenceId": "ml-kv-cache-decode",
+      "firstPick": true,
+      "preparedFamily": "ml-kv-cache-decode",
+      "preparedId": "ml-kv-cache-decode",
+      "preparedSchemaValid": true,
+      "kind": "sequence",
+      "collision": false,
+      "plannedKinds": [
+        "sequence"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-kv-cache-decode",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-16",
+      "prompt": "The next inference step processes the new token while earlier context remains available.",
+      "depth": "balanced",
+      "firstFamily": "ml-kv-cache-decode",
+      "rawAuthorReferenceId": "ml-kv-cache-decode",
+      "firstPick": true,
+      "preparedFamily": "ml-kv-cache-decode",
+      "preparedId": "ml-kv-cache-decode",
+      "preparedSchemaValid": true,
+      "kind": "sequence",
+      "collision": false,
+      "plannedKinds": [
+        "sequence"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-kv-cache-decode",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-16",
+      "prompt": "The next inference step processes the new token while earlier context remains available.",
+      "depth": "detailed",
+      "firstFamily": "ml-kv-cache-decode",
+      "rawAuthorReferenceId": "ml-kv-cache-decode",
+      "firstPick": true,
+      "preparedFamily": "ml-kv-cache-decode",
+      "preparedId": "ml-kv-cache-decode",
+      "preparedSchemaValid": true,
+      "kind": "sequence",
+      "collision": false,
+      "plannedKinds": [
+        "sequence"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-kv-cache-decode",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-42",
+      "prompt": "A new token query can score cached earlier keys without recomputing their projections.",
+      "depth": "brief",
+      "firstFamily": "ml-kv-cache-decode",
+      "rawAuthorReferenceId": "ml-kv-cache-decode",
+      "firstPick": true,
+      "preparedFamily": "ml-kv-cache-decode",
+      "preparedId": "ml-kv-cache-decode",
+      "preparedSchemaValid": true,
+      "kind": "sequence",
+      "collision": false,
+      "plannedKinds": [
+        "sequence"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-kv-cache-decode",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-42",
+      "prompt": "A new token query can score cached earlier keys without recomputing their projections.",
+      "depth": "balanced",
+      "firstFamily": "ml-kv-cache-decode",
+      "rawAuthorReferenceId": "ml-kv-cache-decode",
+      "firstPick": true,
+      "preparedFamily": "ml-kv-cache-decode",
+      "preparedId": "ml-kv-cache-decode",
+      "preparedSchemaValid": true,
+      "kind": "sequence",
+      "collision": false,
+      "plannedKinds": [
+        "sequence"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-kv-cache-decode",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-42",
+      "prompt": "A new token query can score cached earlier keys without recomputing their projections.",
+      "depth": "detailed",
+      "firstFamily": "ml-kv-cache-decode",
+      "rawAuthorReferenceId": "ml-kv-cache-decode",
+      "firstPick": true,
+      "preparedFamily": "ml-kv-cache-decode",
+      "preparedId": "ml-kv-cache-decode",
+      "preparedSchemaValid": true,
+      "kind": "sequence",
+      "collision": false,
+      "plannedKinds": [
+        "sequence"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-language-generation-key-value-cache",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-41",
+      "prompt": "The cache keeps a layer's earlier keys and values for future token queries.",
+      "depth": "brief",
+      "firstFamily": "ml-language-generation-key-value-cache",
+      "rawAuthorReferenceId": "ml-language-generation-key-value-cache",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-key-value-cache",
+      "preparedId": "ml-language-generation-key-value-cache",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-language-generation-key-value-cache",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-41",
+      "prompt": "The cache keeps a layer's earlier keys and values for future token queries.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-generation-key-value-cache",
+      "rawAuthorReferenceId": "ml-language-generation-key-value-cache",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-key-value-cache",
+      "preparedId": "ml-language-generation-key-value-cache",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-language-generation-key-value-cache",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-41",
+      "prompt": "The cache keeps a layer's earlier keys and values for future token queries.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-generation-key-value-cache",
+      "rawAuthorReferenceId": "ml-language-generation-key-value-cache",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-key-value-cache",
+      "preparedId": "ml-language-generation-key-value-cache",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-language-generation-key-value-cache",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-49",
+      "prompt": "A decoder head uses stored earlier keys as well as the newly computed key when scoring context.",
+      "depth": "brief",
+      "firstFamily": "ml-language-generation-key-value-cache",
+      "rawAuthorReferenceId": "ml-language-generation-key-value-cache",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-key-value-cache",
+      "preparedId": "ml-language-generation-key-value-cache",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-language-generation-key-value-cache",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-49",
+      "prompt": "A decoder head uses stored earlier keys as well as the newly computed key when scoring context.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-generation-key-value-cache",
+      "rawAuthorReferenceId": "ml-language-generation-key-value-cache",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-key-value-cache",
+      "preparedId": "ml-language-generation-key-value-cache",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "expectedFamily": "ml-language-generation-key-value-cache",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-49",
+      "prompt": "A decoder head uses stored earlier keys as well as the newly computed key when scoring context.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-generation-key-value-cache",
+      "rawAuthorReferenceId": "ml-language-generation-key-value-cache",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-key-value-cache",
+      "preparedId": "ml-language-generation-key-value-cache",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-greedy-versus-sampling",
+      "expectedFamily": "ml-language-generation-greedy-versus-sampling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-27",
+      "prompt": "Greedy selection and sampling can choose different next tokens from the same distribution.",
+      "depth": "brief",
+      "firstFamily": "ml-language-generation-greedy-versus-sampling",
+      "rawAuthorReferenceId": "ml-language-generation-greedy-versus-sampling",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-greedy-versus-sampling",
+      "preparedId": "ml-language-generation-greedy-versus-sampling",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-greedy-versus-sampling",
+      "expectedFamily": "ml-language-generation-greedy-versus-sampling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-27",
+      "prompt": "Greedy selection and sampling can choose different next tokens from the same distribution.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-generation-greedy-versus-sampling",
+      "rawAuthorReferenceId": "ml-language-generation-greedy-versus-sampling",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-greedy-versus-sampling",
+      "preparedId": "ml-language-generation-greedy-versus-sampling",
+      "preparedSchemaValid": true,
+      "kind": "number-line",
+      "collision": false,
+      "plannedKinds": [
+        "number-line"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-greedy-versus-sampling",
+      "expectedFamily": "ml-language-generation-greedy-versus-sampling",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-27",
+      "prompt": "Greedy selection and sampling can choose different next tokens from the same distribution.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-generation-greedy-versus-sampling",
+      "rawAuthorReferenceId": "ml-language-generation-greedy-versus-sampling",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-greedy-versus-sampling",
+      "preparedId": "ml-language-generation-greedy-versus-sampling",
+      "preparedSchemaValid": true,
+      "kind": "number-line",
+      "collision": false,
+      "plannedKinds": [
+        "number-line"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-29",
+      "prompt": "The encoder computes source memory before the decoder begins to predict target tokens.",
+      "depth": "brief",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-29",
+      "prompt": "The encoder computes source memory before the decoder begins to predict target tokens.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-29",
+      "prompt": "The encoder computes source memory before the decoder begins to predict target tokens.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-30",
+      "prompt": "Autoregressive generation appends each predicted token to the prefix and repeats until a stop token or limit.",
+      "depth": "brief",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-30",
+      "prompt": "Autoregressive generation appends each predicted token to the prefix and repeats until a stop token or limit.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-30",
+      "prompt": "Autoregressive generation appends each predicted token to the prefix and repeats until a stop token or limit.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-07",
+      "prompt": "A causal decoder reveals one predicted token at each successive generation step.",
+      "depth": "brief",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-07",
+      "prompt": "A causal decoder reveals one predicted token at each successive generation step.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-07",
+      "prompt": "A causal decoder reveals one predicted token at each successive generation step.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-15",
+      "prompt": "Generation can begin from a special start condition even with no user text.",
+      "depth": "brief",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-15",
+      "prompt": "Generation can begin from a special start condition even with no user text.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-language-generation-autoregressive-feedback",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-15",
+      "prompt": "Generation can begin from a special start condition even with no user text.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-generation-autoregressive-feedback",
+      "rawAuthorReferenceId": "ml-language-generation-autoregressive-feedback",
+      "firstPick": true,
+      "preparedFamily": "ml-language-generation-autoregressive-feedback",
+      "preparedId": "ml-language-generation-autoregressive-feedback",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-gpt2-continue-prefix",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-08",
+      "prompt": "The token just predicted becomes part of the next autoregressive input.",
+      "depth": "brief",
+      "firstFamily": "ml-gpt2-continue-prefix",
+      "rawAuthorReferenceId": "ml-gpt2-continue-prefix",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-continue-prefix",
+      "preparedId": "ml-gpt2-continue-prefix",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-gpt2-continue-prefix",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-08",
+      "prompt": "The token just predicted becomes part of the next autoregressive input.",
+      "depth": "balanced",
+      "firstFamily": "ml-gpt2-continue-prefix",
+      "rawAuthorReferenceId": "ml-gpt2-continue-prefix",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-continue-prefix",
+      "preparedId": "ml-gpt2-continue-prefix",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "expectedFamily": "ml-gpt2-continue-prefix",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-08",
+      "prompt": "The token just predicted becomes part of the next autoregressive input.",
+      "depth": "detailed",
+      "firstFamily": "ml-gpt2-continue-prefix",
+      "rawAuthorReferenceId": "ml-gpt2-continue-prefix",
+      "firstPick": true,
+      "preparedFamily": "ml-gpt2-continue-prefix",
+      "preparedId": "ml-gpt2-continue-prefix",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

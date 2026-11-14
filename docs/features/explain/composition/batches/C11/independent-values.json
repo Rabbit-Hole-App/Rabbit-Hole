@@ -1,0 +1,516 @@
+{
+  "head": [
+    {
+      "prefix": [
+        "<bos>"
+      ],
+      "h": [
+        1,
+        0
+      ],
+      "logits": [
+        2,
+        0,
+        1.5
+      ],
+      "probabilities": [
+        0.5740969929676946,
+        0.0776955791485706,
+        0.3482074278837349
+      ],
+      "maximum": "birds"
+    },
+    {
+      "prefix": [
+        "<bos>",
+        "birds"
+      ],
+      "h": [
+        0,
+        1
+      ],
+      "logits": [
+        0,
+        2,
+        1.5
+      ],
+      "probabilities": [
+        0.0776955791485706,
+        0.5740969929676946,
+        0.3482074278837349
+      ],
+      "maximum": "fly"
+    },
+    {
+      "prefix": [
+        "<bos>",
+        "birds",
+        "fly"
+      ],
+      "h": [
+        1,
+        1
+      ],
+      "logits": [
+        2,
+        2,
+        3.0
+      ],
+      "probabilities": [
+        0.21194155761708544,
+        0.21194155761708544,
+        0.5761168847658291
+      ],
+      "maximum": "<eos>"
+    }
+  ],
+  "cdf": [
+    0,
+    0.0776955791485706,
+    0.6517925721162652,
+    1
+  ],
+  "selection": [
+    {
+      "u": 0.04,
+      "sampled": "birds",
+      "greedy": "fly"
+    },
+    {
+      "u": 0.06,
+      "sampled": "birds",
+      "greedy": "fly"
+    }
+  ],
+  "caches": [
+    {
+      "H": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "q": [
+        1,
+        1
+      ],
+      "K": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "V": [
+        [
+          2,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "scores": [
+        0.7071067811865475,
+        0.7071067811865475,
+        1.414213562373095
+      ],
+      "weights": [
+        0.2482550782577231,
+        0.2482550782577231,
+        0.5034898434845538
+      ],
+      "context": [
+        1.5034898434845538,
+        0.7517449217422769
+      ]
+    },
+    {
+      "H": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          -1,
+          1
+        ]
+      ],
+      "q": [
+        -1,
+        1
+      ],
+      "K": [
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          -1,
+          1
+        ]
+      ],
+      "V": [
+        [
+          2,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          -2,
+          1
+        ]
+      ],
+      "scores": [
+        -0.7071067811865475,
+        0.7071067811865475,
+        0.0,
+        1.414213562373095
+      ],
+      "weights": [
+        0.06458483864659637,
+        0.26565361202674675,
+        0.13098547884644676,
+        0.5387760704802101
+      ],
+      "context": [
+        -0.6864115059743341,
+        0.9354151613534036
+      ]
+    }
+  ],
+  "musicBase": {
+    "trace": [
+      {
+        "index": 0,
+        "id": 0,
+        "kind": "Velocity",
+        "value": 72,
+        "clock": 0
+      },
+      {
+        "index": 1,
+        "id": 1,
+        "kind": "Start",
+        "value": 60,
+        "clock": 0
+      },
+      {
+        "index": 2,
+        "id": 2,
+        "kind": "Wait",
+        "value": 250,
+        "clock": 250
+      },
+      {
+        "index": 3,
+        "id": 3,
+        "kind": "Start",
+        "value": 64,
+        "clock": 250
+      },
+      {
+        "index": 4,
+        "id": 2,
+        "kind": "Wait",
+        "value": 250,
+        "clock": 500
+      },
+      {
+        "index": 5,
+        "id": 4,
+        "kind": "Release",
+        "value": 60,
+        "clock": 500
+      },
+      {
+        "index": 6,
+        "id": 5,
+        "kind": "Start",
+        "value": 67,
+        "clock": 500
+      },
+      {
+        "index": 7,
+        "id": 2,
+        "kind": "Wait",
+        "value": 250,
+        "clock": 750
+      },
+      {
+        "index": 8,
+        "id": 6,
+        "kind": "Release",
+        "value": 64,
+        "clock": 750
+      },
+      {
+        "index": 9,
+        "id": 7,
+        "kind": "Release",
+        "value": 67,
+        "clock": 750
+      }
+    ],
+    "notes": [
+      {
+        "pitch": 60,
+        "start": 0,
+        "end": 500
+      },
+      {
+        "pitch": 64,
+        "start": 250,
+        "end": 750
+      },
+      {
+        "pitch": 67,
+        "start": 500,
+        "end": 750
+      }
+    ],
+    "totalTime": 750
+  },
+  "musicProbe": {
+    "trace": [
+      {
+        "index": 0,
+        "id": 0,
+        "kind": "Velocity",
+        "value": 72,
+        "clock": 0
+      },
+      {
+        "index": 1,
+        "id": 1,
+        "kind": "Start",
+        "value": 60,
+        "clock": 0
+      },
+      {
+        "index": 2,
+        "id": 2,
+        "kind": "Wait",
+        "value": 250,
+        "clock": 250
+      },
+      {
+        "index": 3,
+        "id": 3,
+        "kind": "Start",
+        "value": 64,
+        "clock": 250
+      },
+      {
+        "index": 4,
+        "id": 2,
+        "kind": "Wait",
+        "value": 250,
+        "clock": 500
+      },
+      {
+        "index": 5,
+        "id": 5,
+        "kind": "Start",
+        "value": 67,
+        "clock": 500
+      },
+      {
+        "index": 6,
+        "id": 4,
+        "kind": "Release",
+        "value": 60,
+        "clock": 500
+      },
+      {
+        "index": 7,
+        "id": 2,
+        "kind": "Wait",
+        "value": 250,
+        "clock": 750
+      },
+      {
+        "index": 8,
+        "id": 6,
+        "kind": "Release",
+        "value": 64,
+        "clock": 750
+      },
+      {
+        "index": 9,
+        "id": 7,
+        "kind": "Release",
+        "value": 67,
+        "clock": 750
+      }
+    ],
+    "notes": [
+      {
+        "pitch": 60,
+        "start": 0,
+        "end": 500
+      },
+      {
+        "pitch": 64,
+        "start": 250,
+        "end": 750
+      },
+      {
+        "pitch": 67,
+        "start": 500,
+        "end": 750
+      }
+    ],
+    "totalTime": 750
+  },
+  "runs": [
+    {
+      "prompt": [],
+      "limit": 3,
+      "calls": [
+        {
+          "input": [
+            "<bos>"
+          ],
+          "token": "birds"
+        },
+        {
+          "input": [
+            "<bos>",
+            "birds"
+          ],
+          "token": "fly"
+        },
+        {
+          "input": [
+            "<bos>",
+            "birds",
+            "fly"
+          ],
+          "token": "<eos>"
+        }
+      ],
+      "prefix": [
+        "<bos>",
+        "birds",
+        "fly",
+        "<eos>"
+      ],
+      "emitted": [
+        "birds",
+        "fly",
+        "<eos>"
+      ],
+      "reason": "eos",
+      "visible": "birds fly"
+    },
+    {
+      "prompt": [],
+      "limit": 2,
+      "calls": [
+        {
+          "input": [
+            "<bos>"
+          ],
+          "token": "birds"
+        },
+        {
+          "input": [
+            "<bos>",
+            "birds"
+          ],
+          "token": "fly"
+        }
+      ],
+      "prefix": [
+        "<bos>",
+        "birds",
+        "fly"
+      ],
+      "emitted": [
+        "birds",
+        "fly"
+      ],
+      "reason": "limit",
+      "visible": "birds fly"
+    },
+    {
+      "prompt": [
+        "birds"
+      ],
+      "limit": 3,
+      "calls": [
+        {
+          "input": [
+            "<bos>",
+            "birds"
+          ],
+          "token": "fly"
+        },
+        {
+          "input": [
+            "<bos>",
+            "birds",
+            "fly"
+          ],
+          "token": "<eos>"
+        }
+      ],
+      "prefix": [
+        "<bos>",
+        "birds",
+        "fly",
+        "<eos>"
+      ],
+      "emitted": [
+        "fly",
+        "<eos>"
+      ],
+      "reason": "eos",
+      "visible": "birds fly"
+    }
+  ]
+}

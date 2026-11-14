@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Layer A keeps one K/V row per position",
+    "rowLabel": "Position / origin",
+    "columnLabel": "K/V feature",
+    "columns": [
+      "K0",
+      "K1",
+      "V0",
+      "V1"
+    ],
+    "rows": [
+      {
+        "label": "P0 old",
+        "cells": [
+          1,
+          0,
+          2,
+          0
+        ]
+      },
+      {
+        "label": "P1 old",
+        "cells": [
+          0,
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "label": "P2 current",
+        "cells": [
+          1,
+          1,
+          2,
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 2
+    },
+    "caption": "Layer A: $q=(1,1)$, $W_q=W_k=I$, $W_v=diag(2,1)$, $H=K$. $a=softmax(qK^T/\\sqrt{2})$ over shown rows; weights rounded."
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Independent given operands produce vocabulary scores",
+    "nodes": [
+      {
+        "id": "h",
+        "label": "Given h for BOS birds",
+        "tensor": {
+          "rows": 2,
+          "columns": 1,
+          "dimensions": "2 × 1",
+          "values": [
+            0,
+            1
+          ]
+        }
+      },
+      {
+        "id": "E",
+        "label": "Shared E: birds/fly/EOS; features0,1",
+        "tensor": {
+          "rows": 3,
+          "columns": 2,
+          "dimensions": "3 × 2",
+          "values": [
+            2,
+            0,
+            0,
+            2,
+            1.5,
+            1.5
+          ]
+        }
+      },
+      {
+        "id": "z",
+        "label": "Logits slots birds/fly/EOS",
+        "tensor": {
+          "rows": 3,
+          "columns": 1,
+          "dimensions": "3 × 1",
+          "values": [
+            0,
+            2,
+            1.5
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "h",
+        "to": "z",
+        "label": "Supply final state"
+      },
+      {
+        "from": "E",
+        "to": "z",
+        "label": "Apply shared rows"
+      }
+    ],
+    "caption": "Given h and E; E also supplies input lookup rows. $z=Eh$, no bias; row order birds/fly/EOS, maximum fly."
+  }
+}

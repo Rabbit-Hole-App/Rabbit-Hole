@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "All vocabulary slots normalize the matching logits",
+    "unit": "Probability",
+    "bars": [
+      {
+        "label": "0 birds",
+        "value": 0.078
+      },
+      {
+        "label": "1 fly MAX",
+        "value": 0.574
+      },
+      {
+        "label": "2 $\\text{<eos>}$",
+        "value": 0.348
+      }
+    ],
+    "caption": "Given $z=(0,2,1.5)$, $p=softmax(z)$ over all slots. Rounded bars; maximum fly. Shared input/output table, no bias."
+  }
+}

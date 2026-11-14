@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Shift every score, keep normalized choices fixed",
+    "nodes": [
+      {
+        "id": "h",
+        "label": "Given h for BOS birds",
+        "tensor": {
+          "rows": 2,
+          "columns": 1,
+          "dimensions": "2 × 1",
+          "values": [
+            0,
+            1
+          ]
+        }
+      },
+      {
+        "id": "E",
+        "label": "Shared E: birds/fly/EOS; features0,1",
+        "tensor": {
+          "rows": 3,
+          "columns": 2,
+          "dimensions": "3 × 2",
+          "values": [
+            2,
+            0,
+            0,
+            2,
+            1.5,
+            1.5
+          ]
+        }
+      },
+      {
+        "id": "z",
+        "label": "Rows birds/fly/EOS; columns $z,z+1$",
+        "tensor": {
+          "rows": 3,
+          "columns": 2,
+          "dimensions": "3 × 2",
+          "values": [
+            0,
+            1,
+            2,
+            3,
+            1.5,
+            2.5
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "from": "h",
+        "to": "z",
+        "label": "Supply final state"
+      },
+      {
+        "from": "E",
+        "to": "z",
+        "label": "Apply shared rows"
+      }
+    ],
+    "caption": "Same given h/E; add $c=1$ to every score. $softmax(z+c)=softmax(z)$; maximum fly unchanged. Rows keep vocabulary ids."
+  }
+}

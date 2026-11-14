@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Two overlapping notes from the supplied three-note phrase",
+    "x": {
+      "label": "Time",
+      "unit": "ms",
+      "min": 0,
+      "max": 750
+    },
+    "y": {
+      "label": "Pitch number",
+      "min": 59,
+      "max": 68,
+      "integerTicks": true
+    },
+    "series": [
+      {
+        "label": "C4",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 60
+          },
+          {
+            "x": 500,
+            "y": 60
+          }
+        ]
+      },
+      {
+        "label": "E4",
+        "kind": "line",
+        "points": [
+          {
+            "x": 250,
+            "y": 64
+          },
+          {
+            "x": 750,
+            "y": 64
+          }
+        ]
+      }
+    ],
+    "caption": "Two-note subset C4/E4; supplied phrase has 3 notes. Full note/event reconstruction appears at Standard."
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Actual append/stop rules preserve the same visible text",
+    "columns": [
+      "Stop reason",
+      "Final internal prefix"
+    ],
+    "rows": [
+      {
+        "id": "run0",
+        "heading": "Empty ordinary",
+        "cells": [
+          "eos after3",
+          "$\\text{<bos>}$ birds fly $\\text{<eos>}$"
+        ]
+      },
+      {
+        "id": "run1",
+        "heading": "Empty limit2",
+        "cells": [
+          "limit after2",
+          "$\\text{<bos>}$ birds fly"
+        ]
+      },
+      {
+        "id": "run2",
+        "heading": "Prompt birds",
+        "cells": [
+          "eos after2",
+          "$\\text{<bos>}$ birds fly $\\text{<eos>}$"
+        ]
+      }
+    ],
+    "caption": "All display birds fly; prompted birds was supplied, not generated in that run. Same fixed memory/head; no calls after EOS or limit."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Next-word predictions for a fixed prefix",
+    "caption": "After “a small robot sorts”, normalize toy scores $z$ with $p_j=e^{z_j}/\\sum_k e^{z_k}$.",
+    "bars": [
+      {
+        "label": "seeds",
+        "value": 0.62
+      },
+      {
+        "label": "bulbs",
+        "value": 0.278
+      },
+      {
+        "label": "packs",
+        "value": 0.102
+      }
+    ]
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "batch": "C11",
+  "topic": "language-generation",
+  "base": "e6d7542cee6a36498ea55db2e88467b1d3b72eb9",
+  "expectedNew": 5,
+  "expectedFamilies": 9,
+  "expectedQueueFamilies": 5,
+  "manifest": "topic-language-generation-sources.json",
+  "overlay": "topic-language-generation-overlays.js",
+  "reuseReferenceIds": [
+    "ml-gpt2-music-event-tokens",
+    "ml-word2vec-prefix-guesses",
+    "ml-kv-cache-decode",
+    "ml-gpt2-continue-prefix"
+  ],
+  "catalogLessonChanges": {
+    "ml-word2vec-prefix-guesses": {
+      "before": [
+        "03"
+      ],
+      "after": [
+        "03",
+        "01"
+      ]
+    }
+  },
+  "groups": [
+    {
+      "topic": "language-generation",
+      "reference": "composition-language-generation-references.js",
+      "data": "topic-language-generation-data.js",
+      "test": "topic-language-generation-composition.test.mjs"
+    },
+    {
+      "topic": "music-tokenization",
+      "reference": "composition-music-tokenization-references.js",
+      "data": "topic-music-tokenization-data.js",
+      "test": "topic-music-tokenization-composition.test.mjs"
+    }
+  ],
+  "referenceDataCorrections": {
+    "ml-gpt2-music-event-tokens": [
+      {
+        "path": [
+          "depths",
+          "deep",
+          "detailSpec",
+          "diagram",
+          "series",
+          0,
+          "smooth"
+        ],
+        "before": false,
+        "afterAbsent": true
+      },
+      {
+        "path": [
+          "depths",
+          "deep",
+          "detailSpec",
+          "diagram",
+          "series",
+          1,
+          "smooth"
+        ],
+        "before": false,
+        "afterAbsent": true
+      },
+      {
+        "path": [
+          "depths",
+          "deep",
+          "detailSpec",
+          "diagram",
+          "series",
+          2,
+          "smooth"
+        ],
+        "before": false,
+        "afterAbsent": true
+      }
+    ]
+  },
+  "compatibilityProof": "c11-legacy-music-compatibility-proof.json",
+  "approvedPromptVariants": [
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Show music pitch timing loudness vocabulary with stable event ids."
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Which event ids onset release velocity entries change the performance?"
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Explain music pitch timing loudness vocabulary without drawing a keyboard."
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Why can event ids onset release velocity include a time shift with no note?"
+    },
+    {
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "prompt": "Keep repeated waits in the same music pitch timing loudness vocabulary slot."
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Show keyboard ranked continuation chances after the fixed robot prefix."
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Compare fixed prefix next token alternatives without recreating a keyboard interface."
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Why do keyboard ranked continuation chances have different bar lengths?"
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Keep the same observed words while showing fixed prefix next token alternatives."
+    },
+    {
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "prompt": "Distinguish keyboard ranked continuation chances from skip-gram training pairs."
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "Show new token query reuse earlier projections across two decoder steps."
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "Trace successive cache append read steps for the current key and value."
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "Which new token query reuse earlier projections avoids processing old tokens again?"
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "Keep old and current pairs available in successive cache append read steps."
+    },
+    {
+      "referenceId": "ml-kv-cache-decode",
+      "prompt": "Follow successive cache append read steps without claiming a timing benchmark."
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Show the newly predicted token next prefix dependency in the hall-light example."
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Which newly predicted token next prefix event feeds the second call?"
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Follow the newly predicted token next prefix after choosing flickers."
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Explain the newly predicted token next prefix without inventing another prediction."
+    },
+    {
+      "referenceId": "ml-gpt2-continue-prefix",
+      "prompt": "Keep the enlarged input in the newly predicted token next prefix example literal."
+    }
+  ],
+  "approvedPromptVariantsSource": {
+    "commit": "467de448594e9522e19dc7c7fffbb9d28438f5ad",
+    "path": "docs/features/explain/composition/batches/C11/content-specs.md",
+    "sha256": "55c8a4e1615b1d457972cb530e0c07cca746661fe9991f4d50739bfa32b4722d"
+  },
+  "snapshotCompatibilityChanges": [
+    "ml-gpt2-music-event-tokens-detailed-detail/408",
+    "ml-gpt2-music-event-tokens-detailed-detail/960",
+    "ml-gpt2-music-event-tokens-detailed-detail/natural"
+  ],
+  "newReferenceLessons": {
+    "ml-language-generation-vocabulary-score-probabilities": [
+      "03"
+    ]
+  }
+}

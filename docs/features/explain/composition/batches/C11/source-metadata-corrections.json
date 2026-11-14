@@ -1,0 +1,69 @@
+[
+  {
+    "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-62",
+    "field": "kinds",
+    "before": [
+      "coordinate-plot",
+      "matrix",
+      "timeline"
+    ],
+    "after": [
+      "matrix",
+      "timeline"
+    ]
+  },
+  {
+    "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-02",
+    "field": "kinds",
+    "before": [
+      "bar-chart",
+      "sequence",
+      "tensor",
+      "transformation"
+    ],
+    "after": [
+      "bar-chart",
+      "sequence"
+    ]
+  },
+  {
+    "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-02",
+    "field": "gapTypes",
+    "before": [
+      "composition",
+      "numeric-transformation"
+    ],
+    "after": [
+      "composition"
+    ]
+  },
+  {
+    "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-16",
+    "field": "kinds",
+    "before": [
+      "matrix",
+      "relationship",
+      "sequence",
+      "timeline",
+      "token-links"
+    ],
+    "after": [
+      "timeline",
+      "sequence"
+    ]
+  },
+  {
+    "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-29",
+    "field": "kinds",
+    "before": [
+      "flow",
+      "sequence",
+      "timeline",
+      "transformation"
+    ],
+    "after": [
+      "sequence",
+      "timeline"
+    ]
+  }
+]

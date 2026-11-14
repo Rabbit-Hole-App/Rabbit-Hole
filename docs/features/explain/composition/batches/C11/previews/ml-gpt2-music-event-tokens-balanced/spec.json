@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "An event vocabulary for a music Transformer",
+    "columns": [
+      "Example event",
+      "Toy token ID"
+    ],
+    "rows": [
+      {
+        "heading": "Set loudness",
+        "cells": [
+          "Velocity 72",
+          "0"
+        ]
+      },
+      {
+        "heading": "Start a note",
+        "cells": [
+          "Start pitch 60",
+          "1"
+        ]
+      },
+      {
+        "heading": "Advance time",
+        "cells": [
+          "Wait 250 ms",
+          "2"
+        ]
+      },
+      {
+        "heading": "Release a note",
+        "cells": [
+          "Release pitch 60",
+          "4"
+        ]
+      }
+    ],
+    "caption": "A time event moves the clock. A note event starts or releases a pitch at the current time."
+  }
+}

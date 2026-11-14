@@ -1,0 +1,1757 @@
+{
+  "version": 1,
+  "topic": "language-generation",
+  "fixture": false,
+  "threshold": 0.8,
+  "hits": 75,
+  "total": 75,
+  "firstPickRate": 1,
+  "passed": true,
+  "byDepth": [
+    {
+      "depth": "brief",
+      "hits": 25,
+      "total": 25,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "balanced",
+      "hits": 25,
+      "total": 25,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "detailed",
+      "hits": 25,
+      "total": 25,
+      "firstPickRate": 1
+    }
+  ],
+  "prompts": [
+    {
+      "id": "ml-music-tokenization-music-events-and-time",
+      "prompt": "Note onset, elapsed time and note release events reconstruct a performed phrase with overlapping notes.",
+      "referenceId": "ml-music-tokenization-music-events-and-time",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Trace music event clock reconstruction from ids to overlapping notes.",
+          "depth": "brief",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace music event clock reconstruction from ids to overlapping notes.",
+          "depth": "balanced",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace music event clock reconstruction from ids to overlapping notes.",
+          "depth": "detailed",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which simultaneous note changes occur at the same accumulated clock?",
+          "depth": "brief",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which simultaneous note changes occur at the same accumulated clock?",
+          "depth": "balanced",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which simultaneous note changes occur at the same accumulated clock?",
+          "depth": "detailed",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep every wait in music event clock reconstruction.",
+          "depth": "brief",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep every wait in music event clock reconstruction.",
+          "depth": "balanced",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep every wait in music event clock reconstruction.",
+          "depth": "detailed",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Swap the two distinct-pitch simultaneous note changes and recompute intervals.",
+          "depth": "brief",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Swap the two distinct-pitch simultaneous note changes and recompute intervals.",
+          "depth": "balanced",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Swap the two distinct-pitch simultaneous note changes and recompute intervals.",
+          "depth": "detailed",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Match music event clock reconstruction to every onset and release.",
+          "depth": "brief",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Match music event clock reconstruction to every onset and release.",
+          "depth": "balanced",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Match music event clock reconstruction to every onset and release.",
+          "depth": "detailed",
+          "firstReference": "ml-music-tokenization-music-events-and-time",
+          "firstReferenceId": "ml-music-tokenization-music-events-and-time",
+          "firstPick": true,
+          "references": [
+            "ml-music-tokenization-music-events-and-time"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-music-tokenization-music-events-and-time",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-language-generation-vocabulary-score-probabilities",
+      "prompt": "A learned projection produces one score for each vocabulary entry and softmax turns those scores into next-token probabilities.",
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Compute tied vocabulary head scores from the given hidden state and table.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compute tied vocabulary head scores from the given hidden state and table.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compute tied vocabulary head scores from the given hidden state and table.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep candidate logit probability slots aligned with the input lookup rows.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep candidate logit probability slots aligned with the input lookup rows.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep candidate logit probability slots aligned with the input lookup rows.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the numeric operands behind tied vocabulary head scores.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the numeric operands behind tied vocabulary head scores.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the numeric operands behind tied vocabulary head scores.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Add the same score offset to candidate logit probability slots and renormalize.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Add the same score offset to candidate logit probability slots and renormalize.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Add the same score offset to candidate logit probability slots and renormalize.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why are tied vocabulary head scores different from attention scores over positions?",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why are tied vocabulary head scores different from attention scores over positions?",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why are tied vocabulary head scores different from attention scores over positions?",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-vocabulary-score-probabilities",
+          "firstReferenceId": "ml-language-generation-vocabulary-score-probabilities",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-vocabulary-score-probabilities"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-language-generation-vocabulary-score-probabilities",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-language-generation-key-value-cache",
+      "prompt": "The cache keeps a layer's earlier keys and values for future token queries.",
+      "referenceId": "ml-language-generation-key-value-cache",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show layer cache row origins for old and current positions.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show layer cache row origins for old and current positions.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show layer cache row origins for old and current positions.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Normalize attention for the current query cached positions only.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Normalize attention for the current query cached positions only.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Normalize attention for the current query cached positions only.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep K and V coordinates attached to their layer cache row origins.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep K and V coordinates attached to their layer cache row origins.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep K and V coordinates attached to their layer cache row origins.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Append one pair and recompute current query cached positions.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Append one pair and recompute current query cached positions.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Append one pair and recompute current query cached positions.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare layer cache row origins with full-prefix reprojection on the same inputs.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare layer cache row origins with full-prefix reprojection on the same inputs.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare layer cache row origins with full-prefix reprojection on the same inputs.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-key-value-cache",
+          "firstReferenceId": "ml-language-generation-key-value-cache",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-key-value-cache"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-generation-key-value-cache",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-language-generation-greedy-versus-sampling",
+      "prompt": "Greedy selection and sampling can choose different next tokens from the same distribution.",
+      "referenceId": "ml-language-generation-greedy-versus-sampling",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Compare same distribution selection rules without changing the probabilities.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare same distribution selection rules without changing the probabilities.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "number-line"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "number-line",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "number-line",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare same distribution selection rules without changing the probabilities.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "number-line"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "number-line",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "number-line",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the greedy maximum sampled draw choosing different tokens.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the greedy maximum sampled draw choosing different tokens.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "number-line"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "number-line",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "number-line",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the greedy maximum sampled draw choosing different tokens.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "number-line"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "number-line",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "number-line",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Locate a labelled draw in all intervals of the same distribution selection rules.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Locate a labelled draw in all intervals of the same distribution selection rules.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "number-line"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "number-line",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "number-line",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Locate a labelled draw in all intervals of the same distribution selection rules.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "number-line"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "number-line",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "number-line",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Move only the draw while keeping the greedy maximum sampled draw comparison fixed.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Move only the draw while keeping the greedy maximum sampled draw comparison fixed.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "number-line"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "number-line",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "number-line",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Move only the draw while keeping the greedy maximum sampled draw comparison fixed.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "number-line"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "number-line",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "number-line",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain why same distribution selection rules do not rank sample quality.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain why same distribution selection rules do not rank sample quality.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "number-line"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "number-line",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "number-line",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain why same distribution selection rules do not rank sample quality.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-greedy-versus-sampling",
+          "firstReferenceId": "ml-language-generation-greedy-versus-sampling",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-greedy-versus-sampling"
+          ],
+          "plannedKinds": [
+            "number-line"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "number-line",
+            "source": "reference",
+            "id": "ml-language-generation-greedy-versus-sampling",
+            "referenceKind": "number-line",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-language-generation-autoregressive-feedback",
+      "prompt": "The encoder computes source memory before the decoder begins to predict target tokens.",
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Trace an encode once generation trace through an explicit stop token.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace an encode once generation trace through an explicit stop token.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace an encode once generation trace through an explicit stop token.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show each growing prefix stop event from the actual appended token arrays.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show each growing prefix stop event from the actual appended token arrays.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show each growing prefix stop event from the actual appended token arrays.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Distinguish an empty start from a supplied prompt in an encode once generation trace.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Distinguish an empty start from a supplied prompt in an encode once generation trace.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Distinguish an empty start from a supplied prompt in an encode once generation trace.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep source memory fixed while comparing the growing prefix stop event with a token limit.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep source memory fixed while comparing the growing prefix stop event with a token limit.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep source memory fixed while comparing the growing prefix stop event with a token limit.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the emitted token and exact next-call prefix in an encode once generation trace.",
+          "depth": "brief",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the emitted token and exact next-call prefix in an encode once generation trace.",
+          "depth": "balanced",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the emitted token and exact next-call prefix in an encode once generation trace.",
+          "depth": "detailed",
+          "firstReference": "ml-language-generation-autoregressive-feedback",
+          "firstReferenceId": "ml-language-generation-autoregressive-feedback",
+          "firstPick": true,
+          "references": [
+            "ml-language-generation-autoregressive-feedback"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-language-generation-autoregressive-feedback",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        }
+      ]
+    }
+  ]
+}

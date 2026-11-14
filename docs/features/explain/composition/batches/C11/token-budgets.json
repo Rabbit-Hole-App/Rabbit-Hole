@@ -1,0 +1,273 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-gpt2-music-event-tokens": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 119,
+          "sha256": "dc76f8d436611251ca64b3eecbeca890875ac48a34e0986a17e7ebe47eeaccfe"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 118,
+          "sha256": "57dc1b5d195180ed73f10910fe60998a85fb5de1549728987b652d8ef1bb6794"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 121,
+          "sha256": "21d9ef4e5125bbc862aa54a1dfec55f0e069b517486c3e7442aa597cc68a1566"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 165,
+          "sha256": "84d61bcc9d8b893187e32ab947b66cd7af29b6af57ec51fdd21fe06681f1f944"
+        }
+      ]
+    },
+    "ml-music-tokenization-music-events-and-time": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 149,
+          "sha256": "b58524e20d5cdf3506b4ad1e2b2428f8073653b550cc6e2de2cf77aba5fdeedc"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 178,
+          "sha256": "c2dd2deab1a8acaa77fd98a4203752698f4d20b36332069f10aba5dfbae04819"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 167,
+          "sha256": "5ddf9c9424b719ae00c3e55010b35e91748b829021375b38212315251a57a5b4"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 186,
+          "sha256": "b36c17193b46db3c43fa873c589225db68211a6ed8baa9e061c68ec2a2d44014"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 165,
+          "sha256": "c53991dc7396c05efd08839ee8a8437e63314660be7b9c8679235e2a05a4787b"
+        }
+      ]
+    },
+    "ml-word2vec-prefix-guesses": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 81,
+          "sha256": "ae255565460ff41c830cb06645c1ba42e04855e35739de5c5461bec2b9e4ad45"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 82,
+          "sha256": "7b875b73e459d0562967489499ead9fe509fb4baec996b0f186a540a79175e63"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 93,
+          "sha256": "981f49cfcad035b46acb11eb6f094791c90c0c8ecba010f629edd1145dcbeed8"
+        }
+      ]
+    },
+    "ml-language-generation-vocabulary-score-probabilities": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 111,
+          "sha256": "36983d98e0cb29fac778eaddaff58759164b135b548f8fca05f3eda338d65f1c"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 229,
+          "sha256": "eeefd911477826485850027809ccf4b019c9be0cbe0231491945f129f02de449"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 111,
+          "sha256": "36983d98e0cb29fac778eaddaff58759164b135b548f8fca05f3eda338d65f1c"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 247,
+          "sha256": "af0e5dd37b6deef48bf0f25c1f36ca4af97fdf56b51d29072e4d1e175f90d692"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 111,
+          "sha256": "36983d98e0cb29fac778eaddaff58759164b135b548f8fca05f3eda338d65f1c"
+        }
+      ]
+    },
+    "ml-kv-cache-decode": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 296,
+          "sha256": "f7113a0bb4f8bb9858a3e4e991c176852b299dae48a59b98e850e2492a0cbbba"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 296,
+          "sha256": "f7113a0bb4f8bb9858a3e4e991c176852b299dae48a59b98e850e2492a0cbbba"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 296,
+          "sha256": "f7113a0bb4f8bb9858a3e4e991c176852b299dae48a59b98e850e2492a0cbbba"
+        }
+      ]
+    },
+    "ml-language-generation-key-value-cache": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 125,
+          "sha256": "0a97afb3adbe877eddc886d4e80d87f3c9d4a1d0d8a0a546ddaa53b000621e02"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 175,
+          "sha256": "c39ae7e762ef4d1ec20ca71c5d28cecbc02bd3a7e0bcc7a1f134836e78402aa9"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 106,
+          "sha256": "bd15b082ee6525d6b82f47a7424c98363b0545b2f70f6b7b739acd9e2eeacaff"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 192,
+          "sha256": "6e9b4aa87aa8cf6d62c39e2d84a9e488a586078655b7b65069da84da5914bf0b"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 118,
+          "sha256": "3daf50a9e08b51c73923d583f4f9d4841bc66461f438cd45b2f3277529e5fed0"
+        }
+      ]
+    },
+    "ml-language-generation-greedy-versus-sampling": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 100,
+          "sha256": "01b1451dde0ecbd6931e3e84296f71f81d8ad3dd0fc1bc3d418332e8812ccf8e"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 164,
+          "sha256": "a2178dcd2d9b7c3d6b13356ae846c887bd588f2fe9cde232bc16760f3f7e9567"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 100,
+          "sha256": "01b1451dde0ecbd6931e3e84296f71f81d8ad3dd0fc1bc3d418332e8812ccf8e"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 164,
+          "sha256": "6b40a3f0c21e33e69ab5df3b306409fea2ba08935420d6a46a90d5abfbb548b0"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 100,
+          "sha256": "a6e877cfaee8286f298f1eb88d9a6b3e10967d35582dce78b4ca2e1ee6a7e5c3"
+        }
+      ]
+    },
+    "ml-language-generation-autoregressive-feedback": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 193,
+          "sha256": "ba5f9aef72ef345b63d0b1ca267752f7829e9714b3656e8e5055564c4aab92eb"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 222,
+          "sha256": "9d01c5fd649d08cbe1102d6e70831dee16ba52430fbf883a7fb3c14af5c6ead6"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 116,
+          "sha256": "86259b913fb14d9deff5fd2a6607a83441919d6bd9244da47dd2fdf601117738"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 215,
+          "sha256": "0acb9b3ee80cd3d454d158ce8de0d317b787f5a280b4c4d4bbdafe8a3c434243"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 173,
+          "sha256": "4304ca3e1d30581266115bbb2abf2fc408319e528660f5be04704279f6712069"
+        }
+      ]
+    },
+    "ml-gpt2-continue-prefix": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 100,
+          "sha256": "4483c767baf340622600766c9459f6536ac71d611add768467301402775c27f5"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 104,
+          "sha256": "abb46bc2184c80b688b1a006b812ebc215c17ef99e0b0c5f436e1dc393162df3"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 112,
+          "sha256": "b11add04f06f194321ee2f641723d28f8f0edf135b2624dc70a6821000ba7198"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 112,
+          "sha256": "e1bedcb7d944ff906dca9a82eadbfe64a4b0f412adb6bc1e37828db4257ce476"
+        }
+      ]
+    }
+  }
+}

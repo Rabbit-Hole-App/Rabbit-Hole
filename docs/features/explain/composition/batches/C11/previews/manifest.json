@@ -1,0 +1,1062 @@
+{
+  "ml-gpt2-music-event-tokens": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 379
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 309
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 428
+      }
+    }
+  },
+  "ml-gpt2-music-event-tokens-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 379
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 309
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 428
+      }
+    }
+  },
+  "ml-gpt2-music-event-tokens-balanced": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 379
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 309
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 428
+      }
+    }
+  },
+  "ml-gpt2-music-event-tokens-detailed": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 396
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 309
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 445
+      }
+    }
+  },
+  "ml-gpt2-music-event-tokens-detailed-detail": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 487.5
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 533.5
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 474.5
+      }
+    }
+  },
+  "ml-music-tokenization-music-events-and-time": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 595
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 556
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 595
+      }
+    }
+  },
+  "ml-music-tokenization-music-events-and-time-detail": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 464
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 347
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 503
+      }
+    }
+  },
+  "ml-music-tokenization-music-events-and-time-brief": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 567
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 528
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 567
+      }
+    }
+  },
+  "ml-music-tokenization-music-events-and-time-balanced": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 595
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 556
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 595
+      }
+    }
+  },
+  "ml-music-tokenization-music-events-and-time-balanced-detail": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 464
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 347
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 503
+      }
+    }
+  },
+  "ml-music-tokenization-music-events-and-time-detailed": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 595
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 556
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 595
+      }
+    }
+  },
+  "ml-music-tokenization-music-events-and-time-detailed-detail": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 464
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 347
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 520
+      }
+    }
+  },
+  "ml-word2vec-prefix-guesses": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 280
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 241
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 280
+      }
+    }
+  },
+  "ml-word2vec-prefix-guesses-brief": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 280
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 241
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 280
+      }
+    }
+  },
+  "ml-word2vec-prefix-guesses-balanced": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 280
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 241
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 280
+      }
+    }
+  },
+  "ml-word2vec-prefix-guesses-detailed": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 263
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 224
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 280
+      }
+    }
+  },
+  "ml-language-generation-vocabulary-score-probabilities": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 844
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 754
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 878
+      }
+    }
+  },
+  "ml-language-generation-vocabulary-score-probabilities-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 292
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 253
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 337
+      }
+    }
+  },
+  "ml-language-generation-vocabulary-score-probabilities-brief": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 292
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 253
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 337
+      }
+    }
+  },
+  "ml-language-generation-vocabulary-score-probabilities-balanced": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 844
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 754
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 878
+      }
+    }
+  },
+  "ml-language-generation-vocabulary-score-probabilities-balanced-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 292
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 253
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 337
+      }
+    }
+  },
+  "ml-language-generation-vocabulary-score-probabilities-detailed": {
+    "kind": "relationship",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 879
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 789
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 930
+      }
+    }
+  },
+  "ml-language-generation-vocabulary-score-probabilities-detailed-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 292
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 253
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 337
+      }
+    }
+  },
+  "ml-kv-cache-decode": {
+    "kind": "sequence",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 704
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 529
+      },
+      "natural": {
+        "requested": 332,
+        "width": 332,
+        "height": 738
+      }
+    }
+  },
+  "ml-kv-cache-decode-brief": {
+    "kind": "sequence",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 704
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 529
+      },
+      "natural": {
+        "requested": 332,
+        "width": 332,
+        "height": 738
+      }
+    }
+  },
+  "ml-kv-cache-decode-balanced": {
+    "kind": "sequence",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 704
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 529
+      },
+      "natural": {
+        "requested": 332,
+        "width": 332,
+        "height": 738
+      }
+    }
+  },
+  "ml-kv-cache-decode-detailed": {
+    "kind": "sequence",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 704
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 529
+      },
+      "natural": {
+        "requested": 332,
+        "width": 332,
+        "height": 738
+      }
+    }
+  },
+  "ml-language-generation-key-value-cache": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 412
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 395
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 412
+      }
+    }
+  },
+  "ml-language-generation-key-value-cache-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 280
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 241
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 337
+      }
+    }
+  },
+  "ml-language-generation-key-value-cache-brief": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 364
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 347
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 364
+      }
+    }
+  },
+  "ml-language-generation-key-value-cache-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 412
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 395
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 412
+      }
+    }
+  },
+  "ml-language-generation-key-value-cache-balanced-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 280
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 241
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 337
+      }
+    }
+  },
+  "ml-language-generation-key-value-cache-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 456
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 439
+      },
+      "natural": {
+        "requested": 444,
+        "width": 444,
+        "height": 456
+      }
+    }
+  },
+  "ml-language-generation-key-value-cache-detailed-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 316
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 277
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 377
+      }
+    }
+  },
+  "ml-language-generation-greedy-versus-sampling": {
+    "kind": "number-line",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 398
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 359
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 420
+      }
+    }
+  },
+  "ml-language-generation-greedy-versus-sampling-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 298
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 253
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 304
+      }
+    }
+  },
+  "ml-language-generation-greedy-versus-sampling-brief": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 298
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 253
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 304
+      }
+    }
+  },
+  "ml-language-generation-greedy-versus-sampling-balanced": {
+    "kind": "number-line",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 398
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 359
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 420
+      }
+    }
+  },
+  "ml-language-generation-greedy-versus-sampling-balanced-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 298
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 253
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 304
+      }
+    }
+  },
+  "ml-language-generation-greedy-versus-sampling-detailed": {
+    "kind": "number-line",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 398
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 359
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 437
+      }
+    }
+  },
+  "ml-language-generation-greedy-versus-sampling-detailed-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 298
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 253
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 304
+      }
+    }
+  },
+  "ml-language-generation-autoregressive-feedback": {
+    "kind": "timeline",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 630
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 452
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 773
+      }
+    }
+  },
+  "ml-language-generation-autoregressive-feedback-detail": {
+    "kind": "tensor",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 233
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 194
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 250
+      }
+    }
+  },
+  "ml-language-generation-autoregressive-feedback-brief": {
+    "kind": "timeline",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 524
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 381
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 646
+      }
+    }
+  },
+  "ml-language-generation-autoregressive-feedback-balanced": {
+    "kind": "timeline",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 630
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 452
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 773
+      }
+    }
+  },
+  "ml-language-generation-autoregressive-feedback-balanced-detail": {
+    "kind": "tensor",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 233
+      },
+      "960": {
+        "requested": 960,
+        "width": 960,
+        "height": 194
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 250
+      }
+    }
+  },
+  "ml-language-generation-autoregressive-feedback-detailed": {
+    "kind": "timeline",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 630
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 452
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 773
+      }
+    }
+  },
+  "ml-language-generation-autoregressive-feedback-detailed-detail": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 425
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 304
+      },
+      "natural": {
+        "requested": 326,
+        "width": 326,
+        "height": 464
+      }
+    }
+  },
+  "ml-gpt2-continue-prefix": {
+    "kind": "timeline",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 335
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 275
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 388
+      }
+    }
+  },
+  "ml-gpt2-continue-prefix-brief": {
+    "kind": "timeline",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 313
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 275
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 388
+      }
+    }
+  },
+  "ml-gpt2-continue-prefix-balanced": {
+    "kind": "timeline",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 335
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 275
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 388
+      }
+    }
+  },
+  "ml-gpt2-continue-prefix-detailed": {
+    "kind": "timeline",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 352
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 292
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 422
+      }
+    }
+  },
+  "ml-gpt2-continue-prefix-detailed-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 366
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 349
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 388
+      }
+    }
+  }
+}

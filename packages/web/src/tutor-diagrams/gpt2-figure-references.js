@@ -292,7 +292,7 @@ const music = reference('music-event-tokens', ['08', '15'],
     x: { label: 'Time', unit: 'ms', min: 0, max: 750 },
     y: { label: 'Pitch number', min: 59, max: 68 },
     series: notes.map(({ pitch, name, start, end }) => ({
-      label: name, kind: 'line', smooth: false,
+      label: name, kind: 'line',
       points: [{ x: start, y: pitch }, { x: end, y: pitch }],
     })),
     caption: 'Each segment runs from note start to release. The overlap means two pitches sound together.',

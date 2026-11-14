@@ -1746,6 +1746,66 @@
       "width": 720,
       "height": 329
     },
+    "ml-language-generation-autoregressive-feedback/320": {
+      "sha256": "6d465b7a6c7471c2a3df5b13e5f9fc15943cf5cac2055d264531ccc408296b53",
+      "width": 320,
+      "height": 773
+    },
+    "ml-language-generation-autoregressive-feedback/408": {
+      "sha256": "a20665a99a54abd020d7782d1f84d82c543d05a5764ab000d80d837ff4bcb9fc",
+      "width": 408,
+      "height": 630
+    },
+    "ml-language-generation-autoregressive-feedback/720": {
+      "sha256": "68bfb7cb60184a34fcccbf015c0b8078796d525b090a51ba97c4d1b01df08833",
+      "width": 720,
+      "height": 452
+    },
+    "ml-language-generation-greedy-versus-sampling/320": {
+      "sha256": "6a6a4de62dd5afeac6fa07d8ec9f2bf1ae44fa0106906004411408fa4c5361ca",
+      "width": 320,
+      "height": 420
+    },
+    "ml-language-generation-greedy-versus-sampling/408": {
+      "sha256": "8e7ca15ebf03b664f9b2b5a5c95d8dd8640f5d385f6b84069f7e80f98fc6398c",
+      "width": 408,
+      "height": 398
+    },
+    "ml-language-generation-greedy-versus-sampling/720": {
+      "sha256": "fa2b530a35a912b21c965f4c81eebd409d48665644473684105c7283b6221233",
+      "width": 720,
+      "height": 359
+    },
+    "ml-language-generation-key-value-cache/320": {
+      "sha256": "fe96e3909de91cdec04330ba7c02190e6730a21152fac00aa285de2306ebf4f5",
+      "width": 444,
+      "height": 412
+    },
+    "ml-language-generation-key-value-cache/408": {
+      "sha256": "fe96e3909de91cdec04330ba7c02190e6730a21152fac00aa285de2306ebf4f5",
+      "width": 444,
+      "height": 412
+    },
+    "ml-language-generation-key-value-cache/720": {
+      "sha256": "fea30c51097d38b69748bce062707feaf1dabacf8925f39fe421a6217682751f",
+      "width": 720,
+      "height": 395
+    },
+    "ml-language-generation-vocabulary-score-probabilities/320": {
+      "sha256": "3a80ef67a7d397d7995d87ac1c8a3a8efc0e446ce07852443f6662182fc13233",
+      "width": 320,
+      "height": 878
+    },
+    "ml-language-generation-vocabulary-score-probabilities/408": {
+      "sha256": "478496b015dedf0c3afa6b829131789a1d14c803c4e7a22b41559ebdd2510e86",
+      "width": 408,
+      "height": 844
+    },
+    "ml-language-generation-vocabulary-score-probabilities/720": {
+      "sha256": "424945dc74b3f2f01a67688c2a0f7aad222801d4282c6611c9d5938b3a810235",
+      "width": 720,
+      "height": 771
+    },
     "ml-language-training-prefix-target-alignment/320": {
       "sha256": "960ffcedb2f25b71703d51a5950216293379a5078e86ff3728973537b8c5f243",
       "width": 320,
@@ -2315,6 +2375,21 @@
       "sha256": "9a798196f3393cdd21e9d3e9e55b8b8524c60bf74b35ce7e20e59de585c94e9c",
       "width": 720,
       "height": 1060
+    },
+    "ml-music-tokenization-music-events-and-time/320": {
+      "sha256": "1b9116fe37932ff416737be5b946d3233c0117368ac437ac3a2f0e0b77008464",
+      "width": 420,
+      "height": 595
+    },
+    "ml-music-tokenization-music-events-and-time/408": {
+      "sha256": "1b9116fe37932ff416737be5b946d3233c0117368ac437ac3a2f0e0b77008464",
+      "width": 420,
+      "height": 595
+    },
+    "ml-music-tokenization-music-events-and-time/720": {
+      "sha256": "d02c8dbb229958472473860056ce28da28c0f2c6ac2637279a029f1deae05923",
+      "width": 720,
+      "height": 556
     },
     "ml-neural-network-weights/320": {
       "sha256": "8d03e81a2f267f710b4412d69f71fff44122df5f31696f3e0854dac23d4ab20e",
@@ -6942,17 +7017,17 @@
       "height": 445
     },
     "ml-gpt2-music-event-tokens-detailed-detail/408": {
-      "sha256": "e2b47d6454087ce6737e6335a36461995f0425d4937da2debfdcb01f2c432e91",
+      "sha256": "0ff1ee1f8788a00b4a30b8201402deb9faf13146195f5df356d49d0cc59e80e0",
       "width": 408,
       "height": 487.5
     },
     "ml-gpt2-music-event-tokens-detailed-detail/960": {
-      "sha256": "5c80a4af88038273207be6b361da2087d80164ef1e5813aeb11435ec3a5eb215",
+      "sha256": "3107e147cdfbc3576e37dcb2488e8fb66002f63348623b01095695b4349abce6",
       "width": 720,
       "height": 533.5
     },
     "ml-gpt2-music-event-tokens-detailed-detail/natural": {
-      "sha256": "b87bef5527007c8f0cfed1891d494cdaccd7b7173ddd2cfddda1ac85aacd3489",
+      "sha256": "d6ca047fb1eae88557acda96a8a6fdd0d51d80aff1c988d057502dd2c8f5ab6f",
       "width": 320,
       "height": 474.5
     },

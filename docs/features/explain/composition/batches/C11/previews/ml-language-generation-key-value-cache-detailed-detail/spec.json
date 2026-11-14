@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Current query normalizes over old and current positions",
+    "unit": "Weight",
+    "bars": [
+      {
+        "label": "P0 old",
+        "value": 0.065
+      },
+      {
+        "label": "P1 old",
+        "value": 0.266
+      },
+      {
+        "label": "P2 old",
+        "value": 0.131
+      },
+      {
+        "label": "P3 current",
+        "value": 0.539
+      }
+    ],
+    "caption": "Layer A: $a=softmax(qK^T/\\sqrt{2})$ across exactly shown positions. Cache reuse equals full-prefix reprojection at this same query."
+  }
+}

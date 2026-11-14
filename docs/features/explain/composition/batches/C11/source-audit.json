@@ -1,0 +1,133 @@
+{
+  "passed": true,
+  "batch": "C11",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "queueFamilies": 5,
+  "actualAssociations": 9,
+  "sourceHeadings": 15,
+  "newHeadings": 10,
+  "reuseHeadings": 5,
+  "originalFamilyRecordsPreserved": true,
+  "routes": [
+    {
+      "queueId": "ml-music-tokenization-music-events-and-time",
+      "referenceId": "ml-gpt2-music-event-tokens",
+      "mode": "REUSE",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-62",
+      "lessons": [
+        "08",
+        "15"
+      ]
+    },
+    {
+      "queueId": "ml-music-tokenization-music-events-and-time",
+      "referenceId": "ml-music-tokenization-music-events-and-time",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-63",
+      "lessons": [
+        "08",
+        "15"
+      ]
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "referenceId": "ml-word2vec-prefix-guesses",
+      "mode": "REUSE",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-02",
+      "lessons": [
+        "01",
+        "03"
+      ]
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-31",
+      "lessons": [
+        "03"
+      ]
+    },
+    {
+      "queueId": "ml-language-generation-vocabulary-score-probabilities",
+      "referenceId": "ml-language-generation-vocabulary-score-probabilities",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-25",
+      "lessons": [
+        "03"
+      ]
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "referenceId": "ml-kv-cache-decode",
+      "mode": "REUSE",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-16",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "referenceId": "ml-kv-cache-decode",
+      "mode": "REUSE",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-42",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "referenceId": "ml-language-generation-key-value-cache",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-41",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-language-generation-key-value-cache",
+      "referenceId": "ml-language-generation-key-value-cache",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-49",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-language-generation-greedy-versus-sampling",
+      "referenceId": "ml-language-generation-greedy-versus-sampling",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-27",
+      "lessons": [
+        "03"
+      ]
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-29",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-30",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-07",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "referenceId": "ml-language-generation-autoregressive-feedback",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-15",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-language-generation-autoregressive-feedback",
+      "referenceId": "ml-gpt2-continue-prefix",
+      "mode": "REUSE",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-08",
+      "lessons": []
+    }
+  ]
+}

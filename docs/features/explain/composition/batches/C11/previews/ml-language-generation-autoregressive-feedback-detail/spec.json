@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "tensor",
+    "tensor": {
+      "rows": 2,
+      "columns": 4,
+      "dimensions": "2 × 4",
+      "values": [
+        1,
+        0,
+        2,
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "name": "Rows S0/S1; columns K0/K1/V0/V1"
+    },
+    "title": "Fixed source keys and values before target calls",
+    "caption": "Supplied S; $K=S$, $V=Sdiag(2,1)$. Same M passed to every target call. Decoder h is separately supplied, not computed by M."
+  }
+}

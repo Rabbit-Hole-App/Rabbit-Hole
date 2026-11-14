@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "timeline",
+    "title": "Empty start, two emitted words and a stop",
+    "events": [
+      {
+        "time": "Encode once",
+        "label": "Encode source once; keep memory M",
+        "detail": "Source keys/values fixed before prediction; h is separately supplied."
+      },
+      {
+        "time": "Empty start",
+        "label": "Call on $\\text{<bos>}$; emit birds",
+        "detail": "Next call uses $\\text{<bos>}$ birds"
+      },
+      {
+        "time": "Prediction 2",
+        "label": "Emit fly; append",
+        "detail": "Next call uses $\\text{<bos>}$ birds fly"
+      },
+      {
+        "time": "Stop",
+        "label": "Emit $\\text{<eos>}$; append marker and STOP",
+        "detail": "No further call; visible text is birds fly"
+      }
+    ],
+    "caption": "Given h per exact prefix; M is a fixed temporal interface, not a computation of h. Greedy tied toy head; visible text excludes BOS/EOS."
+  }
+}

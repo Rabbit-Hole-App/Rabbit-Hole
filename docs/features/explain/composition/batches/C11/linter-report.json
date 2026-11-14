@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "referenceFlags": [],
+  "overlayFlags": [],
+  "staticFlags": [
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-language-generation-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    },
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-music-tokenization-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    }
+  ],
+  "authorizedFilenameExceptions": [
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-language-generation-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    },
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-music-tokenization-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    }
+  ],
+  "visualFlags": [],
+  "previewWrapFlags": [],
+  "errorCount": 0,
+  "warningCount": 0,
+  "metadataChanges": [
+    {
+      "id": "ml-word2vec-prefix-guesses",
+      "lessonsBefore": [
+        "03"
+      ],
+      "lessonsAfter": [
+        "03",
+        "01"
+      ]
+    }
+  ],
+  "referenceCompatibilityChanges": [
+    {
+      "id": "ml-gpt2-music-event-tokens",
+      "path": [
+        "depths",
+        "deep",
+        "detailSpec",
+        "diagram",
+        "series",
+        0,
+        "smooth"
+      ],
+      "removedValue": false
+    },
+    {
+      "id": "ml-gpt2-music-event-tokens",
+      "path": [
+        "depths",
+        "deep",
+        "detailSpec",
+        "diagram",
+        "series",
+        1,
+        "smooth"
+      ],
+      "removedValue": false
+    },
+    {
+      "id": "ml-gpt2-music-event-tokens",
+      "path": [
+        "depths",
+        "deep",
+        "detailSpec",
+        "diagram",
+        "series",
+        2,
+        "smooth"
+      ],
+      "removedValue": false
+    }
+  ]
+}
