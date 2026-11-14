@@ -26,8 +26,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { CHIP } from './ContextChips.jsx';
-import { cardContext, contextMessage, firstWords, placeBesideWords, scrimPath, settleRects } from './inline-highlight.js';
-import { markClear, markSet } from './inline-highlight-mark.js';
+import { cardContext, contextMessage, firstWords, mergeRects, placeBesideWords, scrimPath, settleRects } from './inline-highlight.js';
+import { explainedRects, markClear, markSet, useMark } from './inline-highlight-mark.js';
+import { markdownDraft } from './source-ref.js';
+import { canWrite, fileScope } from './file-source-client.js';
 import { composerKey } from './composer-keys.js';
 import DepthMenu from './DepthMenu.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -109,6 +111,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // highlight (index.css ::highlight(inline-target)), a mark for this request only, never a saved Highlight; it goes when the window closes or the chip is cleared.
   // Sent to Chat as a slash command, the mark stays until the Chat's chip x is pressed (inline-highlight-mark.js); closed without sending, it goes.
   const handedOff = useRef(false);
+  const mark = useMark();
+  useEffect(() => () => { if (preset) markClear(); }, []); // eslint-disable-line react-hooks/exhaustive-deps -- HL-2: a passage handed over by the Markdown pill is marked only while this window is open
   useEffect(() => {
     if (!highlight?.live) return undefined;
     markSet(highlight);
@@ -348,7 +352,10 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const highlightSelection = () => {
     const source = (board()?.blocks || []).find(block => block.id === highlight.id);
     const card = source ? cardContext(source, highlight.text) : null;
-    return { id: highlight.id, kind: 'card', title: card?.title || '', text: card ? contextMessage(card) : highlight.text.slice(0, 8000), ...(card ? { card } : {}), ...(source ? { beside: true, alignY: highlight.alignY } : {}) };
+    // HL-1: over words of a Markdown file card the request carries the draft its source reference is minted from (learn-slash.js mints it before /explain makes anything and stops, with a line to fix, if the file changed),
+    // so the card that comes back opens the passage and the passage shows the pink mark; any other card has no draft.
+    const sourceDraft = source && highlight.quote ? markdownDraft({ block: source, quote: highlight.quote, app: canWrite() ? fileScope()?.app : null }) : null;
+    return { id: highlight.id, kind: 'card', title: card?.title || '', text: card ? contextMessage(card) : highlight.text.slice(0, 8000), ...(card ? { card } : {}), ...(sourceDraft ? { sourceDraft } : {}), ...(source ? { beside: true, alignY: highlight.alignY } : {}) };
   };
   const submit = (text, how = mode) => {
     if (readOnly || busy(state.status)) return;
@@ -760,6 +767,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     return () => document.removeEventListener('scroll', again, true);
   }, [words]);
   useLayoutEffect(() => { if (words && !marked) tick(n => n + 1); }, [words, marked]);
+  // HL-2: the dim's holes are the exact words (a highlight's live Range rects; the bulb's placement box is only a place, not words), the pill's marked Range and every explained passage.
+  const markRects = (() => { try { return mark?.live ? [...mark.live.getClientRects()] : []; } catch { return []; } })();
+  const dimHoles = pageBox ? mergeRects([...(highlight ? marked || [] : []), ...[...markRects, ...explainedRects()].map(rect => ({ left: rect.left - pageBox.left, top: rect.top - pageBox.top, width: rect.width, height: rect.height }))]) : [];
   const targetScreen = (() => {
     if (marked?.length) { const x = Math.min(...marked.map(r => r.left)), y = Math.min(...marked.map(r => r.top)); return { x, y, w: Math.max(...marked.map(r => r.left + r.width)) - x, h: Math.max(...marked.map(r => r.top + r.height)) - y }; }
     // A creation is placed by its insertion anchor, as a selection is by its box.
@@ -813,7 +823,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           under it is clicked by mistake. */}
       {/* Owner 2026-11-09: while the window is open everything else dims, so only it stands out: the whole canvas (cards, toolbars) here, and the rest of the page (sidebar, header, the right Chat panel)
           by a viewport scrim outside the canvas's box, which a canvas-contained element could not cover. Neither takes the pointer. */}
-      <div data-inline-scrim data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-[45] bg-black/40" />
+      {/* HL-2: the words being explained and every explained passage drawn on a card are cut out of the dim, so their pink stays at full strength behind the window. */}
+      <div data-inline-scrim data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-[45] bg-black/40" style={dimHoles.length && pageBox ? { clipPath: scrimPath({ w: pageBox.width, h: pageBox.height }, dimHoles, 0) } : undefined} />
       {pageBox && createPortal(<div data-inline-scrim-page data-thumbnail-hide aria-hidden="true" className="pointer-events-none fixed inset-0 z-[45] bg-black/40"
         style={{ clipPath: scrimPath({ w: window.innerWidth, h: window.innerHeight }, [pageBox], 0) }} />, document.body)}
       <div ref={overlay} data-inline-ai-overlay data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute inset-0 z-[46] overflow-hidden">
