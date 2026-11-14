@@ -1,0 +1,15 @@
+SUITES: GREEN 71415b6b8f30c687e8fa28b83a103fb0d775f495
+Release 145 = RD-2 + RD-2b + RD-2c (flow decision branches) + RD-3 (geometry lint), candidate explain/rd-23 71415b6b8f30c687e8fa28b83a103fb0d775f495, STACKED on release 144's final candidate 5fd37acaa12a23abf19f41f083024066ca7d395c. Gate script gate145.sh (+ gate145-smoke-rerun.sh); each step's own output in 145-step-<name>.out; every heavy step ran under heavy-lock (acquire / release).
+1. scripts/ci (check-map applies): 95 tests, 94 pass, 0 fail, 1 skipped
+2. scripts tests: 255/255
+3. pipeline tests (scripts/topic-pipeline/test): 87 tests, 86 pass, 0 fail, 1 skipped
+4. tutor-diagrams suite (includes the svg snapshots test, the flow, geometry-lint and ml-topology tests): 1284/1284, 0 fail
+5. snapshots vs BASE: 6 entries changed, 0 added, 0 removed (ml-logistic-regression-model-pipeline 320: 555->503, 408: 533->481, 720: 516->464; ml-what-is-machine-learning-model-choice 320: 753->701, 408: 644->592, 720: 644->592)
+6. figure-briefs: 7/7
+7. web unit: 7034 tests, 7006 pass, 0 fail, 27 skipped
+8. web build: exit 0
+9. property count: max 358 <= 362 (GATE PASS; mixed-bundle max 358, over 362: 0)
+10. planner-kind replay vs the 144 candidate (C:/s/explain-ctrlk-144): 474 rows, 0 moved
+11. tier-1 smoke with the judge: see 145-gate-report.txt (first run FAIL one hard line, rerun PASS)
+SKIPPED on purpose: the control-plane suite (no control-plane file in the diff against BASE: 0 files).
+Caveats: the first smoke run failed 'delivery 64/66' (two transport failures at cards 17 and 18, see 145-gate-report.txt); every non-smoke step was green on the first run. One RD-2 regression was found by the RD-3 geometry lint during integration and fixed as RD-2c before the gate.

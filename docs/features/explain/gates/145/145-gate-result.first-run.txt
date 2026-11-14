@@ -1,0 +1,17 @@
+GATE: FAIL 71415b6b8f30c687e8fa28b83a103fb0d775f495 tier=smoke vs baseline delivery: at least 99% of cards delivered
+report: C:\s\spec\benchmarks\explain-bench\2026-11-14T122610-145-smoke-71415b6b8
+baseline: C:\s\spec\benchmarks\explain-bench\2026-11-09T145415-118-3x-judged (3 runs, mean of its runs on the same prompts)
+cards: 66 (smoke set, 1 pass); the baseline covers 40 of 66 smoke prompts, the other 26 have no baseline and are left out of the relative lines
+FAIL  delivery: at least 99% of cards delivered [hard]: 64/66
+PASS  right kind >= 80% of delivered (prompts whose kind is verified; the kind-reference prompts are reported below) [hard]: 39/39 = 100.0%
+PASS  pictures where needed: 100% [hard]: 10/10
+PASS  pictures where none belongs: 0 [hard]: 0/53
+PASS  factual error rate vs baseline: smoke 4/40 = 10.0% | baseline mean 7.6% | delta +2.4 pp | tolerance +10.0 pp (4 items or 5 pp, larger) [40 prompts]
+PASS  repairs vs baseline: smoke 0/40 = 0.0% | baseline mean 2.5% | delta -2.5 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  noun-box or placeholder labels vs baseline: smoke 0/40 = 0.0% | baseline mean 1.7% | delta -1.7 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  faithfulness: "not" vs baseline: smoke 1/15 = 6.7% | baseline mean 11.1% | delta -4.4 pp | tolerance +20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  faithfulness: "fully" vs baseline: smoke 7/15 = 46.7% | baseline mean 33.3% | delta +13.3 pp | tolerance -20.0 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  claims beyond the prose vs baseline: smoke 2/40 = 5.0% | baseline mean 9.3% | delta -4.3 pp | tolerance +7.5 pp (3 items or 5 pp, larger) [40 prompts]
+PASS  whole-card p90 vs baseline: smoke 4966 ms | baseline mean 5259 ms | delta -293 ms | tolerance +2000 ms [40 prompts]
+REPORTED  diagram kinds drawn: 21/24 (not drawn: heatmap, argument, tensor)
+REPORTED  prompts whose kind is not verified (kind-reference prompts): right 23/25 (ml-stable-diffusion-forward-noise, ref-argument-reading)

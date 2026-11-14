@@ -1,0 +1,8 @@
+SMOKE rerun start 71415b6b8f30c687e8fa28b83a103fb0d775f495
+LOCK ACQUIRED r145s
+STACK start rc=0
+BENCH rc=0
+BENCHDIR /c/s/spec/benchmarks/explain-bench/2026-11-14T125715-145-smoke-rerun-71415b6b8
+GATECHECK rc=0
+LOCK RELEASED r145s
+RERUN DONE

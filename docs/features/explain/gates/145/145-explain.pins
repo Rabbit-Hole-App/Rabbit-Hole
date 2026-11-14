@@ -1,0 +1,5 @@
+LABEL="Release 145: flow decision branches and the geometry lint. A flow decision with two branches, one to each side, leaves the diamond's side vertices: both wires run at the diamond's mid-height and drop straight onto their targets with the Yes and No labels beside them, so the two branches no longer sit at different heights (RD-2, RD-2b); labels squeezed by a narrow card are lifted clear of the diamond and a pair that would overlap keeps the old routing (RD-2c). The geometry lint (RD-3) checks the layout numbers of new flow references in the topic pipeline's author check; it does not touch card generation. Web renderer and pipeline script only; two reference snapshots change; no migrations, no config change. Stacked on release 144."
+SHA=71415b6b8f30c687e8fa28b83a103fb0d775f495
+MAIN_PREV="5fd37acaa12a23abf19f41f083024066ca7d395c"
+W=C:/s/explain-rd2
+RECOVERY=release/explain-145-rollback-71415b6b
