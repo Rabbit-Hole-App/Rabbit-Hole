@@ -15,8 +15,8 @@ import { fileURLToPath } from 'node:url';
 import { captureBudgetProblems, parseScenePlan, planHash, descriptionFitProblems } from '../../packages/web/src/interact-plan.js';
 import { descriptionFit } from '../../packages/web/src/interact-description-fit.js';
 import { interactFixtures } from '../../packages/web/src/interact-plan-fixtures.js';
-import { briefSchema, expandBrief, extractBrief, familyDescription, referenceFormulaCheck } from '../../packages/web/src/interact-plan-brief.js';
-import { SCENE_TEACHING_GUIDE } from '../../packages/control-plane/src/agents/interact-design-author.js';
+import { briefSchema, expandBrief, extractBrief, referenceFormulaCheck } from '../../packages/web/src/interact-plan-brief.js';
+import { FILL_MAX_TOKENS, fillSystem, formulaProblems } from '../../packages/control-plane/src/interact-design-fill.js';
 import { runtimeProblems } from '../../packages/control-plane/src/interact-design.js';
 import { BENCH_MODELS, benchRole, callInteractRole } from '../../packages/control-plane/src/interact-models.js';
 import { approvedPlanOf } from '../../packages/control-plane/src/interact-build.js';
@@ -33,32 +33,7 @@ export const REQUEST = 'At the highest point of a vertical throw, is acceleratio
 export const DEPTHS = Object.freeze(['brief', 'balanced', 'detailed']);
 const PINNED = { brief: 'tossOverview', balanced: 'tossStandard', detailed: 'tossDeep' };
 const round1 = n => Math.round(n * 10) / 10, now = () => globalThis.performance.now(), clip = (s, n = 400) => String(s).replace(/\s+/g, ' ').slice(0, n);
-export const FILL_MAX_TOKENS = 8000; // a brief is a few hundred to a thousand tokens: cap a runaway reply
-
-// The formula grammar, as in bench-formulas.mjs: what the parser reads and nothing else.
-const GRAMMAR = [
-  'A formula is text: numbers, names, + - * /, unary minus, parentheses, and ^ with a literal whole-number exponent 2, 3 or 4 (for example t^2). Nothing else: no functions, no conditions, no other powers. At most 200 characters and 32 nodes.',
-  'The readable names are `t` (elapsed seconds since launch, 0 at the launch), the scene\'s numeric inputs by id (launchSpeed, gravity, mass where the scene has them) and, where the scene fixes gravity, `gravity`. Up is positive; a force is a magnitude. A quantity that changes rule at one moment is piecewise: `formula` applies while t < switchAt, `formulaAfter` from switchAt on; switchAt is a formula over the inputs only (no t). Give switchAt and formulaAfter as null when the quantity has one rule at every time.',
-].join('\n');
-
-// The keys of the brief with what each one is, from briefSchema(depth).keys (one source for the schema and the prompt): the text keys, the launch height, the inputs, the formula roles with unit, meaning and sign
-// convention, and the word keys with their length limits.
-function keyLines(keys) {
-  const piece = role => (role.piecewise ? ' Piecewise: formula applies before switchAt, formulaAfter from switchAt on.' : '');
-  return [
-    ...keys.text.map(k => `- ${k.key}: ${k.what} (at most ${k.max} characters)`),
-    `- launchHeight: ${keys.launchHeight}`,
-    ...keys.inputs.map(i => `- ${i.id}: ${i.label}, ${i.unit}. ${i.meaning}${i.reference ? ` ${i.reference}` : ''} (${i.kind})`),
-    // A formula role's `reference` IS the answer (its reference formula): never sent. The role keeps its label, unit and meaning (the sign convention).
-    // (a role's meaning may spell out its switch moment, "(switchAt = ...)": that is the formula the model is asked to write, so it is cut)
-    ...keys.formulas.map(f => `- formulas.${f.id}: ${f.label}, ${f.unit}. ${f.meaning.replace(/ \(switchAt = [^)]*\)/, '')}${piece(f)}`),
-    ...keys.words.map(w => `- words.${w.key}: ${w.what} (at most ${w.max} characters)`),
-  ];
-}
-
-export function fillSystem(depth, schemaInfo) {
-  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Formulas', GRAMMAR, '', 'Return the brief only: no prose.'].join('\n');
-}
+export { FILL_MAX_TOKENS, fillSystem };
 
 const costOf = (config, usage, micros) => {
   if (micros != null) return micros / 1e6;
@@ -84,9 +59,6 @@ export function matchProblems(plan, pinned) {
   for (const [name, value] of Object.entries(pinned.mode.fixedValues)) if (plan.mode.fixedValues?.[name] !== value) out.push(`match: fixed ${name} is ${plan.mode.fixedValues?.[name]}, the approved card's is ${value}`);
   return out;
 }
-
-// referenceFormulaCheck's failures as problem lines: the role, the point (a parse failure has none), got and expected.
-const formulaProblems = result => (result?.failures ?? []).map(f => `formula ${f.role}${f.point ? ` at ${JSON.stringify(f.point)}` : ''}: got ${f.got}, expected ${f.expected}`);
 
 const slug = s => s.replace(/[^\w.-]+/g, '_');
 
