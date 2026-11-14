@@ -389,22 +389,13 @@ function lr3IndependentMetrics(threshold) {
 function lr3Independent() {
   const labels = [...new Set(data.toyData.rows.map(row => row.at(-1)))].sort();
   const [zero, one] = labels;
-  const scores = data.illustration.softmax.scores;
+  const scores = [labels.length, one, zero];
   const classes = scores.map((_, i) => i);
   const exponentials = scores.map(z => Math.E ** z);
   const denominator = lr3Sum(exponentials);
   const shifted = scores.map(z => Math.exp(z - Math.max(...scores)));
   const probabilities = shifted.map(value => value / lr3Sum(shifted));
-  const raisedScores = scores.map(z => z + data.illustration.softmax.shift);
-  const raisedExponentials = raisedScores.map(z => Math.E ** z);
-  const raisedDenominator = lr3Sum(raisedExponentials);
-  const raisedShifted = raisedScores.map(z => Math.exp(z - Math.max(...raisedScores)));
-  const raisedProbabilities = raisedShifted.map(value => value / lr3Sum(raisedShifted));
-  const places = value => Math.round(value * 10 ** data.illustration.softmax.places) / 10 ** data.illustration.softmax.places;
-  const shownOf = (zs, powers, whole, shares) => ({ scores: zs, exponentials: powers.map(places), denominator: places(whole), probabilities: shares.map(places) });
-  const softmax = { classes, scores, exponentials, denominator, probabilities, total: lr3Sum(probabilities), winner: scores.indexOf(Math.max(...scores)), classCount: classes.length,
-    raised: { scores: raisedScores, exponentials: raisedExponentials, denominator: raisedDenominator, probabilities: raisedProbabilities },
-    shown: { ...shownOf(scores, exponentials, denominator, probabilities), raised: shownOf(raisedScores, raisedExponentials, raisedDenominator, raisedProbabilities) } };
+  const softmax = { classes, scores, exponentials, denominator, probabilities, total: lr3Sum(probabilities), winner: scores.indexOf(Math.max(...scores)), classCount: classes.length };
   const total = data.illustration.imbalance.total;
   const positive = total * data.illustration.imbalance.positiveRate;
   const negative = total - positive;
@@ -442,13 +433,12 @@ function lr3Displayed(value) {
   return Object.values(value).flatMap(lr3Displayed);
 }
 function lr3Elements(diagram) {
-  if (diagram.kind === 'panels') return diagram.panels.reduce((n, panel) => n + lr3Elements(panel.diagram), 0);
   if (diagram.kind === 'bar-chart') return diagram.bars ? diagram.bars.length : diagram.categories.length * diagram.series.length;
   if (diagram.kind === 'matrix') return diagram.rows.reduce((n, row) => n + row.cells.length, 0);
   return diagram.series.reduce((n, series) => n + (series.points ? series.points.length : series.samples.y.length), 0) + (diagram.annotations || []).length;
 }
 const lr3Routes = [
-  ['9', 'ml-logistic-regression-softmax', ['softmax', 'probabilities sum', 'multi class'], ['panels', 'panels', 'panels']],
+  ['9', 'ml-logistic-regression-softmax', ['softmax', 'probabilities sum', 'multi class'], ['bar-chart', 'bar-chart', 'bar-chart']],
   ['10', 'ml-logistic-regression-accuracy-trap', ['class imbalance', 'accuracy trap', 'zero recall'], ['bar-chart', 'bar-chart', 'bar-chart']],
   ['11', 'ml-logistic-regression-confusion-matrix', ['confusion matrix', 'true positive', 'false negative'], ['matrix', 'matrix', 'matrix']],
   ['12', 'ml-logistic-regression-threshold-tradeoff', ['threshold tuning', 'precision recall', 'tradeoff'], ['matrix', 'coordinate-plot', 'coordinate-plot']],
@@ -517,33 +507,12 @@ test('logistic-regression plotted values and confusion cells match their arithme
   const expected = lr3Rounded(lr3Independent());
   const find = id => references.find(ref => ref.id === id);
   const softmax = find('ml-logistic-regression-softmax');
-  // Softmax is panels: scores, (standard and deep) their exponentials with the sum in the caption, then one stacked bar of probabilities whose whole is 1.
-  const classLabels = expected.softmax.classes.map(c => `Class ${c}`);
-  const barsOf = (diagram, values) => { assert.deepStrictEqual(diagram.bars.map(bar => bar.label), classLabels); assert.deepStrictEqual(diagram.bars.map(bar => bar.value), values); };
-  const worked = (diagram, shown, steps) => {
-    assert.deepStrictEqual(diagram.shared, ['classes']);
-    const [scores, ...rest] = diagram.panels.map(panel => panel.diagram), stacked = rest.at(-1);
-    barsOf(scores, shown.scores);
-    barsOf(stacked, shown.probabilities);
-    assert.deepStrictEqual([stacked.variant, stacked.total], ['stacked', expected.constants.one]);
-    assert.ok(Math.abs(lr3Sum(stacked.bars.map(bar => bar.value)) - stacked.total) < 1e-9, 'the parts fill the whole');
-    if (steps) {
-      barsOf(rest[0], shown.exponentials);
-      assert.strictEqual(rest[0].caption, `Sum $= ${shown.denominator}$`);
-      assert.deepStrictEqual(diagram.links.map(link => link.operation), ['$\\exp(z)$', `$\\div ${shown.denominator}$`]);
-    } else assert.deepStrictEqual(diagram.links.map(link => link.operation), ['softmax']);
-  };
-  worked(softmax.depths.overview.spec.diagram, expected.softmax.shown, false);
-  // Deep carries a second figure: every score plus one -> 20.09 / 7.39 / 3.00 (sum 30.48) -> the same 0.66 / 0.24 / 0.10.
-  const raised = softmax.depths.deep.detailSpec.diagram;
-  worked(raised, expected.softmax.shown.raised, true);
-  assert.deepStrictEqual(raised.panels.map(panel => panel.diagram.bars.map(bar => bar.value)), [[3, 2, 1.1], [20.09, 7.39, 3], [0.66, 0.24, 0.1]]);
-  assert.deepStrictEqual(raised.panels.at(-1).diagram.bars, softmax.depths.deep.spec.diagram.panels.at(-1).diagram.bars, 'identical shares');
+  assert.deepStrictEqual(softmax.depths.overview.spec.diagram.bars.map(bar => bar.value), expected.softmax.probabilities);
   for (const depth of ['standard', 'deep']) {
     const diagram = softmax.depths[depth].spec.diagram;
-    worked(diagram, expected.softmax.shown, true);
-    // the owner's worked numbers, written out: 2.0 / 1.0 / 0.1 -> 7.39 / 2.72 / 1.11 (sum 11.21) -> 0.66 / 0.24 / 0.10
-    assert.deepStrictEqual(diagram.panels.map(panel => panel.diagram.bars.map(bar => bar.value)), [[2, 1, 0.1], [7.39, 2.72, 1.11], [0.66, 0.24, 0.1]]);
+    assert.ok(diagram.unit.length <= 12);
+    assert.deepStrictEqual(diagram.categories, expected.softmax.classes.map(c => `Class ${c}`));
+    assert.deepStrictEqual(diagram.series.map(series => series.values), [expected.softmax.scores, expected.softmax.probabilities]);
     const imbalance = find('ml-logistic-regression-accuracy-trap').depths[depth].spec.diagram;
     assert.deepStrictEqual(imbalance.series.map(series => series.values), [[expected.imbalance.tn, expected.imbalance.tp], [expected.imbalance.fp, expected.imbalance.fn]]);
     const m = expected.confusion;

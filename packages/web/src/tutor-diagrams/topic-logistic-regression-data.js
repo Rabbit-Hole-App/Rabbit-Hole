@@ -28,7 +28,6 @@ export const illustration = {
   thresholds: [0.3, 0.5, 0.7],
   learningRate: 0.1,
   imbalance: { total: 100, positiveRate: 0.05 },
-  softmax: { scores: [2, 1, 0.1], shift: 1, places: 2 },
 };
 
 const sum = values => values.reduce((total, value) => total + value, 0);
@@ -161,21 +160,12 @@ export function derived() {
       const p = sigmoid(z);
       return { x, y: x, z, p, prediction: Number(p >= half) };
     }) };
-  const classScores = illustration.softmax.scores;
+  const classScores = [two, one, zero];
   const exponentials = classScores.map(value => Math.exp(value));
   const denominator = sum(exponentials);
   const probabilities = exponentials.map(value => value / denominator);
-  // The same scores raised by one: every exponential grows by the same factor, so the probabilities do not move. `shown` is what the figures print, to two places.
-  const raised = classScores.map(value => value + illustration.softmax.shift);
-  const raisedExponentials = raised.map(value => Math.exp(value));
-  const raisedDenominator = sum(raisedExponentials);
-  const raisedProbabilities = raisedExponentials.map(value => value / raisedDenominator);
-  const places = value => Number(value.toFixed(illustration.softmax.places));
-  const shownOf = (scores, powers, whole, shares) => ({ scores, exponentials: powers.map(places), denominator: places(whole), probabilities: shares.map(places) });
   const softmax = { classes: classScores.map((_, index) => index), scores: classScores, exponentials,
-    denominator, probabilities, total: sum(probabilities), winner: probabilities.indexOf(Math.max(...probabilities)), classCount: classScores.length,
-    raised: { scores: raised, exponentials: raisedExponentials, denominator: raisedDenominator, probabilities: raisedProbabilities },
-    shown: { ...shownOf(classScores, exponentials, denominator, probabilities), raised: shownOf(raised, raisedExponentials, raisedDenominator, raisedProbabilities) } };
+    denominator, probabilities, total: sum(probabilities), winner: probabilities.indexOf(Math.max(...probabilities)), classCount: classScores.length };
   const total = illustration.imbalance.total;
   const minority = total * illustration.imbalance.positiveRate;
   const majority = total - minority;

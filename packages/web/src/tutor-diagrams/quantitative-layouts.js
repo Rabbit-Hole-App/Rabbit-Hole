@@ -180,16 +180,10 @@ function coordinatePlot(diagram, width) {
   return { width, height: legendY + PAD, elements: [...elements, ...markers] };
 }
 
-function barChart(diagram, width, options) {
+function barChart(diagram, width) {
   const { bars, unit } = diagram;
-  // Inside a narrow panel (options.compact) the columns shrink to their text, so a short label such as "Class 0" is not broken at its space.
-  const fit = (texts, size) => Math.ceil(Math.max(...texts.map(text => textWidth(text, size)))) + 4;
-  const labelWidth = options?.compact ? Math.min(Math.round(width * 0.4), fit(bars.map(bar => bar.label), 14)) : Math.min(134, Math.round(width * 0.27));
-  // The same panel setting prints every value to the decimals of the longest one (3.00 beside 20.09, not 3), so a column of figures reads at one precision.
-  const places = Math.max(...bars.map(bar => (String(bar.value).split('.')[1] ?? '').length));
-  const shown = bar => options?.compact ? bar.value.toFixed(places) : String(bar.value);
-  const valueText = bar => unit ? `${shown(bar)} ${unit}` : shown(bar);
-  const valueWidth = options?.compact ? Math.min(Math.round(width * 0.3), fit(bars.map(valueText), SMALL)) : Math.min(110, Math.round(width * 0.25));
+  const labelWidth = Math.min(134, Math.round(width * 0.27));
+  const valueWidth = Math.min(110, Math.round(width * 0.25));
   const left = PAD + labelWidth + 10, right = width - PAD - valueWidth - 10;
   const min = Math.min(0, ...bars.map(bar => bar.value));
   const max = Math.max(0, ...bars.map(bar => bar.value));
@@ -199,7 +193,7 @@ function barChart(diagram, width, options) {
   let y = PAD + 22;
   for (const bar of bars) {
     const name = wrap(bar.label, labelWidth);
-    const value = wrap(valueText(bar), valueWidth, SMALL);
+    const value = wrap(unit ? `${bar.value} ${unit}` : String(bar.value), valueWidth, SMALL);
     const height = Math.max(36, name.length * lineHeight() + 10, value.length * lineHeight(SMALL) + 10);
     const center = y + height / 2;
     const end = position(bar.value);
@@ -208,7 +202,7 @@ function barChart(diagram, width, options) {
     } else {
       elements.push(h('rect', {
         x: Math.min(zero, end), y: center - 10, width: Math.abs(end - zero), height: 20, rx: 2,
-        fill: options?.labelColors?.get(bar.label) ?? (bar.value < 0 ? PALETTE.rose : PALETTE.process), stroke: INK, strokeWidth: 1.3, 'data-tutor-bar': bar.value,
+        fill: bar.value < 0 ? PALETTE.rose : PALETTE.process, stroke: INK, strokeWidth: 1.3, 'data-tutor-bar': bar.value,
       }));
     }
     elements.push(label(name, PAD, center, { anchor: 'start' }));

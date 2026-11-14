@@ -184,8 +184,7 @@ test('M3: undeclared keys in the visuals are stripped and logged on every route;
   // The undeclared keys are only those: every key of every reference survives (the schema declares the whole library).
   const { diagramReferences } = await import('../../web/src/tutor-diagrams/reference-library.js');
   const { stripUnknownKeys } = await import('../src/learn-primitives.js');
-  // The panels kind is the one exception: it is not in the author's schema yet (tier 2), so a panels reference is data the author is never shown whole.
-  for (const ref of diagramReferences.filter(item => item.spec.diagram.kind !== 'panels')) assert.deepEqual(stripUnknownKeys([{ k: 'diagram', spec: ref.spec }]).stripped, [], ref.id);
+  for (const ref of diagramReferences) assert.deepEqual(stripUnknownKeys([{ k: 'diagram', spec: ref.spec }]).stripped, [], ref.id);
 });
 
 // Owner E3 (2026-11-08), log only: p_i outside maths delimiters is a smell; $p_i$ is not.

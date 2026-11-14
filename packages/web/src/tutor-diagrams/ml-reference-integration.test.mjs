@@ -8,7 +8,7 @@ import { usesTensorItems } from './illustration-kinds.js';
 
 test('the production schema, reference registry and renderer agree on every kind and all 21 lessons', () => {
   const kinds = (tutorDiagramJsonSchema.properties.diagram.anyOf ?? tutorDiagramJsonSchema.properties.diagram.oneOf).map(s => s.properties.kind.const);
-  assert.equal(kinds.length, 25);
+  assert.equal(kinds.length, 24);
   assert.equal(new Set(diagramReferences.map(r => r.id)).size, diagramReferences.length, 'unique stable reference IDs');
   for (const kind of kinds) {
     assert.ok(diagramReferences.some(({ spec: { diagram } }) => diagram.kind === kind

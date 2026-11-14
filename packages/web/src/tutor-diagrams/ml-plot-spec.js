@@ -40,8 +40,6 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
     z.strictObject({ ...titled, kind: z.literal('bar-chart'), unit,
       bars: z.array(z.strictObject({ label: text(42), value: numeric })).min(2).max(8).optional(),
       variant: z.enum(['grouped', 'stacked']).optional(),
-      // stacked + bars (no categories or series): one bar split into these parts in order; with `total` the bar's height is that total.
-      total: numeric.positive().optional(),
       categories: z.array(text(42)).min(2).max(8).optional(),
       series: z.array(z.strictObject({ label: text(42), values: z.array(numeric).min(2).max(8) })).min(2).max(3).optional(),
     }),
@@ -166,29 +164,13 @@ function checkPlot(d, issue) {
   });
 }
 
-// One stacked bar: parts in order. Parts are positive and, when a total is stated, add up to it within the rounding of the values written.
-export const isStackedBar = d => d.kind === 'bar-chart' && d.variant === 'stacked' && Boolean(d.bars);
-const decimals = value => (String(value).split('.')[1] ?? '').length;
-function checkStackedBar(d, issue) {
-  if (d.categories || d.series) issue(['bars'], 'A single stacked bar uses bars, not categories and series');
-  d.bars.forEach(({ value }, index) => { if (value <= 0) issue(['bars', index, 'value'], 'Parts of one stacked bar are positive'); });
-  if (new Set(d.bars.map(bar => bar.label)).size !== d.bars.length) issue(['bars'], 'Part labels must be unique');
-  if (d.total !== undefined) {
-    const places = Math.max(decimals(d.total), ...d.bars.map(bar => decimals(bar.value)));
-    const sum = d.bars.reduce((all, bar) => all + bar.value, 0);
-    if (Math.abs(sum - d.total) > d.bars.length * 0.5 * 10 ** -places + 1e-9) issue(['total'], `The parts add up to ${Number(sum.toFixed(places + 2))}, not the stated total ${d.total}`);
-  }
-}
-
 function checkBars(d, issue) {
-  if (d.total !== undefined && !isStackedBar(d)) issue(['total'], 'A total belongs to one stacked bar (variant stacked with bars)');
   if (!d.variant) {
     if (!d.bars) issue(['bars'], 'Basic bar charts require bars');
     if (d.categories || d.series) issue(['variant'], 'Grouped or stacked series require an explicit variant');
     return;
   }
-  if (isStackedBar(d)) return checkStackedBar(d, issue);
-  if (d.bars) issue(['bars'], 'Grouped variants and stacked series cannot include legacy bars');
+  if (d.bars) issue(['bars'], 'Grouped and stacked variants cannot include legacy bars');
   if (!d.categories || !d.series) { issue(['variant'], 'A bar variant requires categories and series'); return; }
   for (const [key, values] of [['categories', d.categories], ['series', d.series.map(s => s.label)]]) {
     if (new Set(values).size !== values.length) issue([key], 'Category and series labels must be unique');
@@ -228,9 +210,6 @@ export function describe(d) {
     ...d.series.map(s => `${s.label} (${s.closed ? 'closed line' : s.kind}): ${plotSeriesPoints(s).map(p => `${p.id ? `${p.id} ` : ''}${p.label ? `${p.label} ` : ''}${xy(p)}${p.low !== undefined ? ` [${p.low}, ${p.high}]` : ''}`).join('; ')}`),
     ...(d.annotations ?? []).map(annotationDescription),
   ];
-  if (isStackedBar(d)) return [
-    `One stacked bar${d.unit ? ` (${d.unit})` : ''}${d.total !== undefined ? `, total ${d.total}` : ''}: ${d.bars.map(bar => `${bar.label} ${bar.value}`).join('; ')}`,
-  ];
   if (d.kind === 'bar-chart' && d.variant) return [
     `${d.variant} bars${d.unit ? ` (${d.unit})` : ''}`,
     ...d.categories.map((category, i) => `${category}: ${d.series.map(s => `${s.label} ${s.values[i]}`).join('; ')}`),
@@ -241,7 +220,6 @@ export function describe(d) {
 export function visibleText(d) {
   if (isExtendedPlot(d)) return [d.title, d.caption, d.x.label, d.x.unit, d.y.label, d.y.unit,
     ...d.series.flatMap(s => [s.label, ...plotSeriesPoints(s).map(p => p.label)]), ...(d.annotations ?? []).map(a => a.label)].filter(Boolean);
-  if (isStackedBar(d)) return [d.title, d.caption, d.unit, ...d.bars.map(bar => bar.label)].filter(Boolean);
   if (d.kind === 'bar-chart' && d.variant) return [d.title, d.caption, d.unit, ...d.categories, ...d.series.map(s => s.label)].filter(Boolean);
   return null;
 }

@@ -1,13 +1,8 @@
 import { createElement as h } from 'react';
-import { fitCaption, label, layoutCaption, lineHeight, longestWordWidth, wrap } from './primitives.js';
+import { fitCaption, label, layoutCaption, lineHeight, wrap } from './primitives.js';
 import { sharedPlotLabelSpace } from './ml-plot-layouts.js';
-import { TEACHING as T, TEACHING_SERIES, teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
+import { teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
 
-const BUDGET = 680; // the card's text column: panels share it whatever the available width
-const MIN_PANEL = 150; // narrower than this, a panel grows and the diagram scrolls rather than shrinking its text
-const LINK_MIN = 64;
-const LINK_MAX = 120;
-const SERIES = [...TEACHING_SERIES, T.ink, T.muted];
 const PAD = 12;
 const GAP = 20;
 const MIN_CHILD_WIDTH = 320;
@@ -141,58 +136,8 @@ function visualTransformation(diagram, width, renderChild) {
   return { width: frame.width, height: y + PAD, elements };
 }
 
-// panels: equal-width panels left to right inside the 680 budget; an arrow with its operation above joins linked neighbours. Each child is laid out
-// at its panel width and, when its own minimum is wider, scaled down to it, so it looks as it does alone.
-function panelsKind(diagram, width, renderChild) {
-  const { panels, links = [], shared = [] } = diagram;
-  const gaps = panels.slice(0, -1).map((_, index) => {
-    const link = links.find(item => item.from === index);
-    return link ? Math.min(LINK_MAX, Math.max(LINK_MIN, Math.ceil(longestWordWidth(link.operation, SMALL)) + 16)) : GAP;
-  });
-  const panelWidth = Math.max(MIN_PANEL, Math.floor((Math.min(width, BUDGET) - PAD * 2 - gaps.reduce((a, b) => a + b, 0)) / panels.length));
-  const labelColors = new Map();
-  if (shared.includes('classes') || shared.includes('colours')) {
-    for (const { diagram: child } of panels) for (const bar of child.bars ?? []) if (!labelColors.has(bar.label)) labelColors.set(bar.label, SERIES[labelColors.size % SERIES.length]);
-  }
-  const prepared = panels.map(({ label: name, diagram: child }) => {
-    const scene = fitCaption(renderChild(child, panelWidth, { compact: true, labelColors: labelColors.size ? labelColors : undefined }), child.caption, 2 * PAD, SMALL);
-    const scale = scene.width > panelWidth ? panelWidth / scene.width : 1;
-    return { scene, scale, name: name ? wrap(name, panelWidth - 16, TEXT) : [], title: wrap(child.title, panelWidth - 16, TEXT),
-      caption: layoutCaption(child.caption, panelWidth - 16, SMALL) };
-  });
-  const nameHeight = Math.max(...prepared.map(panel => panel.name.length * lineHeight(TEXT)));
-  const titleHeight = Math.max(...prepared.map(panel => panel.title.length * lineHeight(TEXT)));
-  const bodyTop = PAD + 8 + (nameHeight ? nameHeight + 6 : 0) + titleHeight + 8;
-  const bodyHeight = Math.ceil(Math.max(...prepared.map(panel => panel.scene.height * panel.scale)));
-  const captionHeight = Math.max(...prepared.map(panel => panel.caption.height));
-  const bottom = bodyTop + bodyHeight + (captionHeight ? captionHeight + 8 : 0) + 8;
-  const elements = [];
-  let x = PAD;
-  const edges = [];
-  prepared.forEach((panel, index) => {
-    elements.push(box(x, PAD, panelWidth, bottom - PAD, { role: 'plain' }));
-    if (nameHeight) elements.push(label(panel.name, x + panelWidth / 2, PAD + 8 + nameHeight / 2, { weight: 700 }));
-    elements.push(label(panel.title, x + panelWidth / 2, PAD + 8 + (nameHeight ? nameHeight + 6 : 0) + titleHeight / 2, { tone: nameHeight ? 'muted' : 'ink', weight: nameHeight ? 400 : 700 }));
-    elements.push(h('g', { transform: `translate(${x + (panelWidth - panel.scene.width * panel.scale) / 2} ${bodyTop}) scale(${panel.scale})`, 'data-tutor-composition-child': index }, ...panel.scene.elements));
-    if (panel.caption.height) elements.push(panel.caption.draw(x + panelWidth / 2, bodyTop + bodyHeight + 8 + captionHeight / 2));
-    edges.push([x, x + panelWidth]);
-    x += panelWidth + (gaps[index] ?? 0);
-  });
-  const y = bodyTop + bodyHeight / 2;
-  for (const link of links) {
-    const [, from] = edges[link.from], [to] = edges[link.to];
-    const lines = wrap(link.operation, to - from - 8, SMALL);
-    elements.push(connector([[from + 6, y], [to - 6, y]], { arrow: true }));
-    elements.push(label(lines, (from + to) / 2, y - 8 - lines.length * lineHeight(SMALL) / 2, { size: SMALL, weight: 700 }));
-  }
-  // The panels keep the 680 budget; a wider request (the 720 maximum) centres them rather than stretching them.
-  const sceneWidth = Math.max(width, x + PAD), offset = (sceneWidth - (x + PAD)) / 2;
-  return { width: sceneWidth, height: bottom + PAD, elements: offset ? [h('g', { transform: `translate(${offset} 0)` }, ...elements)] : elements };
-}
-
 export function createLayouts({ legacy, renderChild }) {
   return {
-    panels: (diagram, width) => panelsKind(diagram, width, renderChild),
     comparison: (diagram, width) => diagram.variant === 'panels' ? visualComparison(diagram, width, renderChild) : legacy.comparison(diagram, width),
     transformation: (diagram, width) => diagram.variant === 'visual' ? visualTransformation(diagram, width, renderChild) : legacy.transformation(diagram, width),
   };

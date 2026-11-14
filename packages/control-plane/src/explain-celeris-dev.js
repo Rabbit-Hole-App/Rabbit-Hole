@@ -9,7 +9,7 @@
 // with that provider's key in CELERIS_API_KEY point the same route at it; unset, it is Celeris.
 // Three switches must all be on: the Worker is a dev or test deployment (SMALL_ENV), EXPLAIN_CELERIS_DEV is "true", and CELERIS_API_KEY is set.
 // A production Worker has SMALL_ENV "production" and can never take this path.
-import { parseTutorDiagram, tutorDiagramAuthorJsonSchema } from '../../web/src/tutor-diagrams/spec.js';
+import { parseTutorDiagram, tutorDiagramJsonSchema } from '../../web/src/tutor-diagrams/spec.js';
 import { planModel } from './ask.js';
 
 export const CELERIS_MODEL = 'celeris-1';
@@ -53,7 +53,7 @@ const cardSchema = required => ({
   properties: {
     title: { type: 'string', description: 'A short title naming the topic.' },
     body: { type: 'string', description: 'The written explanation in Markdown: short paragraphs, a list or a pipe table (every row starts and ends with a pipe). No code fence for the diagram.' },
-    diagram: required ? tutorDiagramAuthorJsonSchema : { anyOf: [tutorDiagramAuthorJsonSchema, { type: 'null' }] },
+    diagram: required ? tutorDiagramJsonSchema : { anyOf: [tutorDiagramJsonSchema, { type: 'null' }] },
   },
 });
 

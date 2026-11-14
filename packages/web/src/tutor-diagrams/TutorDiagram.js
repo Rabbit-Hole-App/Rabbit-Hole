@@ -71,7 +71,7 @@ export default function TutorDiagram({ spec, fallback = null }) {
 }
 
 function isTeachingDiagram(d) {
-  if (['heatmap', 'sample-set', 'histogram', 'box-plot', 'panels'].includes(d.kind)) return true;
+  if (['heatmap', 'sample-set', 'histogram', 'box-plot'].includes(d.kind)) return true;
   if (['panels', 'visual', 'grouped', 'stacked'].includes(d.variant)) return true;
   if (['scaled-lanes', 'teaching', 'hierarchy', 'dendrogram', 'graph'].includes(d.layout)) return true;
   if (d.kind === 'tree') return d.highlightPath || d.nodes.some(n => n.edgeLabel || n.detail || n.count !== undefined || n.pruned);

@@ -18,7 +18,7 @@ import { MATH_FORMAT } from './agents/math-format.js';
 import { NUMBER_RULE } from './agents/learn-artifact.js';
 import MATH_SCHEMA from '../../math-renderer/math-schema.json' with { type: 'json' };
 import { EXPLANATION_BUDGET, EXPLANATION_CAPS, PARAGRAPH_MAX, validDepth } from './chat-depth.js';
-import { parseTutorDiagram, tutorDiagramAuthorJsonSchema, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
+import { parseTutorDiagram, tutorDiagramJsonSchema, tutorDiagramVisibleText } from '../../web/src/tutor-diagrams/spec.js'; // the card's own diagram library: one parser for the author, the validator and the renderer
 import { flowPaths } from '../../web/src/tutor-diagrams/flow-paths.js';
 
 const text = (maxLength, minLength = 1) => ({ type: 'string', minLength, maxLength });
@@ -50,7 +50,7 @@ export const AUTHOR_PICTURE_LIMITS = Object.freeze({ prompt: 200, alt: 120, capt
 export const NO_TEXT_SUFFIX = 'no text, labels, titles or icons';
 export const withNoTextSuffix = prompt => { const p = String(prompt).trim(); return p.toLowerCase().endsWith(NO_TEXT_SUFFIX) ? p : `${p.replace(/[\s.,;:]+$/, '')}. ${NO_TEXT_SUFFIX}`; };
 const VISUAL_ITEM = { oneOf: [
-  shape({ k: { type: 'string', const: 'diagram' }, spec: tutorDiagramAuthorJsonSchema }),
+  shape({ k: { type: 'string', const: 'diagram' }, spec: tutorDiagramJsonSchema }),
   shape({ k: { type: 'string', const: 'picture' }, p: text(AUTHOR_PICTURE_LIMITS.prompt), a: text(AUTHOR_PICTURE_LIMITS.alt), c: text(AUTHOR_PICTURE_LIMITS.caption) }),
 ] };
 // Owner M3 (2026-11-08): a key the author added that the schema does not declare (Gemini wrote `layers` on a comparison) is removed before the card is read,

@@ -151,22 +151,14 @@ function expectedResults() {
       const z = x + x - boundarySum;
       return { x, y: x, z, p: probability(z), prediction: z < zero ? zero : one };
     }) };
-  const classScores = illustration.softmax.scores;
+  const classScores = [two, one, zero];
   const exponentials = classScores.map(z => Math.E ** z);
   const denominator = totalOf(exponentials);
-  const stableDenominator = totalOf(classScores.map(z => Math.exp(z - Math.max(...classScores))));
-  const probabilities = classScores.map(z => Math.exp(z - Math.max(...classScores)) / stableDenominator);
+  const stableDenominator = totalOf(classScores.map(z => Math.exp(z - two)));
+  const probabilities = classScores.map(z => Math.exp(z - two) / stableDenominator);
   const winner = classScores.findIndex(z => z === Math.max(...classScores));
-  const raisedScores = classScores.map(z => z + illustration.softmax.shift);
-  const raisedExponentials = raisedScores.map(z => Math.E ** z);
-  const raisedDenominator = totalOf(raisedExponentials);
-  const raisedProbabilities = raisedScores.map(z => Math.exp(z - Math.max(...raisedScores)) / totalOf(raisedScores.map(y => Math.exp(y - Math.max(...raisedScores)))));
-  const places = value => Math.round(value * 10 ** illustration.softmax.places) / 10 ** illustration.softmax.places;
-  const shownOf = (scores, powers, whole, shares) => ({ scores, exponentials: powers.map(places), denominator: places(whole), probabilities: shares.map(places) });
   const softmax = { classes: classScores.map((_, index) => index), scores: classScores, exponentials,
-    denominator, probabilities, total: totalOf(probabilities), winner, classCount: classScores.length,
-    raised: { scores: raisedScores, exponentials: raisedExponentials, denominator: raisedDenominator, probabilities: raisedProbabilities },
-    shown: { ...shownOf(classScores, exponentials, denominator, probabilities), raised: shownOf(raisedScores, raisedExponentials, raisedDenominator, raisedProbabilities) } };
+    denominator, probabilities, total: totalOf(probabilities), winner, classCount: classScores.length };
   const total = illustration.imbalance.total;
   const positive = total * illustration.imbalance.positiveRate;
   const negative = total * (one - illustration.imbalance.positiveRate);
@@ -232,11 +224,6 @@ test('logistic-regression teaching relationships follow the recomputed arithmeti
   assert.ok(d.loss.negative[0].y < d.loss.negative.at(-1).y);
   for (const point of d.boundary.line) closeTree(point.x + point.y + d.boundary.b, d.constants.zero);
   closeTree(totalOf(d.softmax.probabilities), d.constants.one);
-  closeTree(d.softmax.raised.probabilities, d.softmax.probabilities); // raising every score by one changes no probability
-  const { shown } = d.softmax;
-  assert.deepStrictEqual([shown.scores, shown.exponentials, shown.denominator, shown.probabilities], [[2, 1, 0.1], [7.39, 2.72, 1.11], 11.21, [0.66, 0.24, 0.1]]);
-  assert.deepStrictEqual([shown.raised.scores, shown.raised.exponentials, shown.raised.denominator, shown.raised.probabilities], [[3, 2, 1.1], [20.09, 7.39, 3], 30.48, [0.66, 0.24, 0.1]]);
-  closeTree(totalOf(shown.probabilities), d.constants.one);
   for (const result of d.thresholds) {
     assert.strictEqual(result.tp + result.fn + result.fp + result.tn, extraData.rows.length);
     assert.strictEqual(result.predictedPositive + result.predictedNegative, result.n);

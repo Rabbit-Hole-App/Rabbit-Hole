@@ -25,7 +25,7 @@ test('the measured compact specs fit the 200-token budget', () => {
 test('the gallery contains exactly one spec for each supported kind', () => {
   const diagramSchema = tutorDiagramJsonSchema.properties.diagram;
   const kinds = (diagramSchema.anyOf ?? diagramSchema.oneOf).map(shape => shape.properties.kind.const);
-  assert.equal(kinds.length, 25);
+  assert.equal(kinds.length, 24);
   assert.deepEqual(gallery.map(spec => spec.diagram.kind).sort(), kinds.sort());
 });
 

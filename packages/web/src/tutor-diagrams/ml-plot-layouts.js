@@ -3,7 +3,7 @@ import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.
 import { closedLinePath, monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
 import { TEACHING as T, TEACHING_SERIES, teachingConnector } from './teaching-theme.js';
-import { annotationDescription, axisName, isExtendedPlot, isStackedBar, plotSeriesPoints } from './ml-plot-spec.js';
+import { annotationDescription, axisName, isExtendedPlot, plotSeriesPoints } from './ml-plot-spec.js';
 
 const PAD = 12;
 const SMALL = 12;
@@ -284,36 +284,9 @@ function barChart(d, requested) {
   return { width, height: top + PAD, elements };
 }
 
-// One bar split into its parts in the order written, first part on top; a part's height is its share of `total` (or of the parts' sum), so a stated total
-// of 1 makes the whole bar one unit tall. Each label stands beside its part, pushed down just enough not to touch the one above, with a leader when moved.
-function stackedBar(d, requested, options) {
-  const width = Math.max(requested, 220), SIZE = 14, HEIGHT = 200, BAR = 64, top = PAD + 8, left = PAD + 12, textX = left + BAR + 22;
-  const sum = d.bars.reduce((all, bar) => all + bar.value, 0), total = d.total ?? sum;
-  const elements = [];
-  // Every part prints to the decimals of the longest value written (0.10 beside 0.66), the same precision down the whole bar.
-  const places = Math.max(...d.bars.map(bar => (String(bar.value).split('.')[1] ?? '').length));
-  let before = 0, nextTop = top;
-  for (const [i, bar] of d.bars.entries()) {
-    const y = top + HEIGHT * before / total, height = HEIGHT * bar.value / total, middle = y + height / 2;
-    elements.push(h('rect', { x: left, y, width: BAR, height, fill: options?.labelColors?.get(bar.label) ?? COLORS[i % COLORS.length], stroke: T.surface, strokeWidth: 1.5,
-      'data-tutor-stacked-part': bar.value, 'data-tutor-bar-series': bar.label, 'data-tutor-stack-from': before, 'data-tutor-stack-to': before + bar.value }, h('title', null, `${bar.label}: ${bar.value.toFixed(places)}`)));
-    const lines = wrap(`${bar.label}: ${bar.value.toFixed(places)}`, width - textX - PAD, SIZE), rows = lines.length * lineHeight(SIZE);
-    const centre = Math.max(middle, nextTop + rows / 2);
-    if (Math.abs(centre - middle) > 2) elements.push(teachingConnector([[left + BAR, middle], [textX - 6, centre]], { arrow: false }));
-    elements.push(label(lines, textX, centre, { anchor: 'start', size: SIZE }));
-    nextTop = centre + rows / 2 + 3;
-    before += bar.value;
-  }
-  elements.push(h('rect', { x: left, y: top, width: BAR, height: HEIGHT * sum / total, fill: 'none', stroke: T.ink, strokeWidth: 1.2, 'data-tutor-stacked-total': total }));
-  const caption = wrap(`${d.total !== undefined ? 'Whole bar' : 'Sum of the parts'}: ${total}${d.unit ? ` ${d.unit}` : ''}`, width - 2 * PAD, SMALL);
-  const captionTop = Math.max(top + HEIGHT, nextTop) + 14;
-  elements.push(label(caption, PAD, captionTop + caption.length * lineHeight(SMALL) / 2, { anchor: 'start', size: SMALL, tone: 'muted' }));
-  return { width, height: captionTop + caption.length * lineHeight(SMALL) + PAD, elements };
-}
-
 export function createLayouts({ legacy }) {
   return {
     'coordinate-plot': (d, width, options) => isExtendedPlot(d) ? coordinatePlot(d, width, options) : legacy['coordinate-plot'](d, width),
-    'bar-chart': (d, width, options) => isStackedBar(d) ? stackedBar(d, width, options) : d.variant ? barChart(d, width) : legacy['bar-chart'](d, width, options),
+    'bar-chart': (d, width) => d.variant ? barChart(d, width) : legacy['bar-chart'](d, width),
   };
 }
