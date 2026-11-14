@@ -1,6 +1,6 @@
 # RD-4: renderer fixes for the geometry lint's remaining classes
 
-Branch `explain/rd-4`, three commits on the release 145 candidate `71415b6b8` (RD-2 + RD-2b + RD-2c + RD-3). Renderer only: `flow.js` (and the lint reads one new field), no reference or content change. Status when this report was written: the SVG snapshot rows are NOT regenerated yet (the snapshot step waits for the heavy lock), so `svg-snapshots.test.mjs` is red on this branch until the next commit.
+Branch `explain/rd-4`, three commits on the release 145 candidate `71415b6b8` (RD-2 + RD-2b + RD-2c + RD-3). Renderer only: `flow.js` (and the lint reads one new field), no reference or content change. Commits: RD-4c `756545092`, RD-4b `477641755`, RD-4a `6d220e1b1` (pushed first with the SVG snapshot rows stale), then `962b4269f` regenerates the rows (`svg-snapshots.test.mjs` green). Correction: that commit's message says 28 entries; the exact count against 71415b6b8 is **27 rows in 9 ids** (`ml-batch-score-fallback/320` changed in both RD-4c and RD-4a and is counted twice in the per-step tables below).
 
 ## The three commits (each its own commit; drop one and the others stand, except the shared snapshot commit that follows)
 
@@ -45,8 +45,60 @@ Files: `renders/<id>.before|after.svg` (and `.png` for six of them). Sizes are n
 | ml-word2vec-neural-predictor (overview) | 134 x 468 | 134 x 468 (capsule radius only) |
 | ml-logistic-regression-linear-unbounded (overview) | 159 x 278 | 159 x 278 (capsule radius only) |
 
-Note: the lint measures the narrowest layout (`layoutFlow(diagram, 0)`). Which of the SVG snapshot rows (320, 408, 720) change is not known until the snapshot step runs; the changed ids with before/after sizes will be listed with that commit.
+Note: the lint measures the narrowest layout (`layoutFlow(diagram, 0)`). The snapshot rows that changed are listed below.
 
 ## Tests (each run singly)
 
 `geometry-lint.test.mjs` 9/9, `flow.test.mjs` 21/21, `flow-capsule.test.mjs` 2/2, `flow-wire-gap.test.mjs` 2/2, `flow-lanes.test.mjs` 4/4, pipeline `geometry-lint.test.mjs` 3/3 (rewritten: the baseline is empty, so it now proves the lint on a synthetic fork whose labels cannot share a height), `check-map.test.mjs` 22/22. `flow.test.mjs` had three pinned digests re-pinned (swallow at natural width, triage, same-side), each after the before/after look above.
+
+## SVG snapshot rows changed (27 rows, 9 ids, none added or removed; per step, each step against the one before it)
+
+### RD-4c: 1 rows changed in 1 ids; added/removed: 0
+
+| id/width | before (w x h) | after (w x h) |
+|---|---|---|
+| `ml-batch-score-fallback/320` | 320 x 597 | 320 x 597 (same size, new bytes) |
+
+### RD-4b: 9 rows changed in 3 ids; added/removed: 0
+
+| id/width | before (w x h) | after (w x h) |
+|---|---|---|
+| `figure-parallel-residual-sublayers-brief/408` | 408 x 592 | 408 x 592 (same size, new bytes) |
+| `figure-parallel-residual-sublayers-brief/960` | 720 x 553 | 720 x 553 (same size, new bytes) |
+| `figure-parallel-residual-sublayers-brief/natural` | 327 x 663 | 327 x 663 (same size, new bytes) |
+| `figure-parallel-residual-sublayers-detailed/408` | 408 x 592 | 408 x 592 (same size, new bytes) |
+| `figure-parallel-residual-sublayers-detailed/960` | 720 x 553 | 720 x 553 (same size, new bytes) |
+| `figure-parallel-residual-sublayers-detailed/natural` | 327 x 663 | 327 x 663 (same size, new bytes) |
+| `figure-parallel-residual-sublayers/408` | 408 x 592 | 408 x 592 (same size, new bytes) |
+| `figure-parallel-residual-sublayers/960` | 720 x 553 | 720 x 553 (same size, new bytes) |
+| `figure-parallel-residual-sublayers/natural` | 327 x 663 | 327 x 663 (same size, new bytes) |
+
+### RD-4a: 18 rows changed in 6 ids; added/removed: 0
+
+| id/width | before (w x h) | after (w x h) |
+|---|---|---|
+| `flow-converging-arrivals/408` | 408 x 636 | 408 x 628 |
+| `flow-converging-arrivals/960` | 720 x 571 | 720 x 563 |
+| `flow-converging-arrivals/natural` | 382 x 632 | 382 x 624 |
+| `ml-bagging-vote-flow/320` | 382 x 546 | 382 x 534 |
+| `ml-bagging-vote-flow/408` | 408 x 529 | 408 x 517 |
+| `ml-bagging-vote-flow/720` | 720 x 489 | 720 x 477 |
+| `ml-batch-score-fallback/320` | 320 x 597 | 320 x 583 |
+| `ml-batch-score-fallback/408` | 408 x 571 | 408 x 557 |
+| `ml-batch-score-fallback/720` | 720 x 552 | 720 x 510 |
+| `ml-gpu-matmul/320` | 506 x 661 | 506 x 597 |
+| `ml-gpu-matmul/408` | 506 x 661 | 506 x 597 |
+| `ml-gpu-matmul/720` | 720 x 609 | 720 x 545 |
+| `ml-parallel-preprocessing/320` | 320 x 585 | 320 x 587 |
+| `ml-parallel-preprocessing/408` | 408 x 527 | 408 x 529 |
+| `ml-parallel-preprocessing/720` | 720 x 527 | 720 x 501 |
+| `ml-what-is-machine-learning-model-choice/320` | 320 x 701 | 320 x 705 |
+| `ml-what-is-machine-learning-model-choice/408` | 408 x 592 | 408 x 596 |
+| `ml-what-is-machine-learning-model-choice/720` | 720 x 592 | 720 x 596 |
+
+
+Seen as PNG at card widths (before = 145 candidate; files `cards/<id>-<width>.before|after.png|svg`):
+- **flow-converging-arrivals (408 px, 636 to 628):** House, Senate and Signature now stand at one height just above their diamonds; House's and the signature node's Yes/No pairs are each aligned. The senate node falls back to its own lanes (its No and Yes stay inline at different heights, as before). Better.
+- **ml-parallel-preprocessing (320 px, 585 to 587; 720 px, 527 to 501):** Numeric columns and Categorical columns stand at one height; the wires leaving the split node are no longer hidden behind the labels. Better.
+- **ml-what-is-machine-learning-model-choice (320 px, 701 to 705):** the two Yes/No pairs of the lower decisions each stand at one height, on the last vertical leg above their targets; +4 px per row of labels. Better.
+- ml-bagging-vote-flow, ml-batch-score-fallback and ml-gpu-matmul get shorter (-12 to -64 px) with their labels in one row; renders in `cards/`.
