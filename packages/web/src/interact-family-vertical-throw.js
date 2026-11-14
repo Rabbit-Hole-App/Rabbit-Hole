@@ -293,7 +293,9 @@ const FORMULA_RULES = Object.freeze([
 ]);
 // The Deep card draws the acceleration arrow at 3.4 px per m/s^2 and a vector under 12 px is not an arrow (sdk-geometry.js), so the build refused every plan whose gravity range reached 1 (three of three clone
 // runs, 2026-11-14); every depth that lets gravity vary gets the floor (the Overview fixes it). Rules of the depth, after the grammar: formulaRules(depth) -> lines.
-export const formulaRules = depth => Object.freeze([...FORMULA_RULES, ...(FAMILY.depths[depth]?.gravity === 'range' ? ['gravity: every value of its range is at least 4 (a smaller gravity draws no acceleration arrow and the card is refused). Every marker time is at least 0.'] : [])]);
+// A lane heading and its state word share one line of the lane (sdk.panel: 10 px a character, 24 px between them): two-lane's lanes are 302 px, body-plot's 310 px, one-body's 616 px (never cut).
+const LANE_ROOM = { balanced: 'Each lane: its heading (words.lane_first, words.lane_second) plus its longest state word is at most 24 characters in all; they share one line and a longer state word is cut on the card.', detailed: 'words.lane plus its longest state word (words.where_*) is at most 25 characters in all; they share one line and a longer state word is cut on the card.' };
+export const formulaRules = depth => Object.freeze([...FORMULA_RULES, ...(LANE_ROOM[depth] ? [LANE_ROOM[depth]] : []), ...(FAMILY.depths[depth]?.gravity === 'range' ? ['gravity: every value of its range is at least 4 (a smaller gravity draws no acceleration arrow and the card is refused). Every marker time is at least 0.'] : [])]);
 
 const superscripts = unit => String(unit ?? '').replace('^2', '²').replace('^3', '³');
 // The geometry the vertical-throw templates draw from: the largest rise above the launch height, the longest timeline end and the plotted quantity's largest size over the corners and middle of every input range,

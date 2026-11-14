@@ -191,7 +191,7 @@ async function fillProblems(raw, depth, info, ctx, family) {
   if (fit.length) return { problems: fit.map(f => `${line(f)}. Fix: write cardDescription as two sentences of 130 to 200 characters in one paragraph, with no line break`) };
   const wrong = formulaProblems(family.referenceCheck(parsed.value, depth));
   if (wrong.length) return { problems: wrong };
-  const unbuildable = await templatePrecheck(checked.value, ctx); // the build's own checks, here, so the correction hears what Generate would refuse
+  const unbuildable = await templatePrecheck(checked.value, ctx, { words: true }); // the build's own checks, here, so the correction hears what Generate would refuse
   return unbuildable.length ? { problems: unbuildable } : { plan: checked.value };
 }
 // The pick (brief 13) runs first: one System One call names the family that fits, or none. A gap (none, below the threshold, a failed or timed out call, no key) goes straight to the Opus design with no fill.
