@@ -28,7 +28,7 @@ test('CK-6 deliverLine: other commands, a bare /explain and explain v2 being off
 test('CK-6 the editor sends every explain line through deliverLine, and the page supplies config.explain without opening Chat', () => {
   const editor = read('./InlineAiEditor.jsx');
   assert.equal((editor.match(/config\.handoff\(/g) || []).length, 0, 'no direct hand-off call: deliverLine is the one door');
-  assert.equal((editor.match(/await deliver\(/g) || []).length, 3, 'router hand-off, Explain selection, typed command');
+  assert.equal((editor.match(/await deliver\(/g) || []).length, 2, 'Explain selection, typed command');
   const page = read('./LearnPage.jsx');
   const at = page.indexOf('    explain: async (words');
   assert.ok(at > 0, 'inlineAi.explain exists');

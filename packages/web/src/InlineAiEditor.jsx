@@ -38,7 +38,7 @@ import { inlineProvenance, cardId, cardTx, describeChange, editTx, explainConnec
 import { createInlineSession, routeColumn, stageTimings } from './inline-ai-session.js';
 import { layoutDiagram, toCanvasObjects, validateDiagram } from './inline-diagram.js';
 import { placeResult, regionStyle } from './inline-placement.js';
-import { INLINE_COMMAND_ROUTE, PROMPT_MAX, ROUTES, routeLabel, selectionSummary, selectionTitle } from './inline-ai-route.js';
+import { PROMPT_MAX, routeLabel, selectionSummary, selectionTitle } from './inline-ai-route.js';
 import { HANDOFF_REFUSED, ctrlkCommands, deliverLine, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
 import { descFor, typedOf } from './agent/slash.js';
 import CommandPill from './CommandPill.jsx';
@@ -65,8 +65,6 @@ const LABEL = { shape: 'Shape', line: 'Line', text: 'Text', sticky: 'Note', equa
 // Why each supporting object is in the context, as its line in the details says it.
 const RELATION = { connected: 'connected', sibling: 'sibling', diagram: 'same diagram', inferred: 'drawn arrow', group: 'same group', heading: 'heading or section',
   label: 'label', flow: 'text before or after', discussion: 'discussion', mentions: 'shares its terms', annotation: 'earlier note' };
-// Over highlighted words: the router's probability a command needs, and how long the picked command shows before it runs (Escape closes the window and cancels).
-const INTENT_AT = 0.7, INTENT_SHOW_MS = 1000;
 const short = (text, n = 48) => { const one = String(text || '').replace(/\s+/g, ' ').trim(); return one.length > n ? `${one.slice(0, n - 1)}…` : one; };
 const busy = status => status === 'routing' || status === 'generating' || status === 'streaming';
 
@@ -405,36 +403,19 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     if(readOnly || cadPending || cadJob)return;
     if (mode === 'edit' && fileLocked) { setRefused(FILE_EDIT_LOCKED); return; }
     const out = submission({ mode, command, text: prompt });
-    let routedChoice = null; // the router's answer for a passage request (CK-3: 'note' keeps its own preview)
     // A source search where no finder can open (an embed without one) is said like any command Ctrl+K lacks here.
     if (out.unsupported || (out.source && !config.openSearch)) { setRefused(out.unsupported || out.source.source); return; }
     if (out.source) { openFinder(out.source); return; }
     // An explicit command (owner spec 2026-10-29 4.2): handed to Chat's dispatcher as its typed line, about THIS selection as it is
     // now (its first id and every object's words), and Ctrl+K closes. Chat asks, prepares the brief or acts, and the result lands on
     // this canvas through Chat's own output path. Nothing is generated here. Not taken (Chat busy or not open in time): the line stays.
-    // Owner 2026-11-09: over highlighted words a plain prompt asks JEV which slash command it is (the router's own question, ROUTES): a command it picks with probability >= INTENT_AT is shown for a second,
-    // then handed to Chat's dispatcher (the right Chat panel opens, /explain makes a card beside the highlighted line); none, a note or a low answer leaves the request here as Explain selection.
-    // The bulb's passage (a preset with no command, owner 2026-11-09) is asked the same way: its words are the selection and Chat gets no selection target (the minted passage ref rides learnSlash.run's heldPassageTarget).
+    // Over highlighted words or the bulb's passage (owner 2026-11-09, CK-3 decision 2026-11-14): Explain selection never asks the router; Enter, empty or with words, runs /explain about the passage
+    // (the minted passage ref rides learnSlash.run's heldPassageTarget). Only a / command typed or picked takes another command.
     const overPassage = !!(highlight || (preset && !preset.command)) && !out.handoff && out.mode !== 'edit' && !!passageText;
     const asked = String(prompt).trim() || passageText; // CK-2: an empty box over a passage explains the passage itself
-    if (overPassage && asked && config.transport?.route && config.handoff) {
-      const intent = await config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: passageText.slice(0, 1500) });
-      const choice = intent && !intent.error ? intent.choice : null; routedChoice = choice;
-      const name = choice && ROUTES[choice] && choice !== 'note' ? Object.entries(INLINE_COMMAND_ROUTE).find(([, route]) => route === choice)?.[0] || choice : null;
-      if (name && intent.probability >= INTENT_AT && (config.enabled || ['note']).includes(choice)) {
-        const line = `/${typedOf(name)} ${asked}`;
-        setPicked(typedOf(name));
-        await new Promise(resolve => setTimeout(resolve, INTENT_SHOW_MS));
-        if (!alive.current) return;
-        setPicked(null);
-        if (await deliver(line, { selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }
-        setHandoffError(refusal.current || HANDOFF_REFUSED);
-        return;
-      }
-    }
     // CK-3: Explain selection over a passage makes its card directly: the /explain path (skeleton, then the card beside the passage, the camera on it), no preview, no Accept or Reject. A 'note' answer keeps its own
-    // preview (a note is added at the insertion point, and may be edited first); a canvas with no Chat to hand to falls back to the inline card, which is accepted by itself (below).
-    if (overPassage && config.handoff && routedChoice !== 'note') {
+    // preview; a canvas with no Chat to hand to falls back to the inline card, which is accepted by itself (below).
+    if (overPassage && config.handoff) {
       setHandoffError('');
       if (await deliver(`/${typedOf('explanation')} ${asked}`, // typed /explain is the id `explanation` (the card of the owner's flow); typedOf('explain') is /interactive, off by SLASH_FLAGS
          { selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }
@@ -744,9 +725,6 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // Owner 2026-11-09: over highlighted words the window stands beside THOSE words (the live Range's rects, so it follows a pan), never over them; the overlay's own origin turns client
   // rects into canvas coordinates.
   const overlay = useRef(null);
-  const alive = useRef(true);
-  useEffect(() => () => { alive.current = false; }, []);
-  const [picked, setPicked] = useState(null);
   const marked = (() => {
     const origin = overlay.current?.getBoundingClientRect();
     if (!words || !origin) return null;
@@ -970,7 +948,6 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           className="min-h-11 w-full resize-none overflow-y-auto border-0 bg-transparent p-0 pr-7 text-sm leading-5 outline-none placeholder:text-ink-3" />
         {readOnly && <p data-inline-readonly className="mt-1 text-xs text-ink-2">This canvas is view-only, so Edit and Explain can't add to it.</p>}
         {/* Output, beneath the prompt, only when there is some; a short status only while nothing has arrived. */}
-        {picked && <p data-inline-picked role="status" className="mt-2 text-xs text-ink-2">Sending to Chat as /{picked}. Esc cancels.</p>}
         {state.notice && <p data-inline-notice className="mt-2 text-xs text-ink-2">{state.notice}</p>}
         {moved && moved === preview?.requestId && <p data-inline-moved role="status" className="mt-2 text-xs text-ink-2">Something is where this was going, so it has a new place on the canvas. Check it, then Accept again.</p>}
         {busy(status) && !streamText && !state.stream?.edits && <p data-inline-stage role="status" className="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-ink-2"><Loader2 size={12} className="shrink-0 animate-spin" /><span className="truncate">{state.stage}{preview ? ' (your last preview stays until this one is ready)' : ''}</span></p>}
