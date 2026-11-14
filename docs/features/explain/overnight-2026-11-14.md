@@ -81,7 +81,7 @@ Screenshots for CV-6/CV-7/CV-3 use boards DERIVED from the v60 export (each meas
 
 ## 3. Decisions needed (separate list)
 
-1. CF-1 (141): the production deploy command gains `--var RELEASE_SHA:<sha>` for both Workers. Untested against real wrangler (no production writes tonight). A (default, in 141): ship. B: revert `24294b113` (a new commit on a later release if 141 is already released). C: also set the var in dev and MVP deploys (not done; previews keep a null release).
+1. DECIDED by the owner (Saturday morning): option A, ship CF-1 as built. CF-1 (141): the production deploy command gains `--var RELEASE_SHA:<sha>` for both Workers. Untested against real wrangler (no production writes tonight). A (default, in 141): ship. B: revert `24294b113` (a new commit on a later release if 141 is already released). C: also set the var in dev and MVP deploys (not done; previews keep a null release).
 2. Server `DRAFT_LAYOUT` (`packages/control-plane/src/learn-boards.js:509`) strips `at` from a share-link visitor's draft, so a guest's anchored card (CV-3) falls back to column behaviour. Adding `at` is a server change that would turn 139 into a server release. Not made. The owner's own boards are unaffected.
 3. CV-4 cards placed beside a source are not anchored at placement, only cards the learner drags (one line if wanted).
 4. 136: one-diagram-variant choices (answer panels); the C01 contact sheets predate the 133 formatting; the constraints sheet regeneration changes pipeline input (see decision 7).
