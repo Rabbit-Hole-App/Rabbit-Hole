@@ -123,7 +123,7 @@ test('jitter bounds: the middle is within JITTER.y of the anchor, the gap within
     assert.ok(Math.abs(mid(p) - 300) <= JITTER.y + 1, `dy ${mid(p) - 300}`);
     const gap = p.side === 'right' ? p.x - 1600 : 1000 - (p.x + SIZE.w);
     assert.ok(gap >= SOURCED.minGap, `gap ${gap}`);
-    assert.ok(gap <= SOURCED.gap * (1 + JITTER.x) + JITTER.push * 2 + 1, `gap ${gap}`);
+    assert.ok(gap <= SOURCED.gap * (1 + JITTER.x) + JITTER.push * (1 + (JITTER.pushes - 1) * 0.5) + 1, `gap ${gap}`);
   }
 });
 
@@ -178,5 +178,24 @@ test('no existing box is ever overlapped or moved: a dense random board, 40 plac
     assert.equal(JSON.stringify(clean), before);
     if (!p.fallback) clean.forEach(b => assert.ok(!overlaps(rectOf(p), b, SOURCED.margin), `scenario ${n} overlaps`));
     assert.ok(!overlaps(rectOf(p), source, 0));
+  }
+});
+
+test('a fan of 5 and of 8 siblings: every pair of left edges differs by >= 24 px (no two-column zig-zag), all valid', () => {
+  for (const [count, spread] of [[5, 380], [8, 300], [5, 220], [8, 160]]) {
+    for (let seed = 0; seed < 6; seed += 1) {
+      const source = box(1000, 0, 600, 200 + count * spread), placed = [], siblings = [];
+      for (let k = 0; k < count; k += 1) {
+        const anchorY = 150 + k * spread;
+        const p = placeSourced({ source, anchorY, size: SIZE, boxes: placed, siblings, id: `f${count}-${seed}-${k}`, sourceId: `src${seed}` });
+        const b = box(p.x, p.y, SIZE.w, SIZE.h);
+        placed.forEach(o => assert.ok(!overlaps(b, o, SOURCED.margin), `${count}/${seed}/${k} overlaps`));
+        const clear = p.side === 'right' ? p.x - 1600 : 1000 - (p.x + SIZE.w);
+        assert.ok(clear >= SOURCED.minGap, `${count}/${seed}/${k}: clearance ${clear}`);
+        placed.push(b); siblings.push({ box: b, anchorY });
+      }
+      const lefts = placed.map(b => b.x);
+      for (let i = 0; i < lefts.length; i += 1) for (let j = i + 1; j < lefts.length; j += 1) assert.ok(Math.abs(lefts[i] - lefts[j]) >= 24, `${count} siblings (spread ${spread}, seed ${seed}): left edges ${lefts[i]} and ${lefts[j]}`);
+    }
   }
 });
