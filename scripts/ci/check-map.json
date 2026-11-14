@@ -1490,6 +1490,7 @@
     "scripts/explain-bench/**",
     "scripts/topic-pipeline/**",
     "scripts/interact/**",
+    "scripts/release/gate-interact-131.sh",
     "packages/control-plane/animation-sgd-qualification.mjs", "packages/control-plane/build-animation-mvp1-correction-fixture.mjs",
     "packages/**/test/**",
     "packages/**/*.test.mjs",
@@ -1620,6 +1621,7 @@
   "noneReasons": {
     "scripts/explain-bench/**": "Hand-run /explain benchmark tooling (copy of the quality-bench scripts, the selector and planner benches, the prompt sets and the batch 3C value script); never imported by the app or a worker; set3-bench.test.mjs is run by hand with the bench",
     "scripts/topic-pipeline/**": "Hand-run lesson pipeline tooling (stages, agent prompts, checks and its own tests, run with node --test scripts/topic-pipeline/test/*.test.mjs by hand and in the release gate); never imported by the app or a worker",
+    "scripts/release/gate-interact-131.sh": "Hand-run release gate of one commit in a clean checkout (the release 131 candidate): runs the suites, builds and wrangler dry-runs and never deploys, pushes or opens a browser; run by the coordinator, never by the app, a worker or CI",
     "scripts/interact/**": "Hand-run /interact bench, drive, judge-export and ledger tooling (the program-contract, expressions and formula benches, the clone canvas drivers, render-look, the ledger and judge writers); never imported by the app or a worker; the ledger writer is exercised by interact-ledger.test.js",
     "packages/control-plane/animation-sgd-qualification.mjs": "Offline SGD qualification check, run by hand and imported only by the control-plane unit tests; never by the app or a worker",
     "packages/control-plane/build-animation-mvp1-correction-fixture.mjs": "Generator of the offline MVP1 correction fixture (test/fixtures); run by hand, never by the app or a worker",
