@@ -86,7 +86,7 @@ test('wiring: the canvas picks the highlight, the editor draws the chip, the mar
   assert.match(canvas, /pickedHighlight\(shell\.current, board\.blocks, viewRef\.current\.z\)/);
   assert.match(canvas, /highlight=\{inline\.highlight \|\| null\}/);
   assert.doesNotMatch(canvas, /onClearHighlight/, 'no chip x: the window closes it');
-  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy \}\)/);
+  assert.match(canvas, /placeSourced\(\{ source, anchorY: Number\.isFinite\(besideDy\) \? source\.y \+ besideDy : null, /); // AR-C3: the highlighted line's offset is the anchor of place-sourced.js (the old besideSpot call)
   assert.doesNotMatch(editor, /Remove the highlighted text/, 'the chip has no x');
   assert.match(editor, /data-inline-close/, 'the x belongs to the window');
   assert.ok(editor.includes("config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: (highlight?.text ?? preset.prompt ?? '').slice(0, 1500) })"), 'a plain prompt asks the router which command it is, over highlighted words and over the bulb passage');
