@@ -1,0 +1,287 @@
+{
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "overview-stepper-merge-sort",
+  "family": "stepper-states",
+  "depth": "brief",
+  "canonical": "algorithm-over-collection",
+  "story": "Input splits into Left half and Right half, then Singles. Merge left and Merge right put those small runs in order; Sorted output joins them by taking the smaller front value.",
+  "aha": {
+    "stateId": "halves",
+    "observation": "The merge creates order by taking the smaller head from two already ordered runs; splitting alone does not sort."
+  },
+  "layout": {
+    "preset": "algorithm-over-collection",
+    "width": 640
+  },
+  "parts": [
+    {
+      "id": "rail",
+      "kind": "step-rail",
+      "bind": {
+        "items": "variant.states",
+        "active": "inputs.step"
+      }
+    },
+    {
+      "id": "picture",
+      "kind": "fixed-picture",
+      "bind": {
+        "regions": "variant.regions",
+        "links": "variant.links",
+        "active": "state.active"
+      }
+    },
+    {
+      "id": "callout",
+      "kind": "active-callout",
+      "bind": {
+        "target": "state.calloutRegion",
+        "text": "state.sentence"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "step",
+      "kind": "index",
+      "presentation": "slider",
+      "items": "variant.states",
+      "default": 0
+    },
+    {
+      "id": "reset",
+      "kind": "reset"
+    }
+  ],
+  "data": {
+    "variants": [
+      {
+        "label": "4, 1, 3, 2",
+        "regions": [
+          {
+            "id": "input",
+            "label": "Input",
+            "values": [
+              4,
+              1,
+              3,
+              2
+            ]
+          },
+          {
+            "id": "left",
+            "label": "Left half",
+            "values": [
+              4,
+              1
+            ]
+          },
+          {
+            "id": "right",
+            "label": "Right half",
+            "values": [
+              3,
+              2
+            ]
+          },
+          {
+            "id": "singles",
+            "label": "Singles",
+            "values": [
+              4,
+              1,
+              3,
+              2
+            ]
+          },
+          {
+            "id": "mergeLeft",
+            "label": "Merge left",
+            "values": [
+              1,
+              4
+            ]
+          },
+          {
+            "id": "mergeRight",
+            "label": "Merge right",
+            "values": [
+              2,
+              3
+            ]
+          },
+          {
+            "id": "output",
+            "label": "Sorted output",
+            "values": [
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        ],
+        "links": [
+          {
+            "from": "input",
+            "to": "left"
+          },
+          {
+            "from": "input",
+            "to": "right"
+          },
+          {
+            "from": "left",
+            "to": "singles"
+          },
+          {
+            "from": "right",
+            "to": "singles"
+          },
+          {
+            "from": "singles",
+            "to": "mergeLeft"
+          },
+          {
+            "from": "singles",
+            "to": "mergeRight"
+          },
+          {
+            "from": "mergeLeft",
+            "to": "output"
+          },
+          {
+            "from": "mergeRight",
+            "to": "output"
+          }
+        ],
+        "states": [
+          {
+            "id": "split",
+            "label": "Split in half",
+            "short": "Split",
+            "sentence": "Left half is a smaller sorting problem; Right half follows the same steps.",
+            "why": "Splitting preserves the values; it does not order them.",
+            "active": [
+              "left"
+            ],
+            "calloutRegion": "left",
+            "readouts": []
+          },
+          {
+            "id": "singles",
+            "label": "Reach singles",
+            "short": "Singles",
+            "sentence": "Singles need no sorting: each little run is already ordered.",
+            "why": "A run with only one value cannot be out of order.",
+            "active": [
+              "singles"
+            ],
+            "calloutRegion": "singles",
+            "readouts": []
+          },
+          {
+            "id": "halves",
+            "label": "Merge small runs",
+            "short": "Merge",
+            "sentence": "Merge left puts its small run in order; Merge right repeats the same operation.",
+            "why": "Choose the smaller front value next.",
+            "active": [
+              "mergeLeft"
+            ],
+            "calloutRegion": "mergeLeft",
+            "readouts": []
+          },
+          {
+            "id": "finish",
+            "label": "Finish merging",
+            "short": "Finish",
+            "sentence": "Sorted output takes the smaller front repeatedly, then any remaining tail.",
+            "why": "Once a run is empty, the other tail is already in order.",
+            "active": [
+              "output"
+            ],
+            "calloutRegion": "output",
+            "readouts": []
+          }
+        ],
+        "calculations": {
+          "left": {
+            "result": [
+              1,
+              4
+            ],
+            "comparisons": 1,
+            "decisions": [
+              {
+                "left": 4,
+                "right": 1,
+                "chosen": 1,
+                "result": [
+                  1
+                ]
+              }
+            ]
+          },
+          "right": {
+            "result": [
+              2,
+              3
+            ],
+            "comparisons": 1,
+            "decisions": [
+              {
+                "left": 3,
+                "right": 2,
+                "chosen": 2,
+                "result": [
+                  2
+                ]
+              }
+            ]
+          },
+          "final": {
+            "result": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "comparisons": 3,
+            "decisions": [
+              {
+                "left": 1,
+                "right": 2,
+                "chosen": 1,
+                "result": [
+                  1
+                ]
+              },
+              {
+                "left": 4,
+                "right": 2,
+                "chosen": 2,
+                "result": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "left": 4,
+                "right": 3,
+                "chosen": 3,
+                "result": [
+                  1,
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "total": 5
+        }
+      }
+    ]
+  }
+}

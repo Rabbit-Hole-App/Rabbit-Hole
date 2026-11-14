@@ -1,0 +1,1083 @@
+{
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "deep-stepper-tcp-handshake",
+  "family": "stepper-states",
+  "depth": "detailed",
+  "canonical": "protocol-between-parties",
+  "story": "Client learns Server’s starting sequence number from SYN-ACK. Only the final ACK tells Server its reply arrived. SEQ marks a position; ACK names the next expected position.",
+  "aha": {
+    "stateId": "confirmed",
+    "observation": "Only receiving the final ACK lets Server know its SYN-ACK reached Client."
+  },
+  "layout": {
+    "preset": "protocol-between-parties",
+    "width": 640
+  },
+  "parts": [
+    {
+      "id": "rail",
+      "kind": "step-rail",
+      "bind": {
+        "items": "variant.states",
+        "active": "inputs.step"
+      }
+    },
+    {
+      "id": "picture",
+      "kind": "fixed-picture",
+      "bind": {
+        "regions": "variant.regions",
+        "links": "variant.links",
+        "active": "state.active"
+      }
+    },
+    {
+      "id": "callout",
+      "kind": "active-callout",
+      "bind": {
+        "target": "state.calloutRegion",
+        "text": "state.sentence",
+        "reason": "state.why"
+      }
+    },
+    {
+      "id": "ghost",
+      "kind": "previous-state-ghost",
+      "bind": {
+        "regions": "previous.active"
+      }
+    },
+    {
+      "id": "values",
+      "kind": "value-readout",
+      "bind": {
+        "values": "state.readouts"
+      }
+    },
+    {
+      "id": "trace",
+      "kind": "progress",
+      "presentation": "completed-trace",
+      "bind": {
+        "items": "variant.states",
+        "completedBefore": "inputs.step"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "step",
+      "kind": "index",
+      "presentation": "slider",
+      "items": "variant.states",
+      "default": 0
+    },
+    {
+      "id": "option",
+      "kind": "select",
+      "label": "Lose SYN-ACK",
+      "options": [
+        "No",
+        "Yes"
+      ],
+      "default": 0
+    },
+    {
+      "id": "reset",
+      "kind": "reset"
+    }
+  ],
+  "data": {
+    "variants": [
+      {
+        "lostReply": false,
+        "assumptions": {
+          "loss": "None",
+          "retryOrder": "Server retransmits before any client retry",
+          "timeModel": "Event order only; no timers",
+          "payloadBytes": 0
+        },
+        "regions": [
+          {
+            "id": "client",
+            "label": "Client",
+            "kind": "party",
+            "initialSeq": 100
+          },
+          {
+            "id": "server",
+            "label": "Server",
+            "kind": "party",
+            "initialSeq": 500
+          },
+          {
+            "id": "order",
+            "label": "Message order",
+            "kind": "guide"
+          },
+          {
+            "id": "syn",
+            "label": "SYN",
+            "kind": "message",
+            "from": "client",
+            "to": "server",
+            "flags": [
+              "SYN"
+            ],
+            "seq": 100,
+            "ack": null,
+            "sequenceLength": 1,
+            "newSequenceSpace": 1,
+            "outcome": "delivered"
+          },
+          {
+            "id": "synack",
+            "label": "SYN-ACK",
+            "kind": "message",
+            "from": "server",
+            "to": "client",
+            "flags": [
+              "SYN",
+              "ACK"
+            ],
+            "seq": 500,
+            "ack": 101,
+            "sequenceLength": 1,
+            "newSequenceSpace": 1,
+            "outcome": "delivered"
+          },
+          {
+            "id": "retry",
+            "label": "Retry",
+            "kind": "message",
+            "from": "server",
+            "to": "client",
+            "flags": [
+              "SYN",
+              "ACK"
+            ],
+            "seq": 500,
+            "ack": 101,
+            "sequenceLength": 1,
+            "newSequenceSpace": 0,
+            "outcome": "unused"
+          },
+          {
+            "id": "ack",
+            "label": "ACK",
+            "kind": "message",
+            "from": "client",
+            "to": "server",
+            "flags": [
+              "ACK"
+            ],
+            "seq": 101,
+            "ack": 501,
+            "sequenceLength": 0,
+            "newSequenceSpace": 0,
+            "outcome": "delivered"
+          },
+          {
+            "id": "connected",
+            "label": "Connection",
+            "kind": "outcome"
+          }
+        ],
+        "links": [
+          {
+            "from": "client",
+            "to": "syn"
+          },
+          {
+            "from": "syn",
+            "to": "server"
+          },
+          {
+            "from": "server",
+            "to": "synack"
+          },
+          {
+            "from": "synack",
+            "to": "client"
+          },
+          {
+            "from": "server",
+            "to": "retry"
+          },
+          {
+            "from": "retry",
+            "to": "client"
+          },
+          {
+            "from": "client",
+            "to": "ack"
+          },
+          {
+            "from": "ack",
+            "to": "server"
+          },
+          {
+            "from": "server",
+            "to": "connected"
+          }
+        ],
+        "states": [
+          {
+            "id": "before",
+            "label": "Before contact",
+            "short": "Listen",
+            "sentence": "Client starts closed; Server listens for a connection.",
+            "why": "Neither SYN has used sequence space.",
+            "active": [
+              "client",
+              "server"
+            ],
+            "calloutRegion": "client",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "—"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "—"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "100"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "500"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "CLOSED",
+                "nextSeq": 100
+              },
+              "server": {
+                "state": "LISTEN",
+                "nextSeq": 500
+              }
+            },
+            "segment": null,
+            "sent": [],
+            "replyReceived": false,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "syn-sent",
+            "label": "Request sent",
+            "short": "SYN",
+            "sentence": "SYN asks the Server to start a connection.",
+            "why": "SYN uses one sequence number.",
+            "active": [
+              "syn"
+            ],
+            "calloutRegion": "syn",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "100"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "—"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "500"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "SYN-SENT",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "LISTEN",
+                "nextSeq": 500
+              }
+            },
+            "segment": "syn",
+            "sent": [
+              "syn"
+            ],
+            "replyReceived": false,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "reply-sent",
+            "label": "Reply sent",
+            "short": "SYN-ACK",
+            "sentence": "SYN-ACK answers Client and announces Server’s start.",
+            "why": "The Server SYN also uses one number.",
+            "active": [
+              "synack"
+            ],
+            "calloutRegion": "synack",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "500"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "101"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "501"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "SYN-SENT",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "SYN-RECEIVED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "synack",
+            "sent": [
+              "syn",
+              "synack"
+            ],
+            "replyReceived": false,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "reply-received",
+            "label": "Reply received",
+            "short": "Receive",
+            "sentence": "Client receives SYN-ACK; Server still awaits confirmation.",
+            "why": "Client now knows the Server start.",
+            "active": [
+              "client"
+            ],
+            "calloutRegion": "client",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "500"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "101"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "501"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "ESTABLISHED",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "SYN-RECEIVED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "synack",
+            "sent": [
+              "syn",
+              "synack"
+            ],
+            "replyReceived": true,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "ack-sent",
+            "label": "Confirmation sent",
+            "short": "ACK sent",
+            "sentence": "ACK confirms the reply, but has not reached Server yet.",
+            "why": "Pure ACK uses no sequence number.",
+            "active": [
+              "ack"
+            ],
+            "calloutRegion": "ack",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "101"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "501"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "501"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "ESTABLISHED",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "SYN-RECEIVED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "ack",
+            "sent": [
+              "syn",
+              "synack",
+              "ack"
+            ],
+            "replyReceived": true,
+            "ackSent": true,
+            "ackReceived": false
+          },
+          {
+            "id": "confirmed",
+            "label": "Both connected",
+            "short": "Confirmed",
+            "sentence": "Server receives ACK and can now mark the connection ready.",
+            "why": "A sent reply alone is no proof of delivery.",
+            "active": [
+              "server",
+              "connected"
+            ],
+            "calloutRegion": "server",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "101"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "501"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "501"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "ESTABLISHED",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "ESTABLISHED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "ack",
+            "sent": [
+              "syn",
+              "synack",
+              "ack"
+            ],
+            "replyReceived": true,
+            "ackSent": true,
+            "ackReceived": true
+          }
+        ]
+      },
+      {
+        "lostReply": true,
+        "assumptions": {
+          "loss": "First SYN-ACK only",
+          "retryOrder": "Server retransmits before any client retry",
+          "timeModel": "Event order only; no timers",
+          "payloadBytes": 0
+        },
+        "regions": [
+          {
+            "id": "client",
+            "label": "Client",
+            "kind": "party",
+            "initialSeq": 100
+          },
+          {
+            "id": "server",
+            "label": "Server",
+            "kind": "party",
+            "initialSeq": 500
+          },
+          {
+            "id": "order",
+            "label": "Message order",
+            "kind": "guide"
+          },
+          {
+            "id": "syn",
+            "label": "SYN",
+            "kind": "message",
+            "from": "client",
+            "to": "server",
+            "flags": [
+              "SYN"
+            ],
+            "seq": 100,
+            "ack": null,
+            "sequenceLength": 1,
+            "newSequenceSpace": 1,
+            "outcome": "delivered"
+          },
+          {
+            "id": "synack",
+            "label": "SYN-ACK",
+            "kind": "message",
+            "from": "server",
+            "to": "client",
+            "flags": [
+              "SYN",
+              "ACK"
+            ],
+            "seq": 500,
+            "ack": 101,
+            "sequenceLength": 1,
+            "newSequenceSpace": 1,
+            "outcome": "lost"
+          },
+          {
+            "id": "retry",
+            "label": "Retry",
+            "kind": "message",
+            "from": "server",
+            "to": "client",
+            "flags": [
+              "SYN",
+              "ACK"
+            ],
+            "seq": 500,
+            "ack": 101,
+            "sequenceLength": 1,
+            "newSequenceSpace": 0,
+            "outcome": "delivered"
+          },
+          {
+            "id": "ack",
+            "label": "ACK",
+            "kind": "message",
+            "from": "client",
+            "to": "server",
+            "flags": [
+              "ACK"
+            ],
+            "seq": 101,
+            "ack": 501,
+            "sequenceLength": 0,
+            "newSequenceSpace": 0,
+            "outcome": "delivered"
+          },
+          {
+            "id": "connected",
+            "label": "Connection",
+            "kind": "outcome"
+          }
+        ],
+        "links": [
+          {
+            "from": "client",
+            "to": "syn"
+          },
+          {
+            "from": "syn",
+            "to": "server"
+          },
+          {
+            "from": "server",
+            "to": "synack"
+          },
+          {
+            "from": "synack",
+            "to": "client"
+          },
+          {
+            "from": "server",
+            "to": "retry"
+          },
+          {
+            "from": "retry",
+            "to": "client"
+          },
+          {
+            "from": "client",
+            "to": "ack"
+          },
+          {
+            "from": "ack",
+            "to": "server"
+          },
+          {
+            "from": "server",
+            "to": "connected"
+          }
+        ],
+        "states": [
+          {
+            "id": "before",
+            "label": "Before contact",
+            "short": "Listen",
+            "sentence": "Client starts closed; Server listens for a connection.",
+            "why": "Neither SYN has used sequence space.",
+            "active": [
+              "client",
+              "server"
+            ],
+            "calloutRegion": "client",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "—"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "—"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "100"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "500"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "CLOSED",
+                "nextSeq": 100
+              },
+              "server": {
+                "state": "LISTEN",
+                "nextSeq": 500
+              }
+            },
+            "segment": null,
+            "sent": [],
+            "replyReceived": false,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "syn-sent",
+            "label": "Request sent",
+            "short": "SYN",
+            "sentence": "SYN asks the Server to start a connection.",
+            "why": "SYN uses one sequence number.",
+            "active": [
+              "syn"
+            ],
+            "calloutRegion": "syn",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "100"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "—"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "500"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "SYN-SENT",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "LISTEN",
+                "nextSeq": 500
+              }
+            },
+            "segment": "syn",
+            "sent": [
+              "syn"
+            ],
+            "replyReceived": false,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "reply-lost",
+            "label": "Reply lost",
+            "short": "Lost",
+            "sentence": "SYN-ACK is lost; Client has no reply to confirm.",
+            "why": "Only this first reply is lost.",
+            "active": [
+              "synack"
+            ],
+            "calloutRegion": "synack",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "500"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "101"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "501"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "SYN-SENT",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "SYN-RECEIVED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "synack",
+            "sent": [
+              "syn",
+              "synack"
+            ],
+            "replyReceived": false,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "waiting",
+            "label": "Client still waits",
+            "short": "Wait",
+            "sentence": "Client stays in SYN-SENT because the reply never arrived.",
+            "why": "Without the reply, no final ACK is sent.",
+            "active": [
+              "client"
+            ],
+            "calloutRegion": "client",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "—"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "—"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "501"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "SYN-SENT",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "SYN-RECEIVED",
+                "nextSeq": 501
+              }
+            },
+            "segment": null,
+            "sent": [
+              "syn",
+              "synack"
+            ],
+            "replyReceived": false,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "reply-retry",
+            "label": "Reply retried",
+            "short": "Retry",
+            "sentence": "Retry sends the same SYN-ACK toward Client again.",
+            "why": "A retry reuses the original sequence space.",
+            "active": [
+              "retry"
+            ],
+            "calloutRegion": "retry",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "500"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "101"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "501"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "SYN-SENT",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "SYN-RECEIVED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "retry",
+            "sent": [
+              "syn",
+              "synack",
+              "retry"
+            ],
+            "replyReceived": false,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "reply-received",
+            "label": "Reply received",
+            "short": "Receive",
+            "sentence": "Client receives SYN-ACK; Server still awaits confirmation.",
+            "why": "Client now knows the Server start.",
+            "active": [
+              "client"
+            ],
+            "calloutRegion": "client",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "500"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "101"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "501"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "ESTABLISHED",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "SYN-RECEIVED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "retry",
+            "sent": [
+              "syn",
+              "synack",
+              "retry"
+            ],
+            "replyReceived": true,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "ack-sent",
+            "label": "Confirmation sent",
+            "short": "ACK sent",
+            "sentence": "ACK confirms the reply, but has not reached Server yet.",
+            "why": "Pure ACK uses no sequence number.",
+            "active": [
+              "ack"
+            ],
+            "calloutRegion": "ack",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "101"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "501"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "501"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "ESTABLISHED",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "SYN-RECEIVED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "ack",
+            "sent": [
+              "syn",
+              "synack",
+              "retry",
+              "ack"
+            ],
+            "replyReceived": true,
+            "ackSent": true,
+            "ackReceived": false
+          },
+          {
+            "id": "confirmed",
+            "label": "Both connected",
+            "short": "Confirmed",
+            "sentence": "Server receives ACK and can now mark the connection ready.",
+            "why": "A sent reply alone is no proof of delivery.",
+            "active": [
+              "server",
+              "connected"
+            ],
+            "calloutRegion": "server",
+            "readouts": [
+              {
+                "id": "seq",
+                "label": "Segment SEQ",
+                "value": "101"
+              },
+              {
+                "id": "ack",
+                "label": "Segment ACK",
+                "value": "501"
+              },
+              {
+                "id": "clientNext",
+                "label": "Client next SEQ",
+                "value": "101"
+              },
+              {
+                "id": "serverNext",
+                "label": "Server next SEQ",
+                "value": "501"
+              }
+            ],
+            "endpoints": {
+              "client": {
+                "state": "ESTABLISHED",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "ESTABLISHED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "ack",
+            "sent": [
+              "syn",
+              "synack",
+              "retry",
+              "ack"
+            ],
+            "replyReceived": true,
+            "ackSent": true,
+            "ackReceived": true
+          }
+        ]
+      }
+    ]
+  }
+}

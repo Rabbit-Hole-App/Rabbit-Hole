@@ -1,0 +1,2351 @@
+{
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "deep-stepper-mitosis",
+  "family": "stepper-states",
+  "depth": "detailed",
+  "canonical": "cycle-of-phases",
+  "story": "DNA copying happens in S phase before mitosis. Follow chromosome sets through nuclear division and animal-cell cytokinesis.",
+  "aha": {
+    "stateId": "anaphase",
+    "observation": "Separated sisters count as chromosomes; the whole view still contains the same DNA molecules."
+  },
+  "layout": {
+    "preset": "cycle-of-phases",
+    "width": 640
+  },
+  "parts": [
+    {
+      "id": "rail",
+      "kind": "step-rail",
+      "bind": {
+        "items": "variant.states",
+        "active": "inputs.step"
+      }
+    },
+    {
+      "id": "picture",
+      "kind": "fixed-picture",
+      "bind": {
+        "regions": "variant.regions",
+        "links": "variant.links",
+        "active": "state.active"
+      }
+    },
+    {
+      "id": "callout",
+      "kind": "active-callout",
+      "bind": {
+        "target": "state.calloutRegion",
+        "text": "state.sentence",
+        "reason": "state.why"
+      }
+    },
+    {
+      "id": "ghost",
+      "kind": "previous-state-ghost",
+      "bind": {
+        "regions": "previous.active"
+      }
+    },
+    {
+      "id": "values",
+      "kind": "value-readout",
+      "bind": {
+        "values": "state.readouts"
+      }
+    },
+    {
+      "id": "trace",
+      "kind": "progress",
+      "presentation": "completed-trace",
+      "bind": {
+        "items": "variant.states",
+        "completedBefore": "inputs.step"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "step",
+      "kind": "index",
+      "presentation": "slider",
+      "items": "variant.states",
+      "default": 0
+    },
+    {
+      "id": "option",
+      "kind": "select",
+      "label": "Focus",
+      "options": [
+        "Chromosomes",
+        "Spindle"
+      ],
+      "default": 0
+    },
+    {
+      "id": "reset",
+      "kind": "reset"
+    }
+  ],
+  "data": {
+    "variants": [
+      {
+        "regions": [
+          {
+            "id": "before",
+            "label": "Before mitosis",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "before",
+              "context": true,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": false,
+              "separated": false,
+              "chromosomes": [
+                {
+                  "id": "A",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    },
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    },
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "nucleusIds": [
+                    "original"
+                  ]
+                }
+              ],
+              "nuclei": [
+                {
+                  "id": "original",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "envelope": "intact",
+                  "pole": null
+                }
+              ],
+              "spindle": {
+                "status": "not-assembled",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": []
+              },
+              "cytokinesis": "not-started"
+            }
+          },
+          {
+            "id": "prophase",
+            "label": "Prophase",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "prophase",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": true,
+              "separated": false,
+              "chromosomes": [
+                {
+                  "id": "A",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    },
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    },
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "nucleusIds": [
+                    "original"
+                  ]
+                }
+              ],
+              "nuclei": [
+                {
+                  "id": "original",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "envelope": "breaking",
+                  "pole": null
+                }
+              ],
+              "spindle": {
+                "status": "assembling",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": []
+              },
+              "cytokinesis": "not-started"
+            }
+          },
+          {
+            "id": "prometaphase",
+            "label": "Prometaphase",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "prometaphase",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": true,
+              "separated": false,
+              "chromosomes": [
+                {
+                  "id": "A",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    },
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    },
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "nucleusIds": []
+                }
+              ],
+              "nuclei": [],
+              "spindle": {
+                "status": "attaching",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": [
+                  {
+                    "chromatidId": "A.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "A.b",
+                    "pole": "right"
+                  },
+                  {
+                    "chromatidId": "B.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "B.b",
+                    "pole": "right"
+                  }
+                ]
+              },
+              "cytokinesis": "not-started"
+            }
+          },
+          {
+            "id": "metaphase",
+            "label": "Metaphase",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "metaphase",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": true,
+              "separated": false,
+              "chromosomes": [
+                {
+                  "id": "A",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    },
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    },
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "nucleusIds": []
+                }
+              ],
+              "nuclei": [],
+              "spindle": {
+                "status": "aligned",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": [
+                  {
+                    "chromatidId": "A.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "A.b",
+                    "pole": "right"
+                  },
+                  {
+                    "chromatidId": "B.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "B.b",
+                    "pole": "right"
+                  }
+                ]
+              },
+              "cytokinesis": "not-started"
+            }
+          },
+          {
+            "id": "anaphase",
+            "label": "Anaphase",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "anaphase",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": true,
+              "separated": true,
+              "chromosomes": [
+                {
+                  "id": "A.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "A.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A.a",
+                    "A.b",
+                    "B.a",
+                    "B.b"
+                  ],
+                  "nucleusIds": []
+                }
+              ],
+              "nuclei": [],
+              "spindle": {
+                "status": "separating",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": [
+                  {
+                    "chromatidId": "A.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "A.b",
+                    "pole": "right"
+                  },
+                  {
+                    "chromatidId": "B.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "B.b",
+                    "pole": "right"
+                  }
+                ]
+              },
+              "cytokinesis": "starting"
+            }
+          },
+          {
+            "id": "telophase",
+            "label": "Telophase",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "telophase",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": false,
+              "separated": true,
+              "chromosomes": [
+                {
+                  "id": "A.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "A.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A.a",
+                    "A.b",
+                    "B.a",
+                    "B.b"
+                  ],
+                  "nucleusIds": [
+                    "nucleus.left",
+                    "nucleus.right"
+                  ]
+                }
+              ],
+              "nuclei": [
+                {
+                  "id": "nucleus.left",
+                  "chromosomeIds": [
+                    "A.a",
+                    "B.a"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "left"
+                },
+                {
+                  "id": "nucleus.right",
+                  "chromosomeIds": [
+                    "A.b",
+                    "B.b"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "right"
+                }
+              ],
+              "spindle": {
+                "status": "disassembled",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": []
+              },
+              "cytokinesis": "constricting"
+            }
+          },
+          {
+            "id": "cytokinesis",
+            "label": "Cytokinesis",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "cytokinesis",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": false,
+              "separated": true,
+              "chromosomes": [
+                {
+                  "id": "A.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "A.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "daughter.left",
+                  "chromosomeIds": [
+                    "A.a",
+                    "B.a"
+                  ],
+                  "nucleusIds": [
+                    "nucleus.left"
+                  ]
+                },
+                {
+                  "id": "daughter.right",
+                  "chromosomeIds": [
+                    "A.b",
+                    "B.b"
+                  ],
+                  "nucleusIds": [
+                    "nucleus.right"
+                  ]
+                }
+              ],
+              "nuclei": [
+                {
+                  "id": "nucleus.left",
+                  "chromosomeIds": [
+                    "A.a",
+                    "B.a"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "left"
+                },
+                {
+                  "id": "nucleus.right",
+                  "chromosomeIds": [
+                    "A.b",
+                    "B.b"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "right"
+                }
+              ],
+              "spindle": {
+                "status": "disassembled",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": []
+              },
+              "cytokinesis": "complete"
+            }
+          },
+          {
+            "id": "daughters",
+            "label": "Daughter cells",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "daughters",
+              "context": true,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": false,
+              "separated": true,
+              "chromosomes": [
+                {
+                  "id": "A.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "A.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "daughter.left",
+                  "chromosomeIds": [
+                    "A.a",
+                    "B.a"
+                  ],
+                  "nucleusIds": [
+                    "nucleus.left"
+                  ]
+                },
+                {
+                  "id": "daughter.right",
+                  "chromosomeIds": [
+                    "A.b",
+                    "B.b"
+                  ],
+                  "nucleusIds": [
+                    "nucleus.right"
+                  ]
+                }
+              ],
+              "nuclei": [
+                {
+                  "id": "nucleus.left",
+                  "chromosomeIds": [
+                    "A.a",
+                    "B.a"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "left"
+                },
+                {
+                  "id": "nucleus.right",
+                  "chromosomeIds": [
+                    "A.b",
+                    "B.b"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "right"
+                }
+              ],
+              "spindle": {
+                "status": "disassembled",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": []
+              },
+              "cytokinesis": "complete"
+            }
+          },
+          {
+            "id": "chromosomes",
+            "label": "Chromosomes",
+            "kind": "cell-structure",
+            "payload": {
+              "structure": "chromosomes",
+              "within": [
+                "before",
+                "prophase",
+                "prometaphase",
+                "metaphase",
+                "anaphase",
+                "telophase",
+                "cytokinesis",
+                "daughters"
+              ]
+            }
+          },
+          {
+            "id": "spindle",
+            "label": "Spindle and centrosomes",
+            "kind": "cell-structure",
+            "payload": {
+              "structure": "spindle",
+              "within": [
+                "before",
+                "prophase",
+                "prometaphase",
+                "metaphase",
+                "anaphase",
+                "telophase",
+                "cytokinesis",
+                "daughters"
+              ]
+            }
+          }
+        ],
+        "links": [
+          {
+            "from": "before",
+            "to": "prophase",
+            "context": false
+          },
+          {
+            "from": "prophase",
+            "to": "prometaphase",
+            "context": false
+          },
+          {
+            "from": "prometaphase",
+            "to": "metaphase",
+            "context": false
+          },
+          {
+            "from": "metaphase",
+            "to": "anaphase",
+            "context": false
+          },
+          {
+            "from": "anaphase",
+            "to": "telophase",
+            "context": false
+          },
+          {
+            "from": "telophase",
+            "to": "cytokinesis",
+            "context": false
+          },
+          {
+            "from": "cytokinesis",
+            "to": "daughters",
+            "context": false
+          },
+          {
+            "from": "daughters",
+            "to": "before",
+            "context": true,
+            "label": "Next cycle after division, growth + DNA copying"
+          }
+        ],
+        "states": [
+          {
+            "id": "before",
+            "label": "Already copied",
+            "short": "Prepared",
+            "sentence": "Before mitosis: Chromosomes already contain sister DNA copies made in S phase.",
+            "why": "S phase copied DNA; this context is not a mitosis phase.",
+            "active": [
+              "before",
+              "chromosomes"
+            ],
+            "calloutRegion": "before",
+            "focus": "chromosomes",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "2"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "—"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "prophase",
+            "label": "Copies condense",
+            "short": "Condense",
+            "sentence": "Prophase: Chromosomes condense with their sister copies still joined.",
+            "why": "Condensation packages long DNA molecules for separation.",
+            "active": [
+              "prophase",
+              "chromosomes"
+            ],
+            "calloutRegion": "prophase",
+            "focus": "chromosomes",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "2"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "—"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "prometaphase",
+            "label": "Copies attach",
+            "short": "Attach",
+            "sentence": "Prometaphase: Sister chromatids gain spindle attachments but remain joined.",
+            "why": "Attachment lets the spindle move each sister independently.",
+            "active": [
+              "prometaphase",
+              "chromosomes"
+            ],
+            "calloutRegion": "prometaphase",
+            "focus": "chromosomes",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "2"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "—"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "metaphase",
+            "label": "Copies line up",
+            "short": "Align",
+            "sentence": "Metaphase: Chromosomes line up; sisters face opposite spindle poles.",
+            "why": "Opposite attachments prepare one sister for each pole.",
+            "active": [
+              "metaphase",
+              "chromosomes"
+            ],
+            "calloutRegion": "metaphase",
+            "focus": "chromosomes",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "2"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "—"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "anaphase",
+            "label": "Sisters separate",
+            "short": "Separate",
+            "sentence": "Anaphase: Sisters separate into chromosomes, without making new DNA.",
+            "why": "Separated sisters count as chromosomes, without new DNA.",
+            "active": [
+              "anaphase",
+              "chromosomes"
+            ],
+            "calloutRegion": "anaphase",
+            "focus": "chromosomes",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "4"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "—"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "telophase",
+            "label": "Nuclei re-form",
+            "short": "Re-form",
+            "sentence": "Telophase: Nuclei re-form around matching chromosome sets at the poles.",
+            "why": "Nuclear envelopes rebuild around the separated sets.",
+            "active": [
+              "telophase",
+              "chromosomes"
+            ],
+            "calloutRegion": "telophase",
+            "focus": "chromosomes",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "4"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "2"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "cytokinesis",
+            "label": "Cytoplasm divides",
+            "short": "Divide",
+            "sentence": "Cytokinesis: Chromosomes stay in new nuclei as the cytoplasm separates.",
+            "why": "Animal-cell pinching overlaps late mitosis.",
+            "active": [
+              "cytokinesis",
+              "chromosomes"
+            ],
+            "calloutRegion": "cytokinesis",
+            "focus": "chromosomes",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "4"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "2"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "2"
+              }
+            ]
+          },
+          {
+            "id": "daughters",
+            "label": "Matching daughters",
+            "short": "Daughters",
+            "sentence": "Daughter cells: Each nucleus contains a matching chromosome set.",
+            "why": "Growth and another S phase precede the next division.",
+            "active": [
+              "daughters",
+              "chromosomes"
+            ],
+            "calloutRegion": "daughters",
+            "focus": "chromosomes",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "4"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "2"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "2"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "regions": [
+          {
+            "id": "before",
+            "label": "Before mitosis",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "before",
+              "context": true,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": false,
+              "separated": false,
+              "chromosomes": [
+                {
+                  "id": "A",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    },
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    },
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "nucleusIds": [
+                    "original"
+                  ]
+                }
+              ],
+              "nuclei": [
+                {
+                  "id": "original",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "envelope": "intact",
+                  "pole": null
+                }
+              ],
+              "spindle": {
+                "status": "not-assembled",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": []
+              },
+              "cytokinesis": "not-started"
+            }
+          },
+          {
+            "id": "prophase",
+            "label": "Prophase",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "prophase",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": true,
+              "separated": false,
+              "chromosomes": [
+                {
+                  "id": "A",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    },
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    },
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "nucleusIds": [
+                    "original"
+                  ]
+                }
+              ],
+              "nuclei": [
+                {
+                  "id": "original",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "envelope": "breaking",
+                  "pole": null
+                }
+              ],
+              "spindle": {
+                "status": "assembling",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": []
+              },
+              "cytokinesis": "not-started"
+            }
+          },
+          {
+            "id": "prometaphase",
+            "label": "Prometaphase",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "prometaphase",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": true,
+              "separated": false,
+              "chromosomes": [
+                {
+                  "id": "A",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    },
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    },
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "nucleusIds": []
+                }
+              ],
+              "nuclei": [],
+              "spindle": {
+                "status": "attaching",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": [
+                  {
+                    "chromatidId": "A.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "A.b",
+                    "pole": "right"
+                  },
+                  {
+                    "chromatidId": "B.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "B.b",
+                    "pole": "right"
+                  }
+                ]
+              },
+              "cytokinesis": "not-started"
+            }
+          },
+          {
+            "id": "metaphase",
+            "label": "Metaphase",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "metaphase",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": true,
+              "separated": false,
+              "chromosomes": [
+                {
+                  "id": "A",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    },
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B",
+                  "pole": null,
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    },
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A",
+                    "B"
+                  ],
+                  "nucleusIds": []
+                }
+              ],
+              "nuclei": [],
+              "spindle": {
+                "status": "aligned",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": [
+                  {
+                    "chromatidId": "A.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "A.b",
+                    "pole": "right"
+                  },
+                  {
+                    "chromatidId": "B.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "B.b",
+                    "pole": "right"
+                  }
+                ]
+              },
+              "cytokinesis": "not-started"
+            }
+          },
+          {
+            "id": "anaphase",
+            "label": "Anaphase",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "anaphase",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": true,
+              "separated": true,
+              "chromosomes": [
+                {
+                  "id": "A.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "A.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A.a",
+                    "A.b",
+                    "B.a",
+                    "B.b"
+                  ],
+                  "nucleusIds": []
+                }
+              ],
+              "nuclei": [],
+              "spindle": {
+                "status": "separating",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": [
+                  {
+                    "chromatidId": "A.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "A.b",
+                    "pole": "right"
+                  },
+                  {
+                    "chromatidId": "B.a",
+                    "pole": "left"
+                  },
+                  {
+                    "chromatidId": "B.b",
+                    "pole": "right"
+                  }
+                ]
+              },
+              "cytokinesis": "starting"
+            }
+          },
+          {
+            "id": "telophase",
+            "label": "Telophase",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "telophase",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": false,
+              "separated": true,
+              "chromosomes": [
+                {
+                  "id": "A.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "A.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "parent",
+                  "chromosomeIds": [
+                    "A.a",
+                    "A.b",
+                    "B.a",
+                    "B.b"
+                  ],
+                  "nucleusIds": [
+                    "nucleus.left",
+                    "nucleus.right"
+                  ]
+                }
+              ],
+              "nuclei": [
+                {
+                  "id": "nucleus.left",
+                  "chromosomeIds": [
+                    "A.a",
+                    "B.a"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "left"
+                },
+                {
+                  "id": "nucleus.right",
+                  "chromosomeIds": [
+                    "A.b",
+                    "B.b"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "right"
+                }
+              ],
+              "spindle": {
+                "status": "disassembled",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": []
+              },
+              "cytokinesis": "constricting"
+            }
+          },
+          {
+            "id": "cytokinesis",
+            "label": "Cytokinesis",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "cytokinesis",
+              "context": false,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": false,
+              "separated": true,
+              "chromosomes": [
+                {
+                  "id": "A.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "A.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "daughter.left",
+                  "chromosomeIds": [
+                    "A.a",
+                    "B.a"
+                  ],
+                  "nucleusIds": [
+                    "nucleus.left"
+                  ]
+                },
+                {
+                  "id": "daughter.right",
+                  "chromosomeIds": [
+                    "A.b",
+                    "B.b"
+                  ],
+                  "nucleusIds": [
+                    "nucleus.right"
+                  ]
+                }
+              ],
+              "nuclei": [
+                {
+                  "id": "nucleus.left",
+                  "chromosomeIds": [
+                    "A.a",
+                    "B.a"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "left"
+                },
+                {
+                  "id": "nucleus.right",
+                  "chromosomeIds": [
+                    "A.b",
+                    "B.b"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "right"
+                }
+              ],
+              "spindle": {
+                "status": "disassembled",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": []
+              },
+              "cytokinesis": "complete"
+            }
+          },
+          {
+            "id": "daughters",
+            "label": "Daughter cells",
+            "kind": "mitosis-cell",
+            "payload": {
+              "kind": "animal-cell-mitosis",
+              "phase": "daughters",
+              "context": true,
+              "dnaReplication": "completed-in-S-phase-before-mitosis",
+              "condensed": false,
+              "separated": true,
+              "chromosomes": [
+                {
+                  "id": "A.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "A.a",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "A.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "A.b",
+                      "source": "A"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.a",
+                  "pole": "left",
+                  "chromatids": [
+                    {
+                      "id": "B.a",
+                      "source": "B"
+                    }
+                  ]
+                },
+                {
+                  "id": "B.b",
+                  "pole": "right",
+                  "chromatids": [
+                    {
+                      "id": "B.b",
+                      "source": "B"
+                    }
+                  ]
+                }
+              ],
+              "cellBodies": [
+                {
+                  "id": "daughter.left",
+                  "chromosomeIds": [
+                    "A.a",
+                    "B.a"
+                  ],
+                  "nucleusIds": [
+                    "nucleus.left"
+                  ]
+                },
+                {
+                  "id": "daughter.right",
+                  "chromosomeIds": [
+                    "A.b",
+                    "B.b"
+                  ],
+                  "nucleusIds": [
+                    "nucleus.right"
+                  ]
+                }
+              ],
+              "nuclei": [
+                {
+                  "id": "nucleus.left",
+                  "chromosomeIds": [
+                    "A.a",
+                    "B.a"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "left"
+                },
+                {
+                  "id": "nucleus.right",
+                  "chromosomeIds": [
+                    "A.b",
+                    "B.b"
+                  ],
+                  "envelope": "reformed",
+                  "pole": "right"
+                }
+              ],
+              "spindle": {
+                "status": "disassembled",
+                "centrosomes": [
+                  {
+                    "id": "centrosome.left",
+                    "pole": "left"
+                  },
+                  {
+                    "id": "centrosome.right",
+                    "pole": "right"
+                  }
+                ],
+                "attachments": []
+              },
+              "cytokinesis": "complete"
+            }
+          },
+          {
+            "id": "chromosomes",
+            "label": "Chromosomes",
+            "kind": "cell-structure",
+            "payload": {
+              "structure": "chromosomes",
+              "within": [
+                "before",
+                "prophase",
+                "prometaphase",
+                "metaphase",
+                "anaphase",
+                "telophase",
+                "cytokinesis",
+                "daughters"
+              ]
+            }
+          },
+          {
+            "id": "spindle",
+            "label": "Spindle and centrosomes",
+            "kind": "cell-structure",
+            "payload": {
+              "structure": "spindle",
+              "within": [
+                "before",
+                "prophase",
+                "prometaphase",
+                "metaphase",
+                "anaphase",
+                "telophase",
+                "cytokinesis",
+                "daughters"
+              ]
+            }
+          }
+        ],
+        "links": [
+          {
+            "from": "before",
+            "to": "prophase",
+            "context": false
+          },
+          {
+            "from": "prophase",
+            "to": "prometaphase",
+            "context": false
+          },
+          {
+            "from": "prometaphase",
+            "to": "metaphase",
+            "context": false
+          },
+          {
+            "from": "metaphase",
+            "to": "anaphase",
+            "context": false
+          },
+          {
+            "from": "anaphase",
+            "to": "telophase",
+            "context": false
+          },
+          {
+            "from": "telophase",
+            "to": "cytokinesis",
+            "context": false
+          },
+          {
+            "from": "cytokinesis",
+            "to": "daughters",
+            "context": false
+          },
+          {
+            "from": "daughters",
+            "to": "before",
+            "context": true,
+            "label": "Next cycle after division, growth + DNA copying"
+          }
+        ],
+        "states": [
+          {
+            "id": "before",
+            "label": "Spindle not ready",
+            "short": "Prepared",
+            "sentence": "Before mitosis: The spindle is not assembled; centrosomes await mitosis.",
+            "why": "S phase copied DNA; this context is not a mitosis phase.",
+            "active": [
+              "before",
+              "spindle"
+            ],
+            "calloutRegion": "before",
+            "focus": "spindle",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "2"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "—"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "prophase",
+            "label": "Spindle assembles",
+            "short": "Condense",
+            "sentence": "Prophase: The spindle assembles as centrosomes move apart.",
+            "why": "Condensation packages long DNA molecules for separation.",
+            "active": [
+              "prophase",
+              "spindle"
+            ],
+            "calloutRegion": "prophase",
+            "focus": "spindle",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "2"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "—"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "prometaphase",
+            "label": "Spindle attaches",
+            "short": "Attach",
+            "sentence": "Prometaphase: Spindle fibers reach sister chromatids through the open nucleus.",
+            "why": "Attachment lets the spindle move each sister independently.",
+            "active": [
+              "prometaphase",
+              "spindle"
+            ],
+            "calloutRegion": "prometaphase",
+            "focus": "spindle",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "2"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "—"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "metaphase",
+            "label": "Opposite poles",
+            "short": "Align",
+            "sentence": "Metaphase: Spindle fibers attach sister copies to opposite poles.",
+            "why": "Opposite attachments prepare one sister for each pole.",
+            "active": [
+              "metaphase",
+              "spindle"
+            ],
+            "calloutRegion": "metaphase",
+            "focus": "spindle",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "2"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "—"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "anaphase",
+            "label": "Fibers shorten",
+            "short": "Separate",
+            "sentence": "Anaphase: Spindle fibers shorten to move chromosomes apart.",
+            "why": "Separated sisters count as chromosomes, without new DNA.",
+            "active": [
+              "anaphase",
+              "spindle"
+            ],
+            "calloutRegion": "anaphase",
+            "focus": "spindle",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "4"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "—"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "telophase",
+            "label": "Spindle dissolves",
+            "short": "Re-form",
+            "sentence": "Telophase: The spindle disassembles as new nuclei re-form.",
+            "why": "Nuclear envelopes rebuild around the separated sets.",
+            "active": [
+              "telophase",
+              "spindle"
+            ],
+            "calloutRegion": "telophase",
+            "focus": "spindle",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "4"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "2"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "id": "cytokinesis",
+            "label": "Spindle has gone",
+            "short": "Divide",
+            "sentence": "Cytokinesis: The spindle is gone as the furrow finishes dividing the cell.",
+            "why": "Animal-cell pinching overlaps late mitosis.",
+            "active": [
+              "cytokinesis",
+              "spindle"
+            ],
+            "calloutRegion": "cytokinesis",
+            "focus": "spindle",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "4"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "2"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "2"
+              }
+            ]
+          },
+          {
+            "id": "daughters",
+            "label": "Spindle absent",
+            "short": "Daughters",
+            "sentence": "Daughter cells: The spindle is absent; a centrosome remains near each nucleus.",
+            "why": "Growth and another S phase precede the next division.",
+            "active": [
+              "daughters",
+              "spindle"
+            ],
+            "calloutRegion": "daughters",
+            "focus": "spindle",
+            "readouts": [
+              {
+                "id": "chromosomes",
+                "label": "Whole view: chr.",
+                "value": "4"
+              },
+              {
+                "id": "dna",
+                "label": "DNA molecules",
+                "value": "4"
+              },
+              {
+                "id": "per-nucleus",
+                "label": "Per new nucleus",
+                "value": "2"
+              },
+              {
+                "id": "cells",
+                "label": "Cell bodies",
+                "value": "2"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,709 @@
+{
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "standard-stepper-merge-sort",
+  "family": "stepper-states",
+  "depth": "balanced",
+  "canonical": "algorithm-over-collection",
+  "story": "Input becomes Left half, Right half, then Singles. Merge left and Merge right create ordered runs for Sorted output. Compare a mixed and an already sorted input: splitting alone does not sort.",
+  "aha": {
+    "stateId": "finish",
+    "observation": "The merge creates order by taking the smaller head from two already ordered runs; splitting alone does not sort."
+  },
+  "layout": {
+    "preset": "algorithm-over-collection",
+    "width": 640
+  },
+  "parts": [
+    {
+      "id": "rail",
+      "kind": "step-rail",
+      "bind": {
+        "items": "variant.states",
+        "active": "inputs.step"
+      }
+    },
+    {
+      "id": "picture",
+      "kind": "fixed-picture",
+      "bind": {
+        "regions": "variant.regions",
+        "links": "variant.links",
+        "active": "state.active"
+      }
+    },
+    {
+      "id": "callout",
+      "kind": "active-callout",
+      "bind": {
+        "target": "state.calloutRegion",
+        "text": "state.sentence"
+      }
+    },
+    {
+      "id": "ghost",
+      "kind": "previous-state-ghost",
+      "bind": {
+        "regions": "previous.active"
+      }
+    },
+    {
+      "id": "values",
+      "kind": "value-readout",
+      "bind": {
+        "values": "state.readouts"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "step",
+      "kind": "index",
+      "presentation": "slider",
+      "items": "variant.states",
+      "default": 0
+    },
+    {
+      "id": "option",
+      "kind": "select",
+      "label": "Starting array",
+      "options": [
+        "Mixed",
+        "Already sorted"
+      ],
+      "default": 0
+    },
+    {
+      "id": "reset",
+      "kind": "reset"
+    }
+  ],
+  "data": {
+    "variants": [
+      {
+        "label": "4, 1, 3, 2",
+        "regions": [
+          {
+            "id": "input",
+            "label": "Input",
+            "values": [
+              4,
+              1,
+              3,
+              2
+            ]
+          },
+          {
+            "id": "left",
+            "label": "Left half",
+            "values": [
+              4,
+              1
+            ]
+          },
+          {
+            "id": "right",
+            "label": "Right half",
+            "values": [
+              3,
+              2
+            ]
+          },
+          {
+            "id": "singles",
+            "label": "Singles",
+            "values": [
+              4,
+              1,
+              3,
+              2
+            ]
+          },
+          {
+            "id": "mergeLeft",
+            "label": "Merge left",
+            "values": [
+              1,
+              4
+            ]
+          },
+          {
+            "id": "mergeRight",
+            "label": "Merge right",
+            "values": [
+              2,
+              3
+            ]
+          },
+          {
+            "id": "output",
+            "label": "Sorted output",
+            "values": [
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        ],
+        "links": [
+          {
+            "from": "input",
+            "to": "left"
+          },
+          {
+            "from": "input",
+            "to": "right"
+          },
+          {
+            "from": "left",
+            "to": "singles"
+          },
+          {
+            "from": "right",
+            "to": "singles"
+          },
+          {
+            "from": "singles",
+            "to": "mergeLeft"
+          },
+          {
+            "from": "singles",
+            "to": "mergeRight"
+          },
+          {
+            "from": "mergeLeft",
+            "to": "output"
+          },
+          {
+            "from": "mergeRight",
+            "to": "output"
+          }
+        ],
+        "states": [
+          {
+            "id": "input",
+            "label": "Read input",
+            "short": "Input",
+            "sentence": "Input holds the values that need ordering.",
+            "why": "Each value must survive the split and merge unchanged.",
+            "active": [
+              "input"
+            ],
+            "calloutRegion": "input",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 0
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "0 / 4"
+              }
+            ]
+          },
+          {
+            "id": "split",
+            "label": "Split in half",
+            "short": "Split",
+            "sentence": "Left half and Right half hold smaller sorting problems.",
+            "why": "Splitting preserves the values; it does not order them.",
+            "active": [
+              "left",
+              "right"
+            ],
+            "calloutRegion": "left",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 0
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "0 / 4"
+              }
+            ]
+          },
+          {
+            "id": "singles",
+            "label": "Reach singles",
+            "short": "Singles",
+            "sentence": "Singles need no sorting: each little run is already ordered.",
+            "why": "A run with only one value cannot be out of order.",
+            "active": [
+              "singles"
+            ],
+            "calloutRegion": "singles",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 0
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "0 / 4"
+              }
+            ]
+          },
+          {
+            "id": "mergeLeft",
+            "label": "Merge the left",
+            "short": "Left merge",
+            "sentence": "Merge left takes the smaller front value until its run is ordered.",
+            "why": "The smallest remaining head must come next in the merged run.",
+            "active": [
+              "mergeLeft"
+            ],
+            "calloutRegion": "mergeLeft",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 1
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "0 / 4"
+              }
+            ]
+          },
+          {
+            "id": "mergeRight",
+            "label": "Merge the right",
+            "short": "Right merge",
+            "sentence": "Merge right does the same on the other half.",
+            "why": "Both resulting runs must be ordered before the final merge.",
+            "active": [
+              "mergeRight"
+            ],
+            "calloutRegion": "mergeRight",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 2
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "0 / 4"
+              }
+            ]
+          },
+          {
+            "id": "finish",
+            "label": "Finish merging",
+            "short": "Finish",
+            "sentence": "Sorted output takes the smaller front repeatedly, then any remaining tail.",
+            "why": "Once a run is empty, the other tail is already in order.",
+            "active": [
+              "output"
+            ],
+            "calloutRegion": "output",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 5
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "4 / 4"
+              }
+            ]
+          }
+        ],
+        "calculations": {
+          "left": {
+            "result": [
+              1,
+              4
+            ],
+            "comparisons": 1,
+            "decisions": [
+              {
+                "left": 4,
+                "right": 1,
+                "chosen": 1,
+                "result": [
+                  1
+                ]
+              }
+            ]
+          },
+          "right": {
+            "result": [
+              2,
+              3
+            ],
+            "comparisons": 1,
+            "decisions": [
+              {
+                "left": 3,
+                "right": 2,
+                "chosen": 2,
+                "result": [
+                  2
+                ]
+              }
+            ]
+          },
+          "final": {
+            "result": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "comparisons": 3,
+            "decisions": [
+              {
+                "left": 1,
+                "right": 2,
+                "chosen": 1,
+                "result": [
+                  1
+                ]
+              },
+              {
+                "left": 4,
+                "right": 2,
+                "chosen": 2,
+                "result": [
+                  1,
+                  2
+                ]
+              },
+              {
+                "left": 4,
+                "right": 3,
+                "chosen": 3,
+                "result": [
+                  1,
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "total": 5
+        }
+      },
+      {
+        "label": "1, 2, 3, 4",
+        "regions": [
+          {
+            "id": "input",
+            "label": "Input",
+            "values": [
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          {
+            "id": "left",
+            "label": "Left half",
+            "values": [
+              1,
+              2
+            ]
+          },
+          {
+            "id": "right",
+            "label": "Right half",
+            "values": [
+              3,
+              4
+            ]
+          },
+          {
+            "id": "singles",
+            "label": "Singles",
+            "values": [
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          {
+            "id": "mergeLeft",
+            "label": "Merge left",
+            "values": [
+              1,
+              2
+            ]
+          },
+          {
+            "id": "mergeRight",
+            "label": "Merge right",
+            "values": [
+              3,
+              4
+            ]
+          },
+          {
+            "id": "output",
+            "label": "Sorted output",
+            "values": [
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        ],
+        "links": [
+          {
+            "from": "input",
+            "to": "left"
+          },
+          {
+            "from": "input",
+            "to": "right"
+          },
+          {
+            "from": "left",
+            "to": "singles"
+          },
+          {
+            "from": "right",
+            "to": "singles"
+          },
+          {
+            "from": "singles",
+            "to": "mergeLeft"
+          },
+          {
+            "from": "singles",
+            "to": "mergeRight"
+          },
+          {
+            "from": "mergeLeft",
+            "to": "output"
+          },
+          {
+            "from": "mergeRight",
+            "to": "output"
+          }
+        ],
+        "states": [
+          {
+            "id": "input",
+            "label": "Read input",
+            "short": "Input",
+            "sentence": "Input holds the values that need ordering.",
+            "why": "Each value must survive the split and merge unchanged.",
+            "active": [
+              "input"
+            ],
+            "calloutRegion": "input",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 0
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "0 / 4"
+              }
+            ]
+          },
+          {
+            "id": "split",
+            "label": "Split in half",
+            "short": "Split",
+            "sentence": "Left half and Right half hold smaller sorting problems.",
+            "why": "Splitting preserves the values; it does not order them.",
+            "active": [
+              "left",
+              "right"
+            ],
+            "calloutRegion": "left",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 0
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "0 / 4"
+              }
+            ]
+          },
+          {
+            "id": "singles",
+            "label": "Reach singles",
+            "short": "Singles",
+            "sentence": "Singles need no sorting: each little run is already ordered.",
+            "why": "A run with only one value cannot be out of order.",
+            "active": [
+              "singles"
+            ],
+            "calloutRegion": "singles",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 0
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "0 / 4"
+              }
+            ]
+          },
+          {
+            "id": "mergeLeft",
+            "label": "Merge the left",
+            "short": "Left merge",
+            "sentence": "Merge left takes the smaller front value until its run is ordered.",
+            "why": "The smallest remaining head must come next in the merged run.",
+            "active": [
+              "mergeLeft"
+            ],
+            "calloutRegion": "mergeLeft",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 1
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "0 / 4"
+              }
+            ]
+          },
+          {
+            "id": "mergeRight",
+            "label": "Merge the right",
+            "short": "Right merge",
+            "sentence": "Merge right does the same on the other half.",
+            "why": "Both resulting runs must be ordered before the final merge.",
+            "active": [
+              "mergeRight"
+            ],
+            "calloutRegion": "mergeRight",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 2
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "0 / 4"
+              }
+            ]
+          },
+          {
+            "id": "finish",
+            "label": "Finish merging",
+            "short": "Finish",
+            "sentence": "Sorted output takes the smaller front repeatedly, then any remaining tail.",
+            "why": "Once a run is empty, the other tail is already in order.",
+            "active": [
+              "output"
+            ],
+            "calloutRegion": "output",
+            "readouts": [
+              {
+                "id": "comparisons",
+                "label": "Comparisons so far",
+                "value": 4
+              },
+              {
+                "id": "placed",
+                "label": "Placed in final output",
+                "value": "4 / 4"
+              }
+            ]
+          }
+        ],
+        "calculations": {
+          "left": {
+            "result": [
+              1,
+              2
+            ],
+            "comparisons": 1,
+            "decisions": [
+              {
+                "left": 1,
+                "right": 2,
+                "chosen": 1,
+                "result": [
+                  1
+                ]
+              }
+            ]
+          },
+          "right": {
+            "result": [
+              3,
+              4
+            ],
+            "comparisons": 1,
+            "decisions": [
+              {
+                "left": 3,
+                "right": 4,
+                "chosen": 3,
+                "result": [
+                  3
+                ]
+              }
+            ]
+          },
+          "final": {
+            "result": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "comparisons": 2,
+            "decisions": [
+              {
+                "left": 1,
+                "right": 3,
+                "chosen": 1,
+                "result": [
+                  1
+                ]
+              },
+              {
+                "left": 2,
+                "right": 3,
+                "chosen": 2,
+                "result": [
+                  1,
+                  2
+                ]
+              }
+            ]
+          },
+          "total": 4
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "overview-stepper-tcp-handshake",
+  "family": "stepper-states",
+  "depth": "brief",
+  "canonical": "protocol-between-parties",
+  "story": "Client asks to connect. Server replies, but sending that reply cannot tell Server it was heard. The final ACK supplies the missing confirmation.",
+  "aha": {
+    "stateId": "confirmed",
+    "observation": "Only receiving the final ACK lets Server know its SYN-ACK reached Client."
+  },
+  "layout": {
+    "preset": "protocol-between-parties",
+    "width": 640
+  },
+  "parts": [
+    {
+      "id": "rail",
+      "kind": "step-rail",
+      "bind": {
+        "items": "variant.states",
+        "active": "inputs.step"
+      }
+    },
+    {
+      "id": "picture",
+      "kind": "fixed-picture",
+      "bind": {
+        "regions": "variant.regions",
+        "links": "variant.links",
+        "active": "state.active"
+      }
+    },
+    {
+      "id": "callout",
+      "kind": "active-callout",
+      "bind": {
+        "target": "state.calloutRegion",
+        "text": "state.sentence"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "step",
+      "kind": "index",
+      "presentation": "slider",
+      "items": "variant.states",
+      "default": 0
+    },
+    {
+      "id": "reset",
+      "kind": "reset"
+    }
+  ],
+  "data": {
+    "variants": [
+      {
+        "lostReply": false,
+        "assumptions": {
+          "loss": "None",
+          "retryOrder": "Server retransmits before any client retry",
+          "timeModel": "Event order only; no timers",
+          "payloadBytes": 0
+        },
+        "regions": [
+          {
+            "id": "client",
+            "label": "Client",
+            "kind": "party",
+            "initialSeq": 100
+          },
+          {
+            "id": "server",
+            "label": "Server",
+            "kind": "party",
+            "initialSeq": 500
+          },
+          {
+            "id": "order",
+            "label": "Message order",
+            "kind": "guide"
+          },
+          {
+            "id": "syn",
+            "label": "SYN",
+            "kind": "message",
+            "from": "client",
+            "to": "server",
+            "flags": [
+              "SYN"
+            ],
+            "seq": 100,
+            "ack": null,
+            "sequenceLength": 1,
+            "newSequenceSpace": 1,
+            "outcome": "delivered"
+          },
+          {
+            "id": "synack",
+            "label": "SYN-ACK",
+            "kind": "message",
+            "from": "server",
+            "to": "client",
+            "flags": [
+              "SYN",
+              "ACK"
+            ],
+            "seq": 500,
+            "ack": 101,
+            "sequenceLength": 1,
+            "newSequenceSpace": 1,
+            "outcome": "delivered"
+          },
+          {
+            "id": "ack",
+            "label": "ACK",
+            "kind": "message",
+            "from": "client",
+            "to": "server",
+            "flags": [
+              "ACK"
+            ],
+            "seq": 101,
+            "ack": 501,
+            "sequenceLength": 0,
+            "newSequenceSpace": 0,
+            "outcome": "delivered"
+          },
+          {
+            "id": "connected",
+            "label": "Connection",
+            "kind": "outcome"
+          }
+        ],
+        "links": [
+          {
+            "from": "client",
+            "to": "syn"
+          },
+          {
+            "from": "syn",
+            "to": "server"
+          },
+          {
+            "from": "server",
+            "to": "synack"
+          },
+          {
+            "from": "synack",
+            "to": "client"
+          },
+          {
+            "from": "client",
+            "to": "ack"
+          },
+          {
+            "from": "ack",
+            "to": "server"
+          },
+          {
+            "from": "server",
+            "to": "connected"
+          }
+        ],
+        "states": [
+          {
+            "id": "syn-sent",
+            "label": "Request sent",
+            "short": "SYN",
+            "sentence": "SYN asks the Server to start a connection.",
+            "why": "SYN uses one sequence number.",
+            "active": [
+              "syn"
+            ],
+            "calloutRegion": "syn",
+            "readouts": [],
+            "endpoints": {
+              "client": {
+                "state": "SYN-SENT",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "LISTEN",
+                "nextSeq": 500
+              }
+            },
+            "segment": "syn",
+            "sent": [
+              "syn"
+            ],
+            "replyReceived": false,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "reply-received",
+            "label": "Reply received",
+            "short": "Receive",
+            "sentence": "Client receives SYN-ACK; Server still awaits confirmation.",
+            "why": "Client now knows the Server start.",
+            "active": [
+              "synack"
+            ],
+            "calloutRegion": "synack",
+            "readouts": [],
+            "endpoints": {
+              "client": {
+                "state": "ESTABLISHED",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "SYN-RECEIVED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "synack",
+            "sent": [
+              "syn",
+              "synack"
+            ],
+            "replyReceived": true,
+            "ackSent": false,
+            "ackReceived": false
+          },
+          {
+            "id": "confirmed",
+            "label": "Both connected",
+            "short": "Confirmed",
+            "sentence": "ACK proves the reply arrived; Server can finish connecting.",
+            "why": "A sent reply alone is no proof of delivery.",
+            "active": [
+              "ack"
+            ],
+            "calloutRegion": "ack",
+            "readouts": [],
+            "endpoints": {
+              "client": {
+                "state": "ESTABLISHED",
+                "nextSeq": 101
+              },
+              "server": {
+                "state": "ESTABLISHED",
+                "nextSeq": 501
+              }
+            },
+            "segment": "ack",
+            "sent": [
+              "syn",
+              "synack",
+              "ack"
+            ],
+            "replyReceived": true,
+            "ackSent": true,
+            "ackReceived": true
+          }
+        ]
+      }
+    ]
+  }
+}
