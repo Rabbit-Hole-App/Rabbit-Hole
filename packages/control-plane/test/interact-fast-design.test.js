@@ -33,6 +33,8 @@ function fastStack(t, { answers, script, env = {}, evidence, pick = { choice: 'v
   };
   return { ...s, fills, picks, jobOf: id => s.state.data.get(`job:${id}`) };
 }
+// Brief 14: a fast pass is approved by the system and the build starts at once (the stack's stub build stands in for it; its fake spec then fails validation, which these tests do not look at).
+const builtDirect = (s, job) => { assert.equal(job.approval?.by, 'fast-path'); assert.deepEqual(s.built, [job.id], 'the build started with no Generate'); assert.equal(job.pendingProposal, null, 'no proposal card was posted'); };
 const SEEK = { INTERACT_SEEK: 'on' }; // the reference toss plans use the scrubber
 const userOf = body => JSON.parse(body.messages.at(-1).content);
 
@@ -40,7 +42,7 @@ test('the fast path: one fill call reaches awaiting_approval with no review, no 
   const s = fastStack(t, { answers: [GOOD], env: SEEK });
   const { body } = await s.create({ depth: 'brief', prompt: 'At the highest point of a vertical throw, is acceleration zero?' });
   const { job, seen } = await s.design(body.job.id);
-  assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure));
+  builtDirect(s, job);
   assert.deepEqual(seen.filter(x => x.startsWith('design_')), ['design_authoring', 'design_verifying'], 'no review, no revision');
   assert.equal(s.fills.length, 1); assert.deepEqual(s.model.roles(), [], 'no Opus design call');
   assert.equal(s.fills[0].model, 'gemini-3.5-flash-lite');
@@ -48,7 +50,7 @@ test('the fast path: one fill call reaches awaiting_approval with no review, no 
   assert.deepEqual([job.design.fast.kind, job.design.fast.fallback, job.design.fast.calls, job.design.fast.firstProblem], ['fast', 'none', 1, null]);
   assert.equal(job.design.fast.model, 'gemini-3.5-flash-lite'); assert.ok(job.design.fast.costUsd > 0);
   assert.ok(job.design.plan.scene.template && job.design.plan.scene.slots && job.design.plan.scene.words, 'template, slots and words: Generate takes the template build');
-  assert.deepEqual(job.calls.map(c => c.role), ['design_fill']);
+  assert.deepEqual(job.calls.map(c => c.role).filter(r => r.startsWith('design_')), ['design_fill']);
   assert.deepEqual([job.design.counts.author, job.design.counts.review, job.design.counts.revise, job.design.counts.fill], [0, 0, 0, 1]);
   const input = userOf(s.fills[0]); assert.deepEqual(Object.keys(input), ['request', 'depth']);
   assert.ok(s.fills[0].messages[0].content.startsWith(SCENE_TEACHING_GUIDE), 'the teaching guide is the start of the system text, verbatim');
@@ -72,7 +74,7 @@ test('a wrong formula gets ONE correction with the exact problem line and the pr
   const s = fastStack(t, { answers: [wrong, GOOD], env: SEEK });
   const { body } = await s.create({ depth: 'brief' });
   const { job } = await s.design(body.job.id);
-  assert.equal(job.stage, 'awaiting_approval'); assert.equal(s.fills.length, 2); assert.deepEqual(s.model.roles(), []);
+  builtDirect(s, job); assert.equal(s.fills.length, 2); assert.deepEqual(s.model.roles(), []);
   const second = userOf(s.fills[1]);
   assert.equal(second.correction.problems.length, 1); assert.match(second.correction.problems[0], /^formula height at /);
   assert.deepEqual(second.previous, wrong);
@@ -126,7 +128,7 @@ test('a job with no evidence still passes: the family claims drop the reference 
   const s = fastStack(t, { answers: [GOOD], env: SEEK, evidence: [] });
   const { body } = await s.create({ depth: 'brief' });
   const { job } = await s.design(body.job.id);
-  assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure)); assert.equal(s.fills.length, 1);
+  builtDirect(s, job); assert.equal(s.fills.length, 1);
   assert.ok(job.design.plan.claims.every(c => c.evidenceIds.length === 0));
 });
 
@@ -136,7 +138,7 @@ test('the pick runs first and a fit goes to that family fill: one JEV call, one 
   const s = fastStack(t, { answers: [GOOD], env: SEEK, evidence: [] });
   const { body } = await s.create({ depth: 'brief' });
   const { job } = await s.design(body.job.id);
-  assert.equal(job.stage, 'awaiting_approval'); assert.equal(s.picks.length, 1); assert.equal(s.fills.length, 1);
+  builtDirect(s, job); assert.equal(s.picks.length, 1); assert.equal(s.fills.length, 1);
   assert.deepEqual(Object.keys(s.picks[0].questions.family.criteria), ['vertical-throw', 'none'], 'the question is built from the registry');
   const { pick } = job.design.fast;
   assert.deepEqual([pick.family, pick.confidence, pick.reason, typeof pick.ms], ['vertical-throw', 0.95, 'fit', 'number']);
@@ -184,4 +186,21 @@ test('the default threshold is a function of the registry size; the setting over
   assert.deepEqual([pickThreshold({}, one), pickThreshold({}, two)], [0.7, 0.9]);
   assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0.55' }, two), 0.55); assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0' }, two), 0);
   assert.deepEqual([pickThreshold({ INTERACT_PICK_THRESHOLD: 'x' }, one), pickThreshold({ INTERACT_PICK_THRESHOLD: '7' }, two), pickThreshold({ INTERACT_PICK_THRESHOLD: '' }, one)], [0.7, 0.9, 0.7]);
+});
+
+// ---- no approval pause (brief 14) ----
+test('a fast pass is approved by the system with the same signed plan and builds at once; a fallback stops for the learner as before', async t => {
+  const s = fastStack(t, { answers: [GOOD], env: SEEK, evidence: [] });
+  const { body } = await s.create({ depth: 'brief' });
+  const { job, seen } = await s.design(body.job.id);
+  builtDirect(s, job);
+  assert.ok(seen.includes('authoring') && !seen.includes('awaiting_approval'), seen.join(' > '));
+  const d = job.design;
+  assert.deepEqual([job.approval.scenePlanHash, job.approval.approvalHash, job.approval.runtimeHash, job.approval.planRevision], [d.finalHash, d.approvalHash, d.runtimeHash, d.rev], 'the approval binds the closed plan');
+  assert.ok(job.timing.marks.proposalReady && job.timing.marks.generate && !job.timing.stages.some(x => x.stage === 'awaiting_approval'), 'no approval wait was recorded');
+  // A fallback to the Opus design stops at awaiting_approval with a posted proposal.
+  const f = fastStack(t, { answers: [{ nonsense: true }], script: OPUS });
+  const { body: fb } = await f.create({ depth: 'balanced' });
+  const { job: fallen } = await f.design(fb.job.id);
+  assert.equal(fallen.stage, 'awaiting_approval'); assert.equal(fallen.approval, null); assert.deepEqual(f.built, []); assert.ok(fallen.pendingProposal);
 });

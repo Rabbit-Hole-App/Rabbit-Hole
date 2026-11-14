@@ -1143,9 +1143,19 @@ export class ExplainJobs {
       d.approvalHash = await approvalHashOf(job, d);
       await keep('final', { plan: out.plan, planHash: out.planHash, fit: out.fit, runtimeHash: out.runtimeHash, approvalHash: d.approvalHash, open: out.open, carried: out.carried, at: now });
       await this.finishUsage({ ...job, actionKey: null }, 'completed');
-      endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
-      job.threadId ??= await this.briefThread(job);
-      await this.postBrief(job);
+      endStage(job.timing, 'done'); markTiming(job.timing, 'proposalReady');
+      // INTERACT_DESIGN_KIND=fast, a fill that passed (no fallback, never an Edit): no approval pause (brief 14). The system approves the same signed plan and the build starts at once; no proposal card is posted.
+      // A refused admission (credits) leaves the ordinary proposal below, where Generate refuses with its own reason. An Opus fallback always stops for the learner, as before.
+      if (d.fast?.kind === 'fast' && !d.refinements && await this.admitGeneration(job).then(() => true, () => false)) {
+        markTiming(job.timing, 'generate'); job.settings = planProposalFields(job).settings;
+        Object.assign(job, { approval: { scenePlanHash: d.finalHash, profileHash: job.flow.profile.hash, planRevision: d.rev, runtimeHash: d.runtimeHash, approvalHash: d.approvalHash, at: Date.now(), by: 'fast-path' }, stage: 'authoring', deadline: Date.now() + INTERACT_LIMITS.deadlines.jobMs,
+          build: { counts: { build_author: 0, build_review: 0, build_repair: 0 }, failure: null, check: null, envelopeHash: null } });
+        beginStage(job.timing, 'authoring');
+      } else {
+        job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval');
+        job.threadId ??= await this.briefThread(job);
+        await this.postBrief(job);
+      }
     }
     await this.save(job);
   }

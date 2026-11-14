@@ -18,12 +18,14 @@ const designPart = (job, t, mvp) => {
   return { designModel: fast?.model ?? (opus || fast ? model?.served ?? model?.requested ?? null : mvp.designModel), designKind: fast?.kind ?? (opus ? 'opus' : mvp.designKind), msFill: mvp.msFill, designFallback: fast ? fast.fallback ?? 'none' : null,
     designCalls: fast || opus ? (dcalls.length || fast?.calls || calls) : null, msDesign: fast || opus ? t.proposalMs : null, designCostUsd: fast || opus ? (dcalls.length ? (dcalls.every(c => typeof c.costMicros === 'number') ? dcalls.reduce((n, c) => n + c.costMicros, 0) / 1e6 : null) : fast?.costUsd || stageCost) : null,
     // brief 13: the pick of a fast design (a family id, or 'gap'), its confidence and its wall-clock; null when no pick ran.
-    pickFamily: fast?.pick ? fast.pick.family ?? 'gap' : null, pickConfidence: fast?.pick?.confidence ?? null, msPick: fast?.pick?.ms ?? null };
+    pickFamily: fast?.pick ? fast.pick.family ?? 'gap' : null, pickConfidence: fast?.pick?.confidence ?? null, msPick: fast?.pick?.ms ?? null,
+    // brief 14: who approved the plan: the system ('fast-path', no approval pause) or the learner; null while there is no approval.
+    approvedBy: job.approval ? job.approval.by ?? 'learner' : null };
 };
 
 // timing: 'v2' is a job whose stage columns are the contiguous wall-clock slices ledgerRow explains (they add up to msTotal); 'v1' is every older row, kept as it was recorded.
 export const LEDGER_COLUMNS = Object.freeze(['jobId', 'planHash', 'depth', 'result', 'stopReason', 'oracleId', 'oracleChecked', 'oracleFailed', 'bindingProblems', 'overlapProblems', 'repairs', 'repairCauses',
-  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath', 'designModel', 'designKind', 'msFill', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'pickFamily', 'pickConfidence', 'msPick']);
+  'profile', 'fixture', 'authorModel', 'fallbackFired', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'costUsd', 'msSteer', 'msAuthor', 'msValidate', 'msRun', 'msCheck', 'msCompose', 'msReview', 'msRepair', 'msTotal', 'msJudge', 'timing', 'buildKind', 'msHopWait', 'judgeFindingsPath', 'designModel', 'designKind', 'msFill', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'pickFamily', 'pickConfidence', 'msPick', 'approvedBy']);
 
 // What triggered each failed round, in order, `;`-joined, one token per distinct problem of a round: `overlap:text-frame` (a layout rule), `numeric_mismatch` (an oracle code),
 // `program_error:sdk.panel` or `program_error:frame.objects.*.series.*.points` (the guest program's own error), `schema:manifest.readouts.*.labels` (the path a validation problem names),
@@ -86,7 +88,8 @@ export function ledgerRow(job) {
     costUsd: priced.length && priced.every(m => typeof m === 'number') ? priced.reduce((n, m) => n + m, 0) / 1e6 : null,
     msSteer: job.timing.steerMs ?? null, // interact-job.js buildStage writes the measured JEV steer time (interact-steer.js) to job.timing.steerMs
     ...(stages ?? { msAuthor: providerMs ?? authoring, msValidate: stageMs('validating'), msRun: run, msCheck: check, msCompose: compose }), msReview: stageMs('reviewing'), msRepair: stageMs('repairing'),
-    msTotal: t.generateToResultMs, msJudge: judge?.ms ?? null, timing: job.timing.v === 2 ? 'v2' : 'v1',
+    // A fast-path job is approved by the system the instant its plan is ready (brief 14): its one number is prompt admitted -> ready (the plan's time plus the build's).
+    msTotal: job.approval?.by === 'fast-path' && t.proposalMs != null && t.generateToResultMs != null ? round1(t.proposalMs + t.generateToResultMs) : t.generateToResultMs, msJudge: judge?.ms ?? null, timing: job.timing.v === 2 ? 'v2' : 'v1',
     buildKind: template ? 'template' : calls.some(c => c.role === 'build_author') ? 'model' : null, msHopWait: hopWait,
     judgeFindingsPath: null, // set by scripts/interact/ledger.mjs when it writes the judge's findings to benchmarks/judge/<jobId>.json (the row itself stays pure)
     // A job pinned to a toss-mvp-<depth> fixture (the design MVP, brief 11): which model wrote the plan brief, that the design was a brief, and how long the fill took, from the data file's TOSS_MVP_META (the bench row the plan was picked from).
