@@ -15,8 +15,9 @@ import { sharedPanelTabs } from './canvas-permissions.js';
 
 // The panel's state: open (default open on `initial`), the selected tab, Back to Search after a comment opened from it, and
 // '/' opening Find as on the owner's canvas.
-export function useSharedPanel(initial) {
-  const [open, setOpen] = useState(true);
+// `startOpen`: a share link or publication opens with the panel closed and the Chat composer in the canvas's bottom strip (owner 2026-11-14); a member's canvas opens it.
+export function useSharedPanel(initial, startOpen = true) {
+  const [open, setOpen] = useState(startOpen);
   const [tab, setTab] = useState(initial);
   const [returnToSearch, setReturnToSearch] = useState(false);
   const findInput = useRef(null);
