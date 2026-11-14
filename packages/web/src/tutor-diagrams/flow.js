@@ -89,7 +89,7 @@ function crosses(points, { x, y, width, height }) {
 }
 
 function labelBounds(route, others, width) {
-  const { words, side, dir, points: [[from, fromY], turn, end] } = route;
+  const { words, side, dir, lift = 0, points: [[from, fromY], turn, end] } = route;
   const [to, y] = side ? [turn[0], fromY] : end;
   const w = Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12);
   const h = words.length * lineHeight(EDGE_TEXT) + 4;
@@ -102,7 +102,7 @@ function labelBounds(route, others, width) {
   const clamped = candidate => Math.max(PAD, Math.min(width - PAD - w, candidate));
   for (const shift of offsets) {
     const x = clamped(anchor + shift - w / 2);
-    const bounds = { x, y: side ? y - h - 4 : y - h / 2, width: w, height: h };
+    const bounds = { x, y: side ? y - h - 4 - lift : y - h / 2, width: w, height: h };
     if (others.every(other => other === route || !crosses(other.points, bounds))) return bounds;
   }
   return null;
@@ -206,14 +206,26 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
       const turnX = port(target, incoming.get(edge.to), edge, false)[0];
       const words = edge.label ? wrap(edge.label, EDGE_WRAP, EDGE_TEXT) : [];
       const labelWidth = words.length ? Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12) : 0;
+      const labelHeight = words.length ? words.length * lineHeight(EDGE_TEXT) + 4 : 0;
       const clearOf = (a, b) => placedRows[ranks.get(node.id)].every(other => other === node || other.cx + other.width / 2 <= Math.min(a, b) - 2 || other.cx - other.width / 2 >= Math.max(a, b) + 2);
-      if (sign * (turnX - vertexX) > 0 && Math.abs(turnX - vertexX) >= labelWidth && clearOf(vertexX, turnX)) return { kind: 'run', dir: sign };
+      if (sign * (turnX - vertexX) > 0 && Math.abs(turnX - vertexX) >= labelWidth && clearOf(vertexX, turnX)) return { kind: 'run', dir: sign, labelWidth, labelHeight, vertexX, turnX };
       // The drop lands on the top edge of the target away from its rounded corners, which only a lone arrival may move.
       const margin = target.role === 'outcome' && !target.tensor ? Math.min(target.width, target.height) / 2 : 8;
       const lands = incoming.get(edge.to).length === 1 && vertexX >= target.cx - target.width / 2 + margin && vertexX <= target.cx + target.width / 2 - margin;
-      return lands && clearOf(vertexX, vertexX) ? { kind: 'drop', dir: sign } : null;
+      return lands && clearOf(vertexX, vertexX) ? { kind: 'drop', dir: sign, labelWidth, labelHeight, vertexX } : null;
     });
-    if (plans.every(Boolean)) branches.forEach((edge, index) => sideEdges.set(edge, plans[index]));
+    if (plans.every(Boolean)) {
+      // The label boxes as labelBounds will place them (clamped onto the card): a drop label pushed over the diamond is lifted clear of its edge, both branches to one height (rule a),
+      // and a node whose two labels would overlap each other, or need more lift than the diamond's upper half allows, keeps the lane routing (found by the geometry lint, RD-3).
+      const ratio = node.width / node.height;
+      const boxes = plans.map(plan => {
+        const x = Math.max(PAD, Math.min(width - PAD - plan.labelWidth, plan.kind === 'drop' ? plan.vertexX + plan.dir * (4 + plan.labelWidth / 2) - plan.labelWidth / 2 : (plan.vertexX + plan.turnX) / 2 - plan.labelWidth / 2));
+        const over = plan.kind === 'drop' ? (plan.dir < 0 ? x + plan.labelWidth - plan.vertexX : plan.vertexX - x) : 0;
+        return { x, right: x + plan.labelWidth, lift: over > 0 ? over / ratio + 2 : 0 };
+      });
+      const lift = Math.max(...boxes.map(box => box.lift));
+      if (boxes[0].right + 2 <= boxes[1].x && lift <= node.height / 2 - 4 - Math.max(...plans.map(plan => plan.labelHeight))) branches.forEach((edge, index) => sideEdges.set(edge, { ...plans[index], lift }));
+    }
   }
   for (const edge of sideEdges.keys()) {
     const gap = gaps[ranks.get(edge.from)];
@@ -261,9 +273,9 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
       const source = placements.get(edge.from);
       const vertex = [source.cx + (outgoing.get(edge.from).indexOf(edge) === 0 ? -1 : 1) * source.width / 2, source.y + source.height / 2];
       const target = port(placements.get(edge.to), incoming.get(edge.to), edge, false);
-      const { kind, dir } = sideEdges.get(edge);
+      const { kind, dir, lift } = sideEdges.get(edge);
       const points = kind === 'drop' ? [vertex, [vertex[0], target[1]]] : [vertex, [target[0], vertex[1]], target];
-      return { ...route, side: kind, dir, points };
+      return { ...route, side: kind, dir, lift, points };
     }
     const from = port(placements.get(edge.from), outgoing.get(edge.from), edge, true);
     const to = port(placements.get(edge.to), incoming.get(edge.to), edge, false);

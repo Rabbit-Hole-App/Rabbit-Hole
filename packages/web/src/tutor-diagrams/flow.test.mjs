@@ -423,3 +423,43 @@ test('RD-2: the highlight path style applies to the routed branch', () => {
   assert.equal('data-tutor-path' in no.props, false, 'the other branch is not');
   assert.equal(yes.props.children.props.children[0].props.strokeWidth, 3, 'and drawn in the path style');
 });
+
+// RD-2c (found by the RD-3 geometry lint): a side-branch label that does not fit outside its vertex is lifted clear of the diamond's edge (both branches to one height), and a decision whose two labels
+// would overlap each other keeps the lane routing.
+const narrow = {
+  kind: 'flow', title: 'Which side predicts which class?',
+  nodes: [{ id: 'q', role: 'decision', label: '$x_1+x_2<7$?' }, { id: 'n', role: 'outcome', label: 'Predict $0$' }, { id: 'p', role: 'outcome', label: 'Predict $1$' }],
+  edges: [{ from: 'q', to: 'n', label: 'Yes' }, { from: 'q', to: 'p', label: 'No' }],
+};
+const longLabels = {
+  kind: 'flow', title: 'Which feedback loop?',
+  nodes: [
+    { id: 'r', label: 'Choose feedback trigger', role: 'decision' }, { id: 'e', label: 'Evaluate', role: 'process' }, { id: 'f', label: 'Run Feature Engineering', role: 'process' },
+    { id: 'm', label: 'Run Monitor', role: 'process' }, { id: 'c', label: 'Collect Data', role: 'process' },
+  ],
+  edges: [{ from: 'r', to: 'e', label: 'evaluation result' }, { from: 'e', to: 'f', label: 'not good enough' }, { from: 'r', to: 'm', label: 'monitoring result' }, { from: 'm', to: 'c', label: 'performance drops' }],
+};
+const overlap = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+const insideDiamond = (node, [x, y]) => Math.abs(x - (node.x + node.width / 2)) / (node.width / 2) + Math.abs(y - (node.y + node.height / 2)) / (node.height / 2) < 1;
+
+test('RD-2c: a side-branch label squeezed by a narrow card is lifted clear of the diamond, both labels at one height', () => {
+  const { geometry } = layoutFlow(narrow, 0);
+  const diamond = geometry.nodes.find(node => node.id === 'q');
+  const labels = geometry.edges.filter(edge => edge.from === 'q').map(edge => edge.label);
+  assert.equal(labels.length, 2);
+  assert.ok(Math.abs(labels[0].y - labels[1].y) <= 1, 'both labels stand at one height');
+  for (const rect of labels) for (const corner of [[rect.x, rect.y], [rect.x + rect.width, rect.y], [rect.x, rect.y + rect.height], [rect.x + rect.width, rect.y + rect.height]]) {
+    assert.equal(insideDiamond(diamond, corner), false, 'no label corner is inside the diamond');
+  }
+  assert.equal(overlap(labels[0], labels[1]), false);
+});
+
+test('RD-2c: a decision whose two labels would overlap each other keeps the lane routing, and no two labels of any flow overlap', () => {
+  for (const width of [0, 320, 408, 720]) {
+    const { geometry } = layoutFlow(longLabels, width);
+    const labels = geometry.edges.filter(edge => edge.label).map(edge => edge.label);
+    for (const [index, rect] of labels.entries()) for (const other of labels.slice(index + 1)) assert.equal(overlap(rect, other), false, `labels overlap at ${width}`);
+  }
+  const natural = layoutFlow(longLabels, 0).geometry;
+  assert.ok(natural.edges.filter(edge => edge.from === 'r').every(edge => edge.points.length === 4), 'at the natural width the decision keeps the lane routing');
+});
