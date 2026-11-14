@@ -72,6 +72,14 @@ const fail = (message, status = 400, code = null) => Object.assign(new Error(mes
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
 const TERMINAL = new Set(['ready', 'failed', 'cancelled']);
 const CHAIN_MAX_HOPS = 16, CHAIN_BUDGET_MS = 20000; // INTERACT_CHAIN: at most this many stages, and this much wall time, per alarm
+// INTERACT_CHAIN=on: the recovery alarm armed before each stage (a terminated isolate resumes there) is short, because a stage that makes no model call finishes in well under a second; a stage that awaits a model call keeps 30 s
+// (the Opus design runs for minutes). The alarm handler is not reentrant (advance() is called only from alarm() and chain()), so a short recovery alarm never starts a stage that is still running in a live isolate.
+const CHAIN_RECOVERY_MS = 5000, MODEL_STAGES = new Set(['preparing', 'design_authoring', 'design_reviewing', 'design_revising', 'reviewing', 'repairing']);
+export function chainRecoveryMs(env, job) {
+  const n = Number(env.INTERACT_CHAIN_RECOVERY_MS), ms = Number.isFinite(n) && n >= 1000 && n <= 30000 ? n : CHAIN_RECOVERY_MS;
+  const model = job.inFlight || MODEL_STAGES.has(job.stage) || (job.stage === 'authoring' && !templateGate(env, job.design?.plan)?.ok); // a model build calls build_author
+  return model ? 30000 : ms;
+}
 // Where the request came from (CapabilityDecision.source): explicit /explain, the picker, a command-bearing Ctrl+K, a
 // submitted suggestion, the shared router, or the Tutor's chosen tool.
 const SOURCES = ['explicit', 'picker', 'command', 'suggestion', 'classified', 'tutor'];
@@ -966,21 +974,29 @@ export class ExplainJobs {
 
   async alarm() {
     await this.state.storage.setAlarm(Date.now() + 30000); // re-armed first: a terminated isolate still gets a recovery turn
+    this.recoveryMs = null;
     let active = false; const started = Date.now(), trace = this.env.INTERACT_CHAIN === 'on' ? [] : null; // trace: one log line per alarm while chaining is on, to find a lost wake (stall-analysis.md)
     for (const [, snapshot] of await this.state.storage.list({ prefix: 'job:' })) {
       const job = await this.get(snapshot.id);
       if (!job || TERMINAL.has(job.stage) && !job.inFlight && !job.bench?.pending && !job.bench?.running || job.stage === 'awaiting_approval') continue;
       active = true; const from = job.stage;
-      try { await this.advance(job); await this.chain(job, started); } catch (error) { await this.failed(job, error); }
+      try { await this.rearm(job); await this.advance(job); await this.chain(job, started); } catch (error) { await this.failed(job, error); }
       trace?.push([job.id.slice(-6), from, (await this.get(job.id))?.stage, Date.now() - started]);
     }
-    if (trace) console.log(JSON.stringify({ event: 'interact_alarm', ms: Date.now() - started, active, jobs: trace, armed: (await this.state.storage.getAlarm?.()) ?? null, now: Date.now() }));
+    if (trace) console.log(JSON.stringify({ event: 'interact_alarm', ms: Date.now() - started, active, jobs: trace, recoveryMs: this.recoveryMs ?? null, armed: (await this.state.storage.getAlarm?.()) ?? null, now: Date.now() }));
     if (active) await this.wake(1000); else await this.state.storage.deleteAlarm?.();
   }
 
   // INTERACT_CHAIN=on (an interact job only; default off): the stages of one job run back to back inside this alarm instead of waiting about a second for the next one (each hop cost the alarm's wake delay).
   // Every stage still saves before the next starts, so a crash resumes at the last saved stage, and the 30 s recovery alarm above is the resume point. The chain stops at a terminal job, at awaiting_approval, at a call in flight,
   // when a stage changed nothing (no save: the alarm loop retries it as before) and after CHAIN_BUDGET_MS since this alarm began (the next alarm continues): the stages of a template build are CPU-light, a model stage is awaited either way.
+  // The recovery alarm for the stage about to run (chaining on, interact jobs only; off, the 30 s armed at the top of alarm() stands).
+  async rearm(job) {
+    if (this.env.INTERACT_CHAIN !== 'on' || !job.flow) return;
+    this.recoveryMs = chainRecoveryMs(this.env, job);
+    await this.state.storage.setAlarm(Date.now() + this.recoveryMs);
+  }
+
   async chain(job, started) {
     if (this.env.INTERACT_CHAIN !== 'on' || !job.flow) return;
     let prev = job; const budget = Number(this.env.INTERACT_CHAIN_BUDGET_MS ?? CHAIN_BUDGET_MS);
@@ -988,6 +1004,7 @@ export class ExplainJobs {
       const next = await this.get(job.id);
       if (!next || TERMINAL.has(next.stage) || next.stage === 'awaiting_approval' || next.inFlight || (next.updatedAt === prev.updatedAt && next.stage === prev.stage)) return; // two saves in one millisecond (a 0 ms stage) are still progress when the stage moved
       prev = next;
+      await this.rearm(next);
       await this.advance(next);
     }
   }

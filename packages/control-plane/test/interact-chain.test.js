@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { designStack } from './interact-design-fixture.js';
+import { chainRecoveryMs } from '../src/explain-job.js';
 
 test.beforeEach(t => { const log = console.log; console.log = () => {}; t.after(() => { console.log = log; }); });
 
@@ -51,4 +52,35 @@ test('a chain that runs out of budget yields to the alarm and the next alarm res
 test('the setting is off by default: no chaining without INTERACT_CHAIN=on', async t => {
   const off = await run(t, { INTERACT_CHAIN: 'off' });
   assert.ok(off.alarms > 2);
+});
+
+// ---- the recovery alarm while chaining (brief 19): short for a stage that makes no model call, 30 s for one that does ----
+test('the chain recovery alarm is 5 s for a stage with no model call, 30 s for a model stage or a call in flight, and the setting is bounded', () => {
+  const quiet = { flow: {}, stage: 'validating' }, model = { flow: {}, stage: 'design_authoring' };
+  assert.equal(chainRecoveryMs({}, quiet), 5000);
+  for (const stage of ['design_verifying', 'validating', 'rendering']) assert.equal(chainRecoveryMs({}, { flow: {}, stage }), 5000, stage);
+  for (const stage of ['preparing', 'design_authoring', 'design_reviewing', 'design_revising', 'reviewing', 'repairing']) assert.equal(chainRecoveryMs({}, { flow: {}, stage }), 30000, stage);
+  assert.equal(chainRecoveryMs({}, { ...quiet, inFlight: { key: 'k' } }), 30000, 'a call in flight keeps the long recovery');
+  assert.equal(chainRecoveryMs({ INTERACT_CHAIN_RECOVERY_MS: '2000' }, quiet), 2000);
+  for (const bad of ['999', '30001', 'x', '-5']) assert.equal(chainRecoveryMs({ INTERACT_CHAIN_RECOVERY_MS: bad }, quiet), 5000, `invalid ${bad} falls back to the default`);
+  assert.equal(chainRecoveryMs({ INTERACT_CHAIN_RECOVERY_MS: '2000' }, model), 30000);
+  assert.equal(chainRecoveryMs({}, { flow: {}, stage: 'authoring' }), 30000, 'a model build (no template gate) calls build_author');
+  assert.equal(chainRecoveryMs({ INTERACT_BUILD_KIND: 'template' }, { flow: {}, stage: 'authoring', design: { plan: { scene: { template: 'nope' } } } }), 30000, 'an unknown template takes the model build');
+});
+
+test('a chained alarm arms 5 s for the quiet stages and 30 s for the model ones; unchained it arms only the 30 s; the log line names the recovery delay', async t => {
+  async function armed(env) {
+    const s = designStack(t); Object.assign(s.env, env);
+    const delays = [], storage = s.actor.state.storage, real = storage.setAlarm?.bind(storage), lines = [], log = console.log;
+    storage.setAlarm = async at => { delays.push(at - Date.now()); return real?.(at); };
+    console.log = line => lines.push(line);
+    try { const { body } = await s.create(); for (let i = 0; i < 6; i++) { await s.actor.alarm(); const j = s.state.data.get(`job:${body.job.id}`); if (['awaiting_approval', 'failed', 'ready'].includes(j.stage)) break; } } finally { console.log = log; }
+    return { delays: delays.map(d => Math.round(d / 1000) * 1000), lines };
+  }
+  const plain = await armed({}), chained = await armed({ INTERACT_CHAIN: 'on' });
+  assert.ok(plain.delays.every(d => d === 30000 || d <= 1000), `unchained: only the 30 s recovery (and the 1 s wake): ${plain.delays}`);
+  assert.ok(chained.delays.includes(5000), `chained arms 5 s for a quiet stage: ${chained.delays}`);
+  assert.ok(chained.delays.includes(30000), `chained keeps 30 s for the model stage: ${chained.delays}`);
+  const alarmLine = chained.lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).find(l => l?.event === 'interact_alarm');
+  assert.ok(alarmLine && 'recoveryMs' in alarmLine, 'the interact_alarm line carries the recovery delay');
 });
