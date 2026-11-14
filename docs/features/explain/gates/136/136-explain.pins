@@ -1,0 +1,5 @@
+LABEL="Release 136: C01 composition data. The regularization and neural-network panels references (regularized objective, dropout mask, hidden feature layer, linear unit) with their toy data, receipts, replay cases and study docs; the pipeline accepts composition-<subject>-references.js; every panels reference sends its answer panel to the author, never the panels kind. Data and docs only, no migrations, no config change."
+SHA=ee9966384ca8c2127ee0b8e6c4ff378089c76ec7
+MAIN_PREV="2a31d4d7bb38d1ef0a981b92a03a2dfae90f3c97"
+W=C:/s/explain-136
+RECOVERY=release/explain-136-rollback-ee996638

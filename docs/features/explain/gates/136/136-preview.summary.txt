@@ -1,0 +1,10 @@
+136 MVP record summary (the full log holds text the secret guard refuses; result lines only)
+sha: ee9966384ca8c2127ee0b8e6c4ff378089c76ec7
+recovery: release/explain-136-rollback-ee996638
+✓ recovery: release/explain-136-rollback-ee996638 (de8b6814) contains ee996638
+✓ build: vite build --outDir dist, dist-dev
+✓ affected-tests: node --test src/inline-ai-annotation.test.mjs src/tutor-diagrams/TutorDiagram.test.mjs src/tutor-diagrams/illustration-integration.test.mjs src/tutor-diagrams/lesson-decision-trees-demo.test.mjs src/t
+✓ smoke: node --test packages/control-plane/test/explanation-layout.test.js packages/control-plane/test/explanation-fast-chain.test.js packages/control-plane/test/explanation-fast-card.test.js packages/control-plane/te
+✓ preview: wrangler deploy --name rabbit-hole-web-dev-explain-118; GET /library serves /static/app-isWVCtCw.js
+✓ MVP preview of ee996638 at https://rabbit-hole-web-dev-explain-118.tryrabbithole.workers.dev (build 860ed797e0b6, record 5b9053b126e19bc7); broad CI and the release gate are recorded as bypassed
+===== PREVIEW OK (exit 0). Clone: https://rabbit-hole-web-dev-explain-118.tryrabbithole.workers.dev  (clones refuse sign-in; use the signed-in launcher). Tell Claude: preview done. =====
