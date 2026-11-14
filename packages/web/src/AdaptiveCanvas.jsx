@@ -77,6 +77,7 @@ import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './road
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { besideSpot, followPlace } from './beside-placement.js';
 import { fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
+import { dragged, holdAnchors } from './card-anchor.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
@@ -5259,7 +5260,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const moveItem = (id, x, y) => setItems(previous => previous.map(item => item.id === id ? { ...item, x, y } : item));
   const resizeItem = (id, w, h) => setItems(previous => previous.map(item => item.id === id ? { ...item, w, h } : item));
   // Cards move freely: anywhere on the canvas, overlapping if the learner wants.
-  const moveBlock = (id, dx, dy) => setBlocks(previous => previous.map(block => block.id === id ? { ...block, dx, dy } : block));
+  // A dragged card is anchored: it records the world position it was put at (card-anchor.js), so a card inserted above it later does not carry it along.
+  const moveBlock = (id, dx, dy) => setBlocks(previous => previous.map(block => block.id === id ? dragged(block, boundsRef.current[id], dx, dy) : block));
   // Dragging one member of a multi-selection carries the whole group.
   const shift = (ddx, ddy, ids) => {
     for (const id of ids) {
@@ -5530,6 +5532,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       pendingAt.current.delete(id);
       for (const [key, spot] of roadmapSpots.current) if (spot === at) roadmapSpots.current.delete(key);
     }
+    if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
+  }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Anchored cards (card-anchor.js): when the column moves under a dragged card (a card inserted above it, one above it growing), it is re-offset by the same amount and stays put.
+  const anchorSeen = useRef(new Map());
+  useLayoutEffect(() => {
+    if (readOnly) return;
+    const moves = holdAnchors(blocksRef.current, bounds, anchorSeen.current);
     if (moves.size) setBlocks(previous => previous.map(block => (moves.has(block.id) ? { ...block, ...moves.get(block.id) } : block)));
   }, [bounds]); // eslint-disable-line react-hooks/exhaustive-deps
   // E2 (explain.md section 4, Create note and Add note): ONE editable Sticky note beside an Explanation card, opened for typing, with no connector to the card (owner

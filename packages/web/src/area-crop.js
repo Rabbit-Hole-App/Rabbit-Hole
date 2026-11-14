@@ -37,7 +37,7 @@ export const ownAreaImage = target => (target && String(target.id).startsWith('a
 export const uploadHeld = target => !!target?.uploading && String(target.id).startsWith('area:');
 
 // Place, size and view state are not content: moving a card or picking an object never makes a new revision.
-const NOT_CONTENT = new Set(['dx', 'dy', 'w', 'h', 'slot', 'space', 'time', 'inputs', 'inputRevision', 'programState', 'marked', 'selectedObject', 'selectRequest', 'cardLayout']);
+const NOT_CONTENT = new Set(['dx', 'dy', 'at', 'w', 'h', 'slot', 'space', 'time', 'inputs', 'inputRevision', 'programState', 'marked', 'selectedObject', 'selectRequest', 'cardLayout']);
 
 // FNV-1a over the card's content. shortcut: a 32-bit hash, enough to tell revisions of one card apart; use a server
 // revision once cards carry one (T20 explainRevision).
