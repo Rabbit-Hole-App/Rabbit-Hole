@@ -1,4 +1,4 @@
-import { RuntimeError, STATEFUL_SCHEMA_VERSION, draftSchemaVersion, parseArtifact, resolveInputs, sealProgram, stateProblem, verifyHashes } from './contract.js';
+import { RuntimeError, STATEFUL_SCHEMA_VERSION, draftSchemaVersion, indexItems, parseArtifact, resolveInputs, sealProgram, stateProblem, verifyHashes } from './contract.js';
 import { resolveTimeline } from '../interact-composition.js';
 import { compositionOf } from '../interact-composition-adapter.js';
 import { RASTER_CAPABILITY, RASTER_PROGRAM_STAMPS, CYCLIC_CAPABILITY, CYCLIC_PROGRAM_STAMPS, MEDIUM_CAPABILITY, MEDIUM_PROGRAM_STAMPS } from './stamps.js';
@@ -201,12 +201,13 @@ function activityText(manifest, event) {
   if (event?.type === 'input') return input ? `set ${input.label} to ${valueText(input, event.value)}` : null;
   return null;
 }
-const valueText = (input, value) => `${input.type === 'select' ? input.options.find(option => option.value === value)?.label ?? value : input.type === 'boolean' ? (value ? 'On' : 'Off') : input.type === 'index' ? input.items[value]?.label ?? value : value}${input.unit ? ` ${input.unit}` : ''}`;
+const valueText = (input, value, values = null) => `${input.type === 'select' ? input.options.find(option => option.value === value)?.label ?? value : input.type === 'boolean' ? (value ? 'On' : 'Off') : input.type === 'index' ? indexItems(input, values)[value]?.label ?? value : value}${input.unit ? ` ${input.unit}` : ''}`;
 // The SceneControls widget a manifest select, boolean or index input is drawn with (a number input has its own slider): { declaration, data } for InputWidget. inputs_v2 types reuse the
 // spec scenes' BoolToggle, IndexPicker and IndexSlider; the value is a boolean or the item position.
-export function programInputWidget(input) {
+// values: the resolved inputs, so an index whose list depends on another input (items: { by, options }) shows the current list: its slider range, boundary buttons and counter follow it.
+export function programInputWidget(input, values = null) {
   if (input.type === 'boolean') return { declaration: { name: input.id, type: 'bool', label: input.label }, data: {} };
-  if (input.type === 'index') return { declaration: { name: input.id, type: 'index', label: input.label, of: 'items', presentation: input.presentation ?? 'picker' }, data: { items: input.items.map(item => item.label) } };
+  if (input.type === 'index') return { declaration: { name: input.id, type: 'index', label: input.label, of: 'items', presentation: input.presentation ?? 'picker' }, data: { items: indexItems(input, values).map(item => item.label) } };
   return { declaration: { name: input.id, type: 'choice', label: input.label, options: input.options.map(option => ({ id: option.value, label: option.label })) }, data: {} };
 }
 export const PROGRAM_DESCRIPTION = 2000;
@@ -222,7 +223,7 @@ export function describeProgram(block, manifest = loadedProgram(block)?.manifest
     lines.push(manifest.summary, `What it shows: ${manifest.description}`);
     if (manifest.assumptions.length) lines.push(`Assumptions: ${manifest.assumptions.join(' ')}`);
     const inputs = programInputs(manifest, block), entry = loadedProgram(block);
-    for (const input of manifest.inputs) lines.push(`${input.label}: ${valueText(input, inputs[input.id])}`);
+    for (const input of manifest.inputs) lines.push(`${input.label}: ${valueText(input, inputs[input.id], inputs)}`);
     // The drawn frame counts only at the card's current inputs and, for a stateful card, its current committed state: a frame of an
     // older state (the newer one is still being drawn) is never described as current.
     const current = entry?.committed ? entry.committed.revision : block.programState?.revision ?? null;

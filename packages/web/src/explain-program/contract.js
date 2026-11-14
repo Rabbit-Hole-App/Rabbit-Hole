@@ -94,12 +94,22 @@ const selectInput = z.object({
 const INDEX_ITEMS_MAX = 12;
 // inputs_v2: a switch (the value is true or false) and a position in 2 to 12 ordered items (the value is the item's index, 0 to items - 1).
 const booleanInput = z.object({ type: z.literal('boolean'), id: name, label: plain(60), default: z.boolean() }).strict();
+const itemList = z.array(z.object({ id: name, label: plain(60) }).strict()).min(2).max(INDEX_ITEMS_MAX);
+// items is a static list, or { by, options }: the list the host shows depends on the value of the select input `by` (a step scrubber whose number of steps a control changes). One list per option value.
 const indexInput = z.object({
   type: z.literal('index'), id: name, label: plain(60), default: z.number().int().min(0), presentation: z.enum(['picker', 'slider']).default('picker'),
-  items: z.array(z.object({ id: name, label: plain(60) }).strict()).min(2).max(INDEX_ITEMS_MAX),
-}).strict().refine(input => input.default < input.items.length, { message: 'default must be the position of an item', path: ['default'] })
-  .refine(input => new Set(input.items.map(item => item.id)).size === input.items.length, { message: 'item ids must be unique', path: ['items'] });
+  items: z.union([itemList, z.object({ by: name, options: z.record(z.string().regex(/^[A-Za-z0-9_.-]{1,32}$/), itemList) }).strict()]),
+}).strict().refine(input => input.default < Math.min(...indexVariants(input).map(list => list.length)), { message: 'default must be the position of an item (of every list)', path: ['default'] })
+  .refine(input => indexVariants(input).every(list => new Set(list.map(item => item.id)).size === list.length), { message: 'item ids must be unique', path: ['items'] });
 const inputSchema = z.union([numberInput, selectInput, booleanInput, indexInput]);
+// The item lists of an index input: its one static list, or one per option of the input it depends on.
+export const indexVariants = input => (Array.isArray(input.items) ? [input.items] : Object.values(input.items.options));
+// The list an index input shows at these (resolved) input values. Without values (an event checked on its own) the longest list.
+export function indexItems(input, values) {
+  if (Array.isArray(input.items)) return input.items;
+  const list = values && input.items.options[values[input.items.by]];
+  return list ?? indexVariants(input).reduce((best, one) => (one.length > best.length ? one : best));
+}
 // kind (additive): absent or 'number' is a number readout as before; 'state' names a mode the frame reports as one of its labels (Moving up, Still for an instant, Moving down), never a number.
 const readoutSchema = z.object({ id: name, label: plain(60), unit: maybePlain(16).optional(), decimals: z.number().int().min(0).max(6).default(2),
   kind: z.enum(['number', 'state']).optional(), labels: z.array(plain(40)).min(1).max(6).optional() }).strict()
@@ -146,7 +156,13 @@ const manifestChecks = (manifest, context) => {
   }
   if (manifest.inputs.some(input => input.type === 'boolean' || input.type === 'index') && !manifest.capabilities.includes(INPUTS_V2_CAPABILITY)) {
     context.addIssue({ code: 'custom', message: `a boolean or index input needs the ${INPUTS_V2_CAPABILITY} capability in manifest.capabilities`, path: ['capabilities'] });
+  }  for (const input of manifest.inputs) {
+    if (input.type !== 'index' || Array.isArray(input.items)) continue;
+    const by = manifest.inputs.find(other => other.id === input.items.by), keys = Object.keys(input.items.options);
+    if (by?.type !== 'select') context.addIssue({ code: 'custom', message: `"${input.id}" lists its items by "${input.items.by}", which must be a select input of this manifest`, path: ['inputs'] });
+    else if (keys.length !== by.options.length || !by.options.every(option => keys.includes(option.value))) context.addIssue({ code: 'custom', message: `"${input.id}" needs one item list for each option of "${by.id}" and no other`, path: ['inputs'] });
   }
+
   const combinations = manifest.inputs.filter(input => input.type === 'select').reduce((total, input) => total * input.options.length, 1);
   if (combinations > CONTRACT_LIMITS.optionCombinations) context.addIssue({ code: 'custom', message: `select options combine to ${combinations} states (at most ${CONTRACT_LIMITS.optionCombinations})`, path: ['inputs'] });
   if (utf8(JSON.stringify(manifest)) > CONTRACT_LIMITS.manifestBytes) context.addIssue({ code: 'custom', message: `the manifest is over ${CONTRACT_LIMITS.manifestBytes} bytes`, path: [] });
@@ -453,7 +469,7 @@ export const parseInitializeRequest = raw => parseWith(InitializeRequest, raw, '
 export const parseState = raw => parseWith(stateSchema, raw, 'invalid_output'); // a state the guest returned
 // An event the manifest declares: a declared action or target, a drag on a declared drag target at a point inside the viewport, or a
 // declared input with an allowed value. Never throws.
-export function parseEvent(raw, manifest) {
+export function parseEvent(raw, manifest, inputs = null) {
   const parsed = parseWith(ProgramEvent, raw, 'invalid_program');
   if (!parsed.ok) return parsed;
   const event = parsed.value, input = event.type === 'input' && manifest.inputs.find(item => item.id === event.input);
@@ -463,14 +479,14 @@ export function parseEvent(raw, manifest) {
       : DRAG_EVENTS.includes(event.type) ? manifest.targets.some(target => target.id === event.target && target.drag === true) && inside()
         : !!input && (input.type === 'number' ? typeof event.value === 'number' && event.value >= input.min && event.value <= input.max
           : input.type === 'boolean' ? typeof event.value === 'boolean'
-            : input.type === 'index' ? Number.isInteger(event.value) && event.value >= 0 && event.value < input.items.length
+            : input.type === 'index' ? Number.isInteger(event.value) && event.value >= 0 && event.value < indexItems(input, inputs && resolveInputs(manifest, inputs)).length
               : input.options.some(option => option.value === event.value));
   return declared ? parsed : { ok: false, error: new RuntimeError('invalid_program'), issue: `event: this ${event.type} is not declared by the manifest` };
 }
 export function parseReduceRequest(raw, manifest) {
   const parsed = parseWith(ReduceRequest, raw, 'invalid_program');
   if (!parsed.ok) return parsed;
-  const event = parseEvent(parsed.value.event, manifest);
+  const event = parseEvent(parsed.value.event, manifest, parsed.value.inputs);
   return event.ok ? { ok: true, value: { ...parsed.value, event: event.value } } : event;
 }
 // Output is measured before it is parsed: the canonical serialized byte length of the WHOLE result (frame, quantities, and for
@@ -531,8 +547,14 @@ export function resolveInputs(manifest, saved = {}) {
     const value = saved?.[input.id];
     if (input.type === 'number') out[input.id] = Number.isFinite(value) ? Math.min(input.max, Math.max(input.min, value)) : input.default;
     else if (input.type === 'boolean') out[input.id] = typeof value === 'boolean' ? value : input.default;
-    else if (input.type === 'index') out[input.id] = Number.isInteger(value) && value >= 0 && value < input.items.length ? value : input.default;
+    else if (input.type === 'index') { if (Array.isArray(input.items)) out[input.id] = Number.isInteger(value) && value >= 0 && value < input.items.length ? value : input.default; }
     else out[input.id] = input.options.some(option => option.value === value) ? value : input.default;
+  }
+  // An index whose list depends on another input resolves after it, and a position past the end of the shorter list is clamped to the last item in the same step (never an out-of-range position).
+  for (const input of manifest.inputs) {
+    if (input.type !== 'index' || Array.isArray(input.items)) continue;
+    const value = saved?.[input.id], last = indexItems(input, out).length - 1;
+    out[input.id] = Number.isInteger(value) && value >= 0 ? Math.min(value, last) : input.default;
   }
   return out;
 }
