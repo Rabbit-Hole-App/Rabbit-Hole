@@ -6,7 +6,7 @@ import { createPortal, flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { CapturingLabel, beginAreaCapture, endAreaCapture } from './AreaCapturing.jsx';
 import { Md } from './ask.jsx';
-import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, fullLength, freshFitStep } from './card-layout.js';
+import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, fullLength, freshFitStep, cornerSlot } from './card-layout.js';
 import { customTitleOf, renamable, renameBlock, startTitleOf, groupEditText, groupLabelFrom, namedTitleOf, TITLE_MAX } from './card-rename.js';
 import { nameKey, positionHint, titleTaken, uniquifyBlocks } from './unique-title.js';
 import CardCustomTitle from './CardCustomTitle.jsx';
@@ -338,6 +338,8 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   // A Full card keeps the corner resize (owner 2026-11-08); while it is dragged it is drawn at the dragged size, and a card that opened full
   // (card-layout.js fullLength, no slot) as the ordinary sized card it becomes on release (resizeCardLayout corner).
   const opensSized = cardLayout?.mode === 'full' && !cardLayout.slot;
+  // BUG 5: a plain card the learner has resized keeps the footprint it had (block.slot, card-layout.js cornerSlot); a card layout's own slot wins.
+  const ownSlot = !cardLayout ? edit.slotOf?.(id) ?? null : null, footprint = cardLayout?.slot || ownSlot;
   if (cornerDrag && opensSized) cardLayout = null;
   const full = cardLayout?.mode === 'full' && !cornerDrag;
   // A text card is never taller than its content (card-layout.js fitFrame, FX-EB-10); a Full/Scrollable card layout keeps its frame.
@@ -399,14 +401,14 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   };
   const resize = event => {
     if (event.button !== 0 || locked) return;
-    const element = card.current; // a learner's corner resize is a size, not a ceiling (card-layout.js fitFrame): neither the drag nor the commit is limited to the content's height
+    const element = card.current, before = { w: element.offsetWidth, h: element.offsetHeight }; // the box as it was before the drag (BUG 5: it stays the card's footprint). A learner's corner resize is a size, not a ceiling (card-layout.js fitFrame): neither the drag nor the commit is limited to the content's height
     // The drag sizes the body: rows under it (Sources, the Prompt row, references) are added on top, during the drag and after
     // it is saved, so releasing never grows the card by them. A card layout's saved height is its whole frame.
     const extra = cardLayout && !opensSized ? 0 : extraHeight + refsHeight + grow;
     let last = null;
     const apply = (w, h) => { last = clampBox(w, h); setSize(last); setCornerDrag(last); };
     apply.done = () => {
-      if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h, null, undefined, false, true); else if (onSize) onSize(id, last.w, last.h); else edit.patchBlock?.(id, last); } setCornerDrag(null); };
+      if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h, null, undefined, false, true, before); else if (onSize) { onSize(id, last.w, last.h); edit.patchBlock?.(id, { slot: cornerSlot(ownSlot, before) }, true); } else edit.patchBlock?.(id, { ...last, slot: cornerSlot(ownSlot, before) }); } setCornerDrag(null); };
     startDrag(event, { x: element.offsetWidth, y: element.offsetHeight - extra }, apply, zoom);
   };
   const node = (
@@ -428,7 +430,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
         opener.open(id, 'learner_dblclick');
       } : undefined}
-      style={{ ...(placing ? PLACING : null), transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : grown((cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), grow), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight + grow, fit, !!(cornerDrag?.h || size.h)) }}
+      style={{ ...(placing ? PLACING : null), transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(footprint ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : grown((cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), grow), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight + grow, fit, !!(cornerDrag?.h || size.h)) }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 outline-none ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
           Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
@@ -485,7 +487,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>}
     </div>
   );
-  return cardLayout?.slot ? <div data-card-slot={id} className={`relative mx-auto shrink-0 overflow-visible ${selected ? 'z-[5]' : ''}`} style={{ width: cardLayout.slot.w, height: cardLayout.slot.h, marginTop: space || undefined }}>{node}</div> : node;
+  return footprint ? <div data-card-slot={id} className={`relative mx-auto shrink-0 overflow-visible ${selected ? 'z-[5]' : ''}`} style={{ width: footprint.w, height: footprint.h, marginTop: space || undefined }}>{node}</div> : node;
 }
 
 // One conversation node: the learner's message, a separator, then the agent's
@@ -5265,10 +5267,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const item = itemsRef.current.find(entry => entry.id === id);
     if (item) shift(x - item.x, y - item.y, groupTargets(id));
   };
-  const resizeCard = (id, w, h, x, minimum, quiet = false, corner = false) => {
+  const resizeCard = (id, w, h, x, minimum, quiet = false, corner = false, slot = null) => {
     if (readOnly || lockedRef.current.has(id) || id === focusRef.current?.id) return; // Focus's temporary size is never saved
     if (!quiet) snapshot();
-    setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum, corner) : block));
+    setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum, corner, slot) : block));
   };
   const setCardLayout = (id, mode) => {
     if (readOnly || lockedRef.current.has(id) || selection.length !== 1) return;
@@ -6215,7 +6217,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
