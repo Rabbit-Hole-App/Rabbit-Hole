@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Why Does a Sigmoid Squash Any Number into 0 to 1?",
+  "story": "When building models that make yes-or-no decisions, we often need to convert any numerical score into a probability between zero and one. If we use a simple linear rule, large inputs blow past our bounds. We need a smooth curve that gently bends to trap every possible input inside a finite ceiling and floor. This shape is the logistic sigmoid function. By adjusting its steepness, we control how rapidly the transition happens around the midpoint.",
+  "cardDescription": "Explore how the logistic sigmoid maps any real input into an output strictly between $0$ and $1$. Adjust the steepness to see how sharply the curve transitions from flat to vertical.",
+  "instructions": "Adjust the steepness slider to see how the curve changes shape. Observe the marker output update instantly.",
+  "k": {
+   "min": 0.2,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp((-1) * k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp((-1) * k * x) / ((1 + exp((-1) * k * x)) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp((-1) * k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker at x",
+   "marker_at": "x = ",
+   "readout_y": "Sigmoid output",
+   "marker_note": "Squashed value"
+  }
+ },
+ "usage": {
+  "completion_tokens": 523,
+  "prompt_tokens": 2077,
+  "total_tokens": 2600
+ }
+}

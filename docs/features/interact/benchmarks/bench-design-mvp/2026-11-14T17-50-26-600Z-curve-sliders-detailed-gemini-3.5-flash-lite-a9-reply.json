@@ -1,0 +1,62 @@
+{
+ "reply": {
+  "title": "The Logistic Sigmoid Curve",
+  "story": "When modeling probabilities in logistic regression or firing rates in neural networks, we often need a function that takes any real-valued input and squashes it into a bounded range between zero and one. The standard logistic function accomplishes this gracefully.\n\nBy examining its mathematical formulation, we can see how the exponentiation drives large positive inputs toward one and large negative inputs toward zero. Adjusting the steepness and midpoint parameters allows us to shape the transition zone precisely to fit our data requirements.",
+  "cardDescription": "Explore how the logistic function $y = 1 / (1 + \\exp(-k(x - x_0)))$ maps any real number into the interval from zero to one. Adjust steepness and midpoint to shape the transition.",
+  "instructions": "Adjust the steepness, midpoint, and marker sliders to observe how the curve and its slope change across the domain.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "xMarker": {
+   "min": -6,
+   "max": 6,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp((-1) * k * (x - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp((-1) * k * (x - x0)) / ((1 + exp((-1) * k * (x - x0))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp((-1) * k * (xMarker - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "y = 1 / (1 + exp(-k(x - x0)))",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker Position",
+   "marker_at": "x =",
+   "readout_y": "Output y",
+   "legend_curve": "Sigmoid",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 686,
+  "prompt_tokens": 2180,
+  "total_tokens": 2866
+ }
+}

@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Squashing Numbers with the Logistic Sigmoid",
+  "story": "When modeling probabilities or neural networks, we often need to take any number from negative infinity to positive infinity and map it neatly into a range between zero and one. Early biometricians studying population growth noticed that curves naturally flatten out as they hit a maximum capacity. By scaling the input through an exponential function, the resulting logistic curve smoothly transitions from zero to one. Adjusting the steepness lets us control how sharply this transition happens around the midpoint.",
+  "cardDescription": "Explore how the logistic sigmoid squashes any input into a $0$ to $1$ range. Adjust the steepness $k$ to see how fast the curve transitions from flat to vertical.",
+  "instructions": "Change the steepness slider to see how the curve bends. Observe the output value update at the fixed marker.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp((-1) * k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp((-1) * k * x) / ((1 + exp((-1) * k * x)) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp((-1) * k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker at x = 1",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "marker_note": "Squashed value"
+  }
+ },
+ "usage": {
+  "completion_tokens": 523,
+  "prompt_tokens": 2077,
+  "total_tokens": 2600
+ }
+}

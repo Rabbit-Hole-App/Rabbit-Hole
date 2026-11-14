@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When modeling probabilities or activation in networks, we often need to take any real number from negative infinity to positive infinity and convert it into a neat probability between zero and one. A linear scale fails because it grows without bound. We need a smooth, S-shaped curve that compresses extreme values while keeping moderate values sensitive. This gives rise to the logistic function, where an exponential denominator naturally bounds the output. As the input grows very large, the denominator dominates and pushes the output to one. As the input drops very low, the numerator shrinks relative to the denominator and pulls the output toward zero.",
+  "cardDescription": "Explore how the sigmoid function maps any real input into a bounded range between zero and one. Adjust the steepness parameter to see how sharply the transition occurs.",
+  "instructions": "Adjust the steepness slider to change how fast the curve transitions from zero to one. Observe the output value at the fixed marker position.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp((-1) * k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "(k * exp((-1) * k * x)) / ((1 + exp((-1) * k * x)) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp((-1) * k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x = ",
+   "readout_y": "Output value",
+   "marker_note": "Squashed output"
+  }
+ },
+ "usage": {
+  "completion_tokens": 550,
+  "prompt_tokens": 2077,
+  "total_tokens": 2627
+ }
+}

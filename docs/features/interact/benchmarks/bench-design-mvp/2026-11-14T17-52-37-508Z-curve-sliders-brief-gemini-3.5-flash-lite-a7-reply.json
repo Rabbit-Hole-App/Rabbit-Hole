@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Squashing Values with a Sigmoid",
+  "story": "When modeling probabilities or neural networks, we often need to take any number from negative infinity to positive infinity and squash it neatly between zero and one. A linear scale keeps growing, but a sigmoid curve bends gracefully as it moves away from the center. At large negative inputs, the curve flattens toward zero. At large positive inputs, it flattens toward one. The steepness parameter controls how sharply the transition happens around the midpoint.",
+  "cardDescription": "Explore how the logistic function squashes any input into a $0$ to $1$ range. Adjust the steepness to see how sharply the curve transitions around the midpoint.",
+  "instructions": "Adjust the steepness slider to change how fast the curve transitions from zero to one. Observe the marker value update on the curve.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - k * x) / (1 + exp(0 - k * x))^2",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x = 1",
+   "readout_y": "Output value",
+   "marker_note": "Squashed output"
+  }
+ },
+ "usage": {
+  "completion_tokens": 513,
+  "prompt_tokens": 2077,
+  "total_tokens": 2590
+ }
+}

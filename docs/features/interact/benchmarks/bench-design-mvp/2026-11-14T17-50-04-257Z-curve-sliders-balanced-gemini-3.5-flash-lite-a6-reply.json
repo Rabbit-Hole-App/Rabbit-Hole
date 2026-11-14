@@ -1,0 +1,56 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When modeling probabilities or neural networks, we often need to take any real number, from negative infinity to positive infinity, and turn it into a neat score between zero and one. A linear function fails this because it grows without bound. We need a smooth, S-shaped curve that bends gently as it leaves zero and flattens out as it approaches one. \n\nPierre François Verhulst encountered this problem while studying population growth, leading to the logistic function. By placing an exponential term in the denominator, the function gracefully bounds its output. As the input grows very large, the denominator dominates and the output approaches one. As the input drops to negative infinity, the exponential term grows large and drives the output to zero.\n\nAt the center of the transition, the curve passes through exactly one half. The steepness parameter controls how fast the transition happens, acting like a dial on the slope. By tuning both the midpoint and the steepness, we can shape this squashing mechanism to fit any classification boundary we require.",
+  "cardDescription": "Explore how the logistic function squashes any input into a $0$ to $1$ range. Adjust the steepness and midpoint to shape the S-curve.",
+  "instructions": "Adjust the steepness and midpoint sliders to see how the S-curve and its slope change.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp((0 - k) * (x - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp((0 - k) * (x - x0)) / ((1 + exp((0 - k) * (x - x0))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp((0 - k) * (1 - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic S-Curve",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "At x = 1",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "legend_curve": "Sigmoid",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 728,
+  "prompt_tokens": 2165,
+  "total_tokens": 2893
+ }
+}

@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When modeling probabilities or activation in networks, we often need to take any real number and map it smoothly between zero and one. A linear scale cannot do this because it grows infinitely. By using an exponential function in the denominator, the logistic curve naturally bounds outputs regardless of how large the input becomes. As the input grows very positive, the denominator approaches one plus zero, sending the output to one. As the input becomes heavily negative, the exponential term dominates the denominator, driving the fraction down to zero.",
+  "cardDescription": "Explore how the logistic sigmoid maps infinite inputs strictly between zero and one using a smooth S-curve. Adjust the steepness $k$ to see how sharply the transition occurs.",
+  "instructions": "Change the steepness slider to see how the curve bends. Observe the output value at the fixed marker.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp((-1) * k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp((-1) * k * x) / ((1 + exp((-1) * k * x))^2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp((-1) * k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Curve",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "marker_note": "Squashed output"
+  }
+ },
+ "usage": {
+  "completion_tokens": 527,
+  "prompt_tokens": 2077,
+  "total_tokens": 2604
+ }
+}

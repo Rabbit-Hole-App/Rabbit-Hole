@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Squashing Numbers with a Sigmoid",
+  "story": "When building models that make decisions, we often need to turn any input into a probability between zero and one. If we just let numbers grow, large values break our calculations. We need a function that gently compresses the entire infinite number line into a tidy range. The logistic sigmoid curve achieves this by mapping extreme negative numbers to zero and extreme positive numbers to one. By adjusting its steepness, we control how sharply the transition happens around the midpoint.",
+  "cardDescription": "Explore how the logistic function squashes any input into a range between zero and one. Adjust the steepness $k$ to see how the curve bends.",
+  "instructions": "Change the steepness slider to see how the curve stretches or compresses. Observe how the marker value responds to your changes.",
+  "k": {
+   "min": 0.2,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp((-1) * k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "(k * exp((-1) * k * x)) / ((1 + exp((-1) * k * x)) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp((-1) * k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "At Marker",
+   "marker_at": "x =",
+   "readout_y": "Output y",
+   "marker_note": "Squashed value"
+  }
+ },
+ "usage": {
+  "completion_tokens": 512,
+  "prompt_tokens": 2077,
+  "total_tokens": 2589
+ }
+}

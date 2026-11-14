@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Squashing Values with the Logistic Curve",
+  "story": "When modeling processes where an input triggers a transition from zero to one, linear functions fail because they grow without bound. A curve that bends gracefully to cap outputs between zero and one is needed. By taking the reciprocal of one plus the exponential of negative input, we create a sigmoid shape that maps any real number into this bounded range. Adjusting the steepness lets us control how abruptly the transition occurs around the midpoint.",
+  "cardDescription": "Explore how the logistic function maps any real input into a bounded range between $0$ and $1$. Adjust the steepness parameter to see how quickly the transition happens.",
+  "instructions": "Adjust the steepness slider to change how fast the curve rises. Observe the output value update at the fixed marker.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - k * x) / (1 + exp(0 - k * x))^2",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Curve",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x =",
+   "readout_y": "Output y",
+   "marker_note": "Bounded output"
+  }
+ },
+ "usage": {
+  "completion_tokens": 500,
+  "prompt_tokens": 2077,
+  "total_tokens": 2577
+ }
+}
