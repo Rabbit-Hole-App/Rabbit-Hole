@@ -1,0 +1,15 @@
+{
+  "actualSchemaCases": 336,
+  "detailSchemaCases": 60,
+  "schemaBundles": 3,
+  "passed": true,
+  "paths": [
+    "normal",
+    "fast"
+  ],
+  "plans": [
+    "none",
+    "source-kind JEV"
+  ],
+  "sourceDepthRouteChecks": 24
+}

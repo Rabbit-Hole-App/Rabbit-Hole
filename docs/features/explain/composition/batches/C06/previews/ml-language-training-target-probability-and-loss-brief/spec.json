@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Model distribution for one observed next token",
+    "unit": "Probability",
+    "bars": [
+      {
+        "label": "clouds",
+        "value": 0.197
+      },
+      {
+        "label": "bring",
+        "value": 0.534
+      },
+      {
+        "label": "rain",
+        "value": 0.197
+      },
+      {
+        "label": "<eos>",
+        "value": 0.072
+      }
+    ],
+    "caption": "Illustrative A after “<bos>” clouds; observed bring. Its negative-log loss is $L\\approx 0.627$ nats."
+  }
+}

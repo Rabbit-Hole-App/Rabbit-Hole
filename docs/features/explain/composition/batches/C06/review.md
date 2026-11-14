@@ -1,0 +1,24 @@
+# C06 independent review — PASS
+
+Reviewed frozen candidate `ccbe0321b27d6982cd5d0813c92034a23838dbce` against canonical C05 `cb53d5dce47115dfd9900b50d939cdd67d6e3a2f` (tree `5634db2168d177e966357cc69c2d2a298fd3dcf0`). No Important or Critical correctness defect found.
+
+The review read the repository AGENTS/CLAUDE/UI instructions, the content-first C06 specification and both specification commits, all new data/reference/test/manifest/receipt files, the exact authoritative source headings at revision `05d5f02f64b474dcf0f830050af4e34907fbdaa8`, and the registry/keyword diff. Source files used for execution matched the frozen candidate; receipts being generated concurrently were treated only as visual evidence.
+
+Evidence:
+
+- **Exact coverage and routing:** four NEW ids map to eight verbatim source prompts/headings. All aliases retain their source paths and per-source lessons. The prefix family has union `01/03/15`, while Transformer35 remains `01/03` and GPT2-36/BERT20 remain `01/15`. Vocabulary retains `08`; probability/loss retains `03/09`; summary retains `01`. The source/alias routing tests select the new parent directly at all three production depths on normal and fast author paths; native Standards need no new singles.
+- **Output identity:** the ordered output vocabulary is exactly `[clouds, bring, rain, <eos>]`, slots 0–3. `<bos>` is confined to input prefixes. Standard and Deep indicators preserve those indexed rows, put the only active flag at the observed token's slot, and show stop as a separate target without changing the map.
+- **Probability and loss:** independently recomputed probabilities using direct exponentials and losses using `log(sum(exp(logits))) - targetLogit`, rather than the implementation's stable-softmax calculation. A gives target probability `0.534446645388523` and loss `0.6265233750364456`; B gives `0.7573132023431749` and `0.2779783695755582`. The implementation agrees within floating-point precision; unrounded B−A is `-0.34854500546088757`. The full model distributions normalize, the one-hot target remains fixed, only bring's raw logit increases, and loss falls. Rounded chart labels are derived after loss/delta computation. Model and observed series are separately labelled; probability and nats use separate magnitude figures and cases are explicitly illustrative.
+- **Causal alignment:** all four rows exactly align the observed prefixes with immediate targets clouds, bring, rain and stop. Replacing only the final rain with clouds introduces a repeated token without using token-string membership for causality: T1/T2 remain identical, T3's target changes and T4's prefix changes. Captions distinguish observed training text from generated feedback and token targets from downstream class labels.
+- **Summary identity:** the entire independently authored toy body/lead fields are preserved, with no substring operation or truncation. Standard separates record identity, source body and supplied lead before model-input formatting. Deep reverses record order and changes field order through keys; reconstructed fields still exactly equal the original A/B records, and row positions remain distinct from record ids. The supplied lead remains the supervised target.
+- **Regression preservation:** reconstructed the C05 registry in memory from `git show` (using its original keyword JSON) and deep-compared all 478 old references against the candidate. All 478, including payloads, depth overrides, prompts, keywords and lessons, are unchanged. The candidate contains exactly 482 references; singles remain 44. The diff changes no existing single specs or prior token receipts.
+- **Receipts and visual review:** independently recomputed canonical cl100k token counts and compact-JSON SHA-256 hashes for all 14 new main/detail payloads. Every receipt matches; maximum is 166 tokens. Inspected all 4 Overview, 4 Standard and 6 Deep contact-sheet figures. Native matrix/heatmap text remains complete; the approved grouped-bar minimum of 420px at requested408 is legible at sheet scale. Vocabulary-target and summary-reordering probes are carried in their Deep views, and the two separate detail figures carry loss magnitude and suffix perturbation as specified.
+
+Executed focused verification:
+
+```text
+node --test packages/web/src/tutor-diagrams/topic-language-training-composition.test.mjs packages/web/src/tutor-diagrams/topic-summarization-composition.test.mjs packages/control-plane/test/explanation-reference-composition-c06.test.js
+12 tests; 12 passed; 0 failed; 0 skipped; exit 0.
+```
+
+Also executed the read-only independent arithmetic, registry-preservation and token/hash audit described above; exit 0. This review made no repository/source edits, ran no broad suite, build, browser automation, provider call, install, network operation or deployment, and spawned no subagents. Root-owned full suites, prior-pick replay, snapshots and final publication remain separate evidence.

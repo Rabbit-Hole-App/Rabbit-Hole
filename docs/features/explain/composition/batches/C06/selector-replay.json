@@ -1,0 +1,471 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 3279,
+  "changedPriorPicks": [],
+  "sourceHeadings": 8,
+  "uniqueSourcePrompts": 8,
+  "sourceCases": 24,
+  "sourceHits": 24,
+  "actualPlannedAuthorSchemaChecks": 24,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-language-training-vocabulary-target-slots",
+      "expectedFamily": "ml-language-training-vocabulary-target-slots",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-32",
+      "prompt": "The output vocabulary defines a fixed ordering of slots in the prediction vector.",
+      "depth": "brief",
+      "firstFamily": "ml-language-training-vocabulary-target-slots",
+      "rawAuthorReferenceId": "ml-language-training-vocabulary-target-slots",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-vocabulary-target-slots",
+      "preparedId": "ml-language-training-vocabulary-target-slots",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-vocabulary-target-slots",
+      "expectedFamily": "ml-language-training-vocabulary-target-slots",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-32",
+      "prompt": "The output vocabulary defines a fixed ordering of slots in the prediction vector.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-training-vocabulary-target-slots",
+      "rawAuthorReferenceId": "ml-language-training-vocabulary-target-slots",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-vocabulary-target-slots",
+      "preparedId": "ml-language-training-vocabulary-target-slots",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-vocabulary-target-slots",
+      "expectedFamily": "ml-language-training-vocabulary-target-slots",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-32",
+      "prompt": "The output vocabulary defines a fixed ordering of slots in the prediction vector.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-training-vocabulary-target-slots",
+      "rawAuthorReferenceId": "ml-language-training-vocabulary-target-slots",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-vocabulary-target-slots",
+      "preparedId": "ml-language-training-vocabulary-target-slots",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-vocabulary-target-slots",
+      "expectedFamily": "ml-language-training-vocabulary-target-slots",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-33",
+      "prompt": "A one-hot target identifies the observed next token by marking only its vocabulary slot.",
+      "depth": "brief",
+      "firstFamily": "ml-language-training-vocabulary-target-slots",
+      "rawAuthorReferenceId": "ml-language-training-vocabulary-target-slots",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-vocabulary-target-slots",
+      "preparedId": "ml-language-training-vocabulary-target-slots",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-vocabulary-target-slots",
+      "expectedFamily": "ml-language-training-vocabulary-target-slots",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-33",
+      "prompt": "A one-hot target identifies the observed next token by marking only its vocabulary slot.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-training-vocabulary-target-slots",
+      "rawAuthorReferenceId": "ml-language-training-vocabulary-target-slots",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-vocabulary-target-slots",
+      "preparedId": "ml-language-training-vocabulary-target-slots",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-vocabulary-target-slots",
+      "expectedFamily": "ml-language-training-vocabulary-target-slots",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-33",
+      "prompt": "A one-hot target identifies the observed next token by marking only its vocabulary slot.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-training-vocabulary-target-slots",
+      "rawAuthorReferenceId": "ml-language-training-vocabulary-target-slots",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-vocabulary-target-slots",
+      "preparedId": "ml-language-training-vocabulary-target-slots",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-target-probability-and-loss",
+      "expectedFamily": "ml-language-training-target-probability-and-loss",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-34",
+      "prompt": "Training compares the model's next-token distribution with the observed target token.",
+      "depth": "brief",
+      "firstFamily": "ml-language-training-target-probability-and-loss",
+      "rawAuthorReferenceId": "ml-language-training-target-probability-and-loss",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-target-probability-and-loss",
+      "preparedId": "ml-language-training-target-probability-and-loss",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-target-probability-and-loss",
+      "expectedFamily": "ml-language-training-target-probability-and-loss",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-34",
+      "prompt": "Training compares the model's next-token distribution with the observed target token.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-training-target-probability-and-loss",
+      "rawAuthorReferenceId": "ml-language-training-target-probability-and-loss",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-target-probability-and-loss",
+      "preparedId": "ml-language-training-target-probability-and-loss",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-target-probability-and-loss",
+      "expectedFamily": "ml-language-training-target-probability-and-loss",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-34",
+      "prompt": "Training compares the model's next-token distribution with the observed target token.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-training-target-probability-and-loss",
+      "rawAuthorReferenceId": "ml-language-training-target-probability-and-loss",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-target-probability-and-loss",
+      "preparedId": "ml-language-training-target-probability-and-loss",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-target-probability-and-loss",
+      "expectedFamily": "ml-language-training-target-probability-and-loss",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-36",
+      "prompt": "Assigning greater probability to observed next tokens reduces their cross-entropy loss.",
+      "depth": "brief",
+      "firstFamily": "ml-language-training-target-probability-and-loss",
+      "rawAuthorReferenceId": "ml-language-training-target-probability-and-loss",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-target-probability-and-loss",
+      "preparedId": "ml-language-training-target-probability-and-loss",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-target-probability-and-loss",
+      "expectedFamily": "ml-language-training-target-probability-and-loss",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-36",
+      "prompt": "Assigning greater probability to observed next tokens reduces their cross-entropy loss.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-training-target-probability-and-loss",
+      "rawAuthorReferenceId": "ml-language-training-target-probability-and-loss",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-target-probability-and-loss",
+      "preparedId": "ml-language-training-target-probability-and-loss",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-target-probability-and-loss",
+      "expectedFamily": "ml-language-training-target-probability-and-loss",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-36",
+      "prompt": "Assigning greater probability to observed next tokens reduces their cross-entropy loss.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-training-target-probability-and-loss",
+      "rawAuthorReferenceId": "ml-language-training-target-probability-and-loss",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-target-probability-and-loss",
+      "preparedId": "ml-language-training-target-probability-and-loss",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-prefix-target-alignment",
+      "expectedFamily": "ml-language-training-prefix-target-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-35",
+      "prompt": "A target sentence supplies a different next-token label at each prefix position during training.",
+      "depth": "brief",
+      "firstFamily": "ml-language-training-prefix-target-alignment",
+      "rawAuthorReferenceId": "ml-language-training-prefix-target-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-prefix-target-alignment",
+      "preparedId": "ml-language-training-prefix-target-alignment",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-prefix-target-alignment",
+      "expectedFamily": "ml-language-training-prefix-target-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-35",
+      "prompt": "A target sentence supplies a different next-token label at each prefix position during training.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-training-prefix-target-alignment",
+      "rawAuthorReferenceId": "ml-language-training-prefix-target-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-prefix-target-alignment",
+      "preparedId": "ml-language-training-prefix-target-alignment",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-prefix-target-alignment",
+      "expectedFamily": "ml-language-training-prefix-target-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-35",
+      "prompt": "A target sentence supplies a different next-token label at each prefix position during training.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-training-prefix-target-alignment",
+      "rawAuthorReferenceId": "ml-language-training-prefix-target-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-prefix-target-alignment",
+      "preparedId": "ml-language-training-prefix-target-alignment",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-prefix-target-alignment",
+      "expectedFamily": "ml-language-training-prefix-target-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-36",
+      "prompt": "A next-token training example aligns each prefix with its immediate continuation.",
+      "depth": "brief",
+      "firstFamily": "ml-language-training-prefix-target-alignment",
+      "rawAuthorReferenceId": "ml-language-training-prefix-target-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-prefix-target-alignment",
+      "preparedId": "ml-language-training-prefix-target-alignment",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-prefix-target-alignment",
+      "expectedFamily": "ml-language-training-prefix-target-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-36",
+      "prompt": "A next-token training example aligns each prefix with its immediate continuation.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-training-prefix-target-alignment",
+      "rawAuthorReferenceId": "ml-language-training-prefix-target-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-prefix-target-alignment",
+      "preparedId": "ml-language-training-prefix-target-alignment",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-prefix-target-alignment",
+      "expectedFamily": "ml-language-training-prefix-target-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-36",
+      "prompt": "A next-token training example aligns each prefix with its immediate continuation.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-training-prefix-target-alignment",
+      "rawAuthorReferenceId": "ml-language-training-prefix-target-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-prefix-target-alignment",
+      "preparedId": "ml-language-training-prefix-target-alignment",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-prefix-target-alignment",
+      "expectedFamily": "ml-language-training-prefix-target-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-20",
+      "prompt": "A causal language model learns by predicting each next token from earlier tokens.",
+      "depth": "brief",
+      "firstFamily": "ml-language-training-prefix-target-alignment",
+      "rawAuthorReferenceId": "ml-language-training-prefix-target-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-prefix-target-alignment",
+      "preparedId": "ml-language-training-prefix-target-alignment",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-prefix-target-alignment",
+      "expectedFamily": "ml-language-training-prefix-target-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-20",
+      "prompt": "A causal language model learns by predicting each next token from earlier tokens.",
+      "depth": "balanced",
+      "firstFamily": "ml-language-training-prefix-target-alignment",
+      "rawAuthorReferenceId": "ml-language-training-prefix-target-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-prefix-target-alignment",
+      "preparedId": "ml-language-training-prefix-target-alignment",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-language-training-prefix-target-alignment",
+      "expectedFamily": "ml-language-training-prefix-target-alignment",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-20",
+      "prompt": "A causal language model learns by predicting each next token from earlier tokens.",
+      "depth": "detailed",
+      "firstFamily": "ml-language-training-prefix-target-alignment",
+      "rawAuthorReferenceId": "ml-language-training-prefix-target-alignment",
+      "firstPick": true,
+      "preparedFamily": "ml-language-training-prefix-target-alignment",
+      "preparedId": "ml-language-training-prefix-target-alignment",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-summarization-supervised-summary-pair",
+      "expectedFamily": "ml-summarization-supervised-summary-pair",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-60",
+      "prompt": "A document and its lead summary can provide a paired example for supervised summarization.",
+      "depth": "brief",
+      "firstFamily": "ml-summarization-supervised-summary-pair",
+      "rawAuthorReferenceId": "ml-summarization-supervised-summary-pair",
+      "firstPick": true,
+      "preparedFamily": "ml-summarization-supervised-summary-pair",
+      "preparedId": "ml-summarization-supervised-summary-pair",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-summarization-supervised-summary-pair",
+      "expectedFamily": "ml-summarization-supervised-summary-pair",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-60",
+      "prompt": "A document and its lead summary can provide a paired example for supervised summarization.",
+      "depth": "balanced",
+      "firstFamily": "ml-summarization-supervised-summary-pair",
+      "rawAuthorReferenceId": "ml-summarization-supervised-summary-pair",
+      "firstPick": true,
+      "preparedFamily": "ml-summarization-supervised-summary-pair",
+      "preparedId": "ml-summarization-supervised-summary-pair",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-summarization-supervised-summary-pair",
+      "expectedFamily": "ml-summarization-supervised-summary-pair",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-60",
+      "prompt": "A document and its lead summary can provide a paired example for supervised summarization.",
+      "depth": "detailed",
+      "firstFamily": "ml-summarization-supervised-summary-pair",
+      "rawAuthorReferenceId": "ml-summarization-supervised-summary-pair",
+      "firstPick": true,
+      "preparedFamily": "ml-summarization-supervised-summary-pair",
+      "preparedId": "ml-summarization-supervised-summary-pair",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

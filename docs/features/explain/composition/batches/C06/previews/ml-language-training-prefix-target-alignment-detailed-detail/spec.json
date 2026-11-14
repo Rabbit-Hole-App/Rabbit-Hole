@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Edit a later token, recompute affected rows",
+    "columns": [
+      "Observed prefix",
+      "Next observed token"
+    ],
+    "rows": [
+      {
+        "id": "t1",
+        "heading": "T1",
+        "cells": [
+          "“<bos>”",
+          "clouds"
+        ]
+      },
+      {
+        "id": "t2",
+        "heading": "T2",
+        "cells": [
+          "“<bos>” clouds",
+          "bring"
+        ]
+      },
+      {
+        "id": "t3",
+        "heading": "T3",
+        "cells": [
+          "“<bos>” clouds bring",
+          "clouds"
+        ]
+      },
+      {
+        "id": "t4",
+        "heading": "T4",
+        "cells": [
+          "“<bos>” clouds bring clouds",
+          "<eos>"
+        ]
+      }
+    ],
+    "caption": "Edit rain to clouds: T1,T2 fixed; T3 target changes, T4 prefix changes. Observed text, not guesses."
+  }
+}

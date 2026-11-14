@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Raw source bodies paired with supplied leads",
+    "columns": [
+      "Record",
+      "Source body",
+      "Supplied lead"
+    ],
+    "rows": [
+      {
+        "id": "A",
+        "heading": "Row 1",
+        "cells": [
+          "A",
+          "Volunteers opened a food pantry.",
+          "A volunteer food pantry opens."
+        ]
+      },
+      {
+        "id": "B",
+        "heading": "Row 2",
+        "cells": [
+          "B",
+          "Snow closed the road; crews cleared it.",
+          "Crews cleared a snowbound road."
+        ]
+      }
+    ],
+    "caption": "Toy supplied body/lead pairs before model-input formatting. Row position may change; each record keeps its source and target fields."
+  }
+}

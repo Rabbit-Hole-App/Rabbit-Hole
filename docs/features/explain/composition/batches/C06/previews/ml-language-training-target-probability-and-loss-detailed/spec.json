@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "variant": "grouped",
+    "title": "Same target, two illustrative model distributions",
+    "categories": [
+      "clouds",
+      "bring",
+      "rain",
+      "<eos>"
+    ],
+    "series": [
+      {
+        "label": "Illustrative A",
+        "values": [
+          0.197,
+          0.534,
+          0.197,
+          0.072
+        ]
+      },
+      {
+        "label": "Illustrative B",
+        "values": [
+          0.102,
+          0.757,
+          0.102,
+          0.038
+        ]
+      },
+      {
+        "label": "Observed one-hot",
+        "values": [
+          0,
+          1,
+          0,
+          0
+        ]
+      }
+    ],
+    "caption": "Illustrative A/B: rounded softmax probabilities; only bring's logit rises. Same vocabulary and observed one-hot target."
+  }
+}

@@ -1,6 +1,6 @@
 # Composition overnight report — 14 November 2026
 
-The latest verified boundary is C05. C06 content planning is ready; subsequent batches remain subject to the same tests, prior-pick replay, token, linter and visual-sheet gates. All branches retain release133 `a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36`. No force-push, branch rename, renderer/schema/tooling/author-prompt change, provider call or deployment.
+The latest verified boundary is C06. C07 content planning is underway; subsequent batches remain subject to the same tests, prior-pick replay, token, linter and visual-sheet gates. All branches retain release133 `a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36`. No force-push, branch rename, renderer/schema/tooling/author-prompt change, provider call or deployment.
 
 | Batch | Branch | Pushed SHA | NEW / REUSE | Affected tests passed | Exact prior replay / moved | Maximum tokens | Snapshots added / changed / removed | Sheets Overview / Standard / Deep |
 |---|---|---|---:|---:|---:|---:|---:|---:|
@@ -8,7 +8,8 @@ The latest verified boundary is C05. C06 content planning is ready; subsequent b
 | [C02](batches/C02/fix-133/REPORT.md) | `explain/composition-c02-r1` | `f9634af3c236b0d788a12389462227f9fe66dbd1` | 6 / 0 | 1,349 | 2,937 / 0 | 300 | 0 / 6 / 0 | 6 / 6 / 12 |
 | [C03](batches/C03/REPORT.md) | `explain/composition-c03` | `b6346aacfa85dc789f1e31f3ecc4336d892791b9` | 3 / 3 | 1,361 | 3,048 / 0 | 234 | 9 / 0 / 0 | 6 / 6 / 9 |
 | [C04](batches/C04/REPORT.md) | `explain/composition-c04` | `744d3103f20f2871539d228b0fb3d213fc82cf36` | 3 / 4 | 1,371 | 3,135 / 0 | 164 | 9 / 0 / 0 | 7 / 7 / 11 |
-| [C05](batches/C05/REPORT.md) | `explain/composition-c05` | [branch head](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/explain/composition-c05) | 4 / 0 | 1,390 | 3,204 / 0 | 295 | 12 / 0 / 0 | 5 / 5 / 8 |
+| [C05](batches/C05/REPORT.md) | `explain/composition-c05` | `cb53d5dce47115dfd9900b50d939cdd67d6e3a2f` | 4 / 0 | 1,390 | 3,204 / 0 | 295 | 12 / 0 / 0 | 5 / 5 / 8 |
+| [C06](batches/C06/REPORT.md) | `explain/composition-c06` | [branch head](https://github.com/Rabbit-Hole-App/Rabbit-Hole/tree/explain/composition-c06) | 4 / 0 | 1,406 | 3,279 / 0 | 166 | 12 / 0 / 0 | 4 / 4 / 6 |
 
 C02's six refreshed keys comprise its own three attention entries and three inherited C01 objective entries. No outside-id snapshot changed. C03 adds exactly three new ids at three widths; reused visuals are unchanged. Every reported affected test run has zero failures/skips; these totals cover all tutor-diagram tests and all reference-author suites, not the unrelated whole application. Original C02 push also landed at `07371644349e7d82a515707a0155ffc96998de6e` with the exact local `66cfd0288` tree and parent `343d91f8a`.
 
@@ -19,6 +20,7 @@ C02's six refreshed keys comprise its own three attention entries and three inhe
 | C03 | 51 / 51 | 45 / 45 | 192 primary + 30 detail + 51 planned | 44 / 44 | 0 / 0 | 1 |
 | C04 | 24 / 24 | 45 / 45 | 324 primary + 84 detail, including planned paths | 44 / 44 | 0 / 0 | 2 |
 | C05 | 15 / 15 | 60 / 60 | 300 primary + 148 detail, including planned paths | 44 / 44 | 0 / 0 | 2 |
+| C06 | 24 / 24 | 60 / 60 | 336 primary + 60 detail, including planned paths | 44 / 44 | 0 / 0 | 2 |
 
 The ten required C01/C02 author singles now use the point-carrying existing leaf, the same computed data and inherited prompts/keywords/lessons. The strict parent-id set equality is unchanged. All token receipts include canonical compact cl100k_base counts and SHA-256 hashes. The raw composition-filename exceptions are preserved in reports; Claude Code owns their pipeline allowlist additions and release gating. No tooling exception was hidden by source changes.
 
@@ -36,6 +38,8 @@ The ten required C01/C02 author singles now use the point-carrying existing leaf
 
 - **C05 gradients/insets:** no crossed-out gradient edge or arbitrary graph inset. An explicit detach node terminates backward signal; a separate full-width block-stack shows the cell mechanism. Intervals encode gradient-horizon extent rather than direction. Native relationship graphs preserve independent observed inputs without false flow edges.
 - **C05 dense masks:** six state columns exceeded readable contact width. The same mask transposed to six rows/two sample columns fits native 408 px, retaining every cell.
+
+- **C06 native widths/units:** grouped bars have a 420 px minimum, readable at the 408 px sheet scale. Probability and loss use separate figures. Observed-prefix tables retain the required causal boundary without an optional 444 px grid. Complete short raw body/lead fields preserve text and identity before formatting.
 
 ## Failure disposition
 

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "More observed-token probability, less loss",
+    "unit": "nats",
+    "bars": [
+      {
+        "label": "Illustrative A",
+        "value": 0.627
+      },
+      {
+        "label": "Illustrative B",
+        "value": 0.278
+      }
+    ],
+    "caption": "Illustrative losses: $L=-\\ln(p_{bring})$; $\\Delta L=L_B-L_A\\approx -0.349$ nats, computed before display rounding."
+  }
+}

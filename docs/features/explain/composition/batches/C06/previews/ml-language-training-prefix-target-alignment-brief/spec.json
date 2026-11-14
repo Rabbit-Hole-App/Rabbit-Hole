@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "One observed continuation per earlier prefix",
+    "columns": [
+      "Observed prefix",
+      "Next observed token"
+    ],
+    "rows": [
+      {
+        "id": "t1",
+        "heading": "T1",
+        "cells": [
+          "“<bos>”",
+          "clouds"
+        ]
+      },
+      {
+        "id": "t2",
+        "heading": "T2",
+        "cells": [
+          "“<bos>” clouds",
+          "bring"
+        ]
+      }
+    ],
+    "caption": "Toy observed clouds bring rain. Prefix rows stop before their immediate target; the labels come from observed text."
+  }
+}

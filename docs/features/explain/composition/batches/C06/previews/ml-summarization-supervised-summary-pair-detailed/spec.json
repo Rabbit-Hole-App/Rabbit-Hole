@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Reorder records and fields, keep every pair",
+    "columns": [
+      "Supplied lead",
+      "Record",
+      "Source body"
+    ],
+    "rows": [
+      {
+        "id": "B",
+        "heading": "Row 1",
+        "cells": [
+          "Crews cleared a snowbound road.",
+          "B",
+          "Snow closed the road; crews cleared it."
+        ]
+      },
+      {
+        "id": "A",
+        "heading": "Row 2",
+        "cells": [
+          "A volunteer food pantry opens.",
+          "A",
+          "Volunteers opened a food pantry."
+        ]
+      }
+    ],
+    "caption": "Reordering rows and fields preserves $D_i\\mapsto S_i$ by record identity. Supplied lead stays the target; model formatting is later."
+  }
+}

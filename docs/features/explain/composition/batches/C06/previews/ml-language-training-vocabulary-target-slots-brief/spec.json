@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "An output token has a stable slot",
+    "columns": [
+      "Token",
+      "Slot"
+    ],
+    "rows": [
+      {
+        "id": "v1",
+        "heading": "Entry A",
+        "cells": [
+          "bring",
+          "1"
+        ]
+      },
+      {
+        "id": "v3",
+        "heading": "Entry B",
+        "cells": [
+          "<eos>",
+          "3"
+        ]
+      }
+    ],
+    "caption": "Two shown entries of the fixed 4-slot output vocabulary. The stop entry has its own slot; start is input-only."
+  }
+}

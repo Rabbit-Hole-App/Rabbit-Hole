@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Observed token selects its one-hot slot",
+    "rowLabel": "Output slot / token",
+    "columnLabel": "Observed target",
+    "columns": [
+      "bring"
+    ],
+    "rows": [
+      {
+        "label": "0: clouds",
+        "cells": [
+          0
+        ]
+      },
+      {
+        "label": "1: bring",
+        "cells": [
+          1
+        ]
+      },
+      {
+        "label": "2: rain",
+        "cells": [
+          0
+        ]
+      },
+      {
+        "label": "3: <eos>",
+        "cells": [
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Observed bring at slot $k=1$: $y_j=1[j=k]$, zero elsewhere. Indexed rows keep one fixed output order."
+  }
+}

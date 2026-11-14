@@ -1,0 +1,1412 @@
+{
+  "version": 1,
+  "topic": "summarization",
+  "fixture": false,
+  "threshold": 0.8,
+  "hits": 60,
+  "total": 60,
+  "firstPickRate": 1,
+  "passed": true,
+  "byDepth": [
+    {
+      "depth": "brief",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "balanced",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "detailed",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    }
+  ],
+  "prompts": [
+    {
+      "id": "ml-language-training-vocabulary-target-slots",
+      "prompt": "The output vocabulary defines a fixed ordering of slots in the prediction vector.",
+      "referenceId": "ml-language-training-vocabulary-target-slots",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "How do indexed output slots keep the stop entry identifiable?",
+          "depth": "brief",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do indexed output slots keep the stop entry identifiable?",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do indexed output slots keep the stop entry identifiable?",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the observed token indicator for bring in a fixed vocabulary.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the observed token indicator for bring in a fixed vocabulary.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the observed token indicator for bring in a fixed vocabulary.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Change an observed token indicator while preserving indexed output slots.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Change an observed token indicator while preserving indexed output slots.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Change an observed token indicator while preserving indexed output slots.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which indexed output slots are active for the observed stop target?",
+          "depth": "brief",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which indexed output slots are active for the observed stop target?",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which indexed output slots are active for the observed stop target?",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain an observed token indicator without changing vocabulary order.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain an observed token indicator without changing vocabulary order.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain an observed token indicator without changing vocabulary order.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-vocabulary-target-slots",
+          "firstReferenceId": "ml-language-training-vocabulary-target-slots",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-vocabulary-target-slots"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-language-training-vocabulary-target-slots",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-language-training-target-probability-and-loss",
+      "prompt": "Training compares the model's next-token distribution with the observed target token.",
+      "referenceId": "ml-language-training-target-probability-and-loss",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show paired token distributions with the same observed bring target.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show paired token distributions with the same observed bring target.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show paired token distributions with the same observed bring target.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do illustrative distribution losses change after the target logit rises?",
+          "depth": "brief",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do illustrative distribution losses change after the target logit rises?",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do illustrative distribution losses change after the target logit rises?",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare full paired token distributions against the fixed one-hot target.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare full paired token distributions against the fixed one-hot target.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare full paired token distributions against the fixed one-hot target.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compute illustrative distribution losses before rounding their labels.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compute illustrative distribution losses before rounding their labels.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compute illustrative distribution losses before rounding their labels.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep vocabulary and true target fixed in paired token distributions.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep vocabulary and true target fixed in paired token distributions.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep vocabulary and true target fixed in paired token distributions.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-target-probability-and-loss",
+          "firstReferenceId": "ml-language-training-target-probability-and-loss",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-target-probability-and-loss"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-language-training-target-probability-and-loss",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-language-training-prefix-target-alignment",
+      "prompt": "A target sentence supplies a different next-token label at each prefix position during training.",
+      "referenceId": "ml-language-training-prefix-target-alignment",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show observed prefix labels including the final stop target.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show observed prefix labels including the final stop target.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show observed prefix labels including the final stop target.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which training continuation rows change after a later observed token is edited?",
+          "depth": "brief",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which training continuation rows change after a later observed token is edited?",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which training continuation rows change after a later observed token is edited?",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain observed prefix labels without generated-token feedback.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain observed prefix labels without generated-token feedback.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain observed prefix labels without generated-token feedback.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Align overlapping training continuation rows from one sentence.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Align overlapping training continuation rows from one sentence.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Align overlapping training continuation rows from one sentence.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep pretraining token targets separate from class labels in observed prefix labels.",
+          "depth": "brief",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep pretraining token targets separate from class labels in observed prefix labels.",
+          "depth": "balanced",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep pretraining token targets separate from class labels in observed prefix labels.",
+          "depth": "detailed",
+          "firstReference": "ml-language-training-prefix-target-alignment",
+          "firstReferenceId": "ml-language-training-prefix-target-alignment",
+          "firstPick": true,
+          "references": [
+            "ml-language-training-prefix-target-alignment"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-language-training-prefix-target-alignment",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-summarization-supervised-summary-pair",
+      "prompt": "A document and its lead summary can provide a paired example for supervised summarization.",
+      "referenceId": "ml-summarization-supervised-summary-pair",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show raw summarization pairs before adding a task marker.",
+          "depth": "brief",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show raw summarization pairs before adding a task marker.",
+          "depth": "balanced",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show raw summarization pairs before adding a task marker.",
+          "depth": "detailed",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep source bodies attached to supplied leads in body lead supervision.",
+          "depth": "brief",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep source bodies attached to supplied leads in body lead supervision.",
+          "depth": "balanced",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep source bodies attached to supplied leads in body lead supervision.",
+          "depth": "detailed",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Reorder raw summarization pairs without swapping their target summaries.",
+          "depth": "brief",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Reorder raw summarization pairs without swapping their target summaries.",
+          "depth": "balanced",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Reorder raw summarization pairs without swapping their target summaries.",
+          "depth": "detailed",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which fields are supplied in body lead supervision?",
+          "depth": "brief",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which fields are supplied in body lead supervision?",
+          "depth": "balanced",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which fields are supplied in body lead supervision?",
+          "depth": "detailed",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show body lead supervision without claiming generated summaries.",
+          "depth": "brief",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show body lead supervision without claiming generated summaries.",
+          "depth": "balanced",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show body lead supervision without claiming generated summaries.",
+          "depth": "detailed",
+          "firstReference": "ml-summarization-supervised-summary-pair",
+          "firstReferenceId": "ml-summarization-supervised-summary-pair",
+          "firstPick": true,
+          "references": [
+            "ml-summarization-supervised-summary-pair"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-summarization-supervised-summary-pair",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        }
+      ]
+    }
+  ]
+}

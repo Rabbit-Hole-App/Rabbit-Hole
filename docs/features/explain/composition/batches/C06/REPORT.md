@@ -1,0 +1,20 @@
+# C06 — token supervision and summarization pairs
+
+Branch `explain/composition-c06`, based on C05 `cb53d5dce47115dfd9900b50d939cdd67d6e3a2f`. **4 NEW families / 8 source headings**, preserving exact aliases and per-source lessons in [the manifest](../../../../../../packages/web/src/tutor-diagrams/topic-summarization-sources.json). [Content specifications](content-specs.md) and the width revision precede code. All old references/data remain unchanged.
+
+| Registered id | Overview | Standard | Deep (+ detail) | Learner keywords |
+|---|---:|---:|---:|---|
+| `ml-language-training-vocabulary-target-slots` | 99 | 133 | 147 | indexed output slots; observed token indicator |
+| `ml-language-training-target-probability-and-loss` | 107 | 129 | 139 (+96) | paired token distributions; illustrative distribution losses |
+| `ml-language-training-prefix-target-alignment` | 106 | 157 | 166 (+166) | observed prefix labels; training continuation rows |
+| `ml-summarization-supervised-summary-pair` | 105 | 130 | 138 | raw summarization pairs; body lead supervision |
+
+One shared language case derives indexed output slots, one-hot flags, overlapping observed prefixes and stable-softmax distributions. The input-only start marker is excluded from the output vocabulary; the stop token has its own slot. Full model/target distributions share vocabulary order. Losses and their change use unrounded probabilities: **0.6265233750 → 0.2779783696 nats**, delta **−0.3485450055**; charts round for display. These are independently labelled illustrative cases, not measured optimizer steps. The later-token probe recomputes only affected prefix/label rows. Supplied toy source bodies/leads retain record identity when rows and fields move; model formatting and inference inputs are not claimed.
+
+[Full affected suites](full-tests.txt): **1,406 passed, 0 failed/skipped**. [Actual prepared schemas](actual-author-schemas.json): **336 primary + 60 detail validations**, normal/fast and planned/unplanned paths. [Replay](selector-replay.json): **3,279 exact prior cases, 0 moved**, **24/24 source/depth hits**, **0 same-kind collisions**; [paraphrases](paraphrase-replay.json) **60/60**. All **478 old reference payloads / 44 singles** remain byte-identical; strict parent/single coverage remains **44/44**, with all 54 prior pair receipts unchanged. [Independent review](review.md): no Important/Critical findings; direct exp/log arithmetic, identities, metadata and receipts independently checked.
+
+[Token/hash receipts](token-budgets.json): **14 visuals, maximum 166**. Standard views are native; no new singles/pairs. Each Deep contains its computed implicit probe; vocabulary and summary probes fit their main view. [Linter](linter-report.json): **0 applicable errors/warnings**, wrapping 0; two authorized composition-filename findings retained. [Widths](width-receipts.json): all fit 680 px. Twelve views use native 408 px; grouped distributions use the existing 420 px minimum and are readable at the 408 px contact scale. Inspected sheets: [Overview 4](contact-sheets/overview/contact-sheet.png), [Standard 4](contact-sheets/standard/contact-sheet.png), [Deep 6](contact-sheets/deep/contact-sheet.png). [Snapshots](snapshot-refresh.json): **12 added, 0 changed, 0 removed**, four NEW ids ×320/408/720.
+
+Expressibility limits: grouped bars have a 420 px minimum and no transpose mode; probability and loss use separate native figures with their own units. A proposed four-column causal grid would force 444 px; the required observed-prefix tables already show the full causal boundary and perturbation without that optional grid. Raw paired text uses complete independently authored short fields within the native cell limit. No source element remains unexpressed in this bounded toy content. No renderer/schema/tooling/author-prompt change or numeric text-box workaround.
+
+Historical unrelated dependency/fixture loads remain [documented under C02](../C02/broad-suite-failures.md). No whole-application green claim, provider call, smoke, build or deployment. Claude Code owns release gating.

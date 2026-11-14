@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "layout": "teaching",
+    "title": "Causal training labels use only earlier text",
+    "columns": [
+      "Observed prefix",
+      "Next observed token"
+    ],
+    "rows": [
+      {
+        "id": "t1",
+        "heading": "T1",
+        "cells": [
+          "“<bos>”",
+          "clouds"
+        ]
+      },
+      {
+        "id": "t2",
+        "heading": "T2",
+        "cells": [
+          "“<bos>” clouds",
+          "bring"
+        ]
+      },
+      {
+        "id": "t3",
+        "heading": "T3",
+        "cells": [
+          "“<bos>” clouds bring",
+          "rain"
+        ]
+      },
+      {
+        "id": "t4",
+        "heading": "T4",
+        "cells": [
+          "“<bos>” clouds bring rain",
+          "<eos>"
+        ]
+      }
+    ],
+    "caption": "Predict $x_t$ from observed $x_{<t}$. Later text does not enter an earlier prefix; token labels differ from task classes."
+  }
+}

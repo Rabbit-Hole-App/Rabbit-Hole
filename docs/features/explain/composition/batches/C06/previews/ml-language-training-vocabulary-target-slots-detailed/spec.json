@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Change target, preserve every output slot",
+    "rowLabel": "Output slot / token",
+    "columnLabel": "Observed target",
+    "columns": [
+      "bring",
+      "<eos>"
+    ],
+    "rows": [
+      {
+        "label": "0: clouds",
+        "cells": [
+          0,
+          0
+        ]
+      },
+      {
+        "label": "1: bring",
+        "cells": [
+          1,
+          0
+        ]
+      },
+      {
+        "label": "2: rain",
+        "cells": [
+          0,
+          0
+        ]
+      },
+      {
+        "label": "3: <eos>",
+        "cells": [
+          0,
+          1
+        ]
+      }
+    ],
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "caption": "Change bring to stop “<eos>”, keep the indexed rows. Each observed target satisfies $\\sum_j y_j=1$; these are indicator flags."
+  }
+}

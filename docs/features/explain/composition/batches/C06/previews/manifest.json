@@ -1,0 +1,362 @@
+{
+  "ml-language-training-vocabulary-target-slots": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 492
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 453
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 509
+      }
+    }
+  },
+  "ml-language-training-vocabulary-target-slots-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 250
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 233
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 289
+      }
+    }
+  },
+  "ml-language-training-vocabulary-target-slots-balanced": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 492
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 453
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 509
+      }
+    }
+  },
+  "ml-language-training-vocabulary-target-slots-detailed": {
+    "kind": "heatmap",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 492
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 453
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 509
+      }
+    }
+  },
+  "ml-language-training-target-probability-and-loss": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 512
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 473
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 512
+      }
+    }
+  },
+  "ml-language-training-target-probability-and-loss-brief": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 315
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 293
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 332
+      }
+    }
+  },
+  "ml-language-training-target-probability-and-loss-balanced": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 512
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 473
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 512
+      }
+    }
+  },
+  "ml-language-training-target-probability-and-loss-detailed": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 648
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 609
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 648
+      }
+    }
+  },
+  "ml-language-training-target-probability-and-loss-detailed-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 264
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 205
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 281
+      }
+    }
+  },
+  "ml-language-training-prefix-target-alignment": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 450
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 333
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 520
+      }
+    }
+  },
+  "ml-language-training-prefix-target-alignment-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 318
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 233
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 335
+      }
+    }
+  },
+  "ml-language-training-prefix-target-alignment-balanced": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 450
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 333
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 520
+      }
+    }
+  },
+  "ml-language-training-prefix-target-alignment-detailed": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 450
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 333
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 503
+      }
+    }
+  },
+  "ml-language-training-prefix-target-alignment-detailed-detail": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 450
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 333
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 486
+      }
+    }
+  },
+  "ml-summarization-supervised-summary-pair": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 458
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 279
+      },
+      "natural": {
+        "requested": 381,
+        "width": 381,
+        "height": 475
+      }
+    }
+  },
+  "ml-summarization-supervised-summary-pair-brief": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 336
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 261
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 407
+      }
+    }
+  },
+  "ml-summarization-supervised-summary-pair-balanced": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 458
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 279
+      },
+      "natural": {
+        "requested": 381,
+        "width": 381,
+        "height": 475
+      }
+    }
+  },
+  "ml-summarization-supervised-summary-pair-detailed": {
+    "kind": "matrix",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 458
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 279
+      },
+      "natural": {
+        "requested": 381,
+        "width": 381,
+        "height": 458
+      }
+    }
+  }
+}
