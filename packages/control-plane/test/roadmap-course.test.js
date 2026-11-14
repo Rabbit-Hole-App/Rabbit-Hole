@@ -258,3 +258,18 @@ test('a file edited after the plan stops the course with its own reason', async 
   assert.equal(after.course.stopped, 'source_changed');
   assert.equal(after.course.running, false);
 });
+
+// --- found on the first live run (owner 2026-11-14): a course card must be priced and authored on Gemini Flash whatever the global /explain profile is ----------------------------------------
+
+test('a roadmap card is quoted and priced on Gemini Flash even when EXPLANATION_MODEL_PROFILE is a fast-chain profile (it was unpriced, so no card could start)', async () => {
+  const rec = { format: 'explanation', passageText: 'A decision tree asks questions.', documentText: 'A decision tree asks questions. '.repeat(20), stepTitle: 'Decision Tree Basics', stepGoal: 'Know what a tree is', claimsToCover: ['A tree asks questions'], outcome: 'Explain trees',
+    learnerInstruction: { original: '', revisions: [] }, teachingScope: { kind: 'whole' }, depth: 'balanced', sourceRef: null };
+  const { quoteRoadmapCard } = await import('../src/roadmap/roadmap-generate.js');
+  for (const profile of [undefined, 'google-low', 'fireworks-low', 'cerebras-medium']) {
+    const quote = await quoteRoadmapCard({ EXPLANATION_MODEL_PROFILE: profile, GEMINI_API_KEY: 'x', FIREWORKS_API_KEY: 'x', CEREBRAS_API_KEY: 'x' }, rec);
+    assert.equal(quote.outcome, 'quoted', `${profile}: ${quote.code}`);
+    assert.deepEqual([quote.provider, quote.model], ['google', 'gemini-3.5-flash-lite'], String(profile));
+    assert.ok(quote.boundMicros > 0);
+    assert.equal(quote.profile.id, 'plan-gemini', 'the accepted request binds the roadmap card profile');
+  }
+});
