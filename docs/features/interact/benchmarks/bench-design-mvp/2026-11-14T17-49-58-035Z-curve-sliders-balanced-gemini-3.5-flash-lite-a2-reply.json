@@ -1,0 +1,56 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When building models that make binary choices, we often need to turn any real-valued score into a probability between zero and one. If a score goes very high or very low, linear functions fail to contain it within these bounds. To solve this, mathematicians use the logistic sigmoid function, which maps the entire number line smoothly onto an interval from zero to one. By looking at the exponential term, we can see how large positive inputs drive the denominator close to one, while large negative inputs make the denominator grow infinitely large, sending the output to zero.",
+  "cardDescription": "Explore how the logistic sigmoid function maps any real number into a strict range between zero and one. Adjust the steepness and midpoint to see how the S-curve bends.",
+  "instructions": "Adjust the sliders to change the steepness and midpoint of the curve. Observe how the tangent line and output values update in real time.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - (k * (x - x0))))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - (k * (x - x0))) / ((1 + exp(0 - (k * (x - x0)))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - (k * (1 - x0))))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker at x = 1",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "legend_curve": "Sigmoid",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 638,
+  "prompt_tokens": 2165,
+  "total_tokens": 2803
+ }
+}

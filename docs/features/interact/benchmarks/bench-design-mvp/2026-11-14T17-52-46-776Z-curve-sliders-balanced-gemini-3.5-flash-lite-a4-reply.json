@@ -1,0 +1,56 @@
+{
+ "reply": {
+  "title": "Squashing with the Logistic Sigmoid",
+  "story": "When modeling probabilities or neural activations, we often need to take any real number from negative to positive infinity and squash it neatly into a range between zero and one. A linear scale fails because it grows without bound. We need a smooth, S-shaped curve that compresses extreme inputs while keeping a gentle transition around a central midpoint. Pierre François Verhulst encountered this while studying population growth, creating the logistic function. By adjusting the steepness and the midpoint, we can shape how abruptly this transition occurs, turning infinite inputs into finite probabilities.",
+  "cardDescription": "Explore how the logistic sigmoid function compresses infinite inputs into a clean $0$ to $1$ range. Adjust the steepness and midpoint to see how the curve bends.",
+  "instructions": "Change the steepness and midpoint sliders to see how the sigmoid curve stretches and shifts.",
+  "k": {
+   "min": 0.2,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * (x - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "(k * exp(0 - k * (x - x0))) / ((1 + exp(0 - k * (x - x0))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * (1 - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker at x = 1",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "legend_curve": "Sigmoid",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 615,
+  "prompt_tokens": 2165,
+  "total_tokens": 2780
+ }
+}

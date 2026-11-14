@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When we study growth or probability, we often need a way to turn any input from negative infinity to positive infinity into a neat fraction between zero and one. Early biometricians studying population growth noticed that rates slow down as they approach a limit, creating a smooth S-shaped curve. By using an exponential function in the denominator, the math naturally forces large negative inputs toward zero and large positive inputs toward one. This logistic sigmoid function acts like a smooth gate, mapping continuous values into a bounded range without losing order.",
+  "cardDescription": "Discover how the logistic curve maps any input to a strict range between $0$ and $1$. Adjust the steepness $k$ to see how sharply the transition occurs.",
+  "instructions": "Change the steepness slider to see how the curve responds. Observe the marker output update instantly.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - k * x) / ((1 + exp(0 - k * x)) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Curve",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x =",
+   "readout_y": "Output y",
+   "marker_note": "Squashed value"
+  }
+ },
+ "usage": {
+  "completion_tokens": 524,
+  "prompt_tokens": 2077,
+  "total_tokens": 2601
+ }
+}

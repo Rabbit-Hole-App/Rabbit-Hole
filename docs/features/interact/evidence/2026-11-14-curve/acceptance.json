@@ -1,0 +1,151 @@
+{
+ "roundTrip": [
+  {
+   "id": "curve-logistic-brief",
+   "equalPlanHash": true
+  },
+  {
+   "id": "curve-logistic-balanced",
+   "equalPlanHash": true
+  },
+  {
+   "id": "curve-logistic-detailed",
+   "equalPlanHash": true
+  }
+ ],
+ "zeroModelBuild": [
+  {
+   "id": "curve-logistic-brief",
+   "built": true,
+   "problems": null,
+   "template": "curve-one",
+   "fetchesDuringBuild": 0
+  },
+  {
+   "id": "curve-logistic-balanced",
+   "built": true,
+   "problems": null,
+   "template": "curve-compare",
+   "fetchesDuringBuild": 0
+  },
+  {
+   "id": "curve-logistic-detailed",
+   "built": true,
+   "problems": null,
+   "template": "curve-readouts",
+   "fetchesDuringBuild": 0
+  }
+ ],
+ "oracle": [
+  {
+   "id": "curve-logistic-brief",
+   "oracleId": "curve-logistic-brief",
+   "problems": [],
+   "checked": 36,
+   "skipped": [],
+   "fetchesTotal": 0
+  },
+  {
+   "id": "curve-logistic-balanced",
+   "oracleId": "curve-logistic-balanced",
+   "problems": [],
+   "checked": 54,
+   "skipped": [],
+   "fetchesTotal": 0
+  },
+  {
+   "id": "curve-logistic-detailed",
+   "oracleId": "curve-logistic-detailed",
+   "problems": [],
+   "checked": 78,
+   "skipped": [],
+   "fetchesTotal": 0
+  }
+ ],
+ "wrongBriefs": [
+  {
+   "id": "slope-sign",
+   "validFlatBrief": true,
+   "expected": {
+    "code": "curve_derivative",
+    "path": "formulas.slope.formula"
+   },
+   "actual": {
+    "code": "curve_derivative",
+    "path": "formulas.slope.formula"
+   },
+   "right": true,
+   "fillProblemLine": "formula slope at {\"k\":1,\"x0\":0,\"xMarker\":1,\"x\":-5.8125}: got -0.002972146173718431, expected 0.002972146173974668"
+  },
+  {
+   "id": "slope-scale",
+   "validFlatBrief": true,
+   "expected": {
+    "code": "curve_derivative",
+    "path": "formulas.slope.formula"
+   },
+   "actual": {
+    "code": "curve_derivative",
+    "path": "formulas.slope.formula"
+   },
+   "right": true,
+   "fillProblemLine": "formula slope at {\"k\":1,\"x0\":0,\"xMarker\":1,\"x\":-5.8125}: got 0.005944292347436862, expected 0.002972146173974668"
+  },
+  {
+   "id": "output-bounds",
+   "validFlatBrief": true,
+   "expected": {
+    "code": "curve_bounds",
+    "path": "formulas.y.formula"
+   },
+   "actual": {
+    "code": "curve_bounds",
+    "path": "formulas.y.formula"
+   },
+   "right": true,
+   "fillProblemLine": "formula y at {\"k\":1,\"x0\":0,\"xMarker\":1,\"x\":0.25271739130434767}: got 1.1256904602067135, expected 0,1"
+  },
+  {
+   "id": "steepness-direction",
+   "validFlatBrief": true,
+   "expected": {
+    "code": "curve_effect",
+    "path": "formulas.slope.formula"
+   },
+   "actual": {
+    "code": "curve_effect",
+    "path": "formulas.slope.formula"
+   },
+   "right": true,
+   "fillProblemLine": "formula slope at {\"k\":1,\"x0\":0,\"xMarker\":1,\"at\":\"x0\",\"parameter\":\"k\"}: got 0.5,0.25,0.2222222222222222,0.14285714285714285,0.10526315789473684,0.08333333333333333, expected increasing as k increases"
+  },
+  {
+   "id": "midpoint-direction",
+   "validFlatBrief": true,
+   "expected": {
+    "code": "curve_effect",
+    "path": "formulas.y.formula"
+   },
+   "actual": {
+    "code": "curve_effect",
+    "path": "formulas.y.formula"
+   },
+   "right": true,
+   "fillProblemLine": "formula y at {\"k\":1,\"x0\":0,\"xMarker\":1,\"x\":-5.8125,\"parameter\":\"x0\"}: got 0.00269811536720777,0.0028360583731539797,0.0029810327298548972,0.0031333946356531758,0.0032935181018269697, expected decreasing as x0 increases"
+  },
+  {
+   "id": "marker-offset",
+   "validFlatBrief": true,
+   "expected": {
+    "code": "curve_marker",
+    "path": "formulas.yAtMarker.formula"
+   },
+   "actual": {
+    "code": "curve_marker",
+    "path": "formulas.yAtMarker.formula"
+   },
+   "right": true,
+   "fillProblemLine": "formula yAtMarker at {\"k\":1,\"x0\":0,\"xMarker\":1,\"x\":1}: got 0.8807970779778823, expected 0.7310585786300049"
+  }
+ ]
+}

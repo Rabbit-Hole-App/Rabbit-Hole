@@ -1,0 +1,56 @@
+{
+ "reply": {
+  "title": "Squashing with the Logistic Curve",
+  "story": "When modeling probabilities or population growth, we often need a function that maps any real number into a strict range between zero and one. The logistic curve provides this smooth transition, acting like a soft switch. By adjusting its steepness $k$ and midpoint $x_0$, we can control how rapidly the output rises from zero to one. Let us explore how these parameters shape the curve and its slope.",
+  "cardDescription": "Explore how the logistic function squashes any input into a $0$ to $1$ range. Adjust steepness and midpoint to see the curve change.",
+  "instructions": "Change the steepness and midpoint sliders to observe how the logistic curve shifts and bends.",
+  "k": {
+   "min": 0.5,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * (x - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "(k * exp(0 - k * (x - x0))) / ((1 + exp(0 - k * (x - x0))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * (1 - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Function",
+   "state_default": "Default steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker at x = 1",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "legend_curve": "Logistic",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 583,
+  "prompt_tokens": 2165,
+  "total_tokens": 2748
+ }
+}

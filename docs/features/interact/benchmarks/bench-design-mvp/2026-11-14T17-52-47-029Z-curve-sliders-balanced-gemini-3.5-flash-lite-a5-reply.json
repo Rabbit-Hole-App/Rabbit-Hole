@@ -1,0 +1,56 @@
+{
+ "reply": {
+  "title": "Squashing with the Sigmoid Curve",
+  "story": "When modeling probabilities or biological neurons, we often need to take any input from negative infinity to positive infinity and squash it into a clean range between zero and one. A linear scale fails because it grows without bound. We need a smooth, S-shaped curve that gracefully flattens out at both extremes. The logistic function achieves this by placing the input inside an exponential denominator. As the input grows very large, the denominator dominates and pushes the output toward one. As it drops to large negative values, the exponential vanishes and leaves the output at zero. By adjusting the steepness and the midpoint, we can shape this transition to fit any threshold problem.",
+  "cardDescription": "Explore how the logistic function maps any real number into a bounded range between zero and one. Adjust the steepness and midpoint to see how the S-curve bends.",
+  "instructions": "Drag the sliders to change the steepness and midpoint of the curve. Observe how the output and tangent slope update at the marker.",
+  "k": {
+   "min": 0.2,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * (x - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "(k * exp(0 - k * (x - x0))) / ((1 + exp(0 - k * (x - x0))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * (1 - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker at x = 1",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "legend_curve": "Sigmoid",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 646,
+  "prompt_tokens": 2165,
+  "total_tokens": 2811
+ }
+}

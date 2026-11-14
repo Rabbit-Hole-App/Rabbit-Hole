@@ -1,0 +1,56 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When modeling probabilities or neural networks, we often need to take any input value ranging from negative infinity to positive infinity and convert it into a neat probability between zero and one. If we simply truncate the values, we get sharp, unnatural jumps. Instead, mathematicians use a smooth, S-shaped curve known as the logistic sigmoid function.\n\nThe magic behind this squashing behavior comes from the exponential term in its denominator. As the input grows larger and larger positively, the exponent becomes heavily negative, driving the exponential term toward zero and forcing the total fraction toward one. Conversely, as the input drops heavily into negative values, the exponential term grows vastly large, making the fraction approach zero.\n\nAt the very centre, where the input matches the midpoint parameter, the function evaluates smoothly to exactly one half. By adjusting the steepness parameter, we can control how abruptly this transition happens, turning a gentle slope into a near-step function while keeping all outputs strictly bounded.",
+  "cardDescription": "Explore how the logistic function squashes infinite inputs into a $0$ to $1$ range. Adjust the steepness and midpoint parameters to see how the S-shaped curve bends.",
+  "instructions": "Adjust the steepness and midpoint sliders to reshape the sigmoid curve. Observe how the output and tangent slope update in real time.",
+  "k": {
+   "min": 0.2,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp((x0 - x) * k))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp((x0 - x) * k) / (1 + exp((x0 - x) * k))^2",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp((x0 - 1) * k))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker",
+   "marker_at": "x = 1",
+   "readout_y": "Output y",
+   "legend_curve": "Sigmoid",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 708,
+  "prompt_tokens": 2165,
+  "total_tokens": 2873
+ }
+}

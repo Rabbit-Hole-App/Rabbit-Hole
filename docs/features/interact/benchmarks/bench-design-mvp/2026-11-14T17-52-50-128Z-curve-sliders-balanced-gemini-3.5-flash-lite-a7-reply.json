@@ -1,0 +1,56 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When modeling growth or probability, we often need to turn any real number into a value between zero and one. A linear scale keeps growing forever, but real systems saturate. Pierre François Verhulst faced this when studying population growth, realizing that finite resources cap expansion. To represent this bounded change mathematically, he used the logistic function. This curve takes an input of any size and compresses it smoothly into the interval from zero to one. As the input grows very large or very negative, the exponential term dominates, forcing the output to approach horizontal asymptotes at one and zero. By adjusting the steepness and midpoint, we can shape how quickly this transition happens.",
+  "cardDescription": "Explore how the logistic function maps any input onto a bounded range between zero and one. Adjust the steepness $k$ and midpoint $x_0$ to see how the S-curve shifts and stretches.",
+  "instructions": "Drag the sliders to adjust the steepness and midpoint. Observe how the tangent line changes at the marker.",
+  "k": {
+   "min": 0.2,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "x0": {
+   "min": -3,
+   "max": 3,
+   "default": 0,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * (x - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - k * (x - x0)) / ((1 + exp(0 - k * (x - x0))) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * (1 - x0)))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic curve",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker at x = 1",
+   "marker_at": "x = ",
+   "readout_y": "Output y",
+   "legend_curve": "Logistic",
+   "legend_tangent": "Tangent",
+   "readout_slope": "Slope dy/dx"
+  }
+ },
+ "usage": {
+  "completion_tokens": 655,
+  "prompt_tokens": 2165,
+  "total_tokens": 2820
+ }
+}

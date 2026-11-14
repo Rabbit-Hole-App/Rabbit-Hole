@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Why does a sigmoid squash any number into 0 to 1?",
+  "story": "When modeling probabilities or biological neurons, we often need to convert any real number into a scale between zero and one. If we simply truncate large values, abrupt jumps break our calculations. We need a smooth, continuous curve that gently compresses infinitely large positive inputs toward one and infinitely negative inputs toward zero. This S-shaped curve is known as the logistic sigmoid function.\n\nAt the heart of the logistic function is the exponent with a negative input. As the input grows larger and larger positively, the exponent approaches zero, leaving the fraction to evaluate to one over one, which is one. As the input drops negatively, the exponent grows vastly large, making the denominator explode and driving the overall output down toward zero. The steepness parameter controls how rapidly this transition happens around the midpoint.",
+  "cardDescription": "Explore how the logistic sigmoid maps any real number into a range between zero and one. Adjust the steepness $k$ to see how sharply the curve transitions.",
+  "instructions": "Change the steepness slider to see how the curve stretches or compresses. Observe how the output at the marker changes.",
+  "k": {
+   "min": 0.2,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp(0 - k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp(0 - k * x) / ((1 + exp(0 - k * x)) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp(0 - k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Sharper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "At marker",
+   "marker_at": "x = ",
+   "readout_y": "Output value",
+   "marker_note": "Squashed output"
+  }
+ },
+ "usage": {
+  "completion_tokens": 583,
+  "prompt_tokens": 2077,
+  "total_tokens": 2660
+ }
+}

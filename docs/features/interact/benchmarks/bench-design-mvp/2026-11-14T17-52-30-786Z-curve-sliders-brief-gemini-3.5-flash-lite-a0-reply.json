@@ -1,0 +1,48 @@
+{
+ "reply": {
+  "title": "Squashing Numbers with a Sigmoid",
+  "story": "When building models that decide between yes and no, raw numbers can range anywhere from negative infinity to positive infinity. Yet probabilities must stay strictly between zero and one. Mathematicians needed a smooth curve that takes any input and squashes it into this bounded range. The logistic sigmoid function achieves this by using an exponential growth term in its denominator. As inputs grow very large, the function approaches one; as they drop to large negatives, it flattens out toward zero.",
+  "cardDescription": "Explore how the sigmoid function maps any real number into the range between $0$ and $1$. Adjust the steepness to see how sharply the transition occurs.",
+  "instructions": "Change the steepness slider to see how the curve bends. Observe the output value at the fixed marker.",
+  "k": {
+   "min": 0.2,
+   "max": 5,
+   "default": 1,
+   "step": 0.1
+  },
+  "formulas": {
+   "y": {
+    "formula": "1 / (1 + exp((-1) * k * x))",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "slope": {
+    "formula": "k * exp((-1) * k * x) / ((1 + exp((-1) * k * x)) ^ 2)",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "yAtMarker": {
+    "formula": "1 / (1 + exp((-1) * k * 1))",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "heading": "Logistic Sigmoid",
+   "state_default": "Standard steepness",
+   "state_gentler": "Gentler transition",
+   "state_steeper": "Steeper transition",
+   "axis_x": "Input x",
+   "axis_y": "Output y",
+   "marker_heading": "Marker at x",
+   "marker_at": "x =",
+   "readout_y": "Output y",
+   "marker_note": "Squashed value"
+  }
+ },
+ "usage": {
+  "completion_tokens": 515,
+  "prompt_tokens": 2077,
+  "total_tokens": 2592
+ }
+}
