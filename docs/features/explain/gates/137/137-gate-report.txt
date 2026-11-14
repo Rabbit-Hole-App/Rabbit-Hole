@@ -1,0 +1,15 @@
+GATE: PASS(replay) 40a77cecb0a8d9cf6836bc0e9aabc5124179c5a1 tier=suites+replay (FULL web gate, stacked on 136b 3534ca428e09c44662252db7b522cc1d28c147d9; web-only candidate: planner-kind replay moves 0 of 474 card rows and no snapshot changes, so no smoke). Steps are listed in 137-suites-report.txt: ci, scripts, tutor-diagrams, figure-briefs, FULL web unit, build, property count, replay; control-plane skipped (no server file in the diff).
+
+STEP ci rc=0 56s
+STEP scripts rc=0 27s
+STEP tutor rc=0 68s
+STEP figbriefs rc=0 2s
+STEP webunit rc=0 157s
+STEP build rc=0 11s
+STEP props rc=0 15s
+STEP replay rc=0 18s
+SNAPSHOT-DIFF files: 0
+GATE RUN DONE
+
+card rows 474 moved counts {"first":0,"steer":0,"kind":0,"refs":0} unique prompt-cases 171
+GATE PASS: 0 first picks moved
