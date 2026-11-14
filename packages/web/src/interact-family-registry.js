@@ -1,7 +1,7 @@
 // The ONE place a scene family is added (brief 21, owner 2026-11-14): registerFamily(family). Everything that used to be a hand table per family is derived from the registered
 // families here: the template roles and words (TEMPLATE_ROLES, TEMPLATE_WORDS, read by plan validation), the callout slots (CALLOUT_SLOTS), the template table the generator builds from (TEMPLATES)
 // and the family list the pick, the design, the generator, the pins, the oracles and the check-map rows read (registeredFamilies). A family declares:
-//   id, pickCriterion, templates (the template names it draws), templateData ({ name: { lanes, roles, independent?, words: [[path, maxChars, what]], callouts?: slots => quantity ids } }),
+//   id, pickCriterion, templates (the template names it draws), templateData ({ name: { lanes, roles, independent?, words: [[path, maxChars, what]], callouts?: slots => quantity ids, sceneDataSchema?: a strict zod schema of plan.scene.data } }),
 //   pins ({ families: { pin: { depth: planId } }, plans: { planId: [planName, depth, fixturesGroup] } }), checkMap ({ repoPath: [the tests that cover it] })      <- the LIGHT half
 //   templateModules ({ name: module }), fixtureGroups(catalogueHash) -> { group: { name: plan } }, and the rest of the contract (interact-families.js documents it)  <- the HEAVY half
 // Two halves because plan validation runs in the browser (the Chat proposal card) and must not load the generator, the templates or the brief expander (about 340 KB minified, KaTeX included): the
@@ -10,7 +10,7 @@
 // replaces its light entry by the full one. Adding a family: its data module in interact-family-data-index.js, its full module in interact-family-index.js, or registerFamily(module) for a test.
 import { builtinFamilyData } from './interact-family-data-index.js';
 
-const families = [], roles = {}, words = {}, callouts = {};
+const families = [], roles = {}, words = {}, callouts = {}, sceneData = {};
 export const TEMPLATES = {}; // template -> module: filled by the full families (the light half has no template code)
 const wordKey = path => path.split('.').join('_');
 const same = (a, b) => a.length === b.length && a.every((name, i) => name === b[i]);
@@ -21,6 +21,8 @@ function tables(family) {
     roles[name] = Object.freeze({ lanes, roles: slotRoles, ...(independent ? { independent } : {}) });
     words[name] = Object.freeze(list.map(([path, max, what]) => Object.freeze({ path, key: wordKey(path), max, what })));
     if (shown) callouts[name] = shown; else delete callouts[name];
+    const dataSchema = family.templateData[name].sceneDataSchema; // a zod schema: the template takes plan.scene.data and admits it through this (interact-plan.js planProblems)
+    if (dataSchema) sceneData[name] = dataSchema; else delete sceneData[name];
     if (family.templateModules?.[name]) TEMPLATES[name] = family.templateModules[name]; else delete TEMPLATES[name];
   }
 }
@@ -43,11 +45,12 @@ export function registerFamily(family) {
   families.push(family); tables(family);
   return () => {
     families.splice(families.indexOf(family), 1);
-    for (const name of names) { delete roles[name]; delete words[name]; delete callouts[name]; delete TEMPLATES[name]; }
+    for (const name of names) { delete roles[name]; delete words[name]; delete callouts[name]; delete sceneData[name]; delete TEMPLATES[name]; }
   };
 }
 
 export const registeredFamilies = () => families;
 export const isRegisteredTemplate = name => Object.hasOwn(roles, name);
 export const TEMPLATE_ROLES = roles, TEMPLATE_WORDS = words, CALLOUT_SLOTS = callouts;
+export const sceneDataSchemaOf = name => sceneData[name]; // undefined: the template takes no scene.data
 for (const family of builtinFamilyData) registerFamily(family);
