@@ -1,0 +1,21 @@
+ℹ 5000 objects: initial 107.3ms, single edit 22.9ms
+ℹ light ink-2 #63615d: bg-white 6.18, bg-hover 5.37, bg-code 5.72, bg-surface 6.18, bg-side 5.76, scene surface 5.97
+ℹ dark ink-2 #a1a1a1: bg-white 6.80, bg-hover 5.41, bg-code 5.93, bg-surface 6.80, bg-side 6.31, scene surface 6.38
+ℹ light ink-2 #63615d: lowest neutral/identity-3 12% 4.65:1 over 24 fills
+ℹ dark ink-2 #a1a1a1: lowest neutral/identity-2 12% 4.60:1 over 24 fills
+ℹ exempt (B), depth-architecture-overview: stages 1-5: the loop is a stage not yet reached; its note reads at full strength on stage 6
+ℹ exempt (B), depth-architecture-overview: a pipeline stage box the stepper has not reached yet (0.3); it reads at full strength from its own stage on
+ℹ exempt (B), depth-architecture-deep: model(idx) at T = 257 fails the assert: nothing below it runs (its lines and its step boxes), and the warning line says so
+ℹ exempt (B), depth-attention-deep: fused path: the five manual steps one SDPA call replaces (1/4, lines and step boxes) and the att it never holds (2/4); the fused note says so
+ℹ exempt (B), depth-generation-deep: T = 0 (What-if): every step after ÷ T is invalid (lines and step boxes); the warning lines say what happens instead
+ℹ exempt (B), depth-tokenization-deep: 1/3, the digit prompt with meta.pkl: encode raises KeyError, so the batch, wte and lm_head step boxes never run (0.35); the not-reached line says so
+ℹ exempt (B), depth-attention-overview: a character after the one being read (0.3): the causal mask hides it from that reader, so it gets no bar; it reads at full strength once it is read, and the future note says why it is faded
+ℹ 22092 glyph-over-fill points measured
+ℹ tests 6913
+ℹ suites 0
+ℹ pass 6885
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 27
+ℹ todo 1
+ℹ duration_ms 154391.5835
