@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Structure without target labels",
+    "x": {
+      "label": "First feature",
+      "min": 0,
+      "max": 7
+    },
+    "y": {
+      "label": "Second feature",
+      "min": 0,
+      "max": 7
+    },
+    "series": [
+      {
+        "label": "Unlabelled inputs",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            0,
+            2,
+            1,
+            1,
+            4,
+            6,
+            5,
+            5
+          ],
+          "y": [
+            2,
+            2,
+            1,
+            3,
+            5,
+            5,
+            4,
+            6
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "circle",
+        "label": "Group A",
+        "center": {
+          "x": 1,
+          "y": 2
+        },
+        "radius": 1
+      },
+      {
+        "kind": "circle",
+        "label": "Group B",
+        "center": {
+          "x": 5,
+          "y": 5
+        },
+        "radius": 1
+      }
+    ],
+    "caption": "Targets are hidden; outlines suggest groups, not known classes."
+  }
+}

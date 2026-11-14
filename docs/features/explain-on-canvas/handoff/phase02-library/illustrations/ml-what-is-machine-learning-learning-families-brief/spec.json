@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "tree",
+    "layout": "hierarchy",
+    "title": "Learning families",
+    "nodes": [
+      {
+        "id": "m",
+        "label": "Machine learning"
+      },
+      {
+        "id": "s",
+        "label": "Supervised",
+        "parent": "m"
+      },
+      {
+        "id": "u",
+        "label": "Unsupervised",
+        "parent": "m"
+      },
+      {
+        "id": "r",
+        "label": "Reinforcement",
+        "parent": "m"
+      }
+    ],
+    "caption": "Illustrative: targets, hidden structure or rewards determine the learning family."
+  }
+}
