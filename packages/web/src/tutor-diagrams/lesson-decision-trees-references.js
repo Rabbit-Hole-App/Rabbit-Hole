@@ -118,7 +118,7 @@ function thresholdPlot(depth) {
   const rounded = score => Number(value(score).toFixed(4));
   const points = trials.x.map(split => {
     const y = rounded(split.weighted);
-    return { x: split.threshold, y, ...(detailed(depth) ? { label: String(y) } : {}) };
+    return { x: split.threshold, y };
   });
   const alternative = trials.y.reduce((best, split) => value(split.weighted) < value(best.weighted) ? split : best);
   return {

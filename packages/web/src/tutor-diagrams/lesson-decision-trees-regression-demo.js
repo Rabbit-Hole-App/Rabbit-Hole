@@ -66,7 +66,7 @@ export const lessonDecisionTreesRegressionDemo = {
       y: { label: 'Target', min: -1, max: 1 },
       series: [
         { label: 'Sine', kind: 'line', samples: { x: { start, step }, y: targets, divisor } },
-        { label: 'Depth 2', kind: 'step', samples: { ...shallow, ...(depth === 'deep' ? { showValues: true } : {}) } },
+        { label: 'Depth 2', kind: 'step', samples: shallow },
         { label: 'Depth 4', kind: 'step', samples: deep },
       ],
       caption: `Worked example. ${comparison}${depth === 'standard' ? '. Same samples.' : ''}`,
