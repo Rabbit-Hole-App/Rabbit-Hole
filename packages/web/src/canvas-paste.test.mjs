@@ -103,3 +103,39 @@ test('every canvas paste is placed at the pointer when it is over the canvas', a
   assert.match(canvas, /addWebpage\(chosen\.text, chosen\.at\)/);
   assert.match(page, /const pasteCode = \(text, at = null\) =>[\s\S]{0,400}kind: 'paste', at, copy/, 'the Code card or notebook dialog keeps the point');
 });
+
+test('the canvas\'s own copied cards paste at the pointer too, keeping their layout; Duplicate and Alt-drag keep their step', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const canvas = await readFile(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /pasteIds\(clipboard\.current, 28, true, cursorAt\(\)\)\),/, 'the Paste command');
+  assert.match(canvas, /pasteIdsRef\.current\(clipboard\.current, 28, true, cursorAt\(\)\)\) \{ event\.preventDefault/, 'Ctrl+V');
+  assert.match(canvas, /const pasteIds = \(picked, step = 28, clip = false, at = null\) =>/);
+  assert.match(canvas, /const target = clip && at \?/, 'only a clipboard paste with a pointer point is placed at it');
+  assert.match(canvas, /duplicate: \(\) => !!pasteIds\(selectedRef\.current\),/, 'Duplicate keeps its step');
+  assert.match(canvas, /made = pasteIds\(ids, 0\);/, 'Alt-drag keeps its own placement');
+  assert.match(canvas, /x: item\.x \+ by\.x, y: item\.y \+ by\.y/, 'notes, text and equations move by the same distance');
+});
+
+test('pasteTarget: the copies\' top-left corner lands on the pointer, their layout kept', async () => {
+  const { pasteTarget } = await import('./canvas-paste.js');
+  // Two cards in a column, each 100 tall: A drawn at (0,0), B at (0,120) with a drag offset of (30, 10), so B's slot is (0,110).
+  const list = [{ id: 'a', dx: 0, dy: 0 }, { id: 'b', dx: 30, dy: 10 }], bounds = { a: { x: 0, y: 0, w: 200, h: 100 }, b: { x: 30, y: 120, w: 200, h: 100 } };
+  // Copy A, point at (500, 115): the slot at that height is index 1 (B's), at (0, 110); A's copy must be drawn at (500, 115): offset (500, 5).
+  const one = pasteTarget({ at: { x: 500, y: 115 }, blocks: [list[0]], list, bounds, index: 1 });
+  assert.deepEqual(one.shift, { x: 500, y: 5 });
+  assert.equal(one.index, 1);
+  // A note and a card copied together: the note sits 50 right and 40 below the card's corner; both move so the corner is on the point.
+  const mix = pasteTarget({ at: { x: 500, y: 115 }, blocks: [list[0]], items: [{ x: 50, y: 40 }], list, bounds, index: 1 });
+  assert.deepEqual(mix.move, { x: 500, y: 115 });
+  assert.deepEqual(mix.shift, { x: 500, y: 5 });
+  // Items alone move by the distance from their corner to the point; no card means no shift.
+  const note = pasteTarget({ at: { x: 10, y: 20 }, items: [{ x: 100, y: 200 }], shapes: [{ x1: 300, y1: 50, x2: 150, y2: 400 }], list, bounds, index: 0 });
+  assert.deepEqual(note.move, { x: -90, y: -30 });
+  assert.equal(note.shift, null);
+  // Past the last card: just below it (24 px gap).
+  const end = pasteTarget({ at: { x: 0, y: 900 }, blocks: [list[1]], list, bounds, index: 2 });
+  assert.deepEqual(end.shift, { x: -30, y: 900 - (120 + 100 - 10 + 24) - 10 });
+  // A card not measured yet: the step stays (shift null); nothing with a position: null.
+  assert.equal(pasteTarget({ at: { x: 1, y: 1 }, blocks: [{ id: 'z' }], list, bounds, index: 0 }), null);
+  assert.equal(pasteTarget({ at: { x: 1, y: 1 }, blocks: [{ id: 'z' }], items: [{ x: 5, y: 5 }], list, bounds, index: 0 }).shift, null);
+});

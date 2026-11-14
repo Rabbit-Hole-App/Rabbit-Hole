@@ -50,3 +50,22 @@ export function isWebUrl(text) {
   if (!value || /\s/.test(value) || !/^https?:\/\//i.test(value)) return false;
   try { const url = new URL(value); return (url.protocol === 'http:' || url.protocol === 'https:') && !!url.hostname; } catch { return false; }
 }
+
+// Where the canvas's own copied cards land when pasted at a pointer point `at` (world coordinates; owner 2026-11-14): the copies' top-left corner on the point,
+// their layout kept. `move`: the distance notes, text, equations and marks move. Cards sit in a column, so they go in at `index` (the slot at that height) with
+// `shift` added to their offsets: the slot is where the card now at that index is drawn less its own offset (else just below the last card), and the first copy is
+// drawn where its source sat in the selection, measured from its top-left corner. `shift` is null when no slot is measured (the caller keeps its step).
+// `bounds`: drawn boxes by id. Returns null when nothing copied has a position.
+export function pasteTarget({ at, blocks = [], chats = [], items = [], shapes = [], list = [], bounds = {}, index = 0 }) {
+  const boxes = [...blocks, ...chats].map(node => bounds[node.id]).filter(Boolean);
+  const xs = [...boxes.map(box => box.x), ...items.map(item => item.x), ...shapes.map(shape => Math.min(shape.x1, shape.x2))];
+  const ys = [...boxes.map(box => box.y), ...items.map(item => item.y), ...shapes.map(shape => Math.min(shape.y1, shape.y2))];
+  if (!xs.length) return null;
+  const left = Math.min(...xs), top = Math.min(...ys), move = { x: at.x - left, y: at.y - top };
+  const first = blocks[0], next = list[index], last = list[list.length - 1];
+  const box = next && bounds[next.id], tail = !next && last && bounds[last.id];
+  const slot = box ? { x: box.x - (next.dx || 0), y: box.y - (next.dy || 0) } : tail ? { x: tail.x - (last.dx || 0), y: tail.y + tail.h - (last.dy || 0) + 24 } : null;
+  const firstBox = first && bounds[first.id];
+  const shift = firstBox && slot ? { x: at.x + (firstBox.x - left) - slot.x - (first.dx || 0), y: at.y + (firstBox.y - top) - slot.y - (first.dy || 0) } : null;
+  return { move, index, shift };
+}

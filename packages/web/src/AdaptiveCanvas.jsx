@@ -87,7 +87,7 @@ import { cardEvidence } from './area-evidence.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { withFlushedAnimations } from './animation3d/storage.js';
 import { waitingText } from './waiting-text.js';
-import { equationOf, isWebUrl, looksLikeCode, mermaidOf, pasteKind } from './canvas-paste.js';
+import { equationOf, isWebUrl, looksLikeCode, mermaidOf, pasteKind, pasteTarget } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
 import CommentPins, { PIN_DEFAULT } from './comments/CommentPins.jsx';
 import { anchorAt, objectLabel, selectedIn, targetFor } from './comments/anchors.js';
@@ -2259,7 +2259,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
       inlineAi: (mode = null, preset = null) => openInline(performance.now(), false, mode, preset), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,
-      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true)),
+      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true, cursorAt())),
       duplicate: () => !!pasteIds(selectedRef.current),
       cut: cutSelection, copyStyle: copyStyleCommand, pasteStyle: pasteStyleCommand, lockSelection, nudge,
       // Enter on one selected object: a text box or note opens for typing, a closed shape its words, a line its label.
@@ -2851,7 +2851,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // copy is never locked. step: how far the copies land from their sources.
   // Returns { ids, copies } (copies for Alt-drag to place), or null.
   // clip: a paste from the clipboard, which may name objects since cut or deleted (Duplicate and Alt-drag never do).
-  const pasteIds = (picked, step = 28, clip = false) => {
+  // at: a world point (a paste from the clipboard with the pointer over the canvas, owner 2026-11-14): the copies' top-left corner lands on it and they keep
+  // their layout. Cards go to the column slot at that height with their offsets set so they are drawn at the point; notes, text, equations and marks move by
+  // the same distance. Chat cards, and any card whose slot is not measured yet, keep the step.
+  const pasteIds = (picked, step = 28, clip = false, at = null) => {
     const saved = (clip && clipCopies.current) || {};
     const live = (list, kept = []) => picked.map(id => list.find(entry => entry.id === id) || kept.find(entry => entry.id === id)).filter(Boolean);
     const pickedBlocks = live(blocksRef.current, saved.blocks);
@@ -2873,13 +2876,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const groupFor = entry => wholeGroups.get(entry.groupId)?.id;
     // A copied notebook card gets its own workspace, seeded from the copy of its notebook; a card's references get new ids.
     // An Explain-back copy is a fresh exercise: the learner's answer, attempts and Sketch stay on the original.
-    const copyNode = node => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
-    const blocksCopy = pickedBlocks.map(copyNode);
+    const target = clip && at ? pasteTarget({ at, blocks: pickedBlocks, chats: pickedChats, items: pickedItems, shapes: pickedShapes, list: blocksRef.current, bounds: boundsRef.current, index: flowIndexAt(at.y) }) : null;
+    const copyNode = (node, by = { x: step, y: step }) => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + by.x, dy: node.dy + by.y, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
+    const blocksCopy = pickedBlocks.map(node => copyNode(node, target?.shift || undefined));
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.
     const chatsCopy = pickedChats.map(node => ({ ...copyNode(node), linkFrom: null, status: 'done' }));
-    const itemsCopy = pickedItems.map(item => ({ ...item, id: newId(item.id), groupId: groupFor(item), locked: undefined, x: item.x + step, y: item.y + step, fresh: false }));
-    const shapesCopy = pickedShapes.map(shape => ({ ...shape, id: newId(shape.id), groupId: groupFor(shape), locked: undefined, x1: shape.x1 + step, y1: shape.y1 + step, x2: shape.x2 + step, y2: shape.y2 + step }));
+    const by = target?.move || { x: step, y: step };
+    const itemsCopy = pickedItems.map(item => ({ ...item, id: newId(item.id), groupId: groupFor(item), locked: undefined, x: item.x + by.x, y: item.y + by.y, fresh: false }));
+    const shapesCopy = pickedShapes.map(shape => ({ ...shape, id: newId(shape.id), groupId: groupFor(shape), locked: undefined, x1: shape.x1 + by.x, y1: shape.y1 + by.y, x2: shape.x2 + by.x, y2: shape.y2 + by.y }));
     // Live links first; a saved link only where one of its ends is gone (a cut), never one deleted on its own since.
     const liveIds = new Set(everything().map(entry => entry.id));
     const linkSource = [...present.current.links, ...(saved.links || []).filter(link => !liveIds.has(link.from) || !liveIds.has(link.to))];
@@ -2887,7 +2892,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Each copy lands directly after its source rather than at the end of the
     // column, where on a long canvas it was off-screen and read as nothing
     // having happened.
-    if (blocksCopy.length) setBlocks(previous => {
+    if (blocksCopy.length && target?.shift) setBlocks(previous => [...previous.slice(0, target.index), ...blocksCopy, ...previous.slice(target.index)]);
+    else if (blocksCopy.length) setBlocks(previous => {
       const next = [...previous];
       blocksCopy.forEach((copy, index) => {
         const at = next.findIndex(block => block.id === pickedBlocks[index].id);
@@ -4203,7 +4209,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // One URL asks first (webcard brief): Paste as text or Add webpage card; nothing is placed or fetched until a choice.
       if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active, at: cursorAt() }); return; }
       if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images, cursorAt()); return; }
-      if (kind === 'cards' && pasteIdsRef.current(clipboard.current, 28, true)) { event.preventDefault(); return; }
+      if (kind === 'cards' && pasteIdsRef.current(clipboard.current, 28, true, cursorAt())) { event.preventDefault(); return; }
       if (kind === 'mermaid' || kind === 'equation') { event.preventDefault(); pasteRichRef.current(kind, text); return; }
       if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text, cursorAt()); return; }
       if (kind === 'text') { event.preventDefault(); pasteTextRef.current(text); }
