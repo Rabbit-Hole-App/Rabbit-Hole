@@ -328,8 +328,15 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // so it never flashes at the default place (UI.06).
 const PLACING = { visibility: 'hidden' };
 const grown = (height, grow) => (height == null ? height : height + grow);
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hovered = false, onHover = null, hoverTools = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hoverTools = null, children }) {
   const [lifted, setLifted] = useState(false);
+  // Hover (owner 2026-11-13): the action row shows 150 ms after the pointer rests on the card and leaves 120 ms after it goes, only while no button is down, so it never gets in the way of a drag.
+  // It is this card's own state: a hover change re-renders this card only, never the canvas.
+  const [hovered, setHovered] = useState(false), hoverTimer = useRef(null);
+  const hoverIn = event => { if (event.buttons) return; if (hovered) { clearTimeout(hoverTimer.current); hoverTimer.current = null; return; } if (!hoverTimer.current) hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(true); }, 150); };
+  const hoverOut = () => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(false); }, 120); };
+  const hoverOff = () => { clearTimeout(hoverTimer.current); hoverTimer.current = null; setHovered(false); };
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
   // Open (card-open.js): double-click, Enter, or the Open pill on the one selected card. A chat card never opens.
@@ -420,12 +427,12 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     // exposed as aria-current, and the keyboard focus ring sits outside the selection ring.
     <div ref={card} data-block data-block-id={id} data-card-layout={full ? 'full' : 'scrollable'} {...(chat ? { 'data-chat-block': true } : {})}
       tabIndex={0} role="group" aria-roledescription="card" aria-current={selected ? 'true' : undefined}
-      onPointerEnter={onHover ? () => onHover(id) : undefined} onPointerLeave={onHover ? () => onHover(null) : undefined}
+      onPointerEnter={hoverIn} onPointerMove={hoverIn} onPointerLeave={hoverOut}
       // Read before this press selects the card (the selection re-renders before mousedown); a press within a
       // double-click's interval of the last one is that double-click's second press.
       // A press on a card takes the keyboard back from the companion column (its keys stand down while a focus is held
       // there): otherwise Ctrl+D or Delete on the card just selected would act on nothing (repo-canvas-cards-check case 3).
-      onPointerDownCapture={event => { if (event.timeStamp - lastPress.current > 500) selectedAtPress.current = selected; lastPress.current = event.timeStamp; if (document.activeElement?.closest?.('[data-companion]')) document.activeElement.blur(); }}
+      onPointerDownCapture={event => { hoverOff(); if (event.timeStamp - lastPress.current > 500) selectedAtPress.current = selected; lastPress.current = event.timeStamp; if (document.activeElement?.closest?.('[data-companion]')) document.activeElement.blur(); }}
       onPointerDown={event => { if (event.button !== 0) return; if (event.target.closest('[data-drag-zone]')) drag(event); else onSelect(id, event); }}
       // A single click only selects; a double-click opens - the card's reader, else its Rabbit Hole (made when there is
       // none yet). Never from one of the card's own controls (opensFrom).
@@ -442,11 +449,11 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           owner 2026-10-29), so it is never under the band (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
           lies over the card or its top port. The one selected card says how it opens: a small Enter (owner 2026-11-08: renamed from Open; its title and name still say what it opens), never a big button on every card
           (touch has no double-click). */}
-      {(selected ? (hovered || NO_HOVER) && ((opens && opener.single === id) || tools) : hovered && hoverTools) && (
+      {(selected ? (hovered || NO_HOVER) && ((opens && opener.single === id) || tools) : hovered && (hoverTools || opens)) && (
         <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
           {/* Bridges the 8px gap between the row and the card, so moving the pointer up to the buttons keeps the card hovered. */}
           <span aria-hidden="true" className="pointer-events-auto absolute inset-x-0 top-full h-2" />
-          {opens && opener.single === id && (
+          {opens && (opener.single === id || !selected) && (
             <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
               onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
               className="pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
@@ -902,7 +909,7 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   );
 }
 
-function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null, hovered = false, onHover = null }) {
+function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
   // A CAD card's Interact, Fit view and Show dimensions sit in this row, outside the card (cad-controls placement requirement).
@@ -961,7 +968,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
-      hovered={hovered} onHover={onHover} hoverTools={!selected && hovered ? <HoverActions id={block.id} select={onSelect} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} /> : null}
+      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} /> : null}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
         <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
@@ -1629,13 +1636,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const startRename = id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: startTitleOf(block, describeBlock(block)?.title), rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); };
   // The canvas chat strip (owner 2026-11-13): minimized to the Rabbit Hole button at the lower right, and the last choice is kept on
   // this device (ui-prefs.js chatStrip), so a canvas opens the way the learner left it.
-  // The hovered card (owner 2026-11-13): its action row shows after a short delay in, and a short grace out, so crossing the canvas does not flicker rows.
-  const [hoverId, setHoverId] = useState(null), hoverTimer = useRef(null);
-  const hoverCard = useCallback(id => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => setHoverId(id), id == null ? 120 : 150); }, []);
-  useEffect(() => () => clearTimeout(hoverTimer.current), []);
   const [composerHidden, setComposerHidden] = useState(() => uiPrefs().chatStrip === 'min');
   const keepStrip = value => { try { saveUiPref('chatStrip', value); } catch { /* storage refused: the choice holds until a reload */ } };
   const hideComposer = useCallback(() => { setComposerHidden(true); keepStrip('min'); }, []);
+  // Add to chat and the other "show the chat" actions restore the strip when it is minimized and take the focus (chat-workspace.jsx showChat).
+  useEffect(() => {
+    const show = () => { setComposerHidden(false); keepStrip('open'); requestAnimationFrame(() => shell.current?.querySelector('[data-canvas-composer] input:not([type="file"]), [data-canvas-composer] textarea')?.focus({ preventScroll: true })); };
+    window.addEventListener('rh-strip-show', show);
+    return () => window.removeEventListener('rh-strip-show', show);
+  }, []);
   // The strip's Minimize button lives on the pill itself (ChatComposer, which the Chat's AskPanel draws into the strip), so it announces itself here.
   useEffect(() => { window.addEventListener('rh-strip-minimize', hideComposer); return () => window.removeEventListener('rh-strip-minimize', hideComposer); }, [hideComposer]);
   // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
@@ -2158,6 +2167,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => {
     commandsRef.current = {
       deselect: () => setSelected(null),
+      // The Add to chat pill's x (ContextChips): deselect when the selection is exactly what that pill held (a card's id, or a group's cards).
+      deselectRef: ref => {
+        const ids = ref?.range?.cardIds || (typeof ref?.sourceId === 'string' && ref.sourceId.includes(':') ? [ref.sourceId.slice(ref.sourceId.indexOf(':') + 1)] : []);
+        const now = selectedRef.current;
+        if (ids.length && ids.length === now.length && ids.every(id => now.includes(id))) setSelected(null);
+      },
       // /dive: the return point reads and restores these (docs/features/dive-v1.md).
       getView: () => view, setView, select: id => setSelection([id]), block: id => blocksRef.current.find(block => block.id === id) || null,
       // A selected card the Tutor would read no words from (learn-tutor.js cardText reads a title and a body): a chat card, a
@@ -6410,7 +6425,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardRename.Provider value={readOnly || localCopy ? null : startRename}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; }, tocLinksOf: id => (refLinks.goToc ? resolvedLinks(blocks.find(block => block.id === id), outline) : []) }}>
-            {anchoredSlots(slots).map(slot => <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} /></SurfaceBoundary>)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} /></SurfaceBoundary> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} hovered={hoverId === block.id} onHover={hoverCard} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} placing={pendingAt.current.has(block.id)} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
+            {anchoredSlots(slots).map(slot => <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} actions={roadmap && { ...roadmap, app: appName, onPassage: card => viewPassage(card.sourceRef, { range: card.passage, raw: true }) }} /></SurfaceBoundary>)}{columnEntries(blocks, slots).flatMap(({ block, slot }) => slot ? <SurfaceBoundary key={slot.id} artifact="slot_card"><SlotCard slot={slot} /></SurfaceBoundary> : [<LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} placing={pendingAt.current.has(block.id)} />, roomAfter[block.id] ? <div key={`room:${block.id}`} data-group-room aria-hidden="true" style={{ height: roomAfter[block.id] }} /> : null])}
           </CanvasRefs.Provider></CardOpen.Provider></CardRename.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its

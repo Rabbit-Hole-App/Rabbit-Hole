@@ -133,7 +133,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
                 {selected && <span className="shrink-0 text-ink-3">· selected</span>}
               </button>
               {state === 'failed' && <button type="button" onClick={item.retry} aria-label={`Retry uploading ${ref.name}`} title="Retry" className={CHIP_ICON_BUTTON}><RotateCw size={12} aria-hidden /></button>}
-              {!busy && <button type="button" onClick={() => { if (item.dismiss) item.dismiss(); else { chat.context.detach(ref); if (codeSelected(ref)) code.onRemove(ref); else if (selected) selection.onClear?.(); } }}
+              {!busy && <button type="button" onClick={() => { if (item.dismiss) item.dismiss(); else { chat.context.detach(ref); if (codeSelected(ref)) code.onRemove(ref); else if (selected) selection.onClear?.(); else chat.canvasOps?.deselectRef?.(ref); } }}
                 aria-label={item.dismiss ? `Dismiss ${ref.name}` : `Remove ${ref.name} from this chat`} title={item.dismiss ? 'Dismiss' : 'Remove from this chat'} className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>}
             </li>
           );

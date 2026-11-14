@@ -453,6 +453,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     },
     fileForContext: ref => sourcesRef.current.find(source => source.kind === 'file' && source.id === ref.sourceId)?.fileRef,
     insertChat: entry => canvasApi.current?.insertChat(entry),
+    deselectRef: ref => canvasApi.current?.deselectRef?.(ref),
     // UI-15 / MOT-20 (generation-proposal-chat.js): what a chat turn sends so the server can propose a Motion video (the canvas
     // is the learner's location: its title names the concept), and whether a proposal already made its card here.
     generation: (target, current, concept = app.title, edit = false) => generationField({ offered: isLearnCommand('motion'), concept, target, current, edit }),

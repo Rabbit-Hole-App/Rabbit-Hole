@@ -55,14 +55,16 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   const toc = useMemo(() => ({ thread: tocThread, composer: tocComposer, context: tocContext }), [tocThread, tocComposer, tocContext]);
   // composer.prepare (contract A6) for Lane B actions and Explore next: opens Chat, applies mode and refs, then the draft rules.
   const prepareDraft = composer.prepare;
-  const prepare = useCallback((options = {}) => { panels.openChat(); if (options.mode) thread.setMode(options.mode); options.contextRefs?.forEach(context.attach); prepareDraft(options); }, [panels, thread, context, prepareDraft]);
+  // Show the chat that is open (owner 2026-11-13): the right panel when it is open, else the canvas strip (restored if minimized), never forcing the panel open.
+  const showChat = useCallback(() => { if (panels.open) panels.openChat(); else window.dispatchEvent(new Event('rh-strip-show')); }, [panels]);
+  const prepare = useCallback((options = {}) => { showChat(); if (options.mode) thread.setMode(options.mode); options.contextRefs?.forEach(context.attach); prepareDraft(options); }, [showChat, thread, context, prepareDraft]);
   const chatComposer = useMemo(() => ({ ...composer, prepare }), [composer, prepare]);
   // A ref's reader opens in the Context tab; viewing never attaches (contract A5). options.reveal false: a late completion
   // loads the reader without reopening a panel the learner hid (chat-panels.js openSources).
   // A PDF excerpt chip names its reader ref in `open` (pdf-excerpt.js): the PDF at the excerpt's page, with its anchor.
   const openSource = useCallback((ref, options) => { panels.openSources(options); sources.open(ref?.open || ref); }, [panels, sources]);
   // Add to Chat (contract A5): open Chat, Ask mode, attach, keep the draft, focus, never send.
-  const addToChat = useCallback((ref, options) => { if (canvasOps?.retainFileForContext?.(ref, options?.fileRef) === false) return false; panels.openChat(); thread.setMode('ask'); context.attach(ref); composer.focus(); }, [panels, thread, context, composer, canvasOps]);
+  const addToChat = useCallback((ref, options) => { if (canvasOps?.retainFileForContext?.(ref, options?.fileRef) === false) return false; showChat(); thread.setMode('ask'); context.attach(ref); composer.focus(); }, [panels, showChat, thread, context, composer, canvasOps]);
   // The Chat's AskPanel registers its send loop (A2); regenerate(messageId) re-sends that turn with regenerate: { messageId }
   // (contract B5). The server reuses the stored turn's mode, command and refs, so nothing open now leaks in.
   const sender = useRef(null), waiting = useRef(null);

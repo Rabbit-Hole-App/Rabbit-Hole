@@ -106,10 +106,11 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
       {body}
       {send}
     </form>
-    <div data-composer-toolbar className="flex min-w-0 items-center gap-0.5 px-2">
-      {leading}
+    {/* Each group sits on its own white pill (owner 2026-11-13): bare icons are hard to see over a card behind the strip. An empty group draws nothing. */}
+    <div data-composer-toolbar className="flex min-w-0 items-center gap-1.5 px-1">
+      <div className="flex items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-sm empty:hidden">{leading}</div>
       <span className="min-w-0 flex-1" />
-      {trailing}
+      <div className="flex items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-sm empty:hidden">{trailing}</div>
     </div>
   </div>;
   return <form data-chat-composer className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
