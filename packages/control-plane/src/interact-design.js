@@ -20,7 +20,8 @@ import { capabilityGap, compilerSupport } from './explain-author.js';
 import { programEnabled, programTupleFor, statefulEnabled } from './explain-program.js';
 import { modelEvidence } from './explain-evidence.js';
 import { INTERACT_LIMITS, InteractModelError } from './interact-models.js';
-import { briefSchema, expandBrief, referenceFormulaCheck } from '../../web/src/interact-plan-brief.js';
+import { briefSchema } from '../../web/src/interact-plan-brief.js';
+import { INTERACT_FAMILIES } from './interact-families.js';
 import { fillSystem, formulaProblems } from './interact-design-fill.js';
 import { DESIGN_AUTHOR_SYSTEM, DESIGN_AUTHOR_TOOL, DESIGN_AUTHOR_VERSION, designAuthorSchema } from './agents/interact-design-author.js';
 import { DESIGN_REVIEW_SYSTEM, DESIGN_REVIEW_TOOL, DESIGN_REVIEW_VERSION, designReviewSchema } from './agents/interact-design-review.js';
@@ -170,11 +171,11 @@ async function authorOnce(job, ctx, extra = {}) {
 // the runtime and capture budget, the description fit and the reference formulas (no range-match rule). A refusal gets ONE fill correction that names the first problem line; a second refusal sends the same
 // job to the Opus author below (the learner sees no difference). -> { plan, planHash, bindingProblems, fast: { kind: 'fast', ... } } on a pass, { fast: { kind: 'opus', fallback: 'after_correction', ... } } on a fallback.
 const line = problem => (typeof problem === 'string' ? problem : `${problem.path ?? ''} ${problem.message ?? ''}`.trim());
-async function fillProblems(raw, depth, info, ctx) {
+async function fillProblems(raw, depth, info, ctx, family) {
   const parsed = info.parse(raw);
   if (!parsed.ok) return { problems: parsed.problems };
   let plan;
-  try { plan = expandBrief(parsed.value, depth, { catalogueHash: ctx.capabilities.catalogueHash }); } catch (error) { return { problems: [`expand: ${String(error.message).slice(0, 300)}`] }; }
+  try { plan = family.expandBrief(parsed.value, depth, { catalogueHash: ctx.capabilities.catalogueHash }); } catch (error) { return { problems: [`expand: ${String(error.message).slice(0, 300)}`] }; }
   // The family's claims cite the reference note (kinematics_note); a job supplies only its own evidence, and a claim with none is checked as a fact, as the Opus plans are.
   const supplied = new Set(ctx.capabilities.evidenceIds || []);
   plan = { ...plan, claims: plan.claims.map(c => ({ ...c, evidenceIds: c.evidenceIds.filter(id => supplied.has(id)) })) };
@@ -185,19 +186,19 @@ async function fillProblems(raw, depth, info, ctx) {
   // Without a fit measurement the close (design_verifying) stops with its own reason; with one, a bad description is a fill problem the correction can fix.
   const fit = typeof ctx.descriptionFit === 'function' ? await descriptionFitProblems(checked.value, await ctx.descriptionFit(checked.value)) : [];
   if (fit.length) return { problems: fit.map(line) };
-  const wrong = formulaProblems(referenceFormulaCheck(parsed.value, depth));
+  const wrong = formulaProblems(family.referenceCheck(parsed.value, depth));
   return wrong.length ? { problems: wrong } : { plan: checked.value };
 }
-export async function fastDesign(job, ctx) {
-  const depth = job.depth, info = briefSchema(depth), fast = { kind: 'fast', model: null, calls: 0, fallback: 'none', firstProblem: null, costUsd: 0 };
+export async function fastDesign(job, ctx, family = INTERACT_FAMILIES[0].module) {
+  const depth = job.depth, info = briefSchema(depth, family), fast = { kind: 'fast', model: null, calls: 0, fallback: 'none', firstProblem: null, costUsd: 0 };
   let problems = [], previous = null;
   for (let round = 0; round < INTERACT_LIMITS.calls.design_fill; round++) {
     fast.calls++;
     try {
-      const done = await ctx.interact('design_fill', { system: fillSystem(depth, info), schema: info.jsonSchema, name: 'return_plan_brief', description: 'Return the plan brief of the scene.',
+      const done = await ctx.interact('design_fill', { system: fillSystem(depth, info, family), schema: info.jsonSchema, name: 'return_plan_brief', description: 'Return the plan brief of the scene.',
         input: { request: job.prompt, depth, ...(round ? { ...(previous ? { previous } : {}), correction: { instruction: 'Your previous brief was refused. Return the WHOLE corrected brief and change only what this problem names.', problems: problems.slice(0, 1) } } : {}) } });
       fast.model = done.requested?.model ?? fast.model; fast.costUsd += (done.costMicros ?? 0) / 1e6; previous = done.output;
-      const checked = await fillProblems(done.output, depth, info, ctx);
+      const checked = await fillProblems(done.output, depth, info, ctx, family);
       if (checked.plan) return { plan: checked.plan, planHash: await planHash(checked.plan), bindingProblems: [], fast };
       problems = checked.problems;
     } catch (error) {

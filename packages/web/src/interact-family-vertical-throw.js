@@ -1,5 +1,6 @@
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
-import { evalQuantity } from './interact-formula.js';
+import { evalQuantity, parseQuantity } from './interact-formula.js';
+import { evalScalar } from './interact-plan.js';
 
 // The family `vertical-throw` (owner brief 11, design MVP): a ball thrown straight up, shown at three depths. The depth picks the template (code, no pick step); the plan brief
 // (interact-plan-brief.js) carries what a model writes (the title, the story, the ranges, the formulas, the words); expandBrief below writes everything else, in code: the runtime tuple,
@@ -10,9 +11,9 @@ import { evalQuantity } from './interact-formula.js';
 export const FAMILY = Object.freeze({
   id: 'vertical-throw',
   depths: Object.freeze({
-    brief: Object.freeze({ template: 'one-body', roles: Object.freeze(['height', 'velocity', 'acceleration', 'apexTime', 'apexHeight']), gravity: 'fixed', mass: false }),
-    balanced: Object.freeze({ template: 'two-lane', roles: Object.freeze(['tossedHeight', 'tossedVelocity', 'tossedAcceleration', 'dropHeight', 'dropVelocity', 'dropAcceleration', 'apexTime', 'apexHeight']), gravity: 'range', mass: false }),
-    detailed: Object.freeze({ template: 'body-plot', roles: Object.freeze(['height', 'velocity', 'acceleration', 'force', 'apexTime', 'apexHeight']), gravity: 'range', mass: true }),
+    brief: Object.freeze({ template: 'one-body', roles: Object.freeze(['height', 'velocity', 'acceleration', 'apexTime', 'apexHeight']), gravity: 'fixed', mass: false, inputs: Object.freeze([['launchSpeed', 'range'], ['gravity', 'fixed']]) }),
+    balanced: Object.freeze({ template: 'two-lane', roles: Object.freeze(['tossedHeight', 'tossedVelocity', 'tossedAcceleration', 'dropHeight', 'dropVelocity', 'dropAcceleration', 'apexTime', 'apexHeight']), gravity: 'range', mass: false, inputs: Object.freeze([['launchSpeed', 'range'], ['gravity', 'range']]) }),
+    detailed: Object.freeze({ template: 'body-plot', roles: Object.freeze(['height', 'velocity', 'acceleration', 'force', 'apexTime', 'apexHeight']), gravity: 'range', mass: true, inputs: Object.freeze([['launchSpeed', 'range'], ['gravity', 'range'], ['mass', 'range']]) }),
   }),
 });
 
@@ -220,3 +221,100 @@ export function extractBrief(plan) {
 
 // The height at t = 0: the formula with t = 0 and the default inputs, evaluated by the plan's own grammar.
 function launchHeightOf(quantity, inputs, fixed) { return Math.round(evalQuantity(quantity, inputs, 0, {}, fixed) * 1e9) / 1e9; }
+
+// The reference physics (up positive; the force a magnitude; the second ball held at the top height until the top, then falling from rest): the value a role must have at inputs `v` (launch speed), `g`, `m` and time `t`
+// for a launch height `h0`.
+export function referenceValue(role, t, { v, g, m = 1, h0 = 0 }) {
+  const top = v / g, toss = h0 + v * t - g * t * t / 2, held = t < top;
+  switch (role) {
+    case 'height': case 'tossedHeight': return toss;
+    case 'velocity': case 'tossedVelocity': return v - g * t;
+    case 'acceleration': case 'tossedAcceleration': return -g;
+    case 'force': return m * g;
+    case 'apexTime': return top;
+    case 'apexHeight': return h0 + v * v / (2 * g);
+    case 'dropHeight': return held ? h0 + v * v / (2 * g) : toss;
+    case 'dropVelocity': return held ? 0 : -g * (t - top);
+    case 'dropAcceleration': return held ? 0 : -g;
+    default: throw new Error(`no reference physics for the role "${role}"`);
+  }
+}
+
+// family.referenceCheck(brief, depth) -> { ok, failures: [{ role, point, got, expected }] }: the brief's formulas against the reference physics at 24 points over the brief's own input ranges and timeline (0 to 2 v / g, the return to the launch height),
+// skipping 1e-3 s around a piecewise switch, relative tolerance 1e-4 (against the larger of the expected value and 1, so a reference of zero is an absolute 1e-4). A formula that does not parse is a failure with
+// point null and the parser's message as `got`. At most 12 failures are listed.
+export function referenceCheck(brief, depth) {
+  const family = FAMILY.depths[depth], fixedGravity = family.gravity === 'fixed' ? brief.gravity.fixed : null;
+  const names = ['launchSpeed', ...(fixedGravity === null ? ['gravity'] : []), ...(family.mass ? ['mass'] : [])], fixed = fixedGravity === null ? {} : { gravity: fixedGravity };
+  const failures = [], quantities = {};
+  for (const role of family.roles) {
+    const f = brief.formulas[role], quantity = { id: role, formula: f.formula, ...(f.switchAt != null && f.formulaAfter != null ? { switchAt: f.switchAt, formulaAfter: f.formulaAfter } : {}) };
+    try { parseQuantity(quantity, { names, fixed }); quantities[role] = quantity; } catch (error) { if (!error.code) throw error; failures.push({ role, point: null, got: error.message, expected: 'a formula over t and the input names' }); }
+  }
+  // The input sets: every corner of the ranges plus the defaults; the times: evenly spread over the timeline, enough per set to reach 24 points.
+  const axes = [['launchSpeed', brief.launchSpeed], ...(fixedGravity === null ? [['gravity', brief.gravity]] : []), ...(family.mass ? [['mass', brief.mass]] : [])];
+  let sets = [Object.fromEntries(axes.map(([id, r]) => [id, r.default]))];
+  for (let bits = 0; bits < 2 ** axes.length; bits++) sets.push(Object.fromEntries(axes.map(([id, r], i) => [id, bits >> i & 1 ? r.max : r.min])));
+  const perSet = Math.ceil(24 / sets.length);
+  for (const inputs of sets) {
+    const v = inputs.launchSpeed, g = fixedGravity ?? inputs.gravity, m = inputs.mass ?? 1, end = 2 * v / g, top = v / g;
+    for (let k = 1; k <= perSet; k++) {
+      const t = end * k / (perSet + 1);
+      for (const [role, quantity] of Object.entries(quantities)) {
+        if (ROLES[role].piecewise && Math.abs(t - top) < 1e-3) continue;
+        const expected = referenceValue(role, t, { v, g, m, h0: brief.launchHeight });
+        let got; try { got = evalQuantity(quantity, inputs, t, {}, fixed); } catch (error) { if (!error.code) throw error; if (failures.length < 12) failures.push({ role, point: { ...inputs, t }, got: error.message, expected }); continue; }
+        if (!Number.isFinite(got) || Math.abs(got - expected) > 1e-4 * Math.max(Math.abs(expected), 1)) { if (failures.length < 12) failures.push({ role, point: { ...inputs, t: Number(t.toFixed(6)) }, got, expected }); }
+      }
+    }
+  }
+  const seen = new Set(), unique = failures.filter(f => { const key = `${f.role}|${f.point ? JSON.stringify(f.point) : 'parse'}`; if (seen.has(key)) return false; seen.add(key); return true; });
+  return { ok: unique.length === 0, failures: unique.slice(0, 12) };
+}
+
+// ---- the family object (owner 2026-11-14 00:50, family contract) ----
+// What the brief schema (interact-plan-brief.js briefSchema), the fill (control-plane interact-design-fill.js), the checks and the template generator (interact-templates/generate.js) read, so a second family is one
+// more such object plus a registry entry (control-plane interact-families.js). A family exports: id; FAMILY ({ id, depths: { depth: { template, roles, inputs: [[inputId, 'range' | 'fixed']], ... } } });
+// INPUTS and ROLES (label, unit, meaning per input and per formula role); LIMITS (brief limits beyond the shared ones) and scalars ([{ id, description, max }]: single numbers the brief carries beside the inputs);
+// referenceCheck(brief, depth); expandBrief, extractBrief, familyDescription(depth); formulaGrammar and formulaRules (the fill's text lines: the grammar with the independent variable's sentence, and the
+// family's own rules); templates (the template names it draws); context(...) (the geometry its templates need); and, instead of a timeline, optionally independent: { id, domain } for a still scene.
+export const LIMITS = Object.freeze({ launchHeight: 10 });
+export const scalars = Object.freeze([{ id: 'launchHeight', description: 'height of the launch mark above the ground mark in metres (0 when the ball is thrown from the ground mark)', max: LIMITS.launchHeight }]);
+export const templates = Object.freeze(['one-body', 'two-lane', 'body-plot']);
+export const formulaGrammar = Object.freeze([
+  'A formula is text: numbers, names, + - * /, unary minus, parentheses, and ^ with a literal whole-number exponent 2, 3 or 4 (for example t^2). Nothing else: no functions, no conditions, no other powers. At most 200 characters and 32 nodes.',
+  'The readable names are `t` (elapsed seconds since launch, 0 at the launch), the scene\'s numeric inputs by id (launchSpeed, gravity, mass where the scene has them) and, where the scene fixes gravity, `gravity`. Up is positive; a force is a magnitude. A quantity that changes rule at one moment is piecewise: `formula` applies while t < switchAt, `formulaAfter` from switchAt on; switchAt is a formula over the inputs only (no t). Give switchAt and formulaAfter as null when the quantity has one rule at every time.',
+]);
+// Brief 12: three lines the first matrix showed the fast model needs (two briefs wrote launchHeight as a name, some formulas ran past 32 nodes, a detailed timeline began before the launch).
+export const formulaRules = Object.freeze([
+  'launchHeight is a number: write it as a literal, never as a name in a formula.',
+  'A formula has at most 32 nodes.',
+  'The detailed timeline counts time from the launch, and a marker is never before 0.',
+]);
+
+const superscripts = unit => String(unit ?? '').replace('^2', '²').replace('^3', '³');
+// The geometry the vertical-throw templates draw from: the largest rise above the launch height, the longest timeline end and the plotted quantity's largest size over the corners and middle of every input range,
+// and the units of the body's height, velocity, acceleration and force. -> { range: { rise, end, plotted }, units }. A timed body: the velocity starts positive and crosses zero at the top.
+export function context({ bodies, slots, parsed, numberInputs, endExpr, quantities }) {
+  const body = bodies[0], plotted = slots.plotted ?? body.velocity;
+  const evalQ = (id, values, t) => { const q = parsed[id], at = { ...values, t }; return q.formulaAfter && t >= evalScalar(q.switchAt, values) ? evalScalar(q.formulaAfter, at) : evalScalar(q.formula, at); };
+  const topAt = (values, end) => { // the body's velocity crosses zero (bisection), as the program finds it
+    if (evalQ(body.velocity, values, 0) <= 0) return 0;
+    let lo = 0, hi = end;
+    for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (evalQ(body.velocity, values, mid) > 0) lo = mid; else hi = mid; }
+    return (lo + hi) / 2;
+  };
+  let grid = [{}];
+  for (const input of numberInputs) grid = grid.flatMap(values => [input.min, (input.min + input.max) / 2, input.max].map(value => ({ ...values, [input.id]: value })));
+  const range = { rise: 0, end: 0, plotted: 0 };
+  for (const values of grid) {
+    const end = evalScalar(endExpr, { ...values, t: 0 });
+    range.rise = Math.max(range.rise, evalQ(body.height, values, topAt(values, end)) - evalQ(body.height, values, 0));
+    range.end = Math.max(range.end, end);
+    range.plotted = Math.max(range.plotted, Math.abs(evalQ(plotted, values, 0)), Math.abs(evalQ(plotted, values, end)));
+  }
+  const unitOf = id => superscripts(quantities.get(id)?.unit);
+  return { range, units: { height: unitOf(body.height), velocity: unitOf(body.velocity), acceleration: unitOf(body.acceleration), ...(slots.force ? { force: unitOf(slots.force) } : {}) } };
+}
+
+export const verticalThrow = Object.freeze({ id: FAMILY.id, FAMILY, INPUTS, ROLES, LIMITS, scalars, templates, formulaGrammar, formulaRules, referenceCheck, context, expandBrief, extractBrief, familyDescription });
