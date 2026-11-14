@@ -1,0 +1,30 @@
+{"depth":"brief","i":0,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"brief","i":1,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"brief","i":2,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"brief","i":3,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"brief","i":4,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"brief","i":5,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"brief","i":6,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"brief","i":7,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"brief","i":8,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"brief","i":9,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"balanced","i":0,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"balanced","i":1,"kind":"opus","calls":2,"fb":"after_correction","first":"scene.quantities.7.formulaAfter quantity \"dropVelocity\" formulaAfter: unknown name \"apexTime\" at character 20; readable: t, launchSpeed, gravity","last":"formula dropHeight at {\"launchSpeed\":5,\"gravity\":9.8,\"t\":0.170068}: got 0.7086167800453514, expected 1.2755102040816326"}
+{"depth":"balanced","i":2,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"balanced","i":3,"kind":"fast","calls":2,"fb":"none","first":"formula dropHeight at {\"launchSpeed\":5,\"gravity\":9.8,\"t\":0.170068}: got 0.7086167800453514, expected 1.2755102040816326","last":"formula dropHeight at {\"launchSpeed\":5,\"gravity\":9.8,\"t\":0.170068}: got 0.7086167800453514, expected 1.2755102040816326"}
+{"depth":"balanced","i":4,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"balanced","i":5,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"balanced","i":6,"kind":"opus","calls":2,"fb":"after_correction","first":"receipt.widths.1.lines the description renders in 1 lines at 720px; it must be 2 to 4. Fix: write cardDescription as two sentences of 130 to 200 characters in o","last":"receipt.widths.2.lines the description renders in 1 lines at 794px; it must be 2 to 4. Fix: write cardDescription as two sentences of 130 to 200 characters in o"}
+{"depth":"balanced","i":7,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"balanced","i":8,"kind":"fast","calls":2,"fb":"none","first":"receipt.widths.2.lines the description renders in 1 lines at 794px; it must be 2 to 4. Fix: write cardDescription as two sentences of 130 to 200 characters in o","last":"receipt.widths.2.lines the description renders in 1 lines at 794px; it must be 2 to 4. Fix: write cardDescription as two sentences of 130 to 200 characters in o"}
+{"depth":"balanced","i":9,"kind":"fast","calls":2,"fb":"none","first":"receipt.widths.2.lines the description renders in 1 lines at 794px; it must be 2 to 4. Fix: write cardDescription as two sentences of 130 to 200 characters in o","last":"receipt.widths.2.lines the description renders in 1 lines at 794px; it must be 2 to 4. Fix: write cardDescription as two sentences of 130 to 200 characters in o"}
+{"depth":"detailed","i":0,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"detailed","i":1,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"detailed","i":2,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"detailed","i":3,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"detailed","i":4,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"detailed","i":5,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"detailed","i":6,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"detailed","i":7,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"detailed","i":8,"kind":"fast","calls":1,"fb":"none"}
+{"depth":"detailed","i":9,"kind":"fast","calls":1,"fb":"none"}

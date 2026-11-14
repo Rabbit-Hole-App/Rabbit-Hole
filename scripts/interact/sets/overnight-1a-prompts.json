@@ -1,0 +1,17 @@
+[
+ {
+  "id": "1",
+  "prompt": "At the highest point of a vertical throw, is acceleration zero because velocity is zero?",
+  "expect": "fit"
+ },
+ {
+  "id": "35",
+  "prompt": "How does attention work in a transformer?",
+  "expect": "fit"
+ },
+ {
+  "id": "46",
+  "prompt": "What are the steps of the Krebs cycle?",
+  "expect": "fit"
+ }
+]
