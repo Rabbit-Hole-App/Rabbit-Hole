@@ -1,0 +1,38 @@
+{
+  "jobId": "ej_38f166d1921e44d7a880a35d8731d61a",
+  "plan": "toss-mvp-balanced",
+  "depth": "balanced",
+  "profile": "google-low",
+  "buildKind": "template",
+  "judgeModel": "claude-sonnet-5-5",
+  "verdict": "fail",
+  "costMicros": 32674,
+  "ms": 6908,
+  "findings": [
+    {
+      "capture": "start",
+      "category": "spec",
+      "severity": "major",
+      "message": "The scrubber is labelled 'Time from the top' and reads -0.51 to 0.51 s. The traces use time from launch instead: start is 0, top is 0.510204, and end is 1.020408. The scrubber's time reading contradicts the traced time, so the offset is inconsistent. This cannot be fully judged from the frames, because no scrubber readout is shown.",
+      "object": "scrub"
+    },
+    {
+      "capture": "cp-before",
+      "category": "spec",
+      "severity": "major",
+      "message": "Before the top, the dropped ball is held with v=0 and a=0, but the plan says the toss and drop balls match only after release. The plan's 'sameAfterRelease' claim says 'toss acceleration is -gravity throughout'. That holds, but the plan lists only the drop quantities, not the held-state callouts. The hold-state drop acceleration of 0 is consistent with the plan, so this is not itself wrong. Even so, the 'topMoves' observation has an empty readoutIds list, so the card has no readout that supports the claim that the readings at the top do not change. The plan supports this only through the fastTop capture, where the readout shows a=-4 as expected."
+    },
+    {
+      "capture": "cp-top",
+      "category": "spec",
+      "severity": "major",
+      "message": "At the exact top (t=apex), dropAcceleration is -9.8 while the drop ball's velocity is 0 and the gate has opened. The tossed ball at the top is drawn without a velocity arrow (a zero marker), as expected. At the top the drop lane state reads 'Released', and the trace is piecewise at the switch. Whether the drop lane's a=-g reading at the exact top is consistent with 'held until the top' cannot be judged. This is minor but worth noting. The callout text content is not shown in the frames, so readout labels and units cannot be verified."
+    },
+    {
+      "capture": "end",
+      "category": "spec",
+      "severity": "minor",
+      "message": "At the end, the drop lane state reads 'Hit ground' and its ball is drawn at launch height (y=243). The plan calls this height 0, the launch mark, while the plan says 'ground mark'. The axis ground and launch mark coincide, so this is only imprecise."
+    }
+  ]
+}

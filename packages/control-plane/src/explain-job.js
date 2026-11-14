@@ -1109,7 +1109,7 @@ export class ExplainJobs {
       await keep('draft', { plan: out.plan, planHash: out.planHash, bindingProblems: out.bindingProblems, at: now });
       // A fast design passed its checks in the fill stage: no review and no reviser, straight to the closing check. A fallback began the Opus design here: its roles are reserved now.
       if (out.fast?.fallback && out.fast.fallback !== 'none') { const profile = resolveInteractProfile(job.flow.profile.id); job.reservation.preparationMicros += interactReservation(profile).preparationMicros; }
-      next(out.fast?.kind === 'fast' ? 'design_verifying' : 'design_reviewing');
+      next(out.fast?.kind === 'fast' || out.fast?.opusBrief ? 'design_verifying' : 'design_reviewing'); // an Opus-written brief (INTERACT_FAST_OPUS_BRIEF) passed the same checks as a fill: no review, no reviser
     } else if (stage === 'design_reviewing') {
       const followUp = d.revisions.length > 0, blocking = out.review.findings.filter(isBlocking);
       d.review = out.review;

@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
-const REPO = 'C:/Users/cyudhist/Desktop/workspace/feature-interactive';
+const REPO = process.env.DEPLOY_REPO || 'C:/Users/cyudhist/Desktop/workspace/feature-interactive'; // DEPLOY_REPO: the worktree whose code is deployed (default: the coordinator's checkout)
 const WEB = `${REPO}/packages/web`;
 const NAME = 'rabbit-hole-web-dev-interact';
 const step = process.argv[2];
