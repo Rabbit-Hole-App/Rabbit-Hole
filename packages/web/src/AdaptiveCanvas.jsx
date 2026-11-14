@@ -75,7 +75,7 @@ import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, colu
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
-import { besideSpot } from './beside-placement.js';
+import { besideSpot, followPlace } from './beside-placement.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
 import { SlotCard } from './SlotCard.jsx';
 import { NextCardPill } from './NextStepPill.jsx';
@@ -2391,12 +2391,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0 }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0, follow = false }) => {
         const id = `slot:${crypto.randomUUID()}`;
         let size = slotSize(card, BLOCK_TYPES, samples);
         // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
-        const source = beside ? boundsRef.current[beside] : null, spot = !given && source ? besideSpot(source, size, boardObstacles([beside]), { dy: besideDy }) : null, at = given || spot;
-        if (spot) size = { ...size, h: Math.round(source.h) };
+        // `follow` (a typed /explain): beside the selected card, else the latest explanation card (followAnchor), scattered, and never the column once there is one to follow (followPlace).
+        const anchor = beside || (follow && !given ? followAnchor() : null), source = anchor ? boundsRef.current[anchor] : null;
+        let at = given;
+        if (!at && source && follow && !beside) ({ at, size } = followPlace({ source, size, id, obstacles: boardObstacles([anchor]) }));
+        else if (!at && source) { at = besideSpot(source, size, boardObstacles([anchor]), { dy: besideDy }); if (at) size = { ...size, h: Math.round(source.h) }; }
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
@@ -5426,8 +5429,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A card for a reserved slot (`into`) takes that slot's place, never a new one - with the room the slot kept
   // above it at the end of a crowded column (its `top`, as the card's own top margin); a slot that has gone
   // (released, or this is another canvas) leaves the card to land where the learner is looking.
+  // The card a typed /explain follows (canvas-cards BUG 4): the selected card, else the newest explanation card on this board - tracked as cards arrive, and after a reload the
+  // last one in the board's order. Nothing to follow (an empty board): null, and the card takes the column place, once.
+  const lastExplain = useRef(null);
+  const explainCard = block => !!block && (!!block.explain || !!block.explainJob || (block.type === 'explanation' && !block.anchor));
+  const followAnchor = () => {
+    const drawn = id => blocksRef.current.some(block => block.id === id) && boundsRef.current[id];
+    const picked = selectedRef.current.find(drawn);
+    if (picked) return picked;
+    if (lastExplain.current && drawn(lastExplain.current)) return lastExplain.current;
+    return [...blocksRef.current].reverse().find(block => explainCard(block) && drawn(block.id))?.id ?? null;
+  };
   const insertAtView = (block, into = null) => {
     perfMark(block.id, 'insert');
+    if (explainCard(block)) lastExplain.current = block.id;
     const slot = into && slotsRef.current.find(entry => entry.id === into);
     const index = slot ? null : flowIndexAtView();
     if (slot?.top) block = { ...block, space: slot.top };
