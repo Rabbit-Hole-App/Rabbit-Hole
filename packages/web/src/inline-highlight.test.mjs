@@ -86,10 +86,10 @@ test('wiring: the canvas picks the highlight, the editor draws the chip, the mar
   assert.match(canvas, /pickedHighlight\(shell\.current, board\.blocks, viewRef\.current\.z\)/);
   assert.match(canvas, /highlight=\{inline\.highlight \|\| null\}/);
   assert.doesNotMatch(canvas, /onClearHighlight/, 'no chip x: the window closes it');
-  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy \}\)/);
+  assert.match(canvas, /besideSpot\(source, size, boardObstacles\(\[anchor\]\), \{ dy: besideDy, \.\.\.\(passage/); // CK-5: the passage side table follows dy
   assert.doesNotMatch(editor, /Remove the highlighted text/, 'the chip has no x');
   assert.match(editor, /data-inline-close/, 'the x belongs to the window');
-  assert.ok(editor.includes("config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: (highlight?.text ?? preset.prompt ?? '').slice(0, 1500) })"), 'a plain prompt asks the router which command it is, over highlighted words and over the bulb passage');
+  assert.ok(editor.includes("config.transport.route({ requestId: crypto.randomUUID(), prompt: asked, selection: passageText.slice(0, 1500) })"), 'a plain prompt asks the router which command it is, over highlighted words and over the bulb passage');
   assert.ok(editor.includes('intent.probability >= INTENT_AT'));
   assert.ok(editor.includes('config.handoff(line, { selection: highlight ? highlightSelection() : null })'), 'a picked command is handed to Chat');
   assert.doesNotMatch(editor, /askChat/, 'a plain prompt with no command stays in Ctrl+K');
@@ -103,8 +103,8 @@ test('wiring: the canvas picks the highlight, the editor draws the chip, the mar
   const chat = read('ChatMessages.jsx');
   assert.ok(chat.includes('data-chat-highlight-clear') && chat.includes('aria-label="Remove the highlight"') && chat.includes('onClick={markClear}'), 'the Chat chip has the x that un-highlights');
   assert.ok(chat.includes('{live && <button'), 'the x only while the mark is on');
-  assert.match(editor, /firstWords\(highlight\.text\)/);
-  assert.match(editor, /title=\{highlight\.text\}/);
+  assert.match(editor, /firstWords\(passageText\)/); // CK-2: the pill shows the passage (a highlight's words, or the bulb's)
+  assert.match(editor, /title=\{passageText\}/);
   assert.ok(editor.includes('markSet(highlight)'));
   assert.ok(read('inline-highlight-mark.js').includes("CSS.highlights.set('inline-target', new Highlight(current.live))"));
   assert.match(editor, /data-inline-scrim /);
@@ -239,10 +239,10 @@ test('wiring: the window is placed by placeBesideWords against the live words, t
   const editor = read('InlineAiEditor.jsx'), canvas = read('AdaptiveCanvas.jsx');
   assert.ok(editor.includes('placeBesideWords(marked, { w: width, h: height }, surface, { avoid: canvas.chromeRects(), edge: EDGE })'));
   assert.ok(editor.includes("document.addEventListener('scroll', again, true)") && editor.includes("window.addEventListener('resize', again)"), 'recomputed on scroll and resize');
-  assert.ok(editor.includes('canvas.frameWords(words,'));
+  assert.ok(editor.includes('canvas.frameWords(span,')); // CK-1: `words` is now the highlight or the bulb's passage; `span` its rect union
   assert.ok(editor.includes('if (!handedOff.current) restore?.()'), 'closed without sending: the camera goes back; a sent command: the new card frame takes over');
   assert.ok(canvas.includes('frameWords: (words, win) => { const free = visibleArea()') && canvas.includes('const target = cameraForWords(words, win, viewRef.current, area);'));
-  assert.ok(editor.includes('canvas.frameWords(words, { w: W, h: FRAME_ROOM, gap: 10 })'), 'the camera centres the words and the first window height, not the whole reserve');
+  assert.ok(editor.includes('canvas.frameWords(span, { w: W, h: FRAME_ROOM, gap: 10 })'), 'the camera centres the words and the first window height, not the whole reserve');
   assert.ok(canvas.includes('glideTo(target, true)'), 'the canvas\'s own short glide (none under reduced motion)');
 });
 
@@ -256,7 +256,7 @@ test('the window is placed once, against where the camera glide leaves the words
   assert.deepEqual(placeBesideWords([end], { w: 420, h: 300 }, SURF), first, 'the same rects and size give the same place on every render');
   const editor = read('InlineAiEditor.jsx');
   assert.ok(editor.includes('if (settled) return settled;'), 'the rects the window follows are the settled ones, not the live words mid-glide');
-  assert.ok(/useLayoutEffect\(\(\) => \{\s+const origin = overlay\.current\?\.getBoundingClientRect\(\);\s+if \(!highlight \|\| !origin \|\| !canvas\.frameWords\) return undefined;/.test(editor), 'framed before the first paint');
+  assert.ok(/useLayoutEffect\(\(\) => \{\s+const origin = overlay\.current\?\.getBoundingClientRect\(\);\s+if \(!words \|\| !origin \|\| !canvas\.frameWords\) return undefined;/.test(editor), 'framed before the first paint');
   assert.ok(!editor.includes('setTimeout(() => tick(n => n + 1), 420)'), 'no re-place when the glide ends');
   assert.ok(read('AdaptiveCanvas.jsx').includes('{ from: was, to: target }'), 'the canvas hands back the camera the glide ends at');
 });

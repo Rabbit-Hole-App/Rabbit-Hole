@@ -102,17 +102,17 @@ const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
 test('the bulb opens Ctrl+K with the passage as the words and NO command pill; the router picks the command; it never starts the job itself', () => {
   const page = read('./LearnPage.jsx');
   const listener = page.slice(page.indexOf('const onPassage'), page.indexOf('window.addEventListener(EXPLAIN_PASSAGE_EVENT'));
-  assert.ok(listener.includes("inlineAi?.('explain', { prompt: text })"), 'words only: no command, so no pill');
+  assert.ok(listener.includes("inlineAi?.('explain', { prompt: text, rect, cardId })"), 'words only, and where they are (CK-1): no command, so no command pill');
   assert.doesNotMatch(listener, /command/);
   assert.doesNotMatch(page, /HIGHLIGHT_EXPLAIN_COMMAND/);
   assert.doesNotMatch(read('./source-refs.js'), /HIGHLIGHT_EXPLAIN_COMMAND/);
   assert.doesNotMatch(listener, /startExplain/);
   const editor = read('./InlineAiEditor.jsx');
   assert.ok(editor.includes('useState(preset?.command ?? null)'), 'a preset with no command leaves the pill off');
-  assert.ok(editor.includes("useState(preset?.prompt ?? '')"));
+  assert.ok(editor.includes("useState(preset?.command ? preset?.prompt ?? '' : '')"), 'CK-2: the passage is a pill, the box starts empty');
   // The router also asks about the bulb's passage (a preset with no command), and Chat gets no selection target for it, exactly as the old preset gave.
-  assert.ok(editor.includes("if ((highlight || (preset && !preset.command)) && !out.handoff"), 'the bulb passage is routed like highlighted words');
-  assert.ok(editor.includes("selection: (highlight?.text ?? preset.prompt ?? '').slice(0, 1500)"));
+  assert.ok(editor.includes("const overPassage = !!(highlight || (preset && !preset.command)) && !out.handoff"), 'the bulb passage is routed like highlighted words');
+  assert.ok(editor.includes('selection: passageText.slice(0, 1500)'));
   assert.ok(editor.includes('config.handoff(line, { selection: highlight ? highlightSelection() : null })'));
 });
 
@@ -143,4 +143,31 @@ test('a Markdown selection offers the shared four-button toolbar (Ctrl+K, Add to
   assert.match(add, /quote\.exact\.length > EXCERPT_LIMIT/);
   assert.match(add, /chat\.addToChat\(selectionRef\(/);
   assert.doesNotMatch(add, /putHighlight|generate|send|startExplain/);
+});
+
+// CK-1, CK-2, CK-3 (release 144): the Markdown bulb's passage is placed and framed like highlighted words; the passage is a pill and the box starts empty; Explain selection makes its card directly.
+test('CK-1: the bulb passage (a preset with its rect) is placed and framed like highlighted words; only the real Range is marked', () => {
+  const editor = read('./InlineAiEditor.jsx');
+  assert.ok(editor.includes('const bulbWords = useMemo(() => (!highlight && preset && !preset.command && preset.rect ?'));
+  assert.ok(editor.includes('const words = highlight || bulbWords;'));
+  assert.ok(editor.includes('const restore = canvas.frameWords(span, { w: W, h: FRAME_ROOM, gap: 10 });'));
+  assert.ok(editor.includes('if (!words || !origin) return null;') && editor.includes('if (!highlight?.live) return undefined;'), 'the placement follows `words`; the mark needs the real Range');
+});
+
+test('CK-2: the passage is a pill (title: the full text) and the box starts empty; an empty box over a passage explains the passage', () => {
+  const editor = read('./InlineAiEditor.jsx');
+  assert.ok(editor.includes("const passageText = highlight?.text ?? (preset && !preset.command ? preset.prompt || '' : '');"));
+  assert.ok(editor.includes("useState(preset?.command ? preset?.prompt ?? '' : '')"));
+  assert.ok(editor.includes('{passageText && <span data-inline-chip title={passageText}'));
+  assert.ok(editor.includes("const asked = String(prompt).trim() || passageText;"));
+  assert.ok(editor.includes('!(outgoing.trim() || (passageText && !command))'), 'Enter and the Send button work with an empty box over a passage');
+});
+
+test('CK-3: Explain selection over a passage makes its card through /explain (skeleton, then the card), never a preview; a note, Edit and the paid proposal keep Accept / Reject', () => {
+  const editor = read('./InlineAiEditor.jsx');
+  assert.ok(editor.includes("if (overPassage && config.handoff && routedChoice !== 'note') {"));
+  assert.ok(editor.includes("config.handoff(`/${typedOf('explain')} ${asked}`, { selection: highlight ? highlightSelection() : null })"));
+  assert.ok(editor.includes("const autoCard = mode === 'explain' && state.preview?.kind === 'card';"), 'the inline card fallback is accepted by itself');
+  assert.ok(editor.includes("!busy(status) && !autoCard && (") && editor.includes("(preview && status !== 'proposal' && !autoCard) && ("), 'no Accept or Reject, no preview text, for that card only');
+  assert.ok(editor.includes("preview?.kind === 'note'") && editor.includes("status === 'proposal' && ("), 'notes and the paid proposal keep their own review');
 });
