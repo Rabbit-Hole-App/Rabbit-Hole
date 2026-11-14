@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FRAME_OBJECTS_DEFAULT, FRAME_OBJECTS_HARD_MAX } from './frame-budget.js';
 import { fitFrame } from './frame-fit.js';
 import { RASTER_LIMITS, rasterProblem } from '../raster-pixels.js';
 import { ROLES } from '../scene-vocab.js';
@@ -26,7 +27,7 @@ export const PROGRAM_VERSIONS = Object.freeze({
 // bounds a Frame or artifact must satisfy before anything renders, so they live with the schemas that enforce them.
 export const CONTRACT_LIMITS = Object.freeze({
   sourceBytes: 16 * 1024, manifestBytes: 4 * 1024, maxOutputBytes: 256 * 1024, depth: 32,
-  objects: 60, objectsTotal: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
+  objects: FRAME_OBJECTS_DEFAULT, objectsTotal: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
   heatCells: 256,
   duration: 120, coordinate: 100000, size: 2000, text: 200, runs: 16,
   stateBytes: 32 * 1024, actions: 8, targets: 8, // schema 2 only; LIMITS.stateBytes is this value
@@ -128,6 +129,7 @@ const manifestShape = {
   timeline: timelineSchema.optional(),
   readouts: z.array(readoutSchema).max(CONTRACT_LIMITS.readouts),
   capabilities: z.array(z.string().min(1).max(32)).max(16),
+  frameObjects: z.number().int().min(FRAME_OBJECTS_DEFAULT).max(FRAME_OBJECTS_HARD_MAX).optional(), // the approved per-frame object budget (the plan's scene.runtime.frameObjects); absent means the default
 };
 const manifestChecks = (manifest, context) => {
   const ids = [...manifest.inputs.map(input => input.id), ...manifest.readouts.map(readout => readout.id)];
@@ -314,9 +316,9 @@ export function figureProblem(object, frame) {
   return object.x >= 0 && object.y >= 0 && object.y < frame.height && object.x + object.w <= frame.width ? null : 'the diagram must start inside the frame and fit its width';
 }
 
-export const Frame = z.object({
+const frameSchema = max => z.object({
   width: z.number().positive().max(4096).default(960), height: z.number().positive().max(4096).default(540),
-  objects: z.array(frameObject).max(CONTRACT_LIMITS.objects),
+  objects: z.array(frameObject).max(max),
   readouts: z.array(z.object({ id: name, value: finite(1e12).or(plain(40)) }).strict()).max(CONTRACT_LIMITS.readouts).default([]), // a string is a state readout's label (manifest readout kind 'state')
 }).strict().superRefine((frame, context) => {
   const seen = new Set();
@@ -361,10 +363,21 @@ export const Frame = z.object({
   if (images > 4) context.addIssue({ code: 'custom', message: 'at most four image views per frame', path: ['objects'] });
   if (heatCells > CONTRACT_LIMITS.heatCells) context.addIssue({ code: 'custom', message: `at most ${CONTRACT_LIMITS.heatCells} heat cells in total`, path: ['objects'] });
 });
+export const Frame = frameSchema(CONTRACT_LIMITS.objects);
+// The schema of a card's approved object budget (manifest.frameObjects, up to FRAME_OBJECTS_HARD_MAX); the default budget is Frame itself. One schema per budget.
+const framesByBudget = new Map([[CONTRACT_LIMITS.objects, Frame]]), FRAMES = new Set([Frame]); // FRAMES: every frame schema, so parseOutput fits any of them
+const frameFor = budget => {
+  const max = Number.isInteger(budget) && budget >= CONTRACT_LIMITS.objects && budget <= FRAME_OBJECTS_HARD_MAX ? budget : CONTRACT_LIMITS.objects;
+  if (!framesByBudget.has(max)) { const made = frameSchema(max); framesByBudget.set(max, made); FRAMES.add(made); }
+  return framesByBudget.get(max);
+};
 
 export const Quantities = z.record(name, finite(1e12)).refine(record => Object.keys(record).length <= CONTRACT_LIMITS.quantities, 'too many quantities');
 // What the guest returns for one evaluate call. The host adds requestId and metrics around it.
-export const GuestResult = z.object({ frame: Frame, quantities: Quantities.default({}) }).strict();
+const guestResultSchema = frame => z.object({ frame, quantities: Quantities.default({}) }).strict();
+export const GuestResult = guestResultSchema(Frame);
+const guestsByBudget = new Map([[Frame, GuestResult]]), GUESTS = new Set([GuestResult]);
+const guestResultFor = budget => { const frame = frameFor(budget); if (!guestsByBudget.has(frame)) { const made = guestResultSchema(frame); guestsByBudget.set(frame, made); GUESTS.add(made); } return guestsByBudget.get(frame); };
 export const EvaluateResponse = z.object({
   requestId: z.string().min(1).max(64), frame: Frame, quantities: Quantities,
   metrics: z.object({ ms: z.number().min(0), outputBytes: z.number().int().min(0).optional() }).strict(),
@@ -481,19 +494,19 @@ export function parseReduceRequest(raw, manifest) {
 // of under two points (a label over a body is fitted by frame-overlap.js fitGuestLabels). Everything else still goes to the strict check and is refused there.
 function parseOutput(schema, raw) {
   const fitted = [];
-  if (schema === Frame) { const fit = fitFrame(raw); raw = fit.frame; fitted.push(...fit.fitted); }
-  else if (schema === GuestResult && raw?.frame) { const fit = fitFrame(raw.frame); raw = fit.fitted.length ? { ...raw, frame: fit.frame } : raw; fitted.push(...fit.fitted); }
+  if (FRAMES.has(schema)) { const fit = fitFrame(raw); raw = fit.frame; fitted.push(...fit.fitted); }
+  else if (GUESTS.has(schema) && raw?.frame) { const fit = fitFrame(raw.frame); raw = fit.fitted.length ? { ...raw, frame: fit.frame } : raw; fitted.push(...fit.fitted); }
   try { canonicalBytes(raw, CONTRACT_LIMITS.maxOutputBytes); } catch {
     return { ok: false, error: new RuntimeError('invalid_output'), issue: `the result is over ${CONTRACT_LIMITS.maxOutputBytes} bytes, nested too deeply, or not plain JSON` };
   }
   const parsed = parseWith(schema, raw, 'invalid_output');
   return parsed.ok && fitted.length ? { ...parsed, fitted } : parsed;
 }
-export const parseFrame = raw => parseOutput(Frame, raw);
+export const parseFrame = (raw, manifest = null) => parseOutput(frameFor(manifest?.frameObjects), raw); // manifest: the card's approved object budget (manifest.frameObjects), default 60
 // With a schema 2 manifest, every frame must also have exactly the declared viewport and draw every declared target under its own id
 // (stable ids: a learner can always select what the card offers). The Frame's object and point limits apply to every result as before.
 export function parseGuestResult(raw, manifest = null, sdkVersion = null) {
-  const result = parseOutput(GuestResult, raw);
+  const result = parseOutput(guestResultFor(manifest?.frameObjects), raw);
   if (!result.ok) return result;
   const { width, height, objects } = result.value.frame;
   const invalid = issue => ({ ok: false, error: new RuntimeError('invalid_output'), issue });

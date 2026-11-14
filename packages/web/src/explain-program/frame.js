@@ -93,7 +93,7 @@ const readoutText = (definition, value) => (definition.kind === 'state' ? String
 // Result: { ok: true, scene, state, readouts: [{ id, label, text }] } or { ok: false, error: RuntimeError, issue }.
 // manifest (optional) binds the frame's readouts to their definitions; an undeclared readout id is invalid_output.
 export function normalizeFrame(raw, manifest = null) {
-  const parsed = parseFrame(raw);
+  const parsed = parseFrame(raw, manifest);
   if (!parsed.ok) return parsed;
   const frame = parsed.value;
   const invalid = issue => ({ ok: false, error: new RuntimeError('invalid_output'), issue });

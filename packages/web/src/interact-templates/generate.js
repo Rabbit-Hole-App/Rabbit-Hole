@@ -83,6 +83,7 @@ export function generateProgram(plan, buildInput, registry = { templates: TEMPLA
     inputs: declarations, ...(timeline ? { duration: buildInput.timeline.durationSeconds } : {}),
     ...(timeline ? { timeline: { label: buildInput.timeline.label, displayOffset: atDefault.displayOffset, playbackRate: buildInput.timeline.playbackRate, markers: atDefault.markers.map(({ id, label, time }) => ({ id, label, time })) } } : {}),
     readouts, capabilities: scene.runtime.requiredCapabilities,
+    ...(scene.runtime.frameObjects ? { frameObjects: scene.runtime.frameObjects } : {}), // the approved per-frame object budget travels in the sealed manifest
   };
   return { source, manifest };
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { canonicalJson } from './explain-contract.js';
 import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, PROGRAM_KIND, verifyHashes } from './explain-program/contract.js';
+import { FRAME_OBJECTS_DEFAULT, FRAME_OBJECTS_HARD_MAX } from './explain-program/frame-budget.js';
 import { CALLOUT_SLOTS } from './interact-family-registry.js';
 import { PLAN_LIMITS, ScalarExprError, contentHash, evalScalar, planHash, scalarExprProblem, scalarInterval } from './interact-plan.js';
 
@@ -179,6 +180,7 @@ function runtimeProblems(panel, bad) {
   const declared = new Set(program.manifest.capabilities || []);
   for (const need of runtime.requiredCapabilities) if (!declared.has(need)) bad(at, 'capability_missing', `panel "${id}" must declare the approved capability "${need}"`);
   for (const have of declared) if (!runtime.requiredCapabilities.includes(have)) bad(at, 'capability_not_approved', `panel "${id}" declares "${have}", which was not approved; a changed capability is a new plan revision`);
+  if ((program.manifest.frameObjects ?? FRAME_OBJECTS_DEFAULT) !== (runtime.frameObjects ?? FRAME_OBJECTS_DEFAULT)) bad(at, 'frame_budget_mismatch', `panel "${id}" was approved with ${runtime.frameObjects ?? FRAME_OBJECTS_DEFAULT} objects per frame and declares ${program.manifest.frameObjects ?? FRAME_OBJECTS_DEFAULT}; a changed budget is a new plan revision`);
   for (const helper of runtime.requiredHelpers) if (!new RegExp(`\\bsdk\\.${helper}\\b`).test(program.source)) bad(at, 'helper_missing', `panel "${id}" was approved with sdk.${helper} and does not use it`);
   return undefined;
 }
@@ -357,7 +359,7 @@ const stable = z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,31}$/);
 const hex = z.string().regex(/^[0-9a-f]{64}$/);
 const expr = z.unknown().superRefine((value, ctx) => { const p = scalarExprProblem(value); if (p) ctx.addIssue({ code: 'custom', message: p.message, path: p.path }); });
 const runtime = z.object({ renderer: z.enum(['spec', 'program']), schemaVersion: z.number().int().min(1), sdkVersion: z.string().min(1).max(64).nullable(),
-  programTuple: z.record(z.string(), z.unknown()).nullable(), requiredHelpers: z.array(z.string().max(64)).max(16), requiredCapabilities: z.array(z.string().max(64)).max(16), catalogueHash: hex }).strict();
+  programTuple: z.record(z.string(), z.unknown()).nullable(), requiredHelpers: z.array(z.string().max(64)).max(16), requiredCapabilities: z.array(z.string().max(64)).max(16), catalogueHash: hex, frameObjects: z.number().int().min(FRAME_OBJECTS_DEFAULT).max(FRAME_OBJECTS_HARD_MAX).optional() }).strict();
 const artifactRef = z.object({ kind: z.enum(['spec', 'program']), hash: hex }).strict();
 const scalar = z.union([z.number().finite(), z.string().max(1200), z.boolean()]);
 const control = z.object({

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { canonicalJson, validateVisualBrief } from './explain-contract.js';
 import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, KNOWN_CAPABILITIES } from './explain-program/contract.js';
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
+import { FRAME_OBJECTS_DEFAULT, FRAME_OBJECTS_HARD_MAX } from './explain-program/frame-budget.js';
 import { TEMPLATE_ROLES, TEMPLATE_WORDS, formulaScope, parseQuantity } from './interact-formula.js';
 import { isRegisteredTemplate } from './interact-family-registry.js';
 
@@ -172,7 +173,8 @@ const stringList = z.array(z.string().min(1).max(64)).max(16);
 const runtimeBase = { requiredHelpers: stringList, requiredCapabilities: stringList, catalogueHash: hash };
 const runtime = z.discriminatedUnion('renderer', [
   z.object({ renderer: z.literal('spec'), schemaVersion: z.number().int().min(1), sdkVersion: z.null(), programTuple: z.null(), ...runtimeBase }).strict(),
-  z.object({ renderer: z.literal('program'), schemaVersion: z.union([z.literal(1), z.literal(2)]), sdkVersion: z.string().min(1).max(64), programTuple: z.record(z.string(), z.unknown()), ...runtimeBase }).strict()
+  z.object({ renderer: z.literal('program'), schemaVersion: z.union([z.literal(1), z.literal(2)]), sdkVersion: z.string().min(1).max(64), programTuple: z.record(z.string(), z.unknown()), ...runtimeBase,
+    frameObjects: z.number().int().min(FRAME_OBJECTS_DEFAULT, `frameObjects is at least ${FRAME_OBJECTS_DEFAULT} (the default budget)`).max(FRAME_OBJECTS_HARD_MAX, `frameObjects is at most ${FRAME_OBJECTS_HARD_MAX} objects per frame`).optional() }).strict()
     .refine(value => value.programTuple.schemaVersion === value.schemaVersion && value.programTuple.sdkVersion === value.sdkVersion,
       { message: 'schemaVersion and sdkVersion must equal those of programTuple', path: ['programTuple'], params: { code: 'runtime_tuple_mismatch' } }),
 ]);

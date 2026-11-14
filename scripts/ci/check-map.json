@@ -529,6 +529,7 @@
     "packages/web/src/explain-program/worker.js": ["explain-program-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/limits.js": ["explain-program-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/contract.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-state-check.mjs","explain-program-render-check.mjs"],
+    "packages/web/src/explain-program/frame-budget.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-state-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/fixtures.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-state-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/frame.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-render-check.mjs"],
     "packages/web/src/explain-program/sdk.js": ["explain-program-check.mjs","explain-program-card-check.mjs","explain-program-render-check.mjs"],
