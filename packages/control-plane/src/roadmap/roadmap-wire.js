@@ -28,7 +28,9 @@ const scopeOf = access => ({ org: access.org, ownerUserId: access.actorUserId, b
 export function roadmapKick(env, ctx) {
   return async (_env, access) => {
     if (env.ROADMAP_JOBS) return kickRoadmapJobs(env, scopeOf(access));
-    const run = runDueRoadmapEvents(env, { scope: scopeOf(access) }).catch(() => 0);
+    // No RoadmapJobs object here (a dev or local stack): a kick drains the due events until none is left (bounded), as the object's alarm does, so a chain whose next step is made by a handler
+    // (a course) is not left waiting for the next kick (found on the owner stack: a failed card stalled the course until something else woke it).
+    const run = (async () => { for (let pass = 0; pass < 60; pass += 1) { if (!(await runDueRoadmapEvents(env, { scope: scopeOf(access) }).catch(() => 0))) break; } })();
     if (ctx?.waitUntil) ctx.waitUntil(run); else await run;
     return true;
   };
