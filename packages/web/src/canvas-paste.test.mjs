@@ -54,3 +54,36 @@ test('the URL chooser sits behind the canvas paste guards: editors and the compo
   assert.match(src, />Add webpage card<\/button>/);
   assert.match(src, /if \(event\.key === 'Escape'\) \{ event\.preventDefault\(\); event\.stopPropagation\(\); choosePaste\(null\); \}/);
 });
+
+// Owner 2026-11-14: copy a Mermaid diagram or an equation from a Markdown card and paste it on the canvas; a code block's Copy marks it as code;
+// a link in a card asks Open in new tab or Add webpage card.
+test('Mermaid source pastes as a Mermaid card, an equation as an equation card, only where the canvas is editable', async () => {
+  const { mermaidOf, equationOf } = await import('./canvas-paste.js');
+  assert.equal(mermaidOf('graph TD\n  A-->B'), 'graph TD\n  A-->B');
+  assert.equal(mermaidOf('```mermaid\nflowchart LR\n  a-->b\n```'), 'flowchart LR\n  a-->b', 'a mermaid fence around it is dropped');
+  assert.equal(mermaidOf('%% note\nsequenceDiagram\n  A->>B: hi'), '%% note\nsequenceDiagram\n  A->>B: hi');
+  assert.equal(mermaidOf('Timeline of events\nand what came next'), null, 'prose that starts with a diagram word is not a diagram');
+  assert.equal(mermaidOf('graph TD'), null, 'one line is not a diagram');
+  assert.equal(equationOf('$$\nx^2 + y^2\n$$'), 'x^2 + y^2');
+  assert.equal(equationOf('\\[ a = b \\]'), 'a = b');
+  assert.equal(equationOf('$$a$$ and $$b$$'), null, 'two equations or text around one is text');
+  assert.equal(equationOf('price is $5'), null);
+  assert.equal(pasteKind({ text: 'graph TD\n A-->B', rich: true }), 'mermaid');
+  assert.equal(pasteKind({ text: 'graph TD\n A-->B', rich: true, code: true }), 'mermaid', 'Mermaid wins over the code guess');
+  assert.equal(pasteKind({ text: '$$\nx\n$$', rich: true }), 'equation');
+  assert.equal(pasteKind({ text: 'graph TD\n A-->B' }), 'text', 'a view-only canvas places nothing rich');
+  assert.equal(pasteKind({ text: 'hello world', rich: true }), 'text');
+});
+
+test('the Markdown card: a code block Copy marks the clipboard as code, an equation has a Copy button, a link asks first', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const md = await readFile(new URL('./Md.jsx', import.meta.url), 'utf8'), canvas = await readFile(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(md, /rememberCodeCopy\(\(\) => sessionStorage, \{ text: lines\.join/, 'Copy marks the code, so a paste always asks Code card or notebook');
+  assert.match(md, /data-math-copy data-explanation-ui aria-label=\{done \? 'Equation copied' : 'Copy equation'\}/);
+  assert.match(md, /writeText\(`\$\$\\n\$\{expression\}\\n\$\$`\)/, 'it copies $$...$$, which pastes as an equation card');
+  assert.match(md, /target="_blank" rel="noreferrer" data-web-link=""/);
+  assert.match(canvas, /closest\?\.\('\[data-web-link\]'\)[\s\S]{0,200}metaKey \|\| event\.ctrlKey/, 'a modified click keeps the browser\'s own new tab');
+  assert.match(canvas, /choice === 'tab'\) window\.open\(chosen\.text, '_blank', 'noopener,noreferrer'\)/);
+  assert.match(canvas, /data-paste-url-choice="tab"[\s\S]{0,520}Open in new tab/);
+  assert.match(canvas, /kind === 'mermaid' \|\| kind === 'equation'\) \{ event\.preventDefault\(\); pasteRichRef\.current\(kind, text\)/);
+});

@@ -87,7 +87,7 @@ import { cardEvidence } from './area-evidence.js';
 import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { withFlushedAnimations } from './animation3d/storage.js';
 import { waitingText } from './waiting-text.js';
-import { isWebUrl, looksLikeCode, pasteKind } from './canvas-paste.js';
+import { equationOf, isWebUrl, looksLikeCode, mermaidOf, pasteKind } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
 import CommentPins, { PIN_DEFAULT } from './comments/CommentPins.jsx';
 import { anchorAt, objectLabel, selectedIn, targetFor } from './comments/anchors.js';
@@ -2940,6 +2940,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const center = viewCenter();
     setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'text', x: center.x - 210, y: center.y - 16, w: 420, text: text.trim(), color, opacity, level }]);
   };
+  // Pasted Mermaid source is a Mermaid card and one pasted $$...$$ equation an equation card, placed where the learner is looking and selected.
+  const pasteRichRef = useRef(null);
+  pasteRichRef.current = (kind, text) => {
+    snapshot();
+    if (kind === 'mermaid') {
+      const block = { ...BLOCK_TYPES.mermaid.sample(), title: 'Diagram', code: mermaidOf(text), showSource: false };
+      insertAtView(block);
+      setSelection([block.id]);
+      return;
+    }
+    const item = { ...newEquation(viewCenter()), latex: equationOf(text), fresh: false };
+    setItems(previous => [...previous, item]);
+    selectedRef.current = [item.id];
+    setSelection([item.id]);
+  };
   const dropFilesRef = useRef(onDropFiles);
   dropFilesRef.current = onDropFiles;
   // Pasted code asks Code card or Jupyter notebook first (LearnPage, docs/features/repository-browser.md "Files in Learn"); without the page's
@@ -2969,7 +2984,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setUrlPaste(null);
     chosen?.back?.focus?.();
     if (!chosen) return;
-    if (choice === 'card') addWebpage(chosen.text); else if (choice === 'text') pasteTextRef.current(chosen.text);
+    if (choice === 'card') addWebpage(chosen.text); else if (choice === 'text') pasteTextRef.current(chosen.text); else if (choice === 'tab') window.open(chosen.text, '_blank', 'noopener,noreferrer');
   };
   const pasteCodeRef = useRef(onPasteCode);
   pasteCodeRef.current = onPasteCode;
@@ -4163,11 +4178,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const text = data?.getData('text/plain') || '';
       // ponytail: if writing the marker failed, an image copied before the cards still wins.
       const code = !!pasteCodeRef.current && (!!copiedCode(() => sessionStorage, text) || looksLikeCode(text));
-      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current && !localCopyRef.current });
+      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current && !localCopyRef.current, rich: !readOnlyRef.current && !localCopyRef.current });
       // One URL asks first (webcard brief): Paste as text or Add webpage card; nothing is placed or fetched until a choice.
       if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active }); return; }
       if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images); return; }
       if (kind === 'cards' && pasteIdsRef.current(clipboard.current, 28, true)) { event.preventDefault(); return; }
+      if (kind === 'mermaid' || kind === 'equation') { event.preventDefault(); pasteRichRef.current(kind, text); return; }
       if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text); return; }
       if (kind === 'text') { event.preventDefault(); pasteTextRef.current(text); }
     };
@@ -6253,6 +6269,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     <ExplanationHost.Provider value={explanationHost}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
+      // A link in a card's Markdown (Md.jsx data-web-link) asks first, the same popup a pasted link gets: Open in new tab or Add webpage card.
+      // Ctrl, Cmd, Shift, Alt and middle clicks, and a canvas that cannot add cards, keep the browser's own new tab (owner 2026-11-14).
+      onClickCapture={event => {
+        const link = event.target.closest?.('[data-web-link]');
+        if (!link || event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || readOnlyRef.current || localCopyRef.current) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setUrlPaste({ text: link.getAttribute('href'), back: null, link: true });
+      }}
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.
         const editor = editorRef.current;
@@ -6321,11 +6346,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <SelectionActionBar anchor={barAnchor} box={barBox} />
         {focus && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
         {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
-        {urlPaste && <div role="dialog" aria-label="Paste a link" data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
+        {urlPaste && <div role="dialog" aria-label={urlPaste.link ? 'Open a link' : 'Paste a link'} data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
           onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); choosePaste(null); } }}
           className="absolute top-1/3 left-1/2 z-40 flex w-72 max-w-[calc(100%-2rem)] -translate-x-1/2 flex-col gap-1 rounded-lg border border-line bg-white p-1 shadow-pop">
           <p className="truncate px-2 pt-1 pb-0.5 text-xs text-ink-2" title={urlPaste.text}>{urlPaste.text}</p>
-          <button type="button" autoFocus data-paste-url-choice="text" onClick={() => choosePaste('text')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Type size={14} className="shrink-0 text-ink-2" />Paste as text</button>
+          {urlPaste.link
+            ? <button type="button" autoFocus data-paste-url-choice="tab" onClick={() => choosePaste('tab')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><ArrowUpRight size={14} className="shrink-0 text-ink-2" />Open in new tab</button>
+            : <button type="button" autoFocus data-paste-url-choice="text" onClick={() => choosePaste('text')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Type size={14} className="shrink-0 text-ink-2" />Paste as text</button>}
           <button type="button" data-paste-url-choice="card" onClick={() => choosePaste('card')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Globe size={14} className="shrink-0 text-ink-2" />Add webpage card</button>
         </div>}
         {/* Insert > Webpage: the address, then the capture a pasted link makes. Esc places nothing. */}
