@@ -9,16 +9,6 @@
 // the LearnVideos / LearnScenes alarms (docs/features/dev-prod-write-barrier.md).
 export const learnMedia = env => env?.LEARN_MEDIA || env?.RUNS;
 
-// Card archive: one JSON per /explain-family card request, at explain-archive/<yyyy-mm-dd>/<id>.json (UTC day of the write). Logged, never thrown:
-// an archive that cannot be written must not fail the card. No bucket (a worker with neither LEARN_MEDIA nor RUNS) writes nothing.
-export async function archiveExplanation(env, record) {
-  try {
-    const bucket = learnMedia(env);
-    if (!bucket) return;
-    await bucket.put(`explain-archive/${new Date().toISOString().slice(0, 10)}/${record.id}.json`, JSON.stringify(record), { httpMetadata: { contentType: 'application/json' } });
-  } catch (error) { console.log(JSON.stringify({ event: 'explain_archive_failed', id: record?.id ?? null, error: String(error?.message || error).slice(0, 200) })); }
-}
-
 // Where the video-moment log (learn_moments) lives. Every learn_moments statement
 // goes through this, and nothing else: a dev or review worker binds LEARN_DB
 // (rabbit-hole-learn-dev), so its moment log, Keep/Dismiss and hot path never reach the
