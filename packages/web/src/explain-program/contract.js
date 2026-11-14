@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FRAME_OBJECTS_DEFAULT, FRAME_OBJECTS_HARD_MAX } from './frame-budget.js';
 import { fitFrame } from './frame-fit.js';
 import { RASTER_LIMITS, rasterProblem } from '../raster-pixels.js';
 import { ROLES } from '../scene-vocab.js';
@@ -26,7 +27,7 @@ export const PROGRAM_VERSIONS = Object.freeze({
 // bounds a Frame or artifact must satisfy before anything renders, so they live with the schemas that enforce them.
 export const CONTRACT_LIMITS = Object.freeze({
   sourceBytes: 16 * 1024, manifestBytes: 4 * 1024, maxOutputBytes: 256 * 1024, depth: 32,
-  objects: 60, objectsTotal: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
+  objects: FRAME_OBJECTS_DEFAULT, objectsTotal: 240, pointsPerObject: 2000, pointsTotal: 10000, inputs: 4, optionCombinations: 64, options: 8, readouts: 8, quantities: 32, assumptions: 8,
   heatCells: 256,
   duration: 120, coordinate: 100000, size: 2000, text: 200, runs: 16,
   stateBytes: 32 * 1024, actions: 8, targets: 8, // schema 2 only; LIMITS.stateBytes is this value
@@ -94,12 +95,22 @@ const selectInput = z.object({
 const INDEX_ITEMS_MAX = 12;
 // inputs_v2: a switch (the value is true or false) and a position in 2 to 12 ordered items (the value is the item's index, 0 to items - 1).
 const booleanInput = z.object({ type: z.literal('boolean'), id: name, label: plain(60), default: z.boolean() }).strict();
+const itemList = z.array(z.object({ id: name, label: plain(60) }).strict()).min(2).max(INDEX_ITEMS_MAX);
+// items is a static list, or { by, options }: the list the host shows depends on the value of the select input `by` (a step scrubber whose number of steps a control changes). One list per option value.
 const indexInput = z.object({
   type: z.literal('index'), id: name, label: plain(60), default: z.number().int().min(0), presentation: z.enum(['picker', 'slider']).default('picker'),
-  items: z.array(z.object({ id: name, label: plain(60) }).strict()).min(2).max(INDEX_ITEMS_MAX),
-}).strict().refine(input => input.default < input.items.length, { message: 'default must be the position of an item', path: ['default'] })
-  .refine(input => new Set(input.items.map(item => item.id)).size === input.items.length, { message: 'item ids must be unique', path: ['items'] });
+  items: z.union([itemList, z.object({ by: name, options: z.record(z.string().regex(/^[A-Za-z0-9_.-]{1,32}$/), itemList) }).strict()]),
+}).strict().refine(input => input.default < Math.min(...indexVariants(input).map(list => list.length)), { message: 'default must be the position of an item (of every list)', path: ['default'] })
+  .refine(input => indexVariants(input).every(list => new Set(list.map(item => item.id)).size === list.length), { message: 'item ids must be unique', path: ['items'] });
 const inputSchema = z.union([numberInput, selectInput, booleanInput, indexInput]);
+// The item lists of an index input: its one static list, or one per option of the input it depends on.
+export const indexVariants = input => (Array.isArray(input.items) ? [input.items] : Object.values(input.items.options));
+// The list an index input shows at these (resolved) input values. Without values (an event checked on its own) the longest list.
+export function indexItems(input, values) {
+  if (Array.isArray(input.items)) return input.items;
+  const list = values && input.items.options[values[input.items.by]];
+  return list ?? indexVariants(input).reduce((best, one) => (one.length > best.length ? one : best));
+}
 // kind (additive): absent or 'number' is a number readout as before; 'state' names a mode the frame reports as one of its labels (Moving up, Still for an instant, Moving down), never a number.
 const readoutSchema = z.object({ id: name, label: plain(60), unit: maybePlain(16).optional(), decimals: z.number().int().min(0).max(6).default(2),
   kind: z.enum(['number', 'state']).optional(), labels: z.array(plain(40)).min(1).max(6).optional() }).strict()
@@ -128,6 +139,7 @@ const manifestShape = {
   timeline: timelineSchema.optional(),
   readouts: z.array(readoutSchema).max(CONTRACT_LIMITS.readouts),
   capabilities: z.array(z.string().min(1).max(32)).max(16),
+  frameObjects: z.number().int().min(FRAME_OBJECTS_DEFAULT).max(FRAME_OBJECTS_HARD_MAX).optional(), // the approved per-frame object budget (the plan's scene.runtime.frameObjects); absent means the default
 };
 const manifestChecks = (manifest, context) => {
   const ids = [...manifest.inputs.map(input => input.id), ...manifest.readouts.map(readout => readout.id)];
@@ -146,7 +158,13 @@ const manifestChecks = (manifest, context) => {
   }
   if (manifest.inputs.some(input => input.type === 'boolean' || input.type === 'index') && !manifest.capabilities.includes(INPUTS_V2_CAPABILITY)) {
     context.addIssue({ code: 'custom', message: `a boolean or index input needs the ${INPUTS_V2_CAPABILITY} capability in manifest.capabilities`, path: ['capabilities'] });
+  }  for (const input of manifest.inputs) {
+    if (input.type !== 'index' || Array.isArray(input.items)) continue;
+    const by = manifest.inputs.find(other => other.id === input.items.by), keys = Object.keys(input.items.options);
+    if (by?.type !== 'select') context.addIssue({ code: 'custom', message: `"${input.id}" lists its items by "${input.items.by}", which must be a select input of this manifest`, path: ['inputs'] });
+    else if (keys.length !== by.options.length || !by.options.every(option => keys.includes(option.value))) context.addIssue({ code: 'custom', message: `"${input.id}" needs one item list for each option of "${by.id}" and no other`, path: ['inputs'] });
   }
+
   const combinations = manifest.inputs.filter(input => input.type === 'select').reduce((total, input) => total * input.options.length, 1);
   if (combinations > CONTRACT_LIMITS.optionCombinations) context.addIssue({ code: 'custom', message: `select options combine to ${combinations} states (at most ${CONTRACT_LIMITS.optionCombinations})`, path: ['inputs'] });
   if (utf8(JSON.stringify(manifest)) > CONTRACT_LIMITS.manifestBytes) context.addIssue({ code: 'custom', message: `the manifest is over ${CONTRACT_LIMITS.manifestBytes} bytes`, path: [] });
@@ -314,9 +332,9 @@ export function figureProblem(object, frame) {
   return object.x >= 0 && object.y >= 0 && object.y < frame.height && object.x + object.w <= frame.width ? null : 'the diagram must start inside the frame and fit its width';
 }
 
-export const Frame = z.object({
+const frameSchema = max => z.object({
   width: z.number().positive().max(4096).default(960), height: z.number().positive().max(4096).default(540),
-  objects: z.array(frameObject).max(CONTRACT_LIMITS.objects),
+  objects: z.array(frameObject).max(max),
   readouts: z.array(z.object({ id: name, value: finite(1e12).or(plain(40)) }).strict()).max(CONTRACT_LIMITS.readouts).default([]), // a string is a state readout's label (manifest readout kind 'state')
 }).strict().superRefine((frame, context) => {
   const seen = new Set();
@@ -361,10 +379,21 @@ export const Frame = z.object({
   if (images > 4) context.addIssue({ code: 'custom', message: 'at most four image views per frame', path: ['objects'] });
   if (heatCells > CONTRACT_LIMITS.heatCells) context.addIssue({ code: 'custom', message: `at most ${CONTRACT_LIMITS.heatCells} heat cells in total`, path: ['objects'] });
 });
+export const Frame = frameSchema(CONTRACT_LIMITS.objects);
+// The schema of a card's approved object budget (manifest.frameObjects, up to FRAME_OBJECTS_HARD_MAX); the default budget is Frame itself. One schema per budget.
+const framesByBudget = new Map([[CONTRACT_LIMITS.objects, Frame]]), FRAMES = new Set([Frame]); // FRAMES: every frame schema, so parseOutput fits any of them
+const frameFor = budget => {
+  const max = Number.isInteger(budget) && budget >= CONTRACT_LIMITS.objects && budget <= FRAME_OBJECTS_HARD_MAX ? budget : CONTRACT_LIMITS.objects;
+  if (!framesByBudget.has(max)) { const made = frameSchema(max); framesByBudget.set(max, made); FRAMES.add(made); }
+  return framesByBudget.get(max);
+};
 
 export const Quantities = z.record(name, finite(1e12)).refine(record => Object.keys(record).length <= CONTRACT_LIMITS.quantities, 'too many quantities');
 // What the guest returns for one evaluate call. The host adds requestId and metrics around it.
-export const GuestResult = z.object({ frame: Frame, quantities: Quantities.default({}) }).strict();
+const guestResultSchema = frame => z.object({ frame, quantities: Quantities.default({}) }).strict();
+export const GuestResult = guestResultSchema(Frame);
+const guestsByBudget = new Map([[Frame, GuestResult]]), GUESTS = new Set([GuestResult]);
+const guestResultFor = budget => { const frame = frameFor(budget); if (!guestsByBudget.has(frame)) { const made = guestResultSchema(frame); guestsByBudget.set(frame, made); GUESTS.add(made); } return guestsByBudget.get(frame); };
 export const EvaluateResponse = z.object({
   requestId: z.string().min(1).max(64), frame: Frame, quantities: Quantities,
   metrics: z.object({ ms: z.number().min(0), outputBytes: z.number().int().min(0).optional() }).strict(),
@@ -453,7 +482,7 @@ export const parseInitializeRequest = raw => parseWith(InitializeRequest, raw, '
 export const parseState = raw => parseWith(stateSchema, raw, 'invalid_output'); // a state the guest returned
 // An event the manifest declares: a declared action or target, a drag on a declared drag target at a point inside the viewport, or a
 // declared input with an allowed value. Never throws.
-export function parseEvent(raw, manifest) {
+export function parseEvent(raw, manifest, inputs = null) {
   const parsed = parseWith(ProgramEvent, raw, 'invalid_program');
   if (!parsed.ok) return parsed;
   const event = parsed.value, input = event.type === 'input' && manifest.inputs.find(item => item.id === event.input);
@@ -463,14 +492,14 @@ export function parseEvent(raw, manifest) {
       : DRAG_EVENTS.includes(event.type) ? manifest.targets.some(target => target.id === event.target && target.drag === true) && inside()
         : !!input && (input.type === 'number' ? typeof event.value === 'number' && event.value >= input.min && event.value <= input.max
           : input.type === 'boolean' ? typeof event.value === 'boolean'
-            : input.type === 'index' ? Number.isInteger(event.value) && event.value >= 0 && event.value < input.items.length
+            : input.type === 'index' ? Number.isInteger(event.value) && event.value >= 0 && event.value < indexItems(input, inputs && resolveInputs(manifest, inputs)).length
               : input.options.some(option => option.value === event.value));
   return declared ? parsed : { ok: false, error: new RuntimeError('invalid_program'), issue: `event: this ${event.type} is not declared by the manifest` };
 }
 export function parseReduceRequest(raw, manifest) {
   const parsed = parseWith(ReduceRequest, raw, 'invalid_program');
   if (!parsed.ok) return parsed;
-  const event = parseEvent(parsed.value.event, manifest);
+  const event = parseEvent(parsed.value.event, manifest, parsed.value.inputs);
   return event.ok ? { ok: true, value: { ...parsed.value, event: event.value } } : event;
 }
 // Output is measured before it is parsed: the canonical serialized byte length of the WHOLE result (frame, quantities, and for
@@ -481,19 +510,19 @@ export function parseReduceRequest(raw, manifest) {
 // of under two points (a label over a body is fitted by frame-overlap.js fitGuestLabels). Everything else still goes to the strict check and is refused there.
 function parseOutput(schema, raw) {
   const fitted = [];
-  if (schema === Frame) { const fit = fitFrame(raw); raw = fit.frame; fitted.push(...fit.fitted); }
-  else if (schema === GuestResult && raw?.frame) { const fit = fitFrame(raw.frame); raw = fit.fitted.length ? { ...raw, frame: fit.frame } : raw; fitted.push(...fit.fitted); }
+  if (FRAMES.has(schema)) { const fit = fitFrame(raw); raw = fit.frame; fitted.push(...fit.fitted); }
+  else if (GUESTS.has(schema) && raw?.frame) { const fit = fitFrame(raw.frame); raw = fit.fitted.length ? { ...raw, frame: fit.frame } : raw; fitted.push(...fit.fitted); }
   try { canonicalBytes(raw, CONTRACT_LIMITS.maxOutputBytes); } catch {
     return { ok: false, error: new RuntimeError('invalid_output'), issue: `the result is over ${CONTRACT_LIMITS.maxOutputBytes} bytes, nested too deeply, or not plain JSON` };
   }
   const parsed = parseWith(schema, raw, 'invalid_output');
   return parsed.ok && fitted.length ? { ...parsed, fitted } : parsed;
 }
-export const parseFrame = raw => parseOutput(Frame, raw);
+export const parseFrame = (raw, manifest = null) => parseOutput(frameFor(manifest?.frameObjects), raw); // manifest: the card's approved object budget (manifest.frameObjects), default 60
 // With a schema 2 manifest, every frame must also have exactly the declared viewport and draw every declared target under its own id
 // (stable ids: a learner can always select what the card offers). The Frame's object and point limits apply to every result as before.
 export function parseGuestResult(raw, manifest = null, sdkVersion = null) {
-  const result = parseOutput(GuestResult, raw);
+  const result = parseOutput(guestResultFor(manifest?.frameObjects), raw);
   if (!result.ok) return result;
   const { width, height, objects } = result.value.frame;
   const invalid = issue => ({ ok: false, error: new RuntimeError('invalid_output'), issue });
@@ -531,8 +560,14 @@ export function resolveInputs(manifest, saved = {}) {
     const value = saved?.[input.id];
     if (input.type === 'number') out[input.id] = Number.isFinite(value) ? Math.min(input.max, Math.max(input.min, value)) : input.default;
     else if (input.type === 'boolean') out[input.id] = typeof value === 'boolean' ? value : input.default;
-    else if (input.type === 'index') out[input.id] = Number.isInteger(value) && value >= 0 && value < input.items.length ? value : input.default;
+    else if (input.type === 'index') { if (Array.isArray(input.items)) out[input.id] = Number.isInteger(value) && value >= 0 && value < input.items.length ? value : input.default; }
     else out[input.id] = input.options.some(option => option.value === value) ? value : input.default;
+  }
+  // An index whose list depends on another input resolves after it, and a position past the end of the shorter list is clamped to the last item in the same step (never an out-of-range position).
+  for (const input of manifest.inputs) {
+    if (input.type !== 'index' || Array.isArray(input.items)) continue;
+    const value = saved?.[input.id], last = indexItems(input, out).length - 1;
+    out[input.id] = Number.isInteger(value) && value >= 0 ? Math.min(value, last) : input.default;
   }
   return out;
 }

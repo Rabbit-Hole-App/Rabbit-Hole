@@ -402,7 +402,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             {rows.map(input => (input.type === 'number'
               ? <NumberInput key={input.id} input={input} value={inputs[input.id]} onInput={setInput} />
-              : <InputWidget key={input.id} {...programInputWidget(input)} value={inputs[input.id]} onInput={setInput} />))}
+              : <InputWidget key={input.id} {...programInputWidget(input, inputs)} value={inputs[input.id]} onInput={setInput} />))}
             {/* After a rule, the plan's seek buttons (At top): each jumps the timeline to its marker and pauses. */}
             {seeks.length > 0 && (
               <>

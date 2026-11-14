@@ -1,0 +1,47 @@
+[
+  {
+    "objects": 30,
+    "budget": 60,
+    "failure": null,
+    "runs": 60,
+    "meanMs": 23.14,
+    "p95Ms": 54.77,
+    "maxMs": 94.6
+  },
+  {
+    "objects": 60,
+    "budget": 60,
+    "failure": null,
+    "runs": 60,
+    "meanMs": 34.08,
+    "p95Ms": 73.61,
+    "maxMs": 96.09
+  },
+  {
+    "objects": 100,
+    "budget": 100,
+    "failure": null,
+    "runs": 60,
+    "meanMs": 35.59,
+    "p95Ms": 64.86,
+    "maxMs": 135.95
+  },
+  {
+    "objects": 130,
+    "budget": 130,
+    "failure": null,
+    "runs": 60,
+    "meanMs": 28.51,
+    "p95Ms": 56.03,
+    "maxMs": 82.05
+  },
+  {
+    "objects": 160,
+    "budget": 160,
+    "failure": "runtime_limit: time limit",
+    "runs": 23,
+    "meanMs": 31.59,
+    "p95Ms": 54.25,
+    "maxMs": 93.92
+  }
+]

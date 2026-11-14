@@ -1,0 +1,44 @@
+[
+  {
+    "objects": 100,
+    "svgNodes": 275,
+    "frameMs": {
+      "mean": 26.28,
+      "median": 26.1,
+      "p95": 37,
+      "max": 98.8
+    },
+    "normalizeMs": 7.17,
+    "renderMs": 18.21,
+    "layoutMs": 0.9,
+    "toNextFrameMs": 1.83
+  },
+  {
+    "objects": 115,
+    "svgNodes": 315,
+    "frameMs": {
+      "mean": 14.94,
+      "median": 13.3,
+      "p95": 26.5,
+      "max": 38.8
+    },
+    "normalizeMs": 4.61,
+    "renderMs": 9.68,
+    "layoutMs": 0.65,
+    "toNextFrameMs": 4.19
+  },
+  {
+    "objects": 130,
+    "svgNodes": 355,
+    "frameMs": {
+      "mean": 11.39,
+      "median": 11.1,
+      "p95": 17.2,
+      "max": 18.3
+    },
+    "normalizeMs": 3.48,
+    "renderMs": 7.34,
+    "layoutMs": 0.58,
+    "toNextFrameMs": 5.39
+  }
+]
