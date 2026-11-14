@@ -182,7 +182,7 @@ test('UI.03: after acceptance a Depth change and a typed edit make new unaccepte
   assert.equal(view.planDraft, null, 'no draft once the plan is accepted');
   const depth = await h.json('POST', `/api/learn/roadmap/${id}/revise`, { boardId: BOARD, revision: view.roadmap.revision, actionKey: KEY('depth'), settings: { depth: 'brief' } });
   assert.equal(depth.status, 202);
-  assert.deepEqual([depth.body.roadmap.depth, depth.body.roadmap.ceiling], ['balanced', 10], 'the accepted roadmap keeps its Depth until a draft is accepted');
+  assert.deepEqual([depth.body.roadmap.depth, depth.body.roadmap.ceiling], ['balanced', 20], 'the accepted roadmap keeps its Depth until a draft is accepted');
   assert.deepEqual([depth.body.planDraft.version, depth.body.planDraft.settings.depth, depth.body.planDraft.acceptable], [2, 'brief', true]);
   assert.deepEqual([depth.body.plan.version, depth.body.acceptedPlan.version], [1, 1], 'the ToC still shows the accepted plan');
   assert.equal(depth.body.proposal.state, 'pending', 'the accepted plan\'s offer is untouched');

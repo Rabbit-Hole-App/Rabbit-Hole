@@ -12,6 +12,7 @@ import { answerQuestion, revisePlan } from './roadmap-planning.js';
 import { applyProposalDraft, discardProposalDraft, roadmapEditEnabled, saveProposalDraft } from './roadmap-proposal-drafts.js';
 import { acceptLinkProposal, offerLinkProposal, readLink } from './roadmap-links.js';
 import { readSlots, saveSlot } from './roadmap-slots.js';
+import { advanceCourse, startCourse, stopCourse } from './roadmap-course.js';
 
 const PREFIX = '/api/learn/roadmap';
 export const roadmapEnabled = env => env?.ROADMAP_ENABLED === 'true';
@@ -126,6 +127,13 @@ export async function roadmapRoute(path, req, env, deps = {}) {
       const done = await setMode(db, access, { roadmapId, mode: body.mode, actionKey: body.actionKey ?? `rmmode_${roadmapId}_${body.mode}_${(current?.mode_revision ?? 0) + 1}`, ...(now ? { now } : {}) });
       if (!done.replayed) await deps.onFact?.(env, access, done.body); // R6: wake the outbox for the mode_changed event just committed
       return reply(done);
+    }
+    // Create a course (owner 2026-11-14): Generate course starts the run and makes its first card now; Cancel stops new cards (the one in hand finishes). roadmap-course.js.
+    if (kind === 'course' && (id === 'start' || id === 'stop') && rest.length === 3) {
+      if (id === 'stop') return reply(await stopCourse(db, access, { roadmapId, expectedRevision: arg.expectedRevision, ...(now ? { now } : {}) }));
+      const started = await startCourse(db, access, { roadmapId, expectedRevision: arg.expectedRevision, ...(now ? { now } : {}) });
+      if (!started.replayed && started.status < 300) await advanceCourse(env, access, roadmapId, { adopt: true, compose: deps.compose, revalidate: deps.revalidate, quote: deps.quote, onAccepted: deps.onAccepted, ...(now ? { now } : {}) });
+      return reply(started);
     }
     if (kind === 'steps' && id === 'propose' && rest.length === 3) {
       if (!deps.compose) return json({ error: 'Not available', code: 'not_found' }, 503);
