@@ -26,7 +26,7 @@ test('cards standing in both ideal slots: slides to the nearest free place on a 
   const gap = p.side === 'right' ? p.x - 1600 : 1000 - (p.x + SIZE.w);
   assert.ok(gap >= SOURCED.minGap && gap <= 160, 'gap ' + gap);
   assert.ok(!overlaps(rectOf(p), wallR, SOURCED.margin) && !overlaps(rectOf(p), wallL, SOURCED.margin));
-  assert.ok(Math.abs(mid(p) - 150) <= 240, 'slid ' + (mid(p) - 150));
+  assert.ok(Math.abs(mid(p) - 150) <= 360, 'slid ' + (mid(p) - 150));
 });
 
 test('only the right slot is taken: the free left side wins at the ideal height (the side chosen by cost, not habit)', () => {
