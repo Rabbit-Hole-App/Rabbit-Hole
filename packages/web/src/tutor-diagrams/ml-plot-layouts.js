@@ -290,12 +290,14 @@ function stackedBar(d, requested, options) {
   const width = Math.max(requested, 220), SIZE = 14, HEIGHT = 200, BAR = 64, top = PAD + 8, left = PAD + 12, textX = left + BAR + 22;
   const sum = d.bars.reduce((all, bar) => all + bar.value, 0), total = d.total ?? sum;
   const elements = [];
+  // Every part prints to the decimals of the longest value written (0.10 beside 0.66), the same precision down the whole bar.
+  const places = Math.max(...d.bars.map(bar => (String(bar.value).split('.')[1] ?? '').length));
   let before = 0, nextTop = top;
   for (const [i, bar] of d.bars.entries()) {
     const y = top + HEIGHT * before / total, height = HEIGHT * bar.value / total, middle = y + height / 2;
     elements.push(h('rect', { x: left, y, width: BAR, height, fill: options?.labelColors?.get(bar.label) ?? COLORS[i % COLORS.length], stroke: T.surface, strokeWidth: 1.5,
-      'data-tutor-stacked-part': bar.value, 'data-tutor-bar-series': bar.label, 'data-tutor-stack-from': before, 'data-tutor-stack-to': before + bar.value }, h('title', null, `${bar.label}: ${bar.value}`)));
-    const lines = wrap(`${bar.label}: ${bar.value}`, width - textX - PAD, SIZE), rows = lines.length * lineHeight(SIZE);
+      'data-tutor-stacked-part': bar.value, 'data-tutor-bar-series': bar.label, 'data-tutor-stack-from': before, 'data-tutor-stack-to': before + bar.value }, h('title', null, `${bar.label}: ${bar.value.toFixed(places)}`)));
+    const lines = wrap(`${bar.label}: ${bar.value.toFixed(places)}`, width - textX - PAD, SIZE), rows = lines.length * lineHeight(SIZE);
     const centre = Math.max(middle, nextTop + rows / 2);
     if (Math.abs(centre - middle) > 2) elements.push(teachingConnector([[left + BAR, middle], [textX - 6, centre]], { arrow: false }));
     elements.push(label(lines, textX, centre, { anchor: 'start', size: SIZE }));
