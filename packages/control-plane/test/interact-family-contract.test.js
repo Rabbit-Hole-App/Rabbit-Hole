@@ -48,3 +48,13 @@ test('a still scene: planProblems allows a plan with no timeline (static, contro
   assert.throws(() => generateProgram(plan, { controlBindings: [], timeline: null }, { templates: { 'still-x': template }, families: [{ ...family, independent: undefined }] }), e => e instanceof TemplateError && e.code === 'no_timeline');
   assert.throws(() => generateProgram(plan, { controlBindings: [], timeline: null }, { templates: { 'still-x': template }, families: [] }), e => e instanceof TemplateError && e.code === 'no_family');
 });
+
+test('the fill text reads only the family: the names sentence is derived (the independent variable plus the depth inputs, role ids refused) and no toss line leaks into another family', () => {
+  const stub = { FAMILY: { depths: { balanced: { roles: ['y'], inputs: [['k', 'range'], ['x0', 'range']] } } }, independent: { id: 'x' }, scalars: [], familyDescription: () => 'a curve', formulaGrammar: ['grammar line'], formulaRules: () => ['rule line'] };
+  const text = fillSystem('balanced', { keys: { text: [], inputs: [], formulas: [], words: [], scalars: [] } }, stub);
+  assert.ok(text.includes('A formula reads only the names x, k, x0; any other name (y) is refused.'), text);
+  assert.ok(!/gravity|launchSpeed|launchHeight|apexTime/.test(text.split('## Limits')[1]), 'no toss word after the limits header');
+  const toss = fillSystem('detailed', briefSchema('detailed'));
+  assert.ok(toss.includes('A formula reads only the names t, launchSpeed, gravity, mass;') && toss.includes('gravity: every value of its range is at least 4'));
+  assert.ok(!fillSystem('brief', briefSchema('brief')).includes('every value of its range is at least 4'), 'the Overview fixes gravity');
+});

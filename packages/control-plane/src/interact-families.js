@@ -3,7 +3,7 @@
 //
 // A family module (family contract, owner 2026-11-14 00:50; the shape is documented where the vertical-throw one is built, packages/web/src/interact-family-vertical-throw.js) exports:
 //   id, FAMILY ({ id, depths: { depth: { template, roles, inputs: [[inputId, 'range' | 'fixed']] } } }), INPUTS, ROLES, LIMITS, scalars,
-//   referenceCheck(brief, depth), expandBrief, extractBrief, familyDescription(depth), formulaGrammar, formulaRules, templates, context(...), and optionally independent: { id, domain }.
+//   referenceCheck(brief, depth), expandBrief, extractBrief, familyDescription(depth), formulaGrammar, formulaRules(depth) -> lines (the rules after the grammar), templates, context(...), and optionally independent: { id, domain }.
 // Everything reads the module: briefSchema(depth, module), fillSystem(depth, info, module), module.referenceCheck, generateProgram (by the family whose `templates` name the plan's template).
 import { briefSchema } from '../../web/src/interact-plan-brief.js';
 import { verticalThrow as verticalThrowModule } from '../../web/src/interact-family-vertical-throw.js';

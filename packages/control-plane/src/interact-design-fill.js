@@ -30,16 +30,17 @@ const LIMITS = [
   'title: at most 120 characters. story: at most 3000 characters. instructions: at most 300 characters.',
   'cardDescription: exactly two sentences of 130 to 200 characters in all, one plain paragraph with no line break and no markdown (under 130 characters is one line and is refused; so is anything over 4 lines; never split it with a line break).',
   'Every word is at most the number of characters its key states.',
-  'A formula reads only the names t, launchSpeed, gravity and (at the Deep depth) mass; any other name (apexTime, apexHeight, launchHeight) is refused.',
 ];
 
-// The Deep card draws the acceleration arrow at 3.4 px per m/s^2 and a vector under 12 px is not an arrow (sdk-geometry.js), so the build refused every Deep plan whose gravity range reached 1 (three of three clone runs, 2026-11-14).
-const DEEP_LIMITS = [
-  'gravity: every value of its range is at least 4 (a smaller gravity draws no acceleration arrow and the card is refused). Every marker time is at least 0.',
-];
+// The names a formula may read, from the family: its independent variable (`t` for a timeline family, independent.id otherwise) and the input ids the depth offers; the names it must not read are its role ids
+// and its scalars (a role is a quantity, a scalar is a number written as a literal).
+const namesLine = (depth, family) => {
+  const d = family.FAMILY.depths[depth], names = [family.independent?.id ?? 't', ...d.inputs.map(([id]) => id)], refused = [...d.roles, ...(family.scalars ?? []).map(x => x.id)];
+  return `A formula reads only the names ${names.join(', ')}; any other name (${refused.join(', ')}) is refused.`;
+};
 
 export function fillSystem(depth, schemaInfo, family = verticalThrow) {
-  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, family.familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, ...(depth === 'detailed' ? DEEP_LIMITS : []), '', '## Formulas', family.formulaGrammar.join('\n'), ...family.formulaRules, '', 'Return the brief only: no prose.'].join('\n');
+  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, family.familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, namesLine(depth, family), '', '## Formulas', family.formulaGrammar.join('\n'), ...family.formulaRules(depth), '', 'Return the brief only: no prose.'].join('\n');
 }
 
 

@@ -286,11 +286,14 @@ export const formulaGrammar = Object.freeze([
   'The readable names are `t` (elapsed seconds since launch, 0 at the launch), the scene\'s numeric inputs by id (launchSpeed, gravity, mass where the scene has them) and, where the scene fixes gravity, `gravity`. Up is positive; a force is a magnitude. A quantity that changes rule at one moment is piecewise: `formula` applies while t < switchAt, `formulaAfter` from switchAt on; switchAt is a formula over the inputs only (no t). Give switchAt and formulaAfter as null when the quantity has one rule at every time.',
 ]);
 // Brief 12: three lines the first matrix showed the fast model needs (two briefs wrote launchHeight as a name, some formulas ran past 32 nodes, a detailed timeline began before the launch).
-export const formulaRules = Object.freeze([
+const FORMULA_RULES = Object.freeze([
   'launchHeight is a number: write it as a literal, never as a name in a formula.',
   'A formula has at most 32 nodes.',
   'The detailed timeline counts time from the launch, and a marker is never before 0.',
 ]);
+// The Deep card draws the acceleration arrow at 3.4 px per m/s^2 and a vector under 12 px is not an arrow (sdk-geometry.js), so the build refused every plan whose gravity range reached 1 (three of three clone
+// runs, 2026-11-14); every depth that lets gravity vary gets the floor (the Overview fixes it). Rules of the depth, after the grammar: formulaRules(depth) -> lines.
+export const formulaRules = depth => Object.freeze([...FORMULA_RULES, ...(FAMILY.depths[depth]?.gravity === 'range' ? ['gravity: every value of its range is at least 4 (a smaller gravity draws no acceleration arrow and the card is refused). Every marker time is at least 0.'] : [])]);
 
 const superscripts = unit => String(unit ?? '').replace('^2', '²').replace('^3', '³');
 // The geometry the vertical-throw templates draw from: the largest rise above the launch height, the longest timeline end and the plotted quantity's largest size over the corners and middle of every input range,
