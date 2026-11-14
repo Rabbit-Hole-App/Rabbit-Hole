@@ -1,0 +1,17 @@
+# Release 141 build phase (CC-1 + CF-1): branch explain/cc-cf-141, off main a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36
+
+Gate phase waits for BASE = 140's candidate SHA. Nothing heavy was run; single small test files only.
+
+## Commits
+- e3de17503 CC-1: FLOW_VERBS += deploy, monitor, serve, label, define (packages/web/src/tutor-diagrams/content-contract.js); one test (content-contract.test.mjs); the author constraints sheet carries the new list (scripts/topic-pipeline/agents/inputs/renderer-constraints.md: 244 -> 249 words, two lines).
+- eaf2fc76c CF-1: scripts/prod-release.mjs deploys both Workers with `--var RELEASE_SHA:<sha>`; one source-guard test in scripts/prod-release.test.mjs.
+
+## CC-1 evidence
+- content-contract.test.mjs 13/13 (incl. the new test: the five verbs pass, a noun-first label is still flagged); reference-content-contract.test.mjs 1/1: the contract over ALL shipped references and the kind gallery has 0 findings with the new verbs. The rule is `!FLOW_VERBS.has(first) || NOUN_PHRASE`, so adding verbs can only remove flags: no new flag is possible. Block-stack component labels (Monitor, Server) are not subject to the verb rule. No snapshot is affected (contract only, no rendering).
+- Constraints sheet: the generator (`node scripts/topic-pipeline/build-renderer-constraints.mjs`) on main's copy ALSO adds 11 lines of 133 drift (the panels / stacked-bar parser messages, and one reworded bar rule): the sheet on main was stale since 133. I did NOT include that drift: it would show the author rules for kinds it is not offered (decision of 133: panels and stacked are not exposed to the author yet). Only the two verb lines changed; `--check` stays stale exactly as on main until a release exposes panels/stacked to the author.
+- topic-pipeline-fixes (not on main) has its own copy of the sheet: after this release lands on main it needs `node scripts/topic-pipeline/build-renderer-constraints.mjs` re-run there (the builder reads content-contract.js, so the verb list and the 133 messages update together). I did not touch that branch.
+
+## CF-1: DECISION NEEDED (release tooling = infra)
+Finding: env.RELEASE_SHA is already READ in control-plane code (explain archive record `release`, learn-models.js telemetry, telemetry-client-route.js; web reads VITE_RELEASE_SHA) but is never SET: wrangler.rabbit-hole-prod.jsonc has no such var and scripts/prod-release.mjs deploys with only `--message "release <sha12> build <build>"`. The smallest fix is the one-line `--var RELEASE_SHA:<sha>` on the two `wrangler deploy` calls (eaf2fc76c). It is a var, not a build-time define, so the production bundle hash (checked against the dev bundle) is unchanged; a guard test says VITE_RELEASE_SHA must NOT be added to the build for that reason.
+Why a decision: it changes the production deploy command. Not run against real wrangler (no production write tonight): `wrangler deploy --var KEY:VALUE` is documented, but its behaviour with this config (keep_vars, the app worker) is unverified until a real release. Options: (A) ship it in 141 as committed (RELEASE_SHA appears in archive records and telemetry from the next release); (B) drop commit eaf2fc76c from 141 and keep CF-1 as backlog; (C) also set the var in dev/MVP deploys (mvp-fast-path.mjs, dev-deploy.mjs) so the dev clones and local previews carry it (not done). Default tonight: A is in the branch; revert = `git revert eaf2fc76c`.
+Not done for CF-1: the dev clone (MVP preview) deploys do not set it, so the archive `release` stays null there.
