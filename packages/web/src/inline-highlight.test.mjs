@@ -273,7 +273,7 @@ test('over highlighted words the mode is only the label Explain selection: no dr
 test('the selection toolbar Ctrl+K button opens the same opener as the key, with the words and no pill', () => {
   const canvas = read('AdaptiveCanvas.jsx'), layer = read('ExplanationInteractions.jsx'), editor = read('InlineAiEditor.jsx');
   assert.ok(canvas.includes('quickAsk: () => openInlineRef.current()') && canvas.includes('openInlineRef.current = () => openInline(performance.now());'), 'openInline reads the page selection as the key path does (inlineTarget picks the highlight)');
-  assert.ok(layer.includes('const quickAsk = () => { if (bar && host?.quickAsk?.()) setBar(null); };') && layer.includes("chordLabel('quick-edit', mac)"));
+  assert.ok(layer.includes('const quickAsk = () => { if (bar && host?.quickAsk?.()) setBar(null); };') && read('selection-toolbar.jsx').includes("chordLabel('quick-edit', mac)"));
   assert.ok(!layer.includes('Ask in chat'.concat('"')) && !layer.includes('askInChat'), 'Ask in chat is gone from this toolbar');
   assert.ok(editor.includes('cardEditReason || highlight'), 'a highlight opens as Explain selection');
   assert.ok(editor.includes('useState(preset?.command ?? null)'), 'no preset means no command pill: the router picks the command on Send');

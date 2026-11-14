@@ -246,9 +246,9 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
     put();
   };
   // UX-1: the Ctrl+K button opens the inline editor over the selected words (the page's own selection, as the key does); Create note puts a sticky note beside the card, quoting them.
-  const host = useContext(ExplanationHost);
-  const quickAsk = () => { if (host?.quickAsk?.()) setBar(null); };
-  const createNote = anchor => { if (host?.note?.({ id: block.id, quote: anchor.exact })) done(); };
+  const canvasHost = useContext(ExplanationHost);
+  const quickAsk = () => { if (canvasHost?.quickAsk?.()) setBar(null); };
+  const createNote = anchor => { if (canvasHost?.note?.({ id: block.id, quote: anchor.exact })) done(); };
   // Ask about selection: Chat opens in Ask with the passage, title, URL and capture as one card ref in its composer. Nothing is sent.
   const ask = anchor => {
     const text = askText(block, anchor.exact);
@@ -320,8 +320,8 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
           </div>
         </div>
       </div>
-      {bar && <SelectionToolbar barRef={barEl} data-webcard-selection-toolbar onQuickAsk={() => quickAsk()} quickDisabled={!host?.quickAsk} onAddToChat={() => ask(bar.anchor)} chatDisabled={!chat || readOnly}
-        onHighlight={() => highlight(bar.anchor)} highlightDisabled={!source || readOnly} onNote={() => createNote(bar.anchor)} noteDisabled={!host?.note || readOnly} />}
+      {bar && <SelectionToolbar barRef={barEl} data-webcard-selection-toolbar onQuickAsk={() => quickAsk()} quickDisabled={!canvasHost?.quickAsk} onAddToChat={() => ask(bar.anchor)} chatDisabled={!chat || readOnly}
+        onHighlight={() => highlight(bar.anchor)} highlightDisabled={!source || readOnly} onNote={() => createNote(bar.anchor)} noteDisabled={!canvasHost?.note || readOnly} />}
       {menu && <div ref={menuEl} data-webcard-highlight-menu role="menu" aria-label="Highlight" className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
         <button type="button" role="menuitem" autoFocus onClick={() => removeHighlight(menu.h)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>
       </div>}

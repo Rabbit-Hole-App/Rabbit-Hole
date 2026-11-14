@@ -24,8 +24,8 @@ test('the explanation, Markdown and webpage cards render the shared toolbar with
   }
   assert.match(explanation, /onQuickAsk=\{layer\.quickAsk\} quickDisabled=\{!host\?\.quickAsk\} onAddToChat=\{layer\.addToChat\} chatDisabled=\{!chat\?\.addToChat\}/);
   assert.match(explanation, /onHighlight=\{layer\.highlight\} highlightDisabled=\{!canEdit \|\| !bar\.segments\.length\} onNote=\{layer\.createNote\} noteDisabled=\{!canEdit \|\| !host\?\.note\}/);
-  assert.match(web, /onQuickAsk=\{\(\) => quickAsk\(\)\} quickDisabled=\{!host\?\.quickAsk\} onAddToChat=\{\(\) => ask\(bar\.anchor\)\}/);
-  assert.match(web, /onNote=\{\(\) => createNote\(bar\.anchor\)\} noteDisabled=\{!host\?\.note \|\| readOnly\}/);
+  assert.match(web, /onQuickAsk=\{\(\) => quickAsk\(\)\} quickDisabled=\{!canvasHost\?\.quickAsk\} onAddToChat=\{\(\) => ask\(bar\.anchor\)\}/);
+  assert.match(web, /onNote=\{\(\) => createNote\(bar\.anchor\)\} noteDisabled=\{!canvasHost\?\.note \|\| readOnly\}/);
   assert.match(markdown, /createNote = quote => \{[\s\S]*?host\.note\(\{ id: block\.id, quote: quote\.exact \}\)/);
 });
 
