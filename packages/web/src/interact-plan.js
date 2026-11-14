@@ -4,7 +4,7 @@ import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, KNOWN_CAPABILITIES } from './exp
 import { SUPPORTED_PROGRAM_TUPLES } from './explain-program/stamps.js';
 import { FRAME_OBJECTS_DEFAULT, FRAME_OBJECTS_HARD_MAX } from './explain-program/frame-budget.js';
 import { TEMPLATE_ROLES, TEMPLATE_WORDS, formulaScope, parseQuantity } from './interact-formula.js';
-import { isRegisteredTemplate } from './interact-family-registry.js';
+import { isRegisteredTemplate, sceneDataSchemaOf } from './interact-family-registry.js';
 
 // ScenePlan v1 (docs/features/interact.md section 5, INT-01): the one pure contract shared by design, review, build and the
 // saved card. Server-safe: zod and pure helpers only, no model call, network or DOM. Nothing is stripped or truncated: a plan
@@ -226,6 +226,8 @@ const scene = z.object({
   template: z.string().refine(name => isRegisteredTemplate(name), 'not a registered template').optional(), slots: z.record(z.string().min(1).max(32), z.union([id, z.record(z.string().min(1).max(32), id)])).optional(),
   // The words the template draws (interact-formula.js TEMPLATE_WORDS): a flat string map, exactly the template's keys (checked in planProblems), each within its helper's length limit.
   words: z.record(z.string().min(1).max(32), z.string().min(1).max(40)).optional(),
+  // The typed data a template takes (templateData[name].sceneDataSchema of its family, interact-family-registry.js): checked in planProblems; absent for every template that declares no schema (it is part of the plan hash when present).
+  data: z.unknown().optional(),
 }).strict();
 const mode = z.object({
   kind: z.enum(['static', 'time', 'experiment']), initialState: text(), fixedValues: z.record(id, scalar), adjustableIds: idList(8),
@@ -396,6 +398,18 @@ export function planProblems(plan) {
     else {
       for (const { key, max } of keys) { if (typeof words[key] !== 'string' || !words[key].trim()) bad(['scene', 'words', key], 'template_words', `scene.words needs "${key}"`); else if (words[key].length > max) bad(['scene', 'words', key], 'template_words', `"${key}" is at most ${max} characters (this one has ${words[key].length})`); }
       for (const key of Object.keys(words)) if (!keys.some(k => k.key === key)) bad(['scene', 'words', key], 'template_words', `template ${main.template} has no word "${key}"`);
+    }
+  }
+
+  // scene.data: required by a template that declares a schema, validated through it (unknown keys refused with their own path), refused for every other plan.
+  const dataSchema = main.template ? sceneDataSchemaOf(main.template) : undefined;
+  if (main.data !== undefined && !dataSchema) bad(['scene', 'data'], 'scene_data', 'this template takes no data');
+  else if (dataSchema && main.data === undefined) bad(['scene', 'data'], 'scene_data', `template ${main.template} needs scene.data`);
+  else if (dataSchema) {
+    const checked = dataSchema.safeParse(main.data);
+    if (!checked.success) for (const issue of checked.error.issues.slice(0, 12)) {
+      if (issue.code === 'unrecognized_keys') for (const key of issue.keys) bad(['scene', 'data', ...issue.path, key], 'scene_data', 'unknown key');
+      else bad(['scene', 'data', ...issue.path], 'scene_data', issue.message);
     }
   }
 
