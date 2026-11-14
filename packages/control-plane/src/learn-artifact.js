@@ -26,6 +26,7 @@ import { boundRequirements, danglingFigureProblem, deriveVisualRequirements, fal
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { tutorImageContext } from './learn-image-context.js';
+import { archiveExplanation } from './learn-storage.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
 import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
@@ -168,7 +169,7 @@ export function planWithReferenceKind(input, { excludeReferencePrefixes = [] } =
 // What a last-resort simplified diagram is drawn as: the card's planned kind when there is a plan (flow, cycle or sequence; any other kind becomes a flow), else the learner's words (explanation-visuals.js fallbackKind).
 const simplifiedKind = input => { if (input.plan?.planner !== 'jev') return fallbackKind(input.args); const kind = visualKinds(cardVisuals(input.plan, askedItems(input)))[0]; return ['flow', 'cycle', 'sequence'].includes(kind) ? kind : 'flow'; };
 
-export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null } = {}) {
+export async function generateArtifact(env, input, { callModel: injected = null, only = null, systemSuffix = '', repairs = ARTIFACT_REPAIRS, title = null, profile = null, figures = null, early = null, trace = null } = {}) {
   // `repairs` (trusted, server-only; the roadmap passes 0 for one authoring call per accepted card) caps the automatic repair calls.
   // R4 trusted options: `only` restricts the primitives offered, `systemSuffix` is appended to the system prompt of every call (initial and repair),
   // `title` (the roadmap's accepted step title) replaces the model's title before any check.
@@ -187,9 +188,11 @@ export async function generateArtifact(env, input, { callModel: injected = null,
     if (input.plan?.planner === 'jev' && input.visualRequirements?.items?.some(i => i.implied)) { const items = input.visualRequirements.items.filter(i => !i.implied), { visualRequirements, ...rest } = input; input = items.length ? { ...rest, visualRequirements: { ...visualRequirements, items } } : rest; }
   }
   const prepared = prepareArtifactAuthorRequest(env, input, { only, systemSuffix, profile });
+  // Card archive: what this card was made from, on the caller's `trace` option (artifactFetch). A fast-chain step overwrites it with the step that ran last.
+  if (trace) Object.assign(trace, { plan: input.plan ?? null, plannerKind: input.plan?.plannerKind ?? input.plan?.kind ?? null, references: (prepared.diagramReferences ?? []).filter(r => !r.shape).map(r => r.id), shapeId: (prepared.diagramReferences ?? []).find(r => r.shape)?.id ?? null, models: { author: prepared.model ?? null, repair: prepared.repairModel ?? null } });
   if (prepared.result) return prepared;
   // A fast-chain profile runs each provider step through this same function with that step's transport injected (explanation-fast-chain.js).
-  if (!injected && prepared.profile?.roles.author.adapter === 'fast-chain') return generateWithFallbacks(env, input, { only, systemSuffix, repairs, title, profile: prepared.profile, figures }, generateArtifact);
+  if (!injected && prepared.profile?.roles.author.adapter === 'fast-chain') return generateWithFallbacks(env, input, { only, systemSuffix, repairs, title, profile: prepared.profile, figures, trace }, generateArtifact);
   const baseCall = injected || loggedModel('artifact', planModel);
   const { request, ready, messages, body, model } = prepared;
   const binding = prepared.profile ? await explanationProfileBinding(prepared.profile) : null; // what this card's model was chosen by, saved with the result
@@ -209,6 +212,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
   let { result, call } = await ask(messages);
   // At most one repair: the first failure goes back to the model once.
   for (let attempt = 0; ; attempt++) {
+    if (trace) trace.answers = attempt + 1; // card archive: the answers asked for (1 = no repair)
     if (call.name === CLARIFY.name) {
       const question = typeof call.input?.question === 'string' ? call.input.question.trim().slice(0, 300) : '';
       if (question) return { result: 'clarification', question };
@@ -427,6 +431,10 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   // explanation (DEPTH_COMMANDS) get none, whatever was sent.
   const depth = !DEPTH_COMMANDS.includes(body.command) ? DEFAULT_DEPTH : body.depth !== undefined ? validDepth(body.depth)
     : await readDepth(env, { org: access.org, userId: access.user_id, app: body.app, board: typeof body.board === 'string' ? body.board : null });
+  // Card archive: one record per request that reaches the author, success or failure (learn-storage.js archiveExplanation: logged, never thrown). No email, only the user id.
+  const trace = {}, started = Date.now();
+  const archive = (outcome, extra = {}) => archiveExplanation(env, { id: crypto.randomUUID(), at: new Date(started).toISOString(), ms: Date.now() - started, release: env.RELEASE_SHA ?? null, userId: access.user_id ?? null, app: body.app, board: typeof body.board === 'string' ? body.board : null,
+    request: { command: body.command, args: body.args || '', selection: body.selection || null, hasContext: Boolean(body.context), depth, sourceRefId: body.sourceRefId ?? null }, ...trace, outcome, ...extra });
   let celeris = null; // DEV ONLY (explain-celeris-dev.js): declared outside the try so a refused request can still report what the route saw
   try {
     // E1: what the learner explicitly asked the written card to contain, read from their own words on the server; a picture the library does not draw is told now, before any call.
@@ -441,11 +449,12 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
       const row = await ownerRow(env, owner, body.app, typeof body.board === 'string' ? body.board : 'main').catch(() => null);
       return { org: owner.org, email: owner.email, app: body.app, boardId: row?.id ?? null };
     };
-    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store } });
+    const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}), ...(depth !== DEFAULT_DEPTH ? { depth } : {}), ...(visuals?.items.length ? { visualRequirements: visuals } : {}) }, { ...celeris?.options, figures: { store }, trace });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing
     if (out?.result !== 'artifact' && out?.result !== 'paid_proposal') await giveBack();
+    await archive(out?.result ?? null, { repaired: out?.repaired ?? null, profile: out?.profile ?? null, steps: out?.attempts ?? null, error: out?.error ?? null, returned: out?.block ?? null });
     const done = celeris ? { ...out, devModel: celeris.served() } : out;
     return json(passage && done?.block ? { ...done, block: { ...done.block, sourceRef: passage } } : done);
   }
-  catch (error) { await giveBack(); return json({ error: error.message, ...(error.code ? { code: error.code } : {}), ...(error.attempts ? { attempts: error.attempts } : {}), ...(celeris ? { devModel: celeris.served() } : {}) }, 502); } // code/attempts: the fast chain's failure reason and steps
+  catch (error) { await giveBack(); await archive('error', { error: String(error.message).slice(0, 300), code: error.code ?? null }); return json({ error: error.message, ...(error.code ? { code: error.code } : {}), ...(error.attempts ? { attempts: error.attempts } : {}), ...(celeris ? { devModel: celeris.served() } : {}) }, 502); } // code/attempts: the fast chain's failure reason and steps
 }
