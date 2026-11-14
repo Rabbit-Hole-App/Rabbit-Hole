@@ -1,0 +1,77 @@
+{
+ "reply": {
+  "cardDescription": "At the top of a throw the ball is still for an instant, so $v=0$. But gravity keeps pulling, so the acceleration stays $-g$. Velocity is zero; acceleration is not.",
+  "formulas": {
+   "height": {
+    "formula": "1.5 + launchSpeed*t - 0.5*gravity*t^2",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "velocity": {
+    "formula": "launchSpeed - gravity*t",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "acceleration": {
+    "formula": "-gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexTime": {
+    "formula": "launchSpeed/gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexHeight": {
+    "formula": "1.5 + launchSpeed^2/(2*gravity)",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "gravity": {
+   "fixed": 9.8
+  },
+  "instructions": "Press Play and watch the arrows. Drag the scrubber or press At top to stop at the highest point. Change the launch speed and compare again.",
+  "launchHeight": 1.5,
+  "launchSpeed": {
+   "min": 3,
+   "max": 8,
+   "default": 5,
+   "step": 0.1
+  },
+  "story": "Mia tosses a ball straight up and watches it climb, slow down, and stop for an instant at the top. \"It's not moving there,\" she says, \"so nothing is acting on it. Acceleration must be zero.\"\n\nIs she right? Acceleration is not how fast the ball moves. It is how fast its velocity changes. On the way up the velocity is positive and shrinking. On the way down it is negative and growing in size. Every second, the velocity drops by about 9.8 m/s, whether the ball goes up, stops or comes down.\n\nTake a throw at 5 m/s. After 0.25 s the velocity is about 2.5 m/s. After 0.51 s it is zero. After 0.76 s it is about -2.5 m/s. The velocity changes by the same amount in each equal step, and it passes through zero without pausing its change.\n\nSo at the top the velocity is zero but the acceleration is still -9.8 m/s^2, pointing down. If gravity switched off there, the ball would hang in the air. It does not, because gravity is still pulling. The ball is still for an instant only because its velocity is changing sign. Zero velocity does not mean zero acceleration.",
+  "title": "Zero velocity at the top, but is acceleration zero?",
+  "words": {
+   "lane": "Ball",
+   "launch": "Launch height",
+   "gravity_pulls": "Gravity pulls down",
+   "gravity_none": "Nothing pulls",
+   "motion_up": "Moving up, slowing",
+   "motion_top": "Still for an instant",
+   "motion_down": "Moving down, speeding up",
+   "where_launch": "At launch",
+   "where_top": "At the top",
+   "where_end": "Back at launch height",
+   "where_up": "Rising",
+   "where_down": "Falling",
+   "readout_motion": "Motion",
+   "readout_gravity": "Gravity"
+  }
+ },
+ "usage": {
+  "input_tokens": 118,
+  "cache_creation_input_tokens": 0,
+  "cache_read_input_tokens": 5309,
+  "cache_creation": {
+   "ephemeral_5m_input_tokens": 0,
+   "ephemeral_1h_input_tokens": 0
+  },
+  "output_tokens": 1157,
+  "output_tokens_details": {
+   "thinking_tokens": 0
+  },
+  "service_tier": "standard",
+  "inference_geo": "global",
+  "speed": "standard"
+ }
+}

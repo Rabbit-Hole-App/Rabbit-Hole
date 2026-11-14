@@ -1,0 +1,628 @@
+{
+ "schemaVersion": 1,
+ "supportingVisuals": [],
+ "limitations": [
+  "An idealized vertical throw; real balls feel drag."
+ ],
+ "depth": "detailed",
+ "title": "At the Highest Point of a Vertical Throw",
+ "story": "When you toss a ball straight up into the air, it slows down as it climbs, hangs motionless for a fraction of a second at its highest point, and then speeds up as it falls back down. Watching it pause at the top, it is tempting to think that since its speed is zero, its acceleration must also be zero at that exact moment.\n\nYet if acceleration were zero at the peak, the ball would stay there suspended in mid-air rather than turning around. To see why the ball keeps changing its motion, we can look at the constant pull of gravity acting on it throughout the flight. Even when the velocity is momentarily zero, gravity continues to pull downward with a steady force.\n\nBy tracking both the velocity and the acceleration side by side on a timeline and a graph, we can separate how fast the ball is moving from how fast its velocity is changing. The slope of the velocity curve remains steady the entire time, proving that gravity never stops working even at the very top.",
+ "cardDescription": "Explore how a ball's velocity and acceleration behave during a vertical throw. Even when the velocity is $0\\text{ m/s}$ at the apex, the downward acceleration remains constant at $-g$.",
+ "instructions": "Adjust the launch speed and gravity, then press play to observe the motion and the velocity-time plot.",
+ "learningGoal": "Explain that the force of gravity is m g and the acceleration is -g at every instant, including the top, so a larger mass changes the force and not the motion.",
+ "scene": {
+  "description": "Two equal-width scenes side by side in one frame. Left, the motion: a ball (frame object id ball.toss) on a height ruler fixed to the highest top, zero at the launch mark, up positive, with a blue velocity arrow (vec.v), a separate dashed warm acceleration arrow (vec.a) and a callout (callout.toss) beside it reading velocity, acceleration and the downward gravitational force, plus a state line. Right, velocity over time (plot.vt): the line on fixed scales, a linked marker and a note with the slope. Ball, marker and readings move together. No snapshot strip.",
+  "runtime": {
+   "renderer": "program",
+   "schemaVersion": 1,
+   "sdkVersion": "sdk-8",
+   "programTuple": {
+    "schemaVersion": 1,
+    "sdkVersion": "sdk-8",
+    "rendererVersion": "renderer-5",
+    "runtimeVersion": "quickjs-release-sync@0.32.0",
+    "runtimePolicyVersion": "policy-1",
+    "permissionProfileVersion": "perm-1",
+    "fingerprints": {
+     "engine": "105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232",
+     "sdk": "023f97b3134cc738caadd6050680eb77e070e2a335312aa627bfec76db09196a",
+     "renderer": "renderer-5"
+    }
+   },
+   "requiredHelpers": [],
+   "requiredCapabilities": [
+    "time_playback",
+    "number_inputs",
+    "props",
+    "figures"
+   ],
+   "catalogueHash": "34c0bff22e4392e6fc709fea6ffcbded20b3f46955314d3fd2b3fa1a43cd1c05"
+  },
+  "entities": [
+   {
+    "id": "ball",
+    "label": "Ball",
+    "purpose": "The tossed ball on the height ruler (frame object id ball.toss)."
+   },
+   {
+    "id": "velocityArrow",
+    "label": "Velocity arrow",
+    "purpose": "Blue arrow with the signed velocity (frame object id vec.v, labelled v)."
+   },
+   {
+    "id": "accelerationArrow",
+    "label": "Acceleration arrow",
+    "purpose": "Dashed warm arrow with the constant -gravity (frame object id vec.a, labelled a)."
+   },
+   {
+    "id": "velocityGraph",
+    "label": "Velocity-time graph",
+    "purpose": "The velocity line with a linked marker and the slope segment (frame object id plot.vt)."
+   }
+  ],
+  "quantities": [
+   {
+    "id": "launchSpeed",
+    "label": "Launch speed",
+    "unit": "m/s",
+    "meaning": "Upward speed at the instant of the throw.",
+    "reference": "Measured at the launch mark, up is positive.",
+    "formula": "launchSpeed"
+   },
+   {
+    "id": "gravity",
+    "label": "Gravity",
+    "unit": "m/s^2",
+    "meaning": "Magnitude of the constant downward acceleration.",
+    "reference": "Idealized, no air resistance.",
+    "formula": "gravity"
+   },
+   {
+    "id": "mass",
+    "label": "Mass",
+    "unit": "kg",
+    "meaning": "Mass of the ball.",
+    "reference": "Does not change the motion.",
+    "formula": "mass"
+   },
+   {
+    "id": "apexTime",
+    "label": "Time of the top",
+    "unit": "s",
+    "meaning": "Elapsed time from launch at which the velocity is zero.",
+    "reference": "Elapsed from launch.",
+    "relation": "apexTime = launchSpeed / gravity",
+    "formula": "launchSpeed / gravity"
+   },
+   {
+    "id": "apexHeight",
+    "label": "Height of the top",
+    "unit": "m",
+    "meaning": "Height of the ball at its top above the ground mark.",
+    "reference": "Measured from the ground mark, up is positive.",
+    "relation": "apexHeight = 0.5 * launchSpeed * launchSpeed / gravity",
+    "formula": "0.5 * launchSpeed * launchSpeed / gravity"
+   },
+   {
+    "id": "height",
+    "label": "Height of the ball",
+    "unit": "m",
+    "meaning": "Height above the ground mark, up positive; the launch height is its value at t = 0.",
+    "reference": "Measured from the ground mark, up is positive.",
+    "relation": "height = launchSpeed * t - 0.5 * gravity * t^2",
+    "formula": "launchSpeed * t - 0.5 * gravity * t^2"
+   },
+   {
+    "id": "velocity",
+    "label": "Vertical velocity",
+    "unit": "m/s",
+    "meaning": "Signed rate of change of height, up positive; zero at the top.",
+    "reference": "Zero at the top.",
+    "relation": "velocity = launchSpeed - gravity * t",
+    "formula": "launchSpeed - gravity * t"
+   },
+   {
+    "id": "acceleration",
+    "label": "Vertical acceleration",
+    "unit": "m/s^2",
+    "meaning": "Signed rate of change of velocity: constant and negative (down), -gravity.",
+    "reference": "Constant -gravity during flight.",
+    "relation": "acceleration = 0 - gravity",
+    "formula": "0 - gravity"
+   },
+   {
+    "id": "force",
+    "label": "Gravitational force",
+    "unit": "N",
+    "meaning": "Magnitude of the downward force of gravity on the ball (positive, the arrow draws it down).",
+    "reference": "Downward.",
+    "relation": "force = mass * gravity",
+    "formula": "mass * gravity"
+   }
+  ],
+  "template": "body-plot",
+  "slots": {
+   "height": "height",
+   "velocity": "velocity",
+   "acceleration": "acceleration",
+   "force": "force",
+   "plotted": "velocity"
+  },
+  "words": {
+   "lane": "Vertical Motion",
+   "launch": "Launch Level",
+   "axis_label": "Height (m)",
+   "v": "v",
+   "a": "a",
+   "force": "F",
+   "where_launch": "At Launch",
+   "where_top": "At Apex",
+   "where_end": "Back at Start",
+   "where_up": "Rising",
+   "where_down": "Falling",
+   "plot_heading": "Velocity vs Time",
+   "plot_yLabel": "Velocity (m/s)",
+   "plot_line": "Velocity",
+   "plot_now": "Current State",
+   "plot_slope": "Slope: ",
+   "plot_eq": "v = ",
+   "readout_motion": "Motion State"
+  },
+  "observations": [
+   {
+    "id": "velocitySamples",
+    "text": "The velocity follows the straight line v = u - g t and is zero at the top.",
+    "quantityIds": [
+     "velocity"
+    ],
+    "readoutIds": [
+     "velocity"
+    ]
+   },
+   {
+    "id": "accelerationSlope",
+    "text": "The slope of the velocity line is -gravity at every instant, so the acceleration is nonzero at the top.",
+    "quantityIds": [
+     "acceleration"
+    ],
+    "readoutIds": [
+     "acceleration"
+    ]
+   },
+   {
+    "id": "forceByMass",
+    "text": "The force at the top is mass times gravity, while the trajectory and the velocity graph stay identical.",
+    "quantityIds": [
+     "force",
+     "height"
+    ],
+    "readoutIds": [
+     "force"
+    ]
+   },
+   {
+    "id": "topMoves",
+    "text": "A faster toss or a weaker gravity moves the top later and higher on the fixed scales.",
+    "quantityIds": [
+     "apexTime",
+     "apexHeight"
+    ],
+    "readoutIds": []
+   }
+  ],
+  "checkpoints": [
+   {
+    "id": "before",
+    "label": "0.10 s before the top",
+    "time": {
+     "op": "subtract",
+     "left": {
+      "op": "divide",
+      "left": {
+       "op": "input",
+       "id": "launchSpeed"
+      },
+      "right": {
+       "op": "input",
+       "id": "gravity"
+      }
+     },
+     "right": {
+      "op": "literal",
+      "value": 0.1
+     }
+    },
+    "inputOverrides": {},
+    "actions": [],
+    "expected": "Velocity positive, acceleration -gravity, force mass times gravity."
+   },
+   {
+    "id": "top",
+    "label": "At the top",
+    "time": {
+     "op": "divide",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    },
+    "inputOverrides": {},
+    "actions": [],
+    "expected": "The velocity is zero, the acceleration -gravity and the force mass times gravity, downward."
+   },
+   {
+    "id": "heavyTop",
+    "label": "At the top with the largest mass",
+    "time": {
+     "op": "divide",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    },
+    "inputOverrides": {
+     "mass": 5
+    },
+    "actions": [],
+    "expected": "The force is larger; velocity, acceleration and height are exactly as at the default mass."
+   },
+   {
+    "id": "fastTop",
+    "label": "Fast toss, weak gravity, at the top",
+    "time": {
+     "op": "divide",
+     "left": {
+      "op": "input",
+      "id": "launchSpeed"
+     },
+     "right": {
+      "op": "input",
+      "id": "gravity"
+     }
+    },
+    "inputOverrides": {
+     "launchSpeed": 10,
+     "gravity": 5
+    },
+    "actions": [],
+    "expected": "At the fastest toss and the weakest gravity the top comes later and higher; velocity zero, acceleration -gravity."
+   }
+  ],
+  "readoutIds": [
+   "velocity",
+   "acceleration",
+   "force",
+   "motionState"
+  ]
+ },
+ "mode": {
+  "kind": "experiment",
+  "initialState": "Launch speed 5 m/s, gravity 9.8 m/s^2, mass 1 kg; the ball at the launch mark, time 0.000 s, paused.",
+  "fixedValues": {},
+  "adjustableIds": [
+   "launchSpeed",
+   "gravity",
+   "mass"
+  ],
+  "timeline": {
+   "label": "Time since launch",
+   "unit": "s",
+   "start": 0,
+   "end": {
+    "op": "divide",
+    "left": {
+     "op": "multiply",
+     "left": {
+      "op": "literal",
+      "value": 2
+     },
+     "right": {
+      "op": "input",
+      "id": "launchSpeed"
+     }
+    },
+    "right": {
+     "op": "input",
+     "id": "gravity"
+    }
+   },
+   "displayOffset": {
+    "op": "literal",
+    "value": 0
+   },
+   "markers": [
+    {
+     "id": "before",
+     "label": "Top -0.10 s",
+     "time": {
+      "op": "subtract",
+      "left": {
+       "op": "divide",
+       "left": {
+        "op": "input",
+        "id": "launchSpeed"
+       },
+       "right": {
+        "op": "input",
+        "id": "gravity"
+       }
+      },
+      "right": {
+       "op": "literal",
+       "value": 0.1
+      }
+     },
+     "pause": true
+    },
+    {
+     "id": "top",
+     "label": "Top",
+     "time": {
+      "op": "divide",
+      "left": {
+       "op": "input",
+       "id": "launchSpeed"
+      },
+      "right": {
+       "op": "input",
+       "id": "gravity"
+      }
+     },
+     "pause": true
+    },
+    {
+     "id": "after",
+     "label": "Top +0.10 s",
+     "time": {
+      "op": "add",
+      "left": {
+       "op": "divide",
+       "left": {
+        "op": "input",
+        "id": "launchSpeed"
+       },
+       "right": {
+        "op": "input",
+        "id": "gravity"
+       }
+      },
+      "right": {
+       "op": "literal",
+       "value": 0.1
+      }
+     },
+     "pause": true
+    }
+   ],
+   "initialTime": 0,
+   "initialPlayback": "paused",
+   "playbackRate": 0.3
+  },
+  "onInputChange": "reset_pause"
+ },
+ "controls": [
+  {
+   "id": "play",
+   "label": "Play",
+   "type": "playback",
+   "purpose": "Run the motion and replay it.",
+   "selectionReason": "Time explains the change, and the one supported transport drives every linked view.",
+   "nativeControlId": "program.playback",
+   "binding": {
+    "kind": "timeline"
+   },
+   "labels": {
+    "paused": "Play",
+    "playing": "Pause",
+    "ended": "Replay"
+   },
+   "affects": [
+    {
+     "scope": "main",
+     "kind": "entity",
+     "id": "ball"
+    },
+    {
+     "scope": "main",
+     "kind": "entity",
+     "id": "velocityGraph"
+    }
+   ]
+  },
+  {
+   "id": "scrub",
+   "label": "Time since launch",
+   "type": "scrubber",
+   "purpose": "Inspect any instant of the motion.",
+   "selectionReason": "A scrubber lets the learner stop on the instants the explanation compares.",
+   "nativeControlId": "program.scrubber",
+   "binding": {
+    "kind": "timeline"
+   },
+   "unit": "s",
+   "step": 0.01,
+   "affects": [
+    {
+     "scope": "main",
+     "kind": "entity",
+     "id": "ball"
+    },
+    {
+     "scope": "main",
+     "kind": "entity",
+     "id": "velocityGraph"
+    },
+    {
+     "scope": "main",
+     "kind": "readout",
+     "id": "velocity"
+    }
+   ]
+  },
+  {
+   "affects": [
+    {
+     "scope": "main",
+     "kind": "entity",
+     "id": "ball"
+    },
+    {
+     "scope": "main",
+     "kind": "quantity",
+     "id": "apexTime"
+    },
+    {
+     "scope": "main",
+     "kind": "quantity",
+     "id": "apexHeight"
+    }
+   ],
+   "id": "speed",
+   "label": "Launch speed",
+   "type": "number",
+   "purpose": "See how the speed of the toss moves the top without changing what gravity does there.",
+   "selectionReason": "The speed varies continuously and intermediate speeds show that the top moves while the pull does not; two named cases would hide that.",
+   "nativeControlId": "program.number",
+   "binding": {
+    "kind": "input",
+    "id": "launchSpeed"
+   },
+   "unit": "m/s",
+   "default": 5,
+   "min": 2,
+   "max": 10,
+   "step": 0.5,
+   "onChange": "reset_pause"
+  },
+  {
+   "affects": [
+    {
+     "scope": "main",
+     "kind": "entity",
+     "id": "accelerationArrow"
+    },
+    {
+     "scope": "main",
+     "kind": "quantity",
+     "id": "apexTime"
+    },
+    {
+     "scope": "main",
+     "kind": "readout",
+     "id": "acceleration"
+    },
+    {
+     "scope": "main",
+     "kind": "readout",
+     "id": "force"
+    }
+   ],
+   "id": "gravityControl",
+   "label": "Gravity",
+   "type": "number",
+   "purpose": "See that a different gravity changes the acceleration and the time to the top, not the idea.",
+   "selectionReason": "Gravity varies continuously and the learner can compare nearby values; two planets would hide that.",
+   "nativeControlId": "program.number",
+   "binding": {
+    "kind": "input",
+    "id": "gravity"
+   },
+   "unit": "m/s^2",
+   "default": 9.8,
+   "min": 5,
+   "max": 20,
+   "step": 0.1,
+   "onChange": "reset_pause"
+  },
+  {
+   "affects": [
+    {
+     "scope": "main",
+     "kind": "readout",
+     "id": "force"
+    }
+   ],
+   "id": "massControl",
+   "label": "Mass",
+   "type": "number",
+   "purpose": "See that mass changes the force of gravity and leaves the acceleration and the motion unchanged.",
+   "selectionReason": "The mass varies continuously, and the learner changes it while paused at the top to compare force and acceleration at the same instant.",
+   "nativeControlId": "program.number",
+   "binding": {
+    "kind": "input",
+    "id": "mass"
+   },
+   "unit": "kg",
+   "default": 1,
+   "min": 0.1,
+   "max": 5,
+   "step": 0.1,
+   "onChange": "recompute_still"
+  },
+  {
+   "affects": [
+    {
+     "scope": "main",
+     "kind": "entity",
+     "id": "ball"
+    },
+    {
+     "scope": "main",
+     "kind": "readout",
+     "id": "motionState"
+    }
+   ],
+   "id": "atTop",
+   "label": "At top",
+   "type": "seek",
+   "purpose": "Jump to the top of the toss and pause there.",
+   "selectionReason": "The top is the one instant the explanation is about; a button reaches it exactly, which dragging the scrubber does not.",
+   "nativeControlId": "program.seek",
+   "binding": {
+    "kind": "marker",
+    "id": "top"
+   },
+   "effect": "Seeks the top marker and pauses."
+  },
+  {
+   "affects": [
+    {
+     "scope": "main",
+     "kind": "quantity",
+     "id": "launchSpeed"
+    }
+   ],
+   "id": "resetAll",
+   "label": "Reset experiment",
+   "type": "reset",
+   "purpose": "Return to the defaults.",
+   "selectionReason": "Replay keeps the settings; Reset restores them so the learner can start over.",
+   "nativeControlId": "program.reset",
+   "binding": {
+    "kind": "reset"
+   },
+   "effect": "Restores launch speed 5 m/s, gravity 9.8 m/s^2, mass 1 kg and time 0, paused."
+  }
+ ],
+ "claims": [
+  {
+   "id": "forceAndAcceleration",
+   "text": "The gravitational force is m g and the acceleration is -g at every instant, so doubling the mass doubles the force and leaves the motion unchanged.",
+   "evidenceIds": [
+    "kinematics_note"
+   ],
+   "check": "a = F / m = -m g / m = -g; v = u - g t and y = u t - g t^2 / 2 do not contain m."
+  }
+ ],
+ "assumptions": [
+  "No air resistance, up is positive."
+ ]
+}

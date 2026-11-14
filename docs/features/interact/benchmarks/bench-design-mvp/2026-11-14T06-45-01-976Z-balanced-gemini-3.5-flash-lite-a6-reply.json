@@ -1,0 +1,88 @@
+{
+ "reply": {
+  "title": "At the Highest Point of a Vertical Throw",
+  "story": "When you toss a ball straight up into the air, it slows down as it climbs, stops for an instant at its highest point, and then speeds up on the way back down. Because the ball's speed is zero at the very top, it is easy to wonder if its acceleration is also zero at that exact moment.\n\nLet us trace what happens by looking at velocity and acceleration separately. Velocity tells us how fast and in what direction the position is changing. At the peak, the velocity is indeed zero because the ball is transitioning from moving upward to moving downward.\n\nAcceleration, however, tells us how quickly the velocity is changing. Even when the ball stops at the top, gravity continues to pull on it with a constant downward acceleration. To see this clearly, imagine a second ball held at the peak by a gate until the tossed ball reaches it, and then released to fall alongside it. Both balls experience the exact same downward acceleration throughout their flight.",
+  "cardDescription": "Explore what happens to velocity and acceleration during a vertical throw. See why velocity is zero at the peak while acceleration remains constant at $g$.",
+  "instructions": "Adjust the launch speed and gravity, then press play to observe the motion and compare the two balls.",
+  "launchHeight": 0,
+  "launchSpeed": {
+   "min": 2,
+   "max": 10,
+   "default": 5,
+   "step": 0.5
+  },
+  "gravity": {
+   "min": 5,
+   "max": 15,
+   "default": 9.8,
+   "step": 0.1
+  },
+  "formulas": {
+   "tossedHeight": {
+    "formula": "launchSpeed * t - 0.5 * gravity * t^2",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "tossedVelocity": {
+    "formula": "launchSpeed - gravity * t",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "tossedAcceleration": {
+    "formula": "-gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "dropHeight": {
+    "formula": "launchSpeed * launchSpeed / (2 * gravity)",
+    "switchAt": "launchSpeed / gravity",
+    "formulaAfter": "launchSpeed * t - 0.5 * gravity * t^2"
+   },
+   "dropVelocity": {
+    "formula": "0",
+    "switchAt": "launchSpeed / gravity",
+    "formulaAfter": "-gravity * (t - launchSpeed / gravity)"
+   },
+   "dropAcceleration": {
+    "formula": "0",
+    "switchAt": "launchSpeed / gravity",
+    "formulaAfter": "-gravity"
+   },
+   "apexTime": {
+    "formula": "launchSpeed / gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexHeight": {
+    "formula": "launchSpeed * launchSpeed / (2 * gravity)",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "lane_first": "Tossed Ball",
+   "lane_second": "Released Ball",
+   "first_where_launch": "Thrown upward",
+   "first_where_top": "At the peak",
+   "first_where_end": "Back at start",
+   "first_where_up": "Rising",
+   "first_where_down": "Falling",
+   "second_where_held": "Held at peak",
+   "second_where_released": "Released",
+   "second_where_end": "Back at start",
+   "second_where_falling": "Falling together",
+   "launch": "Launch Level",
+   "axis_label": "Height (m)",
+   "v": "v",
+   "a": "a"
+  }
+ },
+ "usage": {
+  "completion_tokens": 924,
+  "prompt_tokens": 2385,
+  "prompt_tokens_details": {
+   "cached_tokens": 920
+  },
+  "total_tokens": 3309
+ }
+}

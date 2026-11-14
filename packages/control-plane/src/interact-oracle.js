@@ -101,17 +101,20 @@ export function pendulumPeriodOracle(plan) {
 const REF = { speed: [2, 5, 4], gravity: [6, 12, 9.8], mass: [0.2, 3, 1] };
 const NEAR = 1e-9;
 
-function tossReference(plan, depth, { gravity, mass, offset }) {
+// loose (brief 11, the design bench): any ranges and the plan's own fixed gravity instead of the reference card's; the structural arithmetic (end at 2 top, display offset, pauses, 0.2x) is still checked.
+function tossReference(plan, depth, { gravity, mass, offset }, loose = false) {
   if (plan?.depth !== depth || plan.mode.kind !== 'experiment' || plan.scene.runtime.renderer !== 'program' || !plan.mode.timeline || plan.supportingVisuals.length) return null;
   const numbers = plan.controls.filter(c => c.type === 'number' && c.binding.kind === 'input'), tl = plan.mode.timeline;
-  const control = (name, [min, max, def]) => numbers.find(c => c.binding.id === name && c.min === min && c.max === max && c.default === def && Math.abs(c.step - 0.1) < 1e-9);
+  const control = (name, [min, max, def]) => numbers.find(c => c.binding.id === name && (loose ? c.step > 0 : c.min === min && c.max === max && c.default === def && Math.abs(c.step - 0.1) < 1e-9));
   const speed = control('launchSpeed', REF.speed), g = gravity && control('gravity', REF.gravity), m = mass && control('mass', REF.mass);
   if (!speed || (gravity && !g) || (mass && !m) || numbers.length !== 1 + !!gravity + !!mass) return null;
-  if (!gravity && plan.mode.fixedValues.gravity !== G) return null;
+  const fixedG = loose ? plan.mode.fixedValues.gravity : G;
+  if (!gravity && !(fixedG > 0 && fixedG === plan.mode.fixedValues.gravity)) return null;
   const inputControls = [speed, g, m].filter(Boolean), defaults = Object.fromEntries(inputControls.map(c => [c.binding.id, c.default])), domains = Object.fromEntries(inputControls.map(c => [c.binding.id, [c.min, c.max]]));
-  const at = (expr, inputs) => evalScalar(expr, inputs, domains), gOf = inputs => (gravity ? inputs.gravity : G);
+  const at = (expr, inputs) => evalScalar(expr, inputs, domains), gOf = inputs => (gravity ? inputs.gravity : fixedG);
   try {
-    for (const inputs of [defaults, { ...defaults, launchSpeed: 5, ...(gravity ? { gravity: 6 } : {}) }, { ...defaults, launchSpeed: 2, ...(gravity ? { gravity: 12 } : {}) }]) {
+    const [sMin, sMax] = loose ? [speed.min, speed.max] : [2, 5], [gLow, gHigh] = loose && g ? [g.min, g.max] : [6, 12];
+    for (const inputs of [defaults, { ...defaults, launchSpeed: sMax, ...(gravity ? { gravity: gLow } : {}) }, { ...defaults, launchSpeed: sMin, ...(gravity ? { gravity: gHigh } : {}) }]) {
       const u = inputs.launchSpeed, top = u / gOf(inputs);
       if (Math.abs(at(tl.end, inputs) - 2 * top) > NEAR || Math.abs(at(tl.displayOffset, inputs) - offset * top) > NEAR || Math.abs(tl.playbackRate - 0.2) > NEAR) return null;
       const pauses = tl.markers.filter(k => k.pause).map(k => at(k.time, inputs)).sort((a, b) => a - b), want = depth === 'brief' ? [top] : [top - 0.1, top, top + 0.1];
@@ -154,7 +157,21 @@ function tossOracle(plan, id, ref, values, arrows = () => []) {
     for (const [objectId, dir, quantity] of arrows({ velocity: u - g * t, tau, g })) directions.push({ case: caseId, id: objectId, dir, why: WHY[quantity] });
     for (const [name, expected] of Object.entries(values({ u, g, m: inputs.mass ?? 1, t, tau, top, peak: u * u / (2 * g), height: Math.max(0, u * t - g * t * t / 2), velocity: u - g * t }))) if (required.has(name) && expected !== undefined) expect.push({ case: caseId, panel: 'main', name, expected, tol: TOL });
   }
-  return expect.length ? { id, expect, arrows: directions } : null;
+  return expect.length || directions.length ? { id, expect, arrows: directions } : null;
+}
+
+// The arrow rule of each depth (the rows the three reference oracles carry), shared with the family oracle below.
+const ARROWS = {
+  brief: v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a']],
+  balanced: v => [['vec.v.toss', velocityDir(v.velocity), 'v'], ['vec.a.toss', 'down', 'a'], ['vec.v.drop', velocityDir(v.tau > 0 ? -v.g * v.tau : 0), 'v'], ['vec.a.drop', 'down-or-none', 'a']],
+  detailed: v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a'], ['vec.F', 'down-or-none', 'F']],
+};
+const LOOSE_OPTIONS = { brief: { gravity: false, mass: false, offset: 0 }, balanced: { gravity: true, mass: false, offset: -1 }, detailed: { gravity: true, mass: true, offset: 0 } };
+
+// brief 11 (the design bench): the arrow-direction rule for ANY plan of the vertical-throw family at its depth (own ranges, own fixed gravity); no numeric rows (the formula check owns the physics). null off the family.
+export function verticalThrowArrowOracle(plan) {
+  const options = LOOSE_OPTIONS[plan?.depth], ref = options && tossReference(plan, plan.depth, options, true);
+  return ref && tossOracle(plan, `vertical-throw-${plan.depth}`, ref, () => ({}), ARROWS[plan.depth]);
 }
 
 export function tossOverviewOracle(plan) {
@@ -221,12 +238,6 @@ function familyReference(plan) {
   const defaults = Object.fromEntries(numbers.map(c => [c.binding.id, c.default])), domains = Object.fromEntries(numbers.map(c => [c.binding.id, [c.min, c.max]]));
   return { inputControls: numbers, defaults, at: (expr, inputs) => evalScalar(expr, inputs, domains), gOf: inputs => fixedGravity ?? inputs.gravity, tl, brief };
 }
-
-const ARROWS = {
-  brief: v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a']],
-  balanced: v => [['vec.v.toss', velocityDir(v.velocity), 'v'], ['vec.a.toss', 'down', 'a'], ['vec.v.drop', velocityDir(v.tau > 0 ? -v.g * v.tau : 0), 'v'], ['vec.a.drop', 'down-or-none', 'a']],
-  detailed: v => [['vec.v', velocityDir(v.velocity), 'v'], ['vec.a', 'down', 'a'], ['vec.F', 'down-or-none', 'F']],
-};
 
 export function verticalThrowOracle(plan) {
   const ref = familyReference(plan);

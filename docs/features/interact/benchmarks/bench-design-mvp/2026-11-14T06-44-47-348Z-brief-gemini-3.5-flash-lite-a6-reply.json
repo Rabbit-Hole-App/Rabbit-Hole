@@ -1,0 +1,69 @@
+{
+ "reply": {
+  "title": "The Vertical Throw",
+  "story": "You toss a small ball straight up into the air. As it climbs, it slows down until it hangs suspended for a single, motionless instant at its peak before falling back into your hand. It is tempting to think that because its velocity is zero at the very top, its acceleration must be zero too. After all, if it is not moving, surely nothing is pushing or pulling on it at that exact instant.\n\nYet gravity never takes a break. The Earth pulls downward on the ball the entire time it is in flight—on the way up, at the very top, and all the way back down. Acceleration is the rate at which velocity changes, not the velocity itself. Even though the upward motion stops for a fraction of a second, the downward pull of gravity is constant.",
+  "cardDescription": "Explore what happens when you throw a ball straight up. See how velocity changes while acceleration stays constant at $-9.8 \\text{ m/s}^2$.",
+  "instructions": "Adjust the launch speed and press Play to watch the motion. Use the scrubber to explore different instants.",
+  "launchHeight": 0,
+  "launchSpeed": {
+   "min": 3,
+   "max": 10,
+   "default": 5,
+   "step": 0.5
+  },
+  "gravity": {
+   "fixed": 9.8
+  },
+  "formulas": {
+   "height": {
+    "formula": "launchSpeed * t - 0.5 * gravity * t^2",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "velocity": {
+    "formula": "launchSpeed - gravity * t",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "acceleration": {
+    "formula": "0 - gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexTime": {
+    "formula": "launchSpeed / gravity",
+    "switchAt": null,
+    "formulaAfter": null
+   },
+   "apexHeight": {
+    "formula": "launchSpeed * launchSpeed / (2 * gravity)",
+    "switchAt": null,
+    "formulaAfter": null
+   }
+  },
+  "words": {
+   "lane": "Vertical Lane",
+   "launch": "Launch Mark",
+   "gravity_pulls": "Gravity pulls down",
+   "gravity_none": "No gravity",
+   "motion_up": "Moving upward",
+   "motion_top": "At the apex",
+   "motion_down": "Falling downward",
+   "where_launch": "At launch",
+   "where_top": "At the top",
+   "where_end": "Back at launch",
+   "where_up": "Rising",
+   "where_down": "Falling",
+   "readout_motion": "Motion",
+   "readout_gravity": "Gravity"
+  }
+ },
+ "usage": {
+  "completion_tokens": 690,
+  "prompt_tokens": 2185,
+  "prompt_tokens_details": {
+   "cached_tokens": 1017
+  },
+  "total_tokens": 2875
+ }
+}
