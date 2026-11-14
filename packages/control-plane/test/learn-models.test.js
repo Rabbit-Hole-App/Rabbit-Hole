@@ -7,11 +7,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { askStream, planModel } from '../src/ask.js';
-import { requestSpendBound } from '../src/learn-spend.js';
-import { readFileSync } from 'node:fs';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateBoardPlan } from '../src/learn-board.js';
-import { CHAT_GEMINI, LEARN_TASKS, MODEL_PRICES, costUsd, askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER, RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from '../src/learn-models.js';
+import { LEARN_TASKS, MODEL_PRICES, costUsd, askModel, MESSAGE_LIMIT, MENTION_LIMIT, HISTORY_TURNS, PAPERS_PER_ANSWER, RESEARCH_STEPS, ARTIFACT_REPAIRS, BOARD_DRAFT_TURNS, BOARD_REVIEW_PASSES } from '../src/learn-models.js';
 
 const object = { objectId: 'equation', lessonId: 'sigmoid-demo', runId: 'test-run', author: 'script', kind: 'equation', originalText: 'σ(x) = 1 / (1 + exp(-x))', relatedObjectIds: [], shapeIds: ['shape:eq'], renderStatus: 'complete', shapes: [{ shapeId: 'shape:eq', pageBounds: { x: 0, y: 0, w: 300, h: 30 } }] };
 const snapshot = { lessonId: 'sigmoid-demo', runId: 'test-run', method: 'lesson', target: null, relatedObjects: [object], lessonContext: { topic: 'Sigmoid', currentStage: 'sigmoid', recentExplanations: ['The midpoint is 0.5.'] } };
@@ -160,14 +158,14 @@ test('the roadmap roles: eight registered entries, one tool each, no fallback, p
   const role = (model, effort, maxTokens) => ({ provider: 'anthropic', model, effort, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens });
   const roadmap = Object.fromEntries(Object.entries(LEARN_TASKS).filter(([key]) => key.startsWith('roadmap_')));
   assert.deepEqual(roadmap, {
-    roadmap_subject: role(CHAT_GEMINI, null, 4000),
-    roadmap_draft: role(CHAT_GEMINI, null, 12000),
-    roadmap_revise: role(CHAT_GEMINI, null, 12000),
-    roadmap_grounding_check: role(CHAT_GEMINI, null, 4000),
-    roadmap_grounding_escalation: role(CHAT_GEMINI, null, 4000),
-    roadmap_safety_adjudicate: role(CHAT_GEMINI, null, 4000),
-    roadmap_proposal: role(CHAT_GEMINI, null, 600),
-    roadmap_index: role(CHAT_GEMINI, null, 2000),
+    roadmap_subject: role('claude-sonnet-5-5', 'low', 1000),
+    roadmap_draft: role('claude-opus-5-5', null, 12000),
+    roadmap_revise: role('claude-opus-5-5', null, 12000),
+    roadmap_grounding_check: role('claude-sonnet-5-5', 'low', 1500),
+    roadmap_grounding_escalation: role('claude-opus-5-5', null, 4000),
+    roadmap_safety_adjudicate: role('claude-opus-5-5', null, 1500),
+    roadmap_proposal: role('claude-sonnet-5-5', 'low', 600),
+    roadmap_index: role('claude-sonnet-5-5', 'low', 2000),
   });
   assert.ok(Object.values(roadmap).every(Object.isFrozen));
 });
@@ -175,8 +173,8 @@ test('the roadmap roles: eight registered entries, one tool each, no fallback, p
 // Professor Next Steps (docs/features/professor-next-steps.md §2.4): Sonnet low first, Opus once as the escalation; the
 // one price map the decision telemetry's cost_usd reads.
 test('the hook planner roles and the model price map', () => {
-  assert.deepEqual(LEARN_TASKS.tutor_next_steps, { provider: 'anthropic', model: 'gemini-3.5-flash-lite', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 }); // owner 2026-11-13: Curious runs on chat's Gemini
-  assert.deepEqual(LEARN_TASKS.tutor_next_steps_escalation, { provider: 'anthropic', model: 'gemini-3.5-flash-lite', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 });
+  assert.deepEqual(LEARN_TASKS.tutor_next_steps, { provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 1500 });
+  assert.deepEqual(LEARN_TASKS.tutor_next_steps_escalation, { provider: 'anthropic', model: 'claude-opus-5-5', effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 4000 });
   assert.ok(Object.isFrozen(LEARN_TASKS.tutor_next_steps) && Object.isFrozen(LEARN_TASKS.tutor_next_steps_escalation));
   assert.deepEqual(MODEL_PRICES, { 'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0.1], 'claude-haiku-4-5-20251001': [1, 5, 0.1] }); // Sonnet 5.5 cached input is $0.10 (owner 2026-10-23, confirmed by Anthropic)
   assert.equal(costUsd({ model: 'claude-opus-5-5', input_tokens: 1000, output_tokens: 100, cache_creation_input_tokens: 400, cache_read_input_tokens: 2000 }), (1000 * 4 + 100 * 20 + 400 * 4 * 1.25 + 2000 * 0.2) / 1e6);
@@ -244,14 +242,4 @@ test('the /interact design roles are pinned like the explain roles; the legacy e
     assert.deepEqual({ ...LEARN_TASKS[task] }, { provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens }, task);
   }
   assert.deepEqual(['explain_brief', 'explain_author', 'explain_review', 'explain_repair'].map(task => LEARN_TASKS[task].maxTokens), [4000, 10000, 3000, 6000]);
-});
-
-// Owner 2026-11-13: the Curious planner runs on Gemini. Admitted as Anthropic a Gemini model has no spend bound, so spendCallModel refused the call
-// (spend_bound_unavailable, a 502 in about 20 ms: "Could not refresh"); it must admit it as Google, as ask.js geminiChat does inside it.
-test('spendCallModel admits a Gemini model as Google: Anthropic has no bound for it, Google does', () => {
-  const body = { max_tokens: 4000, messages: [{ role: 'user', content: 'x' }] };
-  assert.equal(requestSpendBound(body, 'gemini-3.5-flash-lite', 'anthropic'), null);
-  assert.ok(requestSpendBound(body, 'gemini-3.5-flash-lite', 'google') > 0);
-  const source = readFileSync(new URL('../src/learn-spend.js', import.meta.url), 'utf8');
-  assert.ok(source.includes("model?.startsWith?.('gemini-') ? { provider: 'google' } : {}"));
 });

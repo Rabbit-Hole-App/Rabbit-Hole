@@ -32,21 +32,56 @@ function harness({ routes, board = new Set(), persist = async () => ({ ok: true 
 const settle = () => new Promise(resolve => setTimeout(resolve, 5));
 const post = (calls, suffix) => calls.filter(c => c.method === 'POST' && c.path.endsWith(suffix));
 
-test('a refused Generate course because another device won: current state replaces ours with the plain sentence', async () => {
-  const { controller } = harness({ routes: { 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/course/start': () => { throw fail(409, view('error-stale-409')); } } });
+test('Tab and a click together send exactly one accept; the answer is applied', async () => {
+  const { controller, calls } = harness({ routes: { 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/proposals/pr_[^/]+/accept': () => view('accept-proposal-response-generating') } });
   controller.start(); await settle();
-  await controller.startCourse(); await settle();
+  assert.equal(pillOf(controller.getState()).accept, true);
+  const first = controller.acceptProposal(), second = controller.acceptProposal();
+  await first; await second; await settle();
+  assert.equal(post(calls, '/accept').length, 1);
+  assert.equal(post(calls, '/accept')[0].body.revision, 7);
+  assert.equal(post(calls, '/accept')[0].body.proposalVersion, 1);
+  assert.equal(controller.getState().view.roadmap.revision, 8);
+  assert.equal(pillOf(controller.getState()), null);
+});
+
+test('while the accept is in flight the pill reads accepting, and a second press sends nothing more', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const { controller, calls } = harness({ routes: { 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/proposals/pr_[^/]+/accept': async () => { await gate; return view('accept-proposal-response-generating'); } } });
+  controller.start(); await settle();
+  const first = controller.acceptProposal(); await settle();
+  assert.equal(pillOf(controller.getState()).accepting, true);
+  assert.equal(await controller.acceptProposal(), null, 'a duplicate press while in flight is a no-op');
+  release(); await first; await settle();
+  assert.equal(post(calls, '/accept').length, 1);
+  assert.equal(pillOf(controller.getState()), null);
+});
+
+test('a refused accept because another device won: current state replaces ours with the plain sentence', async () => {
+  const { controller } = harness({ routes: { 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/proposals/pr_[^/]+/accept': () => { throw fail(409, view('error-stale-409')); } } });
+  controller.start(); await settle();
+  await controller.acceptProposal(); await settle();
   assert.equal(controller.getState().view.roadmap.revision, 8);
   assert.equal(controller.getState().notice, 'This roadmap changed. Showing the latest.');
 });
 
+test('insufficient credits: the sentence from the response, proposal still pending', async () => {
+  const body = view('error-insufficient-allowance');
+  const { controller } = harness({ routes: { 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/proposals/pr_[^/]+/accept': () => { throw fail(429, body); } } });
+  controller.start(); await settle();
+  await controller.acceptProposal(); await settle();
+  assert.equal(controller.getState().notice, body.error);
+  assert.equal(pillOf(controller.getState()).accept, true);
+});
+
 test('a retry of the same gesture after a failure reuses the action key', async () => {
   let attempts = 0;
-  const { controller, calls } = harness({ routes: { 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/course/start': () => { attempts += 1; if (attempts === 1) throw fail(500, { error: 'x' }); return view('accept-proposal-response-generating'); } } });
+  const { controller, calls } = harness({ routes: { 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/proposals/pr_[^/]+/accept': () => { attempts += 1; if (attempts === 1) throw fail(500, { error: 'x' }); return view('accept-proposal-response-generating'); } } });
   controller.start(); await settle();
-  await controller.startCourse(); await settle();
-  await controller.startCourse(); await settle();
-  const keys = post(calls, '/course/start').map(c => c.body.actionKey);
+  await controller.acceptProposal(); await settle();
+  await controller.acceptProposal(); await settle();
+  const keys = post(calls, '/accept').map(c => c.body.actionKey);
   assert.equal(keys.length, 2);
   assert.notEqual(keys[0], undefined);
 });
@@ -122,7 +157,7 @@ test('flag off: 404 roadmap_disabled hides everything and nothing else is sent',
   const { controller, calls } = harness({ routes: { 'GET ': () => { throw fail(404, { error: 'Not found', code: 'roadmap_disabled' }); } } });
   controller.start(); await settle();
   assert.equal(controller.getState().flag, 'off');
-  await controller.startCourse(); await controller.end();
+  await controller.proposeNext(); await controller.end();
   assert.equal(calls.filter(c => c.method === 'POST').length, 0);
 });
 
@@ -132,16 +167,26 @@ test('a shared or read-only view stays silent: no request at all', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('End roadmap sends its own action with the current revision; the per-card actions are gone (owner 2026-11-14)', async () => {
+test('manual progression and End roadmap send their own actions with the current revision', async () => {
   const paused = view('status-cancelled-paused');
-  const { controller, calls } = harness({ routes: { 'GET ': () => paused, 'POST /rm_[^/]+/end': () => view('status-completed') } });
+  const { controller, calls } = harness({ routes: { 'GET ': () => paused, 'POST /rm_[^/]+/steps/propose': () => view('status-delivered-next-ready'), 'POST /rm_[^/]+/end': () => view('status-completed') } });
   controller.start(); await settle();
-  for (const retired of ['proposeNext', 'acceptProposal', 'cancelProposal', 'recoverOffer', 'openEditor', 'previewEdit', 'applyEdit']) assert.equal(retired in controller, false, retired);
+  await controller.proposeNext(); await settle();
+  assert.equal(post(calls, '/steps/propose')[0].body.revision, 11);
+  assert.equal('recover' in controller, false, 'no recovery action (owner 2026-11-06)');
   await controller.end(); await settle();
   assert.equal(post(calls, '/end').length, 1);
 });
 
-test('dismiss and explain act on the one invitation', async () => {
+test('Cancel posts the proposal version; dismiss and explain act on the one invitation', async () => {
+  const { controller, calls } = harness({ routes: {
+    'GET ': () => view('status-active-proposal-pending'),
+    'POST /rm_[^/]+/proposals/pr_[^/]+/cancel': () => view('status-cancelled-paused'),
+  } });
+  controller.start(); await settle();
+  await controller.cancelProposal(); await settle();
+  assert.equal(post(calls, '/cancel')[0].body.proposalVersion, 1);
+  assert.equal(controller.getState().view.roadmap.state, 'paused');
   const inv = harness({ routes: { 'GET ': () => ({ roadmap: null }), 'GET /invitations': () => view('invitation-offered'), 'POST /invitations/iv_[^/]+/dismiss': () => view('invitation-dismiss'), 'POST /': () => view('create-response-draft') } });
   inv.controller.start(); await settle();
   assert.ok(inv.controller.getState().invitation);

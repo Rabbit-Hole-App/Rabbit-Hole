@@ -11,7 +11,6 @@ import { canvasesFetch, canvasRoute } from '../src/canvases.js';
 import { chatMessageFetch, chatMessageRoute } from '../src/chat-message-routes.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
 import { spendTransport } from '../src/learn-spend.js';
-import { CHAT_GEMINI } from '../src/learn-models.js';
 import { usageTotals, periodOf } from '../src/learn-usage.js';
 import { routes } from '../../web/src/roadmap-client.js';
 import { world } from './roadmap-fixture.js';
@@ -98,14 +97,13 @@ export async function workflow(t, { plans = [PLAN], script = [], classifier = as
   }
   h.objects = objects;
   const identity = req => { const who = USERS[req.headers.get('x-test-user')]; return who ? Response.json({ org: 'team', email: who.email, orgName: 'Team', user_id: who.userId, apps: [] }) : Response.json({ error: 'Sign in' }, { status: 401 }); };
-  h.env = { ...w.env, ROADMAP_CARD_PROFILE: 'plan-default', ROADMAP_ENABLED: 'true', ROADMAP_AUTO_ENABLED: auto ? 'true' : 'false', ROADMAP_EDIT_ENABLED: 'true', ROADMAP_LONG_MARKDOWN_ENABLED: 'true',
+  h.env = { ...w.env, ROADMAP_ENABLED: 'true', ROADMAP_AUTO_ENABLED: auto ? 'true' : 'false', ROADMAP_EDIT_ENABLED: 'true', ROADMAP_LONG_MARKDOWN_ENABLED: 'true',
     LEARN_MEDIA: { get: async key => { h.r2Reads.push(key); return key in objects ? { text: async () => objects[key] } : null; } },
     CONTROL_PLANE: { fetch: async req => identity(req) }, DB: { prepare() { throw new Error('live D1 touched'); } } };
   // Planner / checker transport double: every serialized request captured.
   const planner = async (role, body) => {
     h.plannerCalls.push({ role, body: clone(body), text: JSON.stringify(body) });
     if (role === 'roadmap_draft' || role === 'roadmap_revise') return toolUse('submit_roadmap', h.plans.length > 1 ? h.plans.shift() : h.plans[0]);
-    if (role === 'roadmap_subject' && h.facts) return toolUse('submit_facts', h.facts); // the course's fun facts (roadmap-course.js ensureFacts); a test sets h.facts
     if (role === 'roadmap_proposal') return toolUse('submit_proposal_edit', h.nextEdit || { title: 'Gini in one picture', description: 'How squared shares make Gini.', format: 'explanation' });
     throw new Error(`unexpected planner role ${role}`);
   };
@@ -117,7 +115,7 @@ export async function workflow(t, { plans = [PLAN], script = [], classifier = as
     const next = h.script.shift();
     if (!next) throw new Error('unexpected author call');
     return next(model, body);
-  }, { userId: 'roadmap-author', category: 'roadmap', ...(model === CHAT_GEMINI ? { provider: 'google' } : {}) }); // a roadmap card is authored on Gemini Flash (owner 2026-11-14), settled as Google like ask.js geminiChat
+  }, { userId: 'roadmap-author', category: 'roadmap' });
   registerRoadmapHandlers({ callModel: planner, checkCallModel: checker, classify, base });
   for (const kind of ['plan_requested', 'step_accepted', 'settings_changed', ...AUTO_KINDS]) {
     const fn = roadmapHandler(kind);

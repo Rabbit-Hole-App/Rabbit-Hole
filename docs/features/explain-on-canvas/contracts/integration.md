@@ -1,9 +1,5 @@
 # R4 contract: ordered integration plan
 
-> **Superseded in part by the owner decision of 2026-11-14 (Create a course).** One Generate course makes every card of the accepted plan; there is no per-card Accept, Cancel, Edit card, Next card,
-> Propose next step, End roadmap, Tab accept or proposal editor any more, the invitation reads **Create a course | Cancel**, the draft **Accept | Edit**, plan steps carry a `section`, cards are authored on
-> Gemini Flash, and a new file replaces the canvas's unfinished roadmap (one course per canvas). Where this document says otherwise, `docs/features/create-a-course.md` wins.
-
 Status: DRAFT CONTRACT. Dependencies follow v1.4 3.1 and the manifest update of 2026-11-05: R4 depends on R1, R2, R3 and **the cleanup it actually uses, verified per release** (not a blanket M0/P7 gate; P7 is cleanup's closeout). Migration numbers 0036-0038 are provisional. No R4 migration number is allocated.
 
 ## 1. What R4 needs from R1, R2, R3 (interfaces; R3's landed code was read in its lane worktree `tutor-r3`, read only; R1 and R2 are still questions to those lanes)

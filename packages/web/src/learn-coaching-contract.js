@@ -180,9 +180,6 @@ export function validateCoachingRecord(kind, value) {
 // authorized state and no conflicting active input. Callers recheck it when scheduling and again before applying.
 export const canCoach = (controls, { chatOpen = false, ready = false, activeInput = false } = {}) =>
   controls?.mode === 'tutor' && controls.tutorEnabled === true && controls.suggestionsPaused === false && chatOpen && ready && !activeInput;
-// The Curious card (owner 2026-11-13): it shows at the canvas's lower right while the Chat panel is closed, in any mode, so it asks when
-// suggestions are On, unpaused and the state is ready (the Chat's mode and open state no longer gate it).
-export const canSuggest = (controls, { ready = false } = {}) => controls?.tutorEnabled === true && controls.suggestionsPaused === false && ready;
 const proactive = c => c.mode === 'tutor' && c.tutorEnabled && !c.suggestionsPaused;
 
 // Which actions are proactive (integrator ruling Q5, 2026-10-20, decisions.md; provisional for owner review): what the

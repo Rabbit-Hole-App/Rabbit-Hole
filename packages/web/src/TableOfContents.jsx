@@ -147,7 +147,7 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
         onDrop={event => { event.preventDefault(); event.stopPropagation(); if (drag && drop !== undefined) canvasApi.current?.moveSection(drag, drop); endDrag(); }}
         className={`group relative flex items-start gap-3 rounded-sm transition-colors duration-700 motion-reduce:transition-none ${flashed === entry.id ? 'bg-accent/15 ring-1 ring-accent/40' : ''} ${drag === entry.id ? 'opacity-40' : ''} ${drag && drop === entry.id ? 'shadow-[0_-2px_0_0_var(--color-accent)]' : ''} ${drag && drop === null && index === outline.length - 1 ? 'shadow-[0_2px_0_0_var(--color-accent)]' : ''}`}>
         {!readOnly && !entry.roadmap && <GripVertical size={14} aria-hidden className={`absolute -left-4 ${topic ? 'top-[5px]' : 'top-[3px]'} cursor-grab text-ink-3 opacity-0 group-hover:opacity-100`} />}
-        <Circle entry={entry} topic={topic} active={active} readOnly={readOnly || !!entry.roadmap?.section} onToggle={() => (entry.roadmap ? toggleRoadmapDone(entry.roadmap.stepId) : canvasApi.current?.toggleSectionDone(entry.id))} />
+        <Circle entry={entry} topic={topic} active={active} readOnly={readOnly} onToggle={() => (entry.roadmap ? toggleRoadmapDone(entry.roadmap.stepId) : canvasApi.current?.toggleSectionDone(entry.id))} />
         {number && <span data-toc-number className={`${topic ? 'min-w-[18px] pt-[3px] text-xs' : `${entry.level === 3 ? 'min-w-12' : 'min-w-9'} pt-px text-[13px]`} -mr-1 shrink-0 leading-5 text-ink-2 tabular-nums`}>{number}</span>}
         {editing === entry.id ? <Editor entry={entry} topic={topic} onSave={(title, description) => save(entry, title, description)} onCancel={() => setEditing(null)} /> : (
           <div className="min-w-0 flex-1">
@@ -175,7 +175,7 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
                 </div>
               );
             })()}
-            {entry.roadmap && !entry.roadmap.section && <div data-roadmap-status className="mt-[5px] text-[11px] leading-4 text-ink-2">{entry.roadmap.status}{entry.roadmap.removed ? ` · ${'Card removed'}` : ''}</div>}
+            {entry.roadmap && <div data-roadmap-status className="mt-[5px] text-[11px] leading-4 text-ink-2">{entry.roadmap.status}{entry.roadmap.removed ? ` · ${'Card removed'}` : ''}</div>}
           </div>
         )}
         {editing !== entry.id && (() => {
@@ -265,8 +265,6 @@ export default function TableOfContents({ outline: own, canvasApi, onAddToChat =
       {subtitle && <p data-toc-subtitle className="-mt-2 mb-2 shrink-0 truncate text-xs text-ink-3">{subtitle}</p>}
       {goal && <p data-toc-goal title={goal} className="mb-4 shrink-0 line-clamp-2 text-[13px] leading-normal break-words text-ink-2"><span className="font-medium text-ink">Goal</span> · {goal}</p>}
       {top}
-      {roadmap?.canStartCourse && !readOnly && <div className="mb-3 shrink-0"><Button type="button" size="sm" variant="primary" data-toc-generate-course onClick={() => roadmap.startCourse()}>Generate course</Button></div>}
-      {roadmap?.canRetryCourse && !readOnly && <div className="mb-3 shrink-0"><Button type="button" size="sm" variant="primary" data-toc-try-again onClick={() => roadmap.retryCourse()}>Try again</Button></div>}
       {shown && <ProposalCard proposal={shown} outline={outline} canvasApi={canvasApi} onDone={() => onProposal?.(null)} />}
       {list(tree, 0)}
       {adding && (

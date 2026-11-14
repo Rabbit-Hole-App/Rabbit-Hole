@@ -47,7 +47,7 @@ export const EVENTS = {
   rh_roadmap_step: ['action', 'step_state'],
 };
 // Static pages kept as they are; every other path goes through routeTemplate (ids, tokens and handles become placeholders).
-const PAGES = new Set(['/', '/blog', '/features', '/examples', '/pricing', '/manifesto', '/sign-in', '/sign-up', '/check-email', '/privacy', '/terms', '/404', '/home']);
+const PAGES = new Set(['/', '/blog', '/features', '/pricing', '/manifesto', '/sign-in', '/sign-up', '/check-email', '/privacy', '/terms', '/404', '/home']);
 export const pagePath = pathname => {
   const path = String(pathname || '/').split(/[?#]/)[0].replace(/(.)\/$/, '$1');
   return PAGES.has(path) ? path : routeTemplate(path);

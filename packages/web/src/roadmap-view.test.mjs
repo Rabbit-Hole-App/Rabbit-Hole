@@ -33,12 +33,29 @@ const noop = () => {};
 const BANNED = /\$|credit|cost|price|estimate|maximum|opus|sonnet|claude|token/i;
 
 // Owner spec 2026-11-06 (pill 28px, 4px corners) and plan section 4.2 ("Remove the saturated green/red blocks"): supersedes the earlier square green/red pill.
+test('the pill reads Accept [Tab] | Cancel: 28px, 4px corners, the selection bar small actions, no saturated colour, no price', () => {
+  const markup = html(lib.StepPill, { pill: pillOf(at('status-active-proposal-pending')), onAccept: noop, onCancel: noop });
+  assert.match(markup, /data-roadmap-pill="true"[^>]*class="inline-flex h-7[^"]* rounded border border-line/);
+  assert.match(markup, /data-roadmap-accept="true"[^>]*h-7 cursor-pointer[^>]*>Accept<kbd[^>]*>Tab<\/kbd>/);
+  assert.match(markup, /data-roadmap-cancel="true"[^>]*border-l[^>]*>Cancel</);
+  assert.doesNotMatch(markup, /bg-(green|red)-|text-white/);
+  assert.doesNotMatch(markup.replace(/<[^>]+>/g, ' '), BANNED);
+});
 
 test('a version that is not accept-ready keeps the Accept name, disabled', () => {
   const pill = { ...pillOf(at('status-active-proposal-pending')), accept: false };
   const markup = html(lib.StepPill, { pill, onAccept: noop, onCancel: noop });
   assert.match(markup, /data-roadmap-accept="true"[^>]*disabled/);
   assert.match(markup, />Accept</);
+});
+
+test('the overlay shows title, description and source relationship, is marked as the keyboard owner, and has no price text', () => {
+  const pill = pillOf(at('status-active-proposal-pending'));
+  const markup = html(lib.ProposalOverlay, { pill, position: { left: 10, top: 20, width: 280 }, onAccept: noop, onCancel: noop });
+  assert.match(markup, /data-roadmap-overlay/);
+  assert.match(markup, /What a gradient tells you/);
+  assert.match(markup, /From Gradient descent notes\.md/);
+  assert.doesNotMatch(markup.replace(/<[^>]+>/g, ' '), BANNED);
 });
 
 // UI.08 (file 02): a later offer's one Next card | Cancel pill; no Next step ready chip, no Tab hint, green / muted red; nothing for a first offer or a busy step.
@@ -58,9 +75,9 @@ test('the invitation offers exactly the two choices; no other control', () => {
   const state = reduce(initialState(), { type: 'invitation', invitation: JSON.parse(readFileSync(DIR + 'invitation-offered.json', 'utf8')).response.body.invitation });
   const markup = html(lib.RoadmapInvitation, { invitation: invitationOf(state), lines: [], onExplain: noop, onKeep: noop, onAnswer: noop, onOffer: noop });
   assert.equal((markup.match(/<button/g) || []).length, 2);
-  assert.match(markup, />Create a course</);
-  assert.match(markup, />Cancel</);
-  assert.match(markup, /You’ve added \*\*Gradient descent notes\.md\*\*\. Would you like me to create a course from it\?/);
+  assert.match(markup, />Explain on canvas</);
+  assert.match(markup, />Just keep it here</);
+  assert.match(markup, /You’ve added \*\*Gradient descent notes\.md\*\*\. Would you like me to explain it on the canvas\?/);
   assert.equal(html(lib.RoadmapInvitation, { invitation: null, lines: [] }), '');
 });
 
@@ -130,4 +147,15 @@ test('Contents is one scroll and one tree: accepted roadmap rows, then the manua
     assert.doesNotMatch(markup, /data-roadmap-plan|data-roadmap-parameters|data-roadmap-accept-plan|data-roadmap-edit-plan|data-roadmap-end|data-roadmap-propose-next|Stopping point|data-toc-composer|data-toc-conversation|Accept plan|Edit plan/);
   }
   assert.doesNotMatch(draw(at('status-proposed-plan')), /data-roadmap-step=/, 'a draft never reaches the ToC');
+});
+
+test('Fix A: the proposal button reads Accepting while in flight; the status text follows the view, with no percentage or ellipsis', () => {
+  const noop = () => {};
+  const state = at('status-active-proposal-pending');
+  const pressed = reduce(state, { type: 'begin', gesture: pillOf(state).gesture });
+  const markup = html(lib.StepPill, { pill: pillOf(pressed), onAccept: noop, onCancel: noop });
+  assert.match(markup, /data-roadmap-accept="true"[^>]* disabled=""[^>]*>Accepting</);
+  assert.match(markup, /aria-busy="true"/);
+  assert.doesNotMatch(markup, /<kbd/);
+  assert.match(html(lib.StepPill, { pill: pillOf(state), onAccept: noop, onCancel: noop }), /<kbd[^>]*>Tab<\/kbd>/);
 });

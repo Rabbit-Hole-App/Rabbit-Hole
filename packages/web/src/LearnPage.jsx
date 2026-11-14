@@ -84,8 +84,7 @@ import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-workspace.jsx';
 import TocConversation from './TocConversation.jsx';
 import { effectiveControls } from './learn-coaching-client.js';
-import { canSuggest } from './learn-coaching-contract.js';
-import { saveUiPref, uiPrefs } from './ui-prefs.js';
+import { canCoach } from './learn-coaching-contract.js';
 import { canvasContextNow } from './chat-canvas-context.js';
 import { MessageCircle, RotateCw } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
@@ -453,7 +452,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     },
     fileForContext: ref => sourcesRef.current.find(source => source.kind === 'file' && source.id === ref.sourceId)?.fileRef,
     insertChat: entry => canvasApi.current?.insertChat(entry),
-    deselectRef: ref => canvasApi.current?.deselectRef?.(ref),
     // UI-15 / MOT-20 (generation-proposal-chat.js): what a chat turn sends so the server can propose a Motion video (the canvas
     // is the learner's location: its title names the concept), and whether a proposal already made its card here.
     generation: (target, current, concept = app.title, edit = false) => generationField({ offered: isLearnCommand('motion'), concept, target, current, edit }),
@@ -591,19 +589,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     },
     // A written Explanation's illustration (IllustrationFigure.jsx, generate-image.js illustrationFrom). Add illustration is removed (EXP-13, owner 2026-11-08), so no card is marked
     // any more; a card marked before then still takes its picture when that plan's job is ready (through the canvas's own updateBlock, one undo step).
-    // A typed "create a course" the router read as one (inline-ai-route.js CHAT_CAPABILITIES.course; ask.jsx): the selected Markdown card, else the only one on this canvas; the same create the invitation's button runs.
-    startCourse: words => {
-      const sources = roadmap.lessonSources?.() ?? null, markdown = (canvasApi.current?.blocks?.() || []).filter(b => b.type === 'file' && b.kind === 'markdown' && b.fileRef?.source?.id);
-      const picked = (canvasApi.current?.selection?.() || []).map(id => markdown.find(b => b.id === id)).find(Boolean) ?? (markdown.length === 1 ? markdown[0] : null);
-      if (!markdown.length) return { notice: { tone: 'info', text: 'Add a Markdown file to this canvas first, then ask for a course.' } };
-      if (!picked) return { notice: { tone: 'question', text: 'Select the Markdown file to make a course from, then ask again.' } };
-      if (roadmap.state.view?.course?.running) return { notice: { tone: 'info', text: 'A course is being made on this canvas. Ask again when it is done.' } };
-      const source = (sources || []).find(s => s.key === `file:${picked.fileRef.source.id}`) ?? { key: `file:${picked.fileRef.source.id}`, rev: picked.fileRef.source.rev, name: picked.label || '' };
-      if (!source.rev) return { notice: { tone: 'info', text: 'This file is still being saved. Try again in a moment.' } };
-      panels.openChat();
-      roadmap.controller.lesson({ depth: chat?.settings?.depth || 'balanced', instruction: String(words || '').trim() || 'Create a course from this document.', source: { key: source.key, rev: source.rev } });
-      return { notice: { tone: 'done', text: 'Making the plan. It appears in Chat for you to review.' } };
-    },
     attachIllustration: (proposalId, illustration) => {
       const block = illustration && pendingBlock(canvasApi.current?.blocks?.(), proposalId);
       if (!block) return null;
@@ -871,7 +856,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       for (const { file, assetKey, block } of made) {
         await cacheAsset(assetKey, file);
         if (block.type === 'repo-code') insertCodeCard(chat?.canvasOps, block, at); else canvas()?.insertImported(block, at);
-        if (block.type === 'file' && block.kind === 'markdown') { roadmap.expectInvitation(); droppedMarkdown.current.add(block.id); markStart('dropready:' + block.id, 'drop_to_ready_ms'); markStart('drop:' + block.id, 'drop_to_invite_ms'); }
+        if (block.type === 'file' && block.kind === 'markdown') { droppedMarkdown.current.add(block.id); markStart('dropready:' + block.id, 'drop_to_ready_ms'); markStart('drop:' + block.id, 'drop_to_invite_ms'); }
       }
       if (made.length) panels.openChat(); // UI.01 (the provider's panels: chatWorkspace.current is null while the Chat panel is unmounted): the drop reveals Chat once; focus, draft and camera stay
       nextImport();
@@ -880,9 +865,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // Pasted code (AdaptiveCanvas paste, canvas-paste.js; repository-browser.md "Files in Learn"): the same Add to canvas dialog,
   // Code card or Jupyter notebook, before anything is placed - where the learner is looking. Text copied from a repository file
   // keeps its file's name, path and language; Cancel or Esc places nothing; nothing runs, installs or asks a model.
-  const pasteCode = (text, at = null) => {
+  const pasteCode = text => {
     const copy = copiedCode(() => sessionStorage, text);
-    setImports(queue => [...queue, { id: crypto.randomUUID(), file: new File([text], pasteName(copy), { type: 'text/plain' }), kind: 'paste', at, copy }]);
+    setImports(queue => [...queue, { id: crypto.randomUUID(), file: new File([text], pasteName(copy), { type: 'text/plain' }), kind: 'paste', at: null, copy }]);
   };
   // Ask in chat on lines in the Files panel (RepositoryPage small:code-card; repository-browser.md "Files in Learn", owner
   // 2026-10-08): the lines become a Code card - the paste dialog's Code card (pasteBlock), its file, lines and language kept
@@ -1097,10 +1082,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const passageSites = useRef(new Map()), passageRef = useRef(null), startExplainRef = useRef(null), explainLatest = useRef((prompt, options) => startExplainRef.current?.(prompt, options) ?? null).current;
   // Whole-canvas context (chat-canvas-context.js): the canvas_context every chat turn on this canvas carries, built from the live
   // canvas when it is sent - Ask and Tutor modes (canvasOps, ask.jsx) and Auto's Tutor (useTutor) alike. The title is a weak hint
-  // (titleNow, set below); the chip that showed its summary was removed (owner 2026-11-13). Refs and stable setters only, so any render's copy works.
+  // (titleNow, set below); the summary is the "This canvas" chip's line. Refs and stable setters only, so any render's copy works.
   const titleNow = useRef(null);
   const canvasContext = options => {
     const built = canvasContextNow({ api: canvasApi.current, title: titleNow.current, ...options });
+    if (built) chat.setCanvasCoverage?.(built.coverage.summary);
     return built;
   };
   // The server is the source of truth for every owned board (docs/features/canvas-persistence.md): each is saved there,
@@ -1363,16 +1349,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a Chat
   // composer, never on a review board; a click opens Chat and goes through its AskPanel (nextStepRef, chatAskProps).
   const nextStepsHere = learnPreview && (app.hosting !== 'aws' || !!app.app_chat) && !(reviewTools && board);
-  // Owner 2026-11-13 (replaces 3a's selected-Tutor-with-Chat-open rule): the Curious card shows at the canvas's lower right while the right
-  // panel is closed, so it asks when suggestions are On and unpaused, in any mode, and holds back while the panel is open (LearnNextSteps.jsx).
-  const hooksCoaching = { allowed: !!chat?.coaching && canSuggest(effectiveControls(chat.coaching, chat.thread), { ready: ['ready', 'local'].includes(chat.coaching.status) }), visible: !panelOpen };
+  // Owner 3a: hooks are proactive, so they ask only in selected, enabled, unpaused Tutor with Chat open (LearnNextSteps.jsx).
+  const hooksCoaching = { allowed: !!chat?.coaching && canCoach(effectiveControls(chat.coaching, chat.thread), { chatOpen: true, ready: ['ready', 'local'].includes(chat.coaching.status) }), visible: panels.chatOpen };
   const nextStepSend = useRef(null);
-  // The canvas's bottom strip (owner 2026-11-13): while the right panel is closed the canvas draws this empty host and the Chat's own AskPanel moves its
-  // composer into it (ask.jsx stripHost, regionHost), so the strip has the Chat's tools, draft and send loop; null once the panel opens.
-  const [stripHost, setStripHost] = useState(null), [windowHost, setWindowHost] = useState(null); // windowHost: where the conversation opens above the strip
-  // Curious folded or shown (owner 2026-11-13): this device's choice, toggled from the chat strip's toolbar (ask.jsx curiousToggle).
-  const [curiousMin, setCuriousMinNow] = useState(() => uiPrefs().curiousMin);
-  const setCuriousMin = on => { setCuriousMinNow(on); try { saveUiPref('curiousMin', on); } catch { /* storage refused: the choice holds until a reload */ } };
   // The board path whose saved board the canvas holds: the server's copy may replace this browser's (canvasEpoch) when
   // the board GET lands, so until then the canvas may be an empty stand-in.
   const [restoredBoard, setRestoredBoard] = useState(null);
@@ -1382,15 +1361,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const voiceOn = !!voice && voice.state !== 'off';
   const boardStorageKey = board ? `${canvasKey}:${board}:s${BOARD_SEED_VERSIONS[board] ?? 0}` : `${canvasKey}:ink`;
   const boardPath = `/api/learn/boards/${encodeURIComponent(app.name)}/${encodeURIComponent(boardName)}`;
-  // Owner 2026-11-13: when a card is added to the canvas, the chat window above the strip folds away (ask.jsx listens) so the learner can focus on the card. The first card count
-  // after the board loads is the baseline; only a later increase counts.
-  const cardCount = useRef(null);
-  useEffect(() => {
-    if (restoredBoard !== boardPath) return;
-    const count = (canvasState.cards || []).length;
-    if (cardCount.current != null && count > cardCount.current) window.dispatchEvent(new Event('rh-card-added'));
-    cardCount.current = count;
-  }, [canvasState.cards, restoredBoard, boardPath]); // eslint-disable-line react-hooks/exhaustive-deps
   // A Rabbit Hole from a PDF excerpt card opens on a copy of that card (Dive.jsx seed), placed once the hole's board has loaded.
   useEffect(() => {
     const seed = hole?.seed, surface = canvasApi.current;
@@ -1425,21 +1395,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       notice: message => toast(message), focusBlock: id => id && canvasApi.current?.focusBlock(id), sourceBlockId: key => sourceBlock(key)?.id, sourceElement: key => { const id = sourceBlock(key)?.id; return id ? document.querySelector(`[data-block-id="${CSS.escape(id)}"]`) : null; },
       sources: () => (canvasApi.current?.blocks?.() || []).filter(block => block.type === 'file' && block.kind === 'markdown' && block.fileRef?.source?.id && block.fileRef.source.rev).map(block => ({ key: `file:${block.fileRef.source.id}`, rev: block.fileRef.source.rev, name: block.label || '' })),
       sourceRev: key => sourceBlock(key)?.fileRef?.source?.rev, sourceName: key => sourceBlock(key)?.label || '', depth: () => chat?.settings?.depth || 'balanced' } });
-  // A course that finishes (not one that was cancelled or stopped) fits the canvas to its cards, once (owner 2026-11-14).
-  const courseWas = useRef(false);
-  useEffect(() => {
-    const on = !!roadmap.course;
-    if (courseWas.current && !on && !roadmap.state.view?.course?.stopped) canvasApi.current?.zoomFit?.();
-    courseWas.current = on;
-  }, [roadmap.course]); // eslint-disable-line react-hooks/exhaustive-deps
   // The Tutor's proposal as the canvas slot beside its Markdown card (roadmap-canvas.js -> AdaptiveCanvas SlotCard): one slot per step from proposal to delivered card,
-  // (owner 2026-11-14: a course makes every card from one Generate course, so the slot only ever shows a card being made, checked, saved or failed; there is no offer to accept).
+  // accepted and cancelled through the same controller actions as Tab. The offer is shown exactly when the pill would be (state: pillOf's gate: Ask mode, the flag, the editor);
+  // the canvas tells which offers it really draws (onDrawn), and the fixed overlay yields only to those.
+  const [canvasDrawn, setCanvasDrawn] = useState('');
   // UI.06: each slot's private place (roadmap-slots.js), read once per roadmap before anything is placed, written once per offer.
   const [slotsRead, setSlotsRead] = useState(0);
   const slotStore = useMemo(() => createSlotStore({ api, listener: () => setSlotsRead(n => n + 1) }), []);
   useEffect(() => { slotStore.load(roadmap.state.view); }, [slotStore, roadmap.state.view?.roadmap?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const roadmapCanvas = useMemo(() => ({ cards: canvasCardsOf(roadmap.state.view, { state: roadmap.state, hasBlock: id => !!id && !!canvasApi.current?.blocks?.().some(block => block.id === id) }),
-    slots: slotStore }), [roadmap.state, roadmap.controller, slotStore, slotsRead]); // eslint-disable-line react-hooks/exhaustive-deps
+    onAccept: () => roadmap.controller.acceptProposal(), onCancel: () => roadmap.controller.cancelProposal(), onDrawn: setCanvasDrawn, slots: slotStore }), [roadmap.state, roadmap.controller, slotStore, slotsRead]); // eslint-disable-line react-hooks/exhaustive-deps
+  const canvasHosts = !!roadmap.pill && canvasDrawn.split(' ').includes(roadmap.pill.stepId);
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
   // Canvas references (C:/s/spec/references-plan.md): the board's links feed Search's Links results and the cards' chips; the
   // picker opens from a card's menu ({ blockId }), the empty canvas ({ point }) or Insert ({}). Same-tab link
@@ -2363,7 +2329,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // carried rides on the Chat's AskPanel (ChatPane, A1 spreads these): the / commands, the Tutor,
   // Voice Mode, the Next Steps hook sends and the selected card's chip. Its answers never land on the canvas by themselves (no
   // onExchange): Add as card is Lane B's footer, through the provider's canvasOps.
-  const chatAskProps = { stripHost, windowHost, curiousToggle: { min: curiousMin, set: setCuriousMin }, slash: learnSlash, voice, nextStepRef: nextStepSend, canvasTarget: askTarget, onClearCanvasTarget: clearAskTarget, roadmap }; // Fix B: the roadmap's lines render in Chat's transcript
+  const chatAskProps = { slash: learnSlash, voice, nextStepRef: nextStepSend, canvasTarget: askTarget, onClearCanvasTarget: clearAskTarget, roadmap }; // Fix B: the roadmap's lines render in Chat's transcript
   const [titleDraft, setTitleDraft] = useState(null); // non-null only while the title is focused
   // Renaming a canvas from the top bar saves it on the server through the Rabbit Hole map's rename
   // (Dive.jsx), so the map, Home, Library and the placeholder follow; that rename calls saveTitle back.
@@ -2386,8 +2352,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     try { clean ? localStorage.setItem(titleKey, clean) : localStorage.removeItem(titleKey); } catch { /* a full store loses the name only */ }
   };
   const canvasMenus = [
-    { title: 'Insert', items: ownerInsertItems({ canvas, onUpload: () => filePicker.current?.click(), onSearchSources: () => openSourceFinder({}), onLinkToCanvas: () => setAddLink({}),
-      onCreateCourse: canEditCanvas && roadmap.on ? Object.assign(() => { const done = chat.canvasOps?.startCourse?.(''); if (done?.notice?.text) toast(done.notice.text); }, { disabled: !!roadmap.state.view?.course?.running }) : null }) },
+    { title: 'Insert', items: ownerInsertItems({ canvas, onUpload: () => filePicker.current?.click(), onSearchSources: () => openSourceFinder({}), onLinkToCanvas: () => setAddLink({}) }) },
     ...canvasEditMenus({ canvas, canvasState, inlineAi, quickEdit: true, comments, docView, setDocView, panel: { open: panelOpen, setOpen: setPanelOpen }, study, onShortcuts: () => setShortcutsOpen(true), onSlashCommands: () => setSlashHelpOpen(true) }),
   ];
   const canvasOutline = canvasState.outline || [];
@@ -2433,7 +2398,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
             onClick={() => goBack('/apps')}
-            className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
+            className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
           <div data-header-group className={OWNER_HEADER_GROUP}>
           {/* One line, never wrapped (owner r35): in a project, [project] › [canvas selector]. The project name is plain text
               (owner brief 2026-10-16 item 2: project management lives in Home and the Library, which rename it); the name is
@@ -2550,7 +2515,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             iframe never move to another parent. */}
         {study.open && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} />}
         <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} study={study} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere && !roadmap.active} coaching={hooksCoaching} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} liveTitle={dive.tree?.path?.at(-1)?.title ?? app.title ?? null} recordPending={/^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree} access={askScope} title={app.title || ''} graded={graded} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <ExplainBackService.Provider value={explainBack}><AnimationBoard.Provider value={animationBoard}><CardFeedbackScope.Provider value={feedbackScope}><AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} /> : null}
-          composer={panelOpen ? null : <div ref={setStripHost} data-canvas-chat-strip />} chatWindow={panelOpen ? null : <div ref={setWindowHost} data-canvas-chat-window className="empty:hidden" />} hooks={steps && !panelOpen ? <NextStepsCard steps={steps} minimized={curiousMin} onMinimizedChange={setCuriousMin} onPick={(step, hook) => nextStepSend.current?.(step, hook.hook)} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setAddLink} onPinForStudy={study.pinCard} study={study} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onSkeletonsDropped={dropSkeletons} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} roadmap={roadmapCanvas} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></CardFeedbackScope.Provider></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{dive.emptyHint}{dive.confirmDialog}{addLink && <AddLinkChooser onClose={() => setAddLink(null)} returnFocus={() => (addLink.blockId ? document.querySelector(`[data-block-id="${CSS.escape(addLink.blockId)}"]`) : null)}
+          hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setAddLink} onPinForStudy={study.pinCard} study={study} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onSkeletonsDropped={dropSkeletons} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} roadmap={roadmapCanvas} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></CardFeedbackScope.Provider></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{dive.emptyHint}{dive.confirmDialog}{addLink && <AddLinkChooser onClose={() => setAddLink(null)} returnFocus={() => (addLink.blockId ? document.querySelector(`[data-block-id="${CSS.escape(addLink.blockId)}"]`) : null)}
   onChoose={kind => { const arg = addLink; setAddLink(null); if (kind === 'canvas') setRefPick(arg); else setTocPick(arg); }} />}
 {tocPick && <ItemPicker title="Link to TOC" searchLabel="Search sections" items={canvasApi.current?.tocSections?.() || []} emptyText="No sections in the table of contents yet."
   linked={tocPick.blockId ? (canvasApi.current?.linkableCards?.().find(card => card.id === tocPick.blockId)?.tocLinks || []) : []} onClose={() => setTocPick(null)}
@@ -2569,7 +2534,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               const api = canvasApi.current;
               if (refPick.blockId) return (await api?.addRef?.(refPick.blockId, canvas.id)) || { ok: false };
               return (await api?.insertRefCard?.(canvas.id, refPick.point)) ? { ok: true } : { ok: false };
-            }} />}<SurfaceBoundary artifact="roadmap_canvas"><RoadmapCanvas roadmap={roadmap} /></SurfaceBoundary><ChatHandle to={chatRef} /></div>
+            }} />}<SurfaceBoundary artifact="roadmap_canvas"><RoadmapCanvas roadmap={roadmap} hosted={canvasHosts} /></SurfaceBoundary><ChatHandle to={chatRef} /></div>
         {/* ponytail: playback bar and timeline parked while the lesson-2 canvas is redesigned */}
         {false && <div aria-label="Lesson playback" className={`${courseView || (isRepository && !progress) ? 'hidden' : 'flex'} shrink-0 flex-wrap items-center justify-between gap-3 pt-3`}>
           <div className="flex items-center gap-1">
@@ -2614,7 +2579,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {files && shown.current.has('files') && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${companionView === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{files}</div>}
       {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{graph}</div>}
     </ResizableSidePanel>
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" {...CHAT_PANEL} keepMounted collapsed={!panelOpen} reserve={panelOpen && companion.open ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference}>
+    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" {...CHAT_PANEL} collapsed={!panelOpen} reserve={panelOpen && companion.open ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference}>
       <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} tocPending={proposal && canEditCanvas ? 1 : 0} companion={{ views: companionViews, open: panelOpen && companion.open, onToggle: companion.toggle }} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <CanvasSearchPanel hidden={panelTab !== 'find'} inputRef={findInput} {...canvasSearch.panel} onOpenAction={openSearchAction} />

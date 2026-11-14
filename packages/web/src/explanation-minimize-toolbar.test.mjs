@@ -10,13 +10,12 @@ test('Minimize replaces the Focus icon on an Explanation as its own pill (the En
   const bar = read('./SelectionActions.jsx');
   const minimize = bar.match(/const pill = ctx\.onMinimize && \([^]*?<\/button>\r?\n  \);/)?.[0] || '';
   assert.match(minimize, /aria-label="Minimize"/);
-  // Owner 2026-11-13: inside the card's one pill it is a plain round button (joined); on its own it keeps the pill look.
-  assert.match(minimize, /joined \? 'pointer-events-auto flex h-8 shrink-0 [^']*rounded-none px-3[^']*' : 'pointer-events-auto flex h-\[34px\] shrink-0 [^']*rounded-full border border-line bg-white px-3 [^']*shadow-md/, 'joined: a full-height segment of the one pill; alone: the pill look');
+  assert.match(minimize, /className="pointer-events-auto flex h-\[34px\] shrink-0 [^"]*rounded-full border border-line bg-white px-3 [^"]*shadow-md/, 'the Enter pill\'s look');
   assert.match(minimize, /<ChevronsDownUp size=\{15\} strokeWidth=\{1\.8\} aria-hidden="true" \/>/, 'the mirror of the tile\'s Expand icon (ChevronsUpDown)');
   const longPill = bar.match(/const bar = \(barClass, barStyle\) => \([^]*?\r?\n  \);/)?.[0] || '';
   assert.ok(longPill.includes('data-add-to-chat') && longPill.includes('data-quick-edit'), 'the long pill still holds Add to chat and Quick Edit');
   assert.doesNotMatch(longPill, /data-minimize-button|ChevronsDownUp|onMinimize/, 'Minimize is not inside the long pill');
-  assert.match(bar, /<div data-selection-group className=\{`pointer-events-auto flex w-max items-center gap-1\.5 \$\{className\}`\} style=\{style\}>\{long && bar\('', undefined\)\}\{pill\}<\/div>/, 'the long pill and the Minimize pill sit side by side, Minimize last (owner 2026-11-13)');
+  assert.match(bar, /<div data-selection-group className=\{`pointer-events-auto flex w-max items-center gap-1\.5 \$\{className\}`\} style=\{style\}>\{pill\}\{long && bar\('', undefined\)\}<\/div>/, 'the pill and the long pill sit side by side');
   assert.match(bar, /focusLabel: onFocus && !onMinimize \? focusLabel : null/, 'the Focus icon steps aside where Minimize stands');
   assert.match(bar, /!!\(ctx\.focusLabel \|\| ctx\.onMinimize \|\| ctx\.onAddToChat \|\| ctx\.onQuickEdit\)/);
 });
@@ -38,18 +37,17 @@ test('the selected card\'s Open pill reads Enter; its title and name still say w
   assert.doesNotMatch(canvas, /\bOpen<ArrowUpRight/);
 });
 
-// Owner 2026-11-13 (replaces 2026-11-08's three matching pills): Enter, Add to chat, Quick Edit and Minimize are ONE pill above the card, one border, one fixed place, shown together.
-test('the card actions are one component: one pill holding Enter, Add to chat, Quick Edit and Minimize, shown by one condition', () => {
+test('the three toolbar controls are one shape (owner 2026-11-08): the Enter pill, the Minimize pill and the Add to chat / Quick Edit group all rounded-full and 34 px high, from the one shared component', () => {
   const bar = read('./SelectionActions.jsx'), canvas = read('./AdaptiveCanvas.jsx');
-  const pill = canvas.indexOf('data-card-actions className="pointer-events-auto flex w-max max-w-full items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md"');
-  assert.ok(pill > 0, 'one container with one border');
-  const enter = canvas.indexOf('data-card-open={opens.kind}'), tools = canvas.indexOf('{selected ? tools : hoverTools}');
-  assert.ok(pill < enter && enter < tools, 'Enter and the actions are inside it, Enter first');
-  assert.match(canvas, /const rowShown = selected \|\| hovered;/, 'one condition');
-  assert.match(canvas, /const showEnter = rowShown && !!opens/);
-  assert.match(canvas, /const showTools = rowShown && !!\(selected \? tools : hoverTools\);/);
-  assert.match(bar, /if \(joined\) return <div data-selection-group className="pointer-events-auto flex w-max items-stretch">/, 'joined: no pill of its own');
-  assert.match(bar, /joined \? 'pointer-events-auto flex w-max items-stretch' : `pointer-events-auto flex h-\[34px\]/, 'joined bar has no border or fill of its own');
-  assert.equal((canvas.match(/<SelectionActionsHost|<SelectionActionBar/g) || []).length > 3, true, 'every card type uses the same Actions component');
+  const enter = canvas.match(/data-card-open=\{opens\.kind\}[^]*?className="([^"]*)"/)?.[1] || '';
+  assert.match(enter, /\brounded-full\b/, 'the Enter pill: the radius token the group now shares');
+  assert.match(canvas, /data-card-chrome-row[^>]*\[&>\*\]:min-h-\[34px\]/, 'the Enter pill is held to 34 px by its row');
+  const group = bar.match(/role="toolbar" aria-label="Selection actions"[^]*?className=\{`([^`]*)`\}>/)?.[1] || '';
+  assert.match(group, /(^|\s)h-\[34px\](\s|$)/, 'the group is 34 px high like the Enter and Minimize pills');
+  assert.match(group, /\brounded-full\b/, 'pill ends on the group');
+  assert.doesNotMatch(group, /rounded-(lg|md)/, 'no near-square corners left on the group');
+  assert.match(bar, /data-minimize-button[^]*?h-\[34px\][^"]*rounded-full/, 'the Minimize pill: 34 px, rounded-full');
+  for (const inner of ['data-focus-button', 'aria-label={label} aria-keyshortcuts']) { const at = bar.indexOf(inner); assert.ok(at > 0); assert.match(bar.slice(at, at + 520), /rounded-full/, `${inner}: its hover shape follows the group`); }
+  assert.equal((canvas.match(/<SelectionActionsHost|<SelectionActionBar/g) || []).length > 3, true, 'every card type uses the same Actions component: there is no per-type copy of the group');
   assert.equal([...read('./LearningBlocks.jsx').matchAll(/data-selection-bar/g)].length, 0, 'no other file draws its own selection bar');
 });

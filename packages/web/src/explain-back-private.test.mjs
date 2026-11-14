@@ -31,5 +31,5 @@ test('an old Challenge is a Practice card too: its answer, verdict and history s
 
 test('the canvas copies, duplicates and pastes an Explain-back card as its exercise', () => {
   const source = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.ok(/const copyNode = \(node, by = \{ x: step, y: step \}\) => \(\{ \.\.\.publicExplainBack\(node\)/.test(source), 'pasteIds copies through publicExplainBack');
+  assert.ok(/const copyNode = node => \(\{ \.\.\.publicExplainBack\(node\)/.test(source), 'pasteIds copies through publicExplainBack');
 });

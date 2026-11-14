@@ -1,6 +1,5 @@
 // Mocked: a scripted transport stands in for the worker, JEV and the model. These prove the session's contract (one
 // request, late results dropped, idempotency, refine, coalescing), never provider behaviour or latency.
-import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import { scripted } from './inline-ai-test-transport.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -1,7 +1,6 @@
 // The controlled owner-only acceptance path (owner 2026-10-25): while MOTION_GENERATION_PAUSED is "1" the start route still refuses everyone
 // EXCEPT a caller whose VERIFIED full account email is in MOTION_ACCEPTANCE_EMAILS. Pure functions here; the Durable Object and the chat
 // turn are driven in motion-allowance.test.js and chat-modes.test.js.
-import '../../web/src/agent/slash-flags-test-on.mjs'; // every slash command on: these tests are about routing, not which commands ship (web SLASH_FLAGS); first, so every later import sees the flags
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { acceptanceEmails, motionAcceptanceAllowed, motionOffered, motionPaused } from '../src/generation-proposal.js';

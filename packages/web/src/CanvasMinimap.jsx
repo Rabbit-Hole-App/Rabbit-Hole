@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { LocateFixed, Map as MapIcon, Minus } from 'lucide-react';
+import { useRef } from 'react';
+import { LocateFixed } from 'lucide-react';
 import { minimapLayout, minimapToView } from './learn-minimap.js';
 
 // Exported for the canvas loading skeleton (CanvasLoading.jsx), which reserves this frame before the canvas loads.
@@ -12,22 +12,11 @@ const SIZE = MINIMAP_SIZE;
 // empty space and lost the column.
 export default function CanvasMinimap({ boxes, view, surface, onView, onFit }) {
   const frame = useRef(null);
-  // Minimize (owner 2026-11-13): a small button next to Back to content folds the map into one round button; this device remembers it.
-  const [folded, setFolded] = useState(() => { try { return localStorage.getItem('rh-minimap-folded') === '1'; } catch { return false; } });
-  const fold = next => { setFolded(next); try { localStorage.setItem('rh-minimap-folded', next ? '1' : '0'); } catch { /* storage off: it still folds for this visit */ } };
   const layout = minimapLayout(boxes, view, surface, SIZE);
-  if (folded) return <button type="button" data-minimap-show title="Show minimap" aria-label="Show minimap" onClick={() => fold(false)}
-    className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-md hover:bg-hover hover:text-ink"><MapIcon size={15} strokeWidth={1.8} /></button>;
-  const minimize = <button type="button" data-minimap-minimize title="Minimize minimap" aria-label="Minimize minimap"
-    onPointerDown={event => event.stopPropagation()} onClick={() => fold(true)}
-    className="absolute top-1 right-8 flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-ink-2 hover:bg-hover hover:text-ink">
-    <Minus size={13} strokeWidth={1.8} />
-  </button>;
   // An empty canvas (a new Rabbit Hole) keeps the frame, so the shell does not jump at the first object.
   if (!layout) return <div style={{ width: SIZE.w, height: SIZE.h }} className="relative flex items-center justify-center overflow-hidden rounded-xl border border-line bg-white shadow-md">
     <svg role="img" aria-label="Canvas overview" width={SIZE.w} height={SIZE.h} className="absolute inset-0" />
     <span className="text-[11px] text-ink-3">Nothing here yet</span>
-    {minimize}
   </div>;
   const goTo = event => {
     const box = frame.current.getBoundingClientRect();
@@ -60,7 +49,6 @@ export default function CanvasMinimap({ boxes, view, surface, onView, onFit }) {
         className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-lg bg-white/80 text-ink-2 hover:bg-hover hover:text-ink">
         <LocateFixed size={13} strokeWidth={1.8} />
       </button>
-      {minimize}
     </div>
   );
 }

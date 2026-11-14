@@ -1,6 +1,6 @@
 .blog-page{--blog-ink:#482953;--blog-muted:#705378;--blog-line:#48295330;--blog-paper:#fff}
 /* Hero image palette (BLOG_IMAGE_GUIDE.md): every post hero image is drawn in these five colours. */
-.blog-page{--hero-paper:#F4F3EF;--hero-ink:#3D2A5C;--hero-plum:#8A7AA6;--hero-rose:#D9B8C4;--hero-sage:#B7C2B0;--hero-blue:#A9BCCB;--hero-ochre:#D8C08C}
+.blog-page{--hero-paper:#F4F3EF;--hero-ink:#3D2A5C;--hero-plum:#8A7AA6;--hero-rose:#D9B8C4;--hero-sage:#B7C2B0}
 .blog-page [hidden]{display:none!important}
 .blog-page .blog-articles{position:relative;z-index:1;max-width:1120px;padding:40px 0 80px;scroll-margin-top:112px}
 .blog-stories-heading{display:flex;align-items:baseline;justify-content:space-between;gap:24px;padding-bottom:24px;border-bottom:1px solid var(--blog-line)}

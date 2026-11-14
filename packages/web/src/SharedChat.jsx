@@ -1,5 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
 import { FolderGit2, Lock, Plus, X } from 'lucide-react';
 import ChatComposer from './ChatComposer.jsx';
 import { ChatMessages } from './ChatMessages.jsx';
@@ -18,12 +17,10 @@ import { GUEST, adoptGuestChat, askHistory, askPath, loadChat, readGuestAllowanc
 // No +, attachments, model picker or / commands: every message is a question about the canvas (the server dispatches none).
 // target: the card selected or attached by Ask in Chat, Explain in Chat or Ask about selection (one pill; only its id is sent).
 // onAllowance(remaining): the guest messages left, for canvas-permissions' ctx.guestChat (S1); null signed in.
-// stripHost / onOpenPanel (owner 2026-11-14, as the owner's canvas does): while the right panel is closed the canvas offers a strip at its bottom and this one
-// composer is drawn there; Send opens the panel on Chat, where the answer streams. The composer moves without remounting, so the draft survives.
 // embed (SHARE-04, embed-api.js): { openFull({ draft, target }) } when this Chat is framed by another site. Send waits for the
 // partitioned guest session (init, then a probe that the cookie came back); where this browser keeps none, Send and the
 // "Open Chat in Rabbit Hole" button open the full site in a new tab with the draft, and nothing is sent.
-export default function SharedChat({ token, viewer, context = null, draft = null, target = null, onClearTarget = null, onAllowance = null, embed = null, stripHost = null, onOpenPanel = null }) {
+export default function SharedChat({ token, viewer, context = null, draft = null, target = null, onClearTarget = null, onAllowance = null, embed = null }) {
   const who = viewer || GUEST;
   const [input, setInput] = useState(draft || '');
   const [turns, setTurns] = useState(() => { adoptGuestChat(token, viewer); return loadChat(token, who); });
@@ -53,7 +50,6 @@ export default function SharedChat({ token, viewer, context = null, draft = null
     if (!message || busy) return;
     if (embed && session !== 'ready') { if (session === 'blocked') embed.openFull({ draft: raw, target }); return; }
     if (spent) return toSignIn(raw); // the trial is used: Send is "Sign in to continue", the draft kept, nothing sent
-    if (stripHost) onOpenPanel?.();
     // Sending the same question again right after it failed is a retry of that Send: the same request id, never a second count.
     const failed = turns.at(-1)?.error && turns.at(-2)?.content === message ? turns.at(-2).key : null;
     const history = askHistory(turns), key = failed || sendKey();
@@ -96,9 +92,6 @@ export default function SharedChat({ token, viewer, context = null, draft = null
     : turn.error ? { role: 'assistant', content: `✗ ${turn.error}` }
     : { role: 'assistant', content: turn.content && turn.notice ? `${turn.content}\n\n_${turn.notice}_` : turn.content, stage: turn.status, status: turn.pending ? 'streaming' : 'done' }));
   const sources = context?.sources || [], repository = context?.repository;
-  const regionHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
-  const inlineSlot = useRef(null);
-  useLayoutEffect(() => { const where = stripHost || inlineSlot.current; if (where && regionHost.parentNode !== where) where.appendChild(regionHost); });
   return (
     <div data-shared-ask role="tabpanel" aria-label="Chat" className="flex min-h-0 flex-1 flex-col">
       <div className="mb-2 flex h-8 shrink-0 items-center gap-0.5">
@@ -118,17 +111,14 @@ export default function SharedChat({ token, viewer, context = null, draft = null
           {sources.length > 4 && <span data-context-pill="more" title={sources.slice(4).map(source => source.title).join('\n')} className="inline-flex items-center rounded-md border border-line px-2 py-1 text-xs text-ink-3">+{sources.length - 4} more</span>}
         </div>
       )}
-      <div ref={inlineSlot} className="contents" />
-      {createPortal(<>
-      {target && <div data-canvas-target data-selected-card={target.id} title={`${target.kind}: ${String(target.title ?? '')}`} className={`${stripHost ? 'mb-1.5' : 'mt-2'} inline-flex max-w-full shrink-0 self-start items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2`}>
+      {target && <div data-canvas-target data-selected-card={target.id} title={`${target.kind}: ${String(target.title ?? '')}`} className="mt-2 inline-flex max-w-full shrink-0 self-start items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
         <MaterialIcon type={target.context?.material_type} />
         <span className="max-w-[260px] truncate">{String(target.title ?? '').replace(/\$([^$]*)\$/g, '$1')}</span>
         <button type="button" aria-label="Remove selected card context" title="Remove selected card context" onClick={onClearTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
       </div>}
-      <div className={stripHost ? '' : 'mt-2 shrink-0'}>
+      <div className="mt-2 shrink-0">
         <ChatComposer multiline value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} disabled={embed && session === 'checking'} onStop={() => flight.current?.abort()} maxLength={4000} placeholder="Ask about this canvas" />
       </div>
-      </>, regionHost)}
       {embed && session === 'blocked' && (
         <div role="status" className="mt-2 flex shrink-0 flex-wrap items-center gap-2 text-xs text-ink-2">
           <span className="mr-auto">Chat needs a cookie this page cannot keep. Your draft is kept.</span>

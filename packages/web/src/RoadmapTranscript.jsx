@@ -24,9 +24,9 @@ const readJson = key => { try { return JSON.parse(read(key) || 'null'); } catch 
 const SESSION = { get: key => { try { return sessionStorage.getItem(key); } catch { return null; } }, set: (key, value) => { try { sessionStorage.setItem(key, value); } catch { /* private mode */ } } };
 // Where an invitation's entries live: its route record (the occupied thread and the choice made there) and the thread its invitation went to.
 const ROUTE = id => `rh.roadmap.route.${id}`, IV_THREAD = id => `rh.roadmap.ivthread.${id}`;
-const ATTR = { explain_on_canvas: 'data-roadmap-explain', keep_here: 'data-roadmap-keep', accept_roadmap: 'data-roadmap-accept-plan', generate_course: 'data-roadmap-generate-course', try_again: 'data-roadmap-try-again',
-  edit_roadmap: 'data-roadmap-edit-plan', open_toc: 'data-roadmap-review', route_new: 'data-roadmap-route-new',
-  route_stay: 'data-roadmap-route-stay', answer: 'data-roadmap-option' };
+const ATTR = { explain_on_canvas: 'data-roadmap-explain', keep_here: 'data-roadmap-keep', accept: 'data-roadmap-accept', cancel: 'data-roadmap-cancel', accept_roadmap: 'data-roadmap-accept-plan',
+  edit_roadmap: 'data-roadmap-edit-plan', end: 'data-roadmap-end', propose_next: 'data-roadmap-propose-next', open_toc: 'data-roadmap-review', edit_card: 'data-roadmap-edit', route_new: 'data-roadmap-route-new',
+  route_stay: 'data-roadmap-route-stay', go_card: 'data-roadmap-go-card', go_text: 'data-roadmap-go-text', answer: 'data-roadmap-option', recover: 'data-roadmap-recover' };
 // The approved green affirmative (file 02/03) on the existing success token; everything else the roadmap's existing secondary button.
 const GREEN = 'h-8 rounded-md border border-success/40 bg-success/15 px-3 text-xs font-medium text-ink outline-none hover:bg-success/25 focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-45';
 const SECOND = `${SECONDARY} disabled:cursor-default disabled:opacity-45`;
@@ -96,9 +96,7 @@ function runner(roadmap, chat, choose) {
       case 'route_stay': return choose('stay');
       case 'explain_on_canvas': return c.explain({ depth: chat.settings?.depth || 'balanced', instruction: '' });
       case 'keep_here': return c.dismiss();
-      case 'accept_roadmap': return roadmap.acceptPlan().then(body => { if (body) { chat.panels.setTab('toc'); chat.panels.setOpen(true); } return body; }); // Accept goes to the table of contents (owner 2026-11-14)
-      case 'generate_course': return c.startCourse();
-      case 'try_again': return c.retryCourse();
+      case 'accept_roadmap': return roadmap.acceptPlan();
       case 'depth': return c.revise({ settings: { depth: r.depth } });
       case 'edit_roadmap': {
         const rm = roadmap.state.view?.roadmap;
@@ -108,6 +106,14 @@ function runner(roadmap, chat, choose) {
         return null;
       }
       case 'open_toc': chat.panels.setTab('toc'); chat.panels.setOpen(true); return null; // navigation only, on this click
+      case 'propose_next': return c.proposeNext();
+      case 'recover': return c.recoverOffer({ choice: r.choice });
+      case 'end': return c.end();
+      case 'accept': return c.acceptProposal();
+      case 'cancel': return c.cancelProposal();
+      case 'edit_card': return c.openEditor();
+      case 'go_card': return roadmap.go(r.cardId ? { kind: 'card', cardId: r.cardId } : { kind: 'proposal' });
+      case 'go_text': return roadmap.go({ kind: 'source' });
       case 'answer': return c.answer({ optionId: r.optionId });
       case 'part': return c.explainPart(r.choice);
       default: return null;
@@ -211,11 +217,9 @@ export default function RoadmapTranscript({ roadmap, chat, msgs }) {
   const run = runner(roadmap, chat, choose);
   const shown = entries.filter(e => !have.has(e.clientId) && (() => { const t = targetOf(e, where); return !t || !thread.id || t === thread.id; })());
   const notes = chatOf(roadmap.state).filter(line => line.kind === 'notice' || line.kind === 'coverage'); // transient, never saved
-  const waiting = !!roadmap.state.waiting && !iv && !roadmap.state.view; // a Markdown file was just dropped: its invitation is on its way (owner 2026-11-14)
-  if (!shown.length && !notes.length && !waiting) return null;
+  if (!shown.length && !notes.length) return null;
   return (
     <div data-roadmap-chat>
-      {waiting && <span role="status" data-roadmap-preparing className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{STRINGS.preparing}</span></span>}
       {notes.map(line => {
         const m = { role: 'assistant', content: line.kind === 'coverage' && line.notes?.length ? `${line.text}\n\n${line.notes.join('\n\n')}` : line.text, status: 'done', meta: { roadmap: line.id } };
         return <div key={line.id} data-roadmap-item={line.id}><ChatMessage m={m} i={0} msgs={[m]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />

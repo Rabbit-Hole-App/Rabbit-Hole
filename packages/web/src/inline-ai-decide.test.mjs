@@ -1,6 +1,5 @@
 // The inline request check (owner briefs 2026-10-13, creation §2/§5 and validation): the free local checks, the routes
 // the mode and slash commands fix, and how a validator's verdict becomes the response. No calls here.
-import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CAPABILITIES, MESSAGES, checkDecision, checkRequest, fixedRoute, generationPrompt, paidOf, settle, summaryOf } from './inline-ai-decide.js';

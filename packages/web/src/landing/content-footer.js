@@ -12,7 +12,6 @@ if(footer){
       </div>
       <nav aria-label="Footer">
         <a href="/features">Features</a>
-        <a href="/examples">Examples</a>
         <a href="/blog">Blog</a>
         <a href="/pricing">Pricing</a>
         <a class="content-footer-start" href="/sign-up">Get started</a>

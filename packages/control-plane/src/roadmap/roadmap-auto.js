@@ -8,7 +8,6 @@
 import { StateError } from './roadmap-contract.js';
 import { readRoadmap } from './roadmap-store.js';
 import { proposeNextStep } from './roadmap-lifecycle.js';
-import { advanceCourse, courseOf } from './roadmap-course.js';
 import { composeProposal } from './roadmap-compose.js';
 import { accessForRoadmap, revalidateSourceAsJob } from './roadmap-access.js';
 import { AUTO_FACT, roadmapAutoEnabled } from './roadmap-settings-events.js';
@@ -62,20 +61,8 @@ export async function ensureNextProposal(env, access, { roadmapId, triggerEventI
 
 // The handler for card_delivered, card_failed, mode_changed and autosuggest_changed. deps: { autoSuggest?(env, access), compose?, revalidate?, timing?(record), ignoreFlag? }.
 export async function autoProposalHandler(env, event, { now = nowSeconds() } = {}, deps = {}) {
-  const db = env.LEARN_DB;
-  // A running course (roadmap-course.js, owner 2026-11-14) goes on after every delivery or failed card by itself, whatever Auto-suggest or the flag say: the learner asked for the whole course.
-  // Every kind, not only a delivery or a failure: a mode or Auto-suggest change must not run the per-card offer on a course either (it completed a stopped course that was waiting for Try again; found live).
-  {
-    const running = await accessForRoadmap(db, event);
-    const roadmap = running && await readRoadmap(db, running, event.roadmap_id);
-    // Once a course has run, the per-card automatic offer is retired for that roadmap (owner 2026-11-14): a stopped course offers nothing by itself.
-    if (roadmap && courseOf(roadmap) && !courseOf(roadmap).running) return { done: true };
-    if (roadmap && courseOf(roadmap)?.running) {
-      const next = await advanceCourse(env, running, event.roadmap_id, { compose: deps.compose, revalidate: deps.revalidate || revalidateSourceAsJob, callModel: deps.callModel, factsInline: true, now });
-      return next.status === 'unresolved' ? { retry: true } : { done: true };
-    }
-  }
   if (!roadmapAutoEnabled(env) && !deps.ignoreFlag) return { done: true };
+  const db = env.LEARN_DB;
   const access = await accessForRoadmap(db, event);
   if (!access) return { done: true }; // unknown roadmap or revoked access: stop, spend nothing
   if (event.kind === 'autosuggest_changed') {

@@ -12,12 +12,6 @@
   *{margin:0;padding:0;box-sizing:border-box}
   html{overflow-y:scroll;scrollbar-width:none}
   html::-webkit-scrollbar{display:none}
-  /* The landing page only (owner 2026-11-13): a slim pale vertical scrollbar; every other page keeps the hidden one. */
-  html.pale-scrollbar{scrollbar-width:thin;scrollbar-color:#d6d6d6 transparent}
-  html.pale-scrollbar::-webkit-scrollbar{display:block;width:10px}
-  html.pale-scrollbar::-webkit-scrollbar-track{background:transparent}
-  html.pale-scrollbar::-webkit-scrollbar-thumb{background:#d6d6d6;border-radius:8px;border:2px solid transparent;background-clip:padding-box}
-  html.pale-scrollbar::-webkit-scrollbar-thumb:hover{background:#bdbdbd;background-clip:padding-box}
   /* no overflow-x here: it would make <body> a scroll container and kill the
      sticky shaft below */
   /* No fixed body height: the hero reserves its scroll with a spacer in normal flow and

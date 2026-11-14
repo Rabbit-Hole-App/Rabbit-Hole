@@ -1,7 +1,6 @@
 // CHAT.02: the tools an ordinary Chat reply may call (chat-tools.js) and the flag that turns them on (CHAT_ANSWER_TOOLS). Pure: doubles only.
 // Live model quality (does the real answer model pick the right tool) is not tested here and is UNVERIFIED; these tests prove definitions,
 // validation, availability, fit and that nothing downstream runs.
-import '../../web/src/agent/slash-flags-test-on.mjs'; // every slash command on: these tests are about routing, not which commands ship (web SLASH_FLAGS); first, so every later import sees the flags
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CHAT_TOOLS_POLICY, FIT, alternativesFor, chatToolDefs, checkToolCall, directTools, fitProblem, toolNameOf } from '../src/chat-tools.js';

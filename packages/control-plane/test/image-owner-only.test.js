@@ -2,7 +2,6 @@
 // "false", only a caller whose VERIFIED identity is listed in IMAGE_ACCEPTANCE_EMAILS may use image generation. Here the identity is the REAL
 // one (repositoryIdentity -> the control plane's /api/me, by session cookie); only the canvas lookup and the file reader are injected. Every
 // refusal is checked to leave nothing behind: no thread, no job object, no ledger row, no provider request.
-import '../../web/src/agent/slash-flags-test-on.mjs'; // every slash command on: these tests are about routing, not which commands ship (web SLASH_FLAGS); first, so every later import sees the flags
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chatProposalFetch } from '../src/chat-proposal-route.js';

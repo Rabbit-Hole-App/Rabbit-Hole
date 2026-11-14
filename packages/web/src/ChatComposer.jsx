@@ -1,5 +1,5 @@
 import { createContext, useContext, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowUp, ChevronDown, Loader2, Minus, Square } from 'lucide-react';
+import { ArrowUp, ChevronDown, Loader2, Square } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
 import { chatSendKey } from './ui-prefs.js';
 
@@ -17,8 +17,8 @@ import { chatSendKey } from './ui-prefs.js';
 // same controls around it, same footprint - with each caller keeping its own behaviour. Pass `dock` (and `onStop`),
 // style the leading and trailing controls with these tokens, put context pills (scope chips, "Asking about: ...") above
 // the composer, and wrap it in DOCK_WIDTH inside a DOCK_PAD strip. Contract: docs/features/rabbit-hole-commands.md.
-export const COMPOSER_ADD = 'inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line text-ink-2 hover:bg-hover hover:text-ink max-md:w-8';
-export const COMPOSER_PILL = 'h-9 shrink-0 cursor-pointer rounded-full border border-line px-2.5 text-sm text-ink-2 hover:bg-hover hover:text-ink max-md:px-1.5';
+export const COMPOSER_ADD = 'inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-line text-ink-2 hover:bg-hover hover:text-ink max-md:w-8';
+export const COMPOSER_PILL = 'h-9 shrink-0 cursor-pointer rounded-lg border border-line px-2.5 text-sm text-ink-2 hover:bg-hover hover:text-ink max-md:px-1.5';
 export const DOCK_WIDTH = 'mx-auto w-full max-w-[780px]';
 // The canvas provides a hide function around its composer (AdaptiveCanvas, owner 2026-10-13: the hide icon "should be better placed and
 // not hanging above"): the dock composer then shows Hide chat composer as one more icon button in its own row, before Send.
@@ -39,8 +39,8 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 // a spacer, trailing, and Send (Stop while busy) at the far right. Its toolbar controls take COMPOSER_TOOL.
 // token (UI-16, the Learn composers): the chosen command's pill as one inline token before the text. It sits over the
 // field's first line and the text is indented by its width, so the words start right after it and wrap under it.
-export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-full px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
-export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, hold = '', ready = false, voice = null, stacked = false, chips = null, tocView = false, token = null, pill = false, onMinimize = null }) {
+export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-lg px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, hold = '', ready = false, voice = null, stacked = false, chips = null, tocView = false, token = null }) {
   // The Table of contents' own composer (TocWorkspace: its AskPanel passes tocView) is data-toc-composer, so [data-chat-composer]
   // stays the one Chat composer. A prop, so this file never imports chat-workspace.jsx's graph (voice-ui.test.mjs bundles it).
   const submit = () => { if (!busy && !disabled && !hold && (ready || value.trim())) onSubmit(value); };
@@ -94,25 +94,8 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
     </div>
   </form>;
   const frame = dock
-    ? `${pill ? 'gap-1.5 rounded-full py-2 pr-2.5 pl-4' : 'gap-2.5 rounded-xl px-3 py-3.5 max-md:px-2.5 max-md:py-2.5'} border border-line-strong bg-white max-md:gap-1.5 ${flat ? 'shadow-[0_1px_2px_rgba(15,15,15,0.05)]' : 'shadow-pop'}`
+    ? `gap-2.5 rounded-xl border border-line-strong bg-white px-3 py-3.5 max-md:gap-1.5 max-md:px-2.5 max-md:py-2.5 ${flat ? 'shadow-[0_1px_2px_rgba(15,15,15,0.05)]' : 'shadow-pop'}`
     : 'gap-2 rounded-lg border border-line px-2.5 py-1.5';
-  // pill (the canvas strip, owner 2026-11-13): the pill holds only the field and Send; the tools are one slim row under it, leading at the left and
-  // trailing at the right, like the owner's reference composer.
-  if (pill) return <div className="flex flex-col gap-1">
-    {/* The strip's Minimize hangs on the pill's own top border (owner 2026-11-13), so it never lands on the context chips above the pill. */}
-    <form data-chat-composer data-composer-pill className={`relative flex items-center ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
-      {onMinimize && <button type="button" data-composer-hide aria-label="Minimize chat composer" title="Minimize chat composer - your draft stays" onClick={onMinimize}
-        className="absolute -top-3 left-7 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-white text-ink-2 shadow-pop hover:bg-hover hover:text-ink"><Minus size={12} strokeWidth={2} /></button>}
-      {body}
-      {send}
-    </form>
-    {/* Each group sits on its own white pill (owner 2026-11-13): bare icons are hard to see over a card behind the strip. An empty group draws nothing. */}
-    <div data-composer-toolbar className="flex min-w-0 items-center gap-1.5 px-1">
-      <div data-composer-tools className="flex items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-sm empty:hidden">{leading}</div>
-      <span className="min-w-0 flex-1" />
-      <div data-composer-tools className="flex items-center gap-0.5 rounded-full border border-line bg-white p-0.5 shadow-sm empty:hidden">{trailing}</div>
-    </div>
-  </div>;
   return <form data-chat-composer className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
     {leading}
     {body}

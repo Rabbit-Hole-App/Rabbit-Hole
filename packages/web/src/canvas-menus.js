@@ -23,15 +23,13 @@ export const localInsertItems = canvas => [
 
 // The owner's Insert menu: the local rows, then what reaches beyond this canvas, then the link. Upload a file is the one way to add
 // a file (the page asks where it goes); Search sources is the one source finder (YouTube, arXiv and Wikipedia are choices inside it).
-export const ownerInsertItems = ({ canvas, onUpload, onSearchSources, onLinkToCanvas, onCreateCourse = null }) => [
+export const ownerInsertItems = ({ canvas, onUpload, onSearchSources, onLinkToCanvas }) => [
   ...localInsertItems(canvas),
   { divider: true },
   { label: 'Notebook', icon: NotebookPen, onSelect: () => canvas()?.insertNotebook() },
   { label: 'Upload a file', icon: Upload, onSelect: onUpload },
   { label: 'Webpage', icon: Globe, onSelect: () => canvas()?.insertWebpage() },
   { label: 'Search sources', icon: Search, onSelect: onSearchSources },
-  // Create a course from the canvas's Markdown file (owner 2026-11-14): the same create the invitation's button and a typed request run; the row says why when it cannot.
-  ...(onCreateCourse ? [{ label: 'Create a course', icon: GraduationCap, disabled: !!onCreateCourse.disabled, onSelect: onCreateCourse }] : []),
   { divider: true },
   { label: 'Add a link', icon: Link, onSelect: onLinkToCanvas },
 ];

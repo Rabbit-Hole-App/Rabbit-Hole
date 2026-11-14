@@ -1,7 +1,6 @@
 // Source passage references in the browser (source-ref.js, source-refs.js, Tutor release R3): drafts, minting, status batching,
 // two way navigation from the blocks alone, the changed and missing refusals, and the learner's words. The server side is
 // control-plane/test/source-refs.test.js.
-import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CREATE_REFUSED, STATUS_TEXT, SOURCE_REF_EVENT, draftOfBlock, excerptDraft, explanationsFor, markdownCardOf, markdownDraft, navigable, readerRef, refLabel, sharedSourceRef, sourceRefOf, withSharedSourceRef } from './source-ref.js';

@@ -1,6 +1,5 @@
 // IMG-01: the web build holds no image switch; the SERVER's answer for this person turns /image (id generate-image) on (image-capability.js).
 // Nothing is paid and no server is reached: a fake fetch stands in for GET /api/learn/image-jobs.
-import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { IMAGE_GENERATION, commandsFor, imageGenerationLive, resolveCommand, unavailableCommand } from './agent/slash.js';

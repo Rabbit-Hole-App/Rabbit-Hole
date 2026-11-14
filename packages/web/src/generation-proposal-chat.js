@@ -153,8 +153,8 @@ export const madeFrom = proposalId => block => (block?.operation?.proposal?.prop
 // ---- CR-1's route decision (C:/s/spec/day-1021/chat-route-interface.md): the call a plain chat turn makes before it is sent ----
 // The bound fields are read from the ask's own payload, so the ask sends them unchanged. -> the decision, or null where the
 // route endpoint is not deployed (the turn is sent as today).
-async function routeDecision(fetcher, payload, { capability = null, requestId = crypto.randomUUID(), history = null } = {}) {
-  const body = { request_id: requestId, app: payload.scope?.app, pending: payload.scope?.pending ?? null, text: payload.message, capability, ...(history?.length ? { history } : {}),
+async function routeDecision(fetcher, payload, { capability = null, requestId = crypto.randomUUID() } = {}) {
+  const body = { request_id: requestId, app: payload.scope?.app, pending: payload.scope?.pending ?? null, text: payload.message, capability,
     mode: payload.mode ?? 'auto', selection: payload.canvas_target ?? null, source_refs: payload.context_refs ?? null, motion: payload.generation?.motion ?? null };
   // A bare greeting is never a tool request: decided here with no route request at all (the server's decideChat does the same for a direct caller).
   if (!capability && isSmallTalk(payload.message)) return { route: 'answer', via: 'default', local: true, capability: null, flow: null, token: null, retryable: false, code: null, message: null };
@@ -174,18 +174,6 @@ async function routeDecision(fetcher, payload, { capability = null, requestId = 
 }
 // What a failed route request says when the server gave no words of its own. Shown only for an authorization failure or a command that could not start.
 // The route round trip, timed for benchmarking (client-timing.js): a greeting is decided locally, so its interval is the cost of the check itself.
-// The last turns of this conversation for the router (owner 2026-11-13): each learner message with the reply that followed it and the command it ran,
-// most recent last. The server cuts and checks them again (inline-ai-route.js normalizeHistory).
-export function routeHistory(msgs, turns = 3) {
-  const out = [];
-  for (let i = msgs.length - 1; i >= 0 && out.length < turns; i--) {
-    if (msgs[i]?.role !== 'user') continue;
-    let reply = '';
-    for (let j = i + 1; j < msgs.length && msgs[j]?.role !== 'user'; j++) if (msgs[j]?.role === 'assistant' && typeof msgs[j].content === 'string') { reply = msgs[j].content; break; }
-    out.unshift({ user: String(msgs[i].content ?? ''), reply, command: msgs[i].command ?? null });
-  }
-  return out;
-}
 export async function routeChat(fetcher, payload, options) {
   const timing = startTiming('chat_route_ms', { mode: payload.mode ?? 'auto', depth: payload.depth });
   let decision;

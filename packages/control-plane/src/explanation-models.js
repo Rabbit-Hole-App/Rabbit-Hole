@@ -35,11 +35,6 @@ const stable = v => (Array.isArray(v) ? `[${v.map(stable).join(',')}]` : v && ty
 const planRole = role => ({ role, task: 'artifact', provider: 'plan', model: LEARN_TASKS.artifact.model, adapter: 'plan', credentialRef: 'ANTHROPIC_API_KEY',
   maxOutputTokens: LEARN_TASKS.artifact.maxTokens, toolChoice: LEARN_TASKS.artifact.toolChoice, settings: {} });
 
-// Owner 2026-11-14: a roadmap or course card is authored on Gemini Flash by the fast chain (the only path Gemini accepts the explanation schema on: json_schema, not tools), on that
-// provider ALONE: the quote, the hold and the one-dispatch rule are bound to one request, so a fallback provider would be a request nobody quoted. Each step call is metered by the
-// roadmap's hold through `meterStep` (roadmap-generate.js), so the learner is charged exactly as for any other roadmap call.
-export const ROADMAP_CARD_PROFILE = 'roadmap-gemini';
-
 export const CEREBRAS_MODEL = 'gpt-oss-120b';
 export const REASONING_EFFORTS = Object.freeze(['low', 'medium', 'high']);
 // One step per provider; model ids as the coordinator verified them in each account's models list (2026-11-08). Every step gets the profile's effort:
@@ -72,7 +67,6 @@ export const EXPLANATION_REGISTRY = deepFreeze({
   defaultProfile: 'plan-default',
   profiles: {
     'plan-default': { version: 1, roles: { author: planRole('author') } },
-    [ROADMAP_CARD_PROFILE]: { version: 1, roles: { author: { ...chainRole('google', 'low'), fallbacks: [] } } },
     ...Object.fromEntries(['fireworks', 'cerebras', 'google'].flatMap(primary => REASONING_EFFORTS.map(effort => [`${primary}-${effort}`, { version: 1, roles: { author: chainRole(primary, effort) } }]))),
   },
 });

@@ -268,8 +268,6 @@ await check('15 on a shared view-only canvas a click selects a card and shows it
   page = guest.page;
   await page.goto(`${BASE}/b/${shared.sharing.view}`);
   await page.locator('[data-shared-title]').waitFor({ timeout: 30000 });
-  // A share link opens with the right panel closed (owner 2026-11-14): the card's pill is in its Chat.
-  if (await page.locator('[data-panel-toggle]').getAttribute('aria-pressed') === 'false') await page.locator('[data-panel-toggle]').click();
   await page.waitForTimeout(1000);
   const box = await card('k-exp').boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + Math.min(40, box.height / 2));

@@ -23,9 +23,8 @@ test('a valid plan passes; the validator rejects the invalid ones with named cod
   assert.equal(validatePlan(planOf(), ctx()).ok, true);
   assert.ok(codes(validatePlan(planOf({ steps: [] }), ctx())).includes('step_count'));
   const eight = Array.from({ length: 8 }, (_, i) => step(`Topic ${i}`, i * 600, (i + 1) * 600));
-  const twelve = Array.from({ length: 12 }, (_, i) => step(`Topic ${i}`, i * 400, (i + 1) * 400));
-  assert.ok(codes(validatePlan(planOf({ steps: twelve, coverage: { uncovered: [{ start: 4800, end: 5210, reason: 'skipped' }] } }), ctx({ depth: 'brief' }))).includes('step_count'), 'Brief allows at most 10 steps');
-  assert.equal(validatePlan(planOf({ steps: eight, coverage: { uncovered: [{ start: 4800, end: 5210, reason: 'skipped' }] } }), ctx({ depth: 'balanced' })).ok, true); // 10/20/40 are maximums (owner 2026-11-14), 8 fits Balanced
+  assert.ok(codes(validatePlan(planOf({ steps: eight, coverage: { uncovered: [{ start: 4800, end: 5210, reason: 'skipped' }] } }), ctx({ depth: 'brief' }))).includes('step_count'));
+  assert.equal(validatePlan(planOf({ steps: eight, coverage: { uncovered: [{ start: 4800, end: 5210, reason: 'skipped' }] } }), ctx({ depth: 'balanced' })).ok, true); // 5/10/15 are maximums, 8 fits Standard
   assert.ok(codes(validatePlan(planOf(), ctx({ scope: { start: 1840, end: 3320 } }))).includes('passage_outside_scope'));
   assert.ok(codes(validatePlan(planOf({ steps: [step('Everything', 0, 9000)] }), ctx({ scope: { start: 0, end: 9000 } }))).includes('passage_too_long'));
   assert.ok(codes(validatePlan(planOf({ steps: [step('Only start', 0, 1840)] }), ctx())).includes('coverage_gap'));
@@ -146,7 +145,7 @@ test('revision: delivered steps stay first and unchanged; the latest request tra
   const sent = JSON.parse(m.seen[0].body.messages[0].content.split('\n\n<source')[0]);
   assert.equal(m.seen[0].role, 'roadmap_revise');
   assert.deepEqual(sent.instruction, { original: 'Explain gradient descent', latest: 'Make it shorter' });
-  assert.equal(sent.stepCeiling, 10);
+  assert.equal(sent.stepCeiling, 5);
   assert.deepEqual(sent.delivered, delivered);
 });
 
@@ -159,7 +158,7 @@ test('subject: one short phrase and a language code', async () => {
 
 test('invitation: exactly two choices, offered only when nothing suppresses it', () => {
   const base = { sourceSupported: true, autoSuggest: true, mode: 'auto', unfinishedRoadmap: false, alreadyOffered: false };
-  assert.deepEqual(decideInvitation(base), { offer: true, choices: ['Create a course', 'Cancel'] });
+  assert.deepEqual(decideInvitation(base), { offer: true, choices: ['Explain on canvas', 'Just keep it here'] });
   for (const [over, reason] of [[{ sourceSupported: false }, 'unsupported_source'], [{ mode: 'ask' }, 'ask_mode'], [{ autoSuggest: false }, 'auto_suggest_off'], [{ unfinishedRoadmap: true }, 'unfinished_roadmap'], [{ alreadyOffered: true }, 'already_offered']])
     assert.deepEqual(decideInvitation({ ...base, ...over }), { offer: false, reason });
   assert.equal(decideInvitation({ ...base, chatIdle: false }).queued, true);
@@ -178,7 +177,7 @@ test('prompt fingerprints are stable, one tool per role, and change when a promp
   assert.equal(PINNED.roadmap_revise, a.roadmap_revise, `roadmap_revise prompt changed: re-pin ${a.roadmap_revise}`);
   assert.equal(PINNED.roadmap_subject, a.roadmap_subject, `roadmap_subject prompt changed: re-pin ${a.roadmap_subject}`);
 });
-const PINNED = { roadmap_subject: 'e7f7ff8ccf1c', roadmap_draft: 'cc7f2e91cb9f', roadmap_revise: 'bba95995f672' }; // 2026-11-08: MATH_FORMAT's \frac no longer a form feed; CORE.09 planner guidance (2026-11-06; a diagram, not a Mermaid flowchart, 2026-11-07); formatRequired suggestion rule (BE.05a, 2026-11-07); Depth names Brief, Balanced, Detailed (2026-11-08)
+const PINNED = { roadmap_subject: 'e7f7ff8ccf1c', roadmap_draft: '2e5cc2e3cc20', roadmap_revise: '628891028b34' }; // 2026-11-08: MATH_FORMAT's \frac no longer a form feed; CORE.09 planner guidance (2026-11-06; a diagram, not a Mermaid flowchart, 2026-11-07); formatRequired suggestion rule (BE.05a, 2026-11-07); Depth names Brief, Balanced, Detailed (2026-11-08)
 
 test('CORE.09: draft and revise planner instructions plan one learning idea per step within the Depth budget, with tables and flowcharts inside an explanation', () => {
   for (const role of ['roadmap_draft', 'roadmap_revise']) {

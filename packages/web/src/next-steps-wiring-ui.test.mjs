@@ -35,7 +35,7 @@ test('the hook card: exactly the 3 hooks of a ready set, verbatim and in order, 
   const html = card(set('ready'));
   assert.match(html, /^<section data-next-steps="ready" aria-label="Curious where this goes\?"/);
   assert.match(html, /<h2[^>]*>Curious where this goes\?<\/h2>/);
-  const shown = [...html.matchAll(/<button [^>]*data-next-step="([^"]+)"[^>]*>[\s\S]*?<span class="min-w-0 line-clamp-3">([^<]*)<\/span><\/button>/g)].map(m => [m[1], m[2]]);
+  const shown = [...html.matchAll(/<button [^>]*data-next-step="([^"]+)"[^>]*>[\s\S]*?<span class="min-w-0">([^<]*)<\/span><\/button>/g)].map(m => [m[1], m[2]]);
   assert.deepEqual(shown, [['ns_0a0b0c0d.1', 'Why does bread rise &lt;faster&gt; in a warm room?'], ['ns_0a0b0c0d.2', HOOKS[1]], ['ns_0a0b0c0d.3', HOOKS[2]]]);
   assert.doesNotMatch(html, /secret goal|nb_x|learning_goal|basis/, 'nothing inside selected_next_step is drawn');
   assert.doesNotMatch(html, /disabled=""/, 'a ready set is clickable');
@@ -55,12 +55,12 @@ test('the hook card: loading and stale draw a skeleton with a spinner, never the
     // Owner brief 2 item 6: the header's Minimize is there in every state; no hook button is.
     assert.deepEqual([...html.matchAll(/<button[^>]*?(data-next-steps-[a-z]+)/g)].map(m => m[1]), ['data-next-steps-minimize'], `${status}: only the header's Minimize`);
   }
-  // No layout jump: a placeholder and a hook card share one minimum height (owner 2026-11-13: three small cards above the chat strip, the text wrapped to three lines, never cut to one).
-  assert.match(ask, /const HOOK_ROW = 'min-h-9 rounded-xl border border-line';/);
+  // No layout jump: a placeholder row and a hook button are both at least two lines (min-h-14).
+  assert.match(ask, /const HOOK_ROW = 'min-h-14 rounded-lg border border-line';/);
   // The skeleton keeps the last set's height, so a stale card does not change size while the next set loads.
   assert.match(ask, /useEffect\(\(\) => \{ if \(steps\?\.status === 'ready' && frame\.current\) height\.current = frame\.current\.offsetHeight; \}\);/);
   assert.match(ask, /aria-busy="true" style=\{height\.current \? \{ minHeight: height\.current \} : undefined\}/);
-  assert.match(ask, /className="flex min-h-9 min-w-\[11rem\] flex-\[1_1_0%\] cursor-pointer items-center gap-1\.5 rounded-xl border border-line bg-white px-2\.5 py-1\.5/);
+  assert.match(ask, /className="flex min-h-14 w-full cursor-pointer items-start gap-2 rounded-lg border border-line px-3 py-2/);
   assert.equal(card({ ...set('unavailable'), options: [] }), '', 'unavailable');
   assert.equal(card(set('ready', HOOKS.slice(0, 2))), '', 'never fewer than 3');
   assert.equal(card(null), '', 'not mounted: nothing');
@@ -70,11 +70,11 @@ test('the hook card click: select() first, then the step once, never the hook as
   // One flight: a refused select() (stale, unknown, busy) hands nothing on; a second click while one runs is ignored.
   assert.match(ask, /const pick = async hook => \{\n\s+if \(working\) return;\n\s+const r = steps\.select\(hook\.id\);\n\s+if \(!r\.ok\) return;\n\s+setWorking\(hook\.id\);\n\s+try \{ await onPick\(r\.selected_next_step, hook\); \} finally \{ setWorking\(null\); \}/);
   // A rendered hook is only ever the Hook's own text, plus (r29) the next-section hook's fixed note.
-  assert.match(ask, /<span className="min-w-0 line-clamp-3">\{hook\.hook\}\{hook\.section && <span data-next-section-note className="sr-only">\{sectionNote\(hook\.section\)\}<\/span>\}<\/span>/);
+  assert.match(ask, /<span className="min-w-0">\{hook\.hook\}\{hook\.section && <span data-next-section-note className="block text-xs text-ink-3">\{sectionNote\(hook\.section\)\}<\/span>\}<\/span>/);
 });
 
 test('ask.jsx sendStep: Voice on is say with the step, else the hook sentence goes through send as an ordinary Chat turn; no askStep, no selection payload', () => {
-  assert.match(ask, /const sendStep = async \(step, hook\) => \{\n\s+if \(voice\?\.on\) return voice\.say\('', \{ nextStep: step, selectedAt: new Date\(\).toISOString\(\) \}\);\n\s+if \(busy\) return false;\n\s+\/\/[^\n]*\n\s+if \(slashRef\.current\?\.intercept\(`\/\$\{typedOf\('explanation'\)\} \$\{hook\}`\)\) return true;\n\s+return \(await send\(hook\)\) !== false;/);
+  assert.match(ask, /const sendStep = async \(step, hook\) => \{\n\s+if \(voice\?\.on\) return voice\.say\('', \{ nextStep: step, selectedAt: new Date\(\).toISOString\(\) \}\);\n\s+if \(busy\) return false;\n\s+return \(await send\(hook\)\) !== false;/);
   assert.doesNotMatch(ask, /askStep|tutor\.(ask|extras|opening|slash)|viaTutor/, 'the browser Tutor path is gone from the dock');
 });
 
@@ -86,8 +86,8 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a Chat compose
   assert.match(page, /function NextStepsHost\(\{ on, children, \.\.\.props \}\) \{\n\s+return on \? <NextStepsMounted \{\.\.\.props\}>\{children\}<\/NextStepsMounted> : children\(null\);\n\}\nfunction NextStepsMounted\(\{ children, \.\.\.props \}\) \{\n\s+return children\(useNextSteps\(props\)\);/);
   // Voice Mode's caption keeps the canvas's lower-left stack; the hook card is
   // the bottom strip's lower right, beside the composer (owner, 2026-10-08).
-  assert.match(page, /leftRail=\{voiceOn \? <TutorCaption caption=\{voice\.caption\} state=\{voice\.state\} \/> : null\}\n\s+composer=\{panelOpen \? null : <div ref=\{setStripHost\} data-canvas-chat-strip \/>\} chatWindow=\{panelOpen \? null : <div ref=\{setWindowHost\} data-canvas-chat-window className="empty:hidden" \/>\} hooks=\{steps && !panelOpen \? <NextStepsCard steps=\{steps\} minimized=\{curiousMin\} onMinimizedChange=\{setCuriousMin\} onPick=\{\(step, hook\) => nextStepSend\.current\?\.\(step, hook\.hook\)\} \/> : null\}/);
-  assert.match(canvas, /<div data-canvas-lower-right className="flex items-end justify-end gap-2 md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">\n\s+\{hooks && !composer && <div data-hooks-slot ref=\{hooksSlot\} className=\{`w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] empty:hidden max-md:w-\[min\(100%,300px\)\] \$\{drawnWidgets\.curious \? '' : 'hidden'\}`\}>\{hooks\}<\/div>\}/);
+  assert.match(page, /leftRail=\{voiceOn \? <TutorCaption caption=\{voice\.caption\} state=\{voice\.state\} \/> : null\}\n\s+hooks=\{steps \? <NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => \(chatRef\.current\?\.panels\.openChat\(\), nextStepSend\.current\?\.\(step, hook\.hook\)\)\} \/> : null\}/);
+  assert.match(canvas, /<div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">\n\s+\{hooks && <div data-hooks-slot ref=\{hooksSlot\} className=\{`w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] empty:hidden max-md:w-\[min\(100%,300px\)\] \$\{drawnWidgets\.curious \? '' : 'hidden'\}`\}>\{hooks\}<\/div>\}/);
   // View > Curious off (owner brief 2026-10-21 item 3) hides the mounted card and frees its corner: no reserved room either.
   assert.match(canvas, /if \(drawnWidgets\.curious && slot && room && !slot\.getBoundingClientRect\(\)\.height\) rects\.push\(/);
   // A hook click opens Chat and sends through the Chat AskPanel's nextStepRef (chatAskProps).
@@ -147,8 +147,8 @@ test('r29 the hook card: the next-section hook says Next section, and skips this
   const withSection = skips => { const s = set('ready'); s.options[2] = { ...s.options[2], section: { id: 's2', title: 'From a score to probability', skips } }; return card(s); };
   const skipping = withSection(true), completing = withSection(false);
   assert.match(skipping, /<button [^>]*data-next-step="ns_0a0b0c0d\.3" data-next-section="s2" aria-label="Where would yeast surprise an expert baker\? \(Next section - skips this section\)"/);
-  assert.match(skipping, /<span data-next-section-note="true" class="sr-only">Next section - skips this section<\/span>/);
-  assert.match(completing, /<span data-next-section-note="true" class="sr-only">Next section<\/span>/);
+  assert.match(skipping, /<span data-next-section-note="true" class="block text-xs text-ink-3">Next section - skips this section<\/span>/);
+  assert.match(completing, /<span data-next-section-note="true" class="block text-xs text-ink-3">Next section<\/span>/);
   assert.equal((skipping.match(/data-next-section=/g) || []).length, 1, 'only that hook');
   assert.doesNotMatch(card(set('ready')), /data-next-section/, 'no section, no note');
 });
@@ -163,12 +163,12 @@ test('the hook card header: Refresh and Minimize, loading and failure kept besid
   html = card({ ...live, refresh_state: 'loading' });
   assert.match(html, /<button[^>]*data-next-steps-refresh[^>]*disabled=""[^>]*aria-busy="true"/, 'one refresh at a time');
   assert.equal((html.match(/data-next-step="/g) || []).length, 3, 'the hooks stay while it loads');
-  // Owner 2026-11-13: a failed or limited refresh shows no message; the three suggestions stay.
-  for (const refresh_reason of ['failed', 'limited']) {
-    html = card({ ...live, refresh_state: 'error', refresh_reason });
-    assert.doesNotMatch(html, /Could not refresh|Refresh limit|Try again|role="alert"/);
-    assert.equal((html.match(/data-next-step="/g) || []).length, 3);
-  }
+  html = card({ ...live, refresh_state: 'error', refresh_reason: 'failed' });
+  assert.match(html, /role="alert"[^>]*>Could not refresh; these suggestions stay\.<button[^>]*>Try again<\/button>/);
+  assert.equal((html.match(/data-next-step="/g) || []).length, 3);
+  html = card({ ...live, refresh_state: 'error', refresh_reason: 'limited' });
+  assert.match(html, /Refresh limit reached for now/);
+  assert.doesNotMatch(html, /Try again/);
   assert.doesNotMatch(card(set('ready')), /data-next-steps-refresh/);
   // Minimize and Restore are the card's own state: no select(), no refresh(), no request.
   assert.match(ask, /onClick=\{\(\) => setMinimized\(false\)\}/);

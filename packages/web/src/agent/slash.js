@@ -123,17 +123,6 @@ const entryOfTyped = (typed) => SLASH.find((c) => (c.typed || c.name) === typed)
 export const typedOf = (name) => toolOf(name)?.typed || name;
 export const idOfTyped = (typed) => entryOfTyped(typed)?.name ?? typed;
 
-// One on/off flag per public command (owner 2026-11-13): false hides it everywhere a person reaches it, the chat composer's / list,
-// the small slash window, Ctrl+K and the View > Slash Commands window (commandsFor leaves it out, so a typed /name is said to be
-// unavailable). The Tutor's own material tools and its roadmap cards (`internal`) do not read it. Build-time like the other
-// switches: flip a value here and rebuild. slash.test.mjs holds that every command has an entry.
-export const SLASH_FLAGS = {
-  explanation: true, explain: false, practice: true, quiz: true, flashcards: true, goal: false,
-  code: true, graph: true, diagram: true, notebook: true, 'generate-image': false, motion: false, cad: false, animation: false,
-  'whiteboard-video': false, '3d': true, browser: true,
-  image: true, youtube: true, arxiv: true, wikipedia: true,
-};
-
 // Removed slash commands (owner, 2026-10-20). Typed on any surface, each says it is unavailable and runs nothing; ordinary
 // words still ask, compare, simplify or explore, and the Tutor keeps its material tools (MATERIAL_TOOLS).
 export const REMOVED_COMMANDS = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper',
@@ -163,8 +152,6 @@ export function unavailableCommand(name, { listed = true, imageGeneration = imag
   if (entryOfTyped(name)?.needs === 'image_generation' && !imageGeneration) return 'Image generation is not available here. /photos searches for real photos.';
   // ponytail: no approved /whiteboard refusal string yet; this is Ctrl+K's existing generic line (inline-ai-command.js unsupportedText).
   if (entryOfTyped(name)?.needs === 'whiteboard' && !whiteboard) return `/${name} isn't available here.`;
-  const entry = entryOfTyped(name);
-  if (entry && !SLASH_FLAGS[entry.name]) return `/${name} isn't available here.`;
   return null;
 }
 
@@ -212,8 +199,8 @@ const MOTION_DEV = import.meta.env?.VITE_MOTION === 'true' || import.meta.env?.V
 // internal: true adds the Tutor's material tools (MATERIAL_TOOLS), for its create_material, a journey's steps and Ctrl+K's
 // automatic routing; never for a picker, the Slash commands window or a typed line.
 const placeFor = (surface) => (surface === 'chat' ? 'learn' : surface);
-export const commandsFor = (place, { motionDev = MOTION_DEV, imageGeneration = imageGenerationLive(), whiteboard = whiteboardVideoLive(), internal = false, flags = SLASH_FLAGS } = {}) =>
-  (internal ? [...SLASH, ...MATERIAL_TOOLS] : SLASH).filter((c) => (internal || flags[c.name]) && c.places.includes(placeFor(place)) && !(c.needs === 'motion_dev' && !motionDev) && !(c.needs === 'image_generation' && !imageGeneration) && !(c.needs === 'whiteboard' && !whiteboard));
+export const commandsFor = (place, { motionDev = MOTION_DEV, imageGeneration = imageGenerationLive(), whiteboard = whiteboardVideoLive(), internal = false } = {}) =>
+  (internal ? [...SLASH, ...MATERIAL_TOOLS] : SLASH).filter((c) => c.places.includes(placeFor(place)) && !(c.needs === 'motion_dev' && !motionDev) && !(c.needs === 'image_generation' && !imageGeneration) && !(c.needs === 'whiteboard' && !whiteboard));
 
 // The selected-command pill's text: the short pill label, else the menu label (/explain: Add explanation; /3d: 3D). A name the
 // registry no longer has (a saved message's removed command) reads as its capitalised name (/simplify: Simplify).

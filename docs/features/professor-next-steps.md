@@ -9,25 +9,6 @@ At a useful stopping point the Tutor offers exactly three curiosity hooks. A hoo
 
 ---
 
-
-## Owner 2026-11-13: the canvas chat strip and Curious at the lower right
-
-Binding; where it disagrees with an older section, this one wins (the 3a rule "selected Tutor with Chat open" and the Sonnet and Opus
-planner roles are history).
-
-- While the right-side panel is closed, the canvas shows a wide pill-shaped chat strip at the bottom. It is the Chat's own composer, not a copy:
-  the Chat's `AskPanel` moves its composer region into the canvas's strip host (`ask.jsx` `stripHost`, `regionHost`; `LearnPage` passes the host),
-  so the strip has the Chat's tools (+, Depth, `/`), draft, chips and send loop. Send leaves the panel closed: a small fixed-height window above the strip holds the conversation (the same conversation region, moved without remounting; `ask.jsx` `windowHost`, `LearnPage` `chatWindow`) and can be minimized or maximized; a new send restores a minimized one. Chat answers still run on Gemini 3.5 Flash Lite. A small round Minimize
-  sits on the strip's top-left corner; minimized, it is the Rabbit Hole mark on black at the lower right (`public/static/rabbit-hole-white-on-black-*.png`,
-  under `/static/` because the workers serve only listed public paths). The choice is kept on this device (`ui-prefs.js` `chatStrip`); so is the right
-  panel's open or closed state (`rightPanel`), so a refresh keeps it. This reverses the 2026-10-13 removal of the canvas dock for the closed-panel
-  state only; the panel stays the one Chat.
-- The Curious card sits right of the strip, with its own Minimize that folds it to a round icon (`curiousMin`, kept on this device). Opening the
-  panel hides the strip, the blob and the card; the card asks only while the panel is closed (`hooksCoaching.visible`), whenever suggestions are On
-  and unpaused in any mode (`canSuggest`, `learn-coaching-contract.js`), because the Chat's mode menu is hidden. Shown with no saved set, it asks
-  once by itself (`useNextSteps`); the Suggest button is only for a later retry.
-- The planner (`tutor_next_steps` and its escalation) runs on Gemini 3.5 Flash Lite like chat (`LEARN_TASKS`), no effort setting, 4000 tokens.
-
 ## Changes since bab01392 (for Parallel and the Tutor Evaluation agent)
 
 > **Superseded in part (owner, 2026-10-20, decisions 2a, 3a, 4a, 5a).**

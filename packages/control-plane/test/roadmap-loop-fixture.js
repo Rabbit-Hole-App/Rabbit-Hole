@@ -4,7 +4,6 @@
 import { roadmapRoute } from '../src/roadmap/roadmap-routes.js';
 import { roadmapDeps, registerRoadmapHandlers } from '../src/roadmap/roadmap-wire.js';
 import { spendTransport } from '../src/learn-spend.js';
-import { CHAT_GEMINI } from '../src/learn-models.js';
 import { usageTotals, periodOf } from '../src/learn-usage.js';
 import { readFileSync } from 'node:fs';
 import { world, MODEL } from './roadmap-fixture.js';
@@ -68,7 +67,7 @@ export const GOOD = answer('make_explanation', { title: 'The gradient', body: wi
 export const TABLE = answer('make_table', { title: 'Rates', caption: '', columns: ['rate', 'effect'], rows: [['small', 'slow'], ['large', 'overshoots']] });
 export const BAD = answer('make_explanation', { title: 'No body' }); // fails the schema: the one repair
 export const FAIL = async () => new Response('{"error":"overloaded"}', { status: 500, headers: { 'content-type': 'application/json' } });
-export const provider = script => { const used = [], bodies = [], models = []; return { used, bodies, models, base: (e, body, model, org) => spendTransport(e, body, model, org, async () => { used.push(1); bodies.push(body); models.push(model); return script.shift()(model); }, { userId: 'u-alice', category: 'roadmap', ...(model === CHAT_GEMINI ? { provider: 'google' } : {}) }) }; };
+export const provider = script => { const used = [], bodies = [], models = []; return { used, bodies, models, base: (e, body, model, org) => spendTransport(e, body, model, org, async () => { used.push(1); bodies.push(body); models.push(model); return script.shift()(model); }, { userId: 'u-alice', category: 'roadmap' }) }; };
 
 export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 'true', md = MD, settings, classifier = classify, envExtra } = {}) {
   const w = world(t, allowanceMicros ? { allowanceMicros } : {});
@@ -81,10 +80,10 @@ export async function loop(t, { plans, script = [GOOD], allowanceMicros, flag = 
   }
   const rev = await sha(md);
   w.sqlite.prepare('UPDATE file_sources SET sha256 = ?').run(rev);
-  const env = { ...w.env, ROADMAP_CARD_PROFILE: 'plan-default', ROADMAP_ENABLED: flag, ...envExtra, LEARN_MEDIA: { get: async key => (key in objects ? { text: async () => objects[key] } : null) } };
+  const env = { ...w.env, ROADMAP_ENABLED: flag, ...envExtra, LEARN_MEDIA: { get: async key => (key in objects ? { text: async () => objects[key] } : null) } };
   const m = models({ plans }), p = provider(script);
   registerRoadmapHandlers({ callModel: m.callModel, checkCallModel: m.callModel, classify: classifier, base: p.base });
-  const deps = { identity: async () => ({ org: 'team', email: 'u-alice@example.test', userId: 'u-alice' }), ...roadmapDeps(env, null, { settings, readSourceOptions: { minWords: 0 } }) }; // the fixtures' Markdown is a few lines: the 100-word check is tested in roadmap-course.test.js
+  const deps = { identity: async () => ({ org: 'team', email: 'u-alice@example.test', userId: 'u-alice' }), ...roadmapDeps(env, null, { settings }) };
   const call = (method, path, payload) => roadmapRoute(path.split('?')[0], new Request(`${ORIGIN}${path}`, { method, headers: { 'content-type': 'application/json' }, body: payload ? JSON.stringify(payload) : undefined }), env, deps);
   const json = async (method, path, payload) => { const r = await call(method, path, payload); return { status: r.status, body: await r.json() }; };
   const status = async () => (await json('GET', `/api/learn/roadmap?boardId=${BOARD}`)).body;

@@ -152,10 +152,8 @@ export async function spendTransport(env, body, model, org, transport, identity 
 
 // Wraps a model call so each request/retry reserves independently. The private transport token prevents double admission.
 export function spendCallModel(env, access, category, callModel) {
-  // A Gemini model is admitted as Google, as ask.js geminiChat does inside it (owner 2026-11-13: the Curious planner runs on Gemini); admitted as Anthropic it
-  // has no price and the call is refused before it leaves (spend_bound_unavailable).
   return (callEnv, body, model, org, ...rest) => spendTransport(callEnv, body, model, org || access.org,
     admittedEnv => callModel(admittedEnv, body, model, org, ...rest),
-    { userId: access.user_id || access.email, category, ...(model?.startsWith?.('gemini-') ? { provider: 'google' } : {}) });
+    { userId: access.user_id || access.email, category });
 }
 

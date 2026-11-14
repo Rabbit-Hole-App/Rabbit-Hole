@@ -1,6 +1,5 @@
 // The Ctrl+K editor's / commands (inline-ai-command.js; Release B contract B4, owner decisions 1A, 2A, 4A; owner spec 2026-10-29:
 // the same 18 commands as Chat, each explicit one handed to Chat's dispatcher).
-import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SLASH, commandsFor, setImageGeneration, setWhiteboardVideo, typedOf } from './agent/slash.js';

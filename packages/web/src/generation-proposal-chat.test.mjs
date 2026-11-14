@@ -85,7 +85,7 @@ test('the Chat routes plain turns and proposed commands; other command prompts, 
   assert.ok(ask.includes("if (routable && !commandName && answerChosen) payload.answer_only = true;"), 'the clarification option Answer in chat is a server-enforced answer-only turn');
   assert.ok(ask.includes('if (outcome.answerOnly) Object.assign(payload, { answer_only: true, ...(outcome.failure ? { route_failure: outcome.failure } : {}) });'), 'a greeting or a recoverable router failure continues once as an answer-only turn');
   assert.ok(ask.includes('{ plain: !commandName && !routeAs && !prompted }'), 'only an uncommanded turn recovers; a command keeps its shown failure');
-  assert.ok(ask.includes('{ capability: routeAs ?? commandName ?? null, history: routeHistory(msgs) }'), 'an explicit command names its capability: zero router calls; the router reads the last turns (owner 2026-11-13)');
+  assert.ok(ask.includes('{ capability: routeAs ?? commandName ?? null }'), 'an explicit command names its capability: zero router calls');
   assert.ok(ask.includes('if (outcome.token) payload.route_token = outcome.token;'));
   assert.ok(ask.includes('if (!keepDraft) setInput(current => current || (commandName ?'), 'a refused or clarified turn gives the words back, never over a kept draft');
   assert.ok(ask.includes("const say = text => setMsgs(m => [...m, { role: 'assistant', content: text }]);"), 'a refusal or clarification is a line in the Chat, not a banner above or below it');

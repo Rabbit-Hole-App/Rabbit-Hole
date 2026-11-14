@@ -15,15 +15,6 @@ a second command list.
 
 smart-home does not edit `ask.jsx` or `LearnPage.jsx`.
 
-## Per-command flags (owner 2026-11-13)
-
-Every command has one on/off flag in `agent/slash.js` `SLASH_FLAGS` (build-time: flip it and rebuild). Off hides the command from the
-Chat composer's `/` list, the small slash window, Ctrl+K and the View > Slash Commands window (all read `commandsFor`), and a typed
-`/name` answers "isn't available here". The Tutor's own material and roadmap path (`commandsFor` with `internal`) ignores the flags, so
-the saved ids keep working. `slash.test.mjs` holds that every command has a flag. Shipped off: `/goal`, `/animation`, `/whiteboard`,
-`/motion`, `/interactive` (id `explain`), `/image` (id `generate-image`) and `/cad`; the rest are on. Other tests import
-`agent/slash-flags-test-on.mjs`, which turns every flag on so a command's own tests do not depend on what ships.
-
 ## The 18 commands (owner spec 2026-10-29, slash commands cleanup)
 
 Binding. It supersedes the Places and Commands rows below, the 2026-10-20 retained-per-surface lists and the Ctrl+K set of

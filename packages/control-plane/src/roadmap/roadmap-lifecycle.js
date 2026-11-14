@@ -30,15 +30,11 @@ export async function cancelProposal(db, access, { roadmapId, expectedRevision, 
 // format switches, revalidate the source check (null: skipped, for callers with no access to either). A ready step is offered as planned; an unready one
 // is offered with an eligible alternative that needs no change to a required format, else NOTHING is offered, the step stays planned and a recovery fact is
 // recorded for Chat (offer: 'blocked'). useAlternative: the learner chose the alternative for a required format (offer-recovery route).
-// A course run (roadmap-course.js, owner 2026-11-14) goes on as soon as the card in hand is MADE, without waiting for the browser to place it: a generating step whose result is
-// generated or failed no longer holds the roadmap back. A learner's own Propose next step keeps the stricter rule (a step is proposed or generating until delivered).
-export const BUSY_STEP = "SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('proposed', 'generating') LIMIT 1";
-export const COURSE_BUSY_STEP = "SELECT 1 AS n FROM learn_roadmap_steps s WHERE s.roadmap_id = ? AND s.plan_version = ? AND (s.state = 'proposed' OR (s.state = 'generating' AND NOT EXISTS (SELECT 1 FROM learn_step_results r WHERE r.step_id = s.id AND r.decision = 'accepted' AND r.generation IN ('generated', 'failed')))) LIMIT 1";
-export async function proposeNextStep(db, access, { roadmapId, expectedRevision, actionKey, compose, env = null, revalidate = null, useAlternative = false, course = false, now = nowSeconds() }) {
+export async function proposeNextStep(db, access, { roadmapId, expectedRevision, actionKey, compose, env = null, revalidate = null, useAlternative = false, now = nowSeconds() }) {
   const roadmap = await readRoadmap(db, access, roadmapId);
   if (!roadmap) throw new StateError('not_found', 'Not available', 404);
   if (!['active', 'paused'].includes(roadmap.state)) throw new StateError('roadmap_not_active', 'Not available', 409);
-  const busy = await db.prepare(course ? COURSE_BUSY_STEP : BUSY_STEP).bind(roadmapId, roadmap.accepted_plan_version ?? roadmap.plan_version).first(); // the accepted plan, never an unaccepted draft (UI.03)
+  const busy = await db.prepare("SELECT 1 AS n FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state IN ('proposed', 'generating') LIMIT 1").bind(roadmapId, roadmap.accepted_plan_version ?? roadmap.plan_version).first(); // the accepted plan, never an unaccepted draft (UI.03)
   if (busy) throw new StateError('proposal_not_pending', 'Finish or resolve the current step first.', 409);
   if (await outcomeUnresolved(db, roadmapId)) throw new StateError('outcome_unresolved', 'The previous card is still being settled.', 409); // BE.12: reconcile before any successor
   const next = await db.prepare("SELECT * FROM learn_roadmap_steps WHERE roadmap_id = ? AND plan_version = ? AND state = 'planned' ORDER BY position LIMIT 1").bind(roadmapId, roadmap.accepted_plan_version ?? roadmap.plan_version).first(); // the accepted plan, never an unaccepted draft (UI.03)

@@ -227,8 +227,6 @@ watchSets(page);
 const signedOutHooks = [];
 page.on('request', request => { if (/\/next-steps$/.test(new URL(request.url()).pathname)) signedOutHooks.push(request.url()); });
 await page.goto(`${BASE}/b/${token}`);
-// A share link opens with the right panel closed (owner 2026-11-14): open it, the composer under test is in its Chat.
-await page.locator('[data-panel-toggle]').waitFor({ timeout: 60000 }); if (await page.locator('[data-panel-toggle]').getAttribute('aria-pressed') === 'false') await page.locator('[data-panel-toggle]').click();
 await page.locator('[data-shared-ask] [data-chat-composer]').waitFor({ timeout: 60000 });
 // Opened after the signed-out page, a signed-in page has asked for its hooks: the signed-out one had as long, and asked nothing.
 const { page: signedInPage } = await contextFor(viewer);

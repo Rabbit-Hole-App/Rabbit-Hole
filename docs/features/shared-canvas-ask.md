@@ -8,7 +8,7 @@ sees, and nothing is written to the owner's board, threads or any owner data. Ke
 ## Guest Chat (SHARE-03, owner brief 2026-10-22 section 5)
 
 Supersedes the signed-out and placement lines below. Contract: C:/s/spec/share/contract-guest-chat.md.
-- Chat is the right panel's Chat (`SharedChat.jsx`: the normal `ChatMessages` and `ChatComposer`), closed by default on a share link or publication (owner 2026-11-14: the composer is then in the bottom strip), open on a member's canvas;
+- Chat is the right panel's Chat (`SharedChat.jsx`: the normal `ChatMessages` and `ChatComposer`), open by default;
   replies land in that thread, not a floating window over the canvas. Ask in Chat, Explain in Chat and Ask about
   selection (`small:ask-focus`, the selected card) open it with the context attached and never send.
 - Signed out on a public link or publication: one 10-message trial per browser (`rh_guest` HttpOnly cookie, only its
@@ -22,9 +22,6 @@ Supersedes the signed-out and placement lines below. Contract: C:/s/spec/share/c
   sent by itself.
 - Platform-sponsored (`learn-usage.js` `PUBLIC_FEATURES`: payer platform, `anonymous_public`), never the owner; signed
   in, the viewer's own caps and monthly allowance. Platform day caps and the bounded research loop still apply.
-- **Bottom strip (owner 2026-11-14, as on the owner's canvas).** While the right panel is closed the canvas draws a strip at its bottom and the one Chat composer
-  (with the selected-card pill) is drawn there; opening the panel moves it back into Chat without remounting, so the draft and the conversation stay. Send from the
-  strip opens the panel on Chat, where the answer streams. Not in an embed (its Chat has its own button). The guest's free-messages line shows in the panel only.
 - Chat only: a `/explain` or "make a card" message is a plain question; this route offers no generation tool.
 - `GET` the same path: `{ guest: { limit, used, remaining } }` signed out, `{ guest: null }` signed in.
 

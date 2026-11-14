@@ -37,17 +37,30 @@ const seeded = name => {
   return { state, pill: pillOf(state), toc: tocOf(state) };
 };
 
-test('the hook returns what RoadmapCanvas and the course progress read', () => {
+test('the hook returns what RoadmapCanvas and the canvas overlay read', () => {
   const r = hookReturn();
-  for (const key of ['acceptPlan', 'go', 'toc', 'controller', 'state', 'canStartCourse', 'course', 'startCourse', 'stopCourse']) assert.ok(key in r, `${key} is returned`);
-  for (const retired of ['pill', 'position', 'surface', 'showOverlay']) assert.equal(retired in r, false, `${retired} is retired (owner 2026-11-14)`);
+  for (const key of ['position', 'surface', 'showOverlay', 'acceptPlan', 'go', 'toc', 'pill', 'controller', 'state']) assert.ok(key in r, `${key} is returned`);
+  assert.equal(typeof r.position.left, 'number');
+  assert.equal(typeof r.surface.width, 'number');
+});
+
+test('Accept roadmap, first proposal pending: the canvas overlay renders from the hook position, the ToC renders the accepted rows', () => {
+  const base = hookReturn(), s = seeded('status-active-proposal-pending');
+  assert.ok(s.pill, 'the accepted plan has a pending first proposal');
+  const roadmap = { ...base, ...s, showOverlay: true, controller: base.controller };
+  const canvas = lib.renderToStaticMarkup(lib.createElement(lib.RoadmapCanvas, { roadmap, hosted: false }));
+  assert.match(canvas, /data-roadmap-overlay/);
+  assert.ok(canvas.includes(s.pill.title));
+  const toc = lib.renderToStaticMarkup(lib.createElement(lib.TableOfContents, { roadmap, outline: [], canvasApi: { current: null } }));
+  assert.match(toc, /data-roadmap-step/);
+  assert.ok(toc.includes(s.toc.steps[0].title));
 });
 
 test('every recorded status view renders on the canvas and in the ToC without throwing', () => {
   const base = hookReturn();
   for (const name of ['status-active-proposal-pending', 'status-delivered-next-ready', 'status-held-for-checking', 'status-failed-card', 'status-cancelled-paused', 'status-completed', 'status-proposed-plan', 'accept-proposal-response-generating']) {
-    const s = seeded(name), roadmap = { ...base, ...s };
-    lib.renderToStaticMarkup(lib.createElement(lib.RoadmapCanvas, { roadmap }));
+    const s = seeded(name), roadmap = { ...base, ...s, showOverlay: !!s.pill };
+    lib.renderToStaticMarkup(lib.createElement(lib.RoadmapCanvas, { roadmap, hosted: false }));
     lib.renderToStaticMarkup(lib.createElement(lib.TableOfContents, { roadmap, outline: [], canvasApi: { current: null } }));
   }
 });
@@ -136,8 +149,8 @@ test('the draft actions sit 12 px under the preview and 8 px apart, outside it, 
     assert.doesNotMatch(wrapper[1], /\b(pt-1|gap-1\.5|-mt-|mt-)/);
     const plan = markup.indexOf('data-roadmap-steps'), actions = markup.indexOf('data-roadmap-actions');
     assert.ok(plan > 0 && actions > plan, 'the buttons follow the preview, outside it');
-    assert.ok(markup.slice(markup.indexOf('data-roadmap-actions')).split('</div>')[0].includes('Accept'));
-    assert.ok(!markup.slice(plan, actions).includes('Accept'), 'not inside the preview');
+    assert.ok(markup.slice(markup.indexOf('data-roadmap-actions')).split('</div>')[0].includes('Accept roadmap'));
+    assert.ok(!markup.slice(plan, actions).includes('Accept roadmap'), 'not inside the preview');
   }
 });
 
@@ -181,6 +194,56 @@ const recoveryView = (held, over = {}) => {
 };
 const QUESTION = { id: 'offer:st', text: 'A table card cannot be prepared right now, and you asked for one. Use an explanation card instead, or change the roadmap?', options: [{ id: 'alternative', label: 'Use an explanation card' }, { id: 'edit', label: 'Edit roadmap' }] };
 const stateOf = v => ({ view: v, busy: [], editing: false, flag: 'on', notice: null, invitation: null, limitation: null, draft: null });
+
+test('a blocked offer with a required format is one recovery entry: the question, the alternative and Edit roadmap, both live', () => {
+  const v = recoveryView({ question: QUESTION });
+  const entries = entriesOf(stateOf(v)).filter(e => e.kind === 'recovery');
+  assert.equal(entries.length, 1, 'one entry for the step');
+  const [entry] = entries;
+  assert.equal(entry.content, QUESTION.text);
+  assert.deepEqual(entry.actions.map(a => [a.id, a.run.choice ?? null]), [['recover', 'alternative'], ['edit_roadmap', null]]);
+  assert.equal(entry.tutor.stepId, v.offerRecovery.stepId);
+  const markup = render(entry);
+  assert.equal(count(markup, '<button'), 2);
+  assert.match(markup, /data-roadmap-recover="alternative"/);
+  assert.ok(!markup.includes('disabled=""'), 'an unanswered question keeps its option buttons live');
+});
+
+test('a blocked offer with no qualified tool is help with one next-step button; a pending offer or no recovery draws no recovery entry', () => {
+  const help = entriesOf(stateOf(recoveryView({ help: 'A table card cannot be prepared right now, and no other card can teach this step yet. Use Edit roadmap to change the step.' }))).find(e => e.kind === 'recovery');
+  assert.match(help.content, /Use Edit roadmap/);
+  assert.deepEqual(help.actions.map(a => a.id), ['edit_roadmap']);
+  const withOffer = view('status-active-proposal-pending');
+  assert.equal(entriesOf(stateOf({ ...withOffer, offerRecovery: { stepId: withOffer.steps[0].id, reason: 'format_unavailable', help: 'x' } })).some(e => e.kind === 'recovery'), false, 'an offer in review ends the recovery');
+  assert.equal(entriesOf(stateOf({ ...withOffer, proposal: null })).some(e => e.kind === 'recovery'), false);
+});
+
+test('a resolved recovery entry is history: no button, one outcome line', () => {
+  const entry = entriesOf(stateOf(recoveryView({ question: QUESTION }))).find(e => e.kind === 'recovery');
+  const stored = { clientId: entry.clientId, kind: 'recovery', content: entry.content, tutor: entry.tutor, actions: [] };
+  const markup = render(stored, { live: false });
+  assert.equal(count(markup, '<button'), 0);
+  assert.equal(count(markup, 'Resolved'), 1);
+  assert.equal(outcomeOf(stored, { live: false }), 'Resolved');
+  assert.equal(outcomeOf(entry, { live: true }), null);
+});
+
+test('the controller sends the learner\'s chosen alternative for the held step once, and nothing when no recovery is waiting', async () => {
+  const { createRoadmapController } = await import('./roadmap-controller.js');
+  const calls = [];
+  const held = recoveryView({ question: QUESTION });
+  const api = async (path, opts = {}) => { calls.push({ method: opts.method || 'GET', path, body: opts.body ? JSON.parse(opts.body) : null }); return opts.method === 'POST' ? { ...view('status-active-proposal-pending'), roadmap: { ...held.roadmap, revision: held.roadmap.revision + 1 } } : held; };
+  const controller = createRoadmapController({ api, boardId: 'lb_7c1e5a90d2b84f63a1c07e92', host: { hasBlock: () => false, insertCard: () => null, persist: async () => ({ ok: true }), boardRevision: () => 1, savedHas: () => false }, schedule: () => 1, cancel() {} });
+  controller.start(); await new Promise(resolve => setTimeout(resolve, 10));
+  await controller.recoverOffer({ choice: 'alternative' }); await controller.recoverOffer({ choice: 'alternative' });
+  const posts = calls.filter(c => c.method === 'POST');
+  assert.equal(posts.length, 1, 'a repeated click is one request');
+  assert.match(posts[0].path, /\/steps\/recover$/);
+  assert.deepEqual([posts[0].body.stepId, posts[0].body.choice], [held.offerRecovery.stepId, 'alternative']);
+  const idle = createRoadmapController({ api: async () => view('status-active-proposal-pending'), boardId: 'lb_7c1e5a90d2b84f63a1c07e92', host: {}, schedule: () => 1, cancel() {} });
+  idle.start(); await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(await idle.recoverOffer({ choice: 'alternative' }), null, 'no recovery waiting: no request');
+});
 
 // Table of contents hover actions (owner 2026-11-07): Go to card where a card or pending slot exists, and a Delete that asks first.
 test('ToC rows: Go to card where the card or slot exists, Delete only for a delivered card, and the delete asks in a popover first', () => {

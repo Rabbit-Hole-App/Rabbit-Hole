@@ -9,7 +9,6 @@ import { readRoadmapSource } from './roadmap-source.js';
 import { readMarkdownForActor } from './roadmap-source-reader.js';
 import { longMarkdownEnabled, indexSource, scopeChoices, resolveChoice, INDEX_COPY } from './roadmap-source-index.js';
 import { readLongSource, LONG_CHOICE, longChoice } from './roadmap-source-long.js';
-import { proseCheck } from './roadmap-preflight.js';
 
 export const LIMIT_COPY = Object.freeze({
   tooLarge: 'This source is longer than one roadmap can read completely. Choose a section or a passage and it will be covered fully.', // S15
@@ -76,7 +75,7 @@ async function longLimitation(env, access, ref, readSourceForActor) {
     ...(index.status === 'unreadable' ? { message: INDEX_COPY.overReadLimit, offers: [] } : {}) };
 }
 
-export function makeReadSource(env, { readSourceForActor = readMarkdownForActor, resolveSourceRef = d1ResolveSourceRef, limits, minWords } = {}) {
+export function makeReadSource(env, { readSourceForActor = readMarkdownForActor, resolveSourceRef = d1ResolveSourceRef, limits } = {}) {
   const deps = { readSourceForActor, ...(limits ? { limits } : {}) };
   return async function readSource(access, { sourceId, revision, scope } = {}) {
     const ref = { key: sourceId, rev: revision };
@@ -111,9 +110,6 @@ export function makeReadSource(env, { readSourceForActor = readMarkdownForActor,
     if (read.status === 'needs_clarification') return limit(read, await more());
     if (read.status === 'unsupported') return refuse('source_unsupported', LIMIT_COPY.unavailable, 422);
     if (read.status !== 'ok') return read.reason === 'source_changed' ? refuse('source_changed', LIMIT_COPY.changed, 409) : refuse('source_unavailable', LIMIT_COPY.unavailable, 409);
-    // Create a course (owner 2026-11-14): a whole file with under 100 words of prose, or mostly code, is not a course. A passage the learner chose is theirs to judge.
-    const unfit = wanted.kind === 'declared' && typeof read.text === 'string' ? proseCheck(read.text, { minWords }) : null; // minWords: a test seam for tiny fixtures
-    if (unfit) return refuse(unfit.code, unfit.message, 422);
     return { key: sourceId, rev: read.rev, scopeFingerprint: read.sourceFingerprint,
       scope: { kind: wanted.kind === 'passage' ? 'passage' : 'whole', start: read.coverage.start, end: read.coverage.end, chars: read.coverage.chars, sourceName: read.name ?? '' } };
   };

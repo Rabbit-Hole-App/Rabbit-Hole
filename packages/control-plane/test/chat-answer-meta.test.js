@@ -1,7 +1,6 @@
 // Chat answer metadata (chat-workspace-CONTRACT.md B1, B3, B4): the trailer split and the server's validation of actions and
 // follow-ups. The model's word is never trusted: capabilities come from the slash registry, paid and generationRequired are
 // computed here, and anything invalid is dropped without an error.
-import '../../web/src/agent/slash-flags-test-on.mjs'; // every slash command on: these tests are about routing, not which commands ship (web SLASH_FLAGS)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ANSWER_META_SYSTEM, splitAnswerMeta, validateAnswerMeta } from '../src/chat-answer-meta.js';

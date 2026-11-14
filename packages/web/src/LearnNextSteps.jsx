@@ -88,12 +88,7 @@ export function useNextSteps({ tutor = null, canvasApi, canvasState, record = nu
   const { basis, stop, semantic, settling = false } = gateHooks(gate, steps.state(), { allowed: !!coaching?.allowed, visible: !!coaching?.visible, shown, trigger: hooksTrigger({ lastTurn: tutor?.lastTurn, canvasState, graded }) });
   useEffect(() => { steps.update({ basis, stop, semantic, settling }); }, [basis, stop, settling]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => steps.dispose, [steps]);
-  const view = useSyncExternalStore(steps.subscribe, steps.view, steps.view);
-  // Owner 2026-11-13: a Curious that is shown with no saved set asks by itself, every time it is in that state (a reset of the controls puts it back
-  // there); the request is per basis, so a repeat never sends a second one. Nobody presses Suggest and no empty card is drawn.
-  const auto = coaching?.allowed && coaching?.visible && shown && view.status === 'unavailable' && view.reason === 'curious_empty';
-  useEffect(() => { if (auto) { gate.ask = true; asked(n => n + 1); } }, [auto]); // eslint-disable-line react-hooks/exhaustive-deps
-  return { ...view, select: steps.select, refresh: steps.refresh, request: () => { gate.ask = true; asked(n => n + 1); } };
+  return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select, refresh: steps.refresh, request: () => { gate.ask = true; asked(n => n + 1); } };
 }
 
 // The signed-in viewer's own { org, email } (/api/me), only to find their own tab store. Read on each request, never kept: a

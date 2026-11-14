@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 import { initialState, invitationOf, reduce } from './roadmap-client.js';
-import { ensureTutorThread, entriesOf, historyActions, invitationClientId, invitationThreadId, mdName, occupied, restoredDraft, roadmapEditTarget, roadmapThreadClientId, threadCandidate, toSave } from './roadmap-transcript.js';
+import { ensureTutorThread, entriesOf, historyActions, invitationClientId, invitationThreadId, mdName, occupied, restoredDraft, roadmapEditTarget, roadmapThreadClientId, stepClientId, threadCandidate, toSave } from './roadmap-transcript.js';
 import { responseKind } from './chat-response-kind.js';
 import { createRoadmapController } from './roadmap-controller.js';
 
@@ -33,8 +33,8 @@ test('UI.01: occupied Chat shows Start new chat / Stay here first, then exactly 
   const state = offered(), invitation = invitationOf(state), name = invitation.title;
   const fresh = entriesOf(state, { invitation });
   assert.deepEqual(ids(fresh), [invitationClientId(invitation.id)]);
-  assert.equal(fresh[0].content, `You’ve added **${mdName(name)}**. Would you like me to create a course from it?`);
-  assert.deepEqual(labels(fresh[0]), ['Create a course', 'Cancel']);
+  assert.equal(fresh[0].content, `You’ve added **${mdName(name)}**. Would you like me to explain it on the canvas?`);
+  assert.deepEqual(labels(fresh[0]), ['Explain on canvas', 'Just keep it here']);
   const choosing = entriesOf(state, { invitation, route: { invitationId: invitation.id, threadId: 'canvaschat-t' } });
   assert.deepEqual(choosing.map(e => e.kind), ['route'], 'no invitation before a destination wins');
   assert.deepEqual(labels(choosing[0]), ['Start new chat', 'Stay here']);
@@ -49,15 +49,15 @@ test('UI.01: occupied Chat shows Start new chat / Stay here first, then exactly 
   assert.match(fresh[0].content, /^You’ve added/, 'a filename acknowledgement, never a claim the document was read');
 });
 
-test('UI.01: the drop invitation shows in Ask with Auto-suggest off; a second source over a course being made gets the boundary message, never a second roadmap', () => {
+test('UI.01: the drop invitation shows in Ask with Auto-suggest off; a second source over an unfinished roadmap gets the boundary message, never a second roadmap', () => {
   const ask = reduce({ ...initialState(), mode: 'ask' }, { type: 'invitation', invitation: body('invitation-offered').invitation });
   assert.equal(entriesOf(ask, { invitation: invitationOf(ask) })[0].kind, 'invitation');
-  const busy = reduce(at('status-active-proposal-pending', v => ({ ...v, course: { running: true, total: 3, made: 0, failed: 0 } })), { type: 'boundary', boundary: { key: 'file:fs_2', name: 'Second.md' } });
+  const busy = reduce(at('status-active-proposal-pending'), { type: 'boundary', boundary: { key: 'file:fs_2', name: 'Second.md' } });
   const entries = entriesOf(busy, { invitation: invitationOf(busy), boundary: busy.boundary });
   const boundary = entries.find(e => e.kind === 'boundary');
-  assert.match(boundary.content, /A course is being made on this canvas/);
-  assert.doesNotMatch(boundary.content, /End roadmap/, 'no End roadmap (owner 2026-11-14)');
-  assert.equal(entries.filter(e => e.kind === 'invitation').length, 0, 'no invitation over a course being made');
+  assert.match(boundary.content, /already has a roadmap in progress/);
+  assert.match(boundary.content, /End roadmap/);
+  assert.equal(entries.filter(e => e.kind === 'invitation').length, 0, 'no invitation over an unfinished roadmap');
 });
 
 test('BE.09: polling yields the same entries under the same ids and seq; toSave writes only what changed; every entry is a versioned tutor record', () => {
@@ -78,7 +78,7 @@ test('UI.03: planning is one activity entry, then the draft in the SAME entry wi
   const draft = entriesOf(at('status-proposed-plan')).find(e => e.kind === 'draft');
   assert.equal(draft.clientId, planning.clientId, 'the activity entry becomes the draft');
   assert.ok(draft.seq > planning.seq);
-  assert.deepEqual(labels(draft), ['Accept', 'Edit']);
+  assert.deepEqual(labels(draft), ['Accept roadmap', 'Edit roadmap']);
   assert.equal(draft.draft.steps.length, body('status-proposed-plan').plan.steps.length);
   assert.equal(draft.draft.practiceMode, 'explanations');
   const revising = entriesOf(at('status-proposed-plan', v => ({ ...v, revisionPending: true })));
@@ -86,7 +86,7 @@ test('UI.03: planning is one activity entry, then the draft in the SAME entry wi
   assert.notEqual(next.clientId, draft.clientId, 'the new revision has its own entry; the reviewed one stays as history');
   assert.equal(next.activity, 'Generating roadmap');
   assert.ok(historyActions(draft.tutor).every(a => a.disabled), 'a superseded draft keeps its labels, disabled');
-  assert.deepEqual(historyActions(draft.tutor).map(a => a.label), ['Accept', 'Edit']);
+  assert.deepEqual(historyActions(draft.tutor).map(a => a.label), ['Accept roadmap', 'Edit roadmap']);
   const backend = entriesOf(at('status-active-proposal-pending', v => ({ ...v, planDraft: { version: 3, outcome: 'o', steps: [{ position: 1, title: 'New future step', format: 'explanation' }], settings: { depth: 'detailed' }, acceptable: true } })));
   const after = backend.find(e => e.kind === 'draft');
   assert.equal(after.clientId, `roadmap-draft-${body('status-active-proposal-pending').roadmap.id}-v3`, 'Edit roadmap after acceptance: contracts.md draft');
@@ -105,19 +105,45 @@ test('UI.03 / BE.03: Edit roadmap targets the existing composer pill, stashes th
   assert.doesNotMatch(readFileSync(new URL('./use-roadmap.js', import.meta.url), 'utf8'), /data-toc-composer|divert/, 'no ToC composer diversion');
 });
 
-test('UI.02/UI.03 and Create a course: acceptance adds one summary entry with Generate course (primary), Open table of contents, Edit; no End roadmap, no per-card entries and no Propose next step (owner 2026-11-14)', () => {
+test('UI.02/UI.03: acceptance adds one summary entry with Open table of contents (primary blue), Edit roadmap, End roadmap; Propose next step only with no offer', () => {
   const pending = entriesOf(at('status-active-proposal-pending')).find(e => e.kind === 'accepted');
-  assert.deepEqual(labels(pending), ['Generate course', 'Open table of contents', 'Edit']);
-  assert.equal(pending.actions[0].primary, true);
-  assert.equal(pending.actions[1].blue, true);
-  assert.match(pending.content, /^Your table of contents is ready\. Generate the course to make every card\./);
-  assert.equal(entriesOf(at('status-active-proposal-pending')).some(e => e.kind === 'step'), false, 'a course has no per-card entries');
+  assert.deepEqual(labels(pending), ['Open table of contents', 'Edit roadmap', 'End roadmap']);
+  assert.equal(pending.actions[0].blue, true);
+  assert.match(pending.content, /^Your roadmap is ready\. We’ll start with “/);
   const paused = entriesOf(at('status-cancelled-paused')).find(e => e.kind === 'accepted');
-  assert.equal(paused.actions.some(a => a.id === 'propose_next'), false, 'Propose next step is gone');
+  assert.deepEqual(labels(paused), ['Open table of contents', 'Edit roadmap', 'Propose next step', 'End roadmap']);
   const completed = entriesOf(at('status-completed'));
   assert.deepEqual(labels(completed.find(e => e.kind === 'accepted')), ['Open table of contents'], 'no End or Edit after the finite end');
   assert.equal(completed.at(-1).kind, 'done');
   assert.match(completed.at(-1).content, /stopping point/);
+});
+
+test('UI.08: one lifecycle entry per card, Accept first then Next card, stale or busy actions disabled, ready keeps Go to card, never Retry', () => {
+  const first = at('status-active-proposal-pending'), view = first.view;
+  const step = entriesOf(first).find(e => e.kind === 'step');
+  assert.equal(step.clientId, stepClientId(view.proposal.stepId));
+  assert.deepEqual(labels(step), ['Accept', 'Cancel', 'Go to card', 'Go to highlighted text']);
+  assert.equal(step.tutor.proposalId, view.proposal.id);
+  assert.match(step.content, /Proposed card/);
+  const accepting = entriesOf(reduce(first, { type: 'begin', gesture: `accept:${view.proposal.id}:${view.proposal.version}` })).find(e => e.kind === 'step');
+  assert.equal(accepting.clientId, step.clientId, 'the same entry advances');
+  assert.equal(accepting.tutor.stage, 'accepting');
+  assert.ok(accepting.seq > step.seq);
+  assert.equal(accepting.actions.find(a => a.id === 'accept').disabled, true, 'busy: disabled');
+  const ask = entriesOf({ ...first, mode: 'ask' }).find(e => e.kind === 'step');
+  assert.equal(ask.actions.find(a => a.id === 'accept').disabled, false, 'explicit Accept works in Ask');
+  const later = entriesOf(at('status-delivered-next-ready'));
+  const steps = later.filter(e => e.kind === 'step');
+  assert.equal(steps[0].tutor.stage, 'ready');
+  assert.deepEqual(labels(steps[0]), ['Go to card', 'Go to highlighted text']);
+  assert.match(steps[0].tutor.cardId, /^cd_/);
+  assert.equal(steps[1].actions[0].label, 'Next card', 'a subsequent proposal is Next card');
+  const failed = entriesOf(at('status-failed-card')).filter(e => e.kind === 'step' && e.tutor.stage === 'failed');
+  assert.equal(failed.length, 1);
+  assert.match(failed[0].content, /could not be made/);
+  for (const name of ['status-failed-card', 'status-delivered-next-ready', 'status-cancelled-paused']) for (const e of entriesOf(at(name))) assert.ok(!labels(e).some(l => /retry|replace|omit|accept plan|edit plan/i.test(l)), name);
+  const cancelled = entriesOf(at('status-cancelled-paused')).find(e => e.tutor.stage === 'cancelled');
+  assert.deepEqual(labels(cancelled), [], 'a cancelled card has no actions');
 });
 
 test('a Tutor entry is not an ordinary answer (no Regenerate, Add as card, Explore next)', () => {
@@ -147,20 +173,20 @@ const render = (state, msgs = []) => lib.renderToStaticMarkup(lib.createElement(
 test('RoadmapTranscript renders entries through ChatMessage with the controls the checks look for; parameters and draft live in the message', () => {
   const invite = render(offered());
   assert.match(invite, /data-roadmap-invitation=/);
-  assert.match(invite, /data-roadmap-explain[^>]*>Create a course</);
-  assert.match(invite, /data-roadmap-keep[^>]*>Cancel</);
+  assert.match(invite, /data-roadmap-explain[^>]*>Explain on canvas</);
+  assert.match(invite, /data-roadmap-keep[^>]*>Just keep it here</);
   assert.match(invite, /data-answer-body/, 'the sentence is a ChatMessage answer body');
   assert.equal(render(initialState()), '');
   const plan = render(at('status-proposed-plan'));
   assert.match(plan, /data-roadmap-parameters[\s\S]*Roadmap parameters[\s\S]*Scope[\s\S]*Full content · [\s\S]*type="range"[^>]*max="2"[\s\S]*Explanations only[\s\S]*disabled=""[^>]*>Explanations \+ practice · Practice is not available yet</);
   assert.match(plan, /data-roadmap-steps[\s\S]*Roadmap draft/);
-  assert.match(plan, /data-roadmap-accept-plan[^>]*>Accept</);
-  assert.match(plan, /data-roadmap-edit-plan[^>]*>Edit</);
+  assert.match(plan, /data-roadmap-accept-plan[^>]*>Accept roadmap</);
+  assert.match(plan, /data-roadmap-edit-plan[^>]*>Edit roadmap</);
   const pending = render(at('status-active-proposal-pending'));
   assert.match(pending, /data-roadmap-review[^>]*>Open table of contents</);
   assert.match(pending, /bg-primary-fill[^"]*"[^>]*data-roadmap-review|data-roadmap-review[^>]*bg-primary-fill/, 'main ui.jsx Button primary');
-  assert.match(pending, /data-roadmap-generate-course[^>]*>Generate course<\/button>/, 'owner 2026-11-14: one Generate course, no per-card Accept or Cancel');
-  assert.doesNotMatch(pending, /data-roadmap-accept=|data-roadmap-cancel|data-roadmap-propose-next/);
+  assert.match(pending, /data-roadmap-accept[^>]*>Accept<\/button>/);
+  assert.match(pending, /data-roadmap-cancel[^>]*>Cancel</);
   assert.doesNotMatch(render(at('status-failed-card')), />(Retry|Replace|Omit)</);
   assert.match(render(at('create-response-draft')), /Generating roadmap/);
 });
@@ -171,7 +197,7 @@ test('a saved entry renders in place: live when its ids are current, else as his
   const m = { role: 'assistant', content: live.content, clientId: live.clientId, meta: { tutor: live.tutor } };
   const shown = lib.renderToStaticMarkup(lib.createElement(lib.TutorMessage, { m, roadmap: roadmapOf(state), chat }));
   assert.doesNotMatch(shown, /data-roadmap-stale/);
-  assert.match(shown, /data-roadmap-accept-plan="true" class="[^"]*">Accept/, 'live: enabled');
+  assert.match(shown, /data-roadmap-accept-plan="true" class="[^"]*">Accept roadmap/, 'live: enabled');
   const stale = lib.renderToStaticMarkup(lib.createElement(lib.TutorMessage, { m, roadmap: roadmapOf(at('status-active-proposal-pending')), chat }));
   assert.match(stale, /data-roadmap-stale/);
   assert.doesNotMatch(stale, /<button[^>]*data-roadmap-accept-plan/, 'a superseded draft has no button at all, greyed or not');
@@ -250,3 +276,23 @@ test('RoadmapTranscript opens a thread only for an invitation: the silent bindin
 
 // UI.04 / roadmap 3.8: the Chat step entry shows the same exact passage as the canvas slot (useStepExcerpt), only when ready and non-empty;
 // an unreadable one says so; the excerpt is never part of the saved message.
+test('a step entry shows the slot\'s exact excerpt when ready, the honest line when unavailable, nothing when there is no reference or while loading', async () => {
+  const state = at('status-active-proposal-pending'), step = state.view.steps[0], id = step.sourceRef?.id;
+  assert.ok(id, 'the fixture step has a minted reference');
+  const entry = entriesOf(state).find(e => e.kind === 'step');
+  assert.equal(entry.sourceRef.id, id);
+  assert.ok(!entry.content.includes('EXACT'), 'the excerpt is not in the stored content');
+  assert.ok(!JSON.stringify(entry.tutor).includes('EXACT'), 'nor in the tutor record');
+  lib.forgetExcerpts();
+  assert.doesNotMatch(render(state), /data-roadmap-excerpt/, 'loading: nothing');
+  await lib.stepExcerpt(async () => ({ refs: [{ id, status: 'current', excerpt: 'EXACT quoted passage' }] }), chat.canvas, id);
+  const ready = render(state);
+  assert.match(ready, /<blockquote data-roadmap-excerpt[^>]*>EXACT quoted passage<\/blockquote>/);
+  lib.forgetExcerpts();
+  await lib.stepExcerpt(async () => ({ refs: [{ id, status: 'changed' }] }), chat.canvas, id);
+  assert.match(render(state), /data-roadmap-excerpt-unavailable[^>]*>The passage is not available right now\.</);
+  assert.doesNotMatch(render(state), /data-roadmap-excerpt[ >]/);
+  const noRef = at('status-active-proposal-pending', v => ({ ...v, steps: v.steps.map(s => ({ ...s, sourceRef: null })), proposal: { ...v.proposal, sourceRelation: { ...v.proposal.sourceRelation, sourceRef: null } } }));
+  assert.doesNotMatch(render(noRef), /data-roadmap-excerpt/, 'no reference: no excerpt, no unavailable line');
+  lib.forgetExcerpts();
+});

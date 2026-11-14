@@ -33,11 +33,42 @@ function harness(routes) {
   return { controller, calls, board };
 }
 
-test('BE.05 stale version / a race lost to another device applies the server current view and sends no second Generate course', async () => {
-  const { controller, calls } = harness({ 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/course/start': () => { throw fail(409, view('error-stale-409')); } });
+test('BE.05 Chat click, canvas click and eligible Tab are one acceptance: one request carrying the same identity payload', async () => {
+  const { controller, calls } = harness({ 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/proposals/pr_[^/]+/accept': () => view('accept-proposal-response-generating') });
   controller.start(); await settle();
-  await controller.startCourse(); await settle();
-  assert.equal(post(calls, '/course/start').length, 1);
+  const pill = pillOf(controller.getState());
+  assert.equal(pill.accept, true);
+  const tab = { event: { key: 'Tab' }, pill, blocked: !keyboardOwned(null) };
+  assert.equal(tabAccepts(tab), true, 'eligible Tab with nothing focused maps to the pending proposal');
+  const chat = controller.acceptProposal(), canvas = controller.acceptProposal(), key = controller.acceptProposal();
+  await Promise.all([chat, canvas, key]); await settle();
+  const sent = post(calls, '/accept');
+  assert.equal(sent.length, 1, 'three surfaces, one request');
+  assert.deepEqual(Object.keys(sent[0].body).sort(), ['actionKey', 'boardId', 'proposalVersion', 'revision'], 'the production payload carries no context');
+  assert.match(sent[0].path, new RegExp(`/proposals/${pill.proposalId}/accept$`));
+  assert.equal(sent[0].body.proposalVersion, pill.version);
+});
+
+test('BE.05 Tab is excluded in composer, settings, editing, IME and repeat contexts (controller state)', async () => {
+  const { controller } = harness({ 'GET ': () => ({ ...view('status-active-proposal-pending'), edit: true }) }); // edit: true = ROADMAP_EDIT_ENABLED
+  controller.start(); await settle();
+  const pill = pillOf(controller.getState());
+  const field = { tagName: 'TEXTAREA', ownerDocument: {}, closest: () => null };
+  assert.equal(keyboardOwned(field), false, 'a focused composer keeps its own Tab');
+  controller.openEditor();
+  assert.equal(pillOf(controller.getState()).accept, false, 'while editing the card the proposal is not acceptable by Tab or click');
+  assert.equal(tabAccepts({ event: { key: 'Tab' }, pill: pillOf(controller.getState()) }), false);
+  controller.closeEditor();
+  for (const event of [{ key: 'Tab', isComposing: true }, { key: 'Tab', keyCode: 229 }, { key: 'Tab', repeat: true }, { key: 'Tab', shiftKey: true }])
+    assert.equal(tabAccepts({ event, pill: pillOf(controller.getState()) }), false, JSON.stringify(event));
+  assert.equal(tabAccepts({ event: { key: 'Tab' }, pill, editorOpen: true }), false);
+});
+
+test('BE.05 stale version / a race lost to another device applies the server current view and sends no second accept', async () => {
+  const { controller, calls } = harness({ 'GET ': () => view('status-active-proposal-pending'), 'POST /rm_[^/]+/proposals/pr_[^/]+/accept': () => { throw fail(409, view('error-stale-409')); } });
+  controller.start(); await settle();
+  await controller.acceptProposal(); await settle();
+  assert.equal(post(calls, '/accept').length, 1);
   assert.equal(controller.getState().view.roadmap.revision, view('error-stale-409').current.roadmap.revision);
 });
 

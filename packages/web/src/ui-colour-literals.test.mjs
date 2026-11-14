@@ -28,7 +28,7 @@ const SCOPE = [
   { file: 'ui-prefs.js' },
 ];
 const ALLOW = [
-  { file: 'ChatComposer.jsx', literal: 'rgba(35,131,226,0.2)', count: 3, why: 'the focus ring shadow: --color-accent at 20% in a shadow-[] value (the stacked box, the dock row and the strip pill)' },
+  { file: 'ChatComposer.jsx', literal: 'rgba(35,131,226,0.2)', count: 2, why: 'the focus ring shadow: --color-accent at 20% in a shadow-[] value' },
   { file: 'ChatComposer.jsx', literal: 'rgba(15,15,15,0.05)', count: 1, why: 'the flat composer shadow, the same as --shadow-pop\'s first layer' },
   { file: 'ChatMessages.jsx', literal: '#b42318', count: 3, why: 'the chosen next-step chip\'s red (border, tint, icon); predates this check' },
   { file: 'three-d-renderer.js', literal: '#f4f5f7', count: 1, why: 'the imported-model viewer\'s default viewport background (ModelCard): model content, not app chrome' },

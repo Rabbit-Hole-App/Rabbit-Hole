@@ -1,4 +1,3 @@
-import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { answersInChat, cardsFor, commandLine, commandUi, holdsLine, lineCommand, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand } from './learn-slash.js';

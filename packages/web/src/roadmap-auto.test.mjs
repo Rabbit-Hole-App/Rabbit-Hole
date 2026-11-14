@@ -37,6 +37,31 @@ function harness({ get }) {
 }
 const count = (calls, tail) => calls.filter(c => c.tail.endsWith(tail)).length;
 
+test('after an acknowledged delivery the client reads again soon, the proposal appears by itself, and the time is measured', async () => {
+  let phase = 'delivering';
+  const h = harness({ get: () => (phase === 'delivering' ? generated() : phase === 'quiet' ? quiet() : withProposal()) });
+  h.controller.start(); await settle(); await settle();
+  assert.equal(count(h.calls, '/ack'), 1);
+  assert.equal(h.controller.getState().view.proposal, null, 'delivered, nothing offered yet');
+  const linesBefore = chatOf(h.controller.getState()).map(l => l.id);
+  const followUps = h.timers.filter(t => FOLLOW_UP_MS.includes(t.ms));
+  assert.deepEqual(followUps.map(t => t.ms), [...FOLLOW_UP_MS], 'two quick follow-up reads are scheduled');
+  phase = 'quiet'; h.clock.t += 1000; followUps[0].fn(); await settle();
+  assert.equal(h.controller.getState().view.proposal, null);
+  assert.equal(h.controller.timings().n, 0, 'no sample until a proposal is visible');
+  phase = 'offered'; h.clock.t += 700; followUps[1].fn(); await settle();
+  const pill = pillOf(h.controller.getState());
+  assert.ok(pill && pill.accept, 'the pending proposal is on screen');
+  assert.deepEqual(h.controller.timings(), { n: 1, p50: 1700, p95: 1700 });
+  // One visible proposal, no request of ours for it, no camera or focus move, no new Chat line.
+  assert.equal(count(h.calls, '/steps/propose'), 0);
+  assert.deepEqual(h.focus, []);
+  assert.deepEqual(chatOf(h.controller.getState()).map(l => l.id), linesBefore);
+  // Reading again does not count the same proposal twice.
+  h.clock.t += 5000; await h.controller.refresh(); await settle();
+  assert.equal(h.controller.timings().n, 1);
+});
+
 test('a manual Propose next step is not an automatic sample', async () => {
   const meter = createAutoMeter({ now: (() => { let t = 0; return () => (t += 100); })() });
   meter.ack();
@@ -50,6 +75,18 @@ test('a manual Propose next step is not an automatic sample', async () => {
   meter.observe({ proposal: null });
   meter.observe({ proposal: { id: 'pr_2', version: 1, state: 'pending' } });
   assert.equal(meter.summary().n, 1, 'seen again after a gap, but no acknowledgment is waiting');
+});
+
+test('stopping cancels the follow-up reads; Ask keeps the view current and an offered proposal acceptable', async () => {
+  const h = harness({ get: () => generated() });
+  h.controller.start(); await settle(); await settle();
+  h.controller.stop();
+  assert.equal(h.cancelled.length >= FOLLOW_UP_MS.length, true);
+  const ask = harness({ get: () => withProposal() });
+  ask.controller.setMode('ask');
+  ask.controller.start(); await settle();
+  assert.equal(pillOf(ask.controller.getState()).accept, true, 'Ask: an offer the server made (an explicit Propose next step) is still acceptable; the server makes none by itself in Ask');
+  assert.equal(ask.controller.getState().view.proposal.state, 'pending', 'the server view is still held, so Tutor shows it at once');
 });
 
 test('percentiles: nearest rank, empty is null', () => {

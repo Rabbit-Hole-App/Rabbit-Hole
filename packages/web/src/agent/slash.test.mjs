@@ -1,4 +1,3 @@
-import { SHIPPED_FLAGS } from './slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { commandsFor, descFor, IMAGE_GENERATION, labelOf, LEARN_MENU, learnRequest, MATERIAL_TOOLS, primitive, REMOVED_COMMANDS, resolveCommand, reviewOff, SELECTIONS, SLASH, toolOf, typedOf, idOfTyped, unavailableCommand } from './slash.js';
@@ -326,18 +325,4 @@ test('/whiteboard: the public path is the video (whiteboard-video), the internal
   assert.equal(toolOf('whiteboard').action, 'insert_whiteboard');
   assert.equal(unavailableCommand('whiteboard'), "/whiteboard isn't available here.");
   assert.equal(unavailableCommand('whiteboard', { whiteboard: true }), null);
-});
-
-// Owner 2026-11-13: every public command has an on/off flag (SLASH_FLAGS). Off means it is in no list a person reaches (the
-// composer's /, the small window, Ctrl+K and the Slash Commands window all read commandsFor) and a typed /name is said to be
-// unavailable; the Tutor's own internal path still has it. These are the shipped values, not the all-on test helper's.
-test('slash flags: every command has one, and goal, animation, whiteboard, motion, interactive, image and cad ship off', () => {
-  assert.deepEqual(Object.keys(SHIPPED_FLAGS).sort(), names(SLASH).sort(), 'one flag per command, none extra');
-  const off = ['goal', 'animation', 'whiteboard-video', 'motion', 'explain', 'generate-image', 'cad'];
-  assert.deepEqual(Object.keys(SHIPPED_FLAGS).filter((name) => !SHIPPED_FLAGS[name]).sort(), off.sort());
-  const on = names(commandsFor('learn', { motionDev: true, imageGeneration: true, whiteboard: true, flags: SHIPPED_FLAGS }));
-  const ctrlk = names(commandsFor('ctrlk', { motionDev: true, imageGeneration: true, whiteboard: true, flags: SHIPPED_FLAGS }));
-  for (const name of off) assert.ok(!on.includes(name) && !ctrlk.includes(name), `/${name} is hidden in Chat and Ctrl+K`);
-  assert.equal(on.length, 14, 'the other fourteen stay');
-  for (const name of off) assert.ok(names(commandsFor('learn', { internal: true, motionDev: true, imageGeneration: true, whiteboard: true, flags: SHIPPED_FLAGS })).includes(name), `/${name} stays for the Tutor's own path`);
 });

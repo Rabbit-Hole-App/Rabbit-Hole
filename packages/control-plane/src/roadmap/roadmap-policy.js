@@ -13,16 +13,14 @@ const deepFreeze = value => { if (value && typeof value === 'object') { Object.v
 export const ROADMAP_LIMITS = deepFreeze({
   version: ROADMAP_POLICY_VERSION,
   // Step ceilings by Depth (v1.3 2.2) and cards per step (D45). R4 plans one card per step where sufficient.
-  // Owner 2026-11-14: a course holds at most 40 cards, so Detailed is 40 and the lower Depths scale down (was 5, 10, 15).
-  stepCeiling: { brief: 10, balanced: 20, detailed: 40 },
+  stepCeiling: { brief: 5, balanced: 10, detailed: 15 },
   cardsPerStep: { ceiling: 3, r4Default: 1 },
   // Input and output bounds.
   source: { chars: 40000, passageChars: 8000, instructionChars: 1000, requestBodyBytes: 20000, contextChars: 8000 },
   summary: { subjectSourceChars: 3000, claimsPerCard: 6 },
-  // maxTokens per model role (the proposed central tasks, planning.md 2). Gemini Flash thinks inside maxTokens (owner 2026-11-14: every roadmap role runs on it), so the
-  // small roles keep room for that thinking before their one tool call (4000, as tutor_next_steps).
-  maxTokens: { roadmap_subject: 4000, roadmap_draft: 12000, roadmap_revise: 12000, roadmap_proposal: 3000, roadmap_grounding_check: 4000,
-    roadmap_grounding_escalation: 4000, roadmap_safety_adjudicate: 4000, artifact: 4000 },
+  // maxTokens per model role (the proposed central tasks, planning.md 2). Opus 5.5 thinks inside maxTokens.
+  maxTokens: { roadmap_subject: 1000, roadmap_draft: 12000, roadmap_revise: 12000, roadmap_proposal: 3000, roadmap_grounding_check: 1500,
+    roadmap_grounding_escalation: 4000, roadmap_safety_adjudicate: 1500, artifact: 4000 },
   // Call counts.
   calls: { generationPerCard: 1, automaticRetriesPerCard: 1, groundingEscalationsPerCard: 1, adjudicationsPerResult: 1, toolCallsPerPlan: 8, repairsPerPlan: 1 },
   // Platform-work quotas per learner and window (D14): provisional counters, not budget approval.

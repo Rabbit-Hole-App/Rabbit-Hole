@@ -60,7 +60,7 @@ try {
   const server = fakeRoadmapServer({ invitation: true });
   let page = await open(main, server);
   await step('Explain on canvas creates the roadmap from the invitation; the plan shows outcome, assumptions and stopping point in the ToC', async () => {
-    await page.locator('[data-roadmap-invitation]').getByRole('button', { name: 'Create a course' }).click();
+    await page.locator('[data-roadmap-invitation]').getByRole('button', { name: 'Explain on canvas' }).click();
     await page.locator('[data-roadmap-start]').click(); // owner D1: Depth is confirmed for this source, then Start planning sends create
     await until(async () => server.calls.some(c => c.method === 'POST' && (c.path === '' || c.path === '/')), 'create request');
     const create = server.calls.find(c => c.method === 'POST' && (c.path === '' || c.path === '/'));

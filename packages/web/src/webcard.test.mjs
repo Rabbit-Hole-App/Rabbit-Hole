@@ -148,7 +148,7 @@ test('Ask about selection: one card ref with the passage, title, URL and capture
   assert.match(src, /chat\.addToChat\(selectionRef\(\{ ids: \[block\.id\], kind: 'card'/);
   assert.doesNotMatch(src, /\.send\(|registerSender|\.ask\(|regenerate/);
   const workspace = read('chat-workspace.jsx').match(/const addToChat = useCallback\(\(ref, options\) => \{([^}]*)\}/)[1];
-  assert.match(workspace, /showChat\(\); thread\.setMode\('ask'\); context\.attach\(ref\); composer\.focus\(\);/);
+  assert.match(workspace, /panels\.openChat\(\); thread\.setMode\('ask'\); context\.attach\(ref\); composer\.focus\(\);/);
   assert.doesNotMatch(workspace, /send|ask\(/);
 });
 

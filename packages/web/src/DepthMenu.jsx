@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, SignalHigh, SignalLow, SignalMedium } from 'lucide-react';
+import { Check, ChevronDown, SignalHigh, SignalLow, SignalMedium } from 'lucide-react';
 import { COMPOSER_TOOL } from './ChatComposer.jsx';
 import { cn } from './ui.jsx';
 import { DEPTHS, depthOf } from './learn-settings.js';
@@ -43,7 +43,7 @@ export default function DepthMenu({ settings, disabled = false }) {
         onMouseDown={event => event.preventDefault()} onClick={() => (open ? setOpen(false) : show())}
         onKeyDown={event => { if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); show(); } }}
         className={cn(COMPOSER_TOOL, 'text-sm', open && 'bg-active text-ink')}>
-        <LevelIcon size={17} strokeWidth={2} aria-hidden="true" className={levelColor} data-depth-icon={current[0]} />
+        <LevelIcon size={17} strokeWidth={2} aria-hidden="true" className={levelColor} data-depth-icon={current[0]} /><ChevronDown size={12} aria-hidden="true" className="text-ink-3" />
       </button>
       {open && (
         <div role="menu" aria-label="Depth" onKeyDown={keys} className="absolute bottom-full left-0 z-30 mb-1 w-72 rounded-md bg-white p-1 shadow-pop">

@@ -14,9 +14,9 @@ test('the shipped policy is internally consistent and versioned', () => {
 });
 
 test('step ceilings are provisional maxima by Depth, cards per step start at one', () => {
-  assert.deepEqual(L.stepCeiling, { brief: 10, balanced: 20, detailed: 40 }); // owner 2026-11-14: a course holds at most 40 cards
+  assert.deepEqual(L.stepCeiling, { brief: 5, balanced: 10, detailed: 15 });
   for (const d of DEPTHS) assert.equal(P.ceilingFor(d), L.stepCeiling[d]);
-  assert.equal(P.ceilingFor('nonsense'), 20, 'an unknown Depth reads as balanced');
+  assert.equal(P.ceilingFor('nonsense'), 10, 'an unknown Depth reads as balanced');
   assert.equal(L.cardsPerStep.ceiling, 3);
   assert.equal(L.cardsPerStep.r4Default, 1);
   assert.match(P.LIMIT_BASIS.stepCeiling[1], /not quotas/);

@@ -110,8 +110,7 @@ test('lessonSourcesOf: the sources a typed lesson may start from', () => {
   assert.deepEqual(lessonSourcesOf(on({ view: null, invitation: null }), [SOURCE]), [SOURCE], 'ready sources on the canvas');
   assert.deepEqual(lessonSourcesOf(on({ view: null, invitation: { id: 'iv', sourceKeys: [SOURCE.key] } }), [SOURCE, { key: 'file:other', rev: 'r', name: 'o' }]), [SOURCE], 'an offered invitation names its own source');
   assert.equal(lessonSourcesOf(on({ view: null, invitation: { id: 'iv', sourceKeys: ['file:unknown'] } }), [SOURCE]), null, 'an invitation whose source is not on the canvas');
-  assert.deepEqual(lessonSourcesOf(on({ view, invitation: null }), [SOURCE]), [SOURCE], 'an unfinished roadmap that is not being made does not block a course (Create a course replaces it, owner 2026-11-14)');
-  assert.equal(lessonSourcesOf(on({ view: { ...view, course: { running: true } }, invitation: null }), [SOURCE]), null, 'a course being made does');
+  assert.equal(lessonSourcesOf(on({ view, invitation: null }), [SOURCE]), null, 'an unfinished roadmap');
   assert.equal(lessonSourcesOf(on({ view: null, invitation: null }), []), null, 'no source');
   assert.equal(lessonSourcesOf(on({ view: null, invitation: null }), Array.from({ length: 6 }, (_, i) => ({ key: `file:s${i}`, rev: 'r', name: `s${i}` }))), null, 'more than five is too many to choose from');
   assert.equal(lessonSourcesOf({ ...initialState(), flag: 'off' }, [SOURCE]), null, 'flag off');
