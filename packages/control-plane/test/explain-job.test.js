@@ -393,7 +393,7 @@ test('the route is off unless EXPLAIN_V2_ENABLED, owner-only, same-origin', asyn
   const get = (env, query) => explainRoute(`/api/learn/explain/jobs/${job.id}`, new Request(`https://dev.test/api/learn/explain/jobs/${job.id}?board=${BOARD.id}${query}`), env, { identity }).then(r => r.json());
   assert.equal('diagnostics' in await get(env, '&detail=1'), false);
   assert.equal('diagnostics' in await get({ ...env, EXPLAIN_DIAGNOSTICS: 'true' }, ''), false);
-  assert.deepEqual(Object.keys((await get({ ...env, EXPLAIN_DIAGNOSTICS: 'true' }, '&detail=1')).diagnostics).sort(), ['calls', 'candidates', 'captures', 'counts', 'findings', 'settings', 'spec', 'timing']);
+  assert.deepEqual(Object.keys((await get({ ...env, EXPLAIN_DIAGNOSTICS: 'true' }, '&detail=1')).diagnostics).sort(), ['calls', 'candidates', 'captures', 'counts', 'findings', 'request', 'settings', 'spec', 'timing']);
 });
 
 // UI-15.1: Generate on a brief the learner edited. The executed brief is the approved one (title, prompt, assumptions, presentation),

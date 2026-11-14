@@ -296,7 +296,8 @@ test('a template precheck refused twice goes to the Opus brief with the precheck
   const s = fastStack(t, { answers: [extractBrief(GRAVITY_ONE)], opusBriefs: [extractBrief(referencePlans.tossDeep)], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
   const { body } = await s.create({ depth: 'detailed' });
   const { seen } = await s.design(body.job.id);
-  assert.equal(s.opus.length, 1); assert.ok(!seen.includes('design_reviewing'), 'never the full Opus design');
+  assert.equal(s.opus.length, 2, 'the Opus brief is refused by the same word budget, so it gets its one correction'); assert.ok(!seen.includes('design_reviewing'), 'never the full Opus design');
+  assert.match(JSON.parse(s.opus[1].messages[0].content[0].text).correction.problems[0], /^words: ".+" is drawn as ".+"/, 'the second Opus call hears the exact problem line of the first reply');
   assert.match(JSON.parse(s.opus[0].messages[0].content[0].text).correction.problems[0], /^words: ".+" is drawn as ".+"/, 'the precheck line is in the Opus brief input (the captured gravity-1 plan now builds; its clipped state word is what the precheck refuses)');
   const forced = fastStack(t, { answers: [GOOD], opusBriefs: [GOOD], env: { ...SEEK, INTERACT_FAST_FORCE_FILL_FAIL: '1' }, evidence: [] });
   const { body: fb } = await forced.create({ depth: 'brief' });
@@ -339,4 +340,13 @@ test('Balanced: a gravity range that reaches 1 passes on the first fill, and the
   const job = s.jobOf(body.job.id);
   assert.equal(job.design.fast.kind, 'fast', JSON.stringify(job.design.fast)); assert.equal(s.fills.length, 1);
   assert.doesNotMatch(fillSystem('balanced', briefSchema('balanced')), /every value of its range is at least 4/);
+});
+
+test('an Opus brief refused once is corrected once: the second Opus call carries the first reply\'s problem line and its plan goes to approval', async t => {
+  const bad = clone(GOOD); bad.formulas.height.formula = 'launchSpeed * t'; // refused by the reference check
+  const s = fastStack(t, { answers: [{ nonsense: true }], opusBriefs: [bad, GOOD], env: SEEK, evidence: [] });
+  const { body } = await s.create({ depth: 'brief' });
+  const { job } = await s.design(body.job.id);
+  assert.deepEqual([job.stage, job.design.fast.opusBrief, s.opus.length], ['awaiting_approval', true, 2]);
+  assert.match(JSON.parse(s.opus[1].messages[0].content[0].text).correction.problems[0], /^formula height at /);
 });
