@@ -429,7 +429,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     // preview (a note is added at the insertion point, and may be edited first); a canvas with no Chat to hand to falls back to the inline card, which is accepted by itself (below).
     if (overPassage && config.handoff && routedChoice !== 'note') {
       setHandoffError('');
-      if (await deliver(`/${typedOf('explain')} ${asked}`, { selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }
+      if (await deliver(`/${typedOf('explanation')} ${asked}`, { selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }
       setHandoffError(refusal.current || HANDOFF_REFUSED);
       return;
     }

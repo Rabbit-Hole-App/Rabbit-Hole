@@ -35,3 +35,13 @@ test('CK-6 the editor sends every explain line through deliverLine, and the page
   const block = page.slice(at, page.indexOf('\n', at));
   assert.ok(block.includes('startExplain(') && !/openChat|panels/.test(block), 'it starts the job directly; it opens no panel');
 });
+
+test('CK-6 the line Explain selection sends is the written /explain (registry name explanation), not /interactive, and deliverLine takes it', async () => {
+  const { typedOf } = await import('./agent/slash.js');
+  assert.equal(typedOf('explanation'), 'explain');
+  assert.equal(typedOf('explain'), 'interactive', 'the registry name "explain" is /interactive: the editor must use "explanation"');
+  assert.ok(!/deliver\(`\/\$\{typedOf\('explain'\)\}/.test(read('./InlineAiEditor.jsx')));
+  let taken = null;
+  await deliverLine({ explain: async words => (taken = words) }, `/${typedOf('explanation')} the loss`, {});
+  assert.equal(taken, 'the loss');
+});
