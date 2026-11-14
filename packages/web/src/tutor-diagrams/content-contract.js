@@ -20,16 +20,16 @@ const FLOW_VERBS = new Set(`
   accept act activate add adjust align allocate analyze analyse answer append apply archive are arrange assemble ask
   assign attach augment await balance batch begin blend bootstrap branch break build cache calculate call can cancel
   capture center centre check choose classify clean clip close collect combine compare complete compute concatenate
-  condition configure confirm connect construct convert convolve copy count create cross-validate cut decode decrease
-  delete deliver derive describe detect determine did differentiate discard display distribute divide do does drain
+  condition configure confirm connect construct convert convolve copy count create cross-validate cut decode decrease define
+  delete deliver deploy derive describe detect determine did differentiate discard display distribute divide do does drain
   draw drop emit encode end enrich estimate evaluate execute expand extract feed fetch fill filter find finish fit
   fix flatten forward gather generate get give group handle has have hold identify
-  impute increase initialize initialise insert inspect interpolate is join keep launch learn lift limit load locate
-  log lower make map mark match measure merge mix model move multiply normalize normalise obtain observe open order
+  impute increase initialize initialise insert inspect interpolate is join keep label launch learn lift limit load locate
+  log lower make map mark match measure merge mix model monitor move multiply normalize normalise obtain observe open order
   pad parse pass partition pick plan plot pool predict prepare present process produce project prune publish pull push
   query rank read receive recalculate record recover reduce refresh reject release remove render reorder repeat
   replace report request reset resolve restore retain retrieve return retry reverse rinse round route run sample save
-  scale scan schedule score select send sense set shift should shuffle skip sort split square standardize standardise
+  scale scan schedule score select send sense serve set shift should shuffle skip sort split square standardize standardise
   start stop store subtract sum summarize summarise swap switch take test tokenize tokenise train transform translate
   trim truncate tune unroll update upload use validate verify vote wait warn was weigh weight will wrap write
 `.trim().split(/\s+/u));

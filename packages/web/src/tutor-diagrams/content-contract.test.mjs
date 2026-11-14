@@ -177,3 +177,11 @@ test('comparison panels with different axes, marks, or units remain separate', (
   const overlapping = plot(1, 2, { series: [{ label: 'Other samples', kind: 'scatter', points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] }] });
   assert.deepEqual(compare(plot(1, 2), overlapping), []);
 });
+
+// CC-1: the vocabulary of an ML workflow (deploy, monitor, serve, label, define) starts a flow label; a noun-first label is still flagged.
+test('flow labels may start with the ML workflow verbs deploy, monitor, serve, label and define', () => {
+  const flow = labels => lint({ kind: 'flow', title: 'Model lifecycle', nodes: labels.map((label, index) => ({ id: `n${index}`, label, role: 'process' })),
+    edges: labels.slice(1).map((_, index) => ({ from: `n${index}`, to: `n${index + 1}` })) });
+  assert.deepEqual(flow(['Define the task', 'Label the data', 'Deploy the model', 'Serve predictions', 'Monitor drift']), []);
+  assert.deepEqual(locations(flow(['Feature engineering', 'Deploy the model'])), [['flow-label-verb-first', ['diagram', 'nodes', 0, 'label']]]);
+});
