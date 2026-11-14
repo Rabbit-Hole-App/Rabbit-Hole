@@ -120,6 +120,9 @@ const READERS = {
   'web/src/tutor-diagrams/teaching-layouts.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
   'web/src/tutor-diagrams/ml-composition-layouts.js': 'TutorDiagram panels links (arrow and operation between neighbouring panels), not board links',
   'web/src/tutor-diagrams/topic-logistic-regression-references.js': 'the softmax panels reference’s links between panels, not board links',
+  'web/src/tutor-diagrams/composition-neural-networks-references.js': 'C01 panels references: links between panels (arrow and operation), not board links',
+  'web/src/tutor-diagrams/composition-regularization-references.js': 'C01 panels references: links between panels (arrow and operation), not board links',
+  'web/src/tutor-diagrams/topic-linear-regression-references.js': 'the C01 linear-unit panels reference: links between panels, not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {
   const root = new URL('../../', import.meta.url);
