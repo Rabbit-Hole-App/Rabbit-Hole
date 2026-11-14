@@ -2320,7 +2320,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           const linkId = parent.actionId ? `explain-child-${parent.actionId}` : crypto.randomUUID();
           setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
         }
-        if (fit) added = fullLength(added, BLOCK_TYPES[added.type]?.width);
+        if (fit) added = fullLength(added, explanationCardWidth(added) ?? BLOCK_TYPES[added.type]?.width); // CV-1: a new Explanation opens at the width its visual asks for, not the type's fixed 440
         if (added.type === 'explanation') fillSummary(added.id, added);
         if (after == null) return framed(insertAtView(added, into));
         perfMark(added.id, 'insert');
