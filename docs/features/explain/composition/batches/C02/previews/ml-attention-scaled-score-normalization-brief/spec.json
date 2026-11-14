@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "panels",
+    "title": "Scaled attention weights",
+    "caption": "Toy query. Positive position weights sum to one.",
+    "panels": [
+      {
+        "diagram": {
+          "kind": "bar-chart",
+          "title": "Raw matches",
+          "bars": [
+            {
+              "label": "A",
+              "value": 2
+            },
+            {
+              "label": "B",
+              "value": 1
+            },
+            {
+              "label": "C",
+              "value": 3
+            }
+          ]
+        }
+      },
+      {
+        "diagram": {
+          "kind": "bar-chart",
+          "title": "Position weights",
+          "bars": [
+            {
+              "label": "A",
+              "value": 0.284
+            },
+            {
+              "label": "B",
+              "value": 0.14
+            },
+            {
+              "label": "C",
+              "value": 0.576
+            }
+          ],
+          "variant": "stacked",
+          "total": 1
+        }
+      }
+    ],
+    "links": [
+      {
+        "from": 0,
+        "to": 1,
+        "operation": "$\\text{scale + softmax}$"
+      }
+    ],
+    "shared": [
+      "classes",
+      "colours"
+    ]
+  }
+}

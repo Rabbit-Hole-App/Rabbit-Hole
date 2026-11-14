@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "scope": [
+    "ml-attention-scaled-score-normalization",
+    "ml-model-evaluation-training-diagnostics",
+    "ml-model-evaluation-schedule-run-diagnostics",
+    "ml-time-series-recursive-rollout",
+    "ml-distribution-shift-input-distribution-shift",
+    "ml-distribution-shift-concept-shift"
+  ],
+  "referenceFlags": [],
+  "staticFlags": [
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    },
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-model-evaluation-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    },
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-time-series-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    },
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-distribution-shift-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error"
+    }
+  ],
+  "explicitPathExceptions": [
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-attention-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error",
+      "disposition": "Authorized composition filename; Claude Code adds the pipeline allowlist entry at release."
+    },
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-model-evaluation-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error",
+      "disposition": "Authorized composition filename; Claude Code adds the pipeline allowlist entry at release."
+    },
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-time-series-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error",
+      "disposition": "Authorized composition filename; Claude Code adds the pipeline allowlist entry at release."
+    },
+    {
+      "id": "packages/web/src/tutor-diagrams/composition-distribution-shift-references.js",
+      "depth": "source",
+      "rule": 11,
+      "detail": "Path is outside the stage-05 authored-file allowlist.",
+      "severity": "error",
+      "disposition": "Authorized composition filename; Claude Code adds the pipeline allowlist entry at release."
+    }
+  ],
+  "schemaFlags": [],
+  "contentFlags": [],
+  "widthFlags": [],
+  "plotCountFlags": [],
+  "previewWrapFlags": [],
+  "errorCount": 0,
+  "warningCount": 0
+}
