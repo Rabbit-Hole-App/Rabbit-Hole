@@ -5,6 +5,11 @@ composition schema, reusable renderer parts and `check(brief, depth)` below are 
 exports. Claude Code owns the shared schema, registry, generator, pin, oracle, test-selection and benchmark migration.
 The current toss and curve modules remain the compatibility baseline.
 
+**Implementation receipt, owner 13:45 PT:** `registerFamily` landed on fast-path at `6eb21f3f2`; per-input signs at
+`5b56fa253`. The historical inventory below describes the proposal's starting point. Typed composition admission
+and the first stepper slice are tracked in [runtime progress](stepper-runtime-progress.md); this document's proposed
+family-owned schema, data and check boundaries must not be mistaken for already implemented shared dispatch.
+
 The goal is one family declaration that tells every consumer what a scene can show, what the model may fill and what
 trusted code must verify. A family consists of **parts, compositions and rules**. A new subject should usually fill an
 approved composition with bounded data; it should not require another hand-drawn template or model-written program.

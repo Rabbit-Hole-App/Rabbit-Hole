@@ -4,14 +4,18 @@ Checked after the owner's 2026-11-14 12:05 PT approval. This is preparation for 
 stepper runtime implementation or an additional release gate. The reference pictures and composition payloads remain
 unchanged. Read with [the implementation sequence](stepper-implementation.md).
 
-## The shared registration fix is still pending
+## Initial receipt, superseded by the 13:45 owner instruction
 
 The checked fast-path tip is `5b56fa253c8ee94de5ac3261c4e1db24f6a18a2d`. It supplies the per-input sign fix:
 `[id, kind, { sign: 'positive' | 'nonnegative' | 'any' }]`, retaining the old defaults for existing families. It has
 been merged into this lane. The family registry still declares a hand-written array in
 `packages/control-plane/src/interact-families.js`; one-place `registerFamily` is not present. The owner explicitly
 requires both fixes to land and be merged before runtime family work. No replacement schema or registration tables
-have been added here.
+have been added here. That was the initial gate receipt; `registerFamily` subsequently landed at `6eb21f3f2` and
+was merged through `74c042ec1`. See [runtime progress](stepper-runtime-progress.md) for the first implementation
+proof and the remaining typed-data admission hooks. The owner accepted the dynamic-domain and object-budget seams
+as Claude Code's shared contract work. The counts below remain the original primitive estimate, not the subsequently
+packed Brief implementation's counts.
 
 Two further shared representation seams need to be included or resolved by the contract work. The registration/sign
 changes alone cannot establish either of the following properties.
