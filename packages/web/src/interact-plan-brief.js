@@ -14,7 +14,12 @@ export const BRIEF_LIMITS = briefLimits(verticalThrow);
 
 const TEXT_KEYS = [['title', 'the card title'], ['story', 'a short story that motivates the question, a few short paragraphs'], ['cardDescription', 'two to four lines under the title: the idea of the card, with $...$ for maths'], ['instructions', 'two or three short sentences: what to change and press']];
 const nullable = { anyOf: [{ type: 'string', maxLength: BRIEF_LIMITS.formula }, { type: 'null' }] };
-const numberObject = keys => ({ type: 'object', properties: Object.fromEntries(keys.map(k => [k, { type: 'number' }])), required: keys, additionalProperties: false });
+// An input's sign (family contract, owner 2026-11-14): 'positive' (> 0), 'nonnegative' (>= 0) or 'any' (any finite number: a zero coordinate, a negative offset); undeclared is today's rule (a fixed value positive, a range unconstrained). A family declares it as the
+// optional third entry of an input, [id, 'range' | 'fixed', { sign }]. The model-facing JSON schema gains a keyword only for 'nonnegative' (minimum 0); 'positive' and 'any' keep the plain number, so the toss schema is unchanged.
+const SIGNS = Object.freeze({ positive: [v => v > 0, 'must be greater than 0 (sign: positive)'], nonnegative: [v => v >= 0, 'must be 0 or more (sign: nonnegative)'], any: [() => true, ''] });
+const signOf = ([, kind, options]) => { const sign = options?.sign ?? (kind === 'fixed' ? 'positive' : 'any'); // undeclared keeps today's rule: a fixed value is > 0, a range's min, max and default are unconstrained (the curve's x0 range is negative at its left end)
+   if (!SIGNS[sign]) throw new Error(`input sign "${sign}" is not positive, nonnegative or any`); return sign; };
+const numberObject = (keys, sign = 'positive') => ({ type: 'object', properties: Object.fromEntries(keys.map(k => [k, { type: 'number', ...(sign === 'nonnegative' && k !== 'step' ? { minimum: 0 } : {}) }])), required: keys, additionalProperties: false });
 const RANGE = ['min', 'max', 'default', 'step'];
 
 // -> { jsonSchema, parse(raw), keys }: the strict schema of a depth's brief for a provider's tool or response schema, a parser that returns { ok, value } or { ok: false, problems }, and the key lists the fill's system text
@@ -27,14 +32,15 @@ export function briefSchema(depth, module = verticalThrow) {
   const properties = {
     ...Object.fromEntries(TEXT_KEYS.map(([key, what]) => [key, { type: 'string', maxLength: limits[key], description: what }])),
     ...Object.fromEntries(module.scalars.map(s => [s.id, { type: 'number', description: s.description }])),
-    ...Object.fromEntries(inputs.map(([id, kind]) => [id, kind === 'fixed' ? numberObject(['fixed']) : numberObject(RANGE)])),
+    ...Object.fromEntries(inputs.map(input => [input[0], input[1] === 'fixed' ? numberObject(['fixed'], signOf(input)) : numberObject(RANGE, signOf(input))])),
     formulas: { type: 'object', properties: Object.fromEntries(family.roles.map(id => [id, { type: 'object', properties: { formula: { type: 'string', maxLength: limits.formula }, switchAt: nullable, formulaAfter: nullable }, required: ['formula', 'switchAt', 'formulaAfter'], additionalProperties: false }])), required: [...family.roles], additionalProperties: false },
     words: { type: 'object', properties: Object.fromEntries(words.map(({ key, max, what }) => [key, { type: 'string', maxLength: max, description: what }])), required: words.map(w => w.key), additionalProperties: false },
   };
   const required = Object.keys(properties);
   const jsonSchema = { type: 'object', properties, required, additionalProperties: false };
 
-  const num = z.number().finite(), range = z.object({ min: num, max: num, default: num, step: num.positive() }).strict().superRefine((r, ctx) => {
+  const num = z.number().finite(), signed = sign => (SIGNS[sign][1] ? num.refine(SIGNS[sign][0], SIGNS[sign][1]) : num);
+  const rangeOf = sign => z.object({ min: signed(sign), max: signed(sign), default: signed(sign), step: num.positive() }).strict().superRefine((r, ctx) => {
     if (!(r.min < r.max)) ctx.addIssue({ code: 'custom', message: 'min is below max' });
     if (r.default < r.min || r.default > r.max) ctx.addIssue({ code: 'custom', message: 'default is inside min..max' });
   });
@@ -42,7 +48,7 @@ export function briefSchema(depth, module = verticalThrow) {
     .refine(f => (f.switchAt === null) === (f.formulaAfter === null), 'switchAt and formulaAfter come together or are both null');
   const shape = {
     ...Object.fromEntries(TEXT_KEYS.map(([key]) => [key, z.string().min(1).max(limits[key])])), ...Object.fromEntries(module.scalars.map(s => [s.id, num.min(0).max(s.max)])),
-    ...Object.fromEntries(inputs.map(([id, kind]) => [id, kind === 'fixed' ? z.object({ fixed: num.positive() }).strict() : range])),
+    ...Object.fromEntries(inputs.map(input => [input[0], input[1] === 'fixed' ? z.object({ fixed: signed(signOf(input)) }).strict() : rangeOf(signOf(input))])),
     formulas: z.object(Object.fromEntries(family.roles.map(id => [id, formula]))).strict(),
     words: z.object(Object.fromEntries(words.map(({ key, max }) => [key, z.string().min(1).max(max)]))).strict(),
   };
@@ -55,7 +61,7 @@ export function briefSchema(depth, module = verticalThrow) {
     jsonSchema, parse,
     keys: {
       text: TEXT_KEYS.map(([key, what]) => ({ key, what, max: limits[key] })), scalars: module.scalars.map(s => ({ id: s.id, description: s.description })), launchHeight: properties.launchHeight?.description,
-      inputs: inputs.map(([id, kind]) => ({ id, ...INPUTS[id], kind: kind === 'fixed' ? 'one number, fixed' : 'range: min, max, default, step' })),
+      inputs: inputs.map(([id, kind]) => ({ id, ...INPUTS[id], kind: kind === 'fixed' ? 'one number, fixed' : 'range: min, max, default, step' })), // the sign is a validator, not fill text: the toss text is unchanged
       formulas: family.roles.map(id => ({ id, ...ROLES[id] })), words: words.map(({ key, max, what }) => ({ key, max, what })),
     },
   };
