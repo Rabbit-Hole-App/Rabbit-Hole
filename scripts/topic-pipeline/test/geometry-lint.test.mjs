@@ -21,17 +21,18 @@ test('a violation is one error flag in the linter\'s format with a one-line fix;
   assert.deepEqual(geometryFlags({ lintSpec, baseline: { 'ml-old': ['a', 'd'] } }, { id: 'ml-old', depth: 'standard', field: 'spec', spec }), []);
 });
 
-test('against the real renderer: a flow whose sibling labels cannot share a height fails under a new id and passes under a baseline id; a clean flow passes', async () => {
+test('against the real renderer: a baseline reference passes under its own id and fails under a new id; a clean flow passes', async () => {
   const check = await geometryChecker(load, root);
   assert.ok(check, 'the worktree has the geometry lint');
-  // Three long labels from one node cannot stand side by side at one height, so the node keeps its own lanes (rule a).
-  const long = ['Resample with replacement from the training rows', 'Resample with replacement from a different seed', 'Resample the rows with replacement once more'];
-  const violating = { version: 1, diagram: { kind: 'flow', title: 'Fork', nodes: [{ id: 'boot', label: 'Draw a bootstrap sample', role: 'process' }, ...long.map((_, index) => ({ id: `m${index}`, label: `Fit model ${index + 1}`, role: 'process' }))], edges: long.map((label, index) => ({ from: 'boot', to: `m${index}`, label })) } };
-  const flagsFor = (id, baseline) => geometryFlags({ ...check, baseline }, { id, depth: 'standard', field: 'spec', spec: violating });
-  const fresh = flagsFor('ml-brand-new-reference', {});
-  assert.ok(fresh.length > 0 && fresh.every(flag => flag.severity === 'error' && flag.rule.startsWith('geometry-lint:')));
-  assert.deepEqual(flagsFor('ml-old', Object.fromEntries([['ml-old', [...new Set(fresh.map(flag => flag.rule.split(':')[1]))]]])), [], 'the baseline tolerates its own id and rules');
-  assert.deepEqual(check.baseline, JSON.parse(await readFile(resolve(root, 'packages/web/src/tutor-diagrams/geometry-lint-baseline.json'), 'utf8')));
+  const baselineIds = Object.keys(check.baseline);
+  assert.ok(baselineIds.length > 0);
+  const { diagramReferences } = await load('packages/web/src/tutor-diagrams/reference-library.js');
+  const reference = diagramReferences.find(item => baselineIds.includes(item.id));
+  const specs = Object.entries(reference.depths ?? { standard: reference }).flatMap(([depth, entry]) => [[depth, 'spec', entry.spec], ...(entry.detailSpec ? [[depth, 'detailSpec', entry.detailSpec]] : [])]);
+  const flagsFor = id => specs.flatMap(([depth, field, spec]) => geometryFlags(check, { id, depth, field, spec }));
+  assert.deepEqual(flagsFor(reference.id), [], 'the committed baseline tolerates its own id');
+  const newFlags = flagsFor('ml-brand-new-reference');
+  assert.ok(newFlags.length > 0 && newFlags.every(flag => flag.severity === 'error' && flag.rule.startsWith('geometry-lint:')));
   const clean = { version: 1, diagram: { kind: 'flow', title: 'Two steps', nodes: [{ id: 'a', label: 'Sort the berries', role: 'process' }, { id: 'b', label: 'Berries sorted', role: 'outcome' }], edges: [{ from: 'a', to: 'b' }] } };
   assert.deepEqual(geometryFlags(check, { id: 'ml-clean', depth: 'standard', field: 'spec', spec: clean }), []);
 });

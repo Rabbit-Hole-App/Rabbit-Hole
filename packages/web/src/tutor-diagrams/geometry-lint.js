@@ -81,8 +81,8 @@ function insideShape(node, [px, py]) {
   if (px < x + pad - eps || px > x + width - pad + eps || py < y + pad - eps || py > y + height - pad + eps) return false;
   if (node.shape === 'diamond') return Math.abs(px - (x + width / 2)) / (width / 2 - pad) + Math.abs(py - (y + height / 2)) / (height / 2 - pad) <= 1 + eps;
   if (node.shape === 'capsule') {
-    // The renderer's rounded rectangle: its radius (RD-4c: node.radius, else a pill), clamped to half the width and half the height as SVG does.
-    const r = Math.min(node.radius ?? Infinity, width / 2, height / 2);
+    // The renderer's rounded rectangle: radius half the shorter side (an SVG radius is clamped to half the width and half the height).
+    const r = Math.min(width, height) / 2;
     const nearX = Math.min(Math.max(px, x + r), x + width - r), nearY = Math.min(Math.max(py, y + r), y + height - r);
     return (px - nearX) ** 2 + (py - nearY) ** 2 <= r * r + eps;
   }
