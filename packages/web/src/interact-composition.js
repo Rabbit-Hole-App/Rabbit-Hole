@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import { canonicalJson } from './explain-contract.js';
 import { CONTRACT_LIMITS, INPUTS_V2_CAPABILITY, PROGRAM_KIND, verifyHashes } from './explain-program/contract.js';
+import { CALLOUT_SLOTS } from './interact-family-registry.js';
 import { PLAN_LIMITS, ScalarExprError, contentHash, evalScalar, planHash, scalarExprProblem, scalarInterval } from './interact-plan.js';
 
 // One place per number (owner 2026-11-14): the quantities a template's callout lines print, named by the template's own slot roles (interact-templates/*.js: two-lane prints each lane's velocity and
-// acceleration, body-plot the velocity, acceleration and force; one-body's callout is words, so its state readouts stay). A plan with no template (a model-built program) declares none.
-const CALLOUT_SLOTS = { 'two-lane': slots => Object.values(slots).flatMap(lane => [lane.velocity, lane.acceleration]), 'body-plot': slots => [slots.velocity, slots.acceleration, slots.force] };
+// acceleration, body-plot the velocity, acceleration and force; one-body's callout is words, so its state readouts stay). A plan with no template (a model-built program) declares none. The table is
+// derived from the registered families (templateData[name].callouts, interact-family-registry.js).
 export const calloutReadoutIds = plan => { const shown = CALLOUT_SLOTS[plan.scene.template]?.(plan.scene.slots ?? {}) ?? []; return plan.scene.readoutIds.filter(id => shown.includes(id)); };
 
 // CardComposition v1 (docs/features/interact.md section 5 "Runtime composition envelope", INT-04, INT-06 composition rules): the one

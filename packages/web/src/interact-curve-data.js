@@ -26,3 +26,8 @@ export const effects = Object.freeze([
   Object.freeze({ input: 'x0', quantity: 'y', direction: 'decreasing' }),
   Object.freeze({ input: 'xMarker', quantity: 'yAtMarker', direction: 'increasing' }),
 ]);
+
+// The light half of the curve-sliders family (brief 21): what plan validation, the pins and the check-map need, and nothing heavy loaded here (interact-family-curve-sliders.js adds the template modules).
+const pickCriterion = 'One quantity as a function of another, drawn as a curve whose shape a few parameters change; no motion over time.';
+const templateData = Object.freeze(Object.fromEntries(templates.map(name => [name, Object.freeze({ lanes: 0, roles: curveRoles, independent, words: curveWords[name] })])));
+export const curveData = Object.freeze({ id: 'curve-sliders', templates, templateData, pickCriterion });
