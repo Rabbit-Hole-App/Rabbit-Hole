@@ -64,6 +64,15 @@ export function submission({ mode, command = null, text = '' }, options = { moti
   return { handoff: { command: name, line: `/${typedOf(name)}${words ? ` ${words}` : ''}` } };
 }
 
+// CK-6: where a Ctrl+K line goes. /explain with words makes its card through the page's own explain job (config.explain), which
+// opens no Chat pane; every other line, a bare /explain, or explain v2 being off (config.explain answers a falsy value) goes to Chat's
+// dispatcher (config.handoff), which opens Chat. Answers whether the line was taken.
+export async function deliverLine(config, line, about) {
+  const words = /^\/explain\s+(\S[\s\S]*)$/i.exec(String(line).trim())?.[1];
+  if (words && config.explain && await config.explain(words.trim(), about)) return true;
+  return config.handoff ? config.handoff(line, about) : false;
+}
+
 // The one line said for a typed command Ctrl+K does not offer: a removed one says so (owner, 2026-10-20). name is what was TYPED.
 export const unsupportedText = name => unavailableCommand(name) || `/${name} isn't available here.`;
 // What Ctrl+K says when Chat could not take its command (another command is running there, or Chat did not open in time): the

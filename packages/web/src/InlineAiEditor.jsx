@@ -37,7 +37,7 @@ import { createInlineSession, routeColumn, stageTimings } from './inline-ai-sess
 import { layoutDiagram, toCanvasObjects, validateDiagram } from './inline-diagram.js';
 import { placeResult, regionStyle } from './inline-placement.js';
 import { INLINE_COMMAND_ROUTE, PROMPT_MAX, ROUTES, routeLabel, selectionSummary, selectionTitle } from './inline-ai-route.js';
-import { HANDOFF_REFUSED, ctrlkCommands, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
+import { HANDOFF_REFUSED, ctrlkCommands, deliverLine, filterCommands, pick, pickerQuery, showsPill, submission, switchMode, unsupportedText } from './inline-ai-command.js';
 import { descFor, typedOf } from './agent/slash.js';
 import CommandPill from './CommandPill.jsx';
 import { CommandMark } from './CommandTone.jsx';
@@ -391,6 +391,9 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     focusField();
   });
   // One Send: a typed command resolves through the registry exactly as a picked one, so both submit the same request.
+  // CK-6: a line goes through deliverLine; the explain job's own error (not a refusal) is shown, never thrown out of Send.
+  const refusal = useRef('');
+  const deliver = async (line, about) => { refusal.current = ''; try { return await deliverLine(config, line, about); } catch (problem) { refusal.current = problem?.message || ''; return false; } };
   const send = async () => {
     if(readOnly || cadPending || cadJob)return;
     if (mode === 'edit' && fileLocked) { setRefused(FILE_EDIT_LOCKED); return; }
@@ -417,8 +420,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         await new Promise(resolve => setTimeout(resolve, INTENT_SHOW_MS));
         if (!alive.current) return;
         setPicked(null);
-        if (await config.handoff(line, { selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }
-        setHandoffError(HANDOFF_REFUSED);
+        if (await deliver(line, { selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }
+        setHandoffError(refusal.current || HANDOFF_REFUSED);
         return;
       }
     }
@@ -426,8 +429,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     // preview (a note is added at the insertion point, and may be edited first); a canvas with no Chat to hand to falls back to the inline card, which is accepted by itself (below).
     if (overPassage && config.handoff && routedChoice !== 'note') {
       setHandoffError('');
-      if (await config.handoff(`/${typedOf('explain')} ${asked}`, { selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }
-      setHandoffError(HANDOFF_REFUSED);
+      if (await deliver(`/${typedOf('explain')} ${asked}`, { selection: highlight ? highlightSelection() : null })) { handedOff.current = true; onClose(); return; }
+      setHandoffError(refusal.current || HANDOFF_REFUSED);
       return;
     }
     if (out.handoff) {
@@ -439,8 +442,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       // highlighted line (beside + alignY, learn-slash.js hold -> canvas.reserve).
       const selection = highlight ? highlightSelection() : target.ids?.length ? { id: target.ids[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title, text: words } : null;
       setHandoffError('');
-      if (await config.handoff(out.handoff.line, { selection, concept: title })) { handedOff.current = true; onClose(); return; }
-      setHandoffError(HANDOFF_REFUSED);
+      if (await deliver(out.handoff.line, { selection, concept: title })) { handedOff.current = true; onClose(); return; }
+      setHandoffError(refusal.current || HANDOFF_REFUSED);
       return;
     }
     if (out.mode !== mode) setMode(out.mode);

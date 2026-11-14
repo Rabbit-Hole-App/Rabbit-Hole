@@ -113,7 +113,7 @@ test('the bulb opens Ctrl+K with the passage as the words and NO command pill; t
   // The router also asks about the bulb's passage (a preset with no command), and Chat gets no selection target for it, exactly as the old preset gave.
   assert.ok(editor.includes("const overPassage = !!(highlight || (preset && !preset.command)) && !out.handoff"), 'the bulb passage is routed like highlighted words');
   assert.ok(editor.includes('selection: passageText.slice(0, 1500)'));
-  assert.ok(editor.includes('config.handoff(line, { selection: highlight ? highlightSelection() : null })'));
+  assert.ok(editor.includes('deliver(line, { selection: highlight ? highlightSelection() : null })'));
 });
 
 test('a command the router picks for the bulb passage still carries the minted ref and the passage (heldPassageTarget), once', async () => {
@@ -166,7 +166,7 @@ test('CK-2: the passage is a pill (title: the full text) and the box starts empt
 test('CK-3: Explain selection over a passage makes its card through /explain (skeleton, then the card), never a preview; a note, Edit and the paid proposal keep Accept / Reject', () => {
   const editor = read('./InlineAiEditor.jsx');
   assert.ok(editor.includes("if (overPassage && config.handoff && routedChoice !== 'note') {"));
-  assert.ok(editor.includes("config.handoff(`/${typedOf('explain')} ${asked}`, { selection: highlight ? highlightSelection() : null })"));
+  assert.ok(editor.includes("deliver(`/${typedOf('explain')} ${asked}`, { selection: highlight ? highlightSelection() : null })"));
   assert.ok(editor.includes("const autoCard = mode === 'explain' && state.preview?.kind === 'card';"), 'the inline card fallback is accepted by itself');
   assert.ok(editor.includes("!busy(status) && !autoCard && (") && editor.includes("(preview && status !== 'proposal' && !autoCard) && ("), 'no Accept or Reject, no preview text, for that card only');
   assert.ok(editor.includes("preview?.kind === 'note'") && editor.includes("status === 'proposal' && ("), 'notes and the paid proposal keep their own review');

@@ -1325,6 +1325,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // build does not offer the command or the Chat cannot take the turn.
     // Ctrl+K's explicit commands (owner spec 2026-10-29 4.2): the line goes to Chat's own dispatcher, about Ctrl+K's selection, and
     // Chat opens. Answers false when Chat could not take it (another command runs there, or Chat did not open in time).
+    // CK-6: Ctrl+K's /explain with words makes its card here, as learn-slash.js does (the passage's minted ref and words ride it), so no Chat pane opens. null: explain v2 is off here (InlineAiEditor deliverLine then uses Chat).
+    explain: async (words, about = {}) => { const held = heldPassageTarget(about.selection ?? null, `/explain ${words}`, passageRef); return startExplain(words, { context: held?.text ? String(held.text).slice(0, 8000) : null, ...(held?.sourceRef ? { sourceRef: held.sourceRef } : {}) }); },
     handoff: async (line, about = {}) => { const live = chatWorkspace.current; if (!live?.ask) return false; live.panels?.openChat?.(); return (await live.ask({ line, about })) === true; },
     propose: async (command, args, about = {}) => { const live = chatWorkspace.current; if (!isLearnCommand(command) || !live?.ask) return false; live.panels?.openChat?.(); return (await live.ask({ prompt: args, command, about })) !== false; },
     // Current Chat's live transcript and deliberately attached source metadata support the selected edit.
