@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { interactFixtures } from '../../web/src/interact-plan-fixtures.js';
 import { planHash } from '../../web/src/interact-plan.js';
-import { arrowScale } from '../../web/src/interact-templates/shared.js';
+import { arrowScale, velocityDraw } from '../../web/src/interact-templates/shared.js';
+import { extractBrief, expandBrief } from '../../web/src/interact-family-vertical-throw.js';
 import { buildTemplate, templatePrecheck } from '../src/interact-template.js';
 import { buildPlanCaptureCases, headlessCaptureCard } from '../src/interact-checks.js';
 import { designCapabilities } from '../src/interact-design.js';
@@ -24,6 +25,11 @@ const frameHash = async (name, plan) => {
   return { built, hash: createHash('sha256').update(JSON.stringify(captures)).digest('hex').slice(0, 16) + ' cases=' + (cases.length + probes.length) };
 };
 
+test('velocityDraw: 12 px per m/s and an arrow from 3 px, unless the smallest nonzero speed would draw under 3 px', () => {
+  assert.deepEqual(velocityDraw({}), { vScale: 12, vMin: 3 }); assert.deepEqual(velocityDraw({ minSpeed: 0.6 }), { vScale: 12, vMin: 3 }); assert.deepEqual(velocityDraw({ minSpeed: 0.25 }), { vScale: 12, vMin: 3 });
+  assert.deepEqual(velocityDraw({ minSpeed: 0.162 }), { vScale: 12, vMin: 1 }); assert.deepEqual(velocityDraw({ minSpeed: 0.05 }), { vScale: 30, vMin: 1 });
+});
+
 test('arrowScale: 3.4 unless the smallest acceleration would draw under 12 px', () => {
   assert.equal(arrowScale({}), 3.4); assert.equal(arrowScale({ minAccel: 9.8 }), 3.4); assert.equal(arrowScale({ minAccel: 6 }), 3.4);
   assert.equal(arrowScale({ minAccel: 1.62 }), 7.716049); assert.equal(arrowScale({ minAccel: 1 }), 12.5);
@@ -33,13 +39,28 @@ test('the four pinned plans: every capture (frames, composition hash, bundle has
   for (const [name, plan] of Object.entries(fixtures.referencePlans)) assert.equal((await frameHash(name, plan)).hash, BEFORE[name], name);
 });
 
-test('a Moon-gravity plan (1.62 to 12, default 1.62) builds with zero model calls, passes the headless run and the oracle, and draws its arrow at the larger scale', async () => {
-  const moon = clone(fixtures.referencePlans.tossStandard);
-  Object.assign(moon.controls.find(c => c.binding.id === 'gravity'), { min: 1.62, default: 1.62 });
-  const { built, hash } = await frameHash('moon', moon);
-  assert.match(hash, /cases=10/);
-  assert.ok(JSON.stringify(built.artifacts).includes('scale: 7.716049'), 'the lanes draw the arrow at 12.5 / 1.62');
-  assert.deepEqual(await templatePrecheck(moon, { env: BUILD, capabilities: await designCapabilities(BUILD, { evidence: [{ id: 'kinematics_note' }] }) }), []);
+// A model-written plan (the brief expander, not a pinned plan) is checked by the family arrow oracle; the pinned plans are not. On the code before brief 19 every Moon variant below failed that oracle:
+// the acceleration arrow (3.4 px per m/s^2) and the velocity arrow at 0.10 s before the top (0.1 x gravity m/s, 12 px per m/s) were plain lines under 3 px, not arrows.
+const MOON = { min: 1.62, max: 12.12, default: 1.62, step: 0.1 };
+const moonVariants = {
+  'Balanced, gravity 1.62 to 12.12': { source: 'tossStandard', depth: 'balanced', edit: b => { b.gravity = MOON; } },
+  'Balanced, gravity 1.5 to 1.7': { source: 'tossStandard', depth: 'balanced', edit: b => { b.gravity = { min: 1.5, max: 1.7, default: 1.6, step: 0.1 }; } },
+  'Balanced, gravity 1.62 and the smallest launch speed in range (2 m/s)': { source: 'tossStandard', depth: 'balanced', edit: b => { b.gravity = MOON; b.launchSpeed = { ...b.launchSpeed, min: 2, default: 2 }; } },
+  'Detailed, gravity 1.62 to 12.12': { source: 'tossDeep', depth: 'detailed', edit: b => { b.gravity = MOON; } },
+  'Overview, gravity fixed at 1.62': { source: 'tossOverview', depth: 'brief', edit: b => { b.gravity = { fixed: 1.62 }; } },
+};
+for (const [label, v] of Object.entries(moonVariants)) test('a model-written plan builds with zero model calls and passes the headless run and the arrow oracle: ' + label, async () => {
+  const withNote = await designCapabilities(BUILD, { evidence: [{ id: 'kinematics_note' }] });
+  const brief = clone(extractBrief(fixtures.referencePlans[v.source])); v.edit(brief);
+  const plan = expandBrief(brief, v.depth, { catalogueHash: withNote.catalogueHash });
+  assert.deepEqual(await templatePrecheck(plan, { env: BUILD, capabilities: withNote }), []);
+  const { built, hash } = await frameHash('moon', plan);
+  assert.match(hash, /cases=\d+/);
+  if (v.depth !== 'brief') assert.ok(JSON.stringify(built.artifacts).includes('scale: 7.716049') || label.includes('1.5 to 1.7'), 'the acceleration arrow follows the smallest gravity');
+});
+
+test('the pinned Standard keeps its arrow scales (3.4 and 12 px per unit, an arrow from 3 px)', async () => {
   const pinned = await frameHash('standard', fixtures.referencePlans.tossStandard);
-  assert.ok(JSON.stringify(pinned.built.artifacts).includes('scale: 3.4'), 'the pinned Standard keeps 3.4');
+  const source = JSON.stringify(pinned.built.artifacts);
+  assert.ok(source.includes('scale: 3.4') && source.includes('scale: 12, minLength: 3'), 'the pinned Standard keeps its arrow scales');
 });

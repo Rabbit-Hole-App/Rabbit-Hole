@@ -297,7 +297,7 @@ test('a template precheck refused twice goes to the Opus brief with the precheck
   const { body } = await s.create({ depth: 'detailed' });
   const { seen } = await s.design(body.job.id);
   assert.equal(s.opus.length, 1); assert.ok(!seen.includes('design_reviewing'), 'never the full Opus design');
-  assert.match(JSON.parse(s.opus[0].messages[0].content[0].text).correction.problems[0], /^template build: \[arrow_direction\]/, 'the precheck line is in the Opus brief input');
+  assert.match(JSON.parse(s.opus[0].messages[0].content[0].text).correction.problems[0], /^words: ".+" is drawn as ".+"/, 'the precheck line is in the Opus brief input (the captured gravity-1 plan now builds; its clipped state word is what the precheck refuses)');
   const forced = fastStack(t, { answers: [GOOD], opusBriefs: [GOOD], env: { ...SEEK, INTERACT_FAST_FORCE_FILL_FAIL: '1' }, evidence: [] });
   const { body: fb } = await forced.create({ depth: 'brief' });
   const { job: fj } = await forced.design(fb.job.id);
