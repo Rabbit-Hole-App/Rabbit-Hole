@@ -34,8 +34,16 @@ const RULES = [
   'The detailed timeline counts time from the launch, and a marker is never before 0.',
 ];
 
+// Brief 12 (owner 00:15): the limits the plan checks enforce and the model was never told, in one block. cardDescription: the card measures 2 to 4 lines at 406, 686 and 794 px of text column; with the
+// card's own style (interact-description-fit.js estimateLines) 130 to 200 characters is 2 to 4 lines at all three. The rest are the plan's own bounds (PLAN_LIMITS) and each word's own maximum.
+const LIMITS = [
+  'title: at most 120 characters. story: at most 3000 characters. instructions: at most 300 characters.',
+  'cardDescription: exactly two sentences of 130 to 200 characters in all, one plain paragraph with no line break and no markdown (one sentence is one line and is refused; so is anything over 4 lines).',
+  'Every word is at most the number of characters its key states.',
+];
+
 export function fillSystem(depth, schemaInfo) {
-  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Formulas', GRAMMAR, ...RULES, '', 'Return the brief only: no prose.'].join('\n');
+  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, '', '## Formulas', GRAMMAR, ...RULES, '', 'Return the brief only: no prose.'].join('\n');
 }
 
 
