@@ -82,7 +82,7 @@ The templates draw a 640 px wide frame (text at the legibility floors, never sca
 - A plan with no template has no fallback: it takes the model build, which is unreliable.
 - Stage times inside the Worker are not measurable (the isolate clock does not advance during pure CPU): `msValidate`, `msRun`, `msCheck` and `msCompose` read 0, and about 2 s per build is alarm-hop wait (`msHopWait`).
 - The judge is uncalibrated. On the template cards it returns `fail` with 1 to 4 majors; many findings are "cannot be judged without pixels" because the clone runs headless. Findings are saved in full per job (`benchmarks/judge/<jobId>.json`, `evidence/2026-11-13-template/judge/`), none fixed.
-- sdk-8 is not frozen (it changed several times this week; the latest fingerprint is in `packages/web/src/explain-program/stamps.js`). Cards sealed under an older fingerprint stop loading after a redeploy.
+- sdk-8 is **frozen from release 130** (owner 2026-11-13): it changed several times before that (cards sealed under an older fingerprint stop loading after a redeploy), and its latest fingerprint is in `packages/web/src/explain-program/stamps.js`. Any further SDK addition is sdk-9.
 - Card chrome is the reduced one: the Reset icon in a heading row above the scene, no transport strip or parameter grid. The full chrome is parked on branch `codexmatch-chrome`, unmerged.
 - The expressions and formulas benches are measurements only: nothing in the build uses a model-written formula yet.
 

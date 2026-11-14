@@ -45,6 +45,7 @@ export const STATEFUL_PROPS_PROGRAM_STAMPS = Object.freeze({ ...PROPS_PROGRAM_ST
 
 // Semantic figures (the frame kinds axis, plot and diagram; sdk.axis, sdk.plot with axes, sdk.diagram) are an opt-in extension of sdk-7: the saved sdk-2 and sdk-7 bytes stay unchanged.
 export const FIGURES_CAPABILITY = 'figures';
+// sdk-8 is FROZEN from release 130 (owner 2026-11-13): its source and fingerprint no longer change. Any further SDK addition or change is sdk-9, with its own version string and fingerprint.
 export const FIGURES_SDK_VERSION = 'sdk-8';
 const FIGURES_RENDERER_VERSION = 'renderer-5';
 export const FIGURES_PROGRAM_STAMPS = Object.freeze({
