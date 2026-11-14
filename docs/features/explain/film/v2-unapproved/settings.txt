@@ -1,0 +1,10 @@
+FILM v2-UNAPPROVED (draft-4 take, take-s5; not yet approved by the owner) - settings and checks. Reading copy; the MP4s are in videos/.
+Take: frame-stepped on a virtual clock (Playwright page.clock + Web Animations time + JS camera), a real 3840x2160 screenshot per 33.3 ms step, 3102 frames, script 102.4 s.
+Edit (render.mjs): NOFREEZE=1 FAST=1.8 TRIM=1.5 REV=3 (ramp 1.8x outside 1.0x windows; holds trimmed to 1.5 s; skeleton/menu waits kept up to 3 s; camera moves rendered at 1.0x; the overview hold keeps 2.5 s).
+Result: 95.0 s, 2850 frames at 30 fps; 1.0x for 87.0 s. Typing 45 ms/key prose, 80 ms/key commands (13.2 s source, 6 stretches).
+Encode: libx264 slow CRF 18, yuv420p tv-range, +faststart, silent.
+4K: explain-around-markdown-v2-UNAPPROVED-4K.mp4, 3840x2160, 68,992,309 bytes, sha256 0d6d211b8dff1103d6f0126984acebe49d76191ce4f860151f13f8ff4ce48299.
+1080p (lanczos from the 4K frames): explain-around-markdown-v2-UNAPPROVED-1080p.mp4, 1920x1080, 25,922,137 bytes, sha256 b9dd84d373a992bd8b35880698ca7e0b2bf38bb36ff4a1f6811d1627fc5de01b.
+Posters: poster-v2-4k.jpg (3840x2160), poster-v2-1080p.jpg (1920x1080): the B7 overview after the three card drags.
+Dead-scene check (dead-scene-check.txt, on the 1080p): none longer than 2.0 s; longest 1.8 s at 43.3 s.
+Asserts of the take: see draft4 assertions-and-settings.txt (same take): pill geometry, cursor on the Ctrl+K button, Explain-selection dialog attributes, B6 nothing selected, B6 empty-canvas window, three drags with no overlap.
