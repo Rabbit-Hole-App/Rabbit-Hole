@@ -11,6 +11,10 @@ const paint = () => {
     else CSS.highlights.delete('inline-target');
   } catch { /* a detached range paints nothing */ }
 };
+// HL-2: the ranges painted as an explained passage in a card (FileDocMarkdown paintTutor, the pink ::highlight(tutor-source)): kept here so the Ctrl+K window can cut them out of its dim.
+const explained = new Map();
+export const explainedSet = (key, ranges) => { if (ranges.length) explained.set(key, ranges); else explained.delete(key); };
+export const explainedRects = () => [...explained.values()].flat().flatMap(range => { try { return [...range.getClientRects()]; } catch { return []; } }).filter(rect => rect.width > 0 && rect.height > 0);
 export const markSet = highlight => { current = highlight || null; paint(); subscribers.forEach(notify => notify()); };
 export const markClear = () => markSet(null);
 export const markGet = () => current;

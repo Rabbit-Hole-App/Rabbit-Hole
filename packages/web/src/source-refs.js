@@ -59,6 +59,9 @@ export function publishPending(pending) {
   for (const listener of listeners) listener();
 }
 
+// The one place the camera is sent to a card for "Go to highlight" and "Go to card" (HL-3): CK-4's centring helper (canvas-view.js) replaces this one line at the sprint merge.
+const goTo = (focus, cardId) => focus?.(cardId);
+
 // Card to passage. A PDF opens the companion reader at the page with the passage emphasized (the existing
 // 'small:excerpt-source' event, ExcerptCard.jsx); a Markdown passage focuses its file card, which then emphasizes the quote.
 // Returns what happened, so the chip can say so: 'opened' | 'unavailable' (the ref cannot open) | 'no-card' (the Markdown card is
@@ -70,14 +73,14 @@ export function viewPassage(ref, { blocks = state.blocks, focus = state.focus, e
   if (ref.kind === 'pdf') { emit(new CustomEvent('small:excerpt-source', { detail: { ref: readerRef(ref) } })); return 'opened'; }
   const cardId = markdownCardOf(blocks, ref);
   if (!cardId) return 'no-card';
-  focus?.(cardId);
+  goTo(focus, cardId);
   // The camera moves first; the card paints its emphasis once it is on screen.
   wait(() => emit(new CustomEvent(SOURCE_REF_EVENT, { detail: { cardId, key: ref.source.key, rev: ref.source.rev, quote: ref.anchor?.quote, ...(raw ? { raw: true } : {}), ...(range ? { range } : {}) } })), 250);
   return 'opened';
 }
 
 // The camera to one explanation card (a reader's "View explanation" on a passage that has several).
-export const focusExplanation = (cardId, { focus = state.focus } = {}) => focus?.(cardId);
+export const focusExplanation = (cardId, { focus = state.focus } = {}) => goTo(focus, cardId);
 
 // Passage to explanation: the camera to the first explanation card for this source (at this revision, for a PDF on this page).
 // Returns how many there are.
