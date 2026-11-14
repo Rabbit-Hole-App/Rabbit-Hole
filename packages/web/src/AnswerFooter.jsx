@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Copy, Plus, RotateCcw, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Copy, FileText, Plus, RotateCcw, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { api } from './api.js';
 import { cn } from './ui.jsx';
 
@@ -31,9 +31,9 @@ export const getAnswerAlternative = messageId => api(`/api/learn/chat/messages/$
 const icon = 'flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50';
 const quiet = 'flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-ink-3 opacity-60 hover:bg-hover hover:text-ink hover:opacity-100 focus-visible:opacity-100 group-hover/answer:opacity-100 aria-pressed:text-ink aria-pressed:opacity-100';
 
-export default function AnswerFooter({ message, latest = false, onAddAsCard = null, onLocateCard = null, cardExists = null, onRegenerate = null, onSelectAlternative = null, putFeedback = putAnswerFeedback, copyText = copyAnswer }) {
+export default function AnswerFooter({ message, latest = false, onCreateExplainCard = null, onAddAsCard = null, onLocateCard = null, cardExists = null, onRegenerate = null, onSelectAlternative = null, putFeedback = putAnswerFeedback, copyText = copyAnswer }) {
   const root = useRef(null);
-  const [justAdded, setJustAdded] = useState(false);
+  const [justAdded, setJustAdded] = useState(false), [created, setCreated] = useState(false);
   const [copied, setCopied] = useState(null);
   const [rating, setRating] = useState(message.meta?.feedback?.rating ?? null);
   const [reason, setReason] = useState(null); // null = the reason field is closed
@@ -67,11 +67,14 @@ export default function AnswerFooter({ message, latest = false, onAddAsCard = nu
   };
 
   return (
-    <div ref={root} data-answer-footer className="mt-1 flex flex-col gap-1">
+    // Owner 2026-11-13: the whole row (Add as card, Create as card, Copy, thumbs) shows only while the pointer is over this answer (or a key is on it); a touch screen has no hover, so it stays.
+    // It also stays while something it shows needs reading: the reason field, a note or the copied mark.
+    <div ref={root} data-answer-footer className={cn('mt-1 flex flex-col gap-1 opacity-0 transition-opacity group-focus-within/answer:opacity-100 group-hover/answer:opacity-100 [@media(hover:none)]:opacity-100', (reason !== null || note || copied) && 'opacity-100')}>
       <div className="flex flex-wrap items-center gap-0.5">
         {onAddAsCard && (added
           ? <button type="button" data-add-to-canvas data-added title="Show the card on the canvas" className={cn(icon, 'text-green-700 hover:text-green-800')} onClick={() => onLocateCard?.(cardId)}><Check size={13} />Added</button>
           : <button type="button" data-add-to-canvas title="Save this answer as a card on the canvas" className={icon} onClick={() => { onAddAsCard({ id: cardId, answer: message.content, sources: message.meta?.contextRefs ?? null }); setJustAdded(true); }}><Plus size={13} />Add as card</button>)}
+        {onCreateExplainCard && <button type="button" data-create-explain-card disabled={created} title="Make a written explanation card from this question, with /explain" className={icon} onClick={() => { onCreateExplainCard(); setCreated(true); }}>{created ? <Check size={13} /> : <FileText size={13} />}{created ? 'Creating' : 'Create as card'}</button>}
         <span className="relative flex items-center">
           <button type="button" aria-label="Copy answer" title="Copy answer" className={icon} onClick={copy}><Copy size={13} /></button>
           {copied && <span role="status" className={cn('ml-1 text-xs', copied === 'Copied' ? 'text-ink-2' : 'text-danger')}>{copied}</span>}

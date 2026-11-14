@@ -134,3 +134,20 @@ test('without a Chat workspace, Explore next and actions still render under the 
   assert.doesNotMatch(typed, /Regenerate answer/);
   assert.doesNotMatch(html({}), /Why does it rise\?/, 'no composer at all: nothing to prepare, so no suggestions');
 });
+
+// Owner 2026-11-13: the footer's controls show only while the pointer is over that answer (or a key is on it); Create as card makes a written /explain card from the question
+// for a substantive ordinary answer.
+test('the footer row is hidden until the answer is hovered or focused, and stays for a touch screen or while it has something to read', () => {
+  const html = render(answer(), { latest: true });
+  assert.match(html, /data-answer-footer="true" class="[^"]*opacity-0[^"]*group-focus-within\/answer:opacity-100[^"]*group-hover\/answer:opacity-100[^"]*\[@media\(hover:none\)\]:opacity-100/);
+  assert.match(read('AnswerFooter.jsx'), /\(reason !== null \|\| note \|\| copied\) && 'opacity-100'/);
+});
+
+test('Create as card: its own button only where the page gives it, and it is a /explain on the learner\'s question', () => {
+  assert.doesNotMatch(render(answer()), /data-create-explain-card/);
+  const html = render(answer(), { onCreateExplainCard: () => {} });
+  assert.match(html, /data-create-explain-card[^>]*title="Make a written explanation card from this question, with \/explain"[^>]*>.*Create as card<\/button>/);
+  const messages = read('ChatMessages.jsx');
+  assert.match(messages, /const explainable = !!onCreateExplainCard && kind\.ordinary && !!asked\.trim\(\) && String\(m\.content \|\| ''\)\.length >= 400;/, 'only a substantive ordinary answer to a question');
+  assert.match(messages, /onCreateExplainCard: chat\?\.ask \? \(question => chat\.ask\(\{ line: `\/\$\{typedOf\('explanation'\)\} \$\{question\}` \}\)\) : null/, 'through the Chat\'s own command dispatcher');
+});

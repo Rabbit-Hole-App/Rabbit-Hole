@@ -390,7 +390,7 @@ const answerStatus = (m, arriving) => (['streaming', 'done', 'stopped', 'error']
 const Waiting = ({ text, className = '', ...rest }) => <span {...rest} className={cn('flex items-center gap-2 text-xs text-ink-2', className)}><Loader2 size={14} className="animate-spin text-claude" /><span className="shimmer">{text}</span></span>;
 
 // One message. Everything it reads from AskPanel comes in as a prop.
-export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook, hasCard = null, outputOps = null }) {
+export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onCreateExplainCard = null, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook, hasCard = null, outputOps = null }) {
   // Add as card: insertChat is idempotent on the card id, so a click on Added locates the card (and puts it back if the
   // learner deleted it) instead of adding a second one.
   const addAsCard = card => {
@@ -401,6 +401,10 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
   // Explore next, no Add as card (the generated output is reached by its own card, Go to card) and no generic Regenerate (a command
   // turn re-sent as plain words would answer in prose, skipping the command's own confirmation). Ordinary answers keep all three.
   const kind = responseKind(m, msgs[turnIndex(msgs, i)] ?? null);
+  // Create as card (owner 2026-11-13): a substantive ordinary answer can be turned into a written /explain card on the learner's own question. "Substantive" is a plain size
+  // test, not a classifier: at least 400 characters. ponytail: upgrade to the router's judgement if short answers deserve it too.
+  const asked = [...msgs.slice(0, i)].reverse().find(item => item.role === 'user')?.content || '';
+  const explainable = !!onCreateExplainCard && kind.ordinary && !!asked.trim() && String(m.content || '').length >= 400;
   // An accepted review card is gone from the Chat (generation-proposal-chat.js proposalAccepted); a plan message that was only that card goes with it.
   const accepted = m.role !== 'user' && proposalAccepted(m, msgs);
   if (accepted && proposalOnly(m)) return null;
@@ -446,7 +450,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
             {m.meta?.proposal?.proposal_id && !accepted && <ProposalSlot m={m} i={i} msgs={msgs} setMsgs={setMsgs} ops={outputOps} />}
             {m.meta?.animationChoice?.alternatives?.length > 0 && <AnimationChoices choice={m.meta.animationChoice} ops={outputOps} />}
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
-              onAddAsCard={kind.ordinary && onAddToCanvas && addAsCard} onLocateCard={kind.ordinary && onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
+              onCreateExplainCard={explainable ? () => onCreateExplainCard(asked) : null} onAddAsCard={kind.ordinary && onAddToCanvas && addAsCard} onLocateCard={kind.ordinary && onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
               onRegenerate={kind.ordinary ? onRegenerate : null} onSelectAlternative={async id => { const alt = await getAnswerAlternative(id); setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, ...alt, status: 'done', added: false } : x))); }} />
             {prepare && kind.ordinary && <AnswerSuggestions message={m} latest={i === msgs.length - 1} threadId={threadId} prepare={prepare} insertNotebook={insertNotebook} />}
           </div>
@@ -479,6 +483,7 @@ ${line}` : line));
   const props = { ...given,
     prepare: chat?.composer?.prepare ?? given.prepare ?? typeIn, onRegenerate: chat?.regenerate ?? given.onRegenerate ?? null,
     threadId: chat?.thread?.id ?? given.threadId ?? null, insertNotebook: ops?.insertNotebook ?? given.insertNotebook,
+    onCreateExplainCard: chat?.ask ? (question => chat.ask({ line: `/${typedOf('explanation')} ${question}` })) : null,
     onAddToCanvas: ops ? (card => ops.insertChat(card)) : given.onAddToCanvas, hasCard: ops?.hasBlock ?? null, outputOps: ops ?? null };
   const { msgs, sheetMode } = props;
   return msgs.map((m, i) => (sheetMode && m.card) ? null : renderTutor && m.meta?.tutor ? <div key={i}>{renderTutor(m)}</div> : <ChatMessage key={i} {...props} m={m} i={i} />);
