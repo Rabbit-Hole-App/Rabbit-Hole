@@ -192,6 +192,8 @@
     "INTERACT_RUN": "headless",
     "INTERACT_REVIEW": "shadow",
     "INTERACT_FAST_OPUS_BRIEF": "on",
+    // A prompt no family fits (a `none` pick) ends with the plain sentence "This kind of scene isn't supported yet." and no Opus spend; "opus" runs the full Opus design instead (measurement only). Owner 2026-11-14.
+    "INTERACT_GAP": "message",
     // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
     "EXPLAIN_V2_ENABLED": "true",
     // Generated interactive programs (docs/superpowers/plans/2026-10-28-explain-sandbox.md, Task 5): DEV ONLY. The production config does not set it, so production generation stays off.
