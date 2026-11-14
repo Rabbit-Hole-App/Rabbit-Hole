@@ -89,20 +89,17 @@ function crosses(points, { x, y, width, height }) {
 }
 
 function labelBounds(route, others, width) {
-  const { words, side, dir, lift = 0, points: [[from, fromY], turn, end] } = route;
-  const [to, y] = side ? [turn[0], fromY] : end;
+  const { words, points: [[from], , [to, y]] } = route;
   const w = Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12);
   const h = words.length * lineHeight(EDGE_TEXT) + 4;
   const center = (from + to) / 2;
-  const straight = !side && Math.abs(from - to) < 35;
-  // RD-2b: beside a short drop the label stands outside the vertex; on a run it is centred on it.
-  const anchor = side === 'drop' ? from + dir * (4 + w / 2) : center;
+  const straight = Math.abs(from - to) < 35;
   const offset = straight ? w / 2 + 7 : 0;
   const offsets = [offset, -offset, offset + 10, -offset - 10, offset + 20, -offset - 20, offset + 35, -offset - 35];
   const clamped = candidate => Math.max(PAD, Math.min(width - PAD - w, candidate));
   for (const shift of offsets) {
-    const x = clamped(anchor + shift - w / 2);
-    const bounds = { x, y: side ? y - h - 4 - lift : y - h / 2, width: w, height: h };
+    const x = clamped(center + shift - w / 2);
+    const bounds = { x, y: y - h / 2, width: w, height: h };
     if (others.every(other => other === route || !crosses(other.points, bounds))) return bounds;
   }
   return null;
@@ -188,49 +185,6 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
   const exitX = edge => skipOrder.has(edge) ? skipX(edge) : placements.get(edge.to).cx;
   const entryOrder = edge => skipOrder.has(edge) ? width + skipOrder.get(edge) : placements.get(edge.from).cx;
   for (const group of outgoing.values()) group.sort((a, b) => exitX(a) - exitX(b));
-  for (const group of incoming.values()) group.sort((a, b) => entryOrder(a) - entryOrder(b));
-  // RD-2: a decision with exactly two branches, one to each side, into the next rank leaves its side vertices: both wires run at the diamond's mid-height to the
-  // target's top port and drop straight, taking no lane in the gap below the row. RD-2b: where the run would be shorter than the label (or inward: the targets sit under the
-  // vertices) the wire drops straight from the vertex onto its target and the label stands outside it. Anything else (three branches, a skip, both targets on one side,
-  // another node of the row standing on the run or the drop) keeps the lane routing.
-  const sideEdges = new Map();
-  for (const node of placements.values()) {
-    const branches = outgoing.get(node.id);
-    if (node.role !== 'decision' || node.tensor || branches.length !== 2) continue;
-    if (branches.some(edge => skipOrder.has(edge) || ranks.get(edge.to) !== ranks.get(node.id) + 1)) continue;
-    if (!(placements.get(branches[0].to).cx < node.cx && node.cx < placements.get(branches[1].to).cx)) continue;
-    const plans = branches.map((edge, index) => {
-      const sign = index === 0 ? -1 : 1;
-      const vertexX = node.cx + sign * node.width / 2;
-      const target = placements.get(edge.to);
-      const turnX = port(target, incoming.get(edge.to), edge, false)[0];
-      const words = edge.label ? wrap(edge.label, EDGE_WRAP, EDGE_TEXT) : [];
-      const labelWidth = words.length ? Math.ceil(Math.max(...words.map(word => textWidth(word, EDGE_TEXT))) + 12) : 0;
-      const labelHeight = words.length ? words.length * lineHeight(EDGE_TEXT) + 4 : 0;
-      const clearOf = (a, b) => placedRows[ranks.get(node.id)].every(other => other === node || other.cx + other.width / 2 <= Math.min(a, b) - 2 || other.cx - other.width / 2 >= Math.max(a, b) + 2);
-      if (sign * (turnX - vertexX) > 0 && Math.abs(turnX - vertexX) >= labelWidth && clearOf(vertexX, turnX)) return { kind: 'run', dir: sign, labelWidth, labelHeight, vertexX, turnX };
-      // The drop lands on the top edge of the target away from its rounded corners, which only a lone arrival may move.
-      const margin = target.role === 'outcome' && !target.tensor ? Math.min(target.width, target.height) / 2 : 8;
-      const lands = incoming.get(edge.to).length === 1 && vertexX >= target.cx - target.width / 2 + margin && vertexX <= target.cx + target.width / 2 - margin;
-      return lands && clearOf(vertexX, vertexX) ? { kind: 'drop', dir: sign, labelWidth, labelHeight, vertexX } : null;
-    });
-    if (plans.every(Boolean)) {
-      // The label boxes as labelBounds will place them (clamped onto the card): a drop label pushed over the diamond is lifted clear of its edge, both branches to one height (rule a),
-      // and a node whose two labels would overlap each other, or need more lift than the diamond's upper half allows, keeps the lane routing (found by the geometry lint, RD-3).
-      const ratio = node.width / node.height;
-      const boxes = plans.map(plan => {
-        const x = Math.max(PAD, Math.min(width - PAD - plan.labelWidth, plan.kind === 'drop' ? plan.vertexX + plan.dir * (4 + plan.labelWidth / 2) - plan.labelWidth / 2 : (plan.vertexX + plan.turnX) / 2 - plan.labelWidth / 2));
-        const over = plan.kind === 'drop' ? (plan.dir < 0 ? x + plan.labelWidth - plan.vertexX : plan.vertexX - x) : 0;
-        return { x, right: x + plan.labelWidth, lift: over > 0 ? over / ratio + 2 : 0 };
-      });
-      const lift = Math.max(...boxes.map(box => box.lift));
-      if (boxes[0].right + 2 <= boxes[1].x && lift <= node.height / 2 - 4 - Math.max(...plans.map(plan => plan.labelHeight))) branches.forEach((edge, index) => sideEdges.set(edge, { ...plans[index], lift }));
-    }
-  }
-  for (const edge of sideEdges.keys()) {
-    const gap = gaps[ranks.get(edge.from)];
-    gap.splice(gap.indexOf(routeByEdge.get(edge).depart), 1);
-  }
   for (const [id, group] of incoming) {
     group.sort((a, b) => entryOrder(a) - entryOrder(b));
     if (group.length < 3) continue;
@@ -238,7 +192,7 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
     const left = [], right = [];
     for (const edge of group) {
       const { depart, arrive } = routeByEdge.get(edge);
-      if (arrive || sideEdges.has(edge)) continue;
+      if (arrive) continue;
       const source = placements.get(edge.from);
       const fromX = source.cx + portOffset(source, outgoing.get(edge.from), edge);
       const toX = target.cx + portOffset(target, group, edge);
@@ -269,14 +223,6 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
 
   const routed = routes.map(route => {
     const { edge, depart, arrive } = route;
-    if (sideEdges.has(edge)) {
-      const source = placements.get(edge.from);
-      const vertex = [source.cx + (outgoing.get(edge.from).indexOf(edge) === 0 ? -1 : 1) * source.width / 2, source.y + source.height / 2];
-      const target = port(placements.get(edge.to), incoming.get(edge.to), edge, false);
-      const { kind, dir, lift } = sideEdges.get(edge);
-      const points = kind === 'drop' ? [vertex, [vertex[0], target[1]]] : [vertex, [target[0], vertex[1]], target];
-      return { ...route, side: kind, dir, lift, points };
-    }
     const from = port(placements.get(edge.from), outgoing.get(edge.from), edge, true);
     const to = port(placements.get(edge.to), incoming.get(edge.to), edge, false);
     const points = arrive ? skipLanePoints(from, to, skipX(edge), depart.y, arrive.y)
@@ -289,13 +235,11 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
   })
     .sort((a, b) => a.active - b.active).map(wire => wire.element); // the route is drawn last, over any wire it crosses
   const annotations = [];
-  const labelBoxes = new Map(); // geometry only (geometry-lint.js): where each inline edge label was placed
   let bottom = y;
   for (const route of routed.filter(route => route.words.length)) {
     const { edge, words } = route;
     const bounds = labelBounds(route, routed, width);
     if (bounds) {
-      labelBoxes.set(edge, bounds);
       annotations.push(h('g', null,
         h('rect', { ...bounds, fill: SURFACE }),
         label(words, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, { size: EDGE_TEXT })));
@@ -330,21 +274,5 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
       ...(labelHeight ? [label(lines, cx, top + labelHeight / 2, { tone: 'onFill' })] : []),
       h('g', { 'data-tutor-node-tensor': '', transform: `translate(${cx - strip.width / 2} ${top + stripOffset})` }, ...strip.elements));
   });
-  return { width, height: bottom + PAD, elements: [...wires, ...annotations, ...shapes], geometry: flowGeometry(width, bottom + PAD, placements, routed, labelBoxes) };
-}
-
-// The layout as numbers, for geometry-lint.js (RD-3): node shapes with their text boxes, routed wires, inline edge-label boxes. Read-only; nothing here is drawn.
-function flowGeometry(width, height, placements, routed, labelBoxes) {
-  const nodes = Array.from(placements.values(), node => {
-    const { id, cx, y, width: w, height: h2, role, lines, offset, strip, labelHeight, contentHeight } = node;
-    const size = lines?.fontSize ?? 14, step = lineHeight(size);
-    const centerY = strip ? y + (h2 - contentHeight) / 2 + (labelHeight ?? 0) / 2 : y + h2 / 2 + offset;
-    const text = (strip && !labelHeight ? [] : lines ?? []).map((line, index, all) => {
-      const textW = textWidth(line, size), middle = centerY + (index - (all.length - 1) / 2) * step;
-      return { x: cx - textW / 2, y: middle - size / 2, width: textW, height: size };
-    });
-    return { id, role, shape: role === 'decision' ? 'diamond' : role === 'outcome' && !strip ? 'capsule' : 'box', x: cx - w / 2, y, width: w, height: h2, text };
-  });
-  const edges = routed.map(({ edge, points }) => ({ from: edge.from, to: edge.to, points: points.map(point => [...point]), label: labelBoxes.get(edge) ? { ...labelBoxes.get(edge) } : null }));
-  return { width, height, nodes, edges };
+  return { width, height: bottom + PAD, elements: [...wires, ...annotations, ...shapes] };
 }

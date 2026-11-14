@@ -1807,19 +1807,19 @@
       "height": 511
     },
     "ml-logistic-regression-model-pipeline/320": {
-      "sha256": "7c1a88c0608b2ed77aca26bc8b5904f92dfddcf69ddd4b1f7a26d3059e17f96a",
+      "sha256": "49f51f26a4f48d3004d98ef592401de991936220f49e0e2577f3163768b234e5",
       "width": 320,
-      "height": 503
+      "height": 555
     },
     "ml-logistic-regression-model-pipeline/408": {
-      "sha256": "951ee8f84ce0590c389800de955b44b40fc9907998bf7153e83075f95ddbdf4a",
+      "sha256": "13b45c1c0f7af11f6939912d065440280310fc25b9d909ffce174c40481dbd48",
       "width": 408,
-      "height": 481
+      "height": 533
     },
     "ml-logistic-regression-model-pipeline/720": {
-      "sha256": "fe66da8b9346f03c9661c9ee5fc47adaae74180396c1e37be8c0d13d56dcd890",
+      "sha256": "db25a08f70aec1915d445242608ba016a4d15b371d21d8b060aab82569287a8f",
       "width": 720,
-      "height": 464
+      "height": 516
     },
     "ml-logistic-regression-outlier-leverage/320": {
       "sha256": "dc29b8af339a0d4acbfa10667669e7eef8aa5726ad17b47fce2be124e42df94d",
@@ -2542,19 +2542,19 @@
       "height": 331
     },
     "ml-what-is-machine-learning-model-choice/320": {
-      "sha256": "b9f27d7ed59b5dca7a6cf47c9c99cb8a5065d9b1772284179c1c03dd89972823",
+      "sha256": "bdc8e70229b353dbe938f9aab4079962a451cfeb1f8938f012b12224d41010cb",
       "width": 320,
-      "height": 701
+      "height": 753
     },
     "ml-what-is-machine-learning-model-choice/408": {
-      "sha256": "25ce210cd6d4889025512b0d6b94ef4caf42881dbbae11ada90e40eda76f4110",
+      "sha256": "7b56a4921dfdb05e40f147065af419ef09301d82098a4c66317c018f4ef401e4",
       "width": 408,
-      "height": 592
+      "height": 644
     },
     "ml-what-is-machine-learning-model-choice/720": {
-      "sha256": "a2b54c2c00e4211aae626cfdf261554ea9606c2bf88fbfecf80fba1ae8392ef0",
+      "sha256": "8ba07ad85b3ccef211fd45dbff49624bbe459aadcf98abdd5430fbaf5a73bef3",
       "width": 720,
-      "height": 592
+      "height": 644
     },
     "ml-what-is-machine-learning-nearest-centroid-predict/320": {
       "sha256": "18d0bb442b0367f995c3da870c0ff39ed704f6f10a82a0c7c95de3ba07eadd51",
