@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "numericLeaves": 163,
+  "approvedPlan": "740efcc2a031e6d4d0d06536313cc1c419729b91c07ed547d1cfd3ed9e75d596",
+  "comparison": "Independent pre-code Python results versus actual exported C08 derived data",
+  "sourceCandidate": "b3d31b4e1e529a761668e3c51b221315cd4fd0ff"
+}

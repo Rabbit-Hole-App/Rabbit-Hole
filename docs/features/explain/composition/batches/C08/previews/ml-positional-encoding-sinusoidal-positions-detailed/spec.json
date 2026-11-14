@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Group display columns, preserve channel values",
+    "rowLabel": "Position",
+    "columnLabel": "Frequency partner",
+    "columns": [
+      "Fast sin",
+      "Slow sin",
+      "Fast cos",
+      "Slow cos"
+    ],
+    "rows": [
+      {
+        "label": "p0",
+        "cells": [
+          0,
+          0,
+          1,
+          1
+        ]
+      },
+      {
+        "label": "p2",
+        "cells": [
+          0.909,
+          0.618,
+          -0.416,
+          0.786
+        ]
+      },
+      {
+        "label": "p4",
+        "cells": [
+          -0.757,
+          0.972,
+          -0.654,
+          0.235
+        ]
+      }
+    ],
+    "range": {
+      "min": -1,
+      "max": 1
+    },
+    "highlights": [
+      {
+        "row": 1,
+        "column": 0
+      },
+      {
+        "row": 1,
+        "column": 1
+      },
+      {
+        "row": 1,
+        "column": 2
+      },
+      {
+        "row": 1,
+        "column": 3
+      }
+    ],
+    "caption": "Display-only order: $P'_{p,\\pi(j)}=P_{p,j}$. Values follow channel ids; no model/basis equivalence claim."
+  }
+}

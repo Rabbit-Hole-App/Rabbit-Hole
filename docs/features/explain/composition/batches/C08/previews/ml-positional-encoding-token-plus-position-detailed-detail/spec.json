@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Learned input before the repeated decoder group",
+    "blocks": [
+      {
+        "id": "indices",
+        "label": "moss id 0 / position 2",
+        "merge": "add",
+        "inputs": [
+          {
+            "label": "Model E table $E[0,:]$"
+          },
+          {
+            "label": "Model P table $P[2,:]$"
+          }
+        ]
+      },
+      {
+        "id": "combined",
+        "label": "Combined input",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              2.25,
+              0
+            ]
+          }
+        }
+      },
+      {
+        "id": "decoder",
+        "label": "Toy decoder block",
+        "repeat": 2
+      }
+    ],
+    "caption": "Learned toy, moss id $0$ at $p=2$. Combined vector enters the stack; lookup inputs stay outside decoder repeats."
+  }
+}

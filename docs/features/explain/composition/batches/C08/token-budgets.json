@@ -1,0 +1,143 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-normalization-residual-then-normalize": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 163,
+          "sha256": "e5cfefa92bcf85d15663b3cc2ec4c2d4fd93d8497e4078c4b398a42d1f8ef67c"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 208,
+          "sha256": "0e8e5dcca8013305560473f85a15cf9716487d20fffabe170029d4b9e3bbbd60"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 217,
+          "sha256": "45254a3ebd3fbf4b4ae095c47c0a0290bf0848328c6aa0014ecdc152951569a3"
+        }
+      ]
+    },
+    "ml-positional-encoding-token-plus-position": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 207,
+          "sha256": "6db600635b2c605d8badf93ed51af9f5524a7e54194c07fd3b7f30864132914d"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 157,
+          "sha256": "f866b2db0fa3d94505b827e88b588679da98a7b96d7dde2e42d996b4df1be865"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 294,
+          "sha256": "f4f71f24c45e98315f87761caafac3a5cce7a6a4bfda99e29062078375a35b2c"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 163,
+          "sha256": "d6f746f17511a7088f3f79ad7775dd0cfca8900dad270f2b4d794ad5149b4c1d"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 298,
+          "sha256": "0e58422a45e8683343a9ecd223b0ef847bad1c4893067ffea0ecdc156b6fb8bd"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 163,
+          "sha256": "201d6b8a126e6e4dd8dd6eebd039d7e5f7660cce981c16ee53a3e995bcbbbaee"
+        }
+      ]
+    },
+    "ml-positional-encoding-sinusoidal-positions": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 194,
+          "sha256": "e65bc906dbd0193d0861ec3dfd794c02b557491e25487dadd8866f9133c50db6"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 189,
+          "sha256": "026b961f4f8cba903149df912b9311d4ef16a4b6f67f15cea23b8fb9cc948fc6"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 277,
+          "sha256": "916072e6a52f4d859f84fcc60421ba2e85bf3ecfe19122523332998a69755702"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 189,
+          "sha256": "026b961f4f8cba903149df912b9311d4ef16a4b6f67f15cea23b8fb9cc948fc6"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 195,
+          "sha256": "0c11888e9cea41c12e559a82206653e1467036f7d879b46e529ff62df8b79e07"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 189,
+          "sha256": "026b961f4f8cba903149df912b9311d4ef16a4b6f67f15cea23b8fb9cc948fc6"
+        }
+      ]
+    },
+    "ml-embeddings-embedding-table-lookups": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 130,
+          "sha256": "d606b288b04022183a2b152c3fd2d469151d21e92e0cec4af62ba39aac39484b"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 182,
+          "sha256": "37b3ebcda4afc52ce3bf6f782dee759a015033a9f42d2978cb59caa6f8614854"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 156,
+          "sha256": "38564bbe1e0dbb0c094a7ab590a282c8ab43d37b7759f19134a6aec00fa83dba"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 182,
+          "sha256": "37b3ebcda4afc52ce3bf6f782dee759a015033a9f42d2978cb59caa6f8614854"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 157,
+          "sha256": "80f4a19d73b3b5687d8f3fd014122fa6da1480ebe0cfde053d1eb40f7c71d119"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 185,
+          "sha256": "8e734ef66bec9d2738a39d54e769e15959fd6301c9e16cba52de85ce8a224e6f"
+        }
+      ]
+    }
+  }
+}

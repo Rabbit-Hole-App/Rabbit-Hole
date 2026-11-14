@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Add the residual, then normalize its sum",
+    "blocks": [
+      {
+        "id": "inputs",
+        "label": "Rows: x and supplied update u",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              1,
+              3,
+              1,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "id": "sum",
+        "label": "$s=x+u$",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              2,
+              4
+            ]
+          }
+        }
+      },
+      {
+        "id": "output",
+        "label": "$z=(s-\\mu)/\\sigma$",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              -1,
+              1
+            ]
+          }
+        },
+        "role": "output"
+      }
+    ],
+    "caption": "Toy population moments $\\mu=3,v=1,\\sigma=1$. Supplied update; no epsilon or affine gain/bias."
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "transformation",
+    "title": "Fixed variant: add equal-width input rows",
+    "before": {
+      "label": "Token and fixed position",
+      "items": [
+        {
+          "label": "moss id 0",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              1,
+              0
+            ]
+          }
+        },
+        {
+          "label": "Position 0",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              0,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    "after": {
+      "label": "Combined input",
+      "items": [
+        {
+          "label": "Same position",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              1,
+              1
+            ]
+          }
+        }
+      ]
+    },
+    "operation": "Add token and fixed-position features",
+    "links": [
+      {
+        "from": 0,
+        "to": 0,
+        "label": "token row"
+      },
+      {
+        "from": 1,
+        "to": 0,
+        "label": "position row"
+      }
+    ],
+    "caption": "Fixed toy $P_p=(\\sin p,\\cos p)$, position $0$. Learned P uses a separate supplied table."
+  }
+}

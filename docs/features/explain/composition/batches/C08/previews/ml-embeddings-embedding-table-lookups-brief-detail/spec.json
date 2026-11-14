@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "C: returned context vectors by stable id",
+    "rowLabel": "Token id / word",
+    "columnLabel": "Vector feature",
+    "columns": [
+      "0",
+      "1"
+    ],
+    "rows": [
+      {
+        "label": "0 ant",
+        "cells": [
+          0.5,
+          1
+        ]
+      },
+      {
+        "label": "1 bee",
+        "cells": [
+          -0.5,
+          0
+        ]
+      },
+      {
+        "label": "2 fern",
+        "cells": [
+          1,
+          -1
+        ]
+      },
+      {
+        "label": "3 oak",
+        "cells": [
+          0,
+          0.5
+        ]
+      }
+    ],
+    "range": {
+      "min": -1,
+      "max": 1
+    },
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 0,
+        "column": 1
+      },
+      {
+        "row": 2,
+        "column": 0
+      },
+      {
+        "row": 2,
+        "column": 1
+      }
+    ],
+    "caption": "Toy lookup $T[id,:]$; returned $C[0,:],C[2,:]$ are highlighted strips. E/C tables independent; width $2$."
+  }
+}

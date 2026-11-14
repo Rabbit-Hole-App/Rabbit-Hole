@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Edit learned position",
+    "rowLabel": "Operand feature",
+    "columnLabel": "Position / id",
+    "columns": [
+      "p0 moss #0",
+      "p1 cedar #1",
+      "p2 moss #0"
+    ],
+    "rows": [
+      {
+        "label": "E0",
+        "cells": [
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "label": "E1",
+        "cells": [
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "label": "P0",
+        "cells": [
+          0,
+          0.5,
+          1.25
+        ]
+      },
+      {
+        "label": "P1",
+        "cells": [
+          0,
+          -0.5,
+          0
+        ]
+      },
+      {
+        "label": "Sum0",
+        "cells": [
+          1,
+          0.5,
+          2.25
+        ]
+      },
+      {
+        "label": "Sum1",
+        "cells": [
+          0,
+          0.5,
+          0
+        ]
+      }
+    ],
+    "range": {
+      "min": -0.5,
+      "max": 2.25
+    },
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 0,
+        "column": 2
+      },
+      {
+        "row": 1,
+        "column": 0
+      },
+      {
+        "row": 1,
+        "column": 2
+      },
+      {
+        "row": 2,
+        "column": 0
+      },
+      {
+        "row": 2,
+        "column": 2
+      },
+      {
+        "row": 3,
+        "column": 0
+      },
+      {
+        "row": 3,
+        "column": 2
+      },
+      {
+        "row": 4,
+        "column": 0
+      },
+      {
+        "row": 4,
+        "column": 2
+      },
+      {
+        "row": 5,
+        "column": 0
+      },
+      {
+        "row": 5,
+        "column": 2
+      }
+    ],
+    "caption": "$P[2]$ adds $(0.25,-0.5)$; E/other positions fixed; $\\Delta S=\\Delta P$."
+  }
+}

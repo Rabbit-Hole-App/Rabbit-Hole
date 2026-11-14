@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Repeated tokens and learned positions",
+    "rowLabel": "Operand feature",
+    "columnLabel": "Position / id",
+    "columns": [
+      "p0 moss #0",
+      "p1 cedar #1",
+      "p2 moss #0"
+    ],
+    "rows": [
+      {
+        "label": "E0",
+        "cells": [
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "label": "E1",
+        "cells": [
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "label": "P0",
+        "cells": [
+          0,
+          0.5,
+          1
+        ]
+      },
+      {
+        "label": "P1",
+        "cells": [
+          0,
+          -0.5,
+          0.5
+        ]
+      },
+      {
+        "label": "Sum0",
+        "cells": [
+          1,
+          0.5,
+          2
+        ]
+      },
+      {
+        "label": "Sum1",
+        "cells": [
+          0,
+          0.5,
+          0.5
+        ]
+      }
+    ],
+    "range": {
+      "min": -0.5,
+      "max": 2.25
+    },
+    "highlights": [
+      {
+        "row": 0,
+        "column": 0
+      },
+      {
+        "row": 0,
+        "column": 2
+      },
+      {
+        "row": 1,
+        "column": 0
+      },
+      {
+        "row": 1,
+        "column": 2
+      },
+      {
+        "row": 2,
+        "column": 0
+      },
+      {
+        "row": 2,
+        "column": 2
+      },
+      {
+        "row": 3,
+        "column": 0
+      },
+      {
+        "row": 3,
+        "column": 2
+      },
+      {
+        "row": 4,
+        "column": 0
+      },
+      {
+        "row": 4,
+        "column": 2
+      },
+      {
+        "row": 5,
+        "column": 0
+      },
+      {
+        "row": 5,
+        "column": 2
+      }
+    ],
+    "caption": "Learned toy: $S_p=E[id_p]+P[p]$. Supplied P depends on position, not token id."
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Interleave each frequency with its cosine partner",
+    "rowLabel": "Position",
+    "columnLabel": "Frequency partner",
+    "columns": [
+      "Fast sin",
+      "Fast cos",
+      "Slow sin",
+      "Slow cos"
+    ],
+    "rows": [
+      {
+        "label": "p0",
+        "cells": [
+          0,
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "label": "p2",
+        "cells": [
+          0.909,
+          -0.416,
+          0.618,
+          0.786
+        ]
+      },
+      {
+        "label": "p4",
+        "cells": [
+          -0.757,
+          -0.654,
+          0.972,
+          0.235
+        ]
+      }
+    ],
+    "range": {
+      "min": -1,
+      "max": 1
+    },
+    "highlights": [
+      {
+        "row": 1,
+        "column": 0
+      },
+      {
+        "row": 1,
+        "column": 1
+      },
+      {
+        "row": 1,
+        "column": 2
+      },
+      {
+        "row": 1,
+        "column": 3
+      }
+    ],
+    "caption": "Same rounded samples as the plot; selected $p=2$ matches all paired coordinates. Position rows and channel ids stay attached."
+  }
+}

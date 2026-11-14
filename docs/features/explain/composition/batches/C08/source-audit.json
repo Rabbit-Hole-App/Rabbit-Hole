@@ -1,0 +1,106 @@
+{
+  "passed": true,
+  "batch": "C08",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "queueFamilies": 4,
+  "actualAssociations": 4,
+  "sourceHeadings": 11,
+  "newHeadings": 11,
+  "reuseHeadings": 0,
+  "originalFamilyRecordsPreserved": true,
+  "routes": [
+    {
+      "queueId": "ml-normalization-residual-then-normalize",
+      "referenceId": "ml-normalization-residual-then-normalize",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-27",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-22",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-18",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-19",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-57",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-positional-encoding-sinusoidal-positions",
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-23",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-positional-encoding-sinusoidal-positions",
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-25",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-17",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-22",
+      "lessons": [
+        "08"
+      ]
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-01",
+      "lessons": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "mode": "NEW",
+      "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-54",
+      "lessons": []
+    }
+  ]
+}

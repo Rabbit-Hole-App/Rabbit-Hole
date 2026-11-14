@@ -1,0 +1,12 @@
+import test from'node:test';import assert from'node:assert';import{parameters,derived}from'./topic-embeddings-data.js';import{references}from'./composition-embeddings-references.js';
+import{parseTutorDiagram}from'./spec.js';import{lintDiagramContent}from'./content-contract.js';import{renderTutorDiagram}from'./TutorDiagram.js';
+test('C08 stable ids retrieve actual numeric center/context rows with equal width and independent tables',()=>{
+ const d=derived(),p=parameters;assert.strictEqual(new Set(p.vocabulary.map(v=>v.id)).size,p.vocabulary.length);assert.deepStrictEqual(d.base.center,p.E[d.idToRow[p.centerId]]);assert.deepStrictEqual(d.base.contexts,p.contextIds.map(id=>p.C[d.idToRow[id]]));assert.notDeepStrictEqual(p.E,p.C);assert.ok([d.base.center,...d.base.contexts].every(row=>row.length===d.width));assert.deepStrictEqual(d.unselectedContextIds,p.vocabulary.filter(v=>!p.contextIds.includes(v.id)).map(v=>v.id));
+ const ref=references[0];for(const[spec,table,ids]of[[ref.spec,p.E,[p.centerId]],[ref.depths.standard.detailSpec,p.C,p.contextIds]]){assert.deepStrictEqual(spec.diagram.rows.map(row=>row.cells),table);assert.deepStrictEqual(spec.diagram.rows.map(row=>row.label),p.vocabulary.map(v=>v.id+' '+v.word));assert.deepStrictEqual([...new Set(spec.diagram.highlights.map(h=>p.vocabulary[h.row].id))],ids);assert.match(spec.diagram.caption,/returned/i);assert.ok(spec.diagram.caption.includes('T[id,:]'));}
+});
+test('C08 only unselected context rows change, including the same id as the independent selected center',()=>{
+ const d=derived(),p=parameters;assert.deepStrictEqual(d.probe.E,p.E);for(const[id,index]of p.vocabulary.map((v,i)=>[v.id,i]))assert.deepStrictEqual(d.probe.C[index],p.C[index].map((x,j)=>x+(d.unselectedContextIds.includes(id)?p.delta[j]:0)));
+ assert.deepStrictEqual(d.probe.center,d.base.center);assert.deepStrictEqual(d.probe.contexts,d.base.contexts);assert.notDeepStrictEqual(d.probe.C[d.idToRow[p.centerId]],p.C[d.idToRow[p.centerId]]);
+ assert.deepStrictEqual(references[0].depths.deep.detailSpec.diagram.rows.map(row=>row.cells),d.probe.C);
+});
+test('C08 embedding numeric strips are complete and bounded',()=>{for(const view of Object.values(references[0].depths))for(const spec of Object.values(view)){assert.doesNotThrow(()=>parseTutorDiagram(spec));assert.deepStrictEqual(lintDiagramContent(spec),[]);assert.strictEqual(renderTutorDiagram(spec,408).width,408);assert.ok(renderTutorDiagram(spec,680).width<=680);}});

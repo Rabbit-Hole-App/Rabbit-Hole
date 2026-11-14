@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Add the residual, then normalize its sum",
+    "blocks": [
+      {
+        "id": "sum",
+        "label": "$s=x+u$",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              2,
+              4
+            ]
+          }
+        }
+      },
+      {
+        "id": "output",
+        "label": "$z=(s-\\mu)/\\sigma$",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              -1,
+              1
+            ]
+          }
+        },
+        "role": "output"
+      }
+    ],
+    "caption": "Toy $x=(1,3)$, supplied $u=(1,1)$. Add, then center/rescale with population moments; no epsilon or affine terms."
+  }
+}

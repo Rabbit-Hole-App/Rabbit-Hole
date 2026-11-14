@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "E: returned center vector by stable id",
+    "rowLabel": "Token id / word",
+    "columnLabel": "Vector feature",
+    "columns": [
+      "0",
+      "1"
+    ],
+    "rows": [
+      {
+        "label": "0 ant",
+        "cells": [
+          1,
+          0
+        ]
+      },
+      {
+        "label": "1 bee",
+        "cells": [
+          0,
+          1
+        ]
+      },
+      {
+        "label": "2 fern",
+        "cells": [
+          1,
+          1
+        ]
+      },
+      {
+        "label": "3 oak",
+        "cells": [
+          -1,
+          0.5
+        ]
+      }
+    ],
+    "range": {
+      "min": -1,
+      "max": 1
+    },
+    "highlights": [
+      {
+        "row": 1,
+        "column": 0
+      },
+      {
+        "row": 1,
+        "column": 1
+      }
+    ],
+    "caption": "Toy lookup $T[id,:]$; returned $E[1,:]$ is the highlighted vector. Stable ids, width $2$."
+  }
+}

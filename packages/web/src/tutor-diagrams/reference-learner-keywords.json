@@ -1698,5 +1698,21 @@
   "ml-attention-all-query-attention": [
     "query row normalization",
     "position aligned outputs"
+  ],
+  "ml-normalization-residual-then-normalize": [
+    "computed residual moments",
+    "normalize residual sums"
+  ],
+  "ml-positional-encoding-token-plus-position": [
+    "repeated token addition",
+    "model lookup inputs"
+  ],
+  "ml-positional-encoding-sinusoidal-positions": [
+    "paired position frequencies",
+    "channel display permutation"
+  ],
+  "ml-embeddings-embedding-table-lookups": [
+    "indexed vector retrieval",
+    "independent lookup tables"
   ]
 }

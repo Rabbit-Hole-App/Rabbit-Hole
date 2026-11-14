@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Fixed input before the repeated decoder group",
+    "blocks": [
+      {
+        "id": "indices",
+        "label": "moss id 0 / position 0",
+        "merge": "add",
+        "inputs": [
+          {
+            "label": "Model E table $E[0,:]$"
+          },
+          {
+            "label": "Fixed $P[0]$ function"
+          }
+        ]
+      },
+      {
+        "id": "combined",
+        "label": "Combined input",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              1,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "id": "decoder",
+        "label": "Toy decoder block",
+        "repeat": 2
+      }
+    ],
+    "caption": "Fixed toy, moss id $0$ at $p=0$. Combined vector enters the stack; lookup inputs stay outside decoder repeats."
+  }
+}

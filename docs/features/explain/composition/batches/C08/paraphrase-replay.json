@@ -1,0 +1,1412 @@
+{
+  "version": 1,
+  "topic": "embeddings",
+  "fixture": false,
+  "threshold": 0.8,
+  "hits": 60,
+  "total": 60,
+  "firstPickRate": 1,
+  "passed": true,
+  "byDepth": [
+    {
+      "depth": "brief",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "balanced",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "detailed",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    }
+  ],
+  "prompts": [
+    {
+      "id": "ml-normalization-residual-then-normalize",
+      "prompt": "A small numeric example separates adding the residual from normalizing the resulting vector.",
+      "referenceId": "ml-normalization-residual-then-normalize",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show computed residual moments after adding a supplied update.",
+          "depth": "brief",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show computed residual moments after adding a supplied update.",
+          "depth": "balanced",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show computed residual moments after adding a supplied update.",
+          "depth": "detailed",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Normalize residual sums with the declared population variance.",
+          "depth": "brief",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Normalize residual sums with the declared population variance.",
+          "depth": "balanced",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Normalize residual sums with the declared population variance.",
+          "depth": "detailed",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the supplied update fixed in a computed residual moments shift probe.",
+          "depth": "brief",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the supplied update fixed in a computed residual moments shift probe.",
+          "depth": "balanced",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep the supplied update fixed in a computed residual moments shift probe.",
+          "depth": "detailed",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which mean and variance normalize residual sums?",
+          "depth": "brief",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which mean and variance normalize residual sums?",
+          "depth": "balanced",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which mean and variance normalize residual sums?",
+          "depth": "detailed",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the unchanged normalized result after shifting inputs in computed residual moments.",
+          "depth": "brief",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the unchanged normalized result after shifting inputs in computed residual moments.",
+          "depth": "balanced",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show the unchanged normalized result after shifting inputs in computed residual moments.",
+          "depth": "detailed",
+          "firstReference": "ml-normalization-residual-then-normalize",
+          "firstReferenceId": "ml-normalization-residual-then-normalize",
+          "firstPick": true,
+          "references": [
+            "ml-normalization-residual-then-normalize"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-normalization-residual-then-normalize",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-positional-encoding-token-plus-position",
+      "prompt": "Adding a position vector to each token embedding makes order available to attention.",
+      "referenceId": "ml-positional-encoding-token-plus-position",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show repeated token addition with separate token and position ids.",
+          "depth": "brief",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show repeated token addition with separate token and position ids.",
+          "depth": "balanced",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show repeated token addition with separate token and position ids.",
+          "depth": "detailed",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep model lookup inputs outside the repeated decoder group.",
+          "depth": "brief",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep model lookup inputs outside the repeated decoder group.",
+          "depth": "balanced",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep model lookup inputs outside the repeated decoder group.",
+          "depth": "detailed",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which learned rows change repeated token addition at another position?",
+          "depth": "brief",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which learned rows change repeated token addition at another position?",
+          "depth": "balanced",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which learned rows change repeated token addition at another position?",
+          "depth": "detailed",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare named fixed and learned model lookup inputs.",
+          "depth": "brief",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare named fixed and learned model lookup inputs.",
+          "depth": "balanced",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare named fixed and learned model lookup inputs.",
+          "depth": "detailed",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Change one learned position row in repeated token addition.",
+          "depth": "brief",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "transformation"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "transformation",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "transformation",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Change one learned position row in repeated token addition.",
+          "depth": "balanced",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Change one learned position row in repeated token addition.",
+          "depth": "detailed",
+          "firstReference": "ml-positional-encoding-token-plus-position",
+          "firstReferenceId": "ml-positional-encoding-token-plus-position",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-token-plus-position"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-token-plus-position",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-positional-encoding-sinusoidal-positions",
+      "prompt": "Sinusoidal position features give each position a distinct combination of slow and fast coordinates.",
+      "referenceId": "ml-positional-encoding-sinusoidal-positions",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show paired position frequencies and their matching selected row.",
+          "depth": "brief",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show paired position frequencies and their matching selected row.",
+          "depth": "balanced",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show paired position frequencies and their matching selected row.",
+          "depth": "detailed",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep numeric values attached during a channel display permutation.",
+          "depth": "brief",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep numeric values attached during a channel display permutation.",
+          "depth": "balanced",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep numeric values attached during a channel display permutation.",
+          "depth": "detailed",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare both sine and cosine in paired position frequencies.",
+          "depth": "brief",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare both sine and cosine in paired position frequencies.",
+          "depth": "balanced",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare both sine and cosine in paired position frequencies.",
+          "depth": "detailed",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why is channel display permutation different from changing the model basis?",
+          "depth": "brief",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why is channel display permutation different from changing the model basis?",
+          "depth": "balanced",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why is channel display permutation different from changing the model basis?",
+          "depth": "detailed",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Match all four paired position frequencies at the selected sampled position.",
+          "depth": "brief",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Match all four paired position frequencies at the selected sampled position.",
+          "depth": "balanced",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Match all four paired position frequencies at the selected sampled position.",
+          "depth": "detailed",
+          "firstReference": "ml-positional-encoding-sinusoidal-positions",
+          "firstReferenceId": "ml-positional-encoding-sinusoidal-positions",
+          "firstPick": true,
+          "references": [
+            "ml-positional-encoding-sinusoidal-positions"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-positional-encoding-sinusoidal-positions",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-embeddings-embedding-table-lookups",
+      "prompt": "An embedding lookup selects a single learned row for an input token.",
+      "referenceId": "ml-embeddings-embedding-table-lookups",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show indexed vector retrieval with stable vocabulary ids.",
+          "depth": "brief",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show indexed vector retrieval with stable vocabulary ids.",
+          "depth": "balanced",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show indexed vector retrieval with stable vocabulary ids.",
+          "depth": "detailed",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Select a center and two context rows from independent lookup tables.",
+          "depth": "brief",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Select a center and two context rows from independent lookup tables.",
+          "depth": "balanced",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Select a center and two context rows from independent lookup tables.",
+          "depth": "detailed",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do independent lookup tables give different vectors for the same id?",
+          "depth": "brief",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do independent lookup tables give different vectors for the same id?",
+          "depth": "balanced",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do independent lookup tables give different vectors for the same id?",
+          "depth": "detailed",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep selected outputs fixed when unselected rows change in indexed vector retrieval.",
+          "depth": "brief",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep selected outputs fixed when unselected rows change in indexed vector retrieval.",
+          "depth": "balanced",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Keep selected outputs fixed when unselected rows change in indexed vector retrieval.",
+          "depth": "detailed",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show several returned strips through shared indexed vector retrieval.",
+          "depth": "brief",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show several returned strips through shared indexed vector retrieval.",
+          "depth": "balanced",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show several returned strips through shared indexed vector retrieval.",
+          "depth": "detailed",
+          "firstReference": "ml-embeddings-embedding-table-lookups",
+          "firstReferenceId": "ml-embeddings-embedding-table-lookups",
+          "firstPick": true,
+          "references": [
+            "ml-embeddings-embedding-table-lookups"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-embeddings-embedding-table-lookups",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    }
+  ]
+}

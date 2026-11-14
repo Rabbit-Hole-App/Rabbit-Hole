@@ -1,0 +1,642 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 3594,
+  "changedPriorPicks": [],
+  "sourceHeadings": 11,
+  "uniqueSourcePrompts": 11,
+  "sourceCases": 33,
+  "sourceHits": 33,
+  "actualPlannedAuthorSchemaChecks": 33,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-normalization-residual-then-normalize",
+      "expectedFamily": "ml-normalization-residual-then-normalize",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-27",
+      "prompt": "A small numeric example separates adding the residual from normalizing the resulting vector.",
+      "depth": "brief",
+      "firstFamily": "ml-normalization-residual-then-normalize",
+      "rawAuthorReferenceId": "ml-normalization-residual-then-normalize",
+      "firstPick": true,
+      "preparedFamily": "ml-normalization-residual-then-normalize",
+      "preparedId": "ml-normalization-residual-then-normalize",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-normalization-residual-then-normalize",
+      "expectedFamily": "ml-normalization-residual-then-normalize",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-27",
+      "prompt": "A small numeric example separates adding the residual from normalizing the resulting vector.",
+      "depth": "balanced",
+      "firstFamily": "ml-normalization-residual-then-normalize",
+      "rawAuthorReferenceId": "ml-normalization-residual-then-normalize",
+      "firstPick": true,
+      "preparedFamily": "ml-normalization-residual-then-normalize",
+      "preparedId": "ml-normalization-residual-then-normalize",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-normalization-residual-then-normalize",
+      "expectedFamily": "ml-normalization-residual-then-normalize",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-27",
+      "prompt": "A small numeric example separates adding the residual from normalizing the resulting vector.",
+      "depth": "detailed",
+      "firstFamily": "ml-normalization-residual-then-normalize",
+      "rawAuthorReferenceId": "ml-normalization-residual-then-normalize",
+      "firstPick": true,
+      "preparedFamily": "ml-normalization-residual-then-normalize",
+      "preparedId": "ml-normalization-residual-then-normalize",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-22",
+      "prompt": "Adding a position vector to each token embedding makes order available to attention.",
+      "depth": "brief",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-22",
+      "prompt": "Adding a position vector to each token embedding makes order available to attention.",
+      "depth": "balanced",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-22",
+      "prompt": "Adding a position vector to each token embedding makes order available to attention.",
+      "depth": "detailed",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-18",
+      "prompt": "GPT-2 learns a separate table of position vectors indexed by position.",
+      "depth": "brief",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-18",
+      "prompt": "GPT-2 learns a separate table of position vectors indexed by position.",
+      "depth": "balanced",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-18",
+      "prompt": "GPT-2 learns a separate table of position vectors indexed by position.",
+      "depth": "detailed",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-19",
+      "prompt": "A decoder adds the token lookup vector and its position vector before entering the first block.",
+      "depth": "brief",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-19",
+      "prompt": "A decoder adds the token lookup vector and its position vector before entering the first block.",
+      "depth": "balanced",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-19",
+      "prompt": "A decoder adds the token lookup vector and its position vector before entering the first block.",
+      "depth": "detailed",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-57",
+      "prompt": "Token and position embeddings are model-level tables used before the block stack.",
+      "depth": "brief",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "transformation",
+      "collision": false,
+      "plannedKinds": [
+        "transformation"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-57",
+      "prompt": "Token and position embeddings are model-level tables used before the block stack.",
+      "depth": "balanced",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-token-plus-position",
+      "expectedFamily": "ml-positional-encoding-token-plus-position",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-57",
+      "prompt": "Token and position embeddings are model-level tables used before the block stack.",
+      "depth": "detailed",
+      "firstFamily": "ml-positional-encoding-token-plus-position",
+      "rawAuthorReferenceId": "ml-positional-encoding-token-plus-position",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-token-plus-position",
+      "preparedId": "ml-positional-encoding-token-plus-position",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-sinusoidal-positions",
+      "expectedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-23",
+      "prompt": "Sinusoidal position features give each position a distinct combination of slow and fast coordinates.",
+      "depth": "brief",
+      "firstFamily": "ml-positional-encoding-sinusoidal-positions",
+      "rawAuthorReferenceId": "ml-positional-encoding-sinusoidal-positions",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "preparedId": "ml-positional-encoding-sinusoidal-positions",
+      "preparedSchemaValid": true,
+      "kind": "coordinate-plot",
+      "collision": false,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-sinusoidal-positions",
+      "expectedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-23",
+      "prompt": "Sinusoidal position features give each position a distinct combination of slow and fast coordinates.",
+      "depth": "balanced",
+      "firstFamily": "ml-positional-encoding-sinusoidal-positions",
+      "rawAuthorReferenceId": "ml-positional-encoding-sinusoidal-positions",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "preparedId": "ml-positional-encoding-sinusoidal-positions",
+      "preparedSchemaValid": true,
+      "kind": "coordinate-plot",
+      "collision": false,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-sinusoidal-positions",
+      "expectedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-23",
+      "prompt": "Sinusoidal position features give each position a distinct combination of slow and fast coordinates.",
+      "depth": "detailed",
+      "firstFamily": "ml-positional-encoding-sinusoidal-positions",
+      "rawAuthorReferenceId": "ml-positional-encoding-sinusoidal-positions",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "preparedId": "ml-positional-encoding-sinusoidal-positions",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-sinusoidal-positions",
+      "expectedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-25",
+      "prompt": "Interleaving each sine channel with its cosine partner keeps the positional signals paired by frequency.",
+      "depth": "brief",
+      "firstFamily": "ml-positional-encoding-sinusoidal-positions",
+      "rawAuthorReferenceId": "ml-positional-encoding-sinusoidal-positions",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "preparedId": "ml-positional-encoding-sinusoidal-positions",
+      "preparedSchemaValid": true,
+      "kind": "coordinate-plot",
+      "collision": false,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-sinusoidal-positions",
+      "expectedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-25",
+      "prompt": "Interleaving each sine channel with its cosine partner keeps the positional signals paired by frequency.",
+      "depth": "balanced",
+      "firstFamily": "ml-positional-encoding-sinusoidal-positions",
+      "rawAuthorReferenceId": "ml-positional-encoding-sinusoidal-positions",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "preparedId": "ml-positional-encoding-sinusoidal-positions",
+      "preparedSchemaValid": true,
+      "kind": "coordinate-plot",
+      "collision": false,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-positional-encoding-sinusoidal-positions",
+      "expectedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-25",
+      "prompt": "Interleaving each sine channel with its cosine partner keeps the positional signals paired by frequency.",
+      "depth": "detailed",
+      "firstFamily": "ml-positional-encoding-sinusoidal-positions",
+      "rawAuthorReferenceId": "ml-positional-encoding-sinusoidal-positions",
+      "firstPick": true,
+      "preparedFamily": "ml-positional-encoding-sinusoidal-positions",
+      "preparedId": "ml-positional-encoding-sinusoidal-positions",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-17",
+      "prompt": "An embedding lookup selects a single learned row for an input token.",
+      "depth": "brief",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-17",
+      "prompt": "An embedding lookup selects a single learned row for an input token.",
+      "depth": "balanced",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-17",
+      "prompt": "An embedding lookup selects a single learned row for an input token.",
+      "depth": "detailed",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-22",
+      "prompt": "An embedding lookup replaces each word ID with the vector in its corresponding table row.",
+      "depth": "brief",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-22",
+      "prompt": "An embedding lookup replaces each word ID with the vector in its corresponding table row.",
+      "depth": "balanced",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-22",
+      "prompt": "An embedding lookup replaces each word ID with the vector in its corresponding table row.",
+      "depth": "detailed",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-01",
+      "prompt": "A learned embedding table assigns different vectors to different words through the same lookup operation.",
+      "depth": "brief",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-01",
+      "prompt": "A learned embedding table assigns different vectors to different words through the same lookup operation.",
+      "depth": "balanced",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-01",
+      "prompt": "A learned embedding table assigns different vectors to different words through the same lookup operation.",
+      "depth": "detailed",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-54",
+      "prompt": "Each pair retrieves its input and context vectors before scoring.",
+      "depth": "brief",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-54",
+      "prompt": "Each pair retrieves its input and context vectors before scoring.",
+      "depth": "balanced",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-embeddings-embedding-table-lookups",
+      "expectedFamily": "ml-embeddings-embedding-table-lookups",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-word2vec/briefs.md#figure-54",
+      "prompt": "Each pair retrieves its input and context vectors before scoring.",
+      "depth": "detailed",
+      "firstFamily": "ml-embeddings-embedding-table-lookups",
+      "rawAuthorReferenceId": "ml-embeddings-embedding-table-lookups",
+      "firstPick": true,
+      "preparedFamily": "ml-embeddings-embedding-table-lookups",
+      "preparedId": "ml-embeddings-embedding-table-lookups",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

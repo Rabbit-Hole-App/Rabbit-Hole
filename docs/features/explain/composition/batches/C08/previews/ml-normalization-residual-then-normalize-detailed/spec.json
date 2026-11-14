@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Shift input, keep the supplied update fixed",
+    "blocks": [
+      {
+        "id": "inputs",
+        "label": "Rows: x and supplied update u",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 2,
+            "columns": 2,
+            "dimensions": "2 × 2",
+            "values": [
+              3,
+              5,
+              1,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "id": "sum",
+        "label": "$s=x+u$",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              4,
+              6
+            ]
+          }
+        }
+      },
+      {
+        "id": "output",
+        "label": "$z=(s-\\mu)/\\sigma$",
+        "diagram": {
+          "kind": "tensor",
+          "tensor": {
+            "rows": 1,
+            "columns": 2,
+            "dimensions": "1 × 2",
+            "values": [
+              -1,
+              1
+            ]
+          }
+        },
+        "role": "output"
+      }
+    ],
+    "caption": "Fixed supplied u; $x'=x+2$, $\\mu'=5,v'=1,\\sigma'=1$. Population recipe; no epsilon/affine. Same normalized output."
+  }
+}
