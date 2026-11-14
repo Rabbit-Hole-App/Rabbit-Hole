@@ -75,7 +75,8 @@ import { BAND_ROOM, anchoredBoxes, anchoredSlots, cardBox, chromeObstacles, colu
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './roadmap-canvas.js';
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
-import { BESIDE_SIDES, besideSpot, followPlace } from './beside-placement.js';
+import { BESIDE_ASSUMED_H, BESIDE_ASSUMED_W, followPlace } from './beside-placement.js';
+import { placeSourced } from './place-sourced.js';
 import { centerOnBox, clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, topView } from './canvas-view.js';
 import { dragged, holdAnchors } from './card-anchor.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
@@ -2395,7 +2396,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = 0, passage = false, follow = false }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = null, follow = false }) => {
         const id = `slot:${crypto.randomUUID()}`;
         let size = slotSize(card, BLOCK_TYPES, samples);
         // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
@@ -2403,7 +2404,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const anchor = beside || (follow && !given ? followAnchor() : null), source = anchor ? boundsRef.current[anchor] : null;
         let at = given;
         if (!at && source && follow && !beside) ({ at, size } = followPlace({ source, size, id, obstacles: boardObstacles([anchor]) }));
-        else if (!at && source) { at = besideSpot(source, size, boardObstacles([anchor]), { dy: besideDy, ...(passage ? { sides: BESIDE_SIDES.passage } : {}) }); if (at) size = { ...size, h: Math.round(source.h) }; } // CK-5: the ONE placement call of a card made from a passage
+        else if (!at && source) {
+          // CK-5 / AR-C3 (releases 144, 146): the ONE placement call of a card made from a passage (or Ask in a new card): a card made from this one stands on its RIGHT or LEFT, level with the passage (besideDy, the highlighted line's offset from the source's top) or the source's middle for Ask in a new card,
+          // chosen and slid to a free place by placeSourced (never over or moving a card); the connector is drawn from where it ends up.
+          const slot = { w: Math.max(size?.w || 0, BESIDE_ASSUMED_W), h: Math.min(Math.round(source.h), BESIDE_ASSUMED_H) };
+          const siblings = blocksRef.current.filter(entry => entry.parentCard?.id === anchor && boundsRef.current[entry.id]).map(entry => ({ box: boundsRef.current[entry.id], anchorY: boundsRef.current[entry.id].y + boundsRef.current[entry.id].h / 2 }));
+          const placed = placeSourced({ source, anchorY: Number.isFinite(besideDy) ? source.y + besideDy : null, size: slot, boxes: boardObstacles([anchor]), siblings, id, sourceId: anchor, area: null });
+          at = { x: placed.x, y: placed.y }; size = { ...size, h: slot.h };
+        }
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
