@@ -1,0 +1,29 @@
+{
+ "jobId": "ej_0e7320ceab9845f08907ae035a977335",
+ "label": "template-moon-ledge",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 17841,
+ "verdict": "fail",
+ "costUsd": 0.025422,
+ "findings": [
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "message": "The plan says the scene has no number readout and that the height scale is fixed with a marked ledge at 1.0 m. The frames show the ledge guide at y=230, which is the ball's launch position. The ground is not drawn. The ledge is therefore at the base of the scale, not at 1.0 m on it. The height axis also has no scale marks, so a learner cannot read heights. The ball pixel position is 56.67 px per m of rise, which matches the traces. But the 'marked ledge at 1.0 m' requirement is not clearly met."
+  },
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "major",
+   "message": "At launch speed 3 the ball at the top is at y=60, inside the lane that spans y=34 to 266. The callout box at y=40 to 96 fits. The fixed scale works up to speed 3. But the label 'Fastest throw' is not a maximum, because the input may allow higher speeds. Those would leave the lane. This cannot be judged from the frames."
+  },
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The motion arrow is labelled 'v' and the gravity arrow 'a'. The plan calls them Motion and Gravity arrows. Whether the gravity arrow is dashed cannot be judged from the frames. At the end, the readout shows 'Moving down' at the endpoint, which is correct. The state-word and callout text agree with the traces."
+  }
+ ]
+}

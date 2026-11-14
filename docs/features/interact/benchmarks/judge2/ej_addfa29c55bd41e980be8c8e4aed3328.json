@@ -1,0 +1,18 @@
+{
+ "jobId": "ej_addfa29c55bd41e980be8c8e4aed3328",
+ "label": "fast-brief-3",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 18012,
+ "verdict": "pass",
+ "costUsd": 0.024308,
+ "findings": [
+  {
+   "capture": "cp-top",
+   "category": "spec",
+   "severity": "minor",
+   "object": "callout.toss.l0",
+   "message": "I checked the traced numbers and they agree. Apex time is 5/9.8 = 0.5102 s and apex height is 1.2755 m. Velocity is 2.5 at 0.255 s, 0 at the top and -2.5 at 0.765 s. The fast toss gives 1.0204 s and 5.102 m, and the scrubber ranges match the layout. At the top the Motion arrow is absent and the gravity arrow is unchanged (48 px, pointing down) in every capture. This supports the Motion arrow, gravity-constant and faster-higher observations, and all four checkpoints. The ball's pixel height (about 34 px/m, so 5.1 m reaches y=60) uses a fixed scale. The only issue is a small one: the 'start' capture says 'Thrown from start' and the 'end' capture says 'Back at launch', with a downward arrow at v=-5. Neither is misleading. The scene plan says 'no number readout', and none is drawn."
+  }
+ ]
+}

@@ -1,0 +1,29 @@
+{
+ "jobId": "ej_6b34b063734c489195c3d43dc181284a",
+ "label": "fast-brief-1",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 17739,
+ "verdict": "fail",
+ "costUsd": 0.026702,
+ "findings": [
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "message": "The layout text says the default scrubber range is 0 to 1.020408 s, and the plan's own default launch speed of 5 gives a range of 0 to 1.020408 s. The scene plan's example inputs differ from this default, but the trace is consistent with itself. The more serious problem is that the vec.v and vec.a arrows in the lane show a 60 px velocity at v=5 and a fixed 48 px gravity arrow. The motion arrow at v=5 (60 px) is longer than the gravity arrow. That scaling is not wrong, but the cp-rising frame supports 'shortens' only weakly. The velocity arrow is 30 px at v=2.5, which is proportional, so it does shorten."
+  },
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "major",
+   "message": "The checkpoint is labelled 'Fastest toss' and uses launch speed 10. The apex ball is at y=60 for 5.1 m, which is a scale of about 33.3 px/m. At v=5 the apex is at 187.5, which is 42.5 px for 1.2755 m, also about 33.3 px/m. The scale is therefore fixed and the claim holds. However, the callout box at y=40 is only 20 px from the lane top at y=34, so it is close to the lane edge. This cannot be judged without pixels. If the user can enter a launch speed above 10, the ball or callout would leave the lane. That is a possible out-of-range risk."
+  },
+  {
+   "capture": "end",
+   "category": "spec",
+   "severity": "major",
+   "message": "At the endpoint the ball is back at launch height with v=-5. The readout says 'Moving down', and the state says 'Back at start'. The motion arrow points down at full length. This is consistent, but the callout still says 'Moving down' for a ball that has landed. That is a minor point and not misleading."
+  }
+ ]
+}

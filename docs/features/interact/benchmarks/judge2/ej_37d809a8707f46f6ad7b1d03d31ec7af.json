@@ -1,0 +1,35 @@
+{
+ "jobId": "ej_37d809a8707f46f6ad7b1d03d31ec7af",
+ "label": "template-deep",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 27071,
+ "verdict": "fail",
+ "costUsd": 0.036064,
+ "findings": [
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "major",
+   "message": "At launch speed 5 and gravity 6 the apex is at 0.833 s, but the scrubber range is 0 to 1.666667 s. The layout says Launch speed 5 reads 0 to 1.020408 s and Gravity 6 reads 0 to 1.333333 s, both at the default other input. For 5 m/s and 6 m/s², the full flight is 2u/g = 1.666667 s, so the range looks self-consistent. The plan's scrubber range text does not cover this combined case. The mismatch is only against the per-input examples, so this is a minor concern, not a clear error."
+  },
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "major",
+   "message": "The apex height is 2.083 m. The ruler runs 0 to 2.2 m over 175 px, so the ball should be at y = 243 − 2.0833/2.2×175 = 77.3. That matches the drawn position. However, the callout boxes sit at y = 40 to 124 and the ball is near the top of the scene. I cannot judge from frames whether any of these overlap or clip."
+  },
+  {
+   "capture": "end",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The state label reads 'Back at launch' in the lane text, but the readout row says 'Back at launch height'. The wording is inconsistent, though the meaning is the same."
+  },
+  {
+   "capture": "cp-before",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The 0.10 s before checkpoint is at t = 0.308 s with v = +0.98 m/s, which is correct. The height of 0.767 m is also correct. The velocity at t = 0 uses the 'Ready to toss' state, so the first frame shows v = +4.00 and the callout is consistent."
+  }
+ ]
+}
