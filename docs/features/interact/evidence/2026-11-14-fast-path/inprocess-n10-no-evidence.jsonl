@@ -1,0 +1,30 @@
+{"depth":"brief","i":0,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0.002343}}
+{"depth":"brief","i":1,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"brief","i":2,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"brief","i":3,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"brief","i":4,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"brief","i":5,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"brief","i":6,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"brief","i":7,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"brief","i":8,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"brief","i":9,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"balanced","i":0,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"balanced","i":1,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"balanced","i":2,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"balanced","i":3,"stage":"failed","fast":{"kind":"opus","model":"gemini-3.5-flash-lite","calls":2,"fallback":"after_correction","firstProblem":"scene.quantities.9.formulaAfter quantity \"dropHeight\" formulaAfter: this formula needs 33 nodes; at most 32 (simplify it or split it into quantities)","costUsd":0.00321,"lastProblem":"scene.quantities.7.switchAt quantity \"dropVelocity\" switchAt: unknown name \"apexTime\" at character 1; readable: launchSpeed, gravity"}}
+{"depth":"balanced","i":4,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"balanced","i":5,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"balanced","i":6,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"balanced","i":7,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"balanced","i":8,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"balanced","i":9,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"detailed","i":0,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0.002998}}
+{"depth":"detailed","i":1,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"detailed","i":2,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"detailed","i":3,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"detailed","i":4,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"detailed","i":5,"stage":"failed","fast":{"kind":"opus","model":"gemini-3.5-flash-lite","calls":2,"fallback":"after_correction","firstProblem":"mode.timeline.markers.0.time a time before 0 is outside the elapsed timeline","costUsd":0.003222,"lastProblem":"mode.timeline.markers.0.time a time before 0 is outside the elapsed timeline"}}
+{"depth":"detailed","i":6,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"detailed","i":7,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"detailed","i":8,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
+{"depth":"detailed","i":9,"stage":"awaiting_approval","fast":{"kind":"fast","model":"gemini-3.5-flash-lite","calls":1,"fallback":"none","firstProblem":null,"costUsd":0}}
