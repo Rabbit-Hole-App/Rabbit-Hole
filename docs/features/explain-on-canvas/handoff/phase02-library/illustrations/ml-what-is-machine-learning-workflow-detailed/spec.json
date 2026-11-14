@@ -12,6 +12,6 @@
       "Evaluate",
       "Deploy / Monitor"
     ],
-    "caption": "Illustrative. $7-1=6$ forward links. Evaluate revisits features if weak; Monitor revisits data if performance drops."
+    "caption": "Illustrative. $7-1=6$ forward links between displayed cards. Closing arrow returns Deploy / Monitor to Collect Data."
   }
 }

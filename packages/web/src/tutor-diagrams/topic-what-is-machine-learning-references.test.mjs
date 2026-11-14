@@ -240,6 +240,7 @@ test('workflow counts match rendered cards and split labels follow recomputed ar
   assert.strictEqual(renderedCount - 1, forwardCount);
   assert.deepStrictEqual(ref.depths.deep.spec.diagram.steps, renderedSteps);
   assert.ok(ref.depths.deep.spec.diagram.caption.includes(`$${renderedCount}-1=${forwardCount}$`));
+  assert.strictEqual(ref.depths.deep.spec.diagram.caption, `Illustrative. $${renderedCount}-1=${forwardCount}$ forward links between displayed cards. Closing arrow returns ${renderedSteps.at(-1)} to ${renderedSteps[0]}.`);
   w.feedback.forEach(e => [e.from, e.to, e.condition].forEach(s => assert.ok(ref.spec.diagram.caption.includes(s))));
   const split = b2Ref(b2Ids[1]), percentages = d.split.weights.map(v => 10 ** 2 * v / b2Sum(d.split.weights));
   assert.deepStrictEqual(d.split.percentages, percentages);

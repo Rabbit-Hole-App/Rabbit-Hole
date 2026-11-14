@@ -134,7 +134,7 @@ function b2Workflow(depth) {
   const caption = depth === 'overview'
     ? 'Illustrative. Improve features after weak evaluation; collect fresh data when monitoring shows drift.'
     : depth === 'deep'
-      ? `Illustrative. $${b2WorkflowCounts.renderedSteps}-1=${b2WorkflowCounts.forwardLinks}$ forward links. Evaluate revisits features if weak; Monitor revisits data if performance drops.`
+      ? `Illustrative. $${b2WorkflowCounts.renderedSteps}-1=${b2WorkflowCounts.forwardLinks}$ forward links between displayed cards. Closing arrow returns Deploy / Monitor to Collect Data.`
       : 'Illustrative. Evaluate returns to Feature Engineering if not good enough; Monitor returns to Collect Data if performance drops.';
   return { title: 'The ML workflow repeats', kind: 'cycle', steps, caption };
 }
