@@ -1,0 +1,177 @@
+{
+  "sdk": "sdk-8",
+  "limits": {
+    "objects": 60,
+    "sourceBytes": 16384,
+    "manifestBytes": 4096,
+    "pointsPerObject": 2000,
+    "pointsTotal": 10000
+  },
+  "cases": 92,
+  "rows": [
+    {
+      "subject": "merge-sort",
+      "depth": "brief",
+      "stateCounts": [
+        4
+      ],
+      "cases": 4,
+      "svgMarks": 64,
+      "primitiveFrameEstimate": 64,
+      "pictureMarks": 53,
+      "pictureFrameEstimate": 53,
+      "polylinePoints": 43,
+      "pointsOnOnePath": 5,
+      "calloutLines": 5,
+      "compactVariantBytes": 2170
+    },
+    {
+      "subject": "merge-sort",
+      "depth": "balanced",
+      "stateCounts": [
+        6,
+        6
+      ],
+      "cases": 12,
+      "svgMarks": 77,
+      "primitiveFrameEstimate": 77,
+      "pictureMarks": 55,
+      "pictureFrameEstimate": 55,
+      "polylinePoints": 49,
+      "pointsOnOnePath": 5,
+      "calloutLines": 5,
+      "compactVariantBytes": 6770
+    },
+    {
+      "subject": "merge-sort",
+      "depth": "detailed",
+      "stateCounts": [
+        8,
+        8
+      ],
+      "cases": 16,
+      "svgMarks": 100,
+      "primitiveFrameEstimate": 100,
+      "pictureMarks": 55,
+      "pictureFrameEstimate": 55,
+      "polylinePoints": 69,
+      "pointsOnOnePath": 5,
+      "calloutLines": 9,
+      "compactVariantBytes": 8472
+    },
+    {
+      "subject": "tcp-handshake",
+      "depth": "brief",
+      "stateCounts": [
+        3
+      ],
+      "cases": 3,
+      "svgMarks": 29,
+      "primitiveFrameEstimate": 26,
+      "pictureMarks": 20,
+      "pictureFrameEstimate": 17,
+      "polylinePoints": 14,
+      "pointsOnOnePath": 4,
+      "calloutLines": 4,
+      "compactVariantBytes": 2479
+    },
+    {
+      "subject": "tcp-handshake",
+      "depth": "balanced",
+      "stateCounts": [
+        5,
+        6
+      ],
+      "cases": 11,
+      "svgMarks": 48,
+      "primitiveFrameEstimate": 45,
+      "pictureMarks": 25,
+      "pictureFrameEstimate": 22,
+      "polylinePoints": 31,
+      "pointsOnOnePath": 6,
+      "calloutLines": 4,
+      "compactVariantBytes": 9400
+    },
+    {
+      "subject": "tcp-handshake",
+      "depth": "detailed",
+      "stateCounts": [
+        6,
+        8
+      ],
+      "cases": 14,
+      "svgMarks": 71,
+      "primitiveFrameEstimate": 69,
+      "pictureMarks": 25,
+      "pictureFrameEstimate": 22,
+      "polylinePoints": 48,
+      "pointsOnOnePath": 6,
+      "calloutLines": 7,
+      "compactVariantBytes": 12016
+    },
+    {
+      "subject": "mitosis",
+      "depth": "brief",
+      "stateCounts": [
+        4
+      ],
+      "cases": 4,
+      "svgMarks": 70,
+      "primitiveFrameEstimate": 67,
+      "pictureMarks": 59,
+      "pictureFrameEstimate": 56,
+      "polylinePoints": 124,
+      "pointsOnOnePath": 15,
+      "calloutLines": 5,
+      "compactVariantBytes": 4978
+    },
+    {
+      "subject": "mitosis",
+      "depth": "balanced",
+      "stateCounts": [
+        6,
+        6
+      ],
+      "cases": 12,
+      "svgMarks": 112,
+      "primitiveFrameEstimate": 107,
+      "pictureMarks": 88,
+      "pictureFrameEstimate": 83,
+      "polylinePoints": 174,
+      "pointsOnOnePath": 15,
+      "calloutLines": 5,
+      "compactVariantBytes": 18102
+    },
+    {
+      "subject": "mitosis",
+      "depth": "detailed",
+      "stateCounts": [
+        8,
+        8
+      ],
+      "cases": 16,
+      "svgMarks": 165,
+      "primitiveFrameEstimate": 158,
+      "pictureMarks": 116,
+      "pictureFrameEstimate": 109,
+      "polylinePoints": 230,
+      "pointsOnOnePath": 15,
+      "calloutLines": 9,
+      "compactVariantBytes": 24833
+    }
+  ],
+  "probes": {
+    "frameOverCapRejected": true,
+    "refusedStyleKeys": [
+      "dashed",
+      "size",
+      "fill"
+    ],
+    "calloutRequestedLines": 9,
+    "calloutReturnedLines": 4,
+    "neutralCircleIsBody": true,
+    "indexItemsWithoutVariant": 5,
+    "indexItemsWithVariant": 5
+  },
+  "interpretation": "Primitive lowering estimate, not a proof against every possible semantic encoding. Full variant bytes are naive payload size, not optimized program source."
+}
