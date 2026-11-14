@@ -43,12 +43,12 @@ test('HL-1: Ctrl+K over those words runs the command with the draft (the job com
   const started = [], posts = [];
   const canvas = { startExplain: async (words, options) => { started.push([words, options.sourceRef ?? null]); return { blockId: 'ex-1' }; }, reserve: () => 'slot', release: () => {} };
   const post = async (path, body) => { posts.push([path, body]); return { ref: REF }; };
-  const out = await runLearnCommand('/interactive why impurity', { app: 'demo', target: { id: 'file-1', kind: 'card', title: 'notes', text: 'x', sourceDraft }, canvas, post });
+  const out = await runLearnCommand('/interactive why impurity', { app: 'demo', internal: true, target: { id: 'file-1', kind: 'card', title: 'notes', text: 'x', sourceDraft }, canvas, post }) /* internal: main's SLASH_FLAGS turned /interactive off for a person; the command's draft and ref handling is what is under test */;
   assert.equal(out.notice.blockId, 'ex-1');
   assert.deepEqual(posts, [['/api/learn/source-refs', sourceDraft]]);
   assert.deepEqual(started, [['why impurity', REF.id]]);
   const stale = async () => { throw Object.assign(new Error('changed'), { status: 409, data: { code: 'source_changed' } }); };
-  const refused = await runLearnCommand('/interactive why impurity', { app: 'demo', target: { id: 'file-1', text: 'x', sourceDraft }, canvas, post: stale });
+  const refused = await runLearnCommand('/interactive why impurity', { app: 'demo', internal: true, target: { id: 'file-1', text: 'x', sourceDraft }, canvas, post: stale });
   assert.equal(refused.notice.tone, 'error');
   assert.equal(started.length, 1, 'nothing was made');
 });
