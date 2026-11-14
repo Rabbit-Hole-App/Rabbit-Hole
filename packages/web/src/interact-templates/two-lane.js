@@ -2,21 +2,15 @@ import { J, head } from './shared.js';
 
 // Template two-lane: a first body that is thrown up and a second body held at the first one's top height until its top, then released, in two lanes on one shared height axis; each body has a
 // velocity arrow, an acceleration arrow (none while the quantity is zero) and a callout of its two readings; a gate holds the second body. scene.slots = { <firstLane>: { height, velocity, acceleration },
-// <secondLane>: {...} } with the plan's own two lane names (for example toss and drop): the lane names make the frame ids (lane.<name>, ball.<name>, vec.v.<name>, callout.<name>, gate.<name>) and, capitalised,
-// the lane headings. The second body's quantities are the plan's piecewise formulas (held, then free fall), so the template never computes the release itself: it reads them. The words are the template's.
+// <secondLane>: {...} } with the plan's own two lane names (for example toss and drop): the lane names make the frame ids (lane.<name>, ball.<name>, vec.v.<name>, callout.<name>, gate.<name>); the headings are the plan's words. The second body's quantities are the plan's piecewise formulas (held, then free fall), so the template never computes the release itself: it reads them. The words are the plan's (scene.words).
 export const roles = Object.freeze(['height', 'velocity', 'acceleration']);
 
-export const words = Object.freeze({
-  first: { where: { launch: 'At launch', top: 'At the top', end: 'At launch height', up: 'Rising', down: 'Falling' } },
-  second: { where: { held: 'Held in place', released: 'Just released', end: 'At launch height', falling: 'Falling together' } },
-  launch: 'Launch height', axis: { label: 'Height' }, v: 'v', a: 'a',
-  states: {},
-});
+// No state readouts: the two lane state lines are sdk.panel text.
+export const states = () => ({});
 
 // Both lanes, in the plan's order: the first rises, the second is the held body.
 export const normalize = slots => slots;
 export const lanesOf = slots => Object.keys(slots);
-const title = name => name.charAt(0).toUpperCase() + name.slice(1);
 
 const ceilTo = (value, step) => Number((Math.ceil(value / step - 1e-9) * step).toFixed(9));
 // The fewest ticks that stay readable: the smallest step from the list that gives at most six.
@@ -33,10 +27,10 @@ export const geometry = range => {
 export function source(ctx) {
   const { slots, geometry: geo } = ctx, [first, second] = lanesOf(slots), toss = slots[first], drop = slots[second];
   return head(ctx, toss) + String.raw`
-const W = ${J(words)};
+const W = ${J(ctx.words)};
 const U = ${J(ctx.units)};
 const READOUTS = ${J(ctx.readoutIds)};
-const A = ${J(first)}, B = ${J(second)}, TITLE = ${J({ [first]: title(first), [second]: title(second) })}, DROP = ${J(drop)};
+const A = ${J(first)}, B = ${J(second)}, TITLE = ${J({ [first]: ctx.words.lane.first, [second]: ctx.words.lane.second })}, DROP = ${J(drop)};
 export function evaluate({ inputs, time }) {
   const m = motion(inputs, time), atTop = Math.abs(m.tau) < EPS, qs = quantities(inputs, time), base = Q[${J(toss.height)}](inputs, 0);
   const FLOOR = ${J(geo.floor)}, S = ${J(geo.scale)}, R = 15, LANE_W = ${J(geo.laneW)}, LANE_X = ${J(geo.laneX)}, OFFSET = ${J(geo.offset)}, released = m.tau >= -EPS, peakY = FLOOR - m.peak * S;

@@ -1,22 +1,16 @@
 import { J, head } from './shared.js';
 
 // Template one-body: one body moving along a vertical in one lane, a velocity arrow beside it, a constant-length acceleration arrow, a callout naming the motion, and the launch-height guide.
-// roles: the quantities it reads (scene.slots): height, velocity, acceleration (the top is found from the velocity formula). The words are the template's (the plan holds no lane or state wording); the program and the plan
-// supply every number. Frame ids follow the renderer's conventions (frame-look.js): lane.toss, ball.toss, vec.v, vec.a, callout.toss.
+// roles: the quantities it reads (scene.slots): height, velocity, acceleration (the top is found from the velocity formula). The plan supplies every word (scene.words) and every number. Frame ids follow the renderer's conventions (frame-look.js): lane.toss, ball.toss, vec.v, vec.a, callout.toss.
 export const roles = Object.freeze(['height', 'velocity', 'acceleration']);
 
 export const normalize = slots => slots;
 export const lanesOf = () => [];
 
-export const words = Object.freeze({
-  lane: 'One toss', launch: 'Launch height', gravity: { pulls: 'Gravity pulls down', none: 'No pull' },
-  motion: { up: 'Moving up', top: 'Still for an instant', down: 'Moving down' },
-  where: { launch: 'At launch', top: 'At the top', end: 'Back at launch height', up: 'Rising', down: 'Falling' },
-  // the state readouts this template knows how to report (id -> the manifest definition)
-  states: {
-    motionState: { label: 'Motion', kind: 'state', labels: ['Moving up', 'Still for an instant', 'Moving down'], decimals: 0 },
-    gravityState: { label: 'Gravity', kind: 'state', labels: ['Gravity pulls down', 'No pull'], decimals: 0 },
-  },
+// The state readouts this template knows how to report (id -> the manifest definition), worded by the plan's scene.words (interact-formula.js TEMPLATE_WORDS; the template holds no wording).
+export const states = W => ({
+  motionState: { label: W.readout.motion, kind: 'state', labels: [W.motion.up, W.motion.top, W.motion.down], decimals: 0 },
+  gravityState: { label: W.readout.gravity, kind: 'state', labels: [W.gravity.pulls, W.gravity.none], decimals: 0 },
 });
 
 // Geometry: a 640 x 280 frame (the contract's own card size, text drawn 1:1 at the legibility floors, never scaled up), one lane across it, 150 px per metre unless the plan's highest rise needs less so
@@ -27,7 +21,7 @@ export const geometry = range => ({ width: 640, height: 280, scale: Math.min(150
 export function source(ctx) {
   const { slots, geometry: geo } = ctx;
   return head(ctx, slots) + String.raw`
-const W = ${J(words)};
+const W = ${J(ctx.words)};
 const READOUTS = ${J(ctx.readoutIds)};
 export function evaluate({ inputs, time }) {
   const m = motion(inputs, time), atTop = Math.abs(m.tau) < EPS, qs = quantities(inputs, time);

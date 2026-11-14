@@ -1,6 +1,6 @@
 // What every template program shares (the programs are generated source for the sandboxed QuickJS engine, sdk-8 helpers only): the number format, the kinematic read-out of one body from the plan's own
 // formulas, and the JSON a template embeds so no word or number the plan or the template owns is typed inside drawing code.
-// A template module exports { roles, words, source(ctx) }; generate.js (generateProgram) builds ctx from the approved plan and calls it. Product code, derived from the hand-written toss programs the owner
+// A template module exports { roles, states(W), source(ctx) }; generate.js (generateProgram) builds ctx from the approved plan and calls it. Product code, derived from the hand-written toss programs the owner
 // approved on canvas (interact-toss-programs.js stays as that reference, and the tests prove frame equality against it).
 
 export const J = value => JSON.stringify(value);
