@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "Match the loss to the output",
+    "columns": [
+      "Output",
+      "Loss"
+    ],
+    "rows": [
+      {
+        "heading": "Classification",
+        "cells": [
+          "Category",
+          "Cross-entropy"
+        ]
+      },
+      {
+        "heading": "Regression",
+        "cells": [
+          "Real target",
+          "$\\mathrm{MSE}=0.75$"
+        ]
+      }
+    ],
+    "caption": "Illustrative tasks; regression uses $\\mathrm{MSE}=\\sum_i(y_i-\\hat y_i)^2/n$ on toy targets."
+  }
+}

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { celerisExplainOn, celerisExplainRoute, ASKS_FOR_DIAGRAM, exclusiveOneOfToAnyOf } from '../src/explain-celeris-dev.js';
-import { tutorDiagramJsonSchema, parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
+import { tutorDiagramAuthorJsonSchema, parseTutorDiagram } from '../../web/src/tutor-diagrams/spec.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { withVisual } from './explanation-layout-fixture.js';
 
@@ -77,10 +77,10 @@ test('an explicit diagram request makes the field required; an invalid diagram t
 });
 
 test('oneOf is rewritten to anyOf only where its branches are mutually exclusive; the real diagram schema qualifies and what comes back is still checked by the original RH parser', () => {
-  const rewritten = exclusiveOneOfToAnyOf(tutorDiagramJsonSchema);
+  const rewritten = exclusiveOneOfToAnyOf(tutorDiagramAuthorJsonSchema);
   const text = JSON.stringify(rewritten);
   assert.ok(!text.includes('"oneOf"') && rewritten.properties.diagram.anyOf.length === 24, 'the 24 kind branches become anyOf');
-  assert.ok(JSON.stringify(tutorDiagramJsonSchema).includes('"oneOf"'), 'the original is untouched');
+  assert.ok(JSON.stringify(tutorDiagramAuthorJsonSchema).includes('"oneOf"'), 'the original is untouched');
   const kinds = rewritten.properties.diagram.anyOf.map(branch => branch.properties.kind.const);
   assert.equal(new Set(kinds).size, 24, 'each branch is pinned to its own kind');
   assert.throws(() => exclusiveOneOfToAnyOf({ oneOf: [{ type: 'object', properties: { kind: { const: 'a' } } }, { type: 'object', properties: { kind: { const: 'a' } } }] }), /not mutually exclusive/, 'two branches with one kind');

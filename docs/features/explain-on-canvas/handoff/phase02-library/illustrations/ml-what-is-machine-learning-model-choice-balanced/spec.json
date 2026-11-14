@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "flow",
+    "title": "Rules or learning?",
+    "caption": "Illustrative guide; model needs follow below.",
+    "nodes": [
+      {
+        "id": "a",
+        "role": "decision",
+        "label": "Have data?"
+      },
+      {
+        "id": "b",
+        "role": "decision",
+        "label": "Can write rules?"
+      },
+      {
+        "id": "c",
+        "role": "decision",
+        "label": "Is error cost acceptable?"
+      },
+      {
+        "id": "d",
+        "role": "outcome",
+        "label": "Collect data or use rules"
+      },
+      {
+        "id": "e",
+        "role": "outcome",
+        "label": "Use explicit rules"
+      },
+      {
+        "id": "f",
+        "role": "outcome",
+        "label": "Use deterministic methods"
+      },
+      {
+        "id": "g",
+        "role": "outcome",
+        "label": "Check model needs"
+      }
+    ],
+    "edges": [
+      {
+        "from": "a",
+        "to": "d",
+        "label": "No"
+      },
+      {
+        "from": "a",
+        "to": "b",
+        "label": "Yes"
+      },
+      {
+        "from": "b",
+        "to": "e",
+        "label": "Yes"
+      },
+      {
+        "from": "b",
+        "to": "c",
+        "label": "No"
+      },
+      {
+        "from": "c",
+        "to": "f",
+        "label": "No"
+      },
+      {
+        "from": "c",
+        "to": "g",
+        "label": "Yes"
+      }
+    ]
+  }
+}

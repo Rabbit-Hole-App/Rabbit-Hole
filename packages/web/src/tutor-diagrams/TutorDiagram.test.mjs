@@ -13,7 +13,7 @@ import kindGallery from './kind-gallery.json' with { type: 'json' };
 const fixtures = JSON.parse(readFileSync(new URL('./examples.json', import.meta.url), 'utf8'));
 for (const kind of ['heatmap', 'sample-set', 'histogram', 'box-plot']) fixtures.push(diagramReferences.find(r => r.spec.diagram.kind === kind).spec);
 
-fixtures.push(...kindGallery.filter(spec => ILLUSTRATION_KINDS.includes(spec.diagram.kind)));
+fixtures.push(...kindGallery.filter(spec => ILLUSTRATION_KINDS.includes(spec.diagram.kind) || spec.diagram.kind === 'panels'));
 
 test('every fixture renders deterministically, with a readable SVG and the shared surface', () => {
   const shapes = tutorDiagramJsonSchema.properties.diagram;

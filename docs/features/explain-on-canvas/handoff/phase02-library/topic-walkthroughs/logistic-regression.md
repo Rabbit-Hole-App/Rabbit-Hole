@@ -112,13 +112,13 @@ The plotted endpoints satisfy the boundary equation. The clusters are illustrati
 
 ## Softmax normalizes class scores
 
-`ml-logistic-regression-softmax` · `bar-chart`
+`ml-logistic-regression-softmax` · `panels`
 
-- **Brief** — Shows only the normalized class probabilities. [Preview](../illustrations/ml-logistic-regression-softmax-brief/408.svg)
-- **Balanced** — Groups raw scores and probabilities by class. [Preview](../illustrations/ml-logistic-regression-softmax/408.svg)
-- **Detailed** — Adds normalization arithmetic in the caption. [Preview](../illustrations/ml-logistic-regression-softmax-detailed/408.svg)
+- **Brief** — Two panels joined by a softmax arrow: the raw scores, then one stacked bar of the probabilities whose whole is $1$. [Preview](../illustrations/ml-logistic-regression-softmax-brief/408.svg)
+- **Balanced** — Three panels: the raw scores, their exponentials (sum $11.21$), then the stacked probabilities, joined by exp(z) and ÷ 11.21. [Preview](../illustrations/ml-logistic-regression-softmax/408.svg)
+- **Detailed** — The same three panels with the formula in the caption, and a second figure with every score raised by $1$. [Preview](../illustrations/ml-logistic-regression-softmax-detailed/408.svg)
 
-The illustrative scores are $(2,1,0)$. Softmax computes $p_k=e^{z_k}/Σ_j e^{z_j}$. The rounded denominator is $11.107$, and the displayed probabilities are approximately $(0.665,0.245,0.090)$. The unrounded distribution sums to $1$. Class $0$ has both the largest score and largest probability. The grouped chart labels the raw-score and probability series separately; neither series is a case count.
+The illustrative scores are $(2,1,0.1)$. Softmax computes $p_k=e^{z_k}/Σ_j e^{z_j}$. The exponentials are approximately $(7.39,2.72,1.11)$ with sum $11.21$, and the probabilities are approximately $(0.66,0.24,0.10)$, which add up to $1$. Class $0$ has both the largest score and the largest probability. Raising every score by $1$ gives exponentials $(20.09,7.39,3.00)$ with sum $30.48$ and the same probabilities, because every exponential is multiplied by $e$. The classes keep one colour across the panels; no panel is a case count.
 
 ## High accuracy can hide complete positive-class failure
 

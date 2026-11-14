@@ -293,5 +293,60 @@
         }
       ]
     }
+  },
+  {
+    "version": 1,
+    "diagram": {
+      "kind": "panels",
+      "title": "Library loans as shares",
+      "panels": [
+        {
+          "label": "Loans",
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "Library loans",
+            "unit": "books",
+            "bars": [
+              {
+                "label": "Monday",
+                "value": 12
+              },
+              {
+                "label": "Tuesday",
+                "value": 18
+              }
+            ]
+          }
+        },
+        {
+          "label": "Shares",
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "Share of loans",
+            "unit": "share",
+            "bars": [
+              {
+                "label": "Monday",
+                "value": 0.4
+              },
+              {
+                "label": "Tuesday",
+                "value": 0.6
+              }
+            ]
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": 0,
+          "to": 1,
+          "operation": "divide by 30"
+        }
+      ],
+      "shared": [
+        "classes"
+      ]
+    }
   }
 ]

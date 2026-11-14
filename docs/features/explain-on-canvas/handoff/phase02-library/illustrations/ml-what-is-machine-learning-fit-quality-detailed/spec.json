@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "diagram": {
+    "title": "Fits on the same training points",
+    "kind": "coordinate-plot",
+    "x": {
+      "label": "Input feature",
+      "min": 0,
+      "max": 2
+    },
+    "y": {
+      "label": "Response",
+      "min": 0,
+      "max": 7
+    },
+    "series": [
+      {
+        "label": "Underfit",
+        "kind": "line",
+        "samples": {
+          "x": [
+            0,
+            2
+          ],
+          "y": [
+            1,
+            6
+          ]
+        }
+      },
+      {
+        "label": "Good fit",
+        "kind": "line",
+        "smooth": true,
+        "samples": {
+          "x": [
+            0,
+            1,
+            2
+          ],
+          "y": [
+            1,
+            2.25,
+            4
+          ]
+        }
+      },
+      {
+        "label": "Overfit",
+        "kind": "line",
+        "samples": {
+          "x": [
+            0,
+            0.5,
+            1,
+            1.5,
+            2
+          ],
+          "y": [
+            1.25,
+            3.625,
+            2,
+            1.125,
+            4.25
+          ]
+        }
+      },
+      {
+        "label": "Observed",
+        "kind": "scatter",
+        "samples": {
+          "x": [
+            0,
+            1,
+            2
+          ],
+          "y": [
+            1.25,
+            2,
+            4.25
+          ]
+        }
+      }
+    ],
+    "caption": "Illustrative subset. A good-fit squared residual: $(1.25-1)^2=0.0625$."
+  }
+}

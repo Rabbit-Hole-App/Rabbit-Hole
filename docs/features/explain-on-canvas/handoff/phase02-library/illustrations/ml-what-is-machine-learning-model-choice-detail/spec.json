@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "flow",
+    "title": "Choose the model family",
+    "caption": "Illustrative guide. Non-strict explanation needs permit ML.",
+    "nodes": [
+      {
+        "id": "a",
+        "role": "decision",
+        "label": "Do you need explainability?"
+      },
+      {
+        "id": "b",
+        "role": "outcome",
+        "label": "Use interpretable models"
+      },
+      {
+        "id": "c",
+        "role": "decision",
+        "label": "Have labeled data?"
+      },
+      {
+        "id": "d",
+        "role": "outcome",
+        "label": "Use supervised learning"
+      },
+      {
+        "id": "e",
+        "role": "outcome",
+        "label": "Use semi-supervised learning"
+      },
+      {
+        "id": "f",
+        "role": "outcome",
+        "label": "Use unsupervised or self-supervised"
+      }
+    ],
+    "edges": [
+      {
+        "from": "a",
+        "to": "b",
+        "label": "Strictly"
+      },
+      {
+        "from": "a",
+        "to": "c",
+        "label": "Not strictly"
+      },
+      {
+        "from": "c",
+        "to": "d",
+        "label": "Enough"
+      },
+      {
+        "from": "c",
+        "to": "e",
+        "label": "Some"
+      },
+      {
+        "from": "c",
+        "to": "f",
+        "label": "None"
+      }
+    ]
+  }
+}
