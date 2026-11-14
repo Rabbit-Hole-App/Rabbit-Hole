@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "panels",
+    "title": "Check the linear readout over all masks",
+    "caption": "Worked example. 4 equally likely masks; averaging matches inference for this linear readout.",
+    "panels": [
+      {
+        "diagram": {
+          "kind": "bar-chart",
+          "title": "Outputs by mask",
+          "bars": [
+            {
+              "label": "None",
+              "value": 1
+            },
+            {
+              "label": "A only",
+              "value": 7
+            },
+            {
+              "label": "B only",
+              "value": 5
+            },
+            {
+              "label": "Both",
+              "value": 11
+            }
+          ]
+        }
+      },
+      {
+        "diagram": {
+          "kind": "bar-chart",
+          "title": "Expected output",
+          "bars": [
+            {
+              "label": "Mask mean",
+              "value": 6
+            },
+            {
+              "label": "Inference",
+              "value": 6
+            }
+          ]
+        }
+      }
+    ],
+    "links": [
+      {
+        "from": 0,
+        "to": 1,
+        "operation": "Average masks"
+      }
+    ]
+  }
+}

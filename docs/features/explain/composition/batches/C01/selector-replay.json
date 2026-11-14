@@ -1,0 +1,242 @@
+{
+  "version": 1,
+  "baseline": "1944b48cf24c9d6bd7f53b34ddbe258d1c6113df",
+  "method": "Offline prior-pick parity with deterministic source-kind JEV plans",
+  "baselineReferences": 446,
+  "priorCases": 2649,
+  "baselineCasesSha256": "36267526a3571c681fe17b1cae37458d8dc71492888b6cc5a4f37d59a0afa120",
+  "unchangedPriorReferencePayloads": true,
+  "passed": true,
+  "changedPriorPicks": [],
+  "collisions": [],
+  "rows": [
+    {
+      "id": "c01-1",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "brief",
+      "firstHit": "ml-linear-regression-linear-unit",
+      "referenceId": "ml-linear-regression-linear-unit",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-1",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "balanced",
+      "firstHit": "ml-linear-regression-linear-unit",
+      "referenceId": "ml-linear-regression-linear-unit",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-1",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "detailed",
+      "firstHit": "ml-linear-regression-linear-unit",
+      "referenceId": "ml-linear-regression-linear-unit",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-2",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "brief",
+      "firstHit": "ml-neural-networks-hidden-layer",
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-2",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "balanced",
+      "firstHit": "ml-neural-networks-hidden-layer",
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-2",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "detailed",
+      "firstHit": "ml-neural-networks-hidden-layer",
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-3",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "brief",
+      "firstHit": "ml-regularization-regularized-objective",
+      "referenceId": "ml-regularization-regularized-objective",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-3",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "balanced",
+      "firstHit": "ml-regularization-regularized-objective",
+      "referenceId": "ml-regularization-regularized-objective",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-3",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "detailed",
+      "firstHit": "ml-regularization-regularized-objective",
+      "referenceId": "ml-regularization-regularized-objective",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-4",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "brief",
+      "firstHit": "ml-regularization-dropout-mask",
+      "referenceId": "ml-regularization-dropout-mask",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-4",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "balanced",
+      "firstHit": "ml-regularization-dropout-mask",
+      "referenceId": "ml-regularization-dropout-mask",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c01-4",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "detailed",
+      "firstHit": "ml-regularization-dropout-mask",
+      "referenceId": "ml-regularization-dropout-mask",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask",
+          "kind": "panels"
+        }
+      ]
+    }
+  ]
+}
