@@ -1,0 +1,1412 @@
+{
+  "version": 1,
+  "topic": "recurrent-networks",
+  "fixture": false,
+  "threshold": 0.8,
+  "hits": 60,
+  "total": 60,
+  "firstPickRate": 1,
+  "passed": true,
+  "byDepth": [
+    {
+      "depth": "brief",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "balanced",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    },
+    {
+      "depth": "detailed",
+      "hits": 20,
+      "total": 20,
+      "firstPickRate": 1
+    }
+  ],
+  "prompts": [
+    {
+      "id": "ml-recurrent-training-gradient-horizons",
+      "prompt": "Truncating backpropagation trades a shorter gradient path for less direct training signal from distant steps.",
+      "referenceId": "ml-recurrent-training-gradient-horizons",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Compare gradient segment horizons without resetting recurrent state.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare gradient segment horizons without resetting recurrent state.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare gradient segment horizons without resetting recurrent state.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show forward versus detach at a fixed cutoff.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show forward versus detach at a fixed cutoff.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show forward versus detach at a fixed cutoff.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do sampled gradient segment horizons differ?",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do sampled gradient segment horizons differ?",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do sampled gradient segment horizons differ?",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace forward versus detach for the final recurrent loss.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace forward versus detach for the final recurrent loss.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace forward versus detach for the final recurrent loss.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Contrast short and long gradient segment horizons.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Contrast short and long gradient segment horizons.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "timeline"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "timeline",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "timeline",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Contrast short and long gradient segment horizons.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-training-gradient-horizons",
+          "firstReferenceId": "ml-recurrent-training-gradient-horizons",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-gradient-horizons"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-gradient-horizons",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-recurrent-training-shared-parameter-gradients",
+      "prompt": "Unrolling recurrence exposes all time steps whose losses contribute gradients to shared parameters.",
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Show loss state dependencies for a shared recurrent weight.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show loss state dependencies for a shared recurrent weight.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show loss state dependencies for a shared recurrent weight.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do shared gradient uses add across time?",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do shared gradient uses add across time?",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "How do shared gradient uses add across time?",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace loss state dependencies before summing parameter gradients.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace loss state dependencies before summing parameter gradients.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace loss state dependencies before summing parameter gradients.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show shared gradient uses with two prediction losses.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show shared gradient uses with two prediction losses.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show shared gradient uses with two prediction losses.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which prior states receive the later loss in loss state dependencies?",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which prior states receive the later loss in loss state dependencies?",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Which prior states receive the later loss in loss state dependencies?",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-training-shared-parameter-gradients",
+          "firstReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-training-shared-parameter-gradients"
+          ],
+          "plannedKinds": [
+            "heatmap"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "heatmap",
+            "source": "reference",
+            "id": "ml-recurrent-training-shared-parameter-gradients",
+            "referenceKind": "heatmap",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-recurrent-networks-recurrent-update",
+      "prompt": "The same recurrent rule updates the state from the previous state and the new input at every step.",
+      "referenceId": "ml-recurrent-networks-recurrent-update",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Explain an activated recurrent update with two fresh inputs.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain an activated recurrent update with two fresh inputs.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain an activated recurrent update with two fresh inputs.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace fresh input readout through a shared recurrent cell.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace fresh input readout through a shared recurrent cell.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace fresh input readout through a shared recurrent cell.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Where does ReLU act in an activated recurrent update?",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Where does ReLU act in an activated recurrent update?",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Where does ReLU act in an activated recurrent update?",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare both fresh input readout steps with state handoff.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare both fresh input readout steps with state handoff.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare both fresh input readout steps with state handoff.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show activation before readout in an activated recurrent update.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "block-stack"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "block-stack",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "block-stack",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show activation before readout in an activated recurrent update.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show activation before readout in an activated recurrent update.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-networks-recurrent-update",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-update",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-update"
+          ],
+          "plannedKinds": [
+            "coordinate-plot"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "coordinate-plot",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-update",
+            "referenceKind": "coordinate-plot",
+            "score": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "ml-recurrent-networks-recurrent-next-token-training",
+      "prompt": "A next-token objective can teach a recurrent text model useful internal representations.",
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "hits": 15,
+      "total": 15,
+      "firstPickRate": 1,
+      "byDepth": [
+        {
+          "depth": "brief",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "balanced",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        },
+        {
+          "depth": "detailed",
+          "hits": 5,
+          "total": 5,
+          "firstPickRate": 1
+        }
+      ],
+      "cases": [
+        {
+          "paraphrase": "Explain recurrent prefix supervision with shifted observed targets.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain recurrent prefix supervision with shifted observed targets.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Explain recurrent prefix supervision with shifted observed targets.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do teacher forced states use observed words after a guess?",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do teacher forced states use observed words after a guess?",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Why do teacher forced states use observed words after a guess?",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show a hidden representation receiving recurrent prefix supervision.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show a hidden representation receiving recurrent prefix supervision.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Show a hidden representation receiving recurrent prefix supervision.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace two teacher forced states and their next-token predictions.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace two teacher forced states and their next-token predictions.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Trace two teacher forced states and their next-token predictions.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare a sampled guess with the observed input in teacher forced states.",
+          "depth": "brief",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "matrix"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "matrix",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "matrix",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare a sampled guess with the observed input in teacher forced states.",
+          "depth": "balanced",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "relationship"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "relationship",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "relationship",
+            "score": 50
+          }
+        },
+        {
+          "paraphrase": "Compare a sampled guess with the observed input in teacher forced states.",
+          "depth": "detailed",
+          "firstReference": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+          "firstPick": true,
+          "references": [
+            "ml-recurrent-networks-recurrent-next-token-training"
+          ],
+          "plannedKinds": [
+            "bar-chart"
+          ],
+          "requiredKinds": [],
+          "steer": {
+            "kind": "bar-chart",
+            "source": "reference",
+            "id": "ml-recurrent-networks-recurrent-next-token-training",
+            "referenceKind": "bar-chart",
+            "score": 50
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Keep the observed input after a sampled guess",
+    "unit": "State h2",
+    "bars": [
+      {
+        "label": "Observed cross",
+        "value": 2.625
+      },
+      {
+        "label": "Hypothetical birds",
+        "value": 1.625
+      }
+    ],
+    "caption": "Same first state; $h_{next}=ReLU(0.5h_{prev}+x)$. Training uses observed cross, target rivers, even after a sampled birds guess."
+  }
+}

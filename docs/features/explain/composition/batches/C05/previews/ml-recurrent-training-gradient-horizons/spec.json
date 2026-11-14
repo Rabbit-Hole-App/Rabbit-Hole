@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "timeline",
+    "title": "Forward pass continues across gradient cuts",
+    "layout": "scaled-lanes",
+    "domain": {
+      "min": 0,
+      "max": 6,
+      "unit": "step"
+    },
+    "lanes": [
+      {
+        "id": "forward",
+        "label": "Forward state",
+        "intervals": [
+          {
+            "id": "pass",
+            "label": "Continuous",
+            "start": 0,
+            "end": 6
+          }
+        ]
+      },
+      {
+        "id": "lane0",
+        "label": "Full gradient segments",
+        "intervals": [
+          {
+            "id": "s00",
+            "label": "6",
+            "start": 0,
+            "end": 6
+          }
+        ]
+      },
+      {
+        "id": "lane1",
+        "label": "Fixed gradient segments",
+        "intervals": [
+          {
+            "id": "s10",
+            "label": "2",
+            "start": 0,
+            "end": 2
+          },
+          {
+            "id": "s11",
+            "label": "2",
+            "start": 2,
+            "end": 4
+          },
+          {
+            "id": "s12",
+            "label": "2",
+            "start": 4,
+            "end": 6
+          }
+        ]
+      },
+      {
+        "id": "lane2",
+        "label": "Sample A gradient segments",
+        "intervals": [
+          {
+            "id": "s20",
+            "label": "1",
+            "start": 0,
+            "end": 1
+          },
+          {
+            "id": "s21",
+            "label": "4",
+            "start": 1,
+            "end": 5
+          },
+          {
+            "id": "s22",
+            "label": "1",
+            "start": 5,
+            "end": 6
+          }
+        ]
+      }
+    ],
+    "caption": "Lengths encode gradient horizons, not direction. Full, fixed and one irregular sample share the same uninterrupted forward pass."
+  }
+}

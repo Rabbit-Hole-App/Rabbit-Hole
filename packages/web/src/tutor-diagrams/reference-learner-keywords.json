@@ -1626,5 +1626,21 @@
   "ml-bert-summary-token-readout": [
     "summary row projection",
     "contextual readout scores"
+  ],
+  "ml-recurrent-training-gradient-horizons": [
+    "gradient segment horizons",
+    "forward versus detach"
+  ],
+  "ml-recurrent-training-shared-parameter-gradients": [
+    "loss state dependencies",
+    "shared gradient uses"
+  ],
+  "ml-recurrent-networks-recurrent-update": [
+    "activated recurrent update",
+    "fresh input readout"
+  ],
+  "ml-recurrent-networks-recurrent-next-token-training": [
+    "recurrent prefix supervision",
+    "teacher forced states"
   ]
 }

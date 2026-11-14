@@ -265,8 +265,19 @@
           "references": 2
         }
       ],
-      "approval": "pending corrected-queue and batch id/keyword approval; schema pinned to 1944b48cf",
-      "mergeNote": "Undersized subject topics merge forward; original subject slugs and modules are retained: recurrent-training (2) into recurrent-networks."
+      "approval": "Owner authorized overnight continuation on 2026-11-14; data-only on release133 a8ef11d64, gated by tests/replay/receipts/linter/sheets",
+      "mergeNote": "Undersized subject topics merge forward; original subject slugs and modules are retained: recurrent-training (2) into recurrent-networks.",
+      "verification": {
+        "report": "batches/C05/REPORT.md",
+        "new": 4,
+        "reuse": 0,
+        "testsPassed": 1390,
+        "priorCases": 3204,
+        "moved": 0,
+        "snapshotAdded": 12,
+        "snapshotChanged": 0,
+        "snapshotRemoved": 0
+      }
     },
     {
       "id": "C06",

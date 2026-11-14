@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Sampled final segments can be short or long",
+    "columns": [
+      "Sample A",
+      "Sample B"
+    ],
+    "rowLabel": "Earlier state",
+    "columnLabel": "Sampled boundary",
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "rows": [
+      {
+        "label": "h1",
+        "cells": [
+          0,
+          0
+        ]
+      },
+      {
+        "label": "h2",
+        "cells": [
+          0,
+          0
+        ]
+      },
+      {
+        "label": "h3",
+        "cells": [
+          0,
+          1
+        ]
+      },
+      {
+        "label": "h4",
+        "cells": [
+          0,
+          1
+        ]
+      },
+      {
+        "label": "h5",
+        "cells": [
+          0,
+          1
+        ]
+      },
+      {
+        "label": "h6",
+        "cells": [
+          1,
+          1
+        ]
+      }
+    ],
+    "caption": "Same final loss; $b$ is last cut, $A_s=1[s>b]$ encodes availability, not magnitude. Detach leaves forward values unchanged."
+  }
+}

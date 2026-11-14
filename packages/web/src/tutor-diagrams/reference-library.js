@@ -51,6 +51,8 @@ import { references as compositionTransformer } from './composition-transformer-
 import { overlays as transformerOverlays } from './topic-transformer-overlays.js';
 import { references as compositionBert } from './composition-bert-references.js';
 import { references as compositionTransferLearning } from './composition-transfer-learning-references.js';
+import { references as compositionRecurrentTraining } from './composition-recurrent-training-references.js';
+import { references as compositionRecurrentNetworks } from './composition-recurrent-networks-references.js';
 import { overlays as bertOverlays } from './topic-bert-overlays.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
@@ -103,6 +105,7 @@ export const diagramReferences = Object.freeze([
   ...compositionTimeSeries, ...compositionDistributionShift,
   ...compositionTransformer,
   ...compositionBert, ...compositionTransferLearning,
+  ...compositionRecurrentTraining, ...compositionRecurrentNetworks,
   ...estimationEvaluationReferences,
 ].map(ref => {
   const overlay = transformerOverlays[ref.id] ?? bertOverlays[ref.id];

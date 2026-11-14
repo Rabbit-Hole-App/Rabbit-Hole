@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "matrix",
+    "title": "Observed prefix, internal state, next target",
+    "columns": [
+      "Observed input",
+      "Prefix in state",
+      "Next target"
+    ],
+    "rows": [
+      {
+        "heading": "Step 1",
+        "cells": [
+          "birds",
+          "birds",
+          "cross"
+        ]
+      },
+      {
+        "heading": "Step 2",
+        "cells": [
+          "cross",
+          "birds cross",
+          "rivers"
+        ]
+      }
+    ],
+    "caption": "Toy observed birds cross rivers. Each hidden state summarizes its observed prefix; training compares its readout with the next token."
+  }
+}

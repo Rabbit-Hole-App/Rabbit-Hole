@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Readout follows the activated state",
+    "unit": "Output",
+    "bars": [
+      {
+        "label": "y1",
+        "value": 2.5
+      },
+      {
+        "label": "y2",
+        "value": 0
+      }
+    ],
+    "caption": "$y_t=2h_t$ after ReLU. The zero second output follows the activation, not a missing input or state handoff."
+  }
+}

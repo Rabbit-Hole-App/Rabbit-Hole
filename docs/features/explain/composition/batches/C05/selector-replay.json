@@ -1,0 +1,300 @@
+{
+  "version": 1,
+  "passed": true,
+  "priorCases": 3204,
+  "changedPriorPicks": [],
+  "sourceHeadings": 5,
+  "uniqueSourcePrompts": 5,
+  "sourceCases": 15,
+  "sourceHits": 15,
+  "actualPlannedAuthorSchemaChecks": 15,
+  "collisions": [],
+  "identityRule": "Exact emitted identity for prior picks; approved parent-family identity through library panelReferenceId for new source checks. Raw emitted ids retained.",
+  "rows": [
+    {
+      "queueId": "ml-recurrent-training-gradient-horizons",
+      "expectedFamily": "ml-recurrent-training-gradient-horizons",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bptt/briefs.md#figure-01",
+      "prompt": "Truncating backpropagation trades a shorter gradient path for less direct training signal from distant steps.",
+      "depth": "brief",
+      "firstFamily": "ml-recurrent-training-gradient-horizons",
+      "rawAuthorReferenceId": "ml-recurrent-training-gradient-horizons",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-training-gradient-horizons",
+      "preparedId": "ml-recurrent-training-gradient-horizons",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-training-gradient-horizons",
+      "expectedFamily": "ml-recurrent-training-gradient-horizons",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bptt/briefs.md#figure-01",
+      "prompt": "Truncating backpropagation trades a shorter gradient path for less direct training signal from distant steps.",
+      "depth": "balanced",
+      "firstFamily": "ml-recurrent-training-gradient-horizons",
+      "rawAuthorReferenceId": "ml-recurrent-training-gradient-horizons",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-training-gradient-horizons",
+      "preparedId": "ml-recurrent-training-gradient-horizons",
+      "preparedSchemaValid": true,
+      "kind": "timeline",
+      "collision": false,
+      "plannedKinds": [
+        "timeline"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-training-gradient-horizons",
+      "expectedFamily": "ml-recurrent-training-gradient-horizons",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bptt/briefs.md#figure-01",
+      "prompt": "Truncating backpropagation trades a shorter gradient path for less direct training signal from distant steps.",
+      "depth": "detailed",
+      "firstFamily": "ml-recurrent-training-gradient-horizons",
+      "rawAuthorReferenceId": "ml-recurrent-training-gradient-horizons",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-training-gradient-horizons",
+      "preparedId": "ml-recurrent-training-gradient-horizons",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-training-shared-parameter-gradients",
+      "expectedFamily": "ml-recurrent-training-shared-parameter-gradients",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bptt/briefs.md#figure-02",
+      "prompt": "Unrolling recurrence exposes all time steps whose losses contribute gradients to shared parameters.",
+      "depth": "brief",
+      "firstFamily": "ml-recurrent-training-shared-parameter-gradients",
+      "rawAuthorReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-training-shared-parameter-gradients",
+      "preparedId": "ml-recurrent-training-shared-parameter-gradients",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-training-shared-parameter-gradients",
+      "expectedFamily": "ml-recurrent-training-shared-parameter-gradients",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bptt/briefs.md#figure-02",
+      "prompt": "Unrolling recurrence exposes all time steps whose losses contribute gradients to shared parameters.",
+      "depth": "balanced",
+      "firstFamily": "ml-recurrent-training-shared-parameter-gradients",
+      "rawAuthorReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-training-shared-parameter-gradients",
+      "preparedId": "ml-recurrent-training-shared-parameter-gradients",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-training-shared-parameter-gradients",
+      "expectedFamily": "ml-recurrent-training-shared-parameter-gradients",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bptt/briefs.md#figure-02",
+      "prompt": "Unrolling recurrence exposes all time steps whose losses contribute gradients to shared parameters.",
+      "depth": "detailed",
+      "firstFamily": "ml-recurrent-training-shared-parameter-gradients",
+      "rawAuthorReferenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-training-shared-parameter-gradients",
+      "preparedId": "ml-recurrent-training-shared-parameter-gradients",
+      "preparedSchemaValid": true,
+      "kind": "heatmap",
+      "collision": false,
+      "plannedKinds": [
+        "heatmap"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-update",
+      "expectedFamily": "ml-recurrent-networks-recurrent-update",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-rnn/briefs.md#figure-01",
+      "prompt": "The same recurrent rule updates the state from the previous state and the new input at every step.",
+      "depth": "brief",
+      "firstFamily": "ml-recurrent-networks-recurrent-update",
+      "rawAuthorReferenceId": "ml-recurrent-networks-recurrent-update",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-networks-recurrent-update",
+      "preparedId": "ml-recurrent-networks-recurrent-update",
+      "preparedSchemaValid": true,
+      "kind": "block-stack",
+      "collision": false,
+      "plannedKinds": [
+        "block-stack"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-update",
+      "expectedFamily": "ml-recurrent-networks-recurrent-update",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-rnn/briefs.md#figure-01",
+      "prompt": "The same recurrent rule updates the state from the previous state and the new input at every step.",
+      "depth": "balanced",
+      "firstFamily": "ml-recurrent-networks-recurrent-update",
+      "rawAuthorReferenceId": "ml-recurrent-networks-recurrent-update",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-networks-recurrent-update",
+      "preparedId": "ml-recurrent-networks-recurrent-update",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-update",
+      "expectedFamily": "ml-recurrent-networks-recurrent-update",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-rnn/briefs.md#figure-01",
+      "prompt": "The same recurrent rule updates the state from the previous state and the new input at every step.",
+      "depth": "detailed",
+      "firstFamily": "ml-recurrent-networks-recurrent-update",
+      "rawAuthorReferenceId": "ml-recurrent-networks-recurrent-update",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-networks-recurrent-update",
+      "preparedId": "ml-recurrent-networks-recurrent-update",
+      "preparedSchemaValid": true,
+      "kind": "coordinate-plot",
+      "collision": false,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-next-token-training",
+      "expectedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-16",
+      "prompt": "A next-token objective can teach a recurrent text model useful internal representations.",
+      "depth": "brief",
+      "firstFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "rawAuthorReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedId": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-next-token-training",
+      "expectedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-16",
+      "prompt": "A next-token objective can teach a recurrent text model useful internal representations.",
+      "depth": "balanced",
+      "firstFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "rawAuthorReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedId": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-next-token-training",
+      "expectedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-16",
+      "prompt": "A next-token objective can teach a recurrent text model useful internal representations.",
+      "depth": "detailed",
+      "firstFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "rawAuthorReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedId": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-next-token-training",
+      "expectedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-rnn/briefs.md#figure-02",
+      "prompt": "Next-token training compares each recurrent output with a target shifted one position ahead.",
+      "depth": "brief",
+      "firstFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "rawAuthorReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedId": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedSchemaValid": true,
+      "kind": "matrix",
+      "collision": false,
+      "plannedKinds": [
+        "matrix"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-next-token-training",
+      "expectedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-rnn/briefs.md#figure-02",
+      "prompt": "Next-token training compares each recurrent output with a target shifted one position ahead.",
+      "depth": "balanced",
+      "firstFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "rawAuthorReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedId": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedSchemaValid": true,
+      "kind": "relationship",
+      "collision": false,
+      "plannedKinds": [
+        "relationship"
+      ],
+      "requiredKinds": []
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-next-token-training",
+      "expectedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "source": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-rnn/briefs.md#figure-02",
+      "prompt": "Next-token training compares each recurrent output with a target shifted one position ahead.",
+      "depth": "detailed",
+      "firstFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "rawAuthorReferenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "firstPick": true,
+      "preparedFamily": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedId": "ml-recurrent-networks-recurrent-next-token-training",
+      "preparedSchemaValid": true,
+      "kind": "bar-chart",
+      "collision": false,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": []
+    }
+  ]
+}

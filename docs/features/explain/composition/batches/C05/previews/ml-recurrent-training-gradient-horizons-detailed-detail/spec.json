@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Backward signal stops; forward state passes",
+    "nodes": [
+      {
+        "id": "h1",
+        "label": "h1"
+      },
+      {
+        "id": "h2",
+        "label": "h2"
+      },
+      {
+        "id": "h3",
+        "label": "h3"
+      },
+      {
+        "id": "h4",
+        "label": "h4"
+      },
+      {
+        "id": "h5",
+        "label": "h5"
+      },
+      {
+        "id": "h6",
+        "label": "h6"
+      },
+      {
+        "id": "loss",
+        "label": "Loss at h6"
+      },
+      {
+        "id": "detach",
+        "label": "Detach"
+      }
+    ],
+    "edges": [
+      {
+        "from": "h1",
+        "to": "h2",
+        "label": "forward"
+      },
+      {
+        "from": "h2",
+        "to": "h3",
+        "label": "forward"
+      },
+      {
+        "from": "h3",
+        "to": "h4",
+        "label": "forward"
+      },
+      {
+        "from": "h4",
+        "to": "h5",
+        "label": "forward"
+      },
+      {
+        "from": "h5",
+        "to": "h6",
+        "label": "forward"
+      },
+      {
+        "from": "loss",
+        "to": "h6",
+        "label": "gradient"
+      },
+      {
+        "from": "h6",
+        "to": "h5",
+        "label": "gradient"
+      },
+      {
+        "from": "h5",
+        "to": "detach",
+        "label": "gradient"
+      }
+    ],
+    "caption": "Fixed final segment: gradient ends at Detach before h4. Forward h4 to h5 still passes its value."
+  }
+}

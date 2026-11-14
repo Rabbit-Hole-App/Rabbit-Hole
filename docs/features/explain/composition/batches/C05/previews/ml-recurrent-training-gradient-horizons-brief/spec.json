@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Same forward states, different gradient reach",
+    "columns": [
+      "Reach count"
+    ],
+    "rowLabel": "Final loss reach",
+    "columnLabel": "States reachable",
+    "range": {
+      "min": 0,
+      "max": 6
+    },
+    "rows": [
+      {
+        "label": "Full",
+        "cells": [
+          6
+        ]
+      },
+      {
+        "label": "Fixed",
+        "cells": [
+          2
+        ]
+      }
+    ],
+    "caption": "Cells count states reachable from the same final loss, not gradient size. Forward state still passes every cutoff."
+  }
+}

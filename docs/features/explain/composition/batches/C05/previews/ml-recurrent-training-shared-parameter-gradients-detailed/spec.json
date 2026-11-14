@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "heatmap",
+    "title": "Each loss reaches its prior states",
+    "columns": [
+      "h0",
+      "h1",
+      "h2"
+    ],
+    "rowLabel": "Loss",
+    "columnLabel": "State",
+    "range": {
+      "min": 0,
+      "max": 1
+    },
+    "rows": [
+      {
+        "label": "L1",
+        "cells": [
+          0.5,
+          1,
+          null
+        ]
+      },
+      {
+        "label": "L2",
+        "cells": [
+          0.25,
+          0.5,
+          1
+        ]
+      }
+    ],
+    "caption": "Cells are $dL_t/dh_s=(p_t-y_t)a^{t-s}$; blank means future, not zero. Later loss also reaches earlier state uses."
+  }
+}

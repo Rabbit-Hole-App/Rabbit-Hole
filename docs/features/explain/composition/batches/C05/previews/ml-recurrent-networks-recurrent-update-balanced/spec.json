@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Fresh inputs, state handoff and both outputs",
+    "nodes": [
+      {
+        "id": "h0",
+        "label": "Initial state"
+      },
+      {
+        "id": "h1",
+        "label": "State h1"
+      },
+      {
+        "id": "h2",
+        "label": "State h2"
+      },
+      {
+        "id": "x1",
+        "label": "Fresh x1"
+      },
+      {
+        "id": "x2",
+        "label": "Fresh x2"
+      },
+      {
+        "id": "y1",
+        "label": "Output y1"
+      },
+      {
+        "id": "y2",
+        "label": "Output y2"
+      }
+    ],
+    "edges": [
+      {
+        "from": "h0",
+        "to": "h1",
+        "label": "prior state"
+      },
+      {
+        "from": "h1",
+        "to": "h2",
+        "label": "state handoff"
+      },
+      {
+        "from": "x1",
+        "to": "h1",
+        "label": "fresh input"
+      },
+      {
+        "from": "x2",
+        "to": "h2",
+        "label": "fresh input"
+      },
+      {
+        "from": "h1",
+        "to": "y1",
+        "label": "readout"
+      },
+      {
+        "from": "h2",
+        "to": "y2",
+        "label": "readout"
+      }
+    ],
+    "caption": "Toy $h=ReLU(0.5h_{prev}+x)$, $y=2h$; $h_0=0.5$, $x=(1,-2)$. Each input is observed independently; each new state feeds a readout."
+  }
+}

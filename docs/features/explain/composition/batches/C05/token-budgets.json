@@ -1,0 +1,128 @@
+{
+  "encoding": "cl100k_base",
+  "maxSpecTokens": 300,
+  "refs": {
+    "ml-recurrent-training-gradient-horizons": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 94,
+          "sha256": "964480216687609842b535aaec29324eae25cfe7ff3a65d5bae2fa3a73f088bf"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 266,
+          "sha256": "cf7e4b8f3d4a2b8bd234053a7f319ed6482d487ffcaf7f8799bf238ebade2b05"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 165,
+          "sha256": "b7c808a539a45da2e6c9e0ba9bfa07e1688210a19577c7d6e55a429f6b3bf5b5"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 249,
+          "sha256": "02ba0880ddd9bf3a6e259ecadefc1f760b1e5fc5fcc5542084b8b8a1f60b2ddd"
+        }
+      ]
+    },
+    "ml-recurrent-training-shared-parameter-gradients": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 186,
+          "sha256": "b7456e8bcfa6dde8381f9aa0943a2400fabc85df398ac4bb1ccd20247e30ae9a"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 295,
+          "sha256": "d3524469393c11121d3e12542c1064f2e1c4384159d9e45b53379272c22a157e"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 125,
+          "sha256": "88189bb8ab3cf394c01ce7d37c1ba102f0c02b68e3afdeb751f9d547f4cf0eee"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 100,
+          "sha256": "24364888b18615f81a9cded23e4d4b9cd4b5f241a2a7ab4f963b8d1dbd3cc2af"
+        }
+      ]
+    },
+    "ml-recurrent-networks-recurrent-update": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 103,
+          "sha256": "5449522c174319dc08a8847db698adba84a08fa86df800c5a53461d7202b690c"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 110,
+          "sha256": "44a3ab2fdf5aa848df48beab40048222eb3ddad774074bc41f02ec4378e86a04"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 259,
+          "sha256": "5b477bd9c89fe646c559ee37f084cc768f8a285f722d8b3406811520deaaec3b"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 110,
+          "sha256": "44a3ab2fdf5aa848df48beab40048222eb3ddad774074bc41f02ec4378e86a04"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 174,
+          "sha256": "ad67850a0741517350a1053c41b309ab69a3a9aca07e3422343f6bacf67201e6"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 81,
+          "sha256": "3ca3ffe3c2b04ad53194bcb29bfe728649107ed10a1d206ea400a3b200715dea"
+        }
+      ]
+    },
+    "ml-recurrent-networks-recurrent-next-token-training": {
+      "overview": [
+        {
+          "field": "spec",
+          "tokens": 98,
+          "sha256": "8d30be8f9e99653f0a8166058f143cd8bb78a9f4e19e24b50675038fe4f72d86"
+        }
+      ],
+      "standard": [
+        {
+          "field": "spec",
+          "tokens": 283,
+          "sha256": "be314b4cef109ff9e10c78f7ca8c18e359ce2bea030bb7d6005f96a149ade0da"
+        }
+      ],
+      "deep": [
+        {
+          "field": "spec",
+          "tokens": 120,
+          "sha256": "737ee087d7485d2e1833bd1818f7a81cdb96ac09b764791a65ca59f3ec38e0f2"
+        },
+        {
+          "field": "detailSpec",
+          "tokens": 99,
+          "sha256": "8b4835b5f639e1ca789bb5417564b15db8dac049b141a1f7ade76e098b1e1b1e"
+        }
+      ]
+    }
+  }
+}

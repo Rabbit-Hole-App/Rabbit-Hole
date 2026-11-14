@@ -1,0 +1,93 @@
+{
+  "batch": "C05",
+  "sourceRevision": "05d5f02f64b474dcf0f830050af4e34907fbdaa8",
+  "baseTree": "d744d94ded05bf454e383120f7dfa28185912e65",
+  "references": [
+    {
+      "queueId": "ml-recurrent-training-gradient-horizons",
+      "referenceId": "ml-recurrent-training-gradient-horizons",
+      "mode": "NEW",
+      "topic": "recurrent-training",
+      "lessons": [],
+      "source": {
+        "source": "d2l-bptt",
+        "figure": "01",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bptt/briefs.md#figure-01",
+        "summary": "Truncating backpropagation trades a shorter gradient path for less direct training signal from distant steps.",
+        "lessons": []
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Full versus truncated gradient reach; retain forward links separately."
+    },
+    {
+      "queueId": "ml-recurrent-training-shared-parameter-gradients",
+      "referenceId": "ml-recurrent-training-shared-parameter-gradients",
+      "mode": "NEW",
+      "topic": "recurrent-training",
+      "lessons": [],
+      "source": {
+        "source": "d2l-bptt",
+        "figure": "02",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-bptt/briefs.md#figure-02",
+        "summary": "Unrolling recurrence exposes all time steps whose losses contribute gradients to shared parameters.",
+        "lessons": []
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Loss-to-state dependency grid for shared recurrent parameters."
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-update",
+      "referenceId": "ml-recurrent-networks-recurrent-update",
+      "mode": "NEW",
+      "topic": "recurrent-networks",
+      "lessons": [],
+      "source": {
+        "source": "d2l-rnn",
+        "figure": "01",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-rnn/briefs.md#figure-01",
+        "summary": "The same recurrent rule updates the state from the previous state and the new input at every step.",
+        "lessons": []
+      },
+      "alsoCovers": [],
+      "dedupeBasis": "Shared hidden-state rule and readout at successive positions."
+    },
+    {
+      "queueId": "ml-recurrent-networks-recurrent-next-token-training",
+      "referenceId": "ml-recurrent-networks-recurrent-next-token-training",
+      "mode": "NEW",
+      "topic": "recurrent-networks",
+      "lessons": [
+        "01",
+        "15"
+      ],
+      "source": {
+        "source": "illustrated-bert",
+        "figure": "16",
+        "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-bert/briefs.md#figure-16",
+        "summary": "A next-token objective can teach a recurrent text model useful internal representations.",
+        "lessons": [
+          "01",
+          "15"
+        ]
+      },
+      "alsoCovers": [
+        {
+          "source": "d2l-rnn",
+          "figure": "02",
+          "brief": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-rnn/briefs.md#figure-02",
+          "summary": "Next-token training compares each recurrent output with a target shifted one position ahead.",
+          "kinds": [
+            "matrix",
+            "relationship"
+          ],
+          "lessons": [],
+          "sequence": "Recurrent networks 2/2. Align next-token training targets",
+          "gapTypes": [
+            "composition"
+          ]
+        }
+      ],
+      "dedupeBasis": "Same recurrent next-token objective with states aligned to shifted labels; keep recurrent state visible."
+    }
+  ]
+}

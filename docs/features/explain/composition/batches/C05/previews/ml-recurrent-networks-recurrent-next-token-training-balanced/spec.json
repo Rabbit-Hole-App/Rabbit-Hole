@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Marked first prediction and next-token target",
+    "nodes": [
+      {
+        "id": "x1",
+        "label": "Observed birds"
+      },
+      {
+        "id": "h1",
+        "label": "h1: birds prefix"
+      },
+      {
+        "id": "p1",
+        "label": "Prediction p1"
+      },
+      {
+        "id": "l1",
+        "label": "Target cross"
+      },
+      {
+        "id": "x2",
+        "label": "Observed cross"
+      },
+      {
+        "id": "h2",
+        "label": "h2: birds cross prefix"
+      },
+      {
+        "id": "p2",
+        "label": "Prediction p2"
+      },
+      {
+        "id": "l2",
+        "label": "Target rivers"
+      }
+    ],
+    "edges": [
+      {
+        "from": "x1",
+        "to": "h1",
+        "label": "input"
+      },
+      {
+        "from": "h1",
+        "to": "h2",
+        "label": "state handoff"
+      },
+      {
+        "from": "x2",
+        "to": "h2",
+        "label": "input"
+      },
+      {
+        "from": "h1",
+        "to": "p1",
+        "label": "readout"
+      },
+      {
+        "from": "h2",
+        "to": "p2",
+        "label": "readout"
+      },
+      {
+        "from": "p1",
+        "to": "l1",
+        "label": "MARKED comparison"
+      },
+      {
+        "from": "p2",
+        "to": "l2",
+        "label": "comparison"
+      }
+    ],
+    "caption": "Observed inputs, not guesses. $h=ReLU(0.5h_{prev}+x)$, $h_0=0.5$, $x=(1,2)$. $softmax(Uh+b)$ predicts the next observed target."
+  }
+}

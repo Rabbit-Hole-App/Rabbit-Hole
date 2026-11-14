@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "One cell rule reused at every position",
+    "blocks": [
+      {
+        "id": "combine",
+        "label": "Combine previous state and fresh input"
+      },
+      {
+        "id": "activate",
+        "label": "ReLU activation"
+      },
+      {
+        "id": "readout",
+        "label": "Readout from new state",
+        "role": "output"
+      }
+    ],
+    "caption": "Toy $h_t=ReLU(0.5h_{prev}+x_t)$; $y_t=2h_t$. The same parameters apply at both positions."
+  }
+}

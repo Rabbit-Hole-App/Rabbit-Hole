@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Unroll shared recurrence and both losses",
+    "nodes": [
+      {
+        "id": "h0",
+        "label": "h0"
+      },
+      {
+        "id": "h1",
+        "label": "h1"
+      },
+      {
+        "id": "h2",
+        "label": "h2"
+      },
+      {
+        "id": "a",
+        "label": "Shared a"
+      },
+      {
+        "id": "p1",
+        "label": "p1"
+      },
+      {
+        "id": "p2",
+        "label": "p2"
+      },
+      {
+        "id": "l1",
+        "label": "L1"
+      },
+      {
+        "id": "l2",
+        "label": "L2"
+      }
+    ],
+    "edges": [
+      {
+        "from": "h0",
+        "to": "h1",
+        "label": "+x1"
+      },
+      {
+        "from": "h1",
+        "to": "h2",
+        "label": "+x2"
+      },
+      {
+        "from": "a",
+        "to": "h1",
+        "label": "same a"
+      },
+      {
+        "from": "a",
+        "to": "h2",
+        "label": "same a"
+      },
+      {
+        "from": "h1",
+        "to": "p1",
+        "label": "readout"
+      },
+      {
+        "from": "h2",
+        "to": "p2",
+        "label": "readout"
+      },
+      {
+        "from": "p1",
+        "to": "l1",
+        "label": "target y1"
+      },
+      {
+        "from": "p2",
+        "to": "l2",
+        "label": "target y2"
+      }
+    ],
+    "caption": "Toy $h=0.5h_{prev}+x$, $h_0=0.5$, $x=(1,2)$. $p=h$, $y=(0.25,1.625)$; $L=0.5(p-y)^2$ per step."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Sum contributions to the one shared parameter",
+    "unit": "dL/da",
+    "bars": [
+      {
+        "label": "Use 1",
+        "value": 0.75
+      },
+      {
+        "label": "Use 2",
+        "value": 1.25
+      }
+    ],
+    "caption": "$dL/da=\\sum_t (dL/dh_t)h_{prev}=0.75+1.25=2$. Earlier use includes later loss through state handoff."
+  }
+}

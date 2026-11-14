@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Activation can remove a negative combination",
+    "x": {
+      "label": "Step",
+      "min": 0,
+      "max": 3,
+      "integerTicks": true
+    },
+    "y": {
+      "label": "Cell value",
+      "min": -2,
+      "max": 2
+    },
+    "series": [
+      {
+        "label": "Before ReLU",
+        "kind": "stem",
+        "points": [
+          {
+            "x": 1,
+            "y": 1.25
+          },
+          {
+            "x": 2,
+            "y": -1.375
+          }
+        ]
+      },
+      {
+        "label": "After ReLU",
+        "kind": "stem",
+        "points": [
+          {
+            "x": 1,
+            "y": 1.25
+          },
+          {
+            "x": 2,
+            "y": 0
+          }
+        ]
+      }
+    ],
+    "caption": "Same $h_0=0.5$, $x=(1,-2)$; $z=0.5h_{prev}+x$. ReLU gives $max(0,z)$; negative second combination becomes zero."
+  }
+}

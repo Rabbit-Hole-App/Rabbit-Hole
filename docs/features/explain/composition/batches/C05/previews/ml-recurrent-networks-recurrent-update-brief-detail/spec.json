@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Inside the same recurrent cell",
+    "blocks": [
+      {
+        "id": "combine",
+        "label": "Combine: $z=0.5h_{prev}+x+0$"
+      },
+      {
+        "id": "activate",
+        "label": "ReLU: $h=max(0,z)$"
+      },
+      {
+        "id": "readout",
+        "label": "Readout: $y=2h$",
+        "role": "output"
+      }
+    ],
+    "caption": "The toy bias is zero. Combine prior state and new input before the activation; read out only after activation."
+  }
+}

@@ -2136,6 +2136,66 @@
       "width": 720,
       "height": 1481
     },
+    "ml-recurrent-networks-recurrent-next-token-training/320": {
+      "sha256": "506557671b4215ffaf3df9f7d58715eca3d8b33e625568e0ed87337be98d7baf",
+      "width": 388,
+      "height": 1054
+    },
+    "ml-recurrent-networks-recurrent-next-token-training/408": {
+      "sha256": "9b7f0d5514b6154290ab79870848817e713949c5523026e81e88a95396bcf46f",
+      "width": 408,
+      "height": 1037
+    },
+    "ml-recurrent-networks-recurrent-next-token-training/720": {
+      "sha256": "7d8b5bed4b15e49a00609a6cc63449cc6a8010bd8f25a96a65cb298d24d5fded",
+      "width": 720,
+      "height": 930
+    },
+    "ml-recurrent-networks-recurrent-update/320": {
+      "sha256": "f4f036d78c7e4ee4fd691819e1fe32f24d0960ef5657511daccd575b8edb8d24",
+      "width": 338,
+      "height": 861
+    },
+    "ml-recurrent-networks-recurrent-update/408": {
+      "sha256": "585957dcf65bb3450729d5d62a0b2012ab986480a1b5bfd4b43c2d29b7a922f6",
+      "width": 408,
+      "height": 844
+    },
+    "ml-recurrent-networks-recurrent-update/720": {
+      "sha256": "a7c53fc8ac990c58329c8e7d0d7fd7294426498e0a200990aceb7c8238f2760b",
+      "width": 720,
+      "height": 805
+    },
+    "ml-recurrent-training-gradient-horizons/320": {
+      "sha256": "a8f00e4bdb67d1dbd103f97c7a708693619c99c9b0fd71436288c119211cafc2",
+      "width": 360,
+      "height": 730
+    },
+    "ml-recurrent-training-gradient-horizons/408": {
+      "sha256": "90bd99c4569c418fa0df9e3c98e416812b9610bad09fd58ca7cb4e72ec5442a6",
+      "width": 408,
+      "height": 713
+    },
+    "ml-recurrent-training-gradient-horizons/720": {
+      "sha256": "331f77c62ea2b8cc5065042edeb36d202eb0228de910324f5ac62ff0f38af32f",
+      "width": 720,
+      "height": 674
+    },
+    "ml-recurrent-training-shared-parameter-gradients/320": {
+      "sha256": "f86e2d1e2008f9a447e88bedcf93d0c096f4d8f9849d8b085f6012e06941227b",
+      "width": 386,
+      "height": 976
+    },
+    "ml-recurrent-training-shared-parameter-gradients/408": {
+      "sha256": "bfbcf1a0834ba152cb89d57d5868e0aff8ba420634abed52ca97eb7bc387b0dc",
+      "width": 408,
+      "height": 959
+    },
+    "ml-recurrent-training-shared-parameter-gradients/720": {
+      "sha256": "1a017efadd564be94d618f683380d548e6a2164d87ca55d5d512b77489f5159c",
+      "width": 720,
+      "height": 920
+    },
     "ml-recursive-feature-elimination/320": {
       "sha256": "16e68d6bb308a1bec3339e9e8da88a4525b95afe536ec29c57337b1d84234952",
       "width": 320,

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "First prefix trains a hidden representation",
+    "unit": "Probability",
+    "bars": [
+      {
+        "label": "birds",
+        "value": 0.032
+      },
+      {
+        "label": "cross",
+        "value": 0.573
+      },
+      {
+        "label": "rivers",
+        "value": 0.394
+      }
+    ],
+    "caption": "$h=1.25$; $U=(-1,0.5,1)$, $b=(0,1,0)$. $p=softmax(Uh+b)$; target cross. $dL/dh=0.149$; no quality guarantee."
+  }
+}

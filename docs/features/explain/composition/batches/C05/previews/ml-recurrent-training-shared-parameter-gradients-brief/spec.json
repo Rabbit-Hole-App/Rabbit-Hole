@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "relationship",
+    "layout": "graph",
+    "title": "Both losses train the same recurrent parameter",
+    "nodes": [
+      {
+        "id": "a",
+        "label": "Shared a"
+      },
+      {
+        "id": "h1",
+        "label": "State h1"
+      },
+      {
+        "id": "h2",
+        "label": "State h2"
+      },
+      {
+        "id": "l1",
+        "label": "Loss L1"
+      },
+      {
+        "id": "l2",
+        "label": "Loss L2"
+      }
+    ],
+    "edges": [
+      {
+        "from": "a",
+        "to": "h1",
+        "label": "same a"
+      },
+      {
+        "from": "a",
+        "to": "h2",
+        "label": "same a"
+      },
+      {
+        "from": "h1",
+        "to": "h2",
+        "label": "handoff"
+      },
+      {
+        "from": "h1",
+        "to": "l1",
+        "label": "readout loss"
+      },
+      {
+        "from": "h2",
+        "to": "l2",
+        "label": "readout loss"
+      }
+    ],
+    "caption": "One recurrent parameter set is reused. Both readout losses can train it through their own state and prior state uses."
+  }
+}
