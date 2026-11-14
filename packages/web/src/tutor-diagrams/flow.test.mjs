@@ -412,7 +412,8 @@ test('RD-2b: where the targets sit under the side vertices (the swallow card at 
 });
 
 test('RD-2b: at the natural width of the swallow card, where the drop would miss the capsule, the old routing is kept byte for byte', () => {
-  assert.deepEqual([layoutFlow(swallow, 0).width, digest(layoutFlow(swallow, 0)), digest(layoutFlow(swallow, 300))], [283, 'c90af629c7f7cde3', 'f637261122b3b4c6']);
+  assert.deepEqual([layoutFlow(swallow, 0).width, digest(layoutFlow(swallow, 0)), digest(layoutFlow(swallow, 300))], [283, 'c9b025dcb7214720', '89c1dcd99629e9cd']);
+  // RD-4c changed only the corner radius of the two outcome capsules (their text left the pill); every wire point is as before.
 });
 
 test('RD-2: the highlight path style applies to the routed branch', () => {

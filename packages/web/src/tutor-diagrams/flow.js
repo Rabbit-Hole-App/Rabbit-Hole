@@ -39,11 +39,23 @@ function port(node, edges, edge, bottom) {
   if (node.role === 'decision') inset = Math.abs(dx) * node.height / node.width;
   if (node.role === 'outcome' && !node.tensor) {
     // A wide fan-in can reach the curved ends of the outcome capsule.
-    const radiusX = Math.min(node.width, node.height) / 2;
+    const radiusX = capsuleRadius(node);
     const cornerX = Math.max(0, Math.abs(dx) - (node.width / 2 - radiusX));
-    inset = node.height / 2 * (1 - Math.sqrt(1 - (cornerX / radiusX) ** 2));
+    inset = (radiusX === Math.min(node.width, node.height) / 2 ? node.height / 2 : radiusX) * (1 - Math.sqrt(1 - (cornerX / radiusX) ** 2));
   }
   return [node.cx + dx, bottom ? node.y + node.height - inset : node.y + inset];
+}
+
+// RD-4c: the corner radius of an outcome capsule: half the shorter side (a pill) when every line of its text lies inside the rounded ends, else the largest smaller radius that keeps them inside.
+function capsuleRadius({ width, height, lines }) {
+  const size = lines.fontSize ?? 14, step = lineHeight(size), pill = Math.min(width, height) / 2;
+  const fits = radius => lines.every((line, index) => {
+    const dx = textWidth(line, size) / 2 - (width / 2 - radius);
+    const dy = Math.abs(index - (lines.length - 1) / 2) * step + size / 2 - (height / 2 - radius);
+    return Math.hypot(Math.max(0, dx), Math.max(0, dy)) <= radius;
+  });
+  for (let radius = pill; radius > 7; radius -= 1) if (fits(radius)) return radius;
+  return 7;
 }
 
 function measureDecision(lines, width) {
@@ -210,7 +222,7 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
       const clearOf = (a, b) => placedRows[ranks.get(node.id)].every(other => other === node || other.cx + other.width / 2 <= Math.min(a, b) - 2 || other.cx - other.width / 2 >= Math.max(a, b) + 2);
       if (sign * (turnX - vertexX) > 0 && Math.abs(turnX - vertexX) >= labelWidth && clearOf(vertexX, turnX)) return { kind: 'run', dir: sign, labelWidth, labelHeight, vertexX, turnX };
       // The drop lands on the top edge of the target away from its rounded corners, which only a lone arrival may move.
-      const margin = target.role === 'outcome' && !target.tensor ? Math.min(target.width, target.height) / 2 : 8;
+      const margin = target.role === 'outcome' && !target.tensor ? capsuleRadius(target) : 8;
       const lands = incoming.get(edge.to).length === 1 && vertexX >= target.cx - target.width / 2 + margin && vertexX <= target.cx + target.width / 2 - margin;
       return lands && clearOf(vertexX, vertexX) ? { kind: 'drop', dir: sign, labelWidth, labelHeight, vertexX } : null;
     });
@@ -319,7 +331,7 @@ export function layoutFlow({ nodes, edges, highlightPath }, requestedWidth, pain
     const active = onPath.has(id);
     const baseShape = role === 'decision'
       ? diamond(x, y, width, height, { active })
-      : box(x, y, width, height, { role, radius: role === 'outcome' && !strip ? height / 2 : 7, active });
+      : box(x, y, width, height, { role, radius: role === 'outcome' && !strip ? capsuleRadius(node) : 7, active });
     const shape = paintNode ? paintNode(baseShape, node) : baseShape;
     // title: the full label when the server trimmed it to fit (item 47), shown as the node's tooltip.
     const props = { 'data-tutor-node': id, ...(active ? { 'data-tutor-path': '' } : {}) };
@@ -343,7 +355,7 @@ function flowGeometry(width, height, placements, routed, labelBoxes) {
       const textW = textWidth(line, size), middle = centerY + (index - (all.length - 1) / 2) * step;
       return { x: cx - textW / 2, y: middle - size / 2, width: textW, height: size };
     });
-    return { id, role, shape: role === 'decision' ? 'diamond' : role === 'outcome' && !strip ? 'capsule' : 'box', x: cx - w / 2, y, width: w, height: h2, text };
+    return { id, role, shape: role === 'decision' ? 'diamond' : role === 'outcome' && !strip ? 'capsule' : 'box', x: cx - w / 2, y, width: w, height: h2, text, ...(role === 'outcome' && !strip ? { radius: capsuleRadius(node) } : {}) };
   });
   const edges = routed.map(({ edge, points }) => ({ from: edge.from, to: edge.to, points: points.map(point => [...point]), label: labelBoxes.get(edge) ? { ...labelBoxes.get(edge) } : null }));
   return { width, height, nodes, edges };
