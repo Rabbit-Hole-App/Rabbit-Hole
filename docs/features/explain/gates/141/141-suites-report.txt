@@ -1,0 +1,12 @@
+SUITES: GREEN 24294b113128fcf1162fc218b53cb8ae3c032ea1
+Release 141 = CC-1 (FLOW_VERBS += deploy, monitor, serve, label, define; the author constraints sheet carries the new list, 244 -> 249 words) + CF-1 (scripts/prod-release.mjs deploys both Workers with --var RELEASE_SHA:<sha>; a var, not a build-time define, so the bundle hash is unchanged), STACKED on release 140: BASE = 4204cd37b3accafb988cc1c8567563d43daac574 (chain: main a8ef11d64 <- 134 <- 135 <- 136 <- 136b <- 137 <- 138 <- 139 <- 140). Candidate release/explain-141 = CC-1 8c3527976 + CF-1 24294b113 rebased onto BASE with no conflicts. Diff vs BASE: 5 files (content-contract.js and its test, renderer-constraints.md, prod-release.mjs and its test); no control-plane source, no migrations, no wrangler config. Gate: gate141.sh (BASE_TREE = a detached worktree of BASE, C:/s/explain-141-base), under the machine-wide heavy lock; logs 141-gate-run.log, each step's output 141-step-<name>.out.
+1. scripts/ci tests: first run 93/95 pass, 1 skipped, 1 FAIL: scripts/ci/run-part.test.mjs:54 ("fork checks get the gate env ...", assertion "dark-ink gets no fork env"), a 7 s process-spawning test in a file this release does not touch. Rerun singly: 8/8 on the candidate and 8/8 on BASE 4204cd37b. Rerun of the whole scripts/ci directory serially under the lock (141-step-ci-rerun.out): 94/95 pass (1 skipped), 0 fail, rc=0. Accepted with this caveat (load/timing test in an untouched directory; both runs kept).
+2. scripts/*.test.mjs: 255/255 (includes prod-release.test.mjs 37/37 with the new CF-1 guard test).
+3. control-plane npm test: 4601/4602 pass (1 skipped), 0 fail.
+4. tutor-diagrams tests (packages/web, src/tutor-diagrams/*.test.mjs): 1266/1266 (includes content-contract.test.mjs 13/13 with the new CC-1 test, and reference-content-contract.test.mjs: the contract over ALL shipped references and the kind gallery, 0 findings).
+5. figure-briefs tests: 7/7.
+6. web unit (npm run test:unit): 6901 pass, 27 skipped, 0 fail (6929 tests).
+7. web build: exit 0.
+8. property count (int8-props, int8-mixed): max 347 <= 362 and max 358 <= 362, 0 over 362.
+9. planner-kind replay vs BASE 4204cd37b: 474 card rows, 114 steer events, 0 first picks moved, 0 steer, 0 kind, 0 refs moved, no change.
+No smoke: the diff contains no control-plane source file (CC-1 is a web content-contract change, CF-1 a release-script change); no card bytes change, replay moves 0. Snapshots: untouched (no rendering change). Spend: US$0.

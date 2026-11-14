@@ -1,0 +1,11 @@
+SHA 24294b113128fcf1162fc218b53cb8ae3c032ea1 base 4204cd37b3accafb988cc1c8567563d43daac574 base-tree 4204cd37b3accafb988cc1c8567563d43daac574
+STEP ci rc=1 49s
+STEP scripts rc=0 22s
+STEP cp rc=0 119s
+STEP tutor rc=0 50s
+STEP figbriefs rc=0 1s
+STEP webunit rc=0 139s
+STEP build rc=0 11s
+STEP props rc=0 12s
+STEP replay rc=0 16s
+GATE RUN DONE

@@ -1,0 +1,17 @@
+GATE: PASS(replay) 24294b113128fcf1162fc218b53cb8ae3c032ea1 tier=suites+replay (tier-1 for a content-contract change: every suite; planner-kind replay vs BASE 4204cd37b moves 0 of 474 card rows; no control-plane source in the diff, so no smoke). Stacked on release 140. Steps are listed in 141-suites-report.txt: ci, scripts, control-plane, tutor-diagrams, figure-briefs, web unit, build, property count, replay. The first scripts/ci run failed one process-spawning test (run-part.test.mjs:54) in an untouched directory; singly 8/8 on the candidate and on BASE, the whole directory rerun serially 94/95 (1 skipped) 0 fail: both runs kept.
+
+STEP ci rc=1 49s   (first run, 1 fail; see 141-step-ci.out)
+STEP scripts rc=0 22s
+STEP cp rc=0 119s
+STEP tutor rc=0 50s
+STEP figbriefs rc=0 1s
+STEP webunit rc=0 139s
+STEP build rc=0 11s
+STEP props rc=0 12s
+STEP replay rc=0 16s
+RERUN ci directory (serial, under the lock) rc=0: 95 tests, 94 pass, 0 fail, 1 skipped (141-step-ci-rerun.out)
+GATE RUN DONE
+
+card rows 474 moved counts {"first":0,"steer":0,"kind":0,"refs":0} unique prompt-cases 171
+no change
+GATE PASS: 0 first picks moved

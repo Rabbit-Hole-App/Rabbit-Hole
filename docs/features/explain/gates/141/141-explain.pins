@@ -1,0 +1,5 @@
+LABEL="Release 141: CC-1 the flow label verb list gains deploy, monitor, serve, label and define (the vocabulary of an ML workflow; the author constraints sheet carries it) and CF-1 the production release deploys both Workers with RELEASE_SHA set (archive records and telemetry carry the release). No card bytes change, no migrations, no wrangler config change; CF-1 changes the release script (scripts/prod-release.mjs). Builds on release 140."
+SHA=24294b113128fcf1162fc218b53cb8ae3c032ea1
+MAIN_PREV="4204cd37b3accafb988cc1c8567563d43daac574"
+W=C:/s/explain-141
+RECOVERY=release/explain-141-rollback-24294b11

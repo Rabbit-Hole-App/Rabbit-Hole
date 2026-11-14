@@ -1,0 +1,6 @@
+C:/s/spec/cc141/tmp/141-replay-base.json 474 rows; steer events 114 overrides 0 with a first pick 205
+C:/s/spec/cc141/tmp/141-replay-new.json 474 rows; steer events 114 overrides 0 with a first pick 205
+card rows 474 moved counts {"first":0,"steer":0,"kind":0,"refs":0} unique prompt-cases 171
+unique cases with any change 0
+no change
+GATE PASS: 0 first picks moved
