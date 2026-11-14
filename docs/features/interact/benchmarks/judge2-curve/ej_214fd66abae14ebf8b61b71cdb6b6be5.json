@@ -1,0 +1,32 @@
+{
+ "jobId": "ej_214fd66abae14ebf8b61b71cdb6b6be5",
+ "label": "curve-run-p19",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 13085,
+ "verdict": "fail",
+ "costUsd": 0.020816,
+ "findings": [
+  {
+   "capture": "cp-steep",
+   "category": "spec",
+   "severity": "major",
+   "object": "guide.marker.x",
+   "message": "At k=5, x0=0 the marker is at y=0.9933, but the frame has no guide.marker.x or guide.marker.y lines. The same happens in bound-x0-min, where y=0.982. The marker guides disappear at high y, so the marker display is inconsistent across states. Also, the ball is at y≈69.4 and 71.7 while the callouts are clamped to y=70, so the callout no longer lines up with the marker."
+  },
+  {
+   "capture": "default",
+   "category": "spec",
+   "severity": "minor",
+   "object": "plot.curve",
+   "message": "The tangent and curve are listed only as series labels, with no geometry. I can't verify from the frame that the tangent slope matches the readout. The slope values themselves are correct: 0.1966, 0.1175, 0.0332, 0.25, 0.0177 and 0.105."
+  },
+  {
+   "capture": "cp-steep",
+   "category": "spec",
+   "severity": "minor",
+   "object": "scene.state",
+   "message": "The 'Most steep' checkpoint uses k=5, and nothing shows that this is the slider maximum. The slope there is smaller than at the default, which may confuse the sensitivity message, although it is correct for this marker position. The 'Least steep' checkpoint uses k=0.5, which also can't be confirmed as the slider minimum."
+  }
+ ]
+}

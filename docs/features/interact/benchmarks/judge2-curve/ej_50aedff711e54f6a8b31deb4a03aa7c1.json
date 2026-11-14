@@ -1,0 +1,35 @@
+{
+ "jobId": "ej_50aedff711e54f6a8b31deb4a03aa7c1",
+ "label": "curve-run-p1",
+ "judgeModel": "claude-sonnet-5-5",
+ "rubric": "bench-judge-v2 2026-11-14",
+ "inputBytes": 31361,
+ "verdict": "fail",
+ "costUsd": 0.04129,
+ "findings": [
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "message": "The default scrubber reads -0.510204 to 0.510204 s at 0.3 physics s per wall s. The plan's toss-speed claim has a problem: the card says the readings at the top don't change. That part holds. But at the start, the held ball's callout reads 'a = 0.0 m/s²' while the claim says acceleration is -gravity throughout. The plan makes this piecewise, so the claim 'both balls share ... acceleration at every instant' is only true after release. The claim text is broader than what the card shows."
+  },
+  {
+   "capture": "cp-before",
+   "category": "spec",
+   "severity": "minor",
+   "message": "Before the top, the drop lane shows 'Held at top' with the ball already at apex height. The tossed ball has not yet reached it. This is as designed, but the lanes are not shown at a shared instant. The claim's 'every instant' wording overreaches."
+  },
+  {
+   "capture": "start",
+   "category": "spec",
+   "severity": "major",
+   "message": "In the initial frame, the toss velocity arrow runs from y=243 to y=183, which is 60 px for 5 m/s. The launch frame at the end shows the same 60 px for -5 m/s. The acceleration arrow is 33.3 px for 9.8 m/s². The scale ratios are consistent, but at the start the toss ball is at the launch mark while the guide line to the apex is drawn only 17 px long, so the scene is hard to read. Also, the gate and 'Held at top' are drawn at the apex while the callout box overlaps the ball's position. These cannot be judged without pixels."
+  },
+  {
+   "capture": "cp-fastTop",
+   "category": "spec",
+   "severity": "minor",
+   "message": "The fast-toss check passes: apex time 2.5 s, apex height 12.5 m, v = 0, a = -4.0, and the scrubber range ±2.5. The height axis max is 13.2 m, so 12.5 m fits. The 'topMoves' observation has no readout, so it can only be judged from the scrubber and ball height."
+  }
+ ]
+}
