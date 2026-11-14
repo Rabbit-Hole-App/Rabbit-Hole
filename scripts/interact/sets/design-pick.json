@@ -1,0 +1,362 @@
+[
+ {
+  "id": 1,
+  "prompt": "At the highest point of a vertical throw, is acceleration zero because velocity is zero?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 2,
+  "prompt": "Why does a ball thrown straight up slow down on the way up?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 3,
+  "prompt": "I throw a ball straight up at 3 m/s. How high does it go?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 4,
+  "prompt": "Does a heavier ball thrown upward come down faster?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 5,
+  "prompt": "What happens to a ball thrown straight up on the Moon?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 6,
+  "prompt": "If I throw a ball up twice as fast, does it go twice as high?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 7,
+  "prompt": "Is a ball in free fall the moment it leaves my hand going up?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 8,
+  "prompt": "How long does a ball thrown upward stay in the air?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 9,
+  "prompt": "A ball is thrown up from a 2 m balcony. When does it pass the balcony again?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 10,
+  "prompt": "Why is the speed coming down the same as the speed going up at the same height?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 11,
+  "prompt": "Show me velocity versus time for a ball tossed straight up.",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 12,
+  "prompt": "On Mars, how much higher does a jump go?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 13,
+  "prompt": "What is the acceleration of a ball at the top of its flight?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 14,
+  "prompt": "Does gravity turn off for a moment at the top of a throw?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 15,
+  "prompt": "Compare a ball dropped from rest with one at the top of a throw.",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 16,
+  "prompt": "How does gravity's force on a ball change with its mass during a toss?",
+  "label": "vertical-throw",
+  "note": ""
+ },
+ {
+  "id": 17,
+  "prompt": "Why does a sigmoid squash any number into 0 to 1?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 18,
+  "prompt": "What does the learning rate do to a loss curve?",
+  "label": "curve-sliders",
+  "note": "labelled curve though a loss curve over steps is arguably over-time"
+ },
+ {
+  "id": 19,
+  "prompt": "How does the steepness parameter change a logistic curve?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 20,
+  "prompt": "What happens to a normal distribution when the standard deviation grows?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 21,
+  "prompt": "How does a capacitor's voltage rise over time as it charges?",
+  "label": "curve-sliders",
+  "note": "a curve over time with no motion, so curve"
+ },
+ {
+  "id": 22,
+  "prompt": "Show how exponential decay changes with the half-life.",
+  "label": "curve-sliders",
+  "note": "a curve over time with no motion, so curve"
+ },
+ {
+  "id": 23,
+  "prompt": "What does ReLU look like compared with a sigmoid?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 24,
+  "prompt": "How does the discount rate change the present value of a future payment?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 25,
+  "prompt": "Why does softmax temperature make the output flatter?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 26,
+  "prompt": "How does a parabola change when I change the coefficient of x squared?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 27,
+  "prompt": "What does a titration curve look like near the equivalence point?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 28,
+  "prompt": "How does the period of a sine wave change with frequency?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 29,
+  "prompt": "How does compound interest grow with the rate?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 30,
+  "prompt": "What is the shape of the logistic growth of a population?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 31,
+  "prompt": "How does a Gaussian kernel's width change the smoothing?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 32,
+  "prompt": "How does the tanh activation differ from a sigmoid?",
+  "label": "curve-sliders",
+  "note": ""
+ },
+ {
+  "id": 33,
+  "prompt": "How does a pendulum's period depend on its length?",
+  "label": "none",
+  "note": "an over-time scene that no family covers yet"
+ },
+ {
+  "id": 34,
+  "prompt": "A ball is thrown at 45 degrees. How far does it land?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 35,
+  "prompt": "How does attention work in a transformer?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 36,
+  "prompt": "Why does a skydiver reach terminal velocity?",
+  "label": "none",
+  "note": "an over-time scene that no family covers yet"
+ },
+ {
+  "id": 37,
+  "prompt": "How does a mass on a spring oscillate?",
+  "label": "none",
+  "note": "an over-time scene that no family covers yet"
+ },
+ {
+  "id": 38,
+  "prompt": "What is gradient descent?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 39,
+  "prompt": "A block slides down a ramp with friction. How fast is it at the bottom?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 40,
+  "prompt": "How do two carts collide elastically?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 41,
+  "prompt": "What is a Punnett square?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 42,
+  "prompt": "Why do satellites stay in orbit?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 43,
+  "prompt": "How does a hash map work?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 44,
+  "prompt": "What is a confusion matrix?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 45,
+  "prompt": "How does TCP's three-way handshake work?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 46,
+  "prompt": "What are the steps of the Krebs cycle?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 47,
+  "prompt": "How does a decision tree split a dataset?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 48,
+  "prompt": "How does a convolution slide over an image?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 49,
+  "prompt": "A ball is dropped from a tower. How long until it hits the ground?",
+  "label": "none",
+  "note": "deliberate near miss for vertical-throw: the ball starts at rest, the template assumes an upward launch"
+ },
+ {
+  "id": 50,
+  "prompt": "A ball is thrown downward from a bridge. How fast is it after one second?",
+  "label": "none",
+  "note": "deliberate near miss for vertical-throw: the velocity starts downward, the template assumes an upward launch"
+ },
+ {
+  "id": 51,
+  "prompt": "Compare a binary tree and a linked list.",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 52,
+  "prompt": "How does DNS resolve a name?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 53,
+  "prompt": "What is the difference between precision and recall?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 54,
+  "prompt": "How does backpropagation assign blame to each weight?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 55,
+  "prompt": "How does a transformer block stack its layers?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 56,
+  "prompt": "Explain the water cycle.",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 57,
+  "prompt": "How does an electric field look around two charges?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 58,
+  "prompt": "How does bootstrap sampling pick rows?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 59,
+  "prompt": "Why does a bridge sway in wind?",
+  "label": "none",
+  "note": ""
+ },
+ {
+  "id": 60,
+  "prompt": "How does a neural network forward pass compute an output?",
+  "label": "none",
+  "note": ""
+ }
+]
