@@ -1,0 +1,98 @@
+{
+  "phase": "before",
+  "worktree": "C:/s/explain-canvas-3",
+  "fixtures": {
+    "cards": "v60 explanation cards (no file card), all dx +4000 / dy +5000",
+    "exch": "three chat exchanges only, dx +4000 / dy +5000..5800",
+    "bare": "v60 text item + 2 text items + rect + ellipse near world (5000, 4000)",
+    "barehuge": "two text items + a rect near (6000, 3000) and one far text item near (160000, 90000)"
+  },
+  "cards": {
+    "owner": {
+      "drawn": 11,
+      "inView": 1,
+      "inViewKinds": {
+        "card": 1,
+        "item": 0,
+        "shape": 0
+      },
+      "zoomText": "50"
+    },
+    "guest": {
+      "drawn": 11,
+      "inView": 1,
+      "inViewKinds": {
+        "card": 1,
+        "item": 0,
+        "shape": 0
+      },
+      "zoomText": "50"
+    }
+  },
+  "exch": {
+    "owner": {
+      "drawn": 3,
+      "inView": 0,
+      "inViewKinds": {
+        "card": 0,
+        "item": 0,
+        "shape": 0
+      },
+      "zoomText": "63"
+    },
+    "guest": {
+      "drawn": 3,
+      "inView": 0,
+      "inViewKinds": {
+        "card": 0,
+        "item": 0,
+        "shape": 0
+      },
+      "zoomText": "63"
+    }
+  },
+  "bare": {
+    "owner": {
+      "drawn": 5,
+      "inView": 0,
+      "inViewKinds": {
+        "card": 0,
+        "item": 0,
+        "shape": 0
+      },
+      "zoomText": "63"
+    },
+    "guest": {
+      "drawn": 5,
+      "inView": 0,
+      "inViewKinds": {
+        "card": 0,
+        "item": 0,
+        "shape": 0
+      },
+      "zoomText": "63"
+    }
+  },
+  "barehuge": {
+    "owner": {
+      "drawn": 4,
+      "inView": 0,
+      "inViewKinds": {
+        "card": 0,
+        "item": 0,
+        "shape": 0
+      },
+      "zoomText": "100"
+    },
+    "guest": {
+      "drawn": 4,
+      "inView": 0,
+      "inViewKinds": {
+        "card": 0,
+        "item": 0,
+        "shape": 0
+      },
+      "zoomText": "100"
+    }
+  }
+}
