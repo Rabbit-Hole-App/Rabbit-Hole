@@ -55,6 +55,5 @@ test('the fill text reads only the family: the names sentence is derived (the in
   assert.ok(text.includes('A formula reads only the names x, k, x0; any other name (y) is refused.'), text);
   assert.ok(!/gravity|launchSpeed|launchHeight|apexTime/.test(text.split('## Limits')[1]), 'no toss word after the limits header');
   const toss = fillSystem('detailed', briefSchema('detailed'));
-  assert.ok(toss.includes('A formula reads only the names t, launchSpeed, gravity, mass;') && toss.includes('gravity: every value of its range is at least 4'));
-  assert.ok(!fillSystem('brief', briefSchema('brief')).includes('every value of its range is at least 4'), 'the Overview fixes gravity');
+  assert.ok(toss.includes('A formula reads only the names t, launchSpeed, gravity, mass;') && toss.includes('Every marker time is at least 0.') && !toss.includes('at least 4'));
 });
