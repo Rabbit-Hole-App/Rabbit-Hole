@@ -127,7 +127,7 @@ test('Brief, Balanced and Detailed toss-mvp jobs reach ready on the template bui
 // ---- the picker: the best passing plan per depth from the bench rows -----------------------------------------------------------------------------------------------------------------------------
 test('pick-mvp-plans: the best Flash Lite pass per depth (smallest msTotal), a Sonnet pass when Flash Lite has none, a depth with no pass is left out and named', () => {
   const plan = tag => ({ tag }), rows = [
-    { model: 'gemini-3.5-flash-lite', depth: 'brief', result: 'pass', expandedPlanPath: 'a', msTotal: 900, ts: '1' }, { model: 'gemini-3.5-flash-lite', depth: 'brief', result: 'pass', expandedPlanPath: 'b', msTotal: 700, ts: '2' },
+    { model: 'gemini-3.5-flash-lite', depth: 'brief', result: 'pass', expandedPlanPath: 'a', msTotal: 900, ts: '1' }, { model: 'gemini-3.5-flash-lite', depth: 'brief', result: 'pass', expandedPlanPath: 'b', msTotal: 700, msFill: 640, ts: '2' },
     { model: 'gemini-3.5-flash-lite', depth: 'brief', result: 'fail', expandedPlanPath: 'x', msTotal: 100, ts: '3' }, { model: 'claude-sonnet-5-5', depth: 'brief', result: 'pass', expandedPlanPath: 's', msTotal: 50, ts: '4' },
     { model: 'claude-sonnet-5-5', depth: 'balanced', result: 'pass', expandedPlanPath: 'c', msTotal: 3000, ts: '5' }, { model: 'gemini-3.5-flash-lite', depth: 'detailed', result: 'fail', expandedPlanPath: 'd', ts: '6' },
   ];
@@ -135,6 +135,7 @@ test('pick-mvp-plans: the best Flash Lite pass per depth (smallest msTotal), a S
   assert.deepEqual([picked.brief.model, picked.brief.plan], ['gemini-3.5-flash-lite', plan('b')]);
   assert.deepEqual([picked.balanced.model, picked.balanced.plan], ['claude-sonnet-5-5', plan('c')]);
   assert.deepEqual([Object.keys(picked), missing], [['brief', 'balanced'], ['detailed']]);
-  const text = dataFileText(Object.fromEntries(Object.entries(picked).map(([d, p]) => [d, { source: p.model, plan: p.plan }])), 'test');
+  const text = dataFileText(Object.fromEntries(Object.entries(picked).map(([d, p]) => [d, { source: p.model, meta: { designModel: p.model, msFill: p.msFill, jobTs: p.ts }, plan: p.plan }])), 'test');
   assert.match(text, /export const TOSS_MVP_PLANS = Object\.freeze\(/); assert.match(text, /"tag": "b"/); assert.doesNotMatch(text, /"detailed"/);
+  assert.match(text, /export const TOSS_MVP_META = Object\.freeze\(/); assert.match(text, /"designModel": "gemini-3\.5-flash-lite"/); assert.match(text, /"msFill": 640/); assert.equal(picked.brief.msFill, 640);
 });

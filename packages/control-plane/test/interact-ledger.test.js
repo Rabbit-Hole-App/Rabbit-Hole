@@ -9,8 +9,18 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beginStage, countStage, endStage, newTiming, timingSummary } from '../src/explain-policy.js';
 import { LEDGER_COLUMNS, jobFromDetail, ledgerMarkdown, ledgerRow, repairCauses } from '../src/interact-ledger.js';
+import { TOSS_MVP_META } from '../../web/src/interact-toss-mvp-plans.js';
 
 const FIXTURE = fileURLToPath(new URL('./fixtures/interact/run15-job-detail.json', import.meta.url));
+test('a job pinned to a toss-mvp-<depth> fixture carries designModel, designKind and msFill from the data file meta; every other row reads null', () => {
+  const base = jobFromDetail(detail());
+  const mvp = ledgerRow({ ...base, designFixture: 'toss-mvp-balanced' });
+  assert.deepEqual([mvp.fixture, mvp.designModel, mvp.designKind, mvp.msFill], ['toss-mvp-balanced', TOSS_MVP_META.balanced.designModel, 'brief-mvp', TOSS_MVP_META.balanced.msFill ?? null]);
+  for (const fixture of [null, 'toss', 'toss-overview', 'ledge-toss-moon', 'toss-mvp-unknown']) assert.deepEqual([ledgerRow({ ...base, designFixture: fixture }).designModel, ledgerRow({ ...base, designFixture: fixture }).designKind, ledgerRow({ ...base, designFixture: fixture }).msFill], [null, null, null], String(fixture));
+  assert.deepEqual(LEDGER_COLUMNS.slice(-3), ['designModel', 'designKind', 'msFill'], 'the new columns are the last three');
+  assert.match(ledgerMarkdown([mvp]).split('\n')[0], /\| designModel \| designKind \| msFill \|$/, 'the markdown header ends with them');
+});
+
 const SCRIPT = fileURLToPath(new URL('../../../scripts/interact/ledger.mjs', import.meta.url));
 const detail = () => JSON.parse(readFileSync(FIXTURE, 'utf8'));
 
@@ -91,7 +101,7 @@ test('ledger.md renders the run-15 row under the same columns', () => {
   assert.equal(head, `| ${LEDGER_COLUMNS.join(' | ')} |`);
   assert.equal(rule.split('|').length, head.split('|').length);
   assert.match(line, /^\| ej_a7e7bb226e614a02b5a426e30218f615 \| 8f564bdf\w+ \| balanced \| ready \| accepted \|/);
-  assert.match(line, /\| 0\.620628 \|  \| 65860 \| 45 \| 30098 \|  \| 50 \| 76187 \| 49185 \| 221425 \|  \| v1 \| model \|  \|  \|$/); // buildKind, msHopWait and judgeFindingsPath are the last three columns (a model build: buildKind model, no hop wait, no judge findings file)
+  assert.match(line, /\| 0\.620628 \|  \| 65860 \| 45 \| 30098 \|  \| 50 \| 76187 \| 49185 \| 221425 \|  \| v1 \| model \|  \|  \|  \|  \|  \|$/); // buildKind, msHopWait, judgeFindingsPath, designModel, designKind and msFill are the last six columns (a model build: buildKind model, no hop wait, no judge findings file, no pinned design)
 });
 
 test('the script appends one line per job to ledger.jsonl and regenerates ledger.md; a rerun replaces the line (dry run on the saved response, no network)', () => {

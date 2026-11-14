@@ -1752,3 +1752,21 @@ export const TOSS_MVP_PLANS = Object.freeze({
   ]
  }
 });
+// Where each plan came from, for the ledger's designModel / designKind / msFill columns (interact-ledger.js, jobs pinned to toss-mvp-<depth>): the model of the bench row, its fill time in ms, and the attempt's timestamp.
+export const TOSS_MVP_META = Object.freeze({
+ "brief": {
+  "designModel": "stand-in",
+  "msFill": null,
+  "jobTs": null
+ },
+ "balanced": {
+  "designModel": "stand-in",
+  "msFill": null,
+  "jobTs": null
+ },
+ "detailed": {
+  "designModel": "stand-in",
+  "msFill": null,
+  "jobTs": null
+ }
+});
