@@ -337,7 +337,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   const measureTop = root => { const header = root.querySelector('[data-card-header]'), base = root.getBoundingClientRect().top; root.style.setProperty('--top-h', `${Math.max(24, ((header ? header.getBoundingClientRect().bottom : base + 24 * (zoom || 1)) - base) / (zoom || 1))}px`); };
   // A press alone changes nothing (the row must not jump when a card is clicked); it hides only once the card is being dragged (a move with a button down).
   const hoverIn = event => { if (event.buttons) { if (hovered || hoverTimer.current) hoverOff(); return; } measureTop(event.currentTarget); if (hovered) { clearTimeout(hoverTimer.current); hoverTimer.current = null; return; } if (!hoverTimer.current) hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(true); }, 150); };
-  const hoverOut = () => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(false); }, 120); };
+  const hoverOut = () => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => { hoverTimer.current = null; setHovered(false); }, 350); }; // a grace long enough to cross the empty space between the pills
   const hoverOff = () => { clearTimeout(hoverTimer.current); hoverTimer.current = null; setHovered(false); };
   useEffect(() => () => clearTimeout(hoverTimer.current), []);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
@@ -456,7 +456,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           owner 2026-10-29), so it is never under the band (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
           lies over the card or its top port. The one selected card says how it opens: a small Enter (owner 2026-11-08: renamed from Open; its title and name still say what it opens), never a big button on every card
           (touch has no double-click). */}
-      {(showEnter || showTools) && (
+      {(showEnter || showTools || (selected && !!tools)) && (
         <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-end gap-x-2 gap-y-1.5 after:pointer-events-auto after:absolute after:inset-x-0 after:top-full after:h-2 after:content-[''] [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
           {showEnter && (
             <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
@@ -465,7 +465,9 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
               Enter<ArrowUpRight size={13} />
             </button>
           )}
-          {showTools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{selected ? tools : hoverTools}</div>}
+          {/* On the selected card the buttons keep their place in the row whether or not the pointer is on the card, and only become invisible (visibility, so they take no presses): a row that
+              re-wraps as they come and go moves Enter up and down (owner 2026-11-13). */}
+          {(showTools || (selected && !!tools)) && <div className={`pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px] ${showTools ? '' : 'invisible'}`}>{selected ? tools : hoverTools}</div>}
         </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
@@ -973,7 +975,11 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
       placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
-      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} /> : null}
+      hoverTools={!selected ? <>
+        {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
+        <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
+        <HoverActions id={block.id} select={onSelect} divider={cadTools || ['code', 'snippet'].includes(block.type)} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} />
+      </> : null}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
         <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />

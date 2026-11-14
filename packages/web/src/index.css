@@ -1096,9 +1096,12 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 /* The minimized Explanation tile (LearningBlocks ExplanationTile): its one visual is drawn at its full size, as in the card (explanation-card-width.js sets the tile's width from it); only the picture's own margin is dropped. */
 [data-explanation-tile] [data-illustration] { margin: 0 auto; }
 
-/* The top of a card, the thin grip strip and the header under it, is ONE drag region (owner 2026-11-13): hovering either lights one tint layer as tall as both together
+/* The top of a card, the thin grip strip and the header under it, is ONE drag region (owner 2026-11-13): the pointer anywhere on the card lights one tint layer as tall as both together
    (CanvasNode measures it into --top-h), so it can never read as two parts. A tint over the content, not a fill behind it, so nothing is hidden or restacked. */
-[data-block]:has([data-drag-top]:hover)::before {
+[data-block]:hover::before {
   content: ''; position: absolute; top: 0; right: 0; left: 0; z-index: 12; height: var(--top-h, 24px); border-radius: 0.75rem 0.75rem 0 0;
   background-color: color-mix(in srgb, currentColor 7%, transparent); pointer-events: none;
 }
+
+/* The tool buttons on the canvas strip's pills are round on hover and press, not square (owner 2026-11-13). Only the buttons themselves: a menu's items are deeper and keep their shape. */
+[data-composer-tools] > button, [data-composer-tools] > * > button { border-radius: 9999px; }

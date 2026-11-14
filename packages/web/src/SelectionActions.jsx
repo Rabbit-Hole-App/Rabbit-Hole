@@ -73,14 +73,16 @@ function Actions({ ctx, mode, className = '', style }) {
 
 // The row of a card the pointer is over but that is not the selected one (owner 2026-11-13: the card's actions show on hover, not on click). Pressing a button selects this card first
 // and then runs the action, which acts on the selection as ever (the handler is read after the selection has re-rendered).
-export function HoverActions({ id, select, minimizable = false }) {
+export function HoverActions({ id, select, minimizable = false, divider = false }) {
   const ctx = useContext(Ctx);
   if (!ctx || ctx.hidden || ctx.sole === id || (!ctx.onAddToChat && !ctx.onQuickEdit)) return null;
   // Select this card, let the canvas re-render with it selected, then run the action from the NEWEST context: the action reads the selection, and the copy this row holds was made before it.
   const act = name => { select(id); requestAnimationFrame(() => requestAnimationFrame(() => freshest?.[name]?.())); };
   // The very same Actions the selected card's row draws (owner 2026-11-13: hover and click must look and sit the same), with this card's presses.
   const hoverCtx = { ...ctx, focusLabel: null, onFocus: null, added: false, onAddToChat: ctx.onAddToChat ? () => act('onAddToChat') : null, onQuickEdit: ctx.onQuickEdit ? () => act('onQuickEdit') : null, onMinimize: minimizable ? () => act('onMinimize') : null };
-  return <Actions ctx={hoverCtx} mode="host" />;
+  const actions = <Actions ctx={hoverCtx} mode="host" />;
+  // The rule before it, where other controls of the row come first (as SelectionActionsHost draws it).
+  return divider ? <div className="flex items-stretch gap-1.5"><span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-line-strong" />{actions}</div> : actions;
 }
 
 // A host row's trailing segment: shown only while `id` is the one selected object, and tells the floating bar to stand down.
