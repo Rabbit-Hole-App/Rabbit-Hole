@@ -1,0 +1,25 @@
+✔ settle: a ready job lands its video once (title, goal, artifact), a stage change rides quietly, another card's job never lands (0.97ms)
+✔ the download is the card title as an ASCII slug of at most 60 characters (0.4955ms)
+✔ the pending card shows the stage word; the ready card plays the video with captions, the caption line and Download; others see the placeholder (25.1993ms)
+✔ the card is registered (no Insert sample) and the Tutor reads its title and goal (1.3659ms)
+✔ Ctrl+K never opens from inside the player: inlineTarget refuses a focused [data-player] (4.6431ms)
+✔ the review card: Generate approves the job, the heading and cost line are 1.3's, a length change re-plans, Length offers 10 to 60 s (2.4212ms)
+✔ a whiteboard-video proposal message draws no answer body; animation, motion, explain proposals and plain answers do (2.0829ms)
+✔ Canvas mode shows the Canvas preferences; missing values are the ui-prefs defaults (5.1086ms)
+✔ Study mode: both maps hidden with no Study choice, whatever the Canvas preferences; the other widgets follow Canvas (0.8221ms)
+✔ widgetToggle: in Study a map goes to the Study store, everything else to the Canvas store (0.7122ms)
+✔ a Study toggle never touches the Canvas preferences; a Canvas toggle never touches the Study choice (2.6806ms)
+✔ blocked storage: a Study toggle still applies in the page and is never reported as saved (3.2907ms)
+✔ focus hides the minimap, Rabbit Hole map and Curious, keeps the toolbar, and restores each exactly (0.6534ms)
+✔ toolbarDrawn: hidden over the pinned Study notebook only, otherwise the saved choice (hidden stays hidden) (0.469ms)
+✔ the email-domain workspace reads Personal on the preview, never Gmail (1.8526ms)
+✔ a named workspace keeps its real name (0.4168ms)
+✔ the live build keeps its old workspace name (0.3876ms)
+ℹ tests 7061
+ℹ suites 0
+ℹ pass 7033
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 27
+ℹ todo 1
+ℹ duration_ms 141702.7736

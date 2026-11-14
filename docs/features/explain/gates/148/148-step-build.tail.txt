@@ -1,0 +1,12 @@
+dist/static/plotly-basic.min-BCulFMR7.js                        1,150.82 kB │ gzip: 380.53 kB
+dist/static/Dive-DpCBQ13M.js                                    1,234.85 kB │ gzip: 388.67 kB
+dist/static/WhiteboardBlock-Cvh5rI3V.js                         1,356.99 kB │ gzip: 398.18 kB
+dist/static/chunk-EIO257PC-DHQwANXm.js                          1,821.02 kB │ gzip: 744.22 kB
+dist/static/spark.module-Bm_9w6oP.js                            2,515.04 kB │ gzip: 895.40 kB
+
+[32m✓ built in 6.78s[39m
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m

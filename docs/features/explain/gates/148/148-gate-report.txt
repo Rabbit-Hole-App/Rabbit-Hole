@@ -1,0 +1,17 @@
+GATE: PASS(replay) 72075aac5669d57e2eef275c6ce0632c7a5b5b9c tier=suites+replay (web-only candidate stacked on release 146's candidate 5cd8b03a3: planner-kind replay moves 0 of 474 card rows, no snapshot, illustration or reference file in the diff, no prompt or server file, so no smoke). Steps are listed in 148-suites-report.txt: ci, scripts, control-plane (skipped: no server file in the diff), tutor-diagrams, figure-briefs, web unit, build, property count, replay, snapshot-diff. Every step rc=0 on its first run.
+
+SHA 72075aac5669d57e2eef275c6ce0632c7a5b5b9c base-tree 5cd8b03a325676d245306fe1d52f4510f661d7e0
+STEP ci rc=0 55s
+STEP scripts rc=0 22s
+STEP tutor rc=0 48s
+STEP figbriefs rc=0 1s
+STEP webunit rc=0 144s (7061 tests, 7033 pass, 0 fail, 27 skipped)
+STEP build rc=0 9s
+STEP props rc=0 11s
+STEP replay rc=0 14s
+SNAPSHOT-DIFF files: 0
+GATE RUN DONE
+
+card rows 474 moved counts {"first":0,"steer":0,"kind":0,"refs":0}
+GATE PASS: 0 first picks moved
+GATE PASS: max 347 <= 362 and max 358 <= 362
