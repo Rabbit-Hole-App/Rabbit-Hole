@@ -1,0 +1,63 @@
+✖ all two-panel references have exactly one linked single-diagram variant (1.586532ms)
+✔ ml-feature-scaling-transformation-single renders as one diagram at all three gallery widths (43.437011ms)
+✔ ml-clustering-comparison-single renders as one diagram at all three gallery widths (14.450337ms)
+✔ ml-concept-drift-comparison-single renders as one diagram at all three gallery widths (11.300287ms)
+✔ ml-one-hot-encoding-transformation-single renders as one diagram at all three gallery widths (9.76979ms)
+✔ ml-imputation-transformation-single renders as one diagram at all three gallery widths (10.317045ms)
+✔ ml-boosting-correction-transformation-single renders as one diagram at all three gallery widths (15.508862ms)
+✔ ml-differencing-transformation-single renders as one diagram at all three gallery widths (13.711954ms)
+✔ ml-fit-quality-comparison-single renders as one diagram at all three gallery widths (6.87802ms)
+✔ ml-ordinal-encoding-single renders as one diagram at all three gallery widths (4.090958ms)
+✔ ml-value-binning-single renders as one diagram at all three gallery widths (5.597349ms)
+✔ ml-feature-interaction-single renders as one diagram at all three gallery widths (5.340852ms)
+✔ ml-confusion-denominators-single renders as one diagram at all three gallery widths (9.160722ms)
+✔ ml-soft-vote-probabilities-single renders as one diagram at all three gallery widths (5.372891ms)
+✔ ml-adaboost-weight-update-single renders as one diagram at all three gallery widths (10.052587ms)
+✔ ml-stacking-oof-predictions-single renders as one diagram at all three gallery widths (3.936135ms)
+✔ ml-minority-accuracy-trap-single renders as one diagram at all three gallery widths (6.53313ms)
+✔ ml-psi-bin-contributions-single renders as one diagram at all three gallery widths (6.402784ms)
+✔ ml-acf-vs-pacf-single renders as one diagram at all three gallery widths (7.134127ms)
+✔ ml-recursive-vs-direct-forecast-single renders as one diagram at all three gallery widths (5.235123ms)
+✔ ml-cpu-vs-gpu-single renders as one diagram at all three gallery widths (3.009647ms)
+✔ ml-dropout-network-single renders as one diagram at all three gallery widths (7.955414ms)
+✔ ml-linear-regression-normal-equation-single renders as one diagram at all three gallery widths (6.09541ms)
+✔ ml-dense-vs-moe-architecture-single renders as one diagram at all three gallery widths (2.619119ms)
+✔ ml-transformer-parallel-attention-heads-single renders as one diagram at all three gallery widths (4.028464ms)
+✔ ml-word2vec-right-context-clue-single renders as one diagram at all three gallery widths (2.362001ms)
+✔ ml-word2vec-vocabulary-versus-pair-single renders as one diagram at all three gallery widths (3.538194ms)
+✔ ml-stable-diffusion-denoiser-inputs-single renders as one diagram at all three gallery widths (4.726817ms)
+✔ ml-stable-diffusion-training-versus-generation-single renders as one diagram at all three gallery widths (3.577263ms)
+✔ figure-retro-fact-versus-pattern-single renders as one diagram at all three gallery widths (3.610984ms)
+✔ d2l-convolution-filter-maps-single renders as one diagram at all three gallery widths (6.885512ms)
+✔ raschka-context-cap-same-experts-single renders as one diagram at all three gallery widths (3.657154ms)
+✔ raschka-indexed-attention-only-diff-single renders as one diagram at all three gallery widths (2.715714ms)
+✔ ml-logistic-regression-softmax-single renders as one diagram at all three gallery widths (2.908295ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 33
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 633.50411
+
+✖ failing tests:
+
+test at packages/web/src/tutor-diagrams/reference-single-variants.test.mjs:16:1
+✖ all two-panel references have exactly one linked single-diagram variant (1.586532ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  43 !== 33
+
+      at TestContext.<anonymous> (file:///workspace/scratch/8367069fa9d9/lesson-pipeline-repo/packages/web/src/tutor-diagrams/reference-single-variants.test.mjs:17:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 43,
+    expected: 33,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "taskId": "a97894d9-db7b-4af3-8a7d-35c2d0114221",
+  "scope": "Classify the historical sparse-lane broad web suite log; no test rerun or repository changes.",
+  "run": {
+    "command": "npm run test:unit",
+    "script": "node --test \"src/**/*.test.mjs\"",
+    "workingDirectory": "/workspace/scratch/8367069fa9d9/c02-shift-repo/packages/web",
+    "nodeVersion": "24.22.1",
+    "log": "/workspace/scratch/8367069fa9d9/c02-shift-unit.log",
+    "logSha256": "a6d2b9dbfa9cd8cb0b1802d56684a9ddeb85498507a1c572df98a75a3995ea22",
+    "logBytesRead": 743351,
+    "logLinesRead": 10868,
+    "reportedTests": 3097,
+    "reportedPassed": 2746,
+    "reportedFailed": 351,
+    "failed": true
+  },
+  "revisions": {
+    "schemaBase": "1944b48cf24c9d6bd7f53b34ddbe258d1c6113df",
+    "integratedBatch": "66cfd028835ae91eccc28d6b392f59361f092032",
+    "historicalLaneBase": "d5149cda5972c5335cabc2ffb601e4bf8ae7dfb9",
+    "laneHeadWhenClassified": "3413032e9a4b23e20a2162a47d614b1b2934a17c",
+    "lanePathsAddedAfterHistoricalBase": [
+      "packages/web/src/tutor-diagrams/composition-distribution-shift-references.js",
+      "packages/web/src/tutor-diagrams/topic-distribution-shift-composition.test.mjs",
+      "packages/web/src/tutor-diagrams/topic-distribution-shift-data.js"
+    ],
+    "note": "The current lane contains two author commits after d5149cda5, changing only the same three lane files. All 298 failed test sources match d5149cda5 byte-for-byte. The log proves 37 registry parents, consistent with the C01 registry and no C02 registry wiring."
+  },
+  "summary": {
+    "failureRows": 351,
+    "uniqueFailedTestFiles": 298,
+    "fileLoadWrappersEnriched": 263,
+    "countsByClassification": {
+      "module/dependency load": 122,
+      "missing source/fixture load": 228,
+      "timing": 0,
+      "real assertion": 1
+    },
+    "confirmedExternalPackageLoads": 121,
+    "inferredExternalPackageLoads": 1,
+    "confidenceCounts": {
+      "high": 350,
+      "medium": 1
+    },
+    "unresolvedUnderlyingCauseRowIds": [
+      66
+    ],
+    "confirmedChangedDataAssertionRowIds": [
+      329
+    ],
+    "blockedDirectCatalogSelectorSnapshotCoverageRowIds": [
+      310,
+      312,
+      315,
+      317,
+      319,
+      330,
+      333
+    ],
+    "timingFailures": 0,
+    "failedTestFilesChangedByBatch": 0
+  },
+  "changedDataFinding": {
+    "rowId": 329,
+    "testFile": "packages/web/src/tutor-diagrams/reference-single-variants.test.mjs",
+    "failedAssertion": "assert.equal(parents.length, 33);",
+    "failedAssertionLine": 17,
+    "logActual": 37,
+    "logExpected": 33,
+    "nextUnexecutedAssertionLine": 18,
+    "nextUnexecutedAssertion": "assert.deepEqual(singleDiagramReferences.map(r => r.panelReferenceId).sort(), parents.map(r => r.id).sort());",
+    "integratedReadOnlyInspection": {
+      "candidate": "66cfd028835ae91eccc28d6b392f59361f092032",
+      "qualifyingParents": 43,
+      "linkedSingles": 33,
+      "unlinkedParentIds": [
+        "ml-linear-regression-linear-unit",
+        "ml-neural-networks-hidden-layer",
+        "ml-regularization-regularized-objective",
+        "ml-regularization-dropout-mask",
+        "ml-attention-scaled-score-normalization",
+        "ml-model-evaluation-training-diagnostics",
+        "ml-model-evaluation-schedule-run-diagnostics",
+        "ml-time-series-recursive-rollout",
+        "ml-distribution-shift-input-distribution-shift",
+        "ml-distribution-shift-concept-shift"
+      ]
+    },
+    "disposition": "Requires explicit integration disposition. This is neither a dependency/fixture issue nor a timing failure; updating only the count would leave the next variant-set assertion unresolved."
+  },
+  "limitations": [
+    "The broad suite failed; this inventory is not a passing suite receipt.",
+    "No tests, timing retries, provider calls, browser runs, builds, repository edits or branch operations were performed for classification.",
+    "The code-lang failure exposes only a null.map TypeError. Its loader/tokenizer exception is caught and absent from the log; missing shiki is a supported inference from code and current dependency state, not a recovered original exception.",
+    "Load-blocked catalog/selector/snapshot checks remain unverified by this sparse run, even though their failed helpers/dependencies are unchanged."
+  ],
+  "inventory": "broad-suite-failures.md",
+  "inventorySha256": "ed0ed818f6e447cd2d972f30191932ece8016fc745fe88958f3d4beb11205251"
+}

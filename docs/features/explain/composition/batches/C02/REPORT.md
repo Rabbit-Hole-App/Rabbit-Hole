@@ -1,5 +1,7 @@
 # C02 — distribution-shift tranche
 
+Current rebase: `explain/composition-c02-r1` on release 133; [fresh checks and open assertions](rebase-133.md). Counts and previews below are the original pinned-1944 receipts.
+
 Branch `explain/composition-c02`, stacked on approved C01 `767ba06c4`; schema remains `1944b48cf`. Content-first commit: **343d91f8a378c5b2200276624ffb8ec952be1e70**. One C02 data release covers the six approved ids; each keeps its subject/lesson metadata.
 
 | Reference id | Overview | Standard | Deep / extra | Learner keywords |
@@ -21,4 +23,6 @@ All **24 visuals ≤ 300 compact cl100k_base tokens**, including their version w
 
 **Expressibility:** no new-kind gap remains for this batch after those depth/figure splits. C01 is unchanged.
 
-**Integration limitation:** a separate sparse-lane broad web run had **2,746 pass / 351 fail**, including missing dependencies/fixtures; not every failure was classified. [Verification record](verification.json). **ponytail:** full web build/release validation remains with Claude Code after both **133 and 134** are on main: suites, property count, replay zero; **no smoke**. No live provider or stack run was performed. C03 is not started.
+**Historical broad-suite failures:** **2,746 passed / 351 failed** in the sparse lane. The [complete file/assertion inventory](broad-suite-failures.md) reconciles every failure: **122 dependency loads** (one provisional), **228 source/fixture loads**, **0 timing failures**, **1 changed-data assertion**. The latter is `reference-single-variants.test.mjs:17`: 37 parents versus 33 singles in that lane; integrated C01+C02 has 43 parents and still 33 singles. The following variant-set equality also needs disposition. These failures are not all outside the reference directory. [Classification summary](broad-suite-summary.json).
+
+**Release-133 rebase:** C01 and C02 are rebased onto **a8ef11d64**, without conflicts and with all authored specs/data unchanged. [Current checks and exact failures](rebase-133.md) supersede the original pinned-tip receipts above. Claude Code owns the release gate: suites, property count and replay zero; **no smoke**. C03 is not started.

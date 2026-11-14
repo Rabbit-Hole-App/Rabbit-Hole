@@ -51,7 +51,7 @@
     "total": 3097,
     "passed": 2746,
     "failed": 351,
-    "status": "failed, incomplete diagnosis",
+    "status": "failed, all rows classified; one underlying highlighter cause provisional",
     "observedMissingDependenciesOrFixtures": [
       "esbuild",
       "oidc-client-ts",
@@ -62,8 +62,9 @@
       "xlsx",
       "JSX/media/benchmark fixtures"
     ],
-    "allFailuresClassified": false,
-    "logSha256": "a6d2b9dbfa9cd8cb0b1802d56684a9ddeb85498507a1c572df98a75a3995ea22"
+    "allFailuresClassified": true,
+    "logSha256": "a6d2b9dbfa9cd8cb0b1802d56684a9ddeb85498507a1c572df98a75a3995ea22",
+    "inventory": "broad-suite-failures.md"
   },
   "release": {
     "owner": "Claude Code",
@@ -80,5 +81,39 @@
     "buildAndReleaseGateRunHere": false,
     "liveProviderCalls": 0,
     "stackRuns": 0
+  },
+  "release133Rebase": {
+    "base": "a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36",
+    "conflicts": [],
+    "authoredSpecsAndDataChanged": false,
+    "C01": {
+      "tests": {
+        "pass": 101,
+        "fail": 2,
+        "skip": 0
+      },
+      "priorCases": 2865,
+      "changedPicks": 0,
+      "newSourceHits": 12,
+      "newSourceCases": 12
+    },
+    "C02": {
+      "focusedTests": {
+        "pass": 91,
+        "fail": 1,
+        "skip": 0
+      },
+      "singleVariantTests": {
+        "pass": 33,
+        "fail": 1,
+        "skip": 0
+      },
+      "priorCases": 2937,
+      "changedPicks": 0,
+      "newSourceHits": 21,
+      "newSourceCases": 21
+    },
+    "details": "rebase-133.md",
+    "releaseReady": false
   }
 }
