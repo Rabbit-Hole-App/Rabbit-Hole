@@ -106,7 +106,7 @@ export function normalizeFrame(raw, manifest = null) {
   }
   try {
     // duration is a required positive number by the scene schema; a program frame is one moment, so any value serves.
-    const scene = validateScene({ id: 'explain-program', width: frame.width, height: frame.height, duration: 1, objects: frame.objects.map(object => sceneObject(object, frame.height)), timeline: [], allowFigures: true });
+    const scene = validateScene({ id: 'explain-program', width: frame.width, height: frame.height, duration: 1, objects: frame.objects.map(object => sceneObject(object, frame.height)), timeline: [], allowFigures: true }, { maxOnScreen: manifest?.frameObjects ?? 60 });
     // The frame contract already checked the explicit domain. The shared grid reads it from the scene so the original values and
     // units stay available, and neither input changes nor the grid's own extrema can re-normalize the colors.
     frame.objects.forEach((object, index) => {
