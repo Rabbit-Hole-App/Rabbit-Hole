@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "comparison",
+    "variant": "panels",
+    "title": "Forecast feedback",
+    "caption": "Worked example. $f(x)=0.5x+1$; recursion reuses predictions.",
+    "panels": [
+      {
+        "heading": "Traces",
+        "diagram": {
+          "kind": "coordinate-plot",
+          "title": "Traces",
+          "x": {
+            "label": "Time",
+            "min": 1,
+            "max": 8
+          },
+          "y": {
+            "label": "Reading",
+            "min": 0,
+            "max": 10
+          },
+          "series": [
+            {
+              "label": "Observed",
+              "kind": "line",
+              "samples": {
+                "x": {
+                  "start": 1,
+                  "step": 1
+                },
+                "y": [
+                  4,
+                  6,
+                  8,
+                  6,
+                  8,
+                  10,
+                  8,
+                  10
+                ]
+              }
+            },
+            {
+              "label": "Recursive",
+              "kind": "line",
+              "samples": {
+                "x": [
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "y": [
+                  4,
+                  3,
+                  2.5,
+                  2.25
+                ]
+              }
+            },
+            {
+              "label": "One-step",
+              "kind": "line",
+              "samples": {
+                "x": [
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "y": [
+                  4,
+                  5,
+                  6,
+                  5
+                ]
+              }
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "reference-line",
+              "label": "Origin",
+              "axis": "x",
+              "value": 4
+            },
+            {
+              "kind": "reference-line",
+              "label": "Mean",
+              "axis": "y",
+              "value": 7.5
+            }
+          ]
+        }
+      },
+      {
+        "heading": "Inputs",
+        "diagram": {
+          "kind": "matrix",
+          "title": "Inputs",
+          "columns": [
+            "First",
+            "Next"
+          ],
+          "rows": [
+            {
+              "heading": "Recursive",
+              "cells": [
+                "Measured",
+                "Predicted"
+              ]
+            },
+            {
+              "heading": "One-step",
+              "cells": [
+                "Measured",
+                "Measured"
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
