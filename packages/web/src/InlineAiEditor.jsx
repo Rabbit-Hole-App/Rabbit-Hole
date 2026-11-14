@@ -413,7 +413,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
     // (the minted passage ref rides learnSlash.run's heldPassageTarget). Only a / command typed or picked takes another command.
     const overPassage = !!(highlight || (preset && !preset.command)) && !out.handoff && out.mode !== 'edit' && !!passageText;
     const asked = String(prompt).trim() || passageText; // CK-2: an empty box over a passage explains the passage itself
-    // CK-3: Explain selection over a passage makes its card directly: the /explain path (skeleton, then the card beside the passage, the camera on it), no preview, no Accept or Reject. A 'note' answer keeps its own
+    // CK-3: Explain selection over a passage makes its card directly: the /explain path (skeleton, then the card beside the passage, the camera on it), no preview, no Accept or Reject.
     // preview; a canvas with no Chat to hand to falls back to the inline card, which is accepted by itself (below).
     if (overPassage && config.handoff) {
       setHandoffError('');
