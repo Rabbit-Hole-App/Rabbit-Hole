@@ -199,17 +199,19 @@ async function fillProblems(raw, depth, info, ctx, family) {
   return unbuildable.length ? { problems: unbuildable } : { plan: checked.value };
 }
 // One line that names the fix for the failures a fill repeats (a model cannot count nodes or see what the template draws): appended to the problem the correction shows, never to the recorded first problem.
-const FIXES = [[/this formula needs \d+ nodes/, 'write the formula in a shorter form (split it into a helper quantity or simplify)'], [/markers\.\d+\.time a time before 0/, 'derive every marker time from the plan (0 or later)'], [/arrow ".*" is not drawn at cp-/, 'every gravity value of the range is at least 4'], [/unknown name "\w+"/, 'a formula reads only the names its key lists as readable; write that quantity out as a formula of them'], [/^formula \w+ at \{/, 'check the formula against the meaning of its key; a formula after the switch must start from the value the first formula has at the switch moment (write the elapsed time since the switch as t - switchAt, with switchAt written out as a formula) and write it again']];
+const FIXES = [[/this formula needs \d+ nodes/, 'write the formula in a shorter form (split it into a helper quantity or simplify)'], [/markers\.\d+\.time a time before 0/, 'derive every marker time from the plan (0 or later)'], [/unknown name "\w+"/, 'a formula reads only the names its key lists as readable; write that quantity out as a formula of them'], [/^formula \w+ at \{/, 'check the formula against the meaning of its key; a formula after the switch must start from the value the first formula has at the switch moment (write the elapsed time since the switch as t - switchAt, with switchAt written out as a formula) and write it again']];
 export const fixOf = problem => { const fix = FIXES.find(([pattern]) => pattern.test(problem)); return fix ? `${problem}. Fix: ${fix[1]}` : problem; };
 // The pick (brief 13) runs first: one System One call names the family that fits, or none. A gap (none, below the threshold, a failed or timed out call, no key) goes straight to the Opus design with no fill.
 const pickOf = async (job, ctx) => ctx.env.TYPESAFE_API_KEY
   ? pickFamily(ctx.env, { request: job.prompt, depth: job.depth }, { families: INTERACT_FAMILIES, threshold: pickThreshold(ctx.env, INTERACT_FAMILIES) })
   : { family: null, confidence: null, probabilities: null, ms: 0, reason: 'no_key' };
+export const GAP_MESSAGE = "This kind of scene isn't supported yet.";
 export async function fastDesign(job, ctx) {
   const depth = job.depth, fast = { kind: 'fast', model: null, calls: 0, fallback: 'none', firstProblem: null, costUsd: 0 };
   const pick = await pickOf(job, ctx); fast.pick = pick;
   const family = INTERACT_FAMILIES.find(f => f.id === pick.family);
-  if (!family) return { fast: { ...fast, kind: 'opus', fallback: 'gap' } };
+  // INTERACT_GAP: 'message' (the default of the fast path) ends the job here with a plain sentence, no Opus call; 'opus' keeps the old way (the full Opus design for a gap, measurement only).
+  if (!family) return ctx.gap === 'opus' ? { fast: { ...fast, kind: 'opus', fallback: 'gap' } } : { stop: { reason: 'design_gap', category: 'capability', message: GAP_MESSAGE }, fast: { ...fast, fallback: 'gap' } };
   const mod = family.module, info = briefSchema(depth, mod);
   let problems = [], previous = null;
   for (let round = 0; round < INTERACT_LIMITS.calls.design_fill; round++) {
@@ -230,8 +232,8 @@ export async function fastDesign(job, ctx) {
     fast.firstProblem ??= problems[0]; fast.lastProblem = problems[0];
   }
   // INTERACT_FAST_OPUS_BRIEF=on: two failed fills of a PICKED family are not sent to the full Opus design (author, review, revise: about US$1 and a plan the template cannot always build); Opus writes the same
-  // plan brief ONCE (the design author role, the same system text, schema, expander and checks) and the plan goes to approval as it is. Anything that goes wrong here still reaches the Opus design below.
-  if (ctx.env.INTERACT_FAST_OPUS_BRIEF === 'on') {
+  // plan brief ONCE (the design author role, the same system text, schema, expander and checks) and the plan goes to approval as it is. On by default under the fast path (INTERACT_FAST_OPUS_BRIEF=off skips it).
+  if (ctx.env.INTERACT_FAST_OPUS_BRIEF !== 'off') {
     try {
       const done = await ctx.interact('design_author', { system: fillSystem(depth, info, mod), schema: info.jsonSchema, name: 'return_plan_brief', description: 'Return the plan brief of the scene.',
         input: { request: job.prompt, depth, ...(previous ? { previous } : {}), correction: { instruction: 'Two earlier briefs were refused. Return the WHOLE corrected brief and change only what these problems name.', problems: [...new Set([fast.firstProblem, fast.lastProblem].filter(Boolean))].map(fixOf) } } });
@@ -244,7 +246,8 @@ export async function fastDesign(job, ctx) {
       fast.costUsd += (error.costMicros ?? 0) / 1e6; fast.lastProblem = String(error.problems?.[0] ?? error.message).slice(0, 300);
     }
   }
-  return { fast: { ...fast, kind: 'opus', fallback: 'after_correction' } };
+  // Never the full Opus design from here (owner, brief 19): a picked family whose fill and Opus brief both failed ends the job with the plain refusal; the problem line is in the ledger (firstProblem, lastProblem).
+  return { ...stop('design_invalid', 'spec', `The scene design could not be completed: ${fast.lastProblem ?? fast.firstProblem ?? 'the plan could not be built'}. Try again or edit the request.`), fast: { ...fast, kind: 'opus', fallback: 'after_correction' } };
 }
 
 // A plan the schema refuses is not thrown away on the first slip: real Opus runs lost the whole plan to one over-long entry, a result nested under one key and a malformed timeline
@@ -253,7 +256,7 @@ export async function fastDesign(job, ctx) {
 export async function authorDesign(job, ctx) {
   // The fast path runs once per design (design.fast is stored by the first result); an Edit or a retried Opus author never re-enters it.
   let fast;
-  if (ctx.designKind === 'fast' && !job.design.fast) { const out = await fastDesign(job, ctx); if (out.plan) return out; fast = out.fast; }
+  if (ctx.designKind === 'fast' && !job.design.fast) { const out = await fastDesign(job, ctx); if (out.plan || out.stop) return out; fast = out.fast; }
   const result = await opusAuthor(job, ctx);
   return fast ? { ...result, fast } : result;
 }

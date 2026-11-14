@@ -291,16 +291,15 @@ const FORMULA_RULES = Object.freeze([
   'A formula has at most 32 nodes.',
   'The detailed timeline counts time from the launch, and a marker is never before 0.',
 ]);
-// The Deep card draws the acceleration arrow at 3.4 px per m/s^2 and a vector under 12 px is not an arrow (sdk-geometry.js), so the build refused every plan whose gravity range reached 1 (three of three clone
-// runs, 2026-11-14); every depth that lets gravity vary gets the floor (the Overview fixes it). Rules of the depth, after the grammar: formulaRules(depth) -> lines.
+// Rules of the depth, after the grammar: formulaRules(depth) -> lines. (The acceleration arrow's scale follows the plan's smallest gravity, templates/shared.js arrowScale, so no gravity floor is asked of the model.)
 // A lane heading and its state word share one line of the lane (sdk.panel: 10 px a character, 24 px between them): two-lane's lanes are 302 px, body-plot's 310 px, one-body's 616 px (never cut).
 const LANE_ROOM = { balanced: 'Each lane: its heading (words.lane_first, words.lane_second) plus its longest state word is at most 24 characters in all; they share one line and a longer state word is cut on the card.', detailed: 'words.lane plus its longest state word (words.where_*) is at most 25 characters in all; they share one line and a longer state word is cut on the card.' };
-export const formulaRules = depth => Object.freeze([...FORMULA_RULES, ...(LANE_ROOM[depth] ? [LANE_ROOM[depth]] : []), ...(FAMILY.depths[depth]?.gravity === 'range' ? ['gravity: every value of its range is at least 4 (a smaller gravity draws no acceleration arrow and the card is refused). Every marker time is at least 0.'] : [])]);
+export const formulaRules = depth => Object.freeze([...FORMULA_RULES, ...(LANE_ROOM[depth] ? [LANE_ROOM[depth]] : []), ...(FAMILY.depths[depth]?.gravity === 'range' ? ['Every marker time is at least 0.'] : [])]);
 
 const superscripts = unit => String(unit ?? '').replace('^2', '²').replace('^3', '³');
 // The geometry the vertical-throw templates draw from: the largest rise above the launch height, the longest timeline end and the plotted quantity's largest size over the corners and middle of every input range,
-// and the units of the body's height, velocity, acceleration and force. -> { range: { rise, end, plotted }, units }. A timed body: the velocity starts positive and crosses zero at the top.
-export function context({ bodies, slots, parsed, numberInputs, endExpr, quantities }) {
+// and the units of the body's height, velocity, acceleration and force. -> { range: { rise, end, plotted, minAccel?, minSpeed? }, units }. A timed body: the velocity starts positive and crosses zero at the top.
+export function context({ scene, bodies, slots, parsed, numberInputs, endExpr, quantities }) {
   const body = bodies[0], plotted = slots.plotted ?? body.velocity;
   const evalQ = (id, values, t) => { const q = parsed[id], at = { ...values, t }; return q.formulaAfter && t >= evalScalar(q.switchAt, values) ? evalScalar(q.formulaAfter, at) : evalScalar(q.formula, at); };
   const topAt = (values, end) => { // the body's velocity crosses zero (bisection), as the program finds it
@@ -311,13 +310,18 @@ export function context({ bodies, slots, parsed, numberInputs, endExpr, quantiti
   };
   let grid = [{}];
   for (const input of numberInputs) grid = grid.flatMap(values => [input.min, (input.min + input.max) / 2, input.max].map(value => ({ ...values, [input.id]: value })));
-  const range = { rise: 0, end: 0, plotted: 0 };
+  const range = { rise: 0, end: 0, plotted: 0, minAccel: Infinity, minSpeed: Infinity };
   for (const values of grid) {
     const end = evalScalar(endExpr, { ...values, t: 0 });
     range.rise = Math.max(range.rise, evalQ(body.height, values, topAt(values, end)) - evalQ(body.height, values, 0));
     range.end = Math.max(range.end, end);
     range.plotted = Math.max(range.plotted, Math.abs(evalQ(plotted, values, 0)), Math.abs(evalQ(plotted, values, end)));
+    for (const b of bodies) for (const t of [0, end]) { const a = Math.abs(evalQ(b.acceleration, values, t)); if (a > 1e-9) range.minAccel = Math.min(range.minAccel, a); } // the smallest arrow the templates must still draw
+    // the smallest nonzero speed a body can show at the ends and at every checkpoint (cp-before is 0.10 s before the top: 0.1 x gravity); the velocity arrow must still be an arrow there
+    for (const b of bodies) for (const [vals, t] of [[values, 0], [values, end], ...(scene?.checkpoints ?? []).map(cp => { const vals2 = { ...values, ...cp.inputOverrides }; let t2 = 0; try { t2 = cp.time ? evalScalar(cp.time, { ...vals2, t: 0 }) : 0; } catch { t2 = NaN; } return [vals2, t2]; })]) { if (!Number.isFinite(t)) continue; const sp = Math.abs(evalQ(b.velocity, vals, t)); if (sp > 1e-4) range.minSpeed = Math.min(range.minSpeed, sp); }
   }
+  if (!Number.isFinite(range.minAccel)) delete range.minAccel;
+  if (!Number.isFinite(range.minSpeed)) delete range.minSpeed;
   const unitOf = id => superscripts(quantities.get(id)?.unit);
   return { range, units: { height: unitOf(body.height), velocity: unitOf(body.velocity), acceleration: unitOf(body.acceleration), ...(slots.force ? { force: unitOf(slots.force) } : {}) } };
 }

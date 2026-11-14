@@ -4,6 +4,11 @@
 // approved on canvas (interact-toss-programs.js stays as that reference, and the tests prove frame equality against it).
 
 export const J = value => JSON.stringify(value);
+// px per m/s^2 of the acceleration arrow: 3.4, or larger when the smallest acceleration in the plan's ranges (range.minAccel) would draw under 12 px (sdk.vector draws a plain line there, not an arrow).
+// The velocity arrow: 12 px per m/s and an arrow from 3 px up (sdk.vector draws a plain line below that, which is not an arrow). range.minSpeed is the smallest nonzero speed the plan's checkpoints and ends can show
+// (a checkpoint 0.10 s before the top shows 0.1 x gravity: 0.16 m/s on the Moon, 1.9 px, a line). Below 3 px the arrow starts at 1 px; below 1.5 px the scale grows so the smallest shows 1.5 px. Pinned plans keep 12 and 3.
+export const velocityDraw = range => (!(range.minSpeed > 0) || range.minSpeed * 12 >= 3 ? { vScale: 12, vMin: 3 } : { vScale: Math.max(12, Math.round(1.5 / range.minSpeed * 1e6) / 1e6), vMin: 1 });
+export const arrowScale = range => (range.minAccel > 0 ? Math.max(3.4, Math.round(12.5 / range.minAccel * 1e6) / 1e6) : 3.4);
 
 // ctx.q: { quantityId: 'js expression over inputs, t' } already built; ctx.end: 'js expression over inputs'; ctx.slots: role -> quantity id.
 // -> the source head: constants, the quantity table Q, END and motion(inputs, time) for the body described by `slots` ({ height, velocity, acceleration }).

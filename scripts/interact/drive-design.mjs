@@ -47,7 +47,8 @@ const log = (...a) => console.log(new Date().toISOString(), ...a), sleep = ms =>
 const env = readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8');
 const secret = (env.match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1] || '').trim().replace(/^['"]|['"]$/g, '');
 if (!secret) fail('RABBIT_HOLE_DEV_TEST_BYPASS missing from small-deploy/.env. Next: add it there.', 2);
-const EMAIL = `owner-interact-fast-${Date.now().toString(36)}@example.com`;
+const REUSE = opt('reuse') ? JSON.parse(readFileSync(opt('reuse'), 'utf8')) : null; // --reuse <canvas.json>: add this run's cards to an existing drive canvas (its account, canvas and board) instead of a fresh one
+const EMAIL = REUSE?.email || `owner-interact-fast-${Date.now().toString(36)}@example.com`;
 const minted = await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { ...UA, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL, secret }) });
 const session = (await minted.json().catch(() => ({}))).session;
 if (!session) fail(`no dev session (HTTP ${minted.status}). Next: check rabbit-hole-cp-dev is up.`);
@@ -55,10 +56,13 @@ const api = async (method, path, body) => {
   const r = await fetch(`${BASE}${path}`, { method, headers: { ...UA, cookie: `small_session=${session}`, ...(body ? { 'Content-Type': 'application/json', origin: BASE } : {}) }, body: body ? JSON.stringify(body) : undefined });
   return { status: r.status, data: await r.json().catch(() => null) };
 };
-const made = await api('POST', '/api/canvases', { title: `Toss ${design} design ${Date.now().toString(36)}` });
-const app = made.data?.name; if (!app) fail(`could not create a canvas (HTTP ${made.status}).`);
-const saved = await api('PUT', `/api/learn/boards/${app}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] } });
-const boardId = saved.data?.board_id; if (!boardId) fail(`could not save the canvas board (HTTP ${saved.status}).`);
+let app, boardId;
+if (REUSE) { app = REUSE.app; boardId = REUSE.boardId; } else {
+  const made = await api('POST', '/api/canvases', { title: `Toss ${design} design ${Date.now().toString(36)}` });
+  app = made.data?.name; if (!app) fail(`could not create a canvas (HTTP ${made.status}).`);
+  const saved = await api('PUT', `/api/learn/boards/${app}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] } });
+  boardId = saved.data?.board_id; if (!boardId) fail(`could not save the canvas board (HTTP ${saved.status}).`);
+}
 const url = `${BASE}/apps/${app}`; // never ?board=: on a preview build that opens a separate review board
 mkdirSync(SPEC_DIR, { recursive: true }); mkdirSync(out, { recursive: true });
 writeFileSync(`${SPEC_DIR}/current.json`, JSON.stringify({ base: BASE, email: EMAIL, app, boardId, createdAt: new Date().toISOString() }, null, 2)); // ledger.mjs reads the account from here
@@ -121,6 +125,13 @@ outer: for (const { n, depth, prompt, id, expect } of items) {
     Object.assign(r, { jobId: early.id ?? job?.id, stage: early.stage, stopReason: early.stopReason ?? null, failure: early.failure?.message ?? null });
     // A fast pass has no Generate: one wall-clock number, prompt sent -> card ready (generateToReadyMs stays null).
     if (early.stage === 'ready') { r.promptToCardMs = Date.now() - tSent; await shootCard(tag, r); }
+    // A gap (INTERACT_GAP=message): the job ends failed with stopReason design_gap and the plain sentence; that is a result. Record the sentence as Chat shows it and shoot the Chat.
+    if (early.stopReason === 'design_gap') {
+      r.gapMessage = early.failure?.message ?? null; r.promptToGapMs = Date.now() - tSent;
+      const line = page.getByText(r.gapMessage ?? "This kind of scene isn't supported yet.", { exact: false }).last();
+      r.gapMessageShown = await line.waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false);
+      await page.screenshot({ path: `${out}/${tag}-gap-message.png` }).catch(() => {});
+    }
   } else {
     r.promptToPlanMs = shown - tSent;
     const proposal = page.locator('[data-generation-proposal][data-proposal-job]').last();
@@ -146,7 +157,7 @@ outer: for (const { n, depth, prompt, id, expect } of items) {
     const det = (await detailOf(r.jobId))?.diagnostics, row = det?.ledger ?? null; r.designFast = det?.designFast ?? null; // firstProblem and lastProblem of a fast design that was refused
     r.ledger = row && Object.fromEntries(['designKind', 'designModel', 'designFallback', 'designCalls', 'msDesign', 'designCostUsd', 'costUsd', 'buildKind', 'pickFamily', 'pickConfidence', 'msPick', 'judgeVerdict', 'judgeMajor', 'judgeCostUsd', 'msTotal', 'approvedBy'].map(k => [k, row[k]]));
     const fb = row?.designFallback ?? det?.designFast?.fallback ?? null; // which path the design took: the fast fill, the Opus design straight after a pick gap, or the Opus design after a failed correction
-    r.path = row ? (fb === 'gap' ? 'opus-gap' : fb === 'after_correction' ? 'opus-after-correction' : row.designKind === 'fast' ? 'fast' : row.designKind) : null;
+    r.path = row ? (r.stopReason === 'design_gap' ? 'gap-message' : fb === 'gap' ? 'opus-gap' : fb === 'after_correction' ? 'opus-after-correction' : row.designKind === 'fast' ? 'fast' : row.designKind) : null;
     spent += Math.max(row?.costUsd ?? 0, row?.designCostUsd ?? 0); // a gap plan's Opus design counts toward --stop-usd
     if (row && row.designKind !== design && !(design === 'fast' && ['after_correction', 'gap'].includes(row.designFallback))) /* a fast deploy that fell back to the Opus design is a result, not the wrong deploy */ { r.failure ??= `the deploy ran the ${row.designKind} design, not ${design}`; stopped = `ledger designKind ${row.designKind} is not ${design}: the clone is not the deploy ${DEPLOY_FILE} says`; }
   }
@@ -156,6 +167,6 @@ outer: for (const { n, depth, prompt, id, expect } of items) {
 }
 await browser.close();
 for (const r of results) console.log(`${r.id ? `p${r.id} ${r.expect} ${r.path ?? '-'} pick ${r.ledger?.pickFamily ?? 'none'} ${r.ledger?.pickConfidence ?? '-'} ${r.ledger?.msPick ?? '-'} ms ` : ''}${r.depth.padEnd(9)} #${r.run} ${String(r.stage).padEnd(9)} plan ${r.promptToPlanMs ?? '-'} ms, ready ${r.generateToReadyMs ?? '-'} ms, card ${r.promptToCardMs ?? '-'} ms ${r.jobId}${r.failure ? ` (${r.failure})` : ''}`);
-const ok = !stopped && results.length === items.length && results.every(r => r.stage === (r.expect === 'gap' ? 'awaiting_approval' : 'ready'));
+const ok = !stopped && results.length === items.length && results.every(r => r.stage === (r.expect === 'gap' ? (r.stopReason === 'design_gap' ? 'failed' : 'awaiting_approval') : 'ready'));
 console.log(ok ? `RESULT OK canvas ${app} (${EMAIL}): ${url}; results in ${out}/results.jsonl` : `RESULT FAILED: ${stopped ?? 'not every run reached ready'}; ${results.length} of ${items.length} runs done; canvas ${url}; results in ${out}/results.jsonl`);
 process.exit(ok ? 0 : 1);

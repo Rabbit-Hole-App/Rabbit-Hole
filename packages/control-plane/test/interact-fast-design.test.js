@@ -14,6 +14,7 @@ import { templatePrecheck } from '../src/interact-template.js';
 import { readFileSync } from 'node:fs';
 import { SCENE_TEACHING_GUIDE } from '../src/agents/interact-design-author.js';
 import { PLAN, clone, designStack } from './interact-design-fixture.js';
+import { ledgerRow } from '../src/interact-ledger.js';
 
 test.beforeEach(t => { const log = console.log; console.log = () => {}; t.after(() => { console.log = log; }); });
 
@@ -71,10 +72,10 @@ test('the reservation of a fast job is the fill and its correction; the Opus des
   const s = fastStack(t, { answers: [GOOD], env: SEEK });
   const { body } = await s.create({ depth: 'brief' });
   assert.equal(s.jobOf(body.job.id).reservation.preparationMicros, fast.preparationMicros);
-  const s2 = fastStack(t, { answers: [{ nonsense: true }], env: SEEK });
-  const { body: b2 } = await s2.create({ depth: 'balanced' });
+  const s2 = fastStack(t, { answers: [{ nonsense: true }], opusBriefs: [GOOD], env: SEEK, evidence: [] });
+  const { body: b2 } = await s2.create({ depth: 'brief' });
   await s2.design(b2.job.id);
-  assert.equal(s2.jobOf(b2.job.id).reservation.preparationMicros, fast.preparationMicros + opus.preparationMicros);
+  assert.equal(s2.jobOf(b2.job.id).reservation.preparationMicros, fast.preparationMicros + opus.preparationMicros, 'a passed Opus brief adds the Opus roles');
 });
 
 test('a wrong formula gets ONE correction with the exact problem line and the previous brief; the corrected brief passes', async t => {
@@ -90,24 +91,23 @@ test('a wrong formula gets ONE correction with the exact problem line and the pr
   assert.match(job.design.fast.firstProblem, /^formula height at /);
 });
 
-test('two refused fills fall back to the Opus author in the same job: author, review, revise, verify, then awaiting_approval; the fast record keeps the first problem', async t => {
-  const s = fastStack(t, { answers: [{ nonsense: true }], script: { author: () => clone(PLAN.standard) } });
-  const { body } = await s.create({ depth: 'balanced' });
+test('two refused fills of a picked family go to ONE Opus brief in the same job, never the full Opus design: no review, no reviser; the fast record keeps the first problem', async t => {
+  const s = fastStack(t, { answers: [{ nonsense: true }], opusBriefs: [GOOD], env: SEEK, evidence: [] });
+  const { body } = await s.create({ depth: 'brief' });
   const { job, seen } = await s.design(body.job.id);
   assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure));
   assert.equal(s.fills.length, 2, 'the fill and its one correction, no more');
-  assert.deepEqual(s.model.roles().slice(0, 3), ['author', 'review', 'revise']);
-  assert.deepEqual(seen.filter(x => x.startsWith('design_')), ['design_authoring', 'design_reviewing', 'design_revising', 'design_verifying']);
-  assert.deepEqual([job.design.fast.kind, job.design.fast.fallback, job.design.fast.calls], ['opus', 'after_correction', 2]);
+  assert.deepEqual(seen.filter(x => x.startsWith('design_')), ['design_authoring', 'design_verifying']);
+  assert.deepEqual([job.design.fast.kind, job.design.fast.fallback, job.design.fast.calls, job.design.fast.opusBrief], ['opus', 'after_correction', 2, true]);
   assert.ok(job.design.fast.firstProblem.length > 0 && job.design.fast.firstProblem.length <= 300);
-  assert.deepEqual(job.calls.map(c => c.role), ['design_fill', 'design_fill', 'design_author', 'design_review', 'design_revise']);
+  assert.deepEqual(job.calls.map(c => c.role), ['design_fill', 'design_fill', 'design_author']);
 });
 
-test('a missing Gemini key sends nothing, makes no second fill and falls back to the Opus author', async t => {
-  const s = fastStack(t, { answers: [GOOD], env: { GEMINI_API_KEY: '' }, script: { author: () => clone(PLAN.standard) } });
-  const { body } = await s.create({ depth: 'balanced' });
+test('a missing Gemini key sends nothing, makes no second fill and goes to the Opus brief', async t => {
+  const s = fastStack(t, { answers: [GOOD], opusBriefs: [GOOD], env: { GEMINI_API_KEY: '', ...SEEK }, evidence: [] });
+  const { body } = await s.create({ depth: 'brief' });
   const { job } = await s.design(body.job.id);
-  assert.equal(job.stage, 'awaiting_approval'); assert.equal(s.fills.length, 0);
+  assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure)); assert.equal(s.fills.length, 0);
   assert.deepEqual([job.design.fast.kind, job.design.fast.calls, job.design.fast.fallback], ['opus', 1, 'after_correction']);
   assert.match(job.design.fast.firstProblem, /credential_missing/);
 });
@@ -153,26 +153,43 @@ test('the pick runs first and a fit goes to that family fill: one JEV call, one 
   assert.deepEqual([job.design.fast.kind, job.design.fast.fallback], ['fast', 'none']);
 });
 
-test('a pick of none is a gap: no fill call, the Opus author runs in the same job, fallback gap, the Opus roles are reserved', async t => {
-  const s = fastStack(t, { answers: [GOOD], pick: { choice: 'none', confidence: 0.8 }, script: OPUS });
+const GAP_SENTENCE = "This kind of scene isn't supported yet.";
+test('a pick of none ends the job with the plain sentence: no fill, no Opus call, stopReason design_gap, the pick probabilities on the record and in the ledger row', async t => {
+  const s = fastStack(t, { answers: [GOOD], pick: { choice: 'none', confidence: 0.8, probabilities: { 'vertical-throw': 0.15, none: 0.8 } }, script: OPUS });
+  const { body } = await s.create({ depth: 'balanced', prompt: 'How does a hash map work?' });
+  assert.equal(s.jobOf(body.job.id).flow.gap, 'message', 'message is the default, pinned on the job');
+  const { job } = await s.design(body.job.id);
+  assert.deepEqual([job.stage, job.stopReason, job.failure.message, job.failure.retryable, job.failure.category], ['failed', 'design_gap', GAP_SENTENCE, false, 'capability']);
+  assert.equal(s.fills.length, 0, 'no fill, no correction'); assert.deepEqual(s.model.roles(), [], 'no Opus call'); assert.equal(job.calls.length, 0);
+  assert.deepEqual([job.design.fast.fallback, job.design.fast.calls, job.design.fast.pick.family, job.design.fast.pick.reason], ['gap', 0, null, 'none']);
+  const row = ledgerRow(job);
+  assert.deepEqual([row.pickFamily, row.designFallback, row.stopReason, row.depth, row.prompt, JSON.parse(row.pickProbabilities)], ['gap', 'gap', 'design_gap', 'balanced', 'How does a hash map work?', { 'vertical-throw': 0.15, none: 0.8 }]);
+});
+
+test('INTERACT_GAP=opus restores today: a pick of none runs the Opus design in the same job, fallback gap, the Opus roles are reserved; an invalid value is refused', async t => {
+  const s = fastStack(t, { answers: [GOOD], pick: { choice: 'none', confidence: 0.8 }, script: OPUS, env: { INTERACT_GAP: 'opus' } });
   const { body } = await s.create({ depth: 'balanced' });
   const before = s.jobOf(body.job.id).reservation.preparationMicros;
   const { job, seen } = await s.design(body.job.id);
   assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure));
   assert.equal(s.fills.length, 0, 'no fill, no correction'); assert.ok(s.model.roles().includes('author'), 'the Opus author ran');
   assert.deepEqual([job.design.fast.kind, job.design.fast.fallback, job.design.fast.calls, job.design.fast.pick.family, job.design.fast.pick.reason], ['opus', 'gap', 0, null, 'none']);
-  const profile = resolveInteractProfile('opus-baseline');
-  assert.equal(job.reservation.preparationMicros, before + interactReservation(profile).preparationMicros);
+  assert.equal(job.reservation.preparationMicros, before + interactReservation(resolveInteractProfile('opus-baseline')).preparationMicros);
   assert.ok(seen.includes('design_authoring'));
+  const bad = fastStack(t, { answers: [GOOD], env: { INTERACT_GAP: 'maybe' } });
+  const refused = await bad.create({ depth: 'brief' }).catch(error => error);
+  assert.ok(refused.status === 503 || refused.body?.error || refused.code === 'flow_misconfigured' || /not configured/.test(String(refused.message ?? JSON.stringify(refused.body))), JSON.stringify(refused.body ?? refused.message));
 });
 
-test('a JEV timeout, a JEV error and a missing key are gaps too, never a learner-visible error', async t => {
+test('a JEV timeout (after its retry), a JEV error and a missing key are gaps too: the same plain sentence, never a different learner-visible error', async t => {
   for (const [label, opts] of [['timeout', { pick: () => { throw Object.assign(new Error('The operation timed out'), { name: 'TimeoutError' }); } }], ['http 500', { pick: () => new Response('no', { status: 500 }) }], ['no key', { env: { TYPESAFE_API_KEY: '' } }]]) {
     const s = fastStack(t, { answers: [GOOD], script: OPUS, ...opts });
     const { body } = await s.create({ depth: 'balanced' });
     const { job } = await s.design(body.job.id);
-    assert.equal(job.stage, 'awaiting_approval', label + ' ' + JSON.stringify(job.failure)); assert.equal(s.fills.length, 0, label);
+    assert.deepEqual([job.stage, job.stopReason, job.failure.message], ['failed', 'design_gap', GAP_SENTENCE], label); assert.equal(s.fills.length, 0, label);
     assert.deepEqual([job.design.fast.fallback, job.design.fast.pick.family], ['gap', null], label);
+    if (label !== 'no key') assert.equal(s.picks.length, 2, label + ': asked once more');
+    if (label === 'timeout') assert.equal(job.design.fast.pick.reason, 'pick_timeout');
   }
 });
 
@@ -181,7 +198,7 @@ test('a fit below the threshold is a gap; INTERACT_PICK_THRESHOLD moves the line
   const s = fastStack(t, { answers: [GOOD], pick: low, script: OPUS });
   const { body } = await s.create({ depth: 'balanced' });
   const { job } = await s.design(body.job.id);
-  assert.deepEqual([job.design.fast.fallback, job.design.fast.pick.reason, s.fills.length], ['gap', 'below_threshold', 0], '0.6 is under the one-family default of 0.7');
+  assert.deepEqual([job.design.fast.fallback, job.design.fast.pick.reason, s.fills.length, job.stopReason], ['gap', 'below_threshold', 0, 'design_gap'], '0.6 is under the one-family default of 0.7');
   const s2 = fastStack(t, { answers: [GOOD], env: { ...SEEK, INTERACT_PICK_THRESHOLD: '0.5' }, pick: low, evidence: [] });
   const { body: b2 } = await s2.create({ depth: 'brief' });
   const { job: j2 } = await s2.design(b2.job.id);
@@ -196,25 +213,27 @@ test('the default threshold is a function of the registry size; the setting over
   assert.deepEqual([pickThreshold({ INTERACT_PICK_THRESHOLD: 'x' }, one), pickThreshold({ INTERACT_PICK_THRESHOLD: '7' }, two), pickThreshold({ INTERACT_PICK_THRESHOLD: '' }, one)], [0.7, 0.9, 0.7]);
 });
 
-// The captured failure of the fast clone (2026-11-14, three of three Detailed plans): the model's own checkpoint asks for gravity 1, where body-plot's acceleration arrow (3.4 px per m/s^2) is shorter than the
-// minimum an arrow is drawn at, so the build's oracle refused the card at Generate. The precheck runs the build's checks at design time so the correction (or the Opus fallback) hears it first.
+// The captured failure of the fast clone (2026-11-14, three of three Detailed plans): the model's own checkpoint asks for gravity 1, where body-plot's acceleration arrow (a fixed 3.4 px per m/s^2 then) was shorter than the
+// minimum an arrow is drawn at, so the build's oracle refused the card at Generate. Brief 19: the arrow's scale now follows the plan's smallest gravity (templates/shared.js arrowScale), so this plan builds.
 const GRAVITY_ONE = JSON.parse(readFileSync(new URL('./fixtures/fast-detailed-gravity1-plan.json', import.meta.url), 'utf8'));
 const BUILD = { INTERACT_BUILD_KIND: 'template', INTERACT_SEEK: 'on', EXPLAIN_PROGRAM_ENABLED: 'true', EXPLAIN_PROGRAM_STATEFUL: 'true' };
 
-test('the precheck names the arrow the template cannot draw; the pinned Deep plan and a non-template build pass it', async () => {
+test('the gravity-1 Detailed plan and a Moon-gravity Balanced plan (1.62) pass the build precheck: the acceleration arrow scales with the smallest gravity; the pinned Deep plan and a non-template build pass too', async () => {
   const capabilities = await designCapabilities(BUILD, { evidence: [{ id: 'kinematics_note' }] });
-  const bad = await templatePrecheck(GRAVITY_ONE, { env: BUILD, capabilities: await designCapabilities(BUILD, { evidence: [] }) });
-  assert.equal(bad.length, 1); assert.match(bad[0], /^template build: \[arrow_direction\] the arrow "vec.a" is not drawn at cp-fastTop/);
+  const noEvidence = await designCapabilities(BUILD, { evidence: [] });
+  assert.deepEqual(await templatePrecheck(GRAVITY_ONE, { env: BUILD, capabilities: noEvidence }), []);
+  const moon = clone(referencePlans.tossStandard); // the pinned Standard plan with its gravity range widened down to the Moon's 1.62 (default 1.62): zero model calls, headless run and oracle
+  const gravity = moon.controls.find(c => c.binding.id === 'gravity'); Object.assign(gravity, { min: 1.62, default: 1.62 });
+  assert.deepEqual(await templatePrecheck(moon, { env: BUILD, capabilities }), []);
   assert.deepEqual(await templatePrecheck(referencePlans.tossDeep, { env: BUILD, capabilities }), []);
   assert.deepEqual(await templatePrecheck(GRAVITY_ONE, { env: { ...BUILD, INTERACT_BUILD_KIND: undefined }, capabilities }), [], 'the model build has no template to try');
 });
 
-test('a Detailed brief the template cannot draw gets ONE correction naming the arrow, then the corrected brief passes (template build on)', async t => {
-  const goodDeep = extractBrief(referencePlans.tossDeep); goodDeep.words.where_end = 'Back at start'; const s = fastStack(t, { answers: [extractBrief(GRAVITY_ONE), goodDeep], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
+test('a Detailed brief whose gravity range reaches 1 passes the build precheck on the first fill (no floor, no correction; template build on)', async t => {
+  const s = fastStack(t, { answers: [Object.assign(extractBrief(GRAVITY_ONE), { words: { ...extractBrief(GRAVITY_ONE).words, where_end: 'Landed' } })], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
   const { body } = await s.create({ depth: 'detailed' });
   const { job } = await s.design(body.job.id);
-  assert.equal(job.design.fast.kind, 'fast'); assert.equal(job.approval?.by, 'fast-path', 'the corrected brief passed and the fast path approved it'); assert.equal(s.fills.length, 2); assert.deepEqual(s.model.roles(), []);
-  assert.match(userOf(s.fills[1]).correction.problems[0], /^template build: \[arrow_direction\] the arrow "vec.a" is not drawn at cp-fastTop/);
+  assert.equal(job.design.fast.kind, 'fast', JSON.stringify(job.design.fast)); assert.equal(job.approval?.by, 'fast-path'); assert.equal(s.fills.length, 1, JSON.stringify(job.design.fast)); assert.deepEqual(s.model.roles(), []);
 });
 
 // ---- no approval pause (brief 14) ----
@@ -227,9 +246,9 @@ test('a fast pass is approved by the system with the same signed plan and builds
   const d = job.design;
   assert.deepEqual([job.approval.scenePlanHash, job.approval.approvalHash, job.approval.runtimeHash, job.approval.planRevision], [d.finalHash, d.approvalHash, d.runtimeHash, d.rev], 'the approval binds the closed plan');
   assert.ok(job.timing.marks.proposalReady && job.timing.marks.generate && !job.timing.stages.some(x => x.stage === 'awaiting_approval'), 'no approval wait was recorded');
-  // A fallback to the Opus design stops at awaiting_approval with a posted proposal.
-  const f = fastStack(t, { answers: [{ nonsense: true }], script: OPUS });
-  const { body: fb } = await f.create({ depth: 'balanced' });
+  // A fallback to the Opus brief stops at awaiting_approval with a posted proposal.
+  const f = fastStack(t, { answers: [{ nonsense: true }], opusBriefs: [GOOD], env: SEEK, evidence: [] });
+  const { body: fb } = await f.create({ depth: 'brief' });
   const { job: fallen } = await f.design(fb.job.id);
   assert.equal(fallen.stage, 'awaiting_approval'); assert.equal(fallen.approval, null); assert.deepEqual(f.built, []); assert.ok(fallen.pendingProposal);
 });
@@ -263,24 +282,39 @@ test('INTERACT_FAST_OPUS_BRIEF: two refused fills of a picked family send ONE Op
   assert.equal(JSON.parse(s.opus[0].messages[0].content[0].text).correction.problems.length > 0, true);
 });
 
-test('INTERACT_FAST_OPUS_BRIEF: an Opus brief that fails too falls to the Opus design as before', async t => {
-  const s = fastStack(t, { answers: [{ nonsense: true }], opusBriefs: [{ nonsense: true }], script: { author: () => clone(PLAN.standard) }, env: { INTERACT_FAST_OPUS_BRIEF: 'on' } });
+test('an Opus brief that fails too ends the job with the plain refusal, never the full Opus design; the problem lines stay on the record', async t => {
+  const s = fastStack(t, { answers: [{ nonsense: true }], opusBriefs: [{ nonsense: true }], script: { author: () => clone(PLAN.standard) } });
   const { body } = await s.create({ depth: 'balanced' });
-  const { job } = await s.design(body.job.id);
-  assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure)); assert.equal(s.opus.length, 1);
-  assert.deepEqual(s.model.roles().slice(0, 3), ['author', 'review', 'revise']);
+  const { job, seen } = await s.design(body.job.id);
+  assert.deepEqual([job.stage, job.stopReason, job.failure.retryable], ['failed', 'design_invalid', true]);
+  assert.match(job.failure.message, /^The scene design could not be completed: .*Try again or edit the request\.$/);
+  assert.equal(s.opus.length, 1); assert.deepEqual(s.model.roles(), [], 'no author, review or reviser of the full design'); assert.ok(!seen.includes('design_reviewing'));
+  assert.deepEqual([job.design.fast.kind, job.design.fast.fallback], ['opus', 'after_correction']); assert.ok(job.design.fast.firstProblem && job.design.fast.lastProblem);
 });
 
-test('the setting unset: two refused fills go to the full Opus design with no Opus brief call', async t => {
-  const s = fastStack(t, { answers: [{ nonsense: true }], script: { author: () => clone(PLAN.standard) }, env: SEEK, evidence: [] });
+test('a template precheck refused twice goes to the Opus brief with the precheck line in its input (INTERACT_FAST_FORCE_FILL_FAIL forces the same route)', async t => {
+  const s = fastStack(t, { answers: [extractBrief(GRAVITY_ONE)], opusBriefs: [extractBrief(referencePlans.tossDeep)], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
+  const { body } = await s.create({ depth: 'detailed' });
+  const { seen } = await s.design(body.job.id);
+  assert.equal(s.opus.length, 1); assert.ok(!seen.includes('design_reviewing'), 'never the full Opus design');
+  assert.match(JSON.parse(s.opus[0].messages[0].content[0].text).correction.problems[0], /^words: ".+" is drawn as ".+"/, 'the precheck line is in the Opus brief input (the captured gravity-1 plan now builds; its clipped state word is what the precheck refuses)');
+  const forced = fastStack(t, { answers: [GOOD], opusBriefs: [GOOD], env: { ...SEEK, INTERACT_FAST_FORCE_FILL_FAIL: '1' }, evidence: [] });
+  const { body: fb } = await forced.create({ depth: 'brief' });
+  const { job: fj } = await forced.design(fb.job.id);
+  assert.deepEqual([fj.stage, fj.design.fast.fallback, fj.design.fast.opusBrief, forced.opus.length], ['awaiting_approval', 'after_correction', true, 1]);
+  assert.match(JSON.parse(forced.opus[0].messages[0].content[0].text).correction.problems[0], /forced fill failure/);
+});
+
+test('INTERACT_FAST_OPUS_BRIEF=off skips the Opus brief: two refused fills end with the plain refusal, no Opus call at all', async t => {
+  const s = fastStack(t, { answers: [{ nonsense: true }], script: { author: () => clone(PLAN.standard) }, env: { ...SEEK, INTERACT_FAST_OPUS_BRIEF: 'off' }, evidence: [] });
   const { body } = await s.create({ depth: 'balanced' });
-  await s.design(body.job.id);
-  assert.equal(s.opus.length, 0);
+  const { job } = await s.design(body.job.id);
+  assert.deepEqual([job.stage, job.stopReason, s.opus.length, s.model.roles().length], ['failed', 'design_invalid', 0, 0]);
 });
 
 test('a gap plan that names a template without its slots and words loses the template: the plan is valid and the model build runs (guard in the Opus path of a fast job)', async t => {
   const half = clone(PLAN.standard); half.scene.template = 'body-plot';
-  const s = fastStack(t, { answers: [GOOD], pick: { choice: 'none', confidence: 0.9 }, script: { author: () => clone(half) } });
+  const s = fastStack(t, { answers: [GOOD], pick: { choice: 'none', confidence: 0.9 }, script: { author: () => clone(half) }, env: { INTERACT_GAP: 'opus' } });
   const { body } = await s.create({ depth: 'balanced' });
   const { job } = await s.design(body.job.id);
   assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure));
@@ -288,23 +322,21 @@ test('a gap plan that names a template without its slots and words loses the tem
   assert.equal(job.design.fast.fallback, 'gap');
 });
 
-test('the corrections name the fix: a formula over 32 nodes, a marker before 0, an arrow the template cannot draw', async () => {
+test('the corrections name the fix: a formula over 32 nodes, a marker before 0, an unknown name, a wrong value', async () => {
   const { fixOf } = await import('../src/interact-design.js');
   assert.match(fixOf('scene.quantities.9.formulaAfter quantity "dropHeight" formulaAfter: this formula needs 33 nodes; at most 32 (simplify it or split it into quantities)'), /Fix: write the formula in a shorter form/);
   assert.match(fixOf('mode.timeline.markers.0.time a time before 0 is outside the elapsed timeline'), /Fix: derive every marker time from the plan \(0 or later\)/);
-  assert.match(fixOf('template build: [arrow_direction] the arrow "vec.a.toss" is not drawn at cp-fastTop, expected down'), /Fix: every gravity value of the range is at least 4/);
   assert.match(fixOf('formula dropHeight at {"t":1}: got 1, expected 2'), /Fix: check the formula against the meaning of its key/);
   assert.match(fixOf('scene.quantities.7.formulaAfter quantity "dropVelocity" formulaAfter: unknown name "apexTime" at character 20; readable: t, launchSpeed, gravity'), /Fix: a formula reads only the names its key lists/);
   assert.equal(fixOf('expand: something else'), 'expand: something else');
 });
 
-test('Balanced: a gravity range that reaches 1 is refused by the build precheck; the correction names the floor, the corrected brief passes (template build on)', async t => {
+test('Balanced: a gravity range that reaches 1 passes on the first fill, and the fill text no longer asks for a gravity floor (template build on)', async t => {
   const low = extractBrief(referencePlans.tossStandard); low.gravity = { ...low.gravity, min: 1 };
-  const s = fastStack(t, { answers: [low, extractBrief(referencePlans.tossStandard)], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
+  const s = fastStack(t, { answers: [low], env: { ...SEEK, INTERACT_BUILD_KIND: 'template' }, evidence: [] });
   const { body } = await s.create({ depth: 'balanced' });
   await s.design(body.job.id);
   const job = s.jobOf(body.job.id);
-  assert.equal(job.design.fast.kind, 'fast', JSON.stringify(job.design.fast)); assert.equal(s.fills.length, 2);
-  assert.match(userOf(s.fills[1]).correction.problems[0], /Fix: every gravity value of the range is at least 4$/);
-  assert.match(fillSystem('balanced', briefSchema('balanced')), /gravity: every value of its range is at least 4/);
+  assert.equal(job.design.fast.kind, 'fast', JSON.stringify(job.design.fast)); assert.equal(s.fills.length, 1);
+  assert.doesNotMatch(fillSystem('balanced', briefSchema('balanced')), /every value of its range is at least 4/);
 });
