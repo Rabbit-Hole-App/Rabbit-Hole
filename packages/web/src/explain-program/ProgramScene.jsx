@@ -14,7 +14,7 @@ import { useProgramState } from './use-program-state.js';
 import ProgramNotes from './ProgramNotes.jsx';
 import SourcesDisclosure from '../SourcesDisclosure.jsx';
 import { InteractIntro } from '../InteractSupportPanels.jsx';
-import { focusFixed, focusRoom } from '../interact-card-layout.js';
+import { focusFixed, focusRoom, rowReadoutIds } from '../interact-card-layout.js';
 import {
   clampTime, evaluateRequestFor, fixturesAdmitted, keptProgram, programChanged, programErrorMessage, programActivity, programInputs, programPlayback, programTime, rememberProgram, resetProgram, resolveProgram,
   autopauseMarker, advanceClock, inputChange, pressPlay, seekTime, shownProgram, playbackRate, savedTime, scrubStep, snapToMarker, timeLabel, programDuration, programInputWidget,
@@ -360,7 +360,7 @@ export default function ProgramScene({ block: saved, onChange: save, onChangeQui
   // On the canvas the frame keeps its legible box: a larger card draws it larger; a smaller one (a learner's resize) scrolls the
   // drawing inside its viewport instead of shrinking its text below the floors. In Focus, focusBox sizes it (see the measure above).
   const legible = box ?? legibleFrame(view.scene, composition ? INTERACT_LOOK : null);
-  const readoutRows = composed ? (view.readouts || []).filter(r => composition.main.readoutIds.includes(r.id)) : [];
+  const readoutRows = composed ? (view.readouts || []).filter(r => rowReadoutIds(composition).includes(r.id)) : [];
   return (
     <div ref={root} data-program-card data-program-focus={focusBox ? (focusBox.scroll ? 'scroll' : 'fit') : undefined} data-program-settling={(!playing && view.time !== clampTime(manifest, time, composition, inputs)) || undefined} className="flex min-h-0 flex-1 flex-col gap-2"
       onPointerDown={event => event.stopPropagation()}>

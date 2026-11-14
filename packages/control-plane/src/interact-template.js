@@ -4,7 +4,10 @@
 // There is no repair loop: a problem in a generated program is our bug, so the job stops with stopReason `template_error` and the problem text (explain-job.js failWith).
 import { TEMPLATE_ROLES } from '../../web/src/interact-formula.js';
 import { generateProgram } from '../../web/src/interact-templates/generate.js';
+import { planHash } from '../../web/src/interact-plan.js';
 import { approvedPlanOf, buildInput, validateBuildOutput } from './interact-build.js';
+import { captureAndCheck, headlessCaptureCard } from './interact-checks.js';
+import { interactOracle } from './interact-oracle.js';
 
 export const BUILD_KIND_SETTING = 'INTERACT_BUILD_KIND';
 
@@ -44,4 +47,15 @@ export async function buildTemplate(job, ctx) {
   }
   const result = await validateBuildOutput(job, { kind: 'scene', main: { kind: 'program', program }, supporting: [] }, ctx);
   return { ...result, planHash: hash };
+}
+
+// The build's own checks (generate, seal, headless run, oracle, layout rules) run on a plan at DESIGN time, so a brief the template cannot draw (one the oracle refuses at some checkpoint) is a fill problem the
+// correction sees, not a failure at Generate. [] when the build is not a template build or the plan passes; else the problem lines. Zero model calls.
+export async function templatePrecheck(plan, ctx) {
+  if (!templateGate(ctx.env, plan)?.ok) return [];
+  const job = { id: 'precheck', plan, planHash: await planHash(plan), capabilities: ctx.capabilities, evidence: [], oracle: interactOracle(plan) };
+  const built = await buildTemplate(job, ctx);
+  if (!built.artifacts) return (built.problems ?? ['the template build refused the plan']).map(p => `template build: ${p}`.slice(0, 300));
+  const checked = await captureAndCheck({ ...job, artifacts: built.artifacts, composition: built.composition }, { ...ctx, completeCardUnavailable: true, captureCard: headlessCaptureCard(ctx.env) });
+  return checked.status === 'failed' ? checked.failure.problems.map(p => `template build: ${p}`.slice(0, 300)) : [];
 }
