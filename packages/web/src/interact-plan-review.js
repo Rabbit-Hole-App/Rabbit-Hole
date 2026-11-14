@@ -31,7 +31,7 @@ export function controlDetail(control) {
     }
     case 'select': return { ...base, detail: `${list(control.options.map(o => o.label))}; starts at ${control.options.find(o => o.value === control.default)?.label ?? control.default}` };
     case 'boolean': return { ...base, detail: `On or Off; starts ${control.default ? 'On' : 'Off'}` };
-    case 'index': return { ...base, detail: `${list(control.items.map(i => i.label))}; starts at ${control.items[control.default]?.label ?? control.default}` };
+    case 'index': { const shown = Array.isArray(control.items) ? control.items : Object.values(control.items.options)[0]; return { ...base, detail: `${list(shown.map(i => i.label))}${Array.isArray(control.items) ? '' : ` (the list follows ${control.items.by})`}; starts at ${shown[control.default]?.label ?? control.default}` }; }
     case 'multi_select': return { ...base, detail: `${list(control.items.map(i => i.label))}; starts with ${control.default.length ? list(control.default.map(i => control.items[i]?.label ?? i)) : 'none selected'}` };
     case 'action': return { ...base, detail: control.effect };
     case 'target': return { ...base, detail: `${control.interaction === 'drag' ? 'select or drag' : 'select'}; ${control.effect}` };

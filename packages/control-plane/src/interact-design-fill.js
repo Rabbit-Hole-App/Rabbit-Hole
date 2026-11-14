@@ -39,10 +39,16 @@ const namesLine = (depth, family) => {
   return `A formula reads only the names ${names.join(', ')}; any other name (${refused.join(', ')}) is refused.`;
 };
 
+// A family may supply its own key description and teaching rules (a typed composition has no formulas): family.fillKeyLines(keys) -> lines replaces the formula-only key lists, and
+// family.fillTeachingRules(depth) -> lines becomes the `## Rules` section in place of the names sentence and the `## Formulas` block. The generic limits stay. A family without them gets today's text byte for byte.
 export function fillSystem(depth, schemaInfo, family = verticalThrow) {
-  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, family.familyDescription(depth), '', '## The keys of the plan brief', ...keyLines(schemaInfo.keys), '', '## Limits', ...LIMITS, namesLine(depth, family), '', '## Formulas', family.formulaGrammar.join('\n'), ...family.formulaRules(depth), '', 'Return the brief only: no prose.'].join('\n');
+  const keys = typeof family.fillKeyLines === 'function' ? family.fillKeyLines(schemaInfo.keys) : keyLines(schemaInfo.keys);
+  const rules = typeof family.fillTeachingRules === 'function' ? family.fillTeachingRules(depth) : null;
+  return [SCENE_TEACHING_GUIDE, '', `## The scene family (depth ${depth})`, family.familyDescription(depth), '', '## The keys of the plan brief', ...keys, '', '## Limits', ...LIMITS, ...(rules ? [] : [namesLine(depth, family)]), '',
+    ...(rules ? ['## Rules', ...rules] : ['## Formulas', family.formulaGrammar.join('\n'), ...family.formulaRules(depth)]), '', 'Return the brief only: no prose.'].join('\n');
 }
 
 
 // referenceFormulaCheck's failures as problem lines: the role, the point (a parse failure has none), got and expected.
-export const formulaProblems = result => (result?.failures ?? []).map(f => `formula ${f.role}${f.point ? ` at ${JSON.stringify(f.point)}` : ''}: got ${f.got}, expected ${f.expected}`);
+// A check result of the shape { code, path, message } (a family's own checks, e.g. the stepper's) is reported by its path, never as `formula undefined`; the result is the failures array or { failures }.
+export const formulaProblems = result => (Array.isArray(result) ? result : result?.failures ?? []).map(f => (f.role === undefined && f.path !== undefined && f.message !== undefined ? `${Array.isArray(f.path) ? f.path.join(".") : f.path}: ${f.message}` : `formula ${f.role}${f.point ? ` at ${JSON.stringify(f.point)}` : ''}: got ${f.got}, expected ${f.expected}`));

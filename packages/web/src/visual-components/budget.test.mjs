@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { LIMITS, budgetIssues, chooseDensity, measureScene, settingsCount, timeCheckpoints } from './budget.js';
 import { compileVisual } from './compile.js';
+import { validateScene } from '../animation-scene.js';
 import { EXPLAIN_EXAMPLES } from '../explain-examples.js';
 import { transformerBlockScene, vlmScene, worldModelScene, codebaseOrientationScene } from '../gallery-scenes.js';
 import { MAX_SETTINGS, inputStates } from '../../../control-plane/src/learn-scene-gates.js';
@@ -17,7 +18,9 @@ test('every limit is the existing one, read from where it is enforced', () => {
   const animation = source('../animation-scene.js');
   assert.match(animation, /objects: z\.array\(objectSchema\)\.max\(240\)/);
   assert.equal(LIMITS.objectsTotal, 240);
-  assert.match(animation, /if \(onScreen > 60\)/);
+  // the per-part limit is enforced by validateScene: 60 by default, the approved budget when a program card passes one (behaviour, not source text)
+  assert.doesNotThrow(() => validateScene(scene(boxes(60)))); assert.throws(() => validateScene(scene(boxes(61))), /at most 60/);
+  assert.doesNotThrow(() => validateScene(scene(boxes(100)), { maxOnScreen: 100 })); assert.throws(() => validateScene(scene(boxes(101)), { maxOnScreen: 100 }), /at most 100/);
   assert.equal(LIMITS.objectsPerPart, 60);
   assert.match(animation, /timeline: z\.array\(eventSchema\)\.max\(200\)/);
   assert.equal(LIMITS.timelineEvents, 200);

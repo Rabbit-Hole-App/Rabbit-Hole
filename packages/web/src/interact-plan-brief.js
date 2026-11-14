@@ -25,6 +25,7 @@ const RANGE = ['min', 'max', 'default', 'step'];
 // -> { jsonSchema, parse(raw), keys }: the strict schema of a depth's brief for a provider's tool or response schema, a parser that returns { ok, value } or { ok: false, problems }, and the key lists the fill's system text
 // is written from (text keys, input ranges, formula roles with unit and meaning, word keys with their length limits).
 export function briefSchema(depth, module = verticalThrow) {
+  if (typeof module.briefSchema === 'function') return module.briefSchema(depth); // a family with its own brief (a typed composition, not flat formulas) supplies { jsonSchema, parse, keys } itself
   const family = module.FAMILY.depths[depth], { INPUTS, ROLES } = module, limits = briefLimits(module);
   if (!family) throw new Error(`the family ${module.FAMILY.id} has no depth "${depth}"`);
   const words = TEMPLATE_WORDS[family.template];
