@@ -47,7 +47,8 @@ const log = (...a) => console.log(new Date().toISOString(), ...a), sleep = ms =>
 const env = readFileSync('C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', 'utf8');
 const secret = (env.match(/^RABBIT_HOLE_DEV_TEST_BYPASS=(.*)$/m)?.[1] || '').trim().replace(/^['"]|['"]$/g, '');
 if (!secret) fail('RABBIT_HOLE_DEV_TEST_BYPASS missing from small-deploy/.env. Next: add it there.', 2);
-const EMAIL = `owner-interact-fast-${Date.now().toString(36)}@example.com`;
+const REUSE = opt('reuse') ? JSON.parse(readFileSync(opt('reuse'), 'utf8')) : null; // --reuse <canvas.json>: add this run's cards to an existing drive canvas (its account, canvas and board) instead of a fresh one
+const EMAIL = REUSE?.email || `owner-interact-fast-${Date.now().toString(36)}@example.com`;
 const minted = await fetch(`${DEV_CP}/test/session`, { method: 'POST', headers: { ...UA, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: EMAIL, secret }) });
 const session = (await minted.json().catch(() => ({}))).session;
 if (!session) fail(`no dev session (HTTP ${minted.status}). Next: check rabbit-hole-cp-dev is up.`);
@@ -55,10 +56,13 @@ const api = async (method, path, body) => {
   const r = await fetch(`${BASE}${path}`, { method, headers: { ...UA, cookie: `small_session=${session}`, ...(body ? { 'Content-Type': 'application/json', origin: BASE } : {}) }, body: body ? JSON.stringify(body) : undefined });
   return { status: r.status, data: await r.json().catch(() => null) };
 };
-const made = await api('POST', '/api/canvases', { title: `Toss ${design} design ${Date.now().toString(36)}` });
-const app = made.data?.name; if (!app) fail(`could not create a canvas (HTTP ${made.status}).`);
-const saved = await api('PUT', `/api/learn/boards/${app}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] } });
-const boardId = saved.data?.board_id; if (!boardId) fail(`could not save the canvas board (HTTP ${saved.status}).`);
+let app, boardId;
+if (REUSE) { app = REUSE.app; boardId = REUSE.boardId; } else {
+  const made = await api('POST', '/api/canvases', { title: `Toss ${design} design ${Date.now().toString(36)}` });
+  app = made.data?.name; if (!app) fail(`could not create a canvas (HTTP ${made.status}).`);
+  const saved = await api('PUT', `/api/learn/boards/${app}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] } });
+  boardId = saved.data?.board_id; if (!boardId) fail(`could not save the canvas board (HTTP ${saved.status}).`);
+}
 const url = `${BASE}/apps/${app}`; // never ?board=: on a preview build that opens a separate review board
 mkdirSync(SPEC_DIR, { recursive: true }); mkdirSync(out, { recursive: true });
 writeFileSync(`${SPEC_DIR}/current.json`, JSON.stringify({ base: BASE, email: EMAIL, app, boardId, createdAt: new Date().toISOString() }, null, 2)); // ledger.mjs reads the account from here

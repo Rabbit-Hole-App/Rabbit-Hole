@@ -1,0 +1,27 @@
+[
+ {
+  "id": "17",
+  "prompt": "Why does a sigmoid squash any number into 0 to 1?",
+  "expect": "fit"
+ },
+ {
+  "id": "19",
+  "prompt": "How does the steepness parameter change a logistic curve?",
+  "expect": "fit"
+ },
+ {
+  "id": "26",
+  "prompt": "How does a parabola change when I change the coefficient of x squared?",
+  "expect": "fit"
+ },
+ {
+  "id": "5",
+  "prompt": "What happens to a ball thrown straight up on the Moon?",
+  "expect": "fit"
+ },
+ {
+  "id": "35",
+  "prompt": "How does attention work in a transformer?",
+  "expect": "gap"
+ }
+]
