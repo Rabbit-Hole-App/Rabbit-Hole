@@ -2259,7 +2259,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
       inlineAi: (mode = null, preset = null) => openInline(performance.now(), false, mode, preset), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,
-      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true, cursorAt())),
+      paste: () => !!(clipboard.current?.length && pasteIds(clipboard.current, 28, true, menuPoint.current || cursorAt())),
       duplicate: () => !!pasteIds(selectedRef.current),
       cut: cutSelection, copyStyle: copyStyleCommand, pasteStyle: pasteStyleCommand, lockSelection, nudge,
       // Enter on one selected object: a text box or note opens for typing, a closed shape its words, a line its label.
@@ -2949,6 +2949,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A paste lands where the pointer is (owner 2026-11-14), not at the top of the column: the last pointer position, in world coordinates, while it is over the
   // canvas; null when the pointer is elsewhere, and the paste then lands where the learner is looking, as before.
   const pointerRef = useRef(null);
+  // The menu's Paste row lands at the point the menu was opened on, not at the row the pointer is over now.
+  const menuPoint = useRef(null);
   useEffect(() => {
     const move = event => { pointerRef.current = { clientX: event.clientX, clientY: event.clientY }; };
     window.addEventListener('pointermove', move, { passive: true });
@@ -4180,8 +4182,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         // the page silently kill the copy.
         const text = window.getSelection();
         if (typing || !selectedRef.current.length || (text && !text.isCollapsed && text.toString())) return;
-        // Cut is copy, then delete - only once the copy succeeded.
-        if ((event.key.toLowerCase() === 'x' ? commands.cut : commands.copy)()) event.preventDefault();
+        // Cut is copy, then delete - only once the copy succeeded. Cut runs the menu's own row, so a locked object and a board that cannot be edited stay as they are.
+        if (event.key.toLowerCase() === 'x') { if (keyActionRef.current('cut').ran) event.preventDefault(); return; }
+        if (commands.copy()) event.preventDefault();
         return;
       }
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
@@ -4197,7 +4200,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // becomes a text card (owner, 2026-10-08); the canvas's own copied cards paste while their marker is on the clipboard.
     const paste = event => {
       const active = document.activeElement;
-      if (typingIn(active)) return;
+      if (typingIn(active) || readOnlyRef.current) return;
       // Never behind a modal window or an open menu (owner brief 2026-11-02): they own the keyboard, Ctrl/Cmd+V included.
       if (document.querySelector('[role="dialog"][aria-modal="true"]') || menuOpenRef.current || active?.closest?.('[role="menu"]')) return;
       const data = event.clipboardData;
@@ -6220,7 +6223,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const pickMenu = id => {
     const target = menuAt.target;
     setMenuAt(null);
+    menuPoint.current = { x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z };
     const done = runAction(id, target, actionCtx);
+    menuPoint.current = null;
     if (!done.ran && done.reason) toast(done.reason);
   };
   // Escape or Tab gives the focus back to what had it at open (the card, for Shift+F10), else to the clicked card.
