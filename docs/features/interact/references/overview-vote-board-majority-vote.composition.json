@@ -22,12 +22,12 @@
     {
       "id": "tally",
       "kind": "vote-accumulator",
-      "bind": "computed.revealedVotes"
+      "bind": "computed.revealed"
     },
     {
       "id": "row",
       "kind": "point-card",
-      "bind": "data.rows; inputs.row"
+      "bind": "data.rows; computed.row"
     }
   ],
   "controls": [

@@ -1,0 +1,8 @@
+// Composition bindings must name actual data/inputs/computed fields used by the card.
+import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync,readdirSync} from 'node:fs';import {runInNewContext} from 'node:vm';import {mount} from './trees-reference-harness.mjs';import {referenceKit} from './trees-author.mjs';
+const root=new URL('./',import.meta.url);const read=n=>readFileSync(new URL(n,root),'utf8');
+function guarded(v){if(v===null||typeof v!=='object')return v;return new Proxy(v,{get(target,k){if(!(k in target))throw Error(`missing binding field ${String(k)}`);return guarded(target[k])}})}
+for(const f of readdirSync(root).filter(f=>f.endsWith('.composition.json'))){const S=JSON.parse(read(f));if(!S.data?.treeReference)continue;test(`${S.id}: part bindings resolve in the actual model`,async()=>{
+ const id=S.data.provenance.reference.replace('ml-trees-','').replace(/-(brief|detailed)$/,'');const a=await import(`./trees-author-${id}.mjs`);const html=read(S.id+'.html');assert.ok(html.includes(a.compute.toString()));assert.ok(html.includes(a.paint.toString()));const ui=mount(html);
+ for(const state of S.data.captureStates){ui.reset();for(const[k,v]of Object.entries(state.inputs))ui.change(k,v);const m=a.compute(S,ui.card.inputs,referenceKit());for(const part of S.parts)for(const expression of part.bind.split(';').map(s=>s.trim())){assert.match(expression,/^[\w.\[\]+\-\s]+$/);assert.doesNotThrow(()=>runInNewContext(expression,{data:guarded(S.data),inputs:guarded(ui.card.inputs),computed:guarded(m)},{timeout:100}),`${S.id}/${part.id}: ${expression}`)}}
+ })}

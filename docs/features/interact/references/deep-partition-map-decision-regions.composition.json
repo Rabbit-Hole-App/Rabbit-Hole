@@ -34,12 +34,12 @@
     {
       "id": "result",
       "kind": "prediction-readout",
-      "bind": "computed.prediction"
+      "bind": "computed.region.prediction"
     },
     {
       "id": "truth",
       "kind": "held-out-comparison",
-      "bind": "data.holdout; computed.point"
+      "bind": "data.holdout; inputs.x; inputs.y; computed.known"
     }
   ],
   "controls": [

@@ -18,7 +18,7 @@
     {
       "id": "tree",
       "kind": "predicate-tree",
-      "bind": "data.tree; computed.path"
+      "bind": "data.tree; computed.route"
     },
     {
       "id": "probe",
@@ -28,7 +28,7 @@
     {
       "id": "route",
       "kind": "active-path",
-      "bind": "computed.path; inputs.trace"
+      "bind": "computed.route; computed.cursor"
     },
     {
       "id": "prediction",

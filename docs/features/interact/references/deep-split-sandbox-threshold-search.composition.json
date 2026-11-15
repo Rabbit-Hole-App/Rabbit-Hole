@@ -14,7 +14,7 @@
     {
       "id": "rows",
       "kind": "ordered-row-strip",
-      "bind": "data.rows; inputs.feature"
+      "bind": "data.rows; computed.feature"
     },
     {
       "id": "cut",

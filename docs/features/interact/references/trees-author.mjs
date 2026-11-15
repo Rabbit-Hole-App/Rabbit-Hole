@@ -34,6 +34,7 @@ function kit(){
  const axes=(x,y,w,h,xmin,xmax,ymin,ymax,xticks,yticks,xlabel,ylabel,log=false)=>{const X=v=>x+w*(log?(Math.log(v)-Math.log(xmin))/(Math.log(xmax)-Math.log(xmin)):(v-xmin)/(xmax-xmin)),Y=v=>y+h-h*(v-ymin)/(ymax-ymin);let svg=L(x,y,x,y+h,C.muted)+L(x,y+h,x+w,y+h,C.muted);for(const v of xticks)svg+=L(X(v),y+h,X(v),y+h+5,C.muted)+T(X(v),y+h+21,v,12,C.muted,'middle');for(const v of yticks)svg+=L(x,y===Y(v)?y:Y(v),x+w,Y(v),C.border,1)+T(x-9,Y(v)+4,v,12,C.muted,'end');svg+=T(x+w/2,y+h+43,xlabel,13,C.muted,'middle')+T(x,y-14,ylabel,13,C.muted);return{svg,X,Y}};
  return{E,C,mark,T,R,L,D,P,wrap,pill,note,metric,fmt,counts,gini,path,predict,axes};
 }
+export {kit as referenceKit};
 function runtime(S,compute,paint,makeKit){
  const u={...S.data.initialInputs};const nodes=Object.fromEntries(S.controls.filter(c=>c.kind!=='reset').map(c=>[c.id,document.getElementById(c.id)]));
  const api={scene:S,evidence:null,ahaReached:false};globalThis.TreesCard=api;

@@ -23,17 +23,17 @@
     {
       "id": "tally",
       "kind": "vote-accumulator",
-      "bind": "computed.revealedVotes"
+      "bind": "computed.revealed"
     },
     {
       "id": "row",
       "kind": "point-card",
-      "bind": "data.rows; inputs.row"
+      "bind": "data.rows; computed.row"
     },
     {
       "id": "path",
       "kind": "predicate-ledger",
-      "bind": "inputs.tree; computed.path"
+      "bind": "inputs.tree; computed.route"
     },
     {
       "id": "sample",

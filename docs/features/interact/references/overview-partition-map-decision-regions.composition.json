@@ -33,7 +33,7 @@
     {
       "id": "result",
       "kind": "prediction-readout",
-      "bind": "computed.prediction"
+      "bind": "computed.region.prediction"
     }
   ],
   "controls": [
