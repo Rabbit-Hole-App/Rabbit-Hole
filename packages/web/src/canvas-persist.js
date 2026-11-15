@@ -111,7 +111,7 @@ export const sharingOf = sharing => (!sharing || sharing.unavailable ? 'unknown'
 // its content keys in one order, a missing key read as empty. The canvas writes every key, a copy saved elsewhere may
 // not (a Rabbit Hole's anchor-only board), and the two must compare equal, or merely opening a board would save it
 // again and move its updated_at.
-// doc: the canvas's one document (docs/features/blocknote-canvas.md), an object; a board without one reads as [] like any key.
+// doc: a legacy board's one document (docs/features/blocknote-canvas.md, migrated into a Document card at load), an object; a board without one reads as [] like any key.
 // toc: the Table of contents' own list (owner brief 2026-10-23), last so a boardText written before it reads back the same.
 // A board without one reads as null, never [], because an empty list (every entry removed) is not "read the headings".
 const BOARD_KEYS = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'sources', 'doc', 'toc'];
@@ -125,12 +125,6 @@ export function boardFromText(text) {
 // browser last saved or loaded, kept in this browser beside its copy, so the edits made since go onto the server's newer
 // copy (pendingWork from it, then withPendingWork) - after a reload or a switch to another canvas and back too.
 export const conflictBaseKey = storageKey => `${storageKey}:conflict-base`;
-// The document after a 409: this browser's when only it changed since the base (it goes up); null when the server's changed
-// too, or this one did not (the server's stays; a changed one of this browser's is offered back, docOnServerCopy).
-export function conflictDoc({ base, server, mine }) {
-  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-  return mine && !same(mine, base?.doc) && same(server?.doc, base?.doc) ? mine : null;
-}
 // Any stroke, shape, item, link, card, group, area or chat card, or a document with words in it. Not the sources list: a
 // repository's canvas registers its repository there on open, and the list is kept apart from the board (LearnPage :sources).
 export const boardHasContent = state => BOARD_KEYS.some(key => key !== 'sources' && (key === 'doc' ? !docIsEmpty(state?.doc) : (state?.[key] ?? []).length > 0));

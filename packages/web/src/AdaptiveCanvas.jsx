@@ -20,7 +20,7 @@ import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
-import { DOC_CARD_SIZE, isFileDrag, newDocBlock, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
+import { DOC_CARD_SIZE, docIsEmpty, isFileDrag, migrateDocToCard, newDocBlock, pressKeepsDocFocus } from './canvas-doc.js';
 import { GENERATED_NOTE, RUN_CARD_SIZE, deletableIds, isGenerated, keepGenerated } from './rehearsal-cards.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
@@ -140,8 +140,6 @@ import { loadMediaOriginal } from './media-storage.js';
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
 // The inline AI editor arrives with its first Ctrl/Cmd+K (docs/features/inline-ai-editor.md), never with the canvas.
 const InlineAiEditor = lazyFeature(() => import('./InlineAiEditor.jsx'), 'The AI editor');
-// The canvas's document editor (BlockNote), loaded only when Editor view first shows it (docs/features/blocknote-canvas.md).
-const CanvasDoc = lazyFeature(() => import('./CanvasDoc.jsx'), 'The document editor');
 // A document as a card (DocNode below), loaded with the first such card, never with the canvas.
 const DocCard = lazyFeature(() => import('./DocCard.jsx'), 'The document editor');
 // A Run card (RunCard.jsx; rehearsal-cards.js), loaded with the first such card.
@@ -206,8 +204,6 @@ const DIVIDER_W = 1040;
 // at a glance; picking an ink colour first overrides this.
 const LINK_COLORS = { chat: '#2383e2', quiz: '#7c3aed', flashcards: '#f59e0b', challenge: '#37352f', explanation: '#6b7280', table: '#0891b2', snippet: '#1a7f37', code: '#1a7f37', graph: '#2383e2', paper: '#b42318', model3d: '#7c3aed', image: '#0891b2', video: '#b42318' };
 const COLUMN = 560;
-// The document sheet: about 760 px across at 100% (brief section 4), and at least one screen tall before it holds much.
-const DOC_W = 760, DOC_MIN_H = 960;
 // A new card's one camera correction waits until its measured size has been still for SETTLE_MS (rows it
 // measures a frame or two after mount), REVEAL_MS after the insert at the latest (revealAfter).
 const SETTLE_MS = 200, REVEAL_MS = 1500;
@@ -1673,7 +1669,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, chatWindow = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null, roadmap = null, onSkeletonsDropped = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1800,9 +1796,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const stored = useRef(null);
   // This browser's copy exactly as this canvas read it at mount, for the first save below.
   const readCopy = useRef(null);
+  // A legacy board's single document (state.doc) becomes a Document card at this one load path (canvas-doc.js migrateDocToCard), whether the
+  // state is this browser's copy, the server's, a shared, member or fork board's: a load-time transform that saves nothing by itself.
+  // migrated: the first save below is then a change, not the board as loaded. The old document is kept in this browser under
+  // :doc-premigration until the page's save has put the card on the server (LearnPage saveBoard); the server's doc goes with that PUT.
+  const migrated = useRef(false);
   if (stored.current === null) {
     // A shared board arrives as state from the server instead (SharedBoardPage).
-    try { readCopy.current = storageKey ? localStorage.getItem(storageKey) : null; stored.current = boardState || (storageKey ? JSON.parse(readCopy.current || '{}') : {}); } catch { stored.current = {}; }
+    try {
+      readCopy.current = storageKey ? localStorage.getItem(storageKey) : null;
+      const loaded = boardState || (storageKey ? JSON.parse(readCopy.current || '{}') : {});
+      stored.current = migrateDocToCard(loaded);
+      // Only the owner's own copy (a storage key) saves the card; a read-only, shared, member or guest view just shows it.
+      if (stored.current !== loaded && storageKey && !readOnly && !localCopy && !docIsEmpty(loaded.doc)) {
+        migrated.current = true;
+        try { localStorage.setItem(`${storageKey}:doc-premigration`, JSON.stringify(loaded.doc)); } catch { /* the server's copy still holds the document */ }
+      }
+    } catch { stored.current = {}; }
   }
   const [strokes, setStrokes] = useState(stored.current.strokes || []); // pen and highlighter ink, world coords
   const [live, setLive] = useState(null);
@@ -1909,17 +1919,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const areaById = id => areas.find(area => area.id === id);
   // The board an answer was asked about: the whiteboard itself, or the board a toolbar area was drawn on (EXP-T28).
   const boardOf = id => { const host = areaById(id)?.blockId || id; return blocks.find(block => block.id === host && block.type === 'whiteboard')?.id; };
-  // The canvas's one document (docs/features/blocknote-canvas.md): { v, x, y, w, blocks } in world units, saved with the
-  // board. Never part of the canvas's undo history (BlockNote keeps its own). docLive holds the editor's latest blocks at
-  // once, so a chat turn reads unsaved words; the board copy (doc) follows after a pause, so typing never re-renders the canvas.
-  const [doc, setDoc] = useState(() => (stored.current.doc && typeof stored.current.doc === 'object' ? stored.current.doc : null));
-  const docRef = useRef(doc);
-  docRef.current = doc;
-  const docLive = useRef(doc?.blocks || null), docTimer = useRef(null);
-  // The document as this canvas last wrote it to this browser's copy (JSON), so leaving can tell its own pending words from
-  // a copy someone else (the server's, on load) put there since.
-  const docWritten = useRef(JSON.stringify(doc ?? null));
-  const liveDoc = () => (docRef.current ? { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] } : null);
   const divePortals = useContext(DivePortals);
   // Every change also goes to onSave (a shared board's server copy), if given.
   const onSaveRef = useRef(onSave);
@@ -1927,15 +1926,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The board as last rendered, for persist(): a caller holding an older canvasApi still saves the latest.
   const boardRef = useRef(null);
   // Document cards' words typed in the last half second (DocCard): held here, not in `blocks`, so typing never re-renders the canvas, and read by every save path through the board
-  // below, as docLive is for the one document. The card patches its blocks after the pause and takes its entry back.
+  // below. The card patches its blocks after the pause and takes its entry back.
   const docCardLive = useRef(new Map());
   const withDocCardLive = list => (docCardLive.current.size ? list.map(block => (docCardLive.current.has(block.id) ? { ...block, blocks: docCardLive.current.get(block.id) } : block)) : list);
   const docCardWords = (id, next) => {
     if (!next) { docCardLive.current.delete(id); return; }
     docCardLive.current.set(id, next);
     boardRef.current = { ...boardRef.current, blocks: withDocCardLive(blocksRef.current) };
+    searchStore.current?.changed(); // Search reads the typed words at once, not after the card's pause
   };
-  boardRef.current = { strokes, shapes, items, links, blocks: withDocCardLive(blocks), groups, areas, ...(toc ? { toc } : {}), ...(doc ? { doc } : {}) };
+  boardRef.current = { strokes, shapes, items, links, blocks: withDocCardLive(blocks), groups, areas, ...(toc ? { toc } : {}) };
   // The board as this canvas first showed it, which retire() compares the live board against (pendingWork).
   const mountedBoard = useRef(null);
   if (!mountedBoard.current) mountedBoard.current = boardRef.current;
@@ -1950,7 +1950,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const retired = useRef(false);
   // The board as this browser's copy holds it (the debounced save's shape), and the last such board this canvas wrote or
   // mounted with: the unmount flush below writes only a board that differs from it.
-  const savedShape = board => ({ strokes: board.strokes, shapes: board.shapes, items: board.items, links: board.links, blocks: lightBlocks(board.blocks), groups: board.groups, areas: board.areas, ...(board.toc ? { toc: board.toc } : {}), ...(board.doc ? { doc: board.doc } : {}) });
+  const savedShape = board => ({ strokes: board.strokes, shapes: board.shapes, items: board.items, links: board.links, blocks: lightBlocks(board.blocks), groups: board.groups, areas: board.areas, ...(board.toc ? { toc: board.toc } : {}) });
   const lastWritten = useRef(null);
   if (lastWritten.current === null) lastWritten.current = JSON.stringify(savedShape(mountedBoard.current));
   const storageKeyRef = useRef(storageKey);
@@ -1960,21 +1960,22 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!storageKey && !onSaveRef.current) return;
     // Oversized data URLs dropped (canvas-persist.js lightBlocks).
     const light = lightBlocks(blocks);
-    // The first run is the board as loaded, not a change.
+    // The first run is the board as loaded, not a change - unless loading migrated a legacy document into a card (migrated): that save must reach the server.
     const loaded = firstSave.current;
     firstSave.current = false;
+    const sendFirst = migrated.current;
     const timer = setTimeout(() => {
       if (retired.current) return;
       // The first run only writes back the board as loaded, so it never goes over a copy that changed since this canvas read
       // it: the server's copy the page put there on open, about to remount this canvas with it. Written over, the remounted
       // canvas read this board back empty and the page's next push sent that over the server's copy (board-empty-report).
       if (loaded && storageKey) { try { if (localStorage.getItem(storageKey) !== readCopy.current) return; } catch { /* blocked storage: nothing to write over */ } }
-      const state = { strokes, shapes, items, links, blocks: light, groups, areas, ...(toc ? { toc } : {}), ...(doc ? { doc } : {}) };
-      if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = JSON.stringify(state); } catch { /* full or blocked storage loses drawings only */ } }
-      if (!loaded) onSaveRef.current?.(state);
+      const state = { strokes, shapes, items, links, blocks: light, groups, areas, ...(toc ? { toc } : {}) };
+      if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); lastWritten.current = JSON.stringify(state); } catch { /* full or blocked storage loses drawings only */ } }
+      if (!loaded || sendFirst) { migrated.current = false; onSaveRef.current?.(state); }
     }, 400);
     return () => clearTimeout(timer);
-  }, [strokes, shapes, items, links, blocks, groups, areas, toc, doc, storageKey]);
+  }, [strokes, shapes, items, links, blocks, groups, areas, toc, storageKey]);
   // Leaving the canvas (Home, the sidebar, a Rabbit Hole, a remount) cancels the pending save above, so an edit made less
   // than 400 ms before is written here instead, once, on unmount: this browser's copy, then the board's push at once
   // (owner: cancelling a pending save or remounting never discards work). Not for a retired canvas - the page has put its
@@ -1988,52 +1989,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // An Animation card's settled change still inside its own debounce rides along (animation3d/storage.js withFlushedAnimations).
       const state = savedShape({ ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks) });
       const result = flushBoard({ state, lastWritten: lastWritten.current, storageKey: key, storage: () => localStorage, onSave: onSaveRef.current });
-      if (result?.wrote) { docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = result.text; }
+      if (result?.wrote) lastWritten.current = result.text;
     };
     window.addEventListener('pagehide', flushBoardNow);
     return () => { window.removeEventListener('pagehide', flushBoardNow); flushBoardNow(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // Typing goes to docLive at once and into the board after a pause (one canvas render per pause, not per key).
-  const onDocDirtyRef = useRef(onDocDirty);
-  onDocDirtyRef.current = onDocDirty;
-  const searchRead = useRef(null), searchStore = useRef(null), docSearchApi = useRef(null);
+  const searchRead = useRef(null), searchStore = useRef(null);
   const searchJump = useRef(0), searchPaint = useRef(null), equationSearchDrafts = useRef(null);
   if (!equationSearchDrafts.current) equationSearchDrafts.current = createEquationSearchDrafts(() => searchStore.current.changed());
   if (!searchStore.current) searchStore.current = createSearchSnapshotStore(() => searchRead.current());
-  const docChanged = next => {
-    docLive.current = next;
-    searchStore.current.changed();
-    // The page says Saving… from the first key, not once the pause is over: Saved only ever means the server has it.
-    if (!docTimer.current) onDocDirtyRef.current?.();
-    clearTimeout(docTimer.current);
-    docTimer.current = setTimeout(() => { docTimer.current = null; setDoc(previous => previous && { ...previous, blocks: docLive.current }); }, 500);
-  };
-  // Leaving the canvas (another canvas, a Rabbit Hole, Home) or a save asked for now never drops the last words typed: a
-  // pending edit is written through the normal save path at once (this browser's copy, then onSave, the board's server push).
-  // Only the document is merged into this browser's copy, and only while that copy still holds what this canvas last wrote:
-  // a server copy that replaced it on open (the page remounts the canvas) is never overwritten from here.
-  const flushDoc = () => {
-    clearTimeout(docTimer.current);
-    docTimer.current = null;
-    if (retired.current) return false;
-    const live = docRef.current && { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] };
-    if (!live || !storageKey || JSON.stringify(live) === docWritten.current) return false;
-    let saved = {};
-    try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { return false; }
-    if (JSON.stringify(saved.doc ?? null) !== docWritten.current) return false;
-    const state = { ...saved, doc: live };
-    try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch { return false; }
-    docWritten.current = JSON.stringify(live);
-    if (alive.current) setDoc(live);
-    onSaveRef.current?.(state);
-    return true;
-  };
-  // A reload or a closed tab runs no unmount: pagehide writes the pending words too (owner decision A1 - after a 409 this
-  // browser's copy is the only place they live until Reload and keep my document or Restore my unsaved document).
-  useEffect(() => {
-    window.addEventListener('pagehide', flushDoc);
-    return () => { window.removeEventListener('pagehide', flushDoc); flushDoc(); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [connecting, setConnecting] = useState(null);
   const [bounds, setBounds] = useState({});
   // Where an asked-about area is now: on its host card when it has one, else where it was drawn.
@@ -2279,22 +2243,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       semantic: () => semanticRef.current.value(),
       // Whole-canvas context (chat-canvas-context.js), read when a chat turn is sent: the live lists with the open editor's
       // unsaved words, the freehand strokes, every object's measured box in world units, and the ids selected now.
-      // doc: the document with the editor's unsaved words (docLive), in both views; boxes.doc its measured sheet in Editor view.
-      // The board as the canvas holds it now, in the shape its browser save writes (lightBlocks), with the document's unsaved
-      // words: what a reload would lose if no copy holds it yet (LearnPage boardUnsaved, offline-recovery brief).
+      // The board as the canvas holds it now, in the shape its browser save writes (lightBlocks), with a Document card's unsaved
+      // words (boardRef): what a reload would lose if no copy holds it yet (LearnPage boardUnsaved, offline-recovery brief).
       boardNow: () => {
-        const b = boardRef.current, doc = liveDoc();
-        return { strokes: b.strokes, shapes: b.shapes, items: b.items, links: b.links, blocks: lightBlocks(b.blocks), groups: b.groups, areas: b.areas, ...(doc ? { doc } : {}) };
+        const b = boardRef.current;
+        return { strokes: b.strokes, shapes: b.shapes, items: b.items, links: b.links, blocks: lightBlocks(b.blocks), groups: b.groups, areas: b.areas };
       },
-      liveBoard: () => {
-        const doc = liveDoc(), box = docBoxRef.current;
-        return { ...semanticBoard(), strokes: present.current.strokes, boxes: { ...inlineCanvas.layout(), ...(box ? { doc: box } : {}) }, doc };
-      },
-      // The document (blocknote-canvas.md): its box, framing its start, and a whole replacement (Restore my unsaved document).
-      goToDoc: () => goToDoc(),
-      flushDoc: () => flushDoc(),
-      // The editor reads its blocks once, when it is made (CanvasDoc), so a replaced document gets a new editor (docEpoch).
-      replaceDoc: next => { clearTimeout(docTimer.current); docTimer.current = null; docLive.current = next?.blocks || null; setDoc(next && typeof next === 'object' ? next : null); setDocEpoch(epoch => epoch + 1); },
+      liveBoard: () => ({ ...semanticBoard(), strokes: present.current.strokes, boxes: inlineCanvas.layout() }),
       selection: () => selectedRef.current,
       updateBlock: (id, change) => {
         const current = blocksRef.current.find(block => block.id === id);
@@ -2877,22 +2832,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // The board saved now, a shared board's push awaited (canvas-persist.js; architecture §6.5.5, LP1 Task 15): a
       // journey section is recorded only once this resolves ok. It reads boardRef, so a call after a paint that follows
       // the inserts saves them, from any canvasApi of this canvas. The debounced save above is unchanged.
-      // The document's words typed in the last half second ride too (liveDoc), not only its last board copy.
       persist: () => {
         if (!alive.current) return Promise.resolve({ ok: false });
-        const live = liveDoc();
-        clearTimeout(docTimer.current); docTimer.current = null;
-        if (live) { docWritten.current = JSON.stringify(live); setDoc(live); }
-        return persistBoard({ state: { ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks), ...(live ? { doc: live } : {}) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
+        return persistBoard({ state: { ...boardRef.current, blocks: withFlushedAnimations(boardRef.current.blocks) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
       },
       toggleLock: () => setLock(previous => !previous),
       // `base`: the board the work is counted from - the server's copy before a 409 (conflictBaseKey), else the mounted one.
       retire: (base = mountedBoard.current) => {
         retired.current = true;
-        const work = pendingWork(base, boardRef.current);
-        // The document as typed, its words still in the editor's pause included: the page offers it back, never drops it.
-        const live = docRef.current && { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] };
-        return live && JSON.stringify(live) !== JSON.stringify(base.doc ?? null) ? { ...work, doc: live } : work;
+        return pendingWork(base, boardRef.current);
       },
       // The card thumbnail (card-thumbnails.md): this canvas's content drawn at 800 x 400 in the light theme without its
       // chrome (card-thumbnail.js CHROME, data-thumbnail-hide here), or null when it is empty.
@@ -3389,8 +3337,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   useEffect(() => {
     const element = surface.current;
     if (!element) return undefined;
-    // A control (a button, a slider, a choice), never a text field: a field shows :focus-visible on a click too, and its caret has
-    // its own reveal (docCaret); moving the camera under a learner's typing is not this rule's job.
+    // A control (a button, a slider, a choice), never a text field: a field shows :focus-visible on a click too, and its caret is
+    // the editor's own to reveal; moving the camera under a learner's typing is not this rule's job.
     const typing = target => target.isContentEditable || target.tagName === 'TEXTAREA' || (target.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button', 'submit', 'color'].includes(target.type));
     const focused = event => { const target = event.target; if (!focusRef.current && target?.matches?.(':focus-visible') && !typing(target) && target.closest('[data-block]')) revealFocusRef.current(target); };
     element.addEventListener('focusin', focused);
@@ -3500,14 +3448,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     searchPaint.current?.(); searchPaint.current = null;
     if (!target || !surface.current) return { found: false, reason: 'missing-target' };
     let element, range = null, box;
-    if (target.kind === 'document') {
-      if (!liveDoc()) return { found: false, reason: 'missing-target' };
-      if (docView !== 'editor') return { found: false, reason: 'document-hidden' };
-      if (!docSearchApi.current) return { found: false, reason: 'document-loading' };
-      const result = docSearchApi.current.reveal(target.docBlockId || target.id, target.quote);
-      if (!result.found) return result;
-      ({ element, range } = result);
-    } else if (target.anchor?.kind === 'point') {
+    if (target.anchor?.kind === 'point') {
       box = { x: target.anchor.x, y: target.anchor.y, w: 24, h: 24 };
     } else {
       const id = target.anchor?.kind === 'object' ? target.anchor.object_id : target.id;
@@ -3527,7 +3468,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     await new Promise(resolve => requestAnimationFrame(resolve));
     if (jump !== searchJump.current || !surface.current || (element && !element.isConnected)) return { found: false, reason: 'superseded' };
     // A matching paragraph within a Full-content card is its own camera target; an internally scrolled match is now visible.
-    if (element && (range || target.kind === 'document')) {
+    if (element && range) {
       const hit = range?.getBoundingClientRect() || element.getBoundingClientRect(), at = surface.current.getBoundingClientRect(), current = viewRef.current;
       if (hit.width || hit.height) box = { x: (hit.left - at.left - current.x) / current.z, y: (hit.top - at.top - current.y) / current.z,
         w: Math.max(1, hit.width / current.z), h: Math.max(1, hit.height / current.z) };
@@ -3860,10 +3801,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     rail?.addEventListener('wheel', railWheel, { passive: false });
     return () => { element.removeEventListener('wheel', wheel); rail?.removeEventListener('wheel', railWheel); };
   }, [presenting === null]);
-  // The surface clips (overflow hidden) but the document caret's reveal (the browser's and ProseMirror's scrollRectIntoView)
-  // still scrolls it, sliding the world under a camera that never moved. Such a scroll becomes a camera move and the surface
-  // goes back to 0, so the camera follows the document's caret (blocknote-canvas.md section 6). flushSync:
-  // docCaret measures in the next frame, after the move, so it never pans a second time.
+  // The surface clips (overflow hidden) but a Document card's caret reveal (the browser's and ProseMirror's scrollRectIntoView)
+  // can still scroll it, sliding the world under a camera that never moved. Such a scroll becomes a camera move and the surface
+  // goes back to 0 (blocknote-canvas.md section 6).
   useEffect(() => {
     const element = surface.current;
     const scrolled = () => {
@@ -3882,7 +3822,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }, []);
   // ---------- Inline AI editor hooks (docs/features/inline-ai-editor.md) ----------
   // The live lists, never the last saved copy (§4). Layout comes separately (layout()), so content stays cheap to read.
-  const inlineBoard = () => ({ shapes: shapesRef.current, items: itemsRef.current, links: present.current.links, blocks: blocksRef.current, groups: groupsRef.current, exchanges: exchangesRef.current });
+  const inlineBoard = () => ({ shapes: shapesRef.current, items: itemsRef.current, links: present.current.links, blocks: withDocCardLive(blocksRef.current), groups: groupsRef.current, exchanges: exchangesRef.current });
   // The live lists with the open text editor's words on its object, read without committing or closing it (the shared
   // snapshot's board; agent-coordination 2026-10-13-shared-canvas-semantics.md, decision 3).
   const editorWords = () => {
@@ -3896,8 +3836,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return { ...board, shapes: put(board.shapes), items: put(board.items), links: board.links.map(link => (link.id === id ? { ...link, label: text } : link)) };
   };
   // Search reads these unbudgeted live lists, independently of model context and camera/layout state.
-  searchRead.current = () => ({ ...equationSearchDrafts.current.apply(semanticBoard()), doc: liveDoc() });
-  useLayoutEffect(() => { searchStore.current.changed(); }, [blocks, exchanges, shapes, items, links, groups, editorTick, doc]);
+  searchRead.current = () => equationSearchDrafts.current.apply(semanticBoard());
+  useLayoutEffect(() => { searchStore.current.changed(); }, [blocks, exchanges, shapes, items, links, groups, editorTick]);
   useEffect(() => () => { searchJump.current++; searchPaint.current?.(); searchStore.current.dispose(); }, []);
   // Curious (docs/features/professor-next-steps.md 2.8, curious-context.js semanticReader): one read once the lists, the
   // editor's words and the selection have been still for 150 ms, focused on recent edits; typing settles at once. The
@@ -5812,76 +5752,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ...itemsRef.current.map(item => ({ id: item.id, ...(boxesOf([item.id])[0] || { x: item.x, y: item.y, w: item.w || 0, h: item.h || 0 }) })),
     ...present.current.strokes.map(inkBox).filter(Boolean),
   ];
-  // The document (docs/features/blocknote-canvas.md): a portrait sheet in world units on the canvas, framed at its start.
-  // Framing reads the free part of the surface (visibleArea: less the chat sheet and the contents rail) and keeps a zoom that
-  // reads well - 100%, less only when the sheet would not fit across - never a zoom-out to fit a long document's height.
-  const docFrame = target => {
-    const element = surface.current;
-    if (!element || !target) return;
-    const area = visibleArea(), span = Math.max(240, area.right - area.left);
-    const z = Math.max(0.3, Math.min(1, (span - 48) / target.w));
-    glideTo({ x: area.left + (span - target.w * z) / 2 - target.x * z, y: area.top + 32 - target.y * z, z }, true);
-  };
-  const goToDoc = () => docFrame(docRef.current);
-  // First opening: the sheet goes where the learner is looking, across the middle of the free view, its top just below the
-  // top edge; when cards, shapes, notes or ink already sit there, beside them to the right instead - nothing existing moves.
-  const placeDoc = () => {
-    const element = surface.current;
-    if (!element) return null;
-    const area = visibleArea(), v = viewRef.current;
-    const left = (area.left - v.x) / v.z, top = (area.top - v.y) / v.z, span = (area.right - area.left) / v.z, tall = (area.bottom - area.top) / v.z;
-    const sheet = { x: Math.round(left + span / 2 - DOC_W / 2), y: Math.round(top + 32 / v.z), w: DOC_W, h: Math.max(DOC_MIN_H, tall) };
-    const hits = box => box.w > 0 && box.h > 0 && box.x < sheet.x + sheet.w && box.x + box.w > sheet.x && box.y < sheet.y + sheet.h && box.y + box.h > sheet.y;
-    for (let i = 0; i < 50; i += 1) {
-      const blocking = contentBoxes().filter(hits);
-      if (!blocking.length) break;
-      sheet.x = Math.round(Math.max(...blocking.map(box => box.x + box.w)) + 80);
-    }
-    return { v: 1, x: sheet.x, y: sheet.y, w: DOC_W, blocks: [] };
-  };
-  // Editor view on a canvas with no document yet: one empty sheet, placed once (its world position is saved), then framed.
-  // Only after the page has the board's saved copy (docReady), so an empty sheet is never made over one still loading.
-  useEffect(() => {
-    if (docView !== 'editor' || doc || readOnly || localCopy || !docReady || docError) return;
-    const fresh = placeDoc();
-    if (!fresh) return;
-    docLive.current = fresh.blocks;
-    setDoc(fresh);
-    requestAnimationFrame(() => docFrame(fresh));
-  }, [docView, doc, readOnly, docReady, docError]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Typing near the bottom (or the top) of the view keeps the caret on screen, through the canvas camera.
-  const docCaret = box => {
-    const element = surface.current;
-    if (!element || !document.activeElement?.closest?.('[data-canvas-doc]')) return;
-    // A reveal scroll of the surface not yet turned into a camera move (its scroll event can come after this frame) is taken
-    // first: the pan keeps the caret where it is on screen, so box still holds, and the late scroll event finds nothing to do.
-    if (element.scrollLeft || element.scrollTop) {
-      const dx = element.scrollLeft, dy = element.scrollTop;
-      element.scrollLeft = 0; element.scrollTop = 0;
-      flushSync(() => setView(v => (autoView.current = { ...v, x: v.x - dx, y: v.y - dy })));
-    }
-    const frame = element.getBoundingClientRect(), bottom = Math.min(frame.bottom, frame.top + chromeTop(0, frame.width)) - 48, top = frame.top + controlArea().top + 48;
-    const by = box.bottom > bottom ? bottom - box.bottom : box.top < top ? top - box.top : 0;
-    if (by) setView(v => (autoView.current = { ...v, y: v.y + by }));
-  };
-  const paperRef = useRef(null);
-  // The document's box in world units, the one source for its footprint (blocknote-layers-minimap.md section 3): its saved
-  // x, y and width, and the paper's measured height (at least DOC_MIN_H, empty or not), in Editor view only. The height comes
-  // from one ResizeObserver, set only when it changes (a new line, not a key), and is never saved with the board.
-  const [docH, setDocH] = useState(DOC_MIN_H);
-  const docBox = doc && docView === 'editor' ? { x: doc.x, y: doc.y, w: doc.w, h: docH } : null;
-  const docBoxRef = useRef(docBox);
-  docBoxRef.current = docBox;
-  const docShown = !!doc && docView === 'editor';
-  useEffect(() => {
-    const paper = paperRef.current;
-    if (!paper) return undefined;
-    const observer = new ResizeObserver(() => setDocH(Math.max(DOC_MIN_H, paper.offsetHeight)));
-    observer.observe(paper);
-    return () => observer.disconnect();
-  }, [docShown]);
-  const [docMounted, setDocMounted] = useState(false);
-  const [docEpoch, setDocEpoch] = useState(0);
   // [+] pushes everything below the line down; [-] pulls it up, stopping short
   // of closing the gap. Cards, chat cards, shapes, notes and ink all move.
   const nudgeGap = (gap, delta) => {
@@ -6204,7 +6074,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (last) roomAfter[last.id] = groupRoom[group.id];
   }
   const minimapBoxes = [
-    ...(docBox ? [{ ...docBox, doc: true }] : []),
     ...Object.entries(bounds).map(([id, box]) => (divePortals?.portals?.[id] ? { ...box, hole: true } : box)),
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
@@ -6568,40 +6437,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode} preset={inline.preset} highlight={inline.highlight || null}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-[calc(var(--canvas-top,0px)+0.75rem)] left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
-        {docView === 'editor' && !doc && (docError || (!docReady && !readOnly)) && (
-          <div data-canvas-doc data-doc-state={docError ? 'error' : 'loading'} className="absolute top-[calc(var(--canvas-top,0px)+3rem)] left-1/2 z-40 w-80 -translate-x-1/2 rounded-md border border-line bg-white p-4 text-sm text-ink-2 shadow-md dark:bg-side">
-            {docError ? <>
-              <p role="alert">Couldn&apos;t load this canvas&apos;s document. Your saved document is unchanged.</p>
-              {onDocRetry && <button type="button" onClick={onDocRetry} className="mt-2 rounded-md border border-line px-2 py-1 text-xs text-ink hover:bg-hover">Retry</button>}
-            </> : <p>Loading the document</p>}
-          </div>
-        )}
         <div ref={worldRef} data-canvas-world style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-300 ease-in-out motion-reduce:transition-none' : ''}`}>
-        {/* The document (docs/features/blocknote-canvas.md): a writing surface in world units BELOW every canvas object
-            (blocknote-layers-minimap.md): the first child of the world layer with no z-index of its own, so cards, notes, shapes,
-            connectors and their handles - all later in this layer - paint and take the pointer above it, whatever their own
-            order, and focus or a menu never raises it. Its editor menus keep their own z-index in this layer, above the cards.
-            Editor view only - in
-            Canvas view it is not drawn at all, so nothing invisible catches the canvas's input. The hand tool and Space pan
-            through it; a press inside it is the editor's, never a marquee, pan or card drag. Files dropped on it do nothing
-            (no media in this MVP) rather than becoming a canvas card behind it. */}
-        {doc && docView === 'editor' && (
-          <div ref={paperRef} data-canvas-doc data-doc-state={docError || unknownDocBlock(doc.blocks) ? 'error' : docMounted ? 'ready' : 'loading'}
-            style={{ left: doc.x, top: doc.y, width: doc.w, minHeight: DOC_MIN_H }}
-            onPointerDown={event => event.stopPropagation()} onDoubleClick={event => event.stopPropagation()}
-            onContextMenu={event => event.stopPropagation()}
-            onDragOver={event => { if (isFileDrag(event.dataTransfer)) { event.preventDefault(); event.stopPropagation(); } }}
-            onDrop={event => { if (isFileDrag(event.dataTransfer)) { event.preventDefault(); event.stopPropagation(); } }}
-            className={`absolute flex flex-col rounded-md border border-line bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.06)] dark:bg-side ${(tool === 'hand' && !readOnly) || spacePan ? 'pointer-events-none' : ''}`}>
-            <div data-canvas-doc-editor className="flex-1 px-4 py-14 [&_.bn-editor]:px-10">
-              {unknownDocBlock(doc.blocks)
-                ? <p role="alert" className="px-10 text-sm text-ink-2">This document holds content this version cannot edit, so it opens read-only here. Nothing in it was changed.</p>
-                : <Suspense fallback={<p className="px-10 text-sm text-ink-3">Loading the document</p>}>
-                  <CanvasDoc key={docEpoch} blocks={doc.blocks} searchApiRef={docSearchApi} editable={!readOnly && !localCopy} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
-                </Suspense>}
-            </div>
-          </div>
-        )}
         {/* Page guides sit inside the camera, so they pin to the content: the
             boundary keeps its width in cards, not in screen pixels. */}
         {pages && (

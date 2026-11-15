@@ -7,7 +7,6 @@ import { can } from './canvas-permissions.js';
 import { PanelToggle, SharedPanel, useSharedPanel } from './SharedCanvasShell.jsx';
 import { useCanvasSearch } from './use-canvas-search.jsx';
 import { SearchContentProvider } from './canvas-search-content.jsx';
-import { docIsEmpty } from './canvas-doc.js';
 import { ChevronDown, Eye, GitFork, Menu as MenuIcon, MessageCircle, Shapes } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope } from './file-source-client.js';
@@ -132,8 +131,6 @@ function SharedBoard({ token, embed = null }) {
   // (permanent-link-note.md), and Hidden answers 404, so the page shows none. Signed out reads; posting needs an account.
   // On a share link the owner and members (member_board_id) get the members panel.
   const [commentsInfo, setCommentsInfo] = useState(null);
-  // The canvas's document (docs/features/blocknote-canvas.md), read-only here: View > Mode shows it, the canvas first.
-  const [docView, setDocView] = useState('canvas');
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // ? opens the shortcuts (the menubar no longer lists them): not while typing, in a field, or with a modifier held.
   useEffect(() => {
@@ -257,7 +254,7 @@ function SharedBoard({ token, embed = null }) {
   const searchChildren = useMemo(() => Object.entries(holes?.portals || {}).map(([origin_block_id, child]) => ({ ...child, origin_block_id })), [holes]);
   const search = useCanvasSearch({ scopeKey: `shared:${token}:${viewer || 'anonymous'}`, canvasApi, epoch: !!shared, shown: panel.open && panel.tab === 'find',
     commentsBase: commentsInfo ? commentsBase : null, children: searchChildren,
-    onComment: result => { panel.setReturnToSearch(true); comments.openPin(result.target.id); }, revealDocument: () => setDocView('editor') });
+    onComment: result => { panel.setReturnToSearch(true); comments.openPin(result.target.id); } });
   const openSearchAction = (result, action) => {
     if (action.kind === 'rabbit-hole' && searchChildren.some(child => child.name === action.rabbitHole?.name)) goTo(action.rabbitHole.name);
     else toast('This source cannot be opened from this shared view.');
@@ -280,18 +277,17 @@ function SharedBoard({ token, embed = null }) {
   // Loading: the surface's own shell (CanvasLoading.jsx, owner brief 2026-10-23), the embed's compact one with Open in Rabbit Hole.
   if (!shared) return embed ? <EmbedCanvasLoading embed={embed} href={openHref} /> : <SharedCanvasLoading />;
   const { exchanges = EMPTY_EXCHANGES, ...board } = shared.state || {};
-  const hasDoc = !!board.doc && !docIsEmpty(board.doc);
   // The normal canvas's menubar (canvas-menus.js): View always; Insert's local rows, Edit and Arrange once the canvas is
   // editable here. No Files: a shared canvas's Materials are not shareable (panel.files).
   const menus = [
     ...(editable && can('canvas.local-edit', permissions).allowed ? [{ title: 'Insert', items: localInsertItems(canvas) }] : []),
-    ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, drawing: editable, onShortcuts: () => setShortcutsOpen(true) })
+    ...canvasEditMenus({ canvas, canvasState, comments, drawing: editable, onShortcuts: () => setShortcutsOpen(true) })
       .filter(menu => editable || menu.title === 'View'),
   ];
   // An embed has no Start Rabbit Hole, no Next Steps (a model call) and no map; its Ask in Chat target is only used when Chat is on.
   const canvasEl = (
     <Suspense fallback={<CanvasChromeLoading tools={localCopy} />}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
-      <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} docView={hasDoc ? docView : 'canvas'} onState={onCanvasState} onStartRabbitHole={embed ? undefined : startFromCard}
+      <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} onState={onCanvasState} onStartRabbitHole={embed ? undefined : startFromCard}
         {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: saveGuest } : { readOnly: true, boardState: board })}
         composer={embed || panel.open ? null : <div ref={setStripHost} data-canvas-chat-strip />}
         gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}

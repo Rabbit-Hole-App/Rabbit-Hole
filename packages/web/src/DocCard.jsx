@@ -8,7 +8,7 @@ import { openRunbookLink } from './learn-runbook.js';
 
 // A BlockNote document as a card (owner decision 2026-11-14, docs/features/blocknote-canvas.md): the Notebook card's shell (CardHeader, its three-dot
 // menu on the card's own action rows; the drag strip and corner resize are CanvasNode's, AdaptiveCanvas DocNode) around CanvasDoc's editor, which scrolls inside.
-// data-canvas-doc is the marker the canvas's one document carries, so the canvas's keyboard, wheel, focus-keeping press (canvas-doc.js pressKeepsDocFocus) and
+// data-canvas-doc is the marker the canvas's document editors carry, so the canvas's keyboard, wheel, focus-keeping press (canvas-doc.js pressKeepsDocFocus) and
 // native-menu rules apply to this editor unchanged.
 // block.blocks: the native document, read once when the editor is made. onBlocks(blocks): the document after a typing pause, as a quiet patch on the card
 // (not a canvas undo step). onLive(blocks | null): the words typed in the pause, so every save path can read them (AdaptiveCanvas docCardLive).

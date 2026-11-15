@@ -5,7 +5,7 @@
 // There is no Files menu (the right panel's Context and Search do that work) and no Share, Publish or Embed here (the Share button).
 // Row kinds, drawn by CanvasMenubar: an action (label, icon, hint, disabled, onSelect), a submenu (items), a radio or check row
 // (radio / check, a check row stays open), a choice (the Page guides selector) and a divider. Disabled rows stay, greyed, never explained.
-import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, ArrowUpToLine, Clipboard, Copy, CopyPlus, Eye, FilePen, Focus, Globe, Grid2X2, Group, Heading1, Keyboard, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, PanelsTopLeft, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut, Frame, GraduationCap, Ruler, Heading2, Heading3 } from 'lucide-react';
+import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, Clipboard, Copy, CopyPlus, Eye, FilePen, Focus, Globe, Grid2X2, Group, Heading1, Keyboard, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut, Frame, GraduationCap, Ruler, Heading2, Heading3 } from 'lucide-react';
 import { ariaFor, hintFor, isMac } from './shortcuts.js';
 
 // Section, sub-sections, text box, sticky note, divider and equation: inserted on this canvas only, no request, no model call.
@@ -46,7 +46,7 @@ const arrangeRows = (canvas, rows, least, state) => rows.map(([label, how]) => (
 // onSlashCommands: opens the Slash Commands window (owner spec 2026-10-29 section 7.1); a canvas without a Chat composer passes none,
 // so it has no row that does nothing. onShortcuts: opens View > Shortcuts (ShortcutsSheet.jsx, owner brief 2026-11-02), directly below
 // Slash Commands. Hints and aria-keyshortcuts come from shortcuts.js, spelled for this platform (mac).
-export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdit = false, comments = {}, docView, setDocView, panel = null, drawing = true, study = null, onSlashCommands = null, onShortcuts = null, mac = isMac() }) => {
+export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdit = false, comments = {}, panel = null, drawing = true, study = null, onSlashCommands = null, onShortcuts = null, mac = isMac() }) => {
   const locked = canvasState.selectionLocked;
   const k = id => ({ hint: hintFor(id, mac), keys: ariaFor(id, mac) });
   const checkRow = (label, on, set) => ({ label, check: !!on, onToggle: set });
@@ -109,12 +109,6 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
           { label: 'Study', icon: GraduationCap, radio: study.mode === 'study', onSelect: () => study.setMode('study') },
           { divider: true },
         ] : []),
-        // The canvas's document (docs/features/blocknote-canvas.md): Editor shows it on the canvas, Canvas hides it (never clears
-        // it); this browser remembers the choice for this canvas.
-        { label: 'Workspace', icon: PanelsTopLeft, items: [
-          { label: 'Canvas', radio: docView === 'canvas', onSelect: () => setDocView('canvas') },
-          { label: 'Editor', radio: docView === 'editor', onSelect: () => setDocView('editor') },
-        ] },
         // Each row drives the state that already shows or hides the thing; the choice is this person's, on this device
         // (ui-prefs.js), never the shared canvas or another viewer's.
         { label: 'Show / hide', icon: Eye, items: [
@@ -127,9 +121,6 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
           checkRow('Learning suggestions', canvasState.curious, widget('curious')),
         ] },
         { label: 'Page guides', icon: Ruler, choice: { value: canvasState.pages || 'off', options: [['off', 'Off'], ['portrait', 'A4 portrait'], ['landscape', 'A4 landscape']], onChange: value => canvas()?.setPages(value === 'off' ? false : value) } },
-        { divider: true },
-        // Shows the document and frames its top.
-        { label: 'Go to document start', icon: ArrowUpToLine, onSelect: () => { setDocView('editor'); requestAnimationFrame(() => requestAnimationFrame(() => canvas()?.goToDoc())); } },
         ...(onSlashCommands || onShortcuts ? [{ divider: true }] : []),
         ...(onSlashCommands ? [{ label: 'Slash Commands', icon: SquareSlash, ...k('slash-commands'), onSelect: onSlashCommands }] : []),
         ...(onShortcuts ? [{ label: 'Shortcuts', icon: Keyboard, ...k('shortcuts'), onSelect: onShortcuts }] : []),
