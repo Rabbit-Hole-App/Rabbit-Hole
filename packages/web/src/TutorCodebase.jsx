@@ -7,23 +7,17 @@
 // code reader at the cited lines; the commit, hashes, execution status, the full source list, the inferred links and what was
 // left out stay in a collapsed Source details. When the repository moved on, the cited files that changed are marked and the
 // learner chooses the saved revision or an updated activity.
-import { useEffect, useRef, useState } from 'react';
-import { FileCode, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { FileCode } from 'lucide-react';
 import { api } from './api.js';
 import { codeRef } from './chat-sources.js';
 import { coachingCanvas } from './learn-coaching-client.js';
-import { REHEARSAL_FIXES_HEADING, REHEARSAL_LABEL, REHEARSAL_POLL_MS, readyView, rehearsalDone, statusLine } from './learn-rehearsal-view.js';
-import { openRehearsalCard } from './rehearsal-cards.js';
-import { toast } from './ui.jsx';
 import { CODEBASE_GOALS, CODEBASE_PROMPT, EVIDENCE_LABEL, NOT_RUN_NOTE, OMISSION_TEXT, QUESTION_LABEL, SOMETHING_ELSE, goalOf, isCitation, isRepositorySource, linesText, sourceLabel, startSource } from './learn-codebase-goals.js';
 
-const CHOICE = 'cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50';
+export const CHOICE = 'cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50';
 const CHIP = 'inline-flex max-w-full cursor-pointer items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-xs font-medium text-ink hover:bg-hover';
 const LINK = 'cursor-pointer font-medium text-ink underline-offset-2 hover:underline disabled:cursor-default disabled:opacity-50';
 const OMITTED = { ...OMISSION_TEXT, not_indexed: 'not indexed', outside_snapshot: 'outside this repository snapshot: not inspected', not_shown: 'related, not shown yet', other_commit: 'selected at another commit', other_repository: 'not from this repository', not_in_snapshot: 'not in this snapshot', deleted: 'deleted', not_read: 'could not be read', path_too_long: 'path too long' };
-// Dev builds only (VITE_REHEARSAL_TRIGGER=1): the rehearsal runtime's thin trigger. Unset, no chip is rendered.
-// Read when rendering, not at import: a test bundle that imports this module has no import.meta.env.
-const rehearsalOn = () => import.meta.env.VITE_REHEARSAL_TRIGGER === '1';
 const short = commit => String(commit || '').slice(0, 7);
 const newId = () => `cb-${crypto.randomUUID()}`;
 
@@ -49,67 +43,30 @@ export function openCited(chat, repo, ref, { reader = false } = {}) {
   else chat.openSource?.(codeRef({ repo, commit: ref.version, path, start, end }));
 }
 
-// The rehearsal runtime's thin trigger (spec s9): POST /api/learn/rehearsal, then the status line (the shimmer of ExplainPending) every
-// 5 s from GET until ready or failed; ready shows the draft plan and the fixes. No Accept, no Contents write, no assessment.
-// ponytail: the retired menu (menu = false above) has no goal chips to append this to, so it stands alone in the menu's section;
-// move it after CODEBASE_GOALS.map if the menu returns.
-function RehearsalTrigger({ chat, board, repository }) {
-  const [data, setData] = useState(null), [busy, setBusy] = useState(false);
-  const live = useRef(true), timer = useRef(null);
-  useEffect(() => { live.current = true; return () => { live.current = false; clearTimeout(timer.current); }; }, []);
-  const follow = out => {
-    if (!live.current) return;
-    setData(out);
-    clearTimeout(timer.current);
-    if (!rehearsalDone(out)) timer.current = setTimeout(poll, REHEARSAL_POLL_MS);
-  };
-  const poll = () => api(`/api/learn/rehearsal?app=${encodeURIComponent(chat.canvas)}&board=${encodeURIComponent(board)}`)
-    .then(follow, error => { if (live.current) setData({ status: 'failed', error: error.data?.error || error.message }); });
-  const start = async () => {
-    setBusy(true);
-    try { follow(await api('/api/learn/rehearsal', { method: 'POST', body: JSON.stringify({ app: chat.canvas, board }) })); }
-    catch (error) { if (live.current) toast(error.data?.error || error.message, { tone: 'error', action: { label: 'Retry', run: start } }); }
-    finally { if (live.current) setBusy(false); }
-  };
-  const openCard = kind => {
-    const done = openRehearsalCard(chat.canvasOps, kind, data.record, { app: chat.canvas, board, repositoryApp: repository?.app });
-    if (!done) toast('This canvas cannot take a new card here.');
-  };
-  const running = data && !rehearsalDone(data);
-  const ready = data?.status === 'ready' ? readyView(data.record) : null;
-  return <section data-rehearsal-trigger aria-label="Tutor" className="mb-2 flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
-    <div className="flex flex-wrap gap-1.5">
-      <button type="button" data-rehearsal-chip disabled={busy || running} onClick={start} className={CHOICE}>{REHEARSAL_LABEL}</button>
-    </div>
-    {running && <div data-rehearsal-message={data.status} className="flex items-center gap-2">
-      <Loader2 aria-hidden="true" size={16} className="shrink-0 text-claude motion-safe:animate-spin" />
-      <p aria-live="polite" className="shimmer text-sm">{statusLine(data)}</p>
-    </div>}
-    {data?.status === 'failed' && <div data-rehearsal-message="failed" className="flex flex-col items-start gap-1.5">
-      <p role="alert" className="text-sm text-red-700">{data.error}</p>
-      <button type="button" data-rehearsal-retry disabled={busy} onClick={start} className={CHOICE}>Retry</button>
-    </div>}
-    {ready && <div data-rehearsal-message="ready" className="flex flex-col gap-2 text-sm text-ink">
-      {ready.gaveUp && <p>{ready.gaveUp}</p>}
-      {ready.plan.length > 0 && <ol className="list-decimal pl-5">{ready.plan.map((line, i) => <li key={i}>{line}</li>)}</ol>}
-      {ready.fixes.length > 0 && <>
-        <p className="font-medium">{REHEARSAL_FIXES_HEADING}</p>
-        <ul className="list-disc pl-5">{ready.fixes.map((line, i) => <li key={i}>{line}</li>)}</ul>
-      </>}
-      {/* The Run card and the Runbook are canvas cards (rehearsal-cards.js): a press makes the card beside its sibling, or focuses the one already made (the Runbook is regenerated in place). */}
-      <div className="flex flex-wrap gap-1.5">
-        <button type="button" data-run-card-open disabled={!chat.canvasOps} onClick={() => openCard('run')} className={CHOICE}>Open run card</button>
-        <button type="button" data-runbook-open disabled={!chat.canvasOps} onClick={() => openCard('runbook')} className={CHOICE}>Open runbook</button>
-      </div>
-    </div>}
-  </section>;
+// The rehearsal runtime's thin trigger chip is gone (owner, rehearsal-chip-is-temporary): the pipeline is the Tutor's own conversation in the Chat, TutorRehearsal.jsx.
+
+// A goal chosen (the existing goal flow, unchanged; the Tutor's intake chips in TutorRehearsal.jsx start it too): POST /api/learn/codebase, then the first two cited source
+// files go on the canvas as code cards at this commit (LearnPage small:code-card); nothing is sent. -> { ok: true } or { note } in plain words.
+export async function startGoal({ chat, board, repository, goalId, text }) {
+  try {
+    const out = await codebasePost(chat, board, { action: 'start', goal: goalId, question: text });
+    if (out.route === 'not_found') return { note: `I couldn't find that in ${repository.repo} at ${short(repository.commit)}. Try other words, or open Files and pick the code.` };
+    for (const citation of out.map.citations.filter(c => out.map.nodes.find(n => n.path === c.path)?.role === 'source').slice(0, 2)) {
+      window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: citation.text, path: citation.path, start: citation.start, end: citation.end, commit: citation.commit, repo: out.map.repository.repo } }));
+    }
+    await chat.coaching.reload?.();
+    chat.composer?.focus?.();
+    return { ok: true };
+  } catch (error) {
+    return { note: error?.data?.error === 'question_required' ? error.data.clarify : 'That could not be started. Nothing was saved; try again.' };
+  }
 }
 
 // useTutorCodebase({ chat, entry, typing }) -> { menu, view }. menu: the codebase menu stands in for the general welcome.
 export function useTutorCodebase({ chat, entry, typing = false }) {
   const { coaching } = chat, board = chat.board || 'main';
   // Read only when it can matter: the Tutor would offer something with no goal.
-  const wanted = coachingCanvas(chat.canvas) && coaching.status === 'ready' && (rehearsalOn() || ['welcome', 'existing_work'].includes(entry.kind));
+  const wanted = coachingCanvas(chat.canvas) && coaching.status === 'ready' && ['welcome', 'existing_work'].includes(entry.kind);
   const [info, setInfo] = useState(null);
   const [dismissed, setDismissed] = useState(null); // the canvas whose menu the learner set aside (Learn something else)
   const [pending, setPending] = useState(null), [question, setQuestion] = useState(''), [busy, setBusy] = useState(false), [note, setNote] = useState(null);
@@ -127,19 +84,9 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
 
   const start = async (goalId, text) => {
     setBusy(true); setNote(null);
-    try {
-      const out = await codebasePost(chat, board, { action: 'start', goal: goalId, question: text });
-      if (out.route === 'not_found') { setNote(`I couldn't find that in ${repository.repo} at ${short(repository.commit)}. Try other words, or open Files and pick the code.`); return; }
-      setPending(null); setQuestion('');
-      // The first two cited source files go on the canvas as code cards at this commit (LearnPage small:code-card); nothing is sent.
-      for (const citation of out.map.citations.filter(c => out.map.nodes.find(n => n.path === c.path)?.role === 'source').slice(0, 2)) {
-        window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: citation.text, path: citation.path, start: citation.start, end: citation.end, commit: citation.commit, repo: out.map.repository.repo } }));
-      }
-      await coaching.reload?.();
-      chat.composer?.focus?.();
-    } catch (error) {
-      setNote(error?.data?.error === 'question_required' ? error.data.clarify : 'That could not be started. Nothing was saved; try again.');
-    } finally { setBusy(false); }
+    const out = await startGoal({ chat, board, repository, goalId, text });
+    if (out.note) setNote(out.note); else { setPending(null); setQuestion(''); }
+    setBusy(false);
   };
 
   const goal = pending ? goalOf(pending) : null;
@@ -161,7 +108,7 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
     </form>}
     <p className="text-xs text-ink-2">Or type any question below; it does not need to be about this code.</p>
     {note && <p role="alert" data-codebase-note className="text-xs text-fail">{note}</p>}
-  </section> : rehearsalOn() && repository && <RehearsalTrigger key={chat.canvas} chat={chat} board={board} repository={repository} />;
+  </section> : null;
   return { menu, view };
 }
 

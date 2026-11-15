@@ -27,7 +27,7 @@ export function sessionLabel(state) {
     case 'ready': return state.snapshot ? 'Sandbox ready' : 'Sandbox ready, installing the repository first';
     case 'stopped': return 'Stopped';
     case 'expired': return 'Session expired';
-    case 'failed': return state.error || 'The sandbox could not start';
+    case 'failed': return 'The sandbox could not start';
     default: return 'Starting sandbox';
   }
 }
@@ -71,6 +71,11 @@ export function runTone(run) {
     default: return 'idle';
   }
 }
+
+// A step the rehearsal gave up on (the Run block's failedSteps, from the record: rehearsal-cards.js failedStepsOf), or null. Its cell is the step's id (cells.json).
+export const failedStepOf = (failedSteps, cellId) => (failedSteps || []).find(step => step.id === cellId) || null;
+// A cell's colour: its own run when it has one in this card, else red when the rehearsal failed there.
+export const cellTone = (run, failedStep) => (run ? runTone(run) : failedStep ? 'error' : 'idle');
 
 // How far a running cell is: { pct, text } with pct 0..1 when the output says so (a training loop prints `iter N:` and the command carries
 // --max_iters=M), pct null when it cannot be known (an indeterminate bar); null once the run is complete or has not started.
