@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 import limits
 from agent import GiveUp, RepairAgent
 from limits import Budget
+from redact import redact_text
 
 REPO = '/work/repo'
 _PIP = re.compile(r'^pip install [A-Za-z0-9_.\[\],<>=!~-]+( [A-Za-z0-9_.\[\],<>=!~-]+)*$')
@@ -33,6 +34,24 @@ class RestartSandbox(Exception):
 
 def tail(text: str, n: int) -> str:
     return '\n'.join(text.splitlines()[-n:])
+
+
+def head_tail(text: str, limit: int = 2000) -> dict:
+    """{'stdoutHead': first lines, 'stdoutTail': last lines}, each at most `limit` chars (schemas/record.json); empty output gives {}. A single overlong line is cut."""
+    lines = redact_text(text).splitlines()
+    if not any(l.strip() for l in lines):
+        return {}
+
+    def take(seq):
+        out, n = [], 0
+        for l in seq:
+            l = l[:limit]
+            if n + len(l) + 1 > limit and out:
+                break
+            out.append(l)
+            n += len(l) + 1
+        return out
+    return {'stdoutHead': '\n'.join(take(lines)), 'stdoutTail': '\n'.join(take(lines[::-1])[::-1])}
 
 
 # ---------------------------------------------------------------- checks (rules: schemas/route.json description)
@@ -223,7 +242,7 @@ class Runner:
                         if c['type'] == 'files_exist':
                             for p, fs in self.provider.stat(c['paths']).items():
                                 files.setdefault(p, {'bytes': fs.bytes, 'sha256': fs.sha256})
-                    self.steps.append({'id': name, 'cmd': step['cmd'], 'rc': res.rc, 'sec': res.sec, 'checks': checks, 'files': files, 'log': path, 'warnings': warnings_in(output)})
+                    self.steps.append({'id': name, 'cmd': step['cmd'], 'rc': res.rc, 'sec': res.sec, 'checks': checks, 'files': files, 'log': path, 'warnings': warnings_in(output), **head_tail(res.stdout)})
                 return True
             if not self._repair(step, res, checks):
                 return False

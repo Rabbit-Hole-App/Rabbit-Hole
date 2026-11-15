@@ -1,5 +1,6 @@
 """One rehearsal job, end to end: provision -> clone -> discover -> install + steps (+ repair) -> knobs -> traps -> artifacts -> terminate -> plan -> record.
 The server and run_job.py both call run_rehearsal(), so there is one code path."""
+import re
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -47,6 +48,7 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
     t_created = t_stopped = None
     terminated, left = False, []
     knob_err = None
+    snapshot_image = ''
     try:
         status('provisioning')
         provider.start(tags)
@@ -77,6 +79,12 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
             knobs, traps = runner.verify_knobs(), runner.run_traps()
             if knobs and knobs[0]['rc'] != 0:  # knobsVerified[0] is the plan's 'Change it' command: it must have run
                 knob_err = JobFailed('knob_verification_failed', f"knobsVerified[0] exited {knobs[0]['rc']}: {knobs[0]['cmd']}")
+        if ok and knob_err is None and hasattr(provider, 'snapshot') and time.time() < deadline - 150:
+            try:  # Run card fast start: clone, install and produced files in one image. Never fails the job; a failure or timeout just leaves the record without snapshotImage (sessions then clone and install themselves).
+                image_id = provider.snapshot()
+                snapshot_image = image_id if isinstance(image_id, str) and re.fullmatch(r'im-[A-Za-z0-9]+', image_id) else ''
+            except Exception:  # noqa: BLE001  # ponytail: the reason is not recorded anywhere (spec); a snapshot that exceeds its 120 s timeout is simply absent
+                snapshot_image = ''
         env = environment(provider)
         copied, listed = collect_files(provider, runner.steps)
     except (JobFailed, DiscoveryFailed) as e:
@@ -125,6 +133,7 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
         'network': {'outboundDomainAllowlist': list(limits.OUTBOUND_DOMAIN_ALLOWLIST) + list(provider.extra_domains), 'outboundCidrAllowlist': [], 'allowDomainFixes': [f['change'] for f in runner.fixes if f['kind'] == 'allow_domain']},
         'modelCalls': caller.calls, 'modelSpendUsd': caller.spend, 'sandboxSpendNote': billing.spend_note(before, after, job['key'], lifetime),
         'draftPlan': plan, 'gaveUp': gave_up,
+        **({'snapshotImage': snapshot_image} if snapshot_image else {}),
     }
     problems = rec.validate_record(record)
     out.record = record
