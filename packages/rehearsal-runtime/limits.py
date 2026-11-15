@@ -11,6 +11,11 @@ MAX_FIX_CYCLES = 6
 MAX_FIX_CYCLES_PER_STEP = 3
 MAX_MODEL_CALLS = 12
 MODEL_SPEND_CAP_USD = 3.0
+CATALOGUE_SPEND_CAP_USD = 0.5   # the catalogue's one model call (and its one re-ask): route-catalogue-spec 8
+CATALOGUE_MAX_OUTPUT_TOKENS = 6000
+CATALOGUE_INPUT_TOKENS = 60_000  # README texts first, then the top 200 candidates by source kind
+CATALOGUE_MAX_CANDIDATES = 200
+CATALOGUE_MAX_QUEUE = 4
 MAX_ALLOW_DOMAIN_FIXES = 2     # allow_domain fixes per job (each re-creates the sandbox with one more domain)
 MAX_QUEUE = 4
 # Run card sessions (one sandbox per canvas, user and commit; schemas/session.json)
@@ -40,6 +45,7 @@ class Budget:
     model_calls: int = 0
     model_spend_usd: float = 0.0
     per_step_fixes: dict = field(default_factory=dict)
+    model_spend_cap_usd: float = MODEL_SPEND_CAP_USD
 
     def can_fix(self, step: str) -> bool:
         return self.fix_cycles < MAX_FIX_CYCLES and self.per_step_fixes.get(step, 0) < MAX_FIX_CYCLES_PER_STEP
@@ -51,7 +57,7 @@ class Budget:
         self.per_step_fixes[step] = self.per_step_fixes.get(step, 0) + 1
 
     def can_call_model(self) -> bool:
-        return self.model_calls < MAX_MODEL_CALLS and self.model_spend_usd < MODEL_SPEND_CAP_USD
+        return self.model_calls < MAX_MODEL_CALLS and self.model_spend_usd < self.model_spend_cap_usd
 
     def charge_model(self, usd: float) -> None:
         self.model_calls += 1
