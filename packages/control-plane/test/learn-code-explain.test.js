@@ -292,7 +292,7 @@ test('a turn that never ran the handler adds nothing: close is the identity and 
   assert.equal(turn.tutor(), null);
 });
 
-test('the tool is the contract\'s model output schema with no $ref left, and the sentence split is the renderer\'s', () => {
+test('the tool is the contract\'s model output schema with no $ref left, and the sentence split is the renderer\'s', async () => {
   assert.ok(!JSON.stringify(CODE_EXPLAIN_TOOL).includes('$ref'));
   assert.equal(CODE_EXPLAIN_TOOL.input_schema.type, 'object');
   assert.deepEqual(CODE_EXPLAIN_TOOL.input_schema.required.includes('files'), true);
@@ -300,6 +300,9 @@ test('the tool is the contract\'s model output schema with no $ref left, and the
   // The web's rule exactly (packages/web/src/code-explain.js splitSentences): closing quotes, brackets and backticks stay with their sentence; a "." inside model.py never splits; "e.g. " does.
   assert.deepEqual(sentencesOf('It reads model.py first. Then `x.` is set. (See it.) She said "go." Done, e.g. now.'), ['It reads model.py first.', 'Then `x.`', 'is set.', '(See it.)', 'She said "go."', 'Done, e.g.', 'now.']);
   assert.deepEqual(sentencesOf('  '), []);
+  // The web's own function gives the same split, so an anchor index means the same sentence on both sides.
+  const { splitSentences } = await import('../../web/src/code-explain.js');
+  for (const prose of ['It reads model.py first. Then `x.` is set. (See it.) She said "go." Done, e.g. now.', 'One. Two? Three!', '', '  ']) assert.deepEqual(sentencesOf(prose), splitSentences(prose), prose);
   assert.equal(SENTENCE_BREAK.source, '(?<=[.!?]["\')\\]`]*)\\s+');
   assert.equal(answerText({ depths: { standard: { prose: ' Only. ' } }, mentioned: [] }), 'Only.');
 });
