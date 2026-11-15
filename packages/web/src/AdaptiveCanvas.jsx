@@ -25,6 +25,7 @@ import { api, wsHeaders } from './api.js';
 import { DOC_CARD_SIZE, docIsEmpty, isFileDrag, migrateDocToCard, newDocBlock, pressKeepsDocFocus } from './canvas-doc.js';
 import { GENERATED_NOTE, RUN_CARD_SIZE, deletableIds, isGenerated, keepGenerated } from './rehearsal-cards.js';
 import { ADD_KNOB_EVENT, applyKnobEvent } from './run-card-knobs.js';
+import { CODE_EXPLAIN_SIZE } from './code-explain-text.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
 import { explanationCardWidth, openedExplanation } from './explanation-card-width.js';
@@ -148,6 +149,8 @@ const DocCard = lazyFeature(() => import('./DocCard.jsx'), 'The document editor'
 // A Run card (RunCard.jsx; rehearsal-cards.js), loaded with the first such card.
 // The literal env test beside the import is what lets Vite drop the chunk from a build without VITE_REHEARSAL_TRIGGER (the form home/review-fixtures.js uses); it runs only when the card renders.
 const RunCard = lazyFeature(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./RunCard.jsx') : Promise.reject(new Error('The run card is not part of this build'))), 'The run card');
+// A code-explain card (CodeExplainCard.jsx, code-explain-card-spec.md), loaded with the first such card; the same dev flag and literal env test as the Run card, so a production build drops the chunk.
+const CodeExplainCard = lazyFeature(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./CodeExplainCard.jsx') : Promise.reject(new Error('The code explanation card is not part of this build'))), 'The code explanation card');
 // The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
 const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
 // SVG, audio and video card bodies load with the first such card (docs/features/canvas-file-imports.md, Media).
@@ -987,6 +990,25 @@ function RunNode({ block, zoom, selected, connected, onSelect, onMove, onLayout,
   );
 }
 
+// A code-explain card (CodeExplainCard.jsx): the Notebook card's shell at its own opening size, around the answer's file, ranges and explanation. It is the learner's card, so it has no
+// `generated` mark and deletes like any card. The depth it shows is saved quietly (not a canvas undo step); a satellite code card (CodeCard.jsx `from`) and this card meet in code-explain-link.js.
+function CodeExplainNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
+  const edit = useContext(CanvasEdit);
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={CODE_EXPLAIN_SIZE.w} height={block.h || CODE_EXPLAIN_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
+      tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
+      {REHEARSAL && (
+      <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the code explanation</p>}>
+        <CodeExplainCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)} onSave={patch => edit.patchBlock?.(block.id, patch, true)} present={edit.hasBlock} frame={edit.frameBlock} />
+      </Suspense>
+      )}
+    </CanvasNode>
+  );
+}
+
 function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
@@ -1026,6 +1048,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'doc') return <DocNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'run') return <RunNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'codeExplain') return <CodeExplainNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A code card (repo-graph Release 2, code-card.js): resizable; Full content (the menu's row) shows all its code.
   if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={CODE_CARD.h} autoMax={undefined} cardLayout={block.cardLayout} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} /></CanvasNode>;
   if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CardCustomTitle block={block} /><CanvasRefCard block={block} /></CanvasNode>;
@@ -2381,6 +2404,25 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const only = beside && boundsRef.current[beside] ? beside : selectedRef.current.length === 1 ? selectedRef.current[0] : null, target = only && boxesOf([only])[0];
         const size = block.type === 'run' ? RUN_CARD_SIZE : DOC_CARD_SIZE;
         return target ? placeBeside(block, size, target, only) : insertAtView(block);
+      },
+      // A code-explain answer's Add as card (code-explain-insert.js addCodeExplain): the primary card, its satellite code cards and the numbered connectors, in ONE undo step. `place(env)` (the
+      // lazily loaded insertion module) returns each card's column offsets from the free place beside `beside` (a card id), else the one selected card, else the view; the camera follows the primary
+      // only if it landed off screen. Idempotent on the primary's id: a card already here is located (never doubled; a satellite the learner deleted is not put back). -> the primary's id, or null.
+      insertCodeExplain: ({ blocks: made, links: joined = [], beside = null, place }) => {
+        const primary = made?.[0];
+        if (!alive.current || readOnlyRef.current || localCopyRef.current || !primary?.id || typeof place !== 'function') return null;
+        if (blocksRef.current.some(block => block.id === primary.id)) { commandsRef.current.focusBlock(primary.id); return primary.id; }
+        const only = beside && boundsRef.current[beside] ? beside : selectedRef.current.length === 1 ? selectedRef.current[0] : null, target = only && boxesOf([only])[0];
+        const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
+        const offsets = place({ source: target || null, obstacles: [...inlineCanvas.obstacles(only ? [only] : []), ...placementChrome()], visible: inlineCanvas.visibleWorld(), point: viewCenter(), column: COLUMN, flowY });
+        const added = made.map((block, index) => ({ ...block, ...offsets[index] }));
+        snapshot();
+        blocksRef.current = [...blocksRef.current, ...added];
+        setBlocks(previous => [...previous, ...added]);
+        if (joined.length) setLinks(previous => [...previous, ...joined.filter(link => !previous.some(entry => entry.id === link.id))]);
+        setSelection([primary.id]);
+        revealAfter(primary.id);
+        return primary.id;
       },
       // An imported .ipynb or .py, as the Add to canvas dialog made it (canvas-file-drop.md): at its drop point - the
       // column slot at that height - or, uploaded, where the learner is looking.
@@ -6359,7 +6401,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, hasBlock: id => blocksRef.current.some(block => block.id === id), frameBlock: id => commandsRef.current.focusBlock(id), selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>

@@ -104,7 +104,8 @@ test('an uploaded code card reads its text from the board asset (cache, then the
   await assert.rejects(uploadText('k', async () => null), error => error.status === 404, 'a missing asset is unavailable');
   const card = readFileSync(new URL('./CodeCard.jsx', import.meta.url), 'utf8');
   assert.match(card, /const \{ status, lines, retry \} = useCardSource\(block\);/);
-  assert.match(card, /previewOf\(lines, fullContent\(block\)\)/);
+  // A code-explain satellite (ranges, code-explain-card-spec.md 2b) shows its whole stored span, bounded by the ranges' own hull; any other card is previewed as before.
+  assert.match(card, /previewOf\(lines, fullContent\(block\) \|\| !!ranges\)/);
   assert.doesNotMatch(card, /data-code-card-expand|expanded/, 'the card has no Expand of its own: Full content is the one control');
 });
 
