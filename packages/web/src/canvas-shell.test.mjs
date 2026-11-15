@@ -33,10 +33,10 @@ test('the bottom strip: the minimap above the zoom row at lower left, the hooks 
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
   assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{drawnWidgets.minimap && <div data-canvas-minimap>\n\s+<CanvasMinimap [\s\S]*?<\/div>\}\n\s+<div data-zoom /, 'one group: the minimap, then the zoom row, stretched to one outer width (owner brief 2026-10-16 item 8)');
   assert.ok(strip.indexOf('data-canvas-minimap') < strip.indexOf('data-canvas-composer') && strip.indexOf('data-canvas-composer') < strip.indexOf('data-canvas-lower-right'), 'minimap left, composer, hooks right');
-  assert.match(strip, /md:flex-row md:items-end/, 'one lower edge: the hooks\' bottom is the composer\'s');
+  assert.match(strip, /md:grid [\s\S]*?md:items-end/, 'one lower edge: the hooks\' bottom is the composer\'s; three grid columns, the two side ones equal, so the composer is centred (owner 2026-11-15)');
   // On a phone the hooks sit above the composer, at the right.
-  assert.match(strip, /data-canvas-composer data-composer-hidden=\{composerHidden \? '' : undefined\} className=\{`\$\{DOCK_WIDTH\} relative min-w-0 md:mx-0 md:shrink max-md:order-2 \$\{composerHidden \? 'hidden' : ''\}`\}/);
-  assert.match(strip, /data-canvas-lower-right className="flex items-end justify-end gap-2 md:min-w-fit md:flex-1 md:basis-0 max-md:order-1"/);
+  assert.match(strip, /data-canvas-composer data-composer-hidden=\{composerHidden \? '' : undefined\} className=\{`\$\{DOCK_WIDTH\} relative min-w-0 md:col-start-2 md:mx-0 max-md:order-2 \$\{composerHidden \? 'hidden' : ''\}`\}/);
+  assert.match(strip, /data-canvas-lower-right className="flex items-end justify-end gap-2 md:col-start-3 max-md:order-1"/);
   assert.doesNotMatch(canvas.slice(0, canvas.indexOf('<div data-canvas-bottom')), /<CanvasMinimap boxes=\{minimapBoxes\} view=\{view\} onFit=\{zoomFit\}\n\s+surface=\{\{ w: surface\.current\?\.clientWidth \|\| 0, h: surface\.current\?\.clientHeight \|\| 0 \}\}\n\s+onView=\{next => setView\(v => \(\{ \.\.\.v, x: next\.x, y: next\.y \}\)\)\} \/>\}/, 'no second desktop minimap');
   assert.match(read('CanvasMinimap.jsx'), /className="relative overflow-hidden rounded-xl/, 'its frame is in the strip\'s flow');
 });
@@ -115,7 +115,7 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
 // Owner, 2026-10-08: "in the canvas above the chat composer you are cutting the canvas too much". The canvas runs to the
 // bottom and the strip floats over it; chrome may float over the canvas but never hides what the learner cannot reach.
 test('the bottom strip floats: the canvas runs to the bottom, the strip lets the pointer through, only its controls take it', () => {
-  assert.match(canvas, /<div data-canvas-bottom ref=\{bottomStrip\} className=\{`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:flex-row md:items-end md:gap-3 \$\{DOCK_PAD\} \[&>\*>\*\]:pointer-events-auto`\}>/);
+  assert.match(canvas, /<div data-canvas-bottom ref=\{bottomStrip\} className=\{`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid \$\{chromeOff \? 'md:grid-cols-\[minmax\(0,1fr\)_minmax\(200px,780px\)_minmax\(0,1fr\)\]' : 'md:grid-cols-\[minmax\(264px,1fr\)_minmax\(200px,780px\)_minmax\(264px,1fr\)\]'\} md:items-end md:gap-3 \$\{DOCK_PAD\} \[&>\*>\*\]:pointer-events-auto`\}>/);
   assert.doesNotMatch(canvas, /data-canvas-bottom[^\n]*shrink-0/, 'no band of its own under the canvas');
   // The side columns' heights reach what must clear them: the Voice caption and the tools' gutter on that side.
   assert.match(canvas, /host\.style\.setProperty\('--chrome-left', `\$\{Math\.max\(0, bottom - strip\.firstElementChild\.getBoundingClientRect\(\)\.top\)\}px`\);/);
@@ -205,7 +205,7 @@ test('UI-19: one vertical tools column at every width, one minimap, no overview 
 test('UI-19: the minimap is floating chrome for fit, reveal and placement (a grandchild of the bottom strip)', () => {
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
   const column = strip.slice(strip.indexOf('\n') + 1, strip.indexOf('<div data-zoom-stack'));
-  assert.match(column, /^\s+<div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">\n/, 'the strip\'s first column opens first');
+  assert.match(column, /^\s+<div className="flex items-end gap-2 md:col-start-1">\n/, 'the strip\'s first column opens first');
   assert.equal((column.match(/<div\b/g) || []).length, 1, 'the zoom stack is a direct child of that column (a strip grandchild)');
   assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{drawnWidgets.minimap && <div data-canvas-minimap>/, 'the minimap is inside the zoom stack, so its box is the stack\'s');
   assert.match(canvas, /const chromeTop = \(x0, x1\) => \{[\s\S]*?querySelectorAll\('\[data-canvas-bottom\] > \* > \*'\)/, 'fit, focus and reveal stop above every strip grandchild');

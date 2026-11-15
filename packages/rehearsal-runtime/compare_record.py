@@ -578,7 +578,7 @@ def score_catalogue(path, fx):
     pract = [r for r in routes if r['practical']]
     bad = [f"{r['routeId']} ({r['effort']})" for r in pract if r['effort'] != EFFORT]
     check(not bad, f"every practical route has effort '{EFFORT}'", f'{len(pract)} practical routes', 'effort differs: ' + '; '.join(bad))
-    bad = [f"{r['routeId']}.{x}" for r in routes for x in ('title', 'description') if NOT_PLAIN.search(r[x])]
+    bad = [f"{r['routeId']}.{x}" for r in routes for x in ('title', 'description') if NOT_PLAIN.search(r.get(x, ''))]
     check(not bad, 'titles and descriptions contain no command, path or file:line', f'{len(routes)} routes', 'offenders: ' + '; '.join(bad))
     bad = [f"{r['routeId']} ({len(r['title'])})" for r in routes if len(r['title']) > 70]
     check(not bad, 'titles at most 70 chars', f"longest title {max(len(r['title']) for r in routes)}", '; '.join(bad))

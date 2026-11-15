@@ -50,6 +50,9 @@ export function focusWidgets(shown, focused, { keepCurious = false } = {}) {
 // A view only (CSS and what AdaptiveCanvas renders): the card's host stays mounted in place, so a Run card's session and the Runbook editor live on.
 export const studyCardOnly = ({ mode, repository = false, work } = {}) => studyHides({ mode, repository }) && (work === 'run' || work === 'runbook');
 
+// Study's Canvas work (and Run, Runbook) on a repository canvas draws no zoom controls and no lower-left feedback button (owner 2026-11-15). The notebook work keeps them.
+export const studyChromeOff = ({ mode, repository = false, work } = {}) => studyHides({ mode, repository }) && work !== 'notebook';
+
 // The drawing toolbar is drawn as View > Toolbar says, except over a pinned Study's notebook in Focus (owner, 2026-10-29): there it
 // stands down too. A view, never written back: Canvas or unpinning shows the saved choice again, a hidden toolbar still hidden.
 // On a repository canvas the toolbar is not drawn in Study at all: for every focusKind, and for work 'canvas' (owner, 2026-11-15).

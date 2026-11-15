@@ -16,7 +16,7 @@ import CardHeader, { CardRename } from './CardHeader.jsx';
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
-import { effectiveWidgets, focusWidgets, studyCardOnly, studyHides, toolbarDrawn, widgetToggle } from './widget-visibility.js';
+import { effectiveWidgets, focusWidgets, studyCardOnly, studyChromeOff, studyHides, toolbarDrawn, widgetToggle } from './widget-visibility.js';
 import { ownedId } from './study-state.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
@@ -2059,6 +2059,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Run or Runbook as a repository canvas's Study work (widget-visibility.js studyCardOnly): the card alone fills the pane (index.css [data-study-card]), with no surface, zoom control,
   // lower-left button or Focus header strip. Only while Study's own Focus is on that card, so a canvas whose card is gone never shows blank.
   const cardOnly = studyCardOnly({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }) && !!focus?.id && focus.id === ownedId(study.state);
+  const chromeOff = studyChromeOff({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }); // no zoom controls, no feedback button
   const showWidget = (name, on) => {
     const route = widgetToggle({ mode: widgetMode, name, on, repository: studyRepository });
     if (!route) return;
@@ -6858,14 +6859,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           canvas runs to the bottom, the strip is transparent and lets the pointer through, and only its controls (the
           strip's grandchildren) take it. Chrome may float over the canvas but never hides what the learner cannot reach:
           fit, focus and a new card's reveal stop above it (chromeTop), and panning brings anything out from under it. */}
-      {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
-        <div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">
+      {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid ${chromeOff ? 'md:grid-cols-[minmax(0,1fr)_minmax(200px,780px)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(264px,1fr)_minmax(200px,780px)_minmax(264px,1fr)]'} md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
+        <div className="flex items-end gap-2 md:col-start-1">
         {/* The page's own lower-left control (Learn: the feedback button). */}
-        {!cardOnly && bottomLeft}
+        {!chromeOff && bottomLeft}
         {/* One positioned group (owner brief 2026-10-16 item 8, aligned-minimap mockup): the minimap directly above the zoom
             row, 8px apart, both one outer width - the column is as wide as its widest child (the minimap's fixed frame) and
             the zoom row stretches to it, its slack going to the percentage, so both edges line up at any zoom label. */}
-        {!cardOnly && <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
+        {!chromeOff && <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
         {drawnWidgets.minimap && <div data-canvas-minimap>
           <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
             surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
@@ -6885,7 +6886,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {/* Hide the composer (owner brief 2 item 5): it stays mounted - draft, attachments, the selected card's context and
             a running answer all carry on - and only leaves the view, so it frees its room (fit and reveal stop above the
             small Show button instead). The hooks card's minimized state is its own. */}
-        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:mx-0 md:shrink max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
+        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:col-start-2 md:mx-0 max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
           {/* The chat window (owner 2026-11-13): sending from the strip opens the conversation here, above the suggestions and the composer. */}
           {chatWindow}
           {/* Curious (owner 2026-11-13): the three suggestions are small pills in a row right above the strip, so they leave with it. */}
@@ -6894,7 +6895,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>}
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
-        <div data-canvas-lower-right className="flex items-end justify-end gap-2 md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
+        <div data-canvas-lower-right className="flex items-end justify-end gap-2 md:col-start-3 max-md:order-1">
           {hooks && !composer && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${drawnWidgets.curious ? '' : 'hidden'}`}>{hooks}</div>}
           {/* The minimized chat strip: the Rabbit Hole mark on black (owner 2026-11-13), at the lower right, beside the Curious icon. */}
           {composer && composerHidden && <button type="button" data-composer-show aria-label="Show chat composer" title="Show chat composer"
