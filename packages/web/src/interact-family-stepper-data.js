@@ -2,7 +2,7 @@
 import { WORDS, compositionSchemaFor } from './interact-stepper-schema.js';
 
 export const id = 'stepper-states';
-export const pickCriterion = 'An ordered sequence of discrete states in one fixed teaching picture, with linked emphasis and an explanation of the selected state.';
+export const pickCriterion = 'A process shown as a sequence of discrete states or steps that the learner advances one at a time (an algorithm, a protocol, a cycle).';  // the same text the coverage bench asks (scripts/interact/bench-coverage.mjs imports it)
 export const templates = Object.freeze(['stepper-brief', 'stepper-standard', 'stepper-deep']);
 export const independent = Object.freeze({ id: 'step', domain: Object.freeze([0, 7]) });
 const roles = Object.freeze([]);

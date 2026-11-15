@@ -9,6 +9,7 @@ import { readFileSync, readdirSync, writeFileSync, mkdirSync, existsSync } from 
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pickFamily } from '../../packages/control-plane/src/interact-design-pick.js';
+import { pickCriterion as stepperPickCriterion } from '../../packages/web/src/interact-family-stepper-data.js'; // one text for the family and the coverage bench
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const SETS_DIR = join(REPO, 'scripts/explain-bench/sets'), BENCH_DIR = join(REPO, 'docs/features/interact/benchmarks');
@@ -17,7 +18,7 @@ const ENV_FILE = 'C:/Users/cyudhist/Desktop/workspace/small-deploy/.env', SONNET
 export const MECHANISMS = Object.freeze([
   { id: 'curve-sliders', pickCriterion: 'One quantity as a function of another, drawn as a curve whose shape a few parameters change; no motion over time.' },
   { id: 'scene-over-time', pickCriterion: 'Something moving or changing continuously with time (a body, a charge, a signal, a population) played or scrubbed on a timeline with a few controls.' },
-  { id: 'stepper-states', pickCriterion: 'A process shown as a sequence of discrete states or steps that the learner advances one at a time (an algorithm, a protocol, a cycle).' },
+  { id: 'stepper-states', pickCriterion: stepperPickCriterion },
   { id: 'graph-active-path', pickCriterion: 'A network of nodes and edges where one path, flow or message is highlighted as it moves through the structure.' },
   { id: 'grid-highlights', pickCriterion: 'A grid or table of values (a matrix, a board, a confusion table, an image patch) where cells are highlighted, combined or filled.' },
   { id: 'before-after', pickCriterion: 'Two states of the same thing side by side or toggled (before/after, with and without, two settings) so the difference is the point.' },
