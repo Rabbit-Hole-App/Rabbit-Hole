@@ -98,16 +98,22 @@ const cycleLink = object({ from: id, to: id, context: z.boolean(), label: plainT
 
 // The older approved sketch names are normalized by stepper-scene, explicitly;
 // they are never accepted as additional renderer implementations.
+// The fill's closed binding vocabulary. A bind path is one of these whole strings: state.* (the selected state), variant.* (the current
+// variant's tables), previous.* (the state before it), or the one input "inputs.step" (the rail's cursor and the trace's cutoff). The step
+// control lists the CONSTANT "variant.states". A path never indexes a table with an input: variant.states[inputs.stepIndex].why is refused.
+const bound = value => z.literal(value, { error: issue => `must be exactly "${value}"${typeof issue.input === 'string' ? ` (got "${issue.input.slice(0, 60)}")` : ''}: ${
+  value === 'variant.states' ? 'the step control lists the whole ordered table variant.states, never an index into it; the selected position is the input "step", which is never written inside a path'
+    : 'bind paths are only state.*, variant.* and previous.* (plus inputs.step for the rail and the trace); copy the path exactly, and never index a table with an input such as variant.states[inputs.step]'}` });
 const part = z.discriminatedUnion('kind', [
-  object({ id: z.literal('rail'), kind: z.literal('step-rail'), bind: object({ items: z.literal('variant.states'), active: z.literal('inputs.step') }) }),
-  object({ id: z.literal('picture'), kind: z.literal('fixed-picture'), bind: object({ regions: z.literal('variant.regions'), links: z.literal('variant.links'), active: z.literal('state.active') }) }),
-  object({ id: z.literal('callout'), kind: z.literal('active-callout'), bind: object({ target: z.literal('state.calloutRegion'), text: z.literal('state.sentence'), reason: z.literal('state.why').optional() }) }),
-  object({ id: z.literal('ghost'), kind: z.literal('previous-state-ghost'), bind: object({ regions: z.literal('previous.active') }) }),
-  object({ id: z.literal('values'), kind: z.literal('value-readout'), bind: object({ values: z.literal('state.readouts') }) }),
-  object({ id: z.literal('trace'), kind: z.literal('progress'), presentation: z.literal('completed-trace'), bind: object({ items: z.literal('variant.states'), completedBefore: z.literal('inputs.step') }) }),
+  object({ id: z.literal('rail'), kind: z.literal('step-rail'), bind: object({ items: bound('variant.states'), active: bound('inputs.step') }) }),
+  object({ id: z.literal('picture'), kind: z.literal('fixed-picture'), bind: object({ regions: bound('variant.regions'), links: bound('variant.links'), active: bound('state.active') }) }),
+  object({ id: z.literal('callout'), kind: z.literal('active-callout'), bind: object({ target: bound('state.calloutRegion'), text: bound('state.sentence'), reason: bound('state.why').optional() }) }),
+  object({ id: z.literal('ghost'), kind: z.literal('previous-state-ghost'), bind: object({ regions: bound('previous.active') }) }),
+  object({ id: z.literal('values'), kind: z.literal('value-readout'), bind: object({ values: bound('state.readouts') }) }),
+  object({ id: z.literal('trace'), kind: z.literal('progress'), presentation: z.literal('completed-trace'), bind: object({ items: bound('variant.states'), completedBefore: bound('inputs.step') }) }),
 ]);
 const control = z.discriminatedUnion('kind', [
-  object({ id: z.literal('step'), kind: z.literal('index'), presentation: z.literal('slider'), items: z.literal('variant.states'), default: integer(0, 7) }),
+  object({ id: z.literal('step'), kind: z.literal('index'), presentation: z.literal('slider'), items: bound('variant.states'), default: integer(0, 7) }),
   object({ id: z.literal('option'), kind: z.literal('select'), label, options: array(plainText(24), 2, 2), default: integer(0, 1) }),
   object({ id: z.literal('reset'), kind: z.literal('reset') }),
 ]);
