@@ -1,17 +1,69 @@
 {
-  "fixture": "datasette-e9d45fe", "route": "C (test suite)", "hardware": "cpu",
-  "install": [{ "cmdMustInclude": "pip install -e .", "sourceAnyOf": ["pyproject.toml:55", "README.md:37"] },
-              { "cmdAnyOf": ["pip install --group dev", "pip install pytest pytest-xdist pytest-asyncio beautifulsoup4 pytest-timeout trustme"], "source": "pyproject.toml:61-73" }],
-  "steps": [
-    { "id": "tests", "cmdAnyOf": ["pytest -n auto -m \"not serial\"", "pytest -n auto", "pytest"], "source": "docs/contributing.rst:55-59", "timeoutSec": 1800,
-      "checks": [{ "type": "tests_passed", "pattern": "(\\d+) passed" }],
-      "expect": { "passedMin": 1500, "failed": 0, "note": "1,687 test functions at this commit (grep ^def test_ / ^async def test_), more with parametrize; Playwright tests skipped by default (docs/contributing.rst:71-72). If failed > 0, the record must list them and it is a finding to report, not a fixture failure — an environment-dependent failure is information about the sandbox." } }
+  "fixture": "datasette-e9d45fe",
+  "route": "C (test suite)",
+  "hardware": "cpu",
+  "install": [
+    {
+      "cmdMustInclude": "pip install -e .",
+      "sourceAnyOf": [
+        "README.md:37",
+        "docs/contributing.rst:46",
+        "pyproject.toml:55"
+      ]
+    },
+    {
+      "cmdAnyOf": [
+        "pip install --group dev",
+        "pip install pytest pytest-xdist pytest-asyncio beautifulsoup4 pytest-timeout trustme"
+      ],
+      "source": "pyproject.toml:61-73"
+    }
   ],
-  "timing": { "testsSecNote": "unknown on 2 CPUs; the step timeout 1800 s is the only bound; record the measured time" },
+  "steps": [
+    {
+      "id": "tests",
+      "cmdAnyOf": [
+        "pytest -n auto -m \"not serial\"",
+        "pytest -n auto",
+        "pytest"
+      ],
+      "source": "docs/contributing.rst:55-59",
+      "timeoutSec": 1800,
+      "checks": [
+        {
+          "type": "tests_passed",
+          "pattern": "(\\d+) passed"
+        }
+      ],
+      "expect": {
+        "passedMin": 1500,
+        "failed": 0,
+        "note": "1,687 test functions at this commit (grep ^def test_ / ^async def test_), more with parametrize; Playwright tests skipped by default (docs/contributing.rst:71-72). If failed > 0, the record must list them and it is a finding to report, not a fixture failure \u2014 an environment-dependent failure is information about the sandbox."
+      }
+    }
+  ],
+  "timing": {
+    "testsSecNote": "unknown on 2 CPUs; the step timeout 1800 s is the only bound; record the measured time"
+  },
   "allowedFixes": [
-    { "kind": "edit_command", "change": "drop `uv run ` prefix" },
-    { "kind": "install_package", "change": "pip install uv" },
-    { "kind": "install_package", "change": "pip install pytest pytest-xdist pytest-asyncio beautifulsoup4 pytest-timeout trustme", "evidence": "pyproject.toml:61-73 dependency group; pip < 25.1 has no --group" },
-    { "kind": "edit_command", "change": "add -m \"not serial\" or -p no:cacheprovider", "optional": true }
-  ]
+    {
+      "kind": "edit_command",
+      "change": "drop `uv run ` prefix"
+    },
+    {
+      "kind": "install_package",
+      "change": "pip install uv"
+    },
+    {
+      "kind": "install_package",
+      "change": "pip install pytest pytest-xdist pytest-asyncio beautifulsoup4 pytest-timeout trustme",
+      "evidence": "pyproject.toml:61-73 dependency group; pip < 25.1 has no --group"
+    },
+    {
+      "kind": "edit_command",
+      "change": "add -m \"not serial\" or -p no:cacheprovider",
+      "optional": true
+    }
+  ],
+  "installNote": "Reviewer 2026-11-15 11:40: docs/contributing.rst:46 added as an allowed install source (the --group dev install is documented there); a `pip install pip==25.3` repair step is accepted (INFO)."
 }
