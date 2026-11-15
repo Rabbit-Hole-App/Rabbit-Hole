@@ -6,6 +6,7 @@ import { handleLearnCourse, generateCourseContent } from './learn-course.js';
 import { askStream, attachmentBlocks, readAskRequest, ATTACHMENT_LIMIT } from './ask.js';
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
+import { startCatalogue } from './learn-rehearsal.js';
 import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool, parseCodeRef, resolveCodeRefs, SELECTED_NOTE } from './repository-context.js';
 import { contextRefs, docIds, pageDocIds } from './chat-modes.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
@@ -152,6 +153,9 @@ async function enqueue(env,app,repo,branch,resolved=null) {
   if(!response.ok) throw Error((await response.json()).error);
   return response.json();
 }
+// The route catalogue (learn-rehearsal.js) starts itself when a snapshot turns ready, so the Tutor's first line already knows whether the repository can be run.
+// It is the same RepositoryRehearsals object class under the key app|commit|catalogue|cpu; a no-op where that binding or the controller is not configured (production), and it never fails or delays the import.
+const triggerCatalogue=(env,job)=>startCatalogue(env,{id:job.appId,repo:job.repo,commit:job.commit}).catch(error=>console.error('catalogue trigger',error.message));
 export class RepositoryImports {
   constructor(state,env){this.state=state;this.env=env;}
   async fetch(req){
@@ -159,7 +163,7 @@ export class RepositoryImports {
       const job=await req.json(), previous=await this.state.storage.get('job');
       if(previous&&['queued','indexing'].includes(previous.status)) return json({error:'An import is already running'},409);
       const cached=await this.env.LEARN_DB.prepare('SELECT storage_key FROM repository_versions WHERE app_id=? AND commit_sha=?').bind(job.appId,job.commit).first();
-      if(cached){await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();return json({status:'ready',commit:job.commit,reused:true});}
+      if(cached){await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();await triggerCatalogue(this.env,job);return json({status:'ready',commit:job.commit,reused:true});}
       const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify({...job,attempt:crypto.randomUUID()})));
       job.key=[...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join(''); job.status='queued';job.started=Date.now();
       await this.state.storage.put('job',job);
@@ -186,7 +190,7 @@ export class RepositoryImports {
             const key=`learn-repositories-dev/${job.appId}/${job.commit}/graphify-0.9.63.json`;
             await this.env.REPOSITORY_SNAPSHOTS.put(key,JSON.stringify(snapshot),{httpMetadata:{contentType:'application/json'}});
             await this.env.LEARN_DB.prepare('INSERT OR IGNORE INTO repository_versions(app_id,commit_sha,storage_key) VALUES(?,?,?)').bind(job.appId,job.commit,key).run();
-            await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();job.status='ready';
+            await this.env.LEARN_DB.prepare("UPDATE repository_apps SET commit_sha=?,branch=?,status='ready',error=NULL WHERE id=?").bind(job.commit,job.branch,job.appId).run();job.status='ready';await triggerCatalogue(this.env,job);
           }
         }
       }
