@@ -13,7 +13,7 @@ export const sessionReady = state => state?.status === 'ready';
 export function runLabel(run) {
   switch (run?.status) {
     case 'queued': case 'running': return 'Running';
-    case 'done': return `Done rc ${run.rc ?? 0}`;
+    case 'done': return 'Success';
     case 'error': return `Error rc ${run.rc}`;
     case 'timeout': return 'Timeout';
     case 'stopped': return 'Stopped';
@@ -61,3 +61,27 @@ export const sendFlags = (cell, values) => Object.fromEntries((cell?.flags || []
 
 // The run pane's text: stdout tail, then stderr tail.
 export const paneText = run => [run?.stdoutTail, run?.stderrTail].filter(Boolean).join('\n');
+
+// The colour family of a run: green while running and on success, red on an error, a timeout or a stop (owner 2026-11-14).
+export function runTone(run) {
+  switch (run?.status) {
+    case 'queued': case 'running': return 'running';
+    case 'done': return 'success';
+    case 'error': case 'timeout': case 'stopped': return 'error';
+    default: return 'idle';
+  }
+}
+
+// How far a running cell is: { pct, text } with pct 0..1 when the output says so (a training loop prints `iter N:` and the command carries
+// --max_iters=M), pct null when it cannot be known (an indeterminate bar); null once the run is complete or has not started.
+export function progressOf(run) {
+  if (!run || run.complete) return null;
+  const max = Number((/--max_iters=(\d+)/.exec(run.cmd || '') || [])[1]);
+  const last = [...String(run.stdoutTail || '').matchAll(/^iter (\d+):/gm)].pop();
+  if (max > 0 && last) { const n = Number(last[1]); return { pct: Math.min(1, n / max), text: `iter ${n} of ${max}` }; }
+  return { pct: null, text: '' };
+}
+
+// The tab title of a cell: the knob cell is the Custom Run tab.
+export const cellTabTitle = cell => (cell.kind === 'knobs' ? 'Custom Run' : cell.kind === 'install' ? 'Install' : cell.title);
+export const HISTORY_TAB = '__history';
