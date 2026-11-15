@@ -31,3 +31,7 @@ if(has('overview-impurity-probe-gini-vs-entropy.html'))test('Gini/entropy endpoi
  const u=card('overview','impurity-probe','gini-vs-entropy');for(const [p,g,h]of [[0,0,0],[.5,.5,1],[1,0,0]]){u.change('p',p);assert.equal(u.card.evidence.g,g);assert.equal(u.card.evidence.h,h)}for(let i=1;i<10;i++){const p=i/10;u.change('p',p);const h=-(p*Math.log(p)+(1-p)*Math.log(1-p))/Math.LN2;assert.ok(Math.abs(u.card.evidence.h-h)<1e-12);assert.ok(Math.abs(h-u.card.scene.data.reference.series[1].samples.y[i]/1000)<=.0005)}
  const s=card('standard','impurity-probe','gini-vs-entropy');s.change('p',.5);s.change('scale','peak');assert.equal(s.card.evidence.g,.5);assert.equal(s.card.evidence.giniPlot,1);
 });
+if(has('overview-error-inspector-depth-overfit.html'))test('overfit keeps illustrative and worked datasets separate; toy errors come from predictions',()=>{
+ const d=card('deep','error-inspector','depth-overfit');for(const [depth,train,held]of [[0,37.5,50],[1,12.5,0],[2,0,50]]){d.change('depth',depth);assert.equal(d.card.evidence.train,train);assert.equal(d.card.evidence.held,held)}assert.equal(d.card.evidence.heldPredictions.find(r=>r.id==='J').prediction,0);
+ const u=card('standard','error-inspector','depth-overfit');u.change('depth',3);assert.equal(u.card.evidence.held,23);u.change('depth',8);assert.equal(u.card.evidence.train,0);assert.equal(u.card.evidence.held,43);assert.equal(u.card.evidence.differenceFromBest,20);
+});

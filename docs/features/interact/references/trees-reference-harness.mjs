@@ -26,7 +26,7 @@ export function inspect(html,comp){
  }
  assert.ok(max<=130,`${comp.id} has ${max} objects`);assert.ok(signatures.size>1,'controls change evidence');
  ui.reset();const initial=ui.svg();
- for(const c of choices){ui.reset();const start=JSON.stringify(ui.card.evidence);const vals=c.values??[c.min,c.max];let changed=false;for(const v of vals){ui.change(c.id,v);if(JSON.stringify(ui.card.evidence)!==start)changed=true}assert.ok(changed,`${c.id} changes evidence, not just its label`)}
+ for(const c of choices){ui.reset();const start=JSON.stringify(ui.card.evidence),startSvg=ui.svg();const vals=c.values??[c.min,c.max];let changed=false;for(const v of vals){ui.change(c.id,v);if(JSON.stringify(ui.card.evidence)!==start&&ui.svg()!==startSvg)changed=true}assert.ok(changed,`${c.id} changes evidence, not just its label`)}
  ui.reset();for(const c of choices)if(Object.hasOwn(comp.aha.inputs,c.id))ui.change(c.id,comp.aha.inputs[c.id]);assert.equal(ui.card.ahaReached,true,'aha reachable through real handlers');
  const held=ui.svg();assert.equal(ui.svg(),held,'aha is held without a clock');ui.reset();assert.equal(ui.svg(),initial,'Reset restores the drawing');
  assert.equal(max,comp.data.verification.maxObjects);assert.equal(states.length,comp.data.verification.cases);

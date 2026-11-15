@@ -1,0 +1,397 @@
+{
+  "family": "error-inspector",
+  "canonical": "illustrative-error-depth-run",
+  "layout": {
+    "width": 640,
+    "height": 370
+  },
+  "story": "In this illustrative run, training error keeps falling as the tree grows. Held-out error improves only up to a point, then rises. Choose depth using evidence outside training.",
+  "aha": {
+    "inputs": {
+      "depth": 3
+    },
+    "observation": "The best held-out error occurs at depth 3, although deeper models continue improving training error.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "errors",
+      "kind": "paired-error-curves",
+      "bind": "computed.errors"
+    },
+    {
+      "id": "probe",
+      "kind": "model-depth-probe",
+      "bind": "inputs.depth; computed.selected"
+    },
+    {
+      "id": "comparison",
+      "kind": "best-setting-comparison",
+      "bind": "computed.best; computed.selected"
+    }
+  ],
+  "controls": [
+    {
+      "id": "depth",
+      "kind": "range",
+      "label": "Maximum tree depth",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "effect": "Select another measured depth, its two errors and its difference from the best held-out setting."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "Deeper can fit better and test worse.",
+    "heading": "Illustrative run · error by depth",
+    "prompt": "how does held-out error change as a decision tree grows deeper?",
+    "instructions": "Move through the depths. Find the lowest held-out error before looking at training error.",
+    "initialInputs": {
+      "depth": 1
+    },
+    "reference": {
+      "kind": "coordinate-plot",
+      "title": "Training and held-out error by depth",
+      "x": {
+        "label": "Max depth",
+        "min": 1,
+        "max": 8,
+        "integerTicks": true
+      },
+      "y": {
+        "label": "Error rate",
+        "min": 0,
+        "max": 50,
+        "unit": "%"
+      },
+      "series": [
+        {
+          "label": "Training",
+          "kind": "line",
+          "smooth": false,
+          "points": [
+            {
+              "x": 1,
+              "y": 38
+            },
+            {
+              "x": 2,
+              "y": 28
+            },
+            {
+              "x": 3,
+              "y": 20
+            },
+            {
+              "x": 4,
+              "y": 13
+            },
+            {
+              "x": 5,
+              "y": 8
+            },
+            {
+              "x": 6,
+              "y": 4
+            },
+            {
+              "x": 7,
+              "y": 2
+            },
+            {
+              "x": 8,
+              "y": 0
+            }
+          ]
+        },
+        {
+          "label": "Held out",
+          "kind": "line",
+          "smooth": false,
+          "points": [
+            {
+              "x": 1,
+              "y": 40
+            },
+            {
+              "x": 2,
+              "y": 31
+            },
+            {
+              "x": 3,
+              "y": 23
+            },
+            {
+              "x": 4,
+              "y": 26
+            },
+            {
+              "x": 5,
+              "y": 29
+            },
+            {
+              "x": 6,
+              "y": 33
+            },
+            {
+              "x": 7,
+              "y": 37
+            },
+            {
+              "x": 8,
+              "y": 43
+            }
+          ]
+        }
+      ],
+      "annotations": [
+        {
+          "kind": "point",
+          "label": "Lowest held-out error",
+          "x": 3,
+          "y": 23
+        }
+      ],
+      "caption": "Illustrative run. Held-out error is lowest at depth 3, then rises as training error falls."
+    },
+    "tree": {
+      "counts": [
+        5,
+        3
+      ],
+      "prediction": 0,
+      "split": {
+        "feature": "x",
+        "threshold": 4,
+        "leftCounts": [
+          4,
+          0
+        ],
+        "rightCounts": [
+          1,
+          3
+        ],
+        "leftGini": [
+          0,
+          1
+        ],
+        "rightGini": [
+          3,
+          8
+        ],
+        "weighted": [
+          3,
+          16
+        ],
+        "gain": [
+          9,
+          32
+        ]
+      },
+      "left": {
+        "counts": [
+          4,
+          0
+        ],
+        "prediction": 0
+      },
+      "right": {
+        "counts": [
+          1,
+          3
+        ],
+        "prediction": 1,
+        "split": {
+          "feature": "y",
+          "threshold": 2,
+          "leftCounts": [
+            1,
+            0
+          ],
+          "rightCounts": [
+            0,
+            3
+          ],
+          "leftGini": [
+            0,
+            1
+          ],
+          "rightGini": [
+            0,
+            1
+          ],
+          "weighted": [
+            0,
+            1
+          ],
+          "gain": [
+            3,
+            8
+          ]
+        },
+        "left": {
+          "counts": [
+            1,
+            0
+          ],
+          "prediction": 0
+        },
+        "right": {
+          "counts": [
+            0,
+            3
+          ],
+          "prediction": 1
+        }
+      }
+    },
+    "rows": [
+      {
+        "id": "A",
+        "x": 1,
+        "y": 1,
+        "label": 0
+      },
+      {
+        "id": "B",
+        "x": 1,
+        "y": 5,
+        "label": 0
+      },
+      {
+        "id": "C",
+        "x": 3,
+        "y": 3,
+        "label": 0
+      },
+      {
+        "id": "D",
+        "x": 3,
+        "y": 7,
+        "label": 0
+      },
+      {
+        "id": "E",
+        "x": 5,
+        "y": 1,
+        "label": 0
+      },
+      {
+        "id": "F",
+        "x": 5,
+        "y": 3,
+        "label": 1
+      },
+      {
+        "id": "G",
+        "x": 7,
+        "y": 5,
+        "label": 1
+      },
+      {
+        "id": "H",
+        "x": 7,
+        "y": 7,
+        "label": 1
+      }
+    ],
+    "holdout": [
+      {
+        "id": "I",
+        "x": 2,
+        "y": 6,
+        "label": 0
+      },
+      {
+        "id": "J",
+        "x": 6,
+        "y": 1,
+        "label": 1
+      }
+    ],
+    "sourceErrors": [
+      {
+        "depth": 0,
+        "trainErrors": 3,
+        "heldOutErrors": 1
+      },
+      {
+        "depth": 1,
+        "trainErrors": 1,
+        "heldOutErrors": 0
+      },
+      {
+        "depth": 2,
+        "trainErrors": 0,
+        "heldOutErrors": 1
+      }
+    ],
+    "calculations": [
+      "Overview/Standard retain the source illustrative percent series; no fitted experiment is claimed.",
+      "Deep uses only the source toy: cap its fitted tree at depths 0, 1 and 2, then count actual incorrect predictions.",
+      "Error percent = wrong rows / evaluated rows × 100. Difference from best is in percentage points, not percent improvement."
+    ],
+    "sourceKind": "illustrative run",
+    "missingCounterparts": [
+      "discrete error-curve probe",
+      "best-setting comparison",
+      "depth-limited tree",
+      "error-membership tiles"
+    ],
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "depth": 1
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "depth": 3
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-depth-overfit",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 37,
+      "cases": 8,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "standard-error-inspector-depth-overfit",
+  "depth": "balanced"
+}
