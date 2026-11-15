@@ -1,4 +1,4 @@
-"""The provider interface: one sandbox per job. Real: modal_sandbox.py. Tests only: fake.py (format: schemas/fake-script.json)."""
+"""The provider interface: one sandbox per job. Only modal_sandbox.py exists this sprint; a scripted fake can be added later without touching the runner (owner 2026-11-14: no tests this sprint)."""
 from dataclasses import dataclass
 from typing import Optional, Protocol
 
@@ -15,10 +15,6 @@ class ExecResult:
 class FileStat:
     bytes: int
     sha256: Optional[str] = None
-
-
-class ScriptError(Exception):
-    """The fake provider was asked for a command its script does not answer."""
 
 
 class Provider(Protocol):
