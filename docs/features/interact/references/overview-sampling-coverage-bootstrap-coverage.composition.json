@@ -1,0 +1,181 @@
+{
+  "family": "sampling-coverage",
+  "canonical": "finite-sample-omission-complement",
+  "layout": {
+    "width": 640,
+    "height": 370
+  },
+  "story": "A replacement draw can repeat a row. For the usual bootstrap, draw n times from n training rows: the expected unique share is one minus the chance a particular row is missed in every draw.",
+  "aha": {
+    "inputs": {
+      "n": 8
+    },
+    "observation": "Eight draws from eight rows cover 65.64% of rows on average. The familiar 63.21% is the large-n limit, not a guarantee for every sample.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "curves",
+      "kind": "coverage-omission-plot",
+      "bind": "computed.curves; computed.limit"
+    },
+    {
+      "id": "probe",
+      "kind": "finite-n-probe",
+      "bind": "inputs.n; computed.coverage"
+    },
+    {
+      "id": "shares",
+      "kind": "complementary-share-bar",
+      "bind": "computed.coverage; computed.omission"
+    }
+  ],
+  "controls": [
+    {
+      "id": "n",
+      "kind": "range",
+      "label": "Training rows n",
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "effect": "Change finite-sample omission, expected unique coverage, expected distinct rows and the curve probe."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "Repeats leave some rows unseen.",
+    "heading": "Expected coverage · replacement sampling",
+    "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+    "instructions": "Try n = 8, then increase n. Distinguish expected coverage from a single realized draw.",
+    "initialInputs": {
+      "n": 1
+    },
+    "reference": {
+      "kind": "coordinate-plot",
+      "title": "Why about 63% appear",
+      "x": {
+        "label": "Training rows n",
+        "min": 1,
+        "max": 20,
+        "integerTicks": true
+      },
+      "y": {
+        "label": "Chance a row is omitted",
+        "min": 0,
+        "max": 0.4
+      },
+      "series": [
+        {
+          "label": "Omission after n draws",
+          "kind": "line",
+          "smooth": true,
+          "samples": {
+            "x": {
+              "start": 1,
+              "step": 1
+            },
+            "y": [
+              0,
+              250,
+              296,
+              316,
+              328,
+              335,
+              340,
+              344,
+              346,
+              349,
+              350,
+              352,
+              353,
+              354,
+              355,
+              356,
+              357,
+              357,
+              358,
+              358
+            ],
+            "divisor": 1000
+          }
+        }
+      ],
+      "annotations": [
+        {
+          "kind": "reference-line",
+          "axis": "y",
+          "value": 0.368,
+          "label": "Omission limit"
+        }
+      ],
+      "caption": "Worked example. Rounded limit $1/e≈0.368$ gives expected coverage $1-0.368=0.632$."
+    },
+    "calculations": [
+      "For m replacement draws from n rows: q=(n−1)/n; omission=q^m; coverage=1−q^m; expected distinct count=n*coverage.",
+      "Usual bootstrap uses m=n. At n=8: omission=(7/8)^8=0.34360891580581665; coverage=0.6563910841941833; expected rows=5.251128673553467.",
+      "For m=r*n, large-n coverage tends to 1−exp(−r); r=1 gives 0.6321205588285577. Deep r=2 or 3 deliberately changes the experiment, not the source bootstrap claim.",
+      "The source plot shows omission. This card shows its exact complement as coverage, labelled separately."
+    ],
+    "sourceKind": "analytic expectation; no random sample is claimed",
+    "missingCounterparts": [
+      "finite-n coverage/omission probe",
+      "complementary expected-share bar",
+      "probability product ledger",
+      "draw-count experiment"
+    ],
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "n": 1
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "n": 8
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-bootstrap-coverage-brief",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 33,
+      "cases": 20,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "overview-sampling-coverage-bootstrap-coverage",
+  "depth": "brief"
+}
