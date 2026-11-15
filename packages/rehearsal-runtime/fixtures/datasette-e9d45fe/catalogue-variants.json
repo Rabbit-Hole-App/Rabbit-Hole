@@ -1,0 +1,1211 @@
+{
+ "note": "catalogueDoc.routes of three real catalogue runs on simonw/datasette e9d45fe after S1b (coordinator evidence C:/s/seed/ev2/ds-cat-v2-1..3.json, 2026-11-15), as the model wrote them; used by test_catalogue_entrypoints.py",
+ "run1": {
+  "summary": "Datasette is a tool for exploring and publishing data. It turns SQLite databases into an interactive website and JSON API, and can deploy them to hosting services.",
+  "groups": [
+   {
+    "id": "main",
+    "label": "command-line tool and web server",
+    "path": "./",
+    "manifest": "pyproject.toml"
+   }
+  ],
+  "routes": [
+   {
+    "routeId": "build_docs_html",
+    "group": "main",
+    "title": "Build the documentation as a local HTML site",
+    "description": "Builds the Sphinx documentation into HTML files from the development dependencies.",
+    "resultKind": "files",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python3 -m pip install -e . --group dev",
+      "source": "docs/contributing.rst:46"
+     },
+     {
+      "cmd": "make html",
+      "source": "docs/contributing.rst:283"
+     }
+    ]
+   },
+   {
+    "routeId": "create_api_token",
+    "group": "main",
+    "title": "Generate a signed API token and read it in the terminal",
+    "description": "Creates an API token for the root actor signed with a chosen secret and prints it.",
+    "resultKind": "stdout",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette create-token root --secret mysecret",
+      "source": "docs/cli-reference.rst:668"
+     }
+    ]
+   },
+   {
+    "routeId": "query_json_once",
+    "group": "main",
+    "title": "Print a JSON page from Datasette without starting a server",
+    "description": "Runs a one-off request against an in-memory instance and prints the JSON response in the terminal.",
+    "resultKind": "stdout",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette --memory --actor '{\"id\": \"root\"}' --get '/-/actor.json'",
+      "source": "docs/cli-reference.rst:221"
+     }
+    ]
+   },
+   {
+    "routeId": "list_plugins",
+    "group": "main",
+    "title": "See the list of installed Datasette plugins",
+    "description": "Prints the plugins Datasette has loaded, as JSON.",
+    "resultKind": "stdout",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette plugins",
+      "source": "docs/installation.rst:106"
+     }
+    ]
+   },
+   {
+    "routeId": "run_test_suite",
+    "group": "main",
+    "title": "Run the project's automated test suite and see it pass",
+    "description": "Installs the development dependencies and runs the project's automated tests, including the ones that must run serially.",
+    "resultKind": "tests",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python3 -m pip install -e . --group dev",
+      "source": "docs/contributing.rst:46"
+     },
+     {
+      "cmd": "pytest -n auto -m \"not serial\"",
+      "source": ".github/workflows/deploy-latest.yml:53"
+     },
+     {
+      "cmd": "pytest -m \"serial\"",
+      "source": ".github/workflows/deploy-latest.yml:54"
+     }
+    ]
+   },
+   {
+    "routeId": "package_docker_image",
+    "group": "main",
+    "title": "Build a Docker image containing Datasette and a database",
+    "description": "Packages a database and the Datasette application into a Docker image you can run elsewhere.",
+    "resultKind": "files",
+    "practical": false,
+    "effort": "Medium — needs Docker",
+    "requirements": {
+     "language": "python",
+     "docker": true,
+     "gpu": false,
+     "downloadGB": 0.3,
+     "downloadHosts": [
+      "registry-1.docker.io"
+     ],
+     "evidence": [
+      {
+       "kind": "docker",
+       "source": "datasette/cli.py:207-263"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette package fixtures.db",
+      "source": "datasette/cli.py:207-263"
+     }
+    ]
+   },
+   {
+    "routeId": "publish_cloud_run",
+    "group": "main",
+    "title": "Deploy a database to Google Cloud Run and get a public URL",
+    "description": "Publishes one or more SQLite databases as a hosted website and API on Google Cloud Run.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "services": [
+      "Google Cloud Run"
+     ],
+     "downloadGB": 0,
+     "accounts": [
+      "Google Cloud account with gcloud configured"
+     ],
+     "evidence": [
+      {
+       "kind": "account",
+       "source": "README.md:79"
+      },
+      {
+       "kind": "service",
+       "source": "README.md:83"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette publish cloudrun database.db",
+      "source": "README.md:83"
+     }
+    ]
+   },
+   {
+    "routeId": "publish_heroku",
+    "group": "main",
+    "title": "Deploy a database to Heroku and get a public URL",
+    "description": "Publishes one or more SQLite databases as a hosted website and API on Heroku.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "services": [
+      "Heroku"
+     ],
+     "downloadGB": 0,
+     "accounts": [
+      "Heroku account with the Heroku CLI configured"
+     ],
+     "evidence": [
+      {
+       "kind": "account",
+       "source": "docs/publish.rst:91"
+      },
+      {
+       "kind": "service",
+       "source": "README.md:79"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette publish heroku database.db",
+      "source": "README.md:79"
+     }
+    ]
+   },
+   {
+    "routeId": "apache_proxy_demo",
+    "group": "main",
+    "title": "See Datasette served behind an Apache proxy under a URL prefix",
+    "description": "Builds and runs the demo Docker image where Apache proxies to Datasette, then visit it locally.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Medium — needs Docker",
+    "requirements": {
+     "language": "python",
+     "docker": true,
+     "gpu": false,
+     "downloadGB": 0.5,
+     "downloadHosts": [
+      "registry-1.docker.io"
+     ],
+     "evidence": [
+      {
+       "kind": "docker",
+       "source": "demos/apache-proxy/README.md:9"
+      },
+      {
+       "kind": "docker",
+       "source": "demos/apache-proxy/README.md:14"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "docker build -t datasette-apache-proxy-demo . --build-arg DATASETTE_REF=main",
+      "source": "demos/apache-proxy/README.md:9"
+     },
+     {
+      "cmd": "docker run -p 5000:80 datasette-apache-proxy-demo",
+      "source": "demos/apache-proxy/README.md:14"
+     }
+    ]
+   },
+   {
+    "routeId": "run_docker_image",
+    "group": "main",
+    "title": "Serve a database from the official Datasette Docker image",
+    "description": "Runs the published Docker image with a database mounted from the current folder and serves it on a local port.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Medium — needs Docker",
+    "requirements": {
+     "language": "python",
+     "docker": true,
+     "gpu": false,
+     "downloadGB": 0.2,
+     "downloadHosts": [
+      "github.com"
+     ],
+     "evidence": [
+      {
+       "kind": "docker",
+       "source": "docs/installation.rst:189"
+      },
+      {
+       "kind": "download",
+       "source": "docs/installation.rst:203"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python tests/fixtures.py fixtures.db",
+      "source": "docs/contributing.rst:146"
+     },
+     {
+      "cmd": "docker run -p 8001:8001 -v `pwd`:/mnt datasetteproject/datasette datasette -p 8001 -h 0.0.0.0 /mnt/fixtures.db",
+      "source": "docs/installation.rst:189"
+     }
+    ]
+   },
+   {
+    "routeId": "deploy_main",
+    "group": "main",
+    "title": "Deploy it to a cloud provider",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "accounts": [
+      "a cloud account"
+     ]
+    },
+    "stepsSketch": [
+     {
+      "cmd": "gcloud config set run/region us-central1",
+      "source": ".github/workflows/deploy-latest.yml:139"
+     },
+     {
+      "cmd": "gcloud config set project datasette-222320",
+      "source": ".github/workflows/deploy-latest.yml:140"
+     },
+     {
+      "cmd": "flyctl apps create --name datasette-apache-proxy-demo",
+      "source": "demos/apache-proxy/README.md:22"
+     }
+    ]
+   },
+   {
+    "routeId": "brew_main",
+    "group": "main",
+    "title": "Install it with Homebrew",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "platform": "macos"
+    },
+    "stepsSketch": [
+     {
+      "cmd": "brew install datasette",
+      "source": "README.md:33"
+     },
+     {
+      "cmd": "brew install datasette",
+      "source": "docs/installation.rst:27"
+     },
+     {
+      "cmd": "brew install datasette",
+      "source": "docs/installation.rst:271"
+     }
+    ]
+   },
+   {
+    "routeId": "run_playwright_tests",
+    "group": "main",
+    "title": "Run the browser-driven tests in a real headless browser",
+    "description": "Installs a Playwright browser and runs the browser tests against Datasette.",
+    "resultKind": "tests",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0.3,
+     "downloadHosts": [
+      "127.0.0.1",
+      "cdn.playwright.dev"
+     ],
+     "evidence": [
+      {
+       "kind": "download",
+       "source": "docs/contributing.rst:132"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python3 -m pip install -e . --group dev --group playwright",
+      "source": ".github/workflows/playwright.yml:56"
+     },
+     {
+      "cmd": "uv run --group playwright playwright install chromium",
+      "source": "docs/contributing.rst:132"
+     },
+     {
+      "cmd": "uv run --group playwright pytest tests/test_playwright.py --playwright --browser chromium",
+      "source": "docs/contributing.rst:133"
+     }
+    ]
+   }
+  ]
+ },
+ "run2": {
+  "summary": "Datasette is a tool for exploring and publishing data. It turns SQLite databases into an interactive website and JSON API, and it also ships a command-line tool, a plugin system and deployment helpers.",
+  "groups": [
+   {
+    "id": "main",
+    "label": "command-line tool and web server",
+    "path": "./",
+    "manifest": "pyproject.toml"
+   }
+  ],
+  "routes": [
+   {
+    "routeId": "build_docs",
+    "group": "main",
+    "title": "Build the documentation as local HTML pages",
+    "description": "Sphinx builds the project documentation into HTML files.",
+    "resultKind": "files",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python -m pip install uv",
+      "source": ".github/workflows/playwright.yml:54"
+     },
+     {
+      "cmd": "uv run make html",
+      "source": "docs/contributing.rst:283"
+     }
+    ]
+   },
+   {
+    "routeId": "create_api_token",
+    "group": "main",
+    "title": "Generate a signed API token and see it printed",
+    "description": "The command-line tool prints a signed API token for the root actor, optionally restricted to certain actions.",
+    "resultKind": "stdout",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette create-token root --secret mysecret",
+      "source": "docs/cli-reference.rst:668"
+     }
+    ]
+   },
+   {
+    "routeId": "list_plugins",
+    "group": "main",
+    "title": "List the installed plugins as JSON",
+    "description": "The tool prints the plugins that are currently installed and active.",
+    "resultKind": "stdout",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette plugins",
+      "source": "docs/installation.rst:106"
+     }
+    ]
+   },
+   {
+    "routeId": "get_json_from_cli",
+    "group": "main",
+    "title": "Print a JSON page from Datasette without starting a server",
+    "description": "Datasette fetches a path internally and prints the response, here its version information, to the terminal.",
+    "resultKind": "stdout",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette --get '/-/versions.json'",
+      "source": "docs/cli-reference.rst:173"
+     }
+    ]
+   },
+   {
+    "routeId": "run_test_suite",
+    "group": "main",
+    "title": "Run the project's automated test suite and see it pass",
+    "description": "The development dependencies are installed and the automated tests run in parallel, followed by the tests that must run serially.",
+    "resultKind": "tests",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python3 -m pip install -e . --group dev",
+      "source": "docs/contributing.rst:46"
+     },
+     {
+      "cmd": "pytest -n auto -m \"not serial\"",
+      "source": ".github/workflows/deploy-latest.yml:53"
+     },
+     {
+      "cmd": "pytest -m \"serial\"",
+      "source": ".github/workflows/deploy-latest.yml:54"
+     }
+    ]
+   },
+   {
+    "routeId": "publish_cloudrun",
+    "group": "main",
+    "title": "Publish a database to a public Google Cloud Run URL",
+    "description": "Datasette builds a Docker image with your database and deploys it to Cloud Run, giving you a public URL.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Medium — needs Docker",
+    "requirements": {
+     "language": "python",
+     "docker": true,
+     "gpu": false,
+     "downloadGB": 0,
+     "accounts": [
+      "Google Cloud account with gcloud configured"
+     ],
+     "evidence": [
+      {
+       "kind": "account",
+       "source": "README.md:83"
+      },
+      {
+       "kind": "docker",
+       "source": "README.md:83"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette publish cloudrun database.db",
+      "source": "README.md:83"
+     }
+    ]
+   },
+   {
+    "routeId": "publish_heroku",
+    "group": "main",
+    "title": "Publish a database to a public Heroku URL",
+    "description": "Datasette deploys one or more SQLite databases to Heroku and gives you a URL for the website and API.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0,
+     "accounts": [
+      "Heroku account with the Heroku CLI configured"
+     ],
+     "evidence": [
+      {
+       "kind": "account",
+       "source": "README.md:79"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette publish heroku database.db",
+      "source": "README.md:79"
+     }
+    ]
+   },
+   {
+    "routeId": "apache_proxy_demo",
+    "group": "main",
+    "title": "See Datasette running behind an Apache proxy",
+    "description": "A Docker image with Apache in front of Datasette is built and run, reachable under a URL prefix.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Medium — needs Docker",
+    "requirements": {
+     "language": "python",
+     "docker": true,
+     "gpu": false,
+     "downloadGB": 0.3,
+     "evidence": [
+      {
+       "kind": "docker",
+       "source": "demos/apache-proxy/README.md:9"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "docker build -t datasette-apache-proxy-demo . --build-arg DATASETTE_REF=main",
+      "source": "demos/apache-proxy/README.md:9"
+     },
+     {
+      "cmd": "docker run -p 5000:80 datasette-apache-proxy-demo",
+      "source": "demos/apache-proxy/README.md:14"
+     }
+    ]
+   },
+   {
+    "routeId": "docker_serve",
+    "group": "main",
+    "title": "Serve a database from the official Docker image",
+    "description": "The official image is pulled and run, serving the sample database on a local port.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Medium — needs Docker",
+    "requirements": {
+     "language": "python",
+     "docker": true,
+     "gpu": false,
+     "downloadGB": 0.2,
+     "downloadHosts": [
+      "github.com"
+     ],
+     "evidence": [
+      {
+       "kind": "docker",
+       "source": "docs/installation.rst:189"
+      },
+      {
+       "kind": "docker image download",
+       "source": "docs/installation.rst:203"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python tests/fixtures.py fixtures.db",
+      "source": "docs/contributing.rst:146"
+     },
+     {
+      "cmd": "docker run -p 8001:8001 -v `pwd`:/mnt datasetteproject/datasette datasette -p 8001 -h 0.0.0.0 /mnt/fixtures.db",
+      "source": "docs/installation.rst:189"
+     }
+    ]
+   },
+   {
+    "routeId": "deploy_main",
+    "group": "main",
+    "title": "Deploy it to a cloud provider",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "accounts": [
+      "a cloud account"
+     ]
+    },
+    "stepsSketch": [
+     {
+      "cmd": "gcloud config set run/region us-central1",
+      "source": ".github/workflows/deploy-latest.yml:139"
+     },
+     {
+      "cmd": "gcloud config set project datasette-222320",
+      "source": ".github/workflows/deploy-latest.yml:140"
+     },
+     {
+      "cmd": "flyctl apps create --name datasette-apache-proxy-demo",
+      "source": "demos/apache-proxy/README.md:22"
+     }
+    ]
+   },
+   {
+    "routeId": "brew_main",
+    "group": "main",
+    "title": "Install it with Homebrew",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "platform": "macos"
+    },
+    "stepsSketch": [
+     {
+      "cmd": "brew install datasette",
+      "source": "README.md:33"
+     },
+     {
+      "cmd": "brew install datasette",
+      "source": "docs/installation.rst:27"
+     },
+     {
+      "cmd": "brew install datasette",
+      "source": "docs/installation.rst:271"
+     }
+    ]
+   },
+   {
+    "routeId": "run_browser_tests",
+    "group": "main",
+    "title": "Run the browser-based interface tests",
+    "description": "Playwright installs a Chromium browser and drives the Datasette web interface through its test suite.",
+    "resultKind": "tests",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0.3,
+     "downloadHosts": [
+      "127.0.0.1",
+      "cdn.playwright.dev"
+     ],
+     "evidence": [
+      {
+       "kind": "browser download",
+       "source": "docs/contributing.rst:132"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python -m pip install uv",
+      "source": ".github/workflows/playwright.yml:54"
+     },
+     {
+      "cmd": "uv run --group playwright playwright install chromium",
+      "source": "docs/contributing.rst:132"
+     },
+     {
+      "cmd": "uv run --group playwright pytest tests/test_playwright.py --playwright --browser chromium",
+      "source": "docs/contributing.rst:133"
+     }
+    ]
+   }
+  ]
+ },
+ "run3": {
+  "summary": "Datasette is a tool for exploring and publishing data. It turns SQLite databases into an interactive website and JSON API, and can deploy them to hosting services.",
+  "groups": [
+   {
+    "id": "main",
+    "label": "command-line tool and web server",
+    "path": "./",
+    "manifest": "pyproject.toml"
+   }
+  ],
+  "routes": [
+   {
+    "routeId": "build_docs",
+    "group": "main",
+    "title": "Build the documentation into a local HTML site",
+    "description": "Builds the Sphinx documentation into HTML pages.",
+    "resultKind": "files",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python3 -m pip install -e . --group dev",
+      "source": "docs/contributing.rst:46"
+     },
+     {
+      "cmd": "uv run make html",
+      "source": "docs/contributing.rst:283"
+     }
+    ]
+   },
+   {
+    "routeId": "serve_sample_database",
+    "group": "main",
+    "title": "Browse a sample database in a local web page",
+    "description": "Builds a sample SQLite database from the test fixtures and serves it as an explorable website and API on a local port.",
+    "resultKind": "http",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0,
+     "downloadHosts": [
+      "github.com"
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python3 -m pip install -e . --group dev",
+      "source": "docs/contributing.rst:46"
+     },
+     {
+      "cmd": "uv run python tests/fixtures.py fixtures.db",
+      "source": "docs/contributing.rst:146"
+     },
+     {
+      "cmd": "uv run datasette fixtures.db",
+      "source": "docs/contributing.rst:150"
+     }
+    ]
+   },
+   {
+    "routeId": "create_api_token",
+    "group": "main",
+    "title": "Generate a signed API token and see it printed",
+    "description": "Creates an access token for the root user, optionally limited to certain actions, and prints it.",
+    "resultKind": "stdout",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette create-token root --secret mysecret",
+      "source": "docs/cli-reference.rst:668"
+     },
+     {
+      "cmd": "datasette create-token root --secret mysecret --all view-database-download",
+      "source": "docs/cli-reference.rst:672"
+     }
+    ]
+   },
+   {
+    "routeId": "list_plugins",
+    "group": "main",
+    "title": "List installed Datasette plugins in the terminal",
+    "description": "Prints a JSON list of the plugins Datasette has loaded, or a requirements list of them.",
+    "resultKind": "stdout",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette plugins",
+      "source": "docs/plugins.rst:147"
+     },
+     {
+      "cmd": "datasette plugins --requirements",
+      "source": "docs/plugins.rst:384"
+     }
+    ]
+   },
+   {
+    "routeId": "query_json_from_cli",
+    "group": "main",
+    "title": "Print Datasette's JSON API output straight in the terminal",
+    "description": "Runs a single request against an in-memory Datasette instance and prints the JSON response without starting a server.",
+    "resultKind": "stdout",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette --get '/-/versions.json' | jq .",
+      "source": "docs/cli-reference.rst:173"
+     },
+     {
+      "cmd": "datasette --memory --actor '{\"id\": \"root\"}' --get '/-/actor.json'",
+      "source": "docs/cli-reference.rst:221"
+     }
+    ]
+   },
+   {
+    "routeId": "run_test_suite",
+    "group": "main",
+    "title": "Run the Datasette test suite and see it pass",
+    "description": "Installs the development dependencies and runs the project's automated tests, optionally in parallel.",
+    "resultKind": "tests",
+    "practical": true,
+    "effort": "Quick — just Python",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "python3 -m pip install -e . --group dev",
+      "source": "docs/contributing.rst:46"
+     },
+     {
+      "cmd": "uv run pytest -n auto -m \"not serial\"",
+      "source": "docs/contributing.rst:59"
+     },
+     {
+      "cmd": "uv run pytest -m \"serial\"",
+      "source": "docs/contributing.rst:63"
+     }
+    ]
+   },
+   {
+    "routeId": "publish_cloudrun",
+    "group": "main",
+    "title": "Deploy a database to Google Cloud Run and get a public URL",
+    "description": "Builds a container image holding Datasette and the databases, then deploys it to Cloud Run.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Medium — needs Docker",
+    "requirements": {
+     "language": "python",
+     "docker": true,
+     "gpu": false,
+     "downloadGB": 0,
+     "accounts": [
+      "Google Cloud account with gcloud configured"
+     ],
+     "evidence": [
+      {
+       "kind": "docker",
+       "source": "README.md:83"
+      },
+      {
+       "kind": "account",
+       "source": "README.md:83"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette publish cloudrun database.db",
+      "source": "README.md:83"
+     }
+    ]
+   },
+   {
+    "routeId": "publish_heroku",
+    "group": "main",
+    "title": "Deploy a database to Heroku and get a public URL",
+    "description": "Publishes SQLite databases to Heroku and gives a URL for the resulting website and API.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0,
+     "accounts": [
+      "Heroku account with the Heroku CLI configured"
+     ],
+     "evidence": [
+      {
+       "kind": "account",
+       "source": "README.md:79"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "pip install -e .",
+      "source": "pyproject.toml:1"
+     },
+     {
+      "cmd": "datasette publish heroku database.db",
+      "source": "README.md:79"
+     }
+    ]
+   },
+   {
+    "routeId": "run_playwright_tests",
+    "group": "main",
+    "title": "Run the browser-driven tests and see them pass",
+    "description": "Installs a headless browser through Playwright and runs the browser tests against Datasette.",
+    "resultKind": "tests",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "language": "python",
+     "docker": false,
+     "gpu": false,
+     "downloadGB": 0.3,
+     "downloadHosts": [
+      "127.0.0.1",
+      "cdn.playwright.dev"
+     ],
+     "evidence": [
+      {
+       "kind": "download",
+       "source": "docs/contributing.rst:132"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "uv run --group playwright playwright install chromium",
+      "source": "docs/contributing.rst:132"
+     },
+     {
+      "cmd": "uv run --group playwright pytest tests/test_playwright.py --playwright --browser chromium",
+      "source": "docs/contributing.rst:133"
+     }
+    ]
+   },
+   {
+    "routeId": "apache_proxy_demo",
+    "group": "main",
+    "title": "See Datasette served behind an Apache proxy under a URL prefix",
+    "description": "Builds and runs a container where Apache proxies to Datasette, reachable at the root and at a prefix.",
+    "resultKind": "http",
+    "practical": false,
+    "effort": "Medium — needs Docker",
+    "requirements": {
+     "language": "python",
+     "docker": true,
+     "gpu": false,
+     "downloadGB": 0.3,
+     "downloadHosts": [
+      "github.com",
+      "registry-1.docker.io"
+     ],
+     "evidence": [
+      {
+       "kind": "docker",
+       "source": "demos/apache-proxy/README.md:9"
+      },
+      {
+       "kind": "download",
+       "source": "demos/apache-proxy/Dockerfile:40"
+      }
+     ]
+    },
+    "prerequisites": [],
+    "stepsSketch": [
+     {
+      "cmd": "docker build -t datasette-apache-proxy-demo . --build-arg DATASETTE_REF=c617e1769ea27e045b0f2907ef49a9a1244e577d",
+      "source": "demos/apache-proxy/README.md:9"
+     },
+     {
+      "cmd": "docker run -p 5000:80 datasette-apache-proxy-demo",
+      "source": "demos/apache-proxy/README.md:14"
+     }
+    ]
+   },
+   {
+    "routeId": "deploy_main",
+    "group": "main",
+    "title": "Deploy it to a cloud provider",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "accounts": [
+      "a cloud account"
+     ]
+    },
+    "stepsSketch": [
+     {
+      "cmd": "gcloud config set run/region us-central1",
+      "source": ".github/workflows/deploy-latest.yml:139"
+     },
+     {
+      "cmd": "gcloud config set project datasette-222320",
+      "source": ".github/workflows/deploy-latest.yml:140"
+     },
+     {
+      "cmd": "flyctl apps create --name datasette-apache-proxy-demo",
+      "source": "demos/apache-proxy/README.md:22"
+     }
+    ]
+   },
+   {
+    "routeId": "brew_main",
+    "group": "main",
+    "title": "Install it with Homebrew",
+    "practical": false,
+    "effort": "Not practical here",
+    "requirements": {
+     "platform": "macos"
+    },
+    "stepsSketch": [
+     {
+      "cmd": "brew install datasette",
+      "source": "README.md:33"
+     },
+     {
+      "cmd": "brew install datasette",
+      "source": "docs/installation.rst:27"
+     },
+     {
+      "cmd": "brew install datasette",
+      "source": "docs/installation.rst:271"
+     }
+    ]
+   }
+  ]
+ }
+}

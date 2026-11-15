@@ -16,6 +16,7 @@ import contracts
 import limits
 import pricing
 from discover import _extract_json, extract_knobs
+from entrypoints import entry_candidates, minimal_route, route_classes, uncovered
 from scan import scan_route, shows_something
 from model import DEFAULT_MODEL, BudgetStop, ModelCaller, ModelRefused
 
@@ -470,6 +471,7 @@ Rules:
 - requirements, read from the README and candidates (the candidates' `words` are hardware and size hints found next to them): language; docker (true when a step needs Docker); gpu (true when a step needs a GPU); services (external servers the route needs and does not start itself: databases, queues, caches); downloadGB (downloads beyond pip packages: data, model weights); downloadHosts (the hostname each such download comes from); accounts (accounts, API keys or credentials needed); platform (only when limited to one operating system). Add one `evidence` entry {kind, source} for each requirement claimed other than language, with a source from the candidate list.
 - Hardware class, for context only: 2 CPU, 4 GiB RAM, no GPU, one Python 3.12 environment with pip, outbound network to a short list of hosts (PyPI and GitHub among them).
 - A test suite is a route when the repository has one (resultKind tests). A benchmark, profiling or helper script is a route only when the README presents it as a way to use the repository.
+- entryPoints are the commands the rules found in the source: a server (serve), one-shot commands (oneshot, plugins, auth) and test suites (tests), each with its source. Every serve and tests entry point, and at least one one-shot, must be run by a step of some route (the step's command is the entry point's command, run directly; a route that runs it inside Docker does not count). A route may use several entry points; cite their sources.
 - Every route has a `requirements` object with at least language, docker, gpu and downloadGB filled in.
 - Every stepsSketch step cites a `source` that appears in the candidate list (a candidate's source, or one of its flags' sources). A route with no such source is dropped. Commands are verbatim from the repository, except: a README `pip install <this package>` at a pinned commit means installing the checkout (`pip install -e .`), cited to the manifest; a step that needs a file the repository does not ship (a sample database) includes the step that creates it, found in the docs or tests.
 - knobsHint: flags a learner could change (with the flag's own source from the candidate's flags), only for practical routes.
@@ -513,6 +515,10 @@ def model_schema() -> dict:
     return schema
 
 
+def file_texts(job: dict) -> dict:
+    return {p: t for p, t in job['files'].items() if isinstance(t, str)}
+
+
 def build_prompt(job: dict, rp: dict) -> tuple:
     """-> (user prompt JSON, candidates sent). The input guard: README texts first, then the top candidates by source kind, cut until the estimate fits the token limit."""
     budget = limits.CATALOGUE_INPUT_TOKENS * 4
@@ -524,8 +530,12 @@ def build_prompt(job: dict, rp: dict) -> tuple:
             break
         readmes[p], used = t, used + len(t)
     labels = list(dict.fromkeys(l for l in job.get('graphLabels', []) if isinstance(l, str)))[:80]
-    cands = select(rp['candidates'])
-    fixed = {'repo': job['repo'], 'commit': job['commit'], 'hardware': 'cpu', 'groups': rp['groups'], 'graphLabels': labels, 'catalogueSchema': schema}
+    entries, _subs = entry_candidates(rp['candidates'], file_texts(job))
+    keep = {id(e['cand']) for e in entries}  # the entry points are always sent: the model must cite them and a source outside the list drops the route
+    chosen = {id(x) for x in select(rp['candidates'])}
+    cands = [c for c in rp['candidates'] if id(c) in keep or id(c) in chosen]
+    fixed = {'repo': job['repo'], 'commit': job['commit'], 'hardware': 'cpu', 'groups': rp['groups'], 'graphLabels': labels, 'catalogueSchema': schema,
+             'entryPoints': [{'class': e['cls'], 'cmd': e['cmd'] + (' ' + e['flag'] if e['flag'] else ''), 'source': e['source']} for e in entries]}
 
     def render(cs):
         return json.dumps({**fixed, 'readmes': readmes, 'candidates': cs}, ensure_ascii=False, separators=(',', ':'))
@@ -533,7 +543,8 @@ def build_prompt(job: dict, rp: dict) -> tuple:
         body = render(cands)
         if len(body) + len(SYSTEM) <= budget or not cands:
             return body, cands
-        cands = cands[:max(0, len(cands) - 10)]
+        drop = [c for c in reversed(cands) if id(c) not in keep][:10]
+        cands = [c for c in cands if all(c is not d for d in drop)] if drop else []
 
 
 # ---------------------------------------------------------------- validation (2c) and the deterministic corrections
@@ -729,8 +740,14 @@ def finalize(doc: dict, cands: list, files: dict = None) -> None:
     routes.sort(key=lambda r: (not r['practical'], len(r['stepsSketch']), r['title'].casefold(), r['routeId']))
     doc.pop('more', None)
     practical = [r for r in routes if r['practical']]
-    if practical:  # the simplest practical route whose steps produce something to look at (train, sample, serve, run...); else one that opens a page or port; else the simplest that is not a test suite; else the first
-        rec = (next((r for r in practical if r.get('resultKind') != 'tests' and shows_something(r)), None) or next((r for r in practical if r.get('resultKind') in ('http', 'port')), None) or next((r for r in practical if r.get('resultKind') != 'tests'), None) or practical[0])
+    if practical:  # a practical route that runs a serve entry point; else one that runs a one-shot query; else (documentation builds last) the simplest whose steps produce something to look at;
+        # else one that opens a page or port; else the simplest that is not a test suite; else the first
+        entries, subs = entry_candidates(cands, files or {}) if cands else ([], {})
+        cls = {r['routeId']: route_classes(r, entries, subs) for r in practical}
+        pool = [r for r in practical if 'docs' not in cls[r['routeId']]] or practical
+        rec = (next((r for r in practical if 'serve' in cls[r['routeId']]), None) or next((r for r in practical if 'oneshot' in cls[r['routeId']]), None)
+               or next((r for r in pool if r.get('resultKind') != 'tests' and shows_something(r)), None) or next((r for r in pool if r.get('resultKind') in ('http', 'port')), None)
+               or next((r for r in pool if r.get('resultKind') != 'tests'), None) or practical[0])
         rec['recommended'] = True
         over = {r['routeId'] for r in [x for x in practical if x is not rec][MAX_PRACTICAL - 1:]}
         if over:
@@ -809,6 +826,16 @@ class CatalogueFailed(Exception):
         self.code, self.detail = code, detail
 
 
+def add_missing(doc: dict, need: list, rp: dict) -> None:
+    """The model still did not run these entry points: the controller adds a minimal route for each, from the entry point's own source-derived command and plain-words templates (no model call)."""
+    ids = {r['routeId'] for r in doc['routes']}
+    manifests = {c['source'].rsplit(':', 1)[0]: c['source'] for c in rp['candidates'] if c['kind'] == 'manifest'}
+    groups = {g['id']: g.get('manifest', '') for g in rp['groups']}
+    for e in sorted(need, key=lambda e: (e['cls'], e['cmd'], e['flag'])):
+        manifest = groups.get(e['cand'].get('group'), '')
+        doc['routes'].append(minimal_route(e, manifests.get(manifest, '') if manifest.endswith(('pyproject.toml', 'setup.py')) else '', ids))
+
+
 def run_catalogue(job: dict, model_impl, status=lambda *a, **k: None) -> tuple:
     """-> (catalogue doc, model calls). Raises CatalogueFailed (no_catalogue after the one re-ask)."""
     status('discovering')
@@ -820,7 +847,10 @@ def run_catalogue(job: dict, model_impl, status=lambda *a, **k: None) -> tuple:
     msgs = [{'role': 'user', 'content': body}]
     status('planning')
     last = ['no attempt was made']
+    files = file_texts(job)
+    entries, subs = entry_candidates(rp['candidates'], files)
     for attempt in range(2):
+        need = []
         try:
             r = caller.ask('catalogue', MODEL_NAME, SYSTEM, msgs, max_tokens=limits.CATALOGUE_MAX_OUTPUT_TOKENS)
         except (BudgetStop, ModelRefused) as e:
@@ -831,17 +861,27 @@ def run_catalogue(job: dict, model_impl, status=lambda *a, **k: None) -> tuple:
                 raise ValueError('the reply has no routes list')
             doc, dropped = clean(doc, cands, rp, job)
             bare = [r['routeId'] for r in doc['routes'] if not r.get('requirements')]  # the rules need the facts; a route without any is sent back
-            finalize(doc, rp['candidates'], {p: t for p, t in job['files'].items() if isinstance(t, str)})
+            need = uncovered(doc['routes'], entries, subs)
+            pre = copy.deepcopy(doc)  # the model's routes before the controller's own, for the case it has to add routes
+            finalize(doc, rp['candidates'], files)
             last = ([f"routes without requirements: {', '.join(bare[:6])}; fill in language, docker, gpu, services, downloadGB, downloadHosts and accounts"] if bare else []) + catalogue_problems(doc, cands, rp['groups'])
             if dropped and not doc['routes']:
                 last = [f"every route cited a source that is not in the candidate list (dropped: {', '.join(dropped[:6])}); cite only candidate sources"] + last
         except ValueError as e:  # includes json.JSONDecodeError
             doc, last = None, [f'reply was not valid JSON: {e}']
-        if not last:
+        if not last and not need:
             return doc, caller.calls
         nxt = pricing.usd(r.model or MODEL_NAME, r.input_tokens + r.output_tokens + 600, limits.CATALOGUE_MAX_OUTPUT_TOKENS)
-        if attempt == 0 and caller.spend + nxt > limits.CATALOGUE_SPEND_CAP_USD:
-            break  # the re-ask would pass the US$0.50 cap
+        if not (attempt == 0 and caller.spend + nxt <= limits.CATALOGUE_SPEND_CAP_USD):  # the one re-ask is spent (or would pass the US$0.50 cap)
+            if not last:  # only coverage is missing: the controller adds the routes itself
+                add_missing(pre, need, rp)
+                finalize(pre, rp['candidates'], files)
+                last = catalogue_problems(pre, cands, rp['groups'])
+                if not last:
+                    return pre, caller.calls
+            break
+        if need:
+            last = last + ['no route runs these entry points: ' + '; '.join(f"{e['cmd']}{' ' + e['flag'] if e['flag'] else ''} ({e['source']})" for e in need[:8]) + '. Add a route whose steps run each directly, citing its source']
         msgs = msgs + [{'role': 'assistant', 'content': r.text or '{}'}, {'role': 'user', 'content': 'That reply did not validate. Fix these errors and reply with the full corrected JSON object only:\n- ' + '\n- '.join(last[:12])}]
     raise CatalogueFailed('no_catalogue', 'the README and scripts did not give a clear route (' + '; '.join(last[:3])[:300] + ')')
 
