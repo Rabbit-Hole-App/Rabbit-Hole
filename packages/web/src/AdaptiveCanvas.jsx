@@ -939,7 +939,9 @@ function DocNode({ block, zoom, selected, connected, onSelect, onMove, onLayout,
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={DOC_CARD_SIZE.w} height={block.h || DOC_CARD_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
-      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
+      tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
       <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the document</p>}>
         <DocCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)}
           onBlocks={blocks => edit.patchBlock?.(block.id, { blocks }, true)} onLive={blocks => edit.docLive?.(block.id, blocks)} />
@@ -955,7 +957,9 @@ function RunNode({ block, zoom, selected, connected, onSelect, onMove, onLayout,
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={RUN_CARD_SIZE.w} height={block.h || RUN_CARD_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
-      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
+      tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
       <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the run card</p>}>
         <RunCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)} onSave={run => edit.patchBlock?.(block.id, { run }, true)} />
       </Suspense>
