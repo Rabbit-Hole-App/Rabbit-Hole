@@ -50,6 +50,7 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
     t_created = t_stopped = None
     terminated, left = False, []
     knob_err = None
+    knobs_failed = []
     snapshot_image = ''
     try:
         status('provisioning')
@@ -81,7 +82,9 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
             knobs, traps = runner.verify_knobs(), runner.run_traps()
             # A knob command that does not run (a click option that takes two arguments, a value the program refuses) is a finding about the knob, not a reason to
             # discard a route that ran: only verified knob commands stay in the record (the failing attempts are in the logs), the plan's 'Change it' is built from those.
-            knobs = [k for k in knobs if k['rc'] == 0]
+            # No silent failure applies to the record too (Reviewer 2026-11-15): a knob command that failed verification is recorded in knobsFailed (cmd, rc, one-line error), not dropped.
+            knobs_failed = [{'cmd': k['cmd'], 'rc': k['rc'], 'error': k.get('_error', '')} for k in knobs if k['rc'] != 0]
+            knobs = [{kk: vv for kk, vv in k.items() if not kk.startswith('_')} for k in knobs if k['rc'] == 0]
         partial = not ok and runner.gave_up is not None and any(not s.get('failed') for s in runner.steps)  # the steps before the failing one ran: the Run card can still start from them
         if (ok or partial) and knob_err is None and hasattr(provider, 'snapshot') and time.time() < deadline - 150:
             try:  # Run card fast start: clone, install and produced files in one image. Never fails the job; a failure or timeout just leaves the record without snapshotImage (sessions then clone and install themselves).
@@ -133,7 +136,7 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
         'wallSec': round(max(0.0, finished - t0 - provider.image_build_sec), 1),
         **({'imageBuildSec': provider.image_build_sec} if provider.image_build_sec else {}),
         'environment': env or {'python': '', 'cpu': 1, 'memGiB': 0, 'packagesAfter': {}},
-        'route': route, 'attempts': runner.attempts, 'fixes': runner.fixes, 'steps': runner.steps, 'traps': traps, 'knobsVerified': knobs,
+        'route': route, 'attempts': runner.attempts, 'fixes': runner.fixes, 'steps': runner.steps, 'traps': traps, 'knobsVerified': knobs, 'knobsFailed': knobs_failed,
         'allChecksPassed': gave_up is None and sum(1 for s in runner.steps if not s.get('failed')) == len(route['steps']),
         'network': {'outboundDomainAllowlist': list(limits.OUTBOUND_DOMAIN_ALLOWLIST) + list(provider.extra_domains), 'outboundCidrAllowlist': [], 'allowDomainFixes': [f['change'] for f in runner.fixes if f['kind'] == 'allow_domain']},
         'modelCalls': caller.calls, 'modelSpendUsd': caller.spend, 'sandboxSpendNote': billing.spend_note(before, after, job['key'], lifetime),

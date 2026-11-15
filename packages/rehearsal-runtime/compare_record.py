@@ -177,7 +177,9 @@ def score_traps(rec, exp):
     check(start is not None and '=' not in start and start != '', 'knobVerification --start is a string without =', f'--start={start}', 'absent or contains =')
     try: tv = float(temp)
     except (TypeError, ValueError): tv = None
-    check(tv is not None and tv < ev['temperatureBelow'], 'knobVerification --temperature below the default', f"--temperature={temp} < {ev['temperatureBelow']}", 'absent, not a float, or not below')
+    # Reviewer 2026-11-15: the rule is 'differs from the default' (either direction), so a hotter 1.0 passes; the fixture's old temperatureBelow key is read as the default.
+    default_t = ev.get('temperatureDiffersFrom', ev.get('temperatureBelow'))
+    check(tv is not None and default_t is not None and tv != float(default_t), 'knobVerification --temperature differs from the default', f"--temperature={temp} != {default_t}", 'absent, not a float, or equal to the default')
     try: nv = int(num)
     except (TypeError, ValueError): nv = None
     check(nv is not None and nv >= 1, 'knobVerification --num_samples >= 1', f'--num_samples={num}', 'absent or < 1')
