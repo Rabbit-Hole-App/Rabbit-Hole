@@ -9,10 +9,11 @@ const answer = (choice, confidence, probabilities = { [choice]: confidence }) =>
 const CURVE = { id: 'curve-sliders', pickCriterion: 'One quantity as a function of another, drawn as a curve whose shape a few parameters change; no motion over time.' };
 test.beforeEach(t => { const log = console.log; console.log = () => {}; t.after(() => { console.log = log; }); });
 
-test('the registry has both families and the question has one criterion per family plus none', () => {
-  assert.deepEqual(INTERACT_FAMILIES.map(f => f.id), ['vertical-throw', 'curve-sliders']);
+test('the registry has its families (toss, curve, stepper) and the question has one criterion per family plus none', () => {
+  assert.deepEqual(INTERACT_FAMILIES.map(f => f.id), ['vertical-throw', 'curve-sliders', 'stepper-states']);
   assert.equal(verticalThrow.module.family.id, 'vertical-throw');
-  assert.deepEqual(pickQuestions().family.criteria, { 'vertical-throw': verticalThrow.pickCriterion, 'curve-sliders': CURVE.pickCriterion, none: NONE_CRITERION });
+  assert.deepEqual(Object.keys(pickQuestions().family.criteria), ['vertical-throw', 'curve-sliders', 'stepper-states', 'none']);
+  assert.equal(pickQuestions().family.criteria['vertical-throw'], verticalThrow.pickCriterion); assert.equal(pickQuestions().family.criteria['curve-sliders'], CURVE.pickCriterion); assert.equal(pickQuestions().family.criteria.none, NONE_CRITERION);
 });
 
 test('a second family is one more entry: a choice is added, no code changes', async () => {
