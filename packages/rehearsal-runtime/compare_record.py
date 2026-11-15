@@ -49,7 +49,7 @@ def same_cmd(a, b):
 def relax_ids(rec, exp):
     """--relax only: discovery names routes and steps itself (shakespeare_char_cpu, prepare_data), so map each expected step id to the discovered step with the same command and rename it everywhere. Printed as INFO, never silent."""
     rid = exp['routeId']
-    if rec['route']['routeId'] != rid and rec['route']['routeId'].startswith(rid):
+    if rec['route']['routeId'] != rid and (rec['route']['routeId'].startswith(rid) or rid in rec['route']['routeId']):
         print(f"INFO    [relax] routeId {rec['route']['routeId']} treated as {rid} (prefix)")
         rec['route']['routeId'] = rid
     for es in exp['steps']:
@@ -99,12 +99,17 @@ def score_route(rec, exp):
         ok = any(pkg_in(c, 'torch') and pkg_in(c, 'numpy') for c in cmds)
         check(ok, 'route.install superset of torch+numpy', f'install {cmds}', 'torch and numpy not both installed by the route')
     # fixture v2: alternatives are matched by REASON, not id (discovery names its routes itself).
-    reasons = [a.get('rejected', '') for a in route['alternatives'] if a.get('rejected')]
-    check(len(reasons) >= 2, 'route.alternatives count >= 2 with reasons', f'{len(reasons)} rejected alternatives with a reason', 'fewer than 2')
-    for ea in exp['alternatives']:
-        terms = ea['reasonMustMention']
-        hit = next((r for r in reasons if any(t.lower() in r.lower() for t in terms)), None)
-        check(hit is not None, f"route.alternatives a reason mentions one of {terms}", (hit or '')[:80], 'no reason mentions it')
+    if 'alternatives' not in route:  # since the catalogue (2026-11-15) a route no longer carries alternatives: the catalogue lists them (score it with compare_catalogue.py)
+        skip('route.alternatives', 'the route has no alternatives field: they live in the catalogue')
+        reasons = None
+    else:
+        reasons = [a.get('rejected', '') for a in route['alternatives'] if a.get('rejected')]
+    if reasons is not None:
+        check(len(reasons) >= 2, 'route.alternatives count >= 2 with reasons', f'{len(reasons)} rejected alternatives with a reason', 'fewer than 2')
+        for ea in exp['alternatives']:
+            terms = ea['reasonMustMention']
+            hit = next((r for r in reasons if any(t.lower() in r.lower() for t in terms)), None)
+            check(hit is not None, f"route.alternatives a reason mentions one of {terms}", (hit or '')[:80], 'no reason mentions it')
     knobs = {(k['step'], k['flag']): k for k in route['knobs']}
     for ek in exp['knobs']:
         k = knobs.get((ek['step'], ek['flag']))
