@@ -150,7 +150,7 @@ export function cellFailedLine({ title, out, status, inRehearsal = false }) {
   const head = error ? `**${title}** failed: ${noStop(error)}.` : `**${title}** failed.`;
   return inRehearsal
     ? `${head} It stopped here in the rehearsal too, so this is not something you changed. You can run the steps before it, or read the code.`
-    : `${head} In the rehearsal it passed - the difference is usually a flag you changed or a file from an earlier cell. Undo the change, or run the previous cell first.`;
+    : `${head} In the rehearsal it passed - the difference is usually a flag you changed or a file from an earlier cell. Undo the change, or run the previous cell first. The rehearsal output under the cell is what a good run looks like.`;
 }
 
 // The validator refused a flag (POST /api/learn/run 400). accepted: the flags the cell takes.
@@ -159,3 +159,44 @@ export function flagRefusedLine({ repo, message, accepted = [] }) {
   const takes = accepted.length ? ` The ones it takes: ${accepted.join(', ')}.` : ' This cell takes no editable flags.';
   return `That ${flag ? 'flag' : 'value'} isn't one **${repoName(repo)}** accepts here${flag ? ` (\`${flag}\`)` : ''}.${takes}`;
 }
+
+// ---- a flag the program rejects at run time (Run card v1.1 Part 1c; cannot-run-edge-cases.md section 1a) ------------------------------------------------------------
+
+// Levenshtein distance, case-insensitive.
+export function editDistance(a, b) {
+  const s = String(a).toLowerCase(), t = String(b).toLowerCase();
+  let row = Array.from({ length: t.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= s.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= t.length; j++) next[j] = Math.min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (s[i - 1] === t[j - 1] ? 0 : 1));
+    row = next;
+  }
+  return row[t.length];
+}
+// The nearest of the cell's own flags to the one that was rejected (the record's knobs, never a guess from elsewhere); null when none is close (distance more than a third of its length, at most 3).
+export function didYouMean(flag, known = []) {
+  const name = String(flag).replace(/^--/, '');
+  let best = null, bestDistance = Infinity;
+  for (const k of known) {
+    const d = editDistance(name, String(k).replace(/^--/, ''));
+    if (d < bestDistance) { best = k; bestDistance = d; }
+  }
+  return best && bestDistance > 0 && bestDistance <= Math.min(3, Math.max(1, Math.floor(name.length / 3))) ? best : null;
+}
+// The flag a program refused, from its error output: nanoGPT's configurator (Unknown config key), click (No such option), argparse (unrecognized arguments), a Python call (unexpected keyword). -> '--name' or null.
+export function rejectedFlag(out) {
+  const m = /Unknown config key:?\s*['"]?([A-Za-z0-9_-]+)|No such option:?\s*(?:--?)?([A-Za-z0-9_-]+)|unrecognized arguments:?\s*(?:--?)?([A-Za-z0-9_-]+)|unexpected keyword argument\s*['"]([A-Za-z0-9_]+)['"]/i.exec(String(out || ''));
+  const name = m && (m[1] || m[2] || m[3] || m[4]);
+  return name ? `--${name}` : null;
+}
+// The script a cell runs, for the sentence (sample.py), else the cell's title.
+export const scriptOf = (cmd, title = '') => (String(cmd || '').split(/\s+/).find(token => /\.(py|js|mjs|ts|sh|rb)$/.test(token)) || title).split('/').pop();
+// The one line for a rejected flag: names the flag and the script, with the nearest flag the card knows when there is one; null when the output rejects no flag (the plain failure line applies).
+export function flagRejectedLine({ out, cmd, title, known = [] }) {
+  const flag = rejectedFlag(out);
+  if (!flag) return null;
+  const near = didYouMean(flag, known), script = scriptOf(cmd, title);
+  return `\`${flag}\` isn't a flag \`${script}\` takes${near ? `; did you mean \`${near}\`?` : `. The ones it takes: ${known.length ? known.join(', ') : 'none that I can set here'}.`}`;
+}
+// A value the card did not send because it breaks its type rule (run-card-knobs.js checkValue): nothing ran, and the chat says so.
+export const valueRuleLine = ({ flag, message }) => `I didn't run it. ${flag ? `\`${flag}\` needs a different value: ` : ''}${message}`;

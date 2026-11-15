@@ -2,6 +2,7 @@
 // The Run card's pure rules (RunCard.jsx renders from them). Shapes are the frozen contracts in
 // packages/rehearsal-runtime/schemas: session state (session.json), cells (cells.json), run status (run-status.json).
 // Pure: no storage, no network, no React.
+import { collapseCR } from './run-card-outputs.js';
 
 export const RUN_POLL_MS = 2000;
 export const EXPECTED_HEADING = 'What a real run produced';
@@ -55,12 +56,8 @@ export function expectedView(expected) {
   return { facts, output: [expected?.stdoutHead, expected?.stdoutTail].filter(Boolean).join('\n\n') };
 }
 
-// The editable fields of a cell as { flag: value } (cells.json: only flags with editable true may be sent).
-export const initialFlags = cell => Object.fromEntries((cell?.flags || []).filter(f => f.editable).map(f => [f.flag, f.value]));
-export const sendFlags = (cell, values) => Object.fromEntries((cell?.flags || []).filter(f => f.editable).map(f => [f.flag, String(values?.[f.flag] ?? f.value)]));
-
-// The run pane's text: stdout tail, then stderr tail.
-export const paneText = run => [run?.stdoutTail, run?.stderrTail].filter(Boolean).join('\n');
+// The run pane's text: stdout tail, then stderr tail, with carriage-return progress (tqdm) collapsed to its last state.
+export const paneText = run => collapseCR([run?.stdoutTail, run?.stderrTail].filter(Boolean).join('\n'));
 
 // The colour family of a run: green while running and on success, red on an error, a timeout or a stop (owner 2026-11-14).
 export function runTone(run) {
@@ -87,6 +84,7 @@ export function progressOf(run) {
   return { pct: null, text: '' };
 }
 
-// The tab title of a cell: the knob cell is the Custom Run tab.
-export const cellTabTitle = cell => (cell.kind === 'knobs' ? 'Custom Run' : cell.kind === 'install' ? 'Install' : cell.title);
-export const HISTORY_TAB = '__history';
+// The card's three tabs (Run card v1.1 Part 3): one session serves all of them.
+export const TABS = [['run', 'Run'], ['custom', 'Custom run'], ['history', 'History']];
+export const REHEARSAL_OUTPUT = 'Rehearsal output'; // the collapsed block inside each cell that holds EXPECTED_HEADING's facts and output
+export const CUSTOM_KEY = '__custom'; // the runs map's key for the Custom run tab's run (a cell's own key is its cellId)

@@ -3,6 +3,7 @@
 // both "generated": they carry `generated: { kind: 'rehearsal', repo, commit }`, and no delete path removes a card that has it (the canvas's per-card rule;
 // deleting the canvas still removes them). One of each per (repo, commit). Pure: no React, no network, no storage.
 import { buildRunbook, isRunbookBlock, runbookTitle } from './learn-runbook.js';
+import { storedFiles } from './run-card-outputs.js';
 
 export const GENERATED_NOTE = 'Generated cards stay on the canvas';
 export const RUN_CARD_SIZE = { w: 680, h: 640 };
@@ -44,8 +45,9 @@ export const failedStepsOf = record => (record?.steps || []).filter(step => step
 
 // The Run card: the record reference (app, board: where POST /api/learn/run finds it; commit; hardware), and nothing of a session. Cells and results arrive with the
 // first Start and the first run (RunCard.jsx).
-export const newRunBlock = (record, { app, board, routeTitle }) => ({ id: crypto.randomUUID(), type: 'run', dx: 0, dy: 0, title: runTitle(record, routeTitle), generated: generatedOf(record, undefined, routeTitle),
-  run: { app, board, commit: record.commit, hardware: record.hardware || 'cpu', ...(record.routeId ? { routeId: record.routeId } : {}), ...(failedStepsOf(record).length ? { failedSteps: failedStepsOf(record) } : {}) } });
+// v1.1 (run-card-state.json): the card also keeps its tab, the Tutor-added knobs, the Custom run presets and the History. repositoryApp: where a knob's file:line opens in Files.
+export const newRunBlock = (record, { app, board, routeTitle, repositoryApp }) => ({ id: crypto.randomUUID(), type: 'run', dx: 0, dy: 0, title: runTitle(record, routeTitle), generated: generatedOf(record, repositoryApp, routeTitle),
+  run: { app, board, commit: record.commit, hardware: record.hardware || 'cpu', ...(record.routeId ? { routeId: record.routeId } : {}), ...(failedStepsOf(record).length ? { failedSteps: failedStepsOf(record) } : {}), tab: 'run', addedKnobs: [], customRuns: [], history: [] } });
 
 export const newRunbookBlock = (record, repositoryApp, routeTitle) => ({ id: crypto.randomUUID(), type: 'doc', dx: 0, dy: 0, title: runbookTitle(record, routeTitle), generated: generatedOf(record, repositoryApp, routeTitle),
   blocks: buildRunbook(record, { routeTitle }) });
@@ -72,7 +74,7 @@ export function openRehearsalCard(ops, kind, record, { app, board, repositoryApp
   }
   if (!ops.canEdit?.()) return null;
   const sibling = findRehearsalCard(blocks, kind === 'run' ? 'doc' : 'run', record);
-  const block = kind === 'run' ? newRunBlock(record, { app, board, routeTitle }) : newRunbookBlock(record, repositoryApp, routeTitle);
+  const block = kind === 'run' ? newRunBlock(record, { app, board, routeTitle, repositoryApp }) : newRunbookBlock(record, repositoryApp, routeTitle);
   const id = ops.insertGenerated?.(block, { beside: sibling?.id || null });
   return id ? { id, existed: false } : null;
 }
@@ -84,7 +86,7 @@ export async function ensureRehearsalCards(ops, record, { app, board, repository
   if (!ops.canEdit?.()) return null;
   const made = [];
   let runId = findRehearsalCard(ops.blocks?.() || [], 'run', record)?.id || null;
-  if (!runId) { runId = ops.insertGenerated?.(newRunBlock(record, { app, board, routeTitle }), { beside: null }) || null; if (runId) { made.push('run'); await wait(300); } }
+  if (!runId) { runId = ops.insertGenerated?.(newRunBlock(record, { app, board, routeTitle, repositoryApp }), { beside: null }) || null; if (runId) { made.push('run'); await wait(300); } }
   if (!findRehearsalCard(ops.blocks?.() || [], 'doc', record) && ops.insertGenerated?.(newRunbookBlock(record, repositoryApp, routeTitle), { beside: runId })) made.push('runbook');
   return made;
 }
@@ -98,10 +100,10 @@ export const tailOf = (text, max = TAIL_BYTES) => { const s = String(text ?? '')
 export const storedCell = cell => ({ ...cell, expected: { ...cell.expected, ...(cell.expected?.stdoutHead ? { stdoutHead: tailOf(cell.expected.stdoutHead, EXPECTED_BYTES) } : {}), ...(cell.expected?.stdoutTail ? { stdoutTail: tailOf(cell.expected.stdoutTail, EXPECTED_BYTES) } : {}) } });
 
 // A finished run (run-status.json plus its pane text) as the card keeps it, stamped with when it ended. No runId and no session id.
-export const storedResult = (run, text, at = new Date().toISOString()) => ({ status: run.status, rc: run.rc ?? null, sec: run.sec ?? null, cmd: run.cmd || '', out: tailOf(text), at });
+export const storedResult = (run, text, at = new Date().toISOString()) => ({ status: run.status, rc: run.rc ?? null, sec: run.sec ?? null, cmd: run.cmd || '', out: tailOf(text), at, ...(run.producedFiles?.length ? { files: storedFiles(run) } : {}) }); // files: path, bytes, hash and kind by reference, never bytes (run-card-state.json)
 
 // A stored result back as the run status the card renders from.
-export const runFromStored = result => ({ status: result.status, rc: result.rc, sec: result.sec, cmd: result.cmd, stdoutTail: result.out || '', stderrTail: '', complete: true, at: result.at });
+export const runFromStored = result => ({ status: result.status, rc: result.rc, sec: result.sec, cmd: result.cmd, stdoutTail: result.out || '', stderrTail: '', complete: true, at: result.at, ...(result.files ? { producedFiles: result.files.map(f => ({ ...f, fetched: false })) } : {}) });
 export const resultsToRuns = results => Object.fromEntries(Object.entries(results || {}).map(([id, result]) => [id, runFromStored(result)]));
 
 // What Chat, Search and the semantic board read from a Run card: its commands and the last outputs, as plain text, bounded.

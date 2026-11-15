@@ -22,6 +22,7 @@ import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { DOC_CARD_SIZE, docIsEmpty, isFileDrag, migrateDocToCard, newDocBlock, pressKeepsDocFocus } from './canvas-doc.js';
 import { GENERATED_NOTE, RUN_CARD_SIZE, deletableIds, isGenerated, keepGenerated } from './rehearsal-cards.js';
+import { ADD_KNOB_EVENT, applyKnobEvent } from './run-card-knobs.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
 import { explanationCardWidth, openedExplanation } from './explanation-card-width.js';
@@ -950,6 +951,23 @@ function DocNode({ block, zoom, selected, connected, onSelect, onMove, onLayout,
 // cells, last outputs, typed flags; never a session) is saved quietly, as a notebook's words are. A viewer, a copy and a locked card see it with Run and Start disabled.
 function RunNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
   const edit = useContext(CanvasEdit);
+  // The Tutor's "Add --flag to the Run card" (tutor-knob-action.js) reaches the card as a cancelable event; the card of that repository, commit and route takes it (preventDefault) and adds the
+  // knob to its saved state (run-card-knobs.js addKnob: deduped by flag and step). A locked or view-only card answers 'locked' and changes nothing.
+  const latest = useRef({ block, edit });
+  latest.current = { block, edit };
+  useEffect(() => {
+    const take = event => {
+      if (event.defaultPrevented) return;
+      const { block: card, edit: ctx } = latest.current, out = applyKnobEvent(card.run, card.generated, event.detail);
+      if (out.status === 'other') return;
+      event.preventDefault();
+      if (ctx.readOnly || ctx.localCopy || ctx.locked.has(card.id)) { event.detail.status = 'locked'; return; }
+      event.detail.status = out.status;
+      if (out.status === 'added') ctx.patchBlock?.(card.id, { run: out.run }, true);
+    };
+    window.addEventListener(ADD_KNOB_EVENT, take);
+    return () => window.removeEventListener(ADD_KNOB_EVENT, take);
+  }, []);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={RUN_CARD_SIZE.w} height={block.h || RUN_CARD_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
