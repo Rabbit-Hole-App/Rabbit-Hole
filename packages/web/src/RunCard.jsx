@@ -13,9 +13,10 @@ import { EXPECTED_HEADING, HISTORY_TAB, RUN_POLL_MS, cellTabTitle, expectedView,
 // is stopped, or the card unmounts. Self-contained on purpose: it takes only the canvas and board, so it can be mounted in a Tutor
 // panel today and as a canvas card later.
 const ACTION = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
-const STOP = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-700 hover:bg-hover disabled:opacity-40';
+// Stop is grey when nothing runs and red only while a run is in progress (owner 2026-11-14).
+const STOP = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-fail hover:bg-hover disabled:opacity-40';
 const PRE = 'rounded-sm bg-code p-3 font-mono text-xs leading-relaxed text-ink whitespace-pre-wrap break-words';
-const TONE = { running: 'text-green-700', success: 'text-green-700', error: 'text-red-700', idle: '' };
+const TONE = { running: 'text-pass', success: 'text-pass', error: 'text-fail', idle: '' }; // the app's own status text tokens (index.css --color-pass, --color-fail: contrast-safe in light and dark)
 const HEADER = { id: 'run-card', type: 'notebook', title: 'Run the codebase' };
 const wait = (timer, ms) => new Promise(resolve => { timer.current = setTimeout(resolve, ms); });
 
@@ -32,7 +33,7 @@ function Progress({ progress }) {
   return (
     <div data-run-progress className="flex flex-col gap-1">
       <div role="progressbar" aria-label="Run progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.pct === null ? undefined : Math.round(progress.pct * 100)} className="h-1.5 w-full overflow-hidden rounded-full bg-hover">
-        <div className={`h-full rounded-full bg-green-600 ${progress.pct === null ? 'w-2/5 motion-safe:animate-pulse' : 'transition-[width] duration-200'}`} style={progress.pct === null ? undefined : { width: `${Math.round(progress.pct * 100)}%` }} />
+        <div className={`h-full rounded-full bg-success ${progress.pct === null ? 'w-2/5 motion-safe:animate-pulse' : 'transition-[width] duration-200'}`} style={progress.pct === null ? undefined : { width: `${Math.round(progress.pct * 100)}%` }} />
       </div>
       {progress.text && <p className="text-xs text-ink-2">{progress.text}</p>}
     </div>
@@ -129,7 +130,7 @@ export default function RunCard({ app, board }) {
           <p className="min-w-0 flex-1 text-sm font-medium text-ink">{cell.title}</p>
           <span data-run-status data-run-tone={tone} className={`flex items-center gap-1 text-xs font-medium ${TONE[tone] || 'text-ink-2'}`}><Mark tone={tone} />{[runLabel(r), seconds(r?.sec)].filter(Boolean).join(' · ')}</span>
           <button type="button" data-run-run className={ACTION} disabled={!ready || !!active} onClick={() => run(cell)}><Play size={12} />Run</button>
-          <button type="button" data-run-stop className={STOP} disabled={active !== cell.cellId} onClick={stop}><Square size={12} />Stop</button>
+          <button type="button" data-run-stop className={active === cell.cellId ? STOP : ACTION} disabled={active !== cell.cellId} onClick={stop}><Square size={12} />Stop</button>
         </div>
         {progress && <Progress progress={progress} />}
         <pre data-run-cmd className={PRE}>{r?.cmd || cell.cmd}</pre>
@@ -154,12 +155,12 @@ export default function RunCard({ app, board }) {
   return (
     <section data-run-card aria-label="Run card" className="mb-2 flex max-h-[70vh] flex-col rounded-xl border border-line bg-white shadow-sm">
       <CardHeader block={HEADER} className="px-4 pt-3 pb-2" meta="Run card · sandbox" trailing={
-        <button type="button" data-run-session className={ended ? ACTION : STOP} disabled={!session?.sessionId && !ended} onClick={ended ? begin : stop}>
+        <button type="button" data-run-session className={active ? STOP : ACTION} disabled={!session?.sessionId && !ended} onClick={ended ? begin : stop}>
           {ended ? <Play size={12} /> : <Square size={12} />}{ended ? 'Start session' : 'Stop session'}
         </button>} />
       <div className="flex items-center gap-2 px-4 pb-2" data-run-session-status={session?.status}>
-        {session?.status === 'starting' && <Loader2 aria-hidden="true" size={16} className="shrink-0 text-green-700 motion-safe:animate-spin" />}
-        {session?.status === 'starting' && <div role="progressbar" aria-label="Starting sandbox" className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-hover"><div className="h-full w-2/5 rounded-full bg-green-600 motion-safe:animate-pulse" /></div>}
+        {session?.status === 'starting' && <Loader2 aria-hidden="true" size={16} className="shrink-0 text-pass motion-safe:animate-spin" />}
+        {session?.status === 'starting' && <div role="progressbar" aria-label="Starting sandbox" className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-hover"><div className="h-full w-2/5 rounded-full bg-success motion-safe:animate-pulse" /></div>}
         <p aria-live="polite" className={`text-sm ${session?.status === 'starting' ? 'shimmer' : `font-medium ${TONE[sessionTone] || 'text-ink-2'}`}`}>{sessionLabel(session)}</p>
       </div>
       <Tabs value={current} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
