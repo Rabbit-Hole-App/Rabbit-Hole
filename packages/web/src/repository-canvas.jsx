@@ -59,8 +59,9 @@ export function useRepositoryCanvas(project, { codeCards = false } = {}) {
     const learnThis = object => { setContext(ground(object)); learnAction('teach', { app: app.name, prompt: `Teach me ${wireContext(ground(object)).label}` }, {}).then(r => { if (r.status !== 'fallback' && r.message) toast(r.message); }); };
     // Ask in chat on lines also puts them on the canvas as a Code card (LearnPage small:code-card; owner, 2026-10-08).
     const codeCard = range => window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: range.text, path: range.path, start: range.start, end: range.end, commit: range.commit, repo: app.repo } }));
+    const closeFiles = () => files.setOpen(null); // Close all in the Files panel: the open file closes (CodeReader folds the folders)
     const filesView = snapshot
-      ? <CodeReader app={app} snapshot={snapshot} open={files.open} context={context} query="" pick={files.jump} stacked place="panel" onCloseAll={() => files.setOpen(null)}
+      ? <CodeReader app={app} snapshot={snapshot} open={files.open} context={context} query="" pick={files.jump} stacked place="panel" onCloseAll={closeFiles}
           onFile={p => attach(fileObject(snapshot.graph, p))} onSymbol={n => attach(objectOf(snapshot.graph, n))}
           onRange={(kind, range) => { attach(range); if (kind === 'learn') learnThis(range); else { askAbout(range); if (codeCards) codeCard(range); } }} />
       : <RepositoryState repository={repository} what="files" />;
