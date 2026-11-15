@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rabbit-hole.local/rehearsal/run-status.json",
+  "title": "Run status (GET /sessions/<id>/runs/<runId>)",
+  "description": "Polled every 2 s while the run is not complete. stdoutTail and stderrTail are the last limits.RUN_TAIL_LINES lines (at most limits.RUN_TAIL_MAX_BYTES bytes each); the full log is kept server-side (GET /sessions/<id>/runs/<runId>/log answers text/plain). `sec` counts up while running. status: queued, running, then done (rc 0), error (rc != 0), timeout (rc 124, the cell's timeoutSec) or stopped (the session was stopped).",
+  "type": "object", "additionalProperties": false, "required": ["runId", "cellId", "status", "complete", "sec", "cmd", "stdoutTail", "stderrTail", "stdoutBytes", "stderrBytes"],
+  "properties": {
+    "runId": { "type": "string", "pattern": "^[a-f0-9]{16}$" },
+    "cellId": { "type": "string" },
+    "status": { "enum": ["queued", "running", "done", "error", "timeout", "stopped"] },
+    "complete": { "type": "boolean" },
+    "rc": { "type": "integer" },
+    "sec": { "type": "number", "minimum": 0 },
+    "cmd": { "type": "string", "description": "the command actually run (validated flags substituted)" },
+    "stdoutTail": { "type": "string" },
+    "stderrTail": { "type": "string" },
+    "stdoutBytes": { "type": "integer", "minimum": 0 },
+    "stderrBytes": { "type": "integer", "minimum": 0 }
+  }
+}
