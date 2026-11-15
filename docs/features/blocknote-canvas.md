@@ -1,6 +1,6 @@
 # Rabbit Hole — BlockNote-on-Canvas MVP
 
-**Owner decision 2026-11-14 (reverses section 1; the rest of this brief stands for the editor itself).** The BlockNote editor is no longer the canvas's one document. It is a card type, `doc` (`{ blocks }` on a canvas block, like the Notebook card; DocCard.jsx): Insert > Document adds one beside the selection, and a canvas can hold several. The Runbook is generated into a `doc` card. Commit 1 (this change) adds the card and leaves View > Workspace > Editor and the single document untouched; commit 3 removes View > Workspace entirely (the Canvas and Editor rows), `docView`, the per-canvas view choice and the single-document save path, and migrates a board whose document has text into one `doc` card, never dropping a block.
+**Owner decision 2026-11-14 (reverses section 1; the rest of this brief stands for the editor itself), carried out 2026-11-15 (commit 3).** The BlockNote editor is no longer the canvas's one document. It is a card type, `doc` (`{ blocks }` on a canvas block, like the Notebook card; DocCard.jsx): Insert > Document adds one beside the selection, and a canvas can hold several. The Runbook is generated into a `doc` card. View > Workspace (Canvas and Editor), "Go to document start", `docView` and the per-canvas view choice, the free-standing paper and the single-document save, conflict and restore path are removed; the Canvas and Study radios and View > Show / hide stay. **Migration rule:** a board whose saved `doc` has words becomes ONE `doc` card titled `Document`, appended to the board's blocks at `dx 0, dy 0`, holding `doc.blocks` verbatim (an unknown block type is kept, never dropped); the card id is `doc-` plus a hash of those blocks, so two clients make the same card; an empty `doc` is dropped with no card. It is a load-time transform (canvas-doc.js `migrateDocToCard`, applied where AdaptiveCanvas reads the board, so this browser's copy, the server's, a shared, member or fork board are all covered) that saves nothing by itself: read-only, shared and guest views just show the card, and the owner's own canvas saves it as a change (the first save). The server's `doc` stays until that save has landed (the PUT replaces the whole board), and this browser keeps the old document under `<storage key>:doc-premigration` until a save that holds the card has succeeded. The server's `doc` pass-through (fork, share, guest draft) is unchanged: this was a client-only change. Other decisions: a 409 on a board with a document card goes through the one conflict path (both versions of a card are kept, `withPendingWork`); the Saving / Saved chip shows only while a Document card has the focus; Search lists a Document card as a card result (title `Document`) under the Document filter; Chat reads a Document card through the card path (its words, current to the keystroke, `withDocCardLive`), with no separate whole-document share. **Superseded by this: sections 1, 2, 3, 4, 5, 6, 7 (as the paper), 10, 11 and 12 as written for the single document, and owner decisions A1 and B1 below; they are kept as history. Sections 8 (native editing, media scope) and 9 (keyboard focus and event isolation) describe the editor and stand for a Document card.**
 
 (Owner brief, received 2026-10-14 about 9:45 PM PT, verbatim. QUEUED: start only after the PDF refinement release is pushed and cleared in production. Then build with subagents, the toolbar session and Home, push and clear, then the owner's second task.)
 
@@ -14,6 +14,8 @@ This remains a focused writing MVP—not a Notion clone, a second canvas
 engine, or a custom AI editor.
 
 ## 1. The central experience
+
+> Superseded 2026-11-15 (the single document is a `doc` card; see the dated paragraph at the top). Kept as history.
 
 The existing canvas fills the workspace.
 
@@ -35,6 +37,8 @@ Use the existing app, not a separate demo page.
 
 ## 2. One document per canvas
 
+> Superseded 2026-11-15 (the single document is a `doc` card; see the dated paragraph at the top). Kept as history.
+
 Each canvas has one independent BlockNote document.
 
 - Opening Editor again returns to that document.
@@ -53,6 +57,8 @@ Multiple documents, document folders, and nested document pages are
 outside this MVP.
 
 ## 3. View menu and hiding behaviour
+
+> Superseded 2026-11-15 (the single document is a `doc` card; see the dated paragraph at the top). Kept as history.
 
 Add these choices to the existing View menu:
 
@@ -86,6 +92,8 @@ If the document is off-screen after the user pans elsewhere, provide
 frames the document’s beginning.
 
 ## 4. Appearance and first placement
+
+> Superseded 2026-11-15 (the single document is a `doc` card; see the dated paragraph at the top). Kept as history.
 
 The document should resemble a sheet of paper on a large drawing board.
 
@@ -127,6 +135,8 @@ in this MVP.
 
 ## 5. A definite start and a continuous document
 
+> Superseded 2026-11-15 (the single document is a `doc` card; see the dated paragraph at the top). Kept as history.
+
 The document has:
 
 - A clear top boundary.
@@ -152,6 +162,8 @@ Do not add a separate mandatory title field or large document header.
 Users can create their own heading using BlockNote.
 
 ## 6. Scrolling, panning, and zooming
+
+> Superseded 2026-11-15 (the single document is a `doc` card; see the dated paragraph at the top). Kept as history.
 
 Use one coherent spatial model.
 
@@ -184,6 +196,8 @@ Do not solve menu positioning by rendering controls behind the paper,
 under the Chat panel, or outside the visible viewport.
 
 ## 7. Relationship between cards and the document
+
+> Superseded 2026-11-15 (the single document is a `doc` card; see the dated paragraph at the top). Kept as history.
 
 Rabbit Hole cards remain canvas objects.
 
@@ -304,6 +318,8 @@ deleted by a canvas-wide selection and Delete command.
 
 ## 10. Saving and restoration are required
 
+> Superseded 2026-11-15 (the single document is a `doc` card; see the dated paragraph at the top). Kept as history.
+
 Remove the earlier clause making reload persistence optional.
 
 The document must survive:
@@ -347,6 +363,8 @@ implementation. A new real-time collaboration system is not required.
 
 ## 11. Permissions, copying, and document lifecycle
 
+> Superseded 2026-11-15 (the single document is a `doc` card; see the dated paragraph at the top). Kept as history.
+
 Enforce document read/write permissions on the server.
 
 - Editable canvas: document editable.
@@ -369,6 +387,8 @@ If a schema migration is needed, identify it early and prepare it through
 the existing process. Production application requires its own approval.
 
 ## 12. Existing chat context
+
+> Superseded 2026-11-15 (the single document is a `doc` card; see the dated paragraph at the top). Kept as history.
 
 No custom AI controls or Rabbit Hole slash commands inside BlockNote.
 

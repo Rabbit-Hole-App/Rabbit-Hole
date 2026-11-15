@@ -79,8 +79,9 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
                 runner.reset_for_restart()
         if ok:
             knobs, traps = runner.verify_knobs(), runner.run_traps()
-            if knobs and knobs[0]['rc'] != 0:  # knobsVerified[0] is the plan's 'Change it' command: it must have run
-                knob_err = JobFailed('knob_verification_failed', f"knobsVerified[0] exited {knobs[0]['rc']}: {knobs[0]['cmd']}")
+            # A knob command that does not run (a click option that takes two arguments, a value the program refuses) is a finding about the knob, not a reason to
+            # discard a route that ran: only verified knob commands stay in the record (the failing attempts are in the logs), the plan's 'Change it' is built from those.
+            knobs = [k for k in knobs if k['rc'] == 0]
         partial = not ok and runner.gave_up is not None and any(not s.get('failed') for s in runner.steps)  # the steps before the failing one ran: the Run card can still start from them
         if (ok or partial) and knob_err is None and hasattr(provider, 'snapshot') and time.time() < deadline - 150:
             try:  # Run card fast start: clone, install and produced files in one image. Never fails the job; a failure or timeout just leaves the record without snapshotImage (sessions then clone and install themselves).

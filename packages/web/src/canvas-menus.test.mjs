@@ -12,7 +12,7 @@ const canvas = () => api;
 const labels = items => items.filter(item => item.label).map(item => item.label);
 const find = (items, label) => items.find(item => item.label === label);
 const groups = items => items.reduce((all, item) => { if (item.divider) all.push([]); else all[all.length - 1].push(item.label); return all; }, [[]]);
-const build = (state = {}, extra = {}) => canvasEditMenus({ canvas, canvasState: state, docView: 'canvas', setDocView() {}, mac: false, ...extra });
+const build = (state = {}, extra = {}) => canvasEditMenus({ canvas, canvasState: state, mac: false, ...extra });
 const owner = (state, extra) => build(state, { inlineAi: {}, quickEdit: true, panel: { open: true, setOpen() {} }, ...extra });
 const walk = items => items.flatMap(item => (item.items ? [item, ...walk(item.items)] : [item]));
 const allMenus = () => [
@@ -109,10 +109,11 @@ test('Arrange rows call the canvas api', () => {
   assert.deepEqual(calls, [['arrange', 'middle'], ['arrange', 'spread-y'], ['order', 'back'], ['group'], ['ungroup'], ['lockSelection'], ['toggleGrid']]);
 });
 
-test('View: zooms, Workspace, Show / hide, Page guides; the old Mode, Keep tool active, shortcuts and slash rows are gone', () => {
+test('View: zooms, Show / hide, Page guides; the old Mode, Keep tool active, shortcuts and slash rows are gone', () => {
   const view = owner({ selected: 1 }, { comments: { active: true, showPins: true, setPins() {} } })[2];
-  assert.deepEqual(labels(view.items), ['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas', 'Fit selection', 'Workspace', 'Show / hide', 'Page guides', 'Go to document start']);
-  assert.deepEqual(labels(find(view.items, 'Workspace').items), ['Canvas', 'Editor']);
+  assert.deepEqual(labels(view.items), ['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas', 'Fit selection', 'Show / hide', 'Page guides']);
+  assert.equal(find(view.items, 'Workspace'), undefined, 'the single document is a card now: no Workspace submenu, no Go to document start (2026-11-15)');
+  assert.equal(find(view.items, 'Go to document start'), undefined);
   assert.deepEqual(labels(find(view.items, 'Show / hide').items), ['Toolbar', 'Right panel', 'Minimap', 'Rabbit Hole Map', 'Comment pins', 'Learning suggestions']);
   // Without onSlashCommands (a canvas with no Chat composer) there is no Slash Commands row (owner spec 2026-10-29 section 10.4).
   assert.doesNotMatch(labels(walk(view.items)).join('|'), /Curious|Comments|Keep tool active|Keyboard shortcuts|Slash [Cc]ommands|Mode|Zoom to fit/);
@@ -132,16 +133,14 @@ test('View: Slash Commands, last after a divider, calls the page\'s callback; no
   row.onSelect();
   assert.deepEqual(opened, ['slash']);
   assert.equal(find(build({})[2].items, 'Slash Commands'), undefined);
-  assert.equal(groups(build({})[2].items).at(-1).at(-1), 'Go to document start', 'no trailing divider without it');
+  assert.equal(groups(build({})[2].items).at(-1).at(-1), 'Page guides', 'no trailing divider without it');
   assert.match(readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8'), /canvasEditMenus\(\{[^\n]*onSlashCommands: \(\) => setSlashHelpOpen\(true\) \}\)/);
   assert.doesNotMatch(readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8'), /onSlashCommands/, 'a shared canvas has no Chat composer to fill');
 });
 
-test('View: Fit selection needs a selection; Workspace marks the current mode; no study, layout or save commands', () => {
+test('View: Fit selection needs a selection; no study, layout or save commands', () => {
   assert.equal(find(owner({})[2].items, 'Fit selection').disabled, true);
   assert.equal(find(owner({ selected: 2 })[2].items, 'Fit selection').disabled, false);
-  const modes = find(canvasEditMenus({ canvas, canvasState: {}, docView: 'editor', setDocView() {} })[2].items, 'Workspace').items;
-  assert.deepEqual(modes.map(mode => [mode.label, mode.radio]), [['Canvas', false], ['Editor', true]]);
   assert.doesNotMatch(allMenus().flatMap(menu => labels(menu.items)).join('|'), /Study|layout|Save/i);
 });
 
@@ -161,7 +160,7 @@ test('Show / hide drives the existing state: widgets through showWidget, comment
 });
 
 test('Show / hide lists only what this canvas has: no Toolbar for a viewer, no Right panel without one, no Comment pins without comments', () => {
-  const rows = extra => labels(find(canvasEditMenus({ canvas, canvasState: {}, docView: 'canvas', setDocView() {}, ...extra })[2].items, 'Show / hide').items);
+  const rows = extra => labels(find(canvasEditMenus({ canvas, canvasState: {}, ...extra })[2].items, 'Show / hide').items);
   assert.deepEqual(rows({ drawing: false }), ['Minimap', 'Rabbit Hole Map', 'Learning suggestions']);
   assert.deepEqual(rows({}), ['Toolbar', 'Minimap', 'Rabbit Hole Map', 'Learning suggestions']);
 });
@@ -172,9 +171,6 @@ test('View rows call the canvas api, and View is a menu of its own, so it stays 
   find(view.items, 'Fit selection').onSelect();
   find(view.items, 'Zoom in').onSelect();
   assert.deepEqual(calls, [['zoomToSelection'], ['zoomIn']]);
-  const set = [];
-  find(canvasEditMenus({ canvas, canvasState: {}, docView: 'canvas', setDocView: mode => set.push(mode) })[2].items, 'Workspace').items[1].onSelect();
-  assert.deepEqual(set, ['editor']);
 });
 
 test('every row with an icon draws it aria-hidden, 16px at about 1.75 stroke; no three-dot icon or deferred layout command ships', () => {
@@ -202,17 +198,16 @@ test('no app-owned menu label ends in an ellipsis', () => {
 });
 
 // Pinned Study (UI-27 Release 1, owner-approved spec 2026-10-22: Canvas and Study belong inside View, no extra top row).
-test('View: Canvas and Study radio rows above Workspace only where the page passes study; a shared canvas never gets them', () => {
+test('View: Canvas and Study radio rows only where the page passes study; a shared canvas never gets them', () => {
   const modes = [];
   const study = mode => ({ mode, setMode: next => modes.push(next) });
   const view = owner({}, { study: study('canvas') })[2];
-  assert.deepEqual(groups(view.items), [['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas', 'Fit selection'], ['Canvas', 'Study'], ['Workspace', 'Show / hide', 'Page guides'], ['Go to document start']]);
+  assert.deepEqual(groups(view.items), [['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas', 'Fit selection'], ['Canvas', 'Study'], ['Show / hide', 'Page guides']]);
   assert.deepEqual(['Canvas', 'Study'].map(label => find(view.items, label).radio), [true, false]);
   assert.deepEqual(['Canvas', 'Study'].map(label => find(owner({}, { study: study('study') })[2].items, label).radio), [false, true]);
   find(view.items, 'Study').onSelect();
   find(view.items, 'Canvas').onSelect();
   assert.deepEqual(modes, ['study', 'canvas']);
-  assert.deepEqual(labels(find(view.items, 'Workspace').items), ['Canvas', 'Editor'], 'the document Canvas / Editor choice is untouched');
   assert.ok(!labels(build({})[2].items).includes('Study'), 'no study given (a shared canvas): no rows');
   assert.doesNotMatch(labels(walk(view.items)).join('|'), /layout|Save|\.\.\.|…/i, 'no Release 2 layout rows');
 });

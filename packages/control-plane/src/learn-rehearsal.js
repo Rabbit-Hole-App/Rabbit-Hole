@@ -344,37 +344,63 @@ export async function rehearsalRoute(path, req, env, deps = {}) {
   }
 }
 
-// ---- Run card (packages/rehearsal-runtime/RUN_CARD.md): POST /api/learn/run {app, board, action, sessionId?, cellId?, flags?, runId?} ----
+// ---- Run card (packages/rehearsal-runtime/RUN_CARD.md): POST /api/learn/run {app, board, action, sessionId?, cellId?, flags?, addedKnobs?, custom?, runId?} ----
 // action start | run | poll | log | stop, forwarded to the controller's session routes. An optional routeId (every action) names the catalogue route whose record `start` reads. The browser polls every 2 s; no Durable Object.
-// The control plane never accepts or forwards a command: a run names a cellId and flag values, the controller builds the command.
+// The control plane never accepts or forwards a command: a run names a cellId (or a `custom` sequence of route steps) and flag values (and the Tutor's `addedKnobs`); the controller builds the command and validates every knob.
+// GET /api/learn/run?action=file&app=&board=&sessionId=&runId=&path=[&routeId=] streams a file the run produced (the controller's files route), under the same owner authorization.
 const SESSION_ID = /^[a-f0-9]{32}$/, RUN_ID = /^[a-f0-9]{16}$/, CELL_ID = /^[a-z0-9_]+$/, FLAG = /^--[A-Za-z0-9_-]+$/;
-const RUN_ACTIONS = ['start', 'run', 'poll', 'log', 'stop'], PASS = [400, 404, 409, 410, 429], MAX_LOG = 1000000;
-const RUN_FIELDS = ['app', 'board', 'action', 'sessionId', 'cellId', 'flags', 'runId', 'routeId'];
+const RUN_ACTIONS = ['start', 'run', 'poll', 'log', 'stop', 'file'], PASS = [400, 404, 409, 410, 429], MAX_LOG = 1000000;
+const RUN_FIELDS = ['app', 'board', 'action', 'sessionId', 'cellId', 'flags', 'custom', 'addedKnobs', 'runId', 'routeId'];
+const FILE_QUERY = ['app', 'board', 'action', 'sessionId', 'runId', 'path', 'routeId'];
 // An opaque, stable id for the controller (never the email): sha256 hex of `${org}|${user_id}`, first 32 characters.
 export async function runUser(access) {
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${access.org}|${access.user_id}`));
   return [...new Uint8Array(bytes)].map(n => n.toString(16).padStart(2, '0')).join('').slice(0, 32);
 }
-const validFlags = flags => !flags || (typeof flags === 'object' && !Array.isArray(flags) && Object.keys(flags).length <= 8
+const plain = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const validFlags = flags => !flags || (plain(flags) && Object.keys(flags).length <= 24
   && Object.entries(flags).every(([name, value]) => FLAG.test(name) && typeof value === 'string' && value.length <= 80));
+// run-request.json `custom`: {steps (1-8 route step ids), knobs ({stepId: {flag: value}}), name? (at most 60 characters)}. Only the shape is checked here; the controller checks the steps against the record.
+const validCustom = custom => plain(custom) && Object.keys(custom).every(k => ['steps', 'knobs', 'name'].includes(k))
+  && Array.isArray(custom.steps) && custom.steps.length >= 1 && custom.steps.length <= 8 && custom.steps.every(id => typeof id === 'string' && CELL_ID.test(id))
+  && plain(custom.knobs) && Object.values(custom.knobs).every(knobs => plain(knobs) && validFlags(knobs)) && (custom.name === undefined || (typeof custom.name === 'string' && custom.name.length <= 60));
+// run-request.json `addedKnobs`: at most 8 {flag, type, default, source, step?}; the controller reads each source line from the clone before it trusts the flag.
+const validAdded = list => list === undefined || (Array.isArray(list) && list.length <= 8 && list.every(k => plain(k) && Object.keys(k).every(key => ['flag', 'type', 'default', 'source', 'step'].includes(key))
+  && FLAG.test(k.flag) && ['string', 'float', 'int', 'bool'].includes(k.type) && typeof k.default === 'string' && k.default.length <= 80 && typeof k.source === 'string' && k.source.length <= 300
+  && (k.step === undefined || (typeof k.step === 'string' && CELL_ID.test(k.step)))));
+// A produced file's path: relative to the clone, no `..`, no leading slash, no backslash or control characters.
+const validFilePath = path => typeof path === 'string' && path.length >= 1 && path.length <= 512 && !path.startsWith('/') && !path.includes('\\') && !/[\u0000-\u001f]/.test(path) && !path.split('/').some(part => part === '..' || part === '');
 
 export async function runRoute(path, req, env, deps = {}) {
   if (path !== '/api/learn/run') return null;
   if (!env.REPOSITORY_REHEARSALS) return json({ error: 'Not found' }, 404); // production does not bind the object
-  if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
+  if (req.method !== 'POST' && req.method !== 'GET') return json({ error: 'POST required' }, 405);
   let body;
-  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid JSON' }, 400);
-  if ('cmd' in body) return json({ error: 'A command cannot be sent: name a cell and its flags' }, 400);
-  const unknown = Object.keys(body).find(key => !RUN_FIELDS.includes(key));
-  if (unknown) return json({ error: `Unknown field ${unknown}` }, 400);
-  const { action, sessionId, cellId, runId, flags, routeId } = body;
+  if (req.method === 'GET') { // only the produced-file read is a GET
+    const query = new URL(req.url).searchParams;
+    const stray = [...query.keys()].find(key => !FILE_QUERY.includes(key));
+    if (stray) return json({ error: `Unknown field ${stray}` }, 400);
+    body = Object.fromEntries([...query.entries()]);
+    if (body.action !== 'file') return json({ error: 'POST required' }, 405);
+  } else {
+    try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid JSON' }, 400);
+    if ('cmd' in body || 'command' in body) return json({ error: 'A command cannot be sent: name a cell and its flags' }, 400);
+    const unknown = Object.keys(body).find(key => !RUN_FIELDS.includes(key));
+    if (unknown) return json({ error: `Unknown field ${unknown}` }, 400);
+  }
+  const { action, sessionId, cellId, runId, flags, custom, addedKnobs, routeId } = body;
   if (routeId !== undefined && (typeof routeId !== 'string' || !ROUTE_ID.test(routeId) || routeId === CATALOGUE)) return json({ error: 'routeId is not valid' }, 400);
   if (!RUN_ACTIONS.includes(action)) return json({ error: `action must be one of ${RUN_ACTIONS.join(', ')}` }, 400);
+  if (action === 'file' && req.method !== 'GET') return json({ error: 'GET required' }, 405);
   if (action !== 'start' && !SESSION_ID.test(sessionId)) return json({ error: 'sessionId is not valid' }, 400);
-  if (action === 'run' && !CELL_ID.test(cellId)) return json({ error: 'cellId is not valid' }, 400);
-  if (action === 'run' && !validFlags(flags)) return json({ error: 'flags must be at most 8 `--name` keys with string values of at most 80 characters' }, 400);
-  if ((action === 'poll' || action === 'log') && !RUN_ID.test(runId)) return json({ error: 'runId is not valid' }, 400);
+  if (action === 'run' && custom !== undefined && cellId !== undefined) return json({ error: 'name a cell or a custom run, not both' }, 400);
+  if (action === 'run' && custom === undefined && !CELL_ID.test(cellId)) return json({ error: 'cellId is not valid' }, 400);
+  if (action === 'run' && custom !== undefined && (flags !== undefined || !validCustom(custom))) return json({ error: 'custom must be {steps: 1 to 8 step ids, knobs: {stepId: {--flag: value}}, name?: at most 60 characters}' }, 400);
+  if (action === 'run' && !validFlags(flags)) return json({ error: 'flags must be at most 24 `--name` keys with string values of at most 80 characters' }, 400);
+  if (action === 'run' && !validAdded(addedKnobs)) return json({ error: 'addedKnobs must be at most 8 {flag, type, default, source} entries' }, 400);
+  if ((action === 'poll' || action === 'log' || action === 'file') && !RUN_ID.test(runId)) return json({ error: 'runId is not valid' }, 400);
+  if (action === 'file' && !validFilePath(body.path)) return json({ error: 'path must be a file path inside the repository' }, 400);
   const access = await ownerAccess(req, env, body, deps);
   if (access instanceof Response) return access;
   try {
@@ -385,17 +411,24 @@ export async function runRoute(path, req, env, deps = {}) {
       const stored = await storedRecord(env, repo, routeId, routeId ? await storedCatalogue(env, repo) : null); // a routeId reads that route's record; none, the record made before the catalogue
       if (!stored) return json({ error: 'no_record' }, 409);
       response = await rehearsalRequest(env, '/sessions', { repo: repo.repo, commit: repo.commit, canvas: body.app, user: await runUser(access), record: stored.record });
-    } else if (action === 'run') response = await rehearsalRequest(env, `/sessions/${sessionId}/run`, { cellId, ...(flags && Object.keys(flags).length ? { flags } : {}) });
+    } else if (action === 'run') response = await rehearsalRequest(env, `/sessions/${sessionId}/run`, { ...(custom !== undefined ? { custom } : { cellId }), ...(flags && Object.keys(flags).length ? { flags } : {}), ...(addedKnobs?.length ? { addedKnobs } : {}) });
     else if (action === 'stop') response = await rehearsalRequest(env, `/sessions/${sessionId}/stop`, {});
+    else if (action === 'file') response = await rehearsalRequest(env, `/sessions/${sessionId}/runs/${runId}/files/${body.path.split('/').map(encodeURIComponent).join('/')}`);
     else response = await rehearsalRequest(env, `/sessions/${sessionId}/runs/${runId}${action === 'log' ? '/log' : ''}`);
     if (!response.ok) {
       const detail = await response.json().catch(() => null);
-      if (PASS.includes(response.status)) return json({ error: typeof detail?.error === 'string' ? detail.error : `The run controller refused the request (${response.status})` }, response.status);
+      if (PASS.includes(response.status) || (action === 'file' && response.status === 403 && typeof detail?.error === 'string')) { // a file's 403 is the controller's own "binary, never served", not a credential problem
+        return json({ error: typeof detail?.error === 'string' ? detail.error : `The run controller refused the request (${response.status})` }, response.status);
+      }
       if ([401, 403].includes(response.status)) return json({ error: rejected(response.status) }, 502);
       return json({ error: 'rehearsal_unavailable' }, 503);
     }
     // shortcut: the log is cut to its last MAX_LOG characters here; the controller already bounds it, page it if a run ever needs more.
     if (action === 'log') return json({ log: (await response.text()).slice(-MAX_LOG) });
+    if (action === 'file') { // the bytes as the controller typed them (an SVG is text/plain there; image/svg+xml is never passed on), never cached, never sniffed, never able to run script
+      const type = response.headers.get('Content-Type') || 'application/octet-stream';
+      return new Response(response.body, { status: 200, headers: { 'Content-Type': /^image\/svg/i.test(type) ? 'text/plain; charset=utf-8' : type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': 'sandbox', 'Content-Disposition': 'inline' } });
+    }
     return json(await response.json(), response.status);
   } catch (error) {
     console.error('run route', error.message);

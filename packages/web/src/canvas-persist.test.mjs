@@ -2,7 +2,7 @@
 // board's server copy, awaited. Fake storage and a fake onSave: no browser, no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { flushBoard, boardFromText, boardHasContent, boardPending, boardText, conflictBaseKey, conflictDoc, lightBlocks, pendingWork, persistBoard, serial, sharingOf, withPendingWork } from './canvas-persist.js';
+import { flushBoard, boardFromText, boardHasContent, boardPending, boardText, conflictBaseKey, lightBlocks, pendingWork, persistBoard, serial, sharingOf, withPendingWork } from './canvas-persist.js';
 
 const big = `data:image/png;base64,${'A'.repeat(120001)}`, small = 'data:image/png;base64,AAAA';
 const state = { strokes: [{ id: 's' }], shapes: [], items: [], links: [], blocks: [{ id: 'a', src: big }, { id: 'b', src: small }, { id: 'c' }], groups: [], areas: [] };
@@ -192,12 +192,12 @@ test('conflict recovery after a 409: a card both devices changed keeps both vers
   assert.equal(merged.conflicts, 1, 'the caller says both versions are on the canvas');
   // An unchanged card B removed is removed.
   assert.deepEqual(recover({ server: baseBoard, baseText, live: { ...baseBoard, blocks: [card('e1', 'one')] } }).state.blocks.map(b => b.id), ['e1']);
-  // The document: B's goes up only when A left it as it was; when both changed it, the server's stays (B's is offered back).
-  const mineDoc = { blocks: [{ id: 'p', text: 'B' }] };
-  assert.deepEqual(conflictDoc({ base: boardFromText(baseText), server: baseBoard, mine: mineDoc }), mineDoc);
-  assert.equal(conflictDoc({ base: boardFromText(baseText), server: { doc: { blocks: [] } }, mine: mineDoc }), null);
-  assert.equal(conflictDoc({ base: boardFromText(baseText), server: baseBoard, mine: baseBoard.doc }), null);
-  assert.equal(conflictDoc({ base: boardFromText(boardText({})), server: {}, mine: null }), null);
+  // A Document card is a card: both devices' edits to it are kept the same way (the document is no longer one object with its own 409 rule).
+  const docCard = text => ({ id: 'doc-1', type: 'doc', blocks: [{ id: 'p', text }] });
+  const docBase = { ...baseBoard, blocks: [...baseBoard.blocks, docCard('base')] };
+  const docMerged = recover({ server: { ...docBase, blocks: [...baseBoard.blocks, docCard('A')] }, baseText: boardText(docBase), live: { ...docBase, blocks: [...baseBoard.blocks, docCard('B')] } });
+  assert.deepEqual(docMerged.state.blocks.filter(b => b.type === 'doc').map(b => [b.id.startsWith('doc-1'), b.blocks[0].text]), [[true, 'A'], [true, 'B']]);
+  assert.equal(docMerged.conflicts, 1);
 });
 
 test('reload during a pending conflict: the base outlives the page, and the edits in this browser\'s copy still go up', () => {

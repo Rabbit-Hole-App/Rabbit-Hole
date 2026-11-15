@@ -156,6 +156,13 @@ def set_flag(cmd: str, flag: str, value: str, spaced: bool = False) -> str:
     return re.sub(r' {2,}', ' ', out).strip() if len(seen) > 1 else out
 
 
+def move_port_checks(checks: list, knob: dict, value: str) -> list:
+    """A server step whose port knob is changed: the port checks move with it."""
+    if knob['type'] == 'int' and 'port' in knob['flag'].lower() and str(knob.get('default', '')).isdigit() and str(value).isdigit():
+        return [{**c, 'port': int(value)} if c.get('port') == int(knob['default']) else c for c in checks]
+    return checks
+
+
 def _extra_ints(knobs: list, skip: str = '') -> list:
     """Safe small values for the route's int knobs (1, or 5 for token/length/size flags), so a trap run stays cheap."""
     return [(k['flag'], '5' if re.search(r'token|len|size', k['flag']) else '1') for k in knobs if k['type'] == 'int' and k['flag'] != skip]
@@ -242,6 +249,8 @@ class Runner:
     _note: str = ''
     domains: list = field(default_factory=list)   # the sandbox's current outbound allowlist (shown to the agent)
     _bg: list = field(default_factory=list)       # background (longRunning) processes still up: {'step', 'pid'}
+    probe_body_limit: int = 200                   # bytes of an http_200 body kept; the Run card raises it to 64 KB and reads `probes`
+    probes: list = field(default_factory=list)    # [{path, status, contentType?, body?}] of the http_200 probes that passed
 
     # -- primitives
     def sh(self, cmd: str, timeout: int):
@@ -343,9 +352,14 @@ class Runner:
         if not _SAFE_PATH.match(check['path']):
             return {'passed': False, 'error': 'the path is not a plain URL path'}
         url = shlex.quote(f"http://127.0.0.1:{port}{check['path']}")
-        inner = f'until curl -fsS --max-time 5 -o /tmp/rehearsal-http-body {url}; do kill -0 {pid} 2>/dev/null || exit 1; sleep 1; done'
-        res = self.sh(f'rm -f /tmp/rehearsal-http-body; timeout {left} bash -c {shlex.quote(inner)}; rc=$?; head -c 200 /tmp/rehearsal-http-body 2>/dev/null; exit $rc', left + 15)
-        return {'passed': res.rc == 0, **({'body': redact_text(res.stdout)[:200]} if res.rc == 0 and res.stdout else {})}
+        inner = f'until curl -fsS --max-time 5 -D /tmp/rehearsal-http-head -o /tmp/rehearsal-http-body {url}; do kill -0 {pid} 2>/dev/null || exit 1; sleep 1; done'
+        limit = self.probe_body_limit
+        res = self.sh(f'rm -f /tmp/rehearsal-http-body /tmp/rehearsal-http-head; timeout {left} bash -c {shlex.quote(inner)}; rc=$?; head -c {limit} /tmp/rehearsal-http-body 2>/dev/null; exit $rc', left + 15)
+        body = redact_text(res.stdout)[:limit] if res.rc == 0 and res.stdout else ''
+        if res.rc == 0:
+            ct = self.sh("grep -i '^content-type:' /tmp/rehearsal-http-head | tail -1 | cut -d: -f2- | tr -d '\\r' | sed 's/^ *//'", 15).stdout.strip() if limit > 200 else ''
+            self.probes.append({'path': check['path'], 'status': 200, **({'contentType': ct[:120]} if ct else {}), **({'body': body} if body else {})})
+        return {'passed': res.rc == 0, **({'body': body} if body else {})}
 
     def _start_long(self, step: dict, cmd: str = None, checks: list = None, keep: bool = True, name: str = None) -> tuple:
         """Start `cmd` (default the step's) with nohup in its own session, capture its pid, probe the checks, read its log. Left running (and remembered for _stop_bg) only when every check passed and `keep`."""
@@ -359,6 +373,7 @@ class Runner:
         pid = (launch.stdout.strip().splitlines() or [''])[-1]
         if not pid.isdigit():
             return ExecResult(launch.rc or 1, '', launch.stderr or 'could not start the process', round(time.time() - t0, 2)), [{'type': c['type'], 'passed': False} for c in checks], None
+        self._bg.append({'step': name, 'pid': pid})  # known at once: a caller's `finally: _stop_bg()` then kills it even when a probe below raises
         started = []
 
         def probe(c):
@@ -376,10 +391,8 @@ class Runner:
         for c, r in zip(checks, results):
             done.append({'type': c['type'], **r} if r is not None else evaluate_checks([c], 0 if up else 1, text, self.provider.stat)[0])
         sec = round(time.time() - t0, 2)
-        if keep and up and all(c['passed'] for c in done):
-            self._bg.append({'step': name, 'pid': pid})
-        else:
-            self._kill(pid)
+        if not (keep and up and all(c['passed'] for c in done)):
+            self._stop_bg(name)
         return ExecResult(0 if up else 1, text, '', sec), done, (started[0] if started else None)
 
     def _kill(self, pid: str) -> None:
@@ -393,7 +406,8 @@ class Runner:
         """Kill the background processes (of one step, or all). Never raises: it runs in a `finally`."""
         for b in [b for b in self._bg if name is None or b['step'] == name]:
             self._kill(b['pid'])
-            self._bg.remove(b)
+            if b in self._bg:  # a second caller (a Run card stop) may have removed it
+                self._bg.remove(b)
 
     def stop_background(self) -> None:
         self._stop_bg()
@@ -471,7 +485,11 @@ class Runner:
             pre = {'id': step['id'] + '_pre', 'cmd': change, 'source': f'repair fix {len(self.fixes) + 1}', 'timeoutSec': 600, 'checks': [{'type': 'exit_zero'}]}
             if not self._run_pre(pre):
                 return 'the added step failed'
-            i = self.route['steps'].index(step)
+            try:
+                i = self.route['steps'].index(step)
+            except ValueError:  # the install pseudo-step is not in route['steps']: the added command joins the install commands instead (it already ran)
+                self.route['install'].insert(0, {'cmd': change, 'source': pre['source']})
+                return ''
             self.route['steps'].insert(i, pre)
         else:
             return 'unknown fix kind'
@@ -515,8 +533,7 @@ class Runner:
         for k in ks:
             v = knob_value(k)
             cmd = set_flag(cmd, k['flag'], v, True)
-            if k['type'] == 'int' and 'port' in k['flag'].lower() and str(k.get('default', '')).isdigit() and v.isdigit():
-                checks = [{**c, 'port': int(v)} if c.get('port') == int(k['default']) else c for c in checks]
+            checks = move_port_checks(checks, k, v)
         res, done, started = self._start_long(step, cmd, checks, keep=False, name='knob-' + step['id'])
         self._attempt_log_extra(logname, cmd, res)
         return {'cmd': cmd, 'rc': 0 if all(c['passed'] for c in done) else 1, 'sec': started if started is not None else res.sec, 'startsWithPrompt': False, 'separators': 0}

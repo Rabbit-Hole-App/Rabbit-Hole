@@ -443,4 +443,17 @@ def finish_route(route: dict, files: list, reader, chosen: dict = None, prereqs:
             if truth:
                 k.update(type=truth['type'], default=truth['default'], source=truth['source'])
                 break
+    # Every knob the step's own script declares is listed (owner 2026-11-15: the Run card shows all of them, the first three visible): the model's hints come first,
+    # in its order, then the rest by source line. A flag already fixed in the step's command (--device=cpu) is not offered for editing.
+    for step in route['steps']:
+        have = {k['flag'] for k in route['knobs'] if k['step'] == step['id']}
+        fixed = set(re.findall(r'(--[A-Za-z0-9_-]+)', step['cmd']))
+        extra = []
+        for p in step_script_paths(step['cmd']):
+            src = reader(p) if p in fileset and p.endswith('.py') else None
+            for t in (extract_knobs(p, src) if src else []):
+                if t['flag'] not in have and t['flag'] not in fixed and t['type'] in ('string', 'float', 'int', 'bool'):
+                    extra.append({'step': step['id'], 'flag': t['flag'], 'default': t['default'], 'type': t['type'], 'source': t['source']})
+                    have.add(t['flag'])
+        route['knobs'] += extra[:24]  # ponytail: a script with more than 24 undeclared flags keeps its first 24
     return route

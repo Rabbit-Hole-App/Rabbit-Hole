@@ -12,7 +12,7 @@ APP_NAME = 'rabbit-hole-rehearsal'
 REPO_DIR = '/work/repo'
 IMAGE_SPEC = {  # pinned recipe; the digest recorded in the job record is sha256 of this spec (Modal exposes an image id, not a registry digest)
     'base': 'python:3.12-slim',
-    'apt': ['git', 'ca-certificates'],
+    'apt': ['git', 'ca-certificates', 'curl'],
     'pip': [{'packages': ['torch'], 'index_url': 'https://download.pytorch.org/whl/cpu'}, {'packages': ['numpy']}],  # CPU wheel; the probe checks no nvidia/cuda packages came with it
     'run': ['mkdir -p /work/repo'],  # the sandbox workdir must exist
 }  # requests and tiktoken are deliberately NOT baked: the route's install step (or a repair) has to bring them
