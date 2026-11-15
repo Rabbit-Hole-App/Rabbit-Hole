@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rabbit-hole.local/rehearsal/catalogue.json",
   "title": "Route catalogue: every way to use a repository, read from its indexed snapshot (no sandbox)",
-  "description": "Produced by catalogue.py (route-catalogue-spec.md section 2): RULES find entry points, manifests, Makefile targets, compose files and CI workflows with their source lines; ONE model call groups, titles, ranks and writes the one-sentence outcome. Nothing in the catalogue exists without a rule-found source: every stepsSketch[].source is one of the candidates the rules found. VALIDATION (checked by catalogue.py, then one re-ask with the errors, else failed no_catalogue): schema-valid; exactly one route has recommended true among the practical routes (none when there are no practical routes); titles are at most 70 characters and contain no file path, no command and no file:line (those belong in stepsSketch); at most 8 practical routes, the rest listed in `more`. Cost is a label, never a number: effort is one of the six labels below. A route whose requirements the hardware class cannot meet has practical false and a plain-words `reason`; it is shown as text in the chat, never as a chip. Cached in R2 at learn-repositories-dev/<appId>/<commit>/catalogue-<hardware>.json.",
+  "description": "Produced by catalogue.py (route-catalogue-spec.md section 2): RULES find entry points, manifests, Makefile targets, compose files and CI workflows with their source lines; ONE model call groups, titles and writes the one-sentence outcome and the requirements. `practical`, `effort`, `reason`, `recommended`, the order of `routes` and `more` are computed by the controller from the requirements (catalogue.derive), never by the model: the model-facing copy of this schema (catalogue.model_schema) leaves them out, and any it sends anyway is overwritten. Nothing in the catalogue exists without a rule-found source: every stepsSketch[].source is one of the candidates the rules found. VALIDATION (checked by catalogue.py, then one re-ask with the errors, else failed no_catalogue): schema-valid; exactly one route has recommended true among the practical routes (none when there are no practical routes); titles are at most 70 characters and contain no file path, no command and no file:line (those belong in stepsSketch); at most 8 practical routes, the rest listed in `more`. Cost is a label, never a number: effort is one of the six labels below. A route whose requirements the hardware class cannot meet has practical false and a plain-words `reason`; it is shown as text in the chat, never as a chip. Cached in R2 at learn-repositories-dev/<appId>/<commit>/catalogue-<hardware>.json.",
   "type": "object",
   "additionalProperties": false,
   "required": ["repo", "commit", "hardware", "summary", "groups", "routes"],
@@ -51,8 +51,11 @@
             "docker": { "type": "boolean" },
             "gpu": { "type": "boolean" },
             "services": { "type": "array", "items": { "type": "string" } },
-            "downloadGB": { "type": "number", "minimum": 0 },
-            "accounts": { "type": "array", "items": { "type": "string" } }
+            "downloadGB": { "type": "number", "minimum": 0, "description": "download beyond pip packages, in GB" },
+            "downloadHosts": { "type": "array", "items": { "type": "string" }, "description": "hostnames the route downloads from (data, weights, tools); the controller checks them against the sandbox allowlist" },
+            "accounts": { "type": "array", "items": { "type": "string" }, "description": "accounts, API keys or credentials the route needs" },
+            "platform": { "type": "string", "description": "only when the route is limited to one operating system, e.g. macos" },
+            "evidence": { "type": "array", "description": "a rule-found source for each requirement claimed", "items": { "type": "object", "additionalProperties": false, "required": ["kind", "source"], "properties": { "kind": { "type": "string" }, "source": { "$ref": "#/$defs/source" } } } }
           }
         },
         "prerequisites": { "type": "array", "items": { "type": "string", "pattern": "^[a-z0-9_]+$" }, "description": "routeIds this route depends on; their steps are inlined as this route's first steps when it is rehearsed" },

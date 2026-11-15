@@ -236,6 +236,8 @@
     {
       "id": "temperature_int_not_float",
       "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --temperature=1 --num_samples=1 --max_new_tokens=5",
+      "kind": "wrong_type",
+      "knob": "--temperature",
       "rc": 1,
       "sec": 1.2,
       "stderrTail": "AssertionError",

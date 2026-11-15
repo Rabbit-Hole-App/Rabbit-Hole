@@ -97,6 +97,8 @@
         "type": "object", "additionalProperties": false, "required": ["id", "cmd", "rc", "sec", "stderrTail", "failsAsExpected", "log"],
         "properties": {
           "id": { "type": "string" }, "cmd": { "type": "string" }, "rc": { "type": "integer" }, "sec": { "type": "number", "minimum": 0 },
+          "kind": { "enum": ["wrong_type", "string_equals", "unknown_flag"], "description": "the rule that generated the trap from the route's knob types (runner.trap_plan); fixtures match traps by kind + knob. Absent on records written before 2026-11-15." },
+          "knob": { "type": "string", "description": "the flag the trap targets (for unknown_flag, the real flag that was misspelled)" },
           "stderrTail": { "type": "string", "description": "last 20 lines" },
           "failsAsExpected": { "type": "boolean", "description": "rc != 0" },
           "log": { "type": "string", "description": "logs/trap-<id>.log" }
@@ -125,7 +127,7 @@
     },
     "knobsFailed": {
       "type": "array",
-      "description": "knob verification commands that did not run (a click option that takes two arguments, a value the program refuses): recorded with their one-line error, never dropped",
+      "description": "knob verification commands that did not run (a click option that takes two arguments, a value the program refuses): recorded with their one-line error, never dropped. A server (longRunning) step with at least one knob always leaves an entry in knobsVerified or here; a check that could not run at all is recorded with error 'knobs not run: <reason>'.",
       "items": { "type": "object", "additionalProperties": false, "required": ["cmd", "rc", "error"], "properties": { "cmd": { "type": "string" }, "rc": { "type": "integer" }, "error": { "type": "string", "maxLength": 300 } } }
     },
     "allChecksPassed": { "type": "boolean" },
