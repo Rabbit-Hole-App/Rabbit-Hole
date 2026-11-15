@@ -283,3 +283,22 @@ adapter claims the one selected object, on view-only boards too (Add to chat and
 `card.focus` ("Focus", `data-menu-focus`, capability `canvas.view`) has the same rule. FocusFrame: `data-focus-frame=<id>`,
 `data-focus-kind`, the title (`objectName`) and "Back to canvas" (`data-focus-back`, Lucide `Minimize`). Browser coverage:
 `packages/web/e2e/focus-chrome-check.mjs` (needs the notebook adapter; CI only).
+
+## 8. Pinned Study for a codebase canvas (owner decisions 2026-11-15, spec pinned-study-codebase-spec.md v1.1)
+
+On a repository canvas (one with Files and Graph) the Study split is: left = Graph and Files (and Pinned only while a card is pinned); right = Run,
+Runbook, Notebook, Canvas, from what the canvas has. This extends Release 1; its pins, the iframe sibling rule and the this-browser-only storage are unchanged.
+
+- `study-state.js` keeps `referenceTab` ('graph' | 'files' | 'pin'), `work` ('canvas' | 'notebook' | 'run' | 'runbook') with `notebookId`, `runId`,
+  `runbookId`, `workSet` (the work was chosen; until then a canvas with a Run card opens on Run), `filesPlace` ({ path, line }) and `panelWas` (the right
+  panel's state when Study closed it). Actions: `setReferenceTab`, `setWork { work, cardId }`, `filesAt`, `panelWas`. `normalize` accepts the Release 1 shape.
+- `study-work.js` (pure): the work options, the remembered card, the default work, the Study | Canvas pill rule, the route's first source file and the
+  Study these actions.
+- Run and the Runbook are Focus on the existing card, like the Notebook: `focus-adapter-run.js` ("Focus run card") and `focus-adapter-doc.js` ("Focus
+  document", any Document card) restyle the host in place (`focus-host.js`), so the Run card's session lives across tabs and the Runbook stays editable.
+- `widget-visibility.js`: on a repository canvas in Study the toolbar, minimap and Rabbit Hole map are hidden for every work and focus kind, whatever the
+  saved choices (`studyHides`); View > Show / hide greys those rows with the tooltip "Hidden in Study" (`widgetLocked`). Nothing is written to Canvas
+  preferences. A Release 1 canvas keeps the rules in section 1.
+- The right panel closes while studying and is put back on leaving; a code reference (`small:open-code`, a citation) shows Files in the reference pane
+  at that line; the chat strip is centred across both panes (`[data-study-band]` in `index.css`); the header pill `[data-study-toggle]` shows only with
+  a generated Run card or Runbook, or a card pin; the Tutor's plan message has Study these.

@@ -10,7 +10,7 @@ test('AdaptiveCanvas recomputes minimap and holeMap from the effective widgets a
   const canvas = read('./AdaptiveCanvas.jsx');
   assert.match(canvas, /onPinForStudy = null, study = null,/);
   assert.match(canvas, /const \[minimapPref, setMinimapPref\] = useState\(\(\) => uiPrefs\(\)\.minimap\)/);
-  assert.match(canvas, /const \{ minimap, holeMap \} = effectiveWidgets\(\{ mode: widgetMode, canvas: \{ minimap: minimapPref, holeMap: holeMapPref \}, study: study\?\.state\?\.maps \}\)/);
+  assert.match(canvas, /const \{ minimap, holeMap \} = effectiveWidgets\(\{ mode: widgetMode, canvas: \{ minimap: minimapPref, holeMap: holeMapPref \}, study: study\?\.state\?\.maps, repository: studyRepository \}\)/);
   assert.match(canvas, /if \(route\.store === 'study'\) \{ study\?\.setMap\(name, on\); return; \}/);
   // Study entry never goes through the Canvas preference setters or saveUiPref.
   assert.doesNotMatch(canvas, /showWidget\([^)]*false\)/);
@@ -26,7 +26,7 @@ test('the canvas loading placeholder applies the same effective visibility, from
   const loading = read('./CanvasLoading.jsx');
   assert.match(loading, /import \{ effectiveWidgets \} from '\.\/widget-visibility\.js';/);
   assert.match(loading, /export function CanvasChromeLoading\(\{ tools = true, feedback = false, top = 0, study = null \}\)/);
-  assert.match(loading, /const prefs = effectiveWidgets\(\{ mode: study\?\.mode === 'study' \? 'study' : 'canvas', canvas: uiPrefs\(\), study: study\?\.state\?\.maps \}\);/);
+  assert.match(loading, /const prefs = effectiveWidgets\(\{ mode: study\?\.mode === 'study' \? 'study' : 'canvas', canvas: uiPrefs\(\), study: study\?\.state\?\.maps, repository: !!study\?\.repository \}\);/);
   assert.match(read('./LearnPage.jsx'), /<CanvasChromeLoading feedback top=\{48\} study=\{study\} \/>/);
 });
 

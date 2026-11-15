@@ -4,12 +4,22 @@
 
 export const SPLIT_MIN = 0.25, SPLIT_MAX = 0.65, SPLIT_DEFAULT = 0.40;
 const KINDS = ['pdf', 'text', 'explanation'];
+// A repository canvas's Study (pinned-study-codebase-spec.md): the reference pane's tab and the work pane's choice.
+export const REFERENCE_TABS = Object.freeze(['graph', 'files', 'pin']);
+export const WORKS = Object.freeze(['canvas', 'notebook', 'run', 'runbook']);
+// The id field each card-backed work keeps its card in.
+export const WORK_ID = Object.freeze({ notebook: 'notebookId', run: 'runId', runbook: 'runbookId' });
+// The card Study is working in now (the one in its Focus), else null.
+export const ownedId = state => (WORK_ID[state?.work] ? state[WORK_ID[state.work]] || null : null);
 
 // The canvas's key (LearnPage canvasKey: org, the viewer's email and the canvas name) plus the review board, as chatKey has it.
 export const studyScope = (canvasKey, board = null) => `${canvasKey}${board ? `:${board}` : ''}`;
 export const studyKey = scope => `${scope}:study`;
 // maps: the learner's explicit Study choice per map (focus-study.md); a map absent here is hidden in Study (widget-visibility.js).
-export const defaultStudy = () => ({ v: 1, mode: 'canvas', work: 'canvas', pin: null, notebookId: null, split: SPLIT_DEFAULT, reader: null, canvasView: null, maps: {} });
+// referenceTab: 'graph' | 'files' | 'pin' (pin: the Release 1 card pin, only while one exists). filesPlace: where Files reopens. workSet: the learner
+// (or Study these) chose the work; until then a canvas with a Run card opens its Study on Run. panelWas: the right panel's open state
+// when Study closed it (null: not held), put back on leaving.
+export const defaultStudy = () => ({ v: 1, mode: 'canvas', work: 'canvas', workSet: false, pin: null, referenceTab: 'graph', notebookId: null, runId: null, runbookId: null, filesPlace: null, panelWas: null, split: SPLIT_DEFAULT, reader: null, canvasView: null, maps: {} });
 // The maps Study keeps its own choice for; every other widget follows the Canvas preference (ui-prefs.js) in both modes.
 export const STUDY_MAPS = Object.freeze(['minimap', 'holeMap']);
 
@@ -30,6 +40,11 @@ function cleanPin(pin) {
   const ref = pin.ref && typeof pin.ref === 'object' && typeof pin.ref.sourceId === 'string' ? pin.ref : null;
   return ref ? { cardId: pin.cardId, kind: pin.kind, ref } : null;
 }
+function cleanPlace(place) {
+  if (!place || typeof place !== 'object' || typeof place.path !== 'string' || !place.path) return null;
+  return num(place.line) != null && place.line > 0 ? { path: place.path, line: Math.floor(place.line) } : { path: place.path };
+}
+const cleanId = id => (typeof id === 'string' && id ? id : null);
 function cleanReader(reader) {
   if (!reader || typeof reader !== 'object') return null;
   const out = {};
@@ -49,12 +64,22 @@ function cleanView(view) {
 export function normalize(value) {
   const base = defaultStudy();
   if (!value || typeof value !== 'object' || value.v !== 1) return base;
+  const pin = cleanPin(value.pin), work = WORKS.includes(value.work) ? value.work : 'canvas';
+  const referenceTab = REFERENCE_TABS.includes(value.referenceTab) ? value.referenceTab : pin ? 'pin' : 'graph';
   return {
     v: 1,
     mode: value.mode === 'study' ? 'study' : 'canvas',
-    work: value.work === 'notebook' ? 'notebook' : 'canvas',
-    pin: cleanPin(value.pin),
-    notebookId: typeof value.notebookId === 'string' && value.notebookId ? value.notebookId : null,
+    work,
+    // An arrangement saved before Study these / Run existed has no workSet: a chosen Notebook counts as chosen, Canvas does not.
+    workSet: typeof value.workSet === 'boolean' ? value.workSet : work !== 'canvas',
+    pin,
+    // No referenceTab (the Release 1 shape): the pin when there is one, else the graph. 'pin' without a pin falls back too.
+    referenceTab: referenceTab === 'pin' && !pin ? 'graph' : referenceTab,
+    notebookId: cleanId(value.notebookId),
+    runId: cleanId(value.runId),
+    runbookId: cleanId(value.runbookId),
+    filesPlace: cleanPlace(value.filesPlace),
+    panelWas: typeof value.panelWas === 'boolean' ? value.panelWas : null,
     split: clampSplit(value.split),
     reader: cleanReader(value.reader),
     canvasView: cleanView(value.canvasView),
@@ -104,7 +129,8 @@ export function studyLayout({ width, height, split }) {
   return { stacked: true, size: fit(height * share, STUDY_MIN.stackedReference, height - STUDY_MIN.stackedWork) };
 }
 
-// Actions: pin { cardId, kind, ref } (Pin for study, Change reference), unpin, setMode { mode }, setWork { work, notebookId? },
+// Actions: pin { cardId, kind, ref } (Pin for study, Change reference), unpin, setMode { mode }, setWork { work, cardId? }, setReferenceTab { tab },
+// filesAt { path, line }, panelWas { open },
 // setSplit { split }, readerAt { reader }, saveCamera { view }, setMap { name, on } (an explicit View > Show / hide choice made
 // in Study; it never touches the Canvas preferences). Selecting a card is not an action: only pin replaces the pin.
 export function studyReducer(state, action) {
@@ -114,14 +140,19 @@ export function studyReducer(state, action) {
       const pin = cleanPin(action);
       if (!pin) return s;
       const same = s.pin?.cardId === pin.cardId;
-      return { ...s, mode: 'study', pin, reader: same ? s.reader : null };
+      return { ...s, mode: 'study', pin, referenceTab: 'pin', reader: same ? s.reader : null };
     }
-    case 'unpin': return { ...s, mode: 'canvas', pin: null, reader: null };
+    // The pin goes, not the tab: a Pinned tab with no pin falls back to Files where one was open, else the graph.
+    case 'unpin': return { ...s, mode: 'canvas', pin: null, reader: null, referenceTab: s.referenceTab === 'pin' ? (s.filesPlace ? 'files' : 'graph') : s.referenceTab };
+    case 'setReferenceTab': return REFERENCE_TABS.includes(action.tab) && (action.tab !== 'pin' || s.pin) ? { ...s, referenceTab: action.tab } : s;
+    case 'filesAt': { const filesPlace = cleanPlace(action); return filesPlace ? { ...s, filesPlace } : s; }
+    case 'panelWas': return { ...s, panelWas: typeof action.open === 'boolean' ? action.open : null };
     case 'setMode': return { ...s, mode: action.mode === 'study' ? 'study' : 'canvas' };
+    // setWork { work, cardId? }: the card id is kept for its kind (notebookId, runId, runbookId) so Study returns to it; notebookId is the old spelling.
     case 'setWork': {
-      const work = action.work === 'notebook' ? 'notebook' : 'canvas';
-      const notebookId = typeof action.notebookId === 'string' && action.notebookId ? action.notebookId : s.notebookId;
-      return { ...s, work, notebookId: work === 'notebook' ? notebookId : s.notebookId };
+      const work = WORKS.includes(action.work) ? action.work : 'canvas';
+      const field = WORK_ID[work], id = cleanId(action.cardId) || cleanId(action.notebookId);
+      return { ...s, work, workSet: true, ...(field && id ? { [field]: id } : {}) };
     }
     case 'setSplit': return { ...s, split: clampSplit(action.split) };
     case 'readerAt': return { ...s, reader: cleanReader({ ...s.reader, ...action.reader }) };
