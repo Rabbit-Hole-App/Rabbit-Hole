@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, MoreHorizontal, Play, Square } from 'lucide-react';
+import { Loader2, Play, Square } from 'lucide-react';
 import CardHeader from './CardHeader.jsx';
-import { CardActionRows } from './CanvasMenu.jsx';
 import { api, apiFetch } from './api.js';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
 import { resultsToRuns, runFromStored, storedCell, storedResult } from './rehearsal-cards.js';
@@ -33,7 +32,7 @@ export default function RunCard({ block, readOnly, onSave }) {
   const saved = block.run || {}, { app, board } = saved, repo = block.generated?.repo, added = saved.addedKnobs || [];
   const [session, setSession] = useState(null), [runs, setRuns] = useState(() => resultsToRuns(saved.results)), [logs, setLogs] = useState({}), [flags, setFlags] = useState(saved.flags || {});
   const [active, setActive] = useState(null); // the key (a cellId, or CUSTOM_KEY) whose run is in progress: one run at a time
-  const [tab, setTabNow] = useState(TABS.some(([id]) => id === saved.tab) ? saved.tab : 'run'), [menu, setMenu] = useState(false), [filter, setFilter] = useState('All');
+  const [tab, setTabNow] = useState(TABS.some(([id]) => id === saved.tab) ? saved.tab : 'run'), [filter, setFilter] = useState('All');
   const [draft, setDraft] = useState({ steps: [], values: {}, name: '' });
   // "Make it yours" is the Custom run tab (owner 2026-11-15): the route's last step, with its parameters, is the tab's first pick, once; the Run tab no longer draws that cell.
   const seeded = useRef(false);
@@ -205,7 +204,6 @@ export default function RunCard({ block, readOnly, onSave }) {
   const ready = sessionReady(session), ended = sessionEnded(session), idle = !session || ended, cells = (session?.cells?.length ? session.cells : saved.cells) || [];
   useEffect(() => { if (seeded.current || !cells.length) return; seeded.current = true; const last = lastStepId(cells); if (last) setDraft(d => (d.steps.length ? d : { ...d, steps: [last] })); }, [cells.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const sessionTone = session?.status === 'ready' ? 'success' : ended ? 'error' : 'idle';
-  const action = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
   const stopPress = event => event.stopPropagation();
 
   // One cell, a section of the Run tab: its status, Run and Stop, a progress bar while it runs, the command, its parameters, the output pane, what the run produced, and the rehearsal's output.
@@ -253,13 +251,6 @@ export default function RunCard({ block, readOnly, onSave }) {
         <Button type="button" variant={idle ? 'secondary' : 'ghost'} size="sm" data-run-session disabled={readOnly || (!idle && !session?.sessionId)} onPointerDown={stopPress} onClick={idle ? begin : stop}>
           {idle ? <Play size={12} aria-hidden="true" /> : <Square size={12} aria-hidden="true" />}{idle ? 'Start session' : 'Stop session'}
         </Button>
-        <button type="button" aria-label="More run card actions" className={action} onPointerDown={stopPress} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>
-        {menu && (
-          // The card's own rows from the canvas action registry, run like the right-click menu's (CanvasMenu.jsx), as the Notebook card's. A generated card shows no Delete (rehearsal-cards.js).
-          <div role="menu" aria-label="Run card actions" data-card-menu className="absolute top-8 right-3 z-30 w-60 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={stopPress}>
-            <CardActionRows id={block.id} groups={['primary', 'clipboard', 'lock', 'delete']} onDone={() => setMenu(false)} />
-          </div>
-        )}
       </>} />
       <div data-run-card aria-label="Run card" className="flex min-h-0 flex-1 flex-col rounded-b-xl border-t border-line">
         <div className="flex items-center gap-2 px-4 py-2" data-run-session-status={session?.status || 'idle'}>
