@@ -41,7 +41,7 @@ export const scrubRunText = text => SCRUB.reduce((out, [re, to]) => out.replace(
 const firstErrorLine = text => {
   const lines = scrubRunText(text).split('\n').map(l => l.trim()).filter(Boolean);
   const hit = [...lines].reverse().find(l => /(error|exception|failed|no such|not found|cannot|invalid|unrecognized|refused|denied)/i.test(l)) || lines.at(-1) || '';
-  return hit.length > 120 ? `${hit.slice(0, 119)}…` : hit;
+  return hit.slice(0, 120);
 };
 
 // The humanised state of one step's run: { tone, chip, line }, never a developer's word (rc, NotFoundError, a container id, Modal, sandbox). rehearsalPassed: the step passed in the rehearsal.
