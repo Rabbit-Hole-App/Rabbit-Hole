@@ -43,3 +43,11 @@ The Run card is a canvas card of type `run`, made by the chat message's Open run
 ## Limits (limits.py)
 
 One session per (canvas, user, commit); 2 concurrent per controller; hard cap 3600 s; idle 600 s; cell timeout = the step's route timeout (train 1200 to 1500 s); tails 200 lines / 32 KB. Stop-loss unchanged (running Modal figure, US$20).
+
+## Run card v1.1: parameters, outputs, tabs (owner 2026-11-15; run-card-outputs-and-params-spec (1).md)
+
+Frozen additions: `cells.json` (every step cell lists all its step's knobs with default, source, addedBy; the allowed-command rule for `addedKnobs`), `run-request.json` (cell form `{cellId, flags?, addedKnobs?}` and custom form `{custom: {steps, knobs, name?}, addedKnobs?}`; no command field), `run-status.json` (`stdoutKind`, `metrics`, `producedFiles`, `probes`, `step`), `run-card-state.json` (the `run` card's saved state: `tab`, `addedKnobs`, `customRuns`, `history` capped at 50, text tails at most 4 KB, never file bytes).
+
+Controller additions: `GET /sessions/<id>/runs/<runId>/files/<path>` serves a produced file (Bearer; the path must be in that run's producedFiles; previewable kinds only; binaries are never served); the control plane proxies it as `GET /api/learn/run?action=file&sessionId=&runId=&path=` under the owner's auth (a view-only link reads the same files). Detection: stat the work tree before and after each run (find newer than a marker), classify by extension, fetch previewable kinds under 5 MB per file and 25 MB per run. Metric series are parsed from `key: number` lines or the step's metric check; stdout that parses as JSON is `stdoutKind: json`; carriage-return progress is collapsed to its last state.
+
+Card: tabs Run | Custom run | History at card level, one session for all three; Run = the cells; Custom run = pick steps in route order and edit their knobs, name, Run, Save as a preset (deletable); History = the last 50 runs with differing flags as chips, rc, duration, output kinds, Run again, Save as custom run, Compare with rehearsal; Tutor-added knobs (`addedBy: 'tutor'`, with source) are stored on the card and validated by the controller against the cloned source line before they reach a shell.
