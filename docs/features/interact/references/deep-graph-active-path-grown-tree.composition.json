@@ -1,0 +1,309 @@
+{
+  "family": "graph-active-path",
+  "canonical": "point-to-prediction",
+  "layout": {
+    "width": 640,
+    "height": 400
+  },
+  "story": "The same point appears on the feature plane and in the tree tests. Follow the highlighted branches to see which leaf supplies the prediction.",
+  "aha": {
+    "inputs": {
+      "x": 6,
+      "y": 1,
+      "trace": 2
+    },
+    "observation": "J goes right at the x test, then left at the y test. The leaf predicts class 0, although J’s true class is 1.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "tree",
+      "kind": "predicate-tree",
+      "bind": "data.tree; computed.path"
+    },
+    {
+      "id": "probe",
+      "kind": "feature-plane",
+      "bind": "inputs; data.rows"
+    },
+    {
+      "id": "route",
+      "kind": "active-path",
+      "bind": "computed.path; inputs.trace"
+    },
+    {
+      "id": "prediction",
+      "kind": "leaf-readout",
+      "bind": "computed.leaf.prediction"
+    },
+    {
+      "id": "tests",
+      "kind": "predicate-ledger",
+      "bind": "computed.path; data.tree.counts"
+    }
+  ],
+  "controls": [
+    {
+      "id": "x",
+      "kind": "range",
+      "label": "Point x",
+      "min": 0,
+      "max": 8,
+      "step": 1,
+      "effect": "Move the probe horizontally and recompute branch truth."
+    },
+    {
+      "id": "y",
+      "kind": "range",
+      "label": "Point y",
+      "min": 0,
+      "max": 8,
+      "step": 1,
+      "effect": "Move the probe vertically and recompute the right-child test."
+    },
+    {
+      "id": "trace",
+      "kind": "range",
+      "label": "Trace the decisions",
+      "min": 0,
+      "max": 2,
+      "step": 1,
+      "effect": "Reveal the selected test or reached leaf in sequence; clamp to the route length."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "Audit every branch decision.",
+    "heading": "From point to leaf",
+    "prompt": "how does a decision tree trace a new point from the root to a prediction?",
+    "instructions": "Move the point, then trace each decision. Try x = 6 and y = 1.",
+    "initialInputs": {
+      "x": 2,
+      "y": 6,
+      "trace": 0
+    },
+    "rows": [
+      {
+        "id": "A",
+        "x": 1,
+        "y": 1,
+        "label": 0
+      },
+      {
+        "id": "B",
+        "x": 1,
+        "y": 5,
+        "label": 0
+      },
+      {
+        "id": "C",
+        "x": 3,
+        "y": 3,
+        "label": 0
+      },
+      {
+        "id": "D",
+        "x": 3,
+        "y": 7,
+        "label": 0
+      },
+      {
+        "id": "E",
+        "x": 5,
+        "y": 1,
+        "label": 0
+      },
+      {
+        "id": "F",
+        "x": 5,
+        "y": 3,
+        "label": 1
+      },
+      {
+        "id": "G",
+        "x": 7,
+        "y": 5,
+        "label": 1
+      },
+      {
+        "id": "H",
+        "x": 7,
+        "y": 7,
+        "label": 1
+      },
+      {
+        "id": "I",
+        "x": 2,
+        "y": 6,
+        "label": 0
+      },
+      {
+        "id": "J",
+        "x": 6,
+        "y": 1,
+        "label": 1
+      }
+    ],
+    "tree": {
+      "counts": [
+        5,
+        3
+      ],
+      "prediction": 0,
+      "split": {
+        "feature": "x",
+        "threshold": 4,
+        "leftCounts": [
+          4,
+          0
+        ],
+        "rightCounts": [
+          1,
+          3
+        ],
+        "leftGini": [
+          0,
+          1
+        ],
+        "rightGini": [
+          3,
+          8
+        ],
+        "weighted": [
+          3,
+          16
+        ],
+        "gain": [
+          9,
+          32
+        ]
+      },
+      "left": {
+        "counts": [
+          4,
+          0
+        ],
+        "prediction": 0
+      },
+      "right": {
+        "counts": [
+          1,
+          3
+        ],
+        "prediction": 1,
+        "split": {
+          "feature": "y",
+          "threshold": 2,
+          "leftCounts": [
+            1,
+            0
+          ],
+          "rightCounts": [
+            0,
+            3
+          ],
+          "leftGini": [
+            0,
+            1
+          ],
+          "rightGini": [
+            0,
+            1
+          ],
+          "weighted": [
+            0,
+            1
+          ],
+          "gain": [
+            3,
+            8
+          ]
+        },
+        "left": {
+          "counts": [
+            1,
+            0
+          ],
+          "prediction": 0
+        },
+        "right": {
+          "counts": [
+            0,
+            3
+          ],
+          "prediction": 1
+        }
+      }
+    },
+    "calculations": [
+      "No new training values. I, J and G are exact source rows.",
+      "Route by feature ≤ threshold at each internal node. At equality take the left branch.",
+      "Class counts and leaf predictions are the fitted source tree; probe coordinates are learner inputs."
+    ],
+    "missingCounterparts": [
+      "predicate-tree",
+      "linked feature-plane/tree",
+      "predicate-ledger",
+      "leaf-readout"
+    ],
+    "sourceKind": "worked 8-row classifier",
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "x": 2,
+          "y": 6,
+          "trace": 0
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "x": 6,
+          "y": 1,
+          "trace": 2
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-grown-tree-detailed",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 57,
+      "cases": 243,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "deep-graph-active-path-grown-tree",
+  "depth": "detailed"
+}
