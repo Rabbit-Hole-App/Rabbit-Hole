@@ -71,3 +71,6 @@ export function addKnobToCard(knob, { app, routeId } = {}, dispatch = event => w
   dispatch(event);
   return event.defaultPrevented ? detail.status || 'added' : 'none'; // the card sets detail.status ('added' | 'exists' | ...) when it takes the event
 }
+
+// The action is offered only where the Run card can be made (the dev rehearsal flag, learn-rehearsal-view.js rehearsalOn); read when used, and safe where a test bundle has no import.meta.env.
+export const knobActionOn = () => import.meta.env?.VITE_REHEARSAL_TRIGGER === '1';
