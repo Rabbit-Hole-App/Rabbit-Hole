@@ -118,11 +118,14 @@ const contextFor = async (who = null) => {
   page.on('pageerror', error => errors.push(error.message));
   return page;
 };
+// A share link opens with the right panel closed and the Chat composer in the canvas's bottom strip (owner 2026-11-14): these checks are about the panel's Chat, so each opens it first.
+const openPanel = async page => { const toggle = page.locator('[data-panel-toggle]'); await toggle.waitFor({ timeout: 60000 }); if (await toggle.getAttribute('aria-pressed') === 'false') await toggle.click(); };
 const shot = async (page, name) => { if (!SHOTS) return; await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
 
 // ---- signed out: guest Chat in the right panel (SHARE-03); Send answers in the Chat thread, counting the trial ----
 const page = await contextFor();
 await page.goto(`${BASE}/b/${token}`);
+await openPanel(page);
 const composer = page.locator('[data-shared-ask] [data-chat-composer]');
 await composer.waitFor({ timeout: 60000 });
 const field = composer.locator('textarea');
@@ -163,6 +166,7 @@ check('the draft is kept for this link', await page.evaluate(key => sessionStora
 // ---- back signed in (?ask=1): the draft and the conversation return, unsent, and the flag leaves the address ----
 await page.context().addCookies([{ name: 'small_session', value: viewer.session, url: BASE }]);
 await page.goto(`${BASE}/b/${token}?ask=1`);
+await openPanel(page);
 await composer.waitFor({ timeout: 60000 });
 await page.waitForTimeout(1500);
 check('the draft is back in the composer and focused', await field.inputValue() === LATER && await field.evaluate(node => node === document.activeElement));
@@ -219,6 +223,7 @@ check('Fork makes the viewer\'s own canvas', (await api(viewer, '/api/canvases')
 const forked = JSON.stringify(await api(viewer, `/api/learn/boards/${forkName}/main`));
 check('A: the fork holds the canvas, never the viewer\'s private chat', forked.includes('Why exponentiate?') && !forked.includes('softmax stays out of saturation') && !forked.includes(DRAFT) && !forked.includes(LIMITED));
 await page.goto(`${BASE}/b/${token}`);
+await openPanel(page);
 await composer.waitFor({ timeout: 60000 });
 check('the shared page then counts the fork on Fork itself, the composer still at the bottom', (await page.locator('[data-fork-button] [data-fork-count-value]').innerText()).trim() === '1' && await page.locator('header [data-fork-count]').count() === 0 && await composer.count() === 1);
 
@@ -235,6 +240,7 @@ check('a direct request to the removed switch answers 410', gone.status === 410,
 check('the old enabled row opens nothing for a signed-in viewer', (await api(viewer, `/api/learn/boards/shared/${labToken}`)).context.repository === null);
 const labPage = await contextFor(viewer);
 await labPage.goto(`${BASE}/b/${labToken}`);
+await openPanel(labPage);
 await labPage.locator('[data-shared-ask] [data-chat-composer]').waitFor({ timeout: 60000 });
 const labPills = await labPage.locator('[data-context-pill]').evaluateAll(nodes => nodes.map(node => node.dataset.contextPill));
 check('a private repository shows no repository pill, only the board\'s sources', JSON.stringify(labPills) === JSON.stringify(['video', 'wiki', 'paper']), JSON.stringify(labPills));
@@ -251,6 +257,7 @@ await shot(ownerPage, '06-owner-share-no-repository-switch');
 // The original importer (the owner here) on her own link: her stored snapshot's repository, at the pinned commit.
 const importerPage = await contextFor(owner);
 await importerPage.goto(`${BASE}/b/${labToken}`);
+await openPanel(importerPage);
 await importerPage.locator('[data-context-pill="repository"]').waitFor({ timeout: 60000 });
 check('the importer on her own link sees the repository pill', (await importerPage.locator('[data-context-pill="repository"]').innerText()).trim() === 'acme/private-lab · 3adf61e');
 
@@ -258,6 +265,7 @@ check('the importer on her own link sees the repository pill', (await importerPa
 const outRequests = [], outPage = await contextFor();
 outPage.on('request', request => { if (/\/next-steps$/.test(new URL(request.url()).pathname)) outRequests.push(request.url()); });
 await outPage.goto(`${BASE}/b/${token}`);
+await openPanel(outPage);
 await outPage.locator('[data-shared-ask] [data-chat-composer]').waitFor({ timeout: 60000 });
 // Opened after the signed-out page, a signed-in page has asked for its hooks: the signed-out one had as long, and asked nothing.
 const inPage = await contextFor(viewer);

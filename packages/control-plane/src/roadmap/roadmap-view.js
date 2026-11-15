@@ -66,7 +66,8 @@ export async function roadmapView(db, access, roadmap) {
   // Polling never carries source text (api.md): the reference keeps identity and source only. The verified excerpt is read through the entitled reference (canvas-to-be-1 answer).
   for (const [key, ref] of refs) if (ref) refs.set(key, { v: ref.v, id: ref.id, kind: ref.kind, source: ref.source });
   const latestResult = new Map((resultRows || []).map(r => [r.step_id, r]));
-  const steps = (stepRows || []).map(s => ({ id: s.id, position: s.position, title: s.title, goal: s.goal, format: s.format, passage: { start: s.passage_start, end: s.passage_end }, sourceRef: refs.get(s.source_ref_id) ?? null, state: s.state,
+  const planSteps = plan?.steps || [], sectionOf = s => { const planned = planSteps[s.position - 1]; return planned && planned.title === s.title && typeof planned.section === 'string' && planned.section.trim() ? { section: planned.section.trim() } : {}; };
+  const steps = (stepRows || []).map(s => ({ id: s.id, position: s.position, ...sectionOf(s), title: s.title, goal: s.goal, format: s.format, passage: { start: s.passage_start, end: s.passage_end }, sourceRef: refs.get(s.source_ref_id) ?? null, state: s.state,
     stage: s.state === 'generating' ? (latestResult.has(s.id) ? resultStage(latestResult.get(s.id)) : 'generating') : STEP_STAGE[s.state] ?? s.state,
     ...(s.card_removed ? { cardRemoved: true } : {}), ...(s.answered ? { answered: true } : {}) }));
   const stepOf = stepId => steps.find(s => s.id === stepId);
@@ -95,11 +96,15 @@ export async function roadmapView(db, access, roadmap) {
   // A requested revision not yet planned: the shown draft is stale and its acceptance is refused (409 stale_draft).
   const revisionPending = !['completed', 'ended', 'failed'].includes(roadmap.state) && lastInstruction > ((draftRow ?? planRow)?.instruction_version ?? lastInstruction);
   const keptNow = (stepRows || []).filter(s => !['planned', 'proposed'].includes(s.state)).length;
-  const draft = draftPlan && planShape(roadmap.plan_version, draftPlan, (draftPlan.steps || []).map((s, i) => ({ position: i + 1, title: s.title, goal: s.goal, format: s.format, passage: s.passage })), { depth: depthOf(draftPlan.settings?.depth ?? roadmap.depth) });
+  const draft = draftPlan && planShape(roadmap.plan_version, draftPlan, (draftPlan.steps || []).map((s, i) => ({ position: i + 1, ...(typeof s.section === 'string' && s.section.trim() ? { section: s.section.trim() } : {}), title: s.title, goal: s.goal, format: s.format, passage: s.passage })), { depth: depthOf(draftPlan.settings?.depth ?? roadmap.depth) });
   if (draft) Object.assign(draft, { instructionVersion: draftRow.instruction_version, acceptable: !!draft.steps.length && !revisionPending && !draftPlan.question && !draftPlan.limitation
     && (roadmap.state === 'proposed' || (['active', 'paused'].includes(roadmap.state) && (draftPlan.keptSteps ?? 0) === keptNow)) });
   const acceptedPlan = roadmap.accepted_plan_version && plan ? planShape(active, plan, steps, { depth: depthOf(plan.settings?.depth ?? roadmap.depth) }) : null;
   const shown = draftPlan ?? plan;
+  // The course run (roadmap-course.js; owner 2026-11-14): whether it is running, how many cards are made, the one being made and the fun facts for the wait.
+  const run = scopeJson.course ?? null;
+  const course = run ? { running: !!run.running, stopped: run.stopped ?? null, total: steps.length, made: steps.filter(s => ['saving', 'ready'].includes(s.stage)).length, failed: steps.filter(s => ['incomplete', 'skipped'].includes(s.state) && results.some(r => r.stepId === s.id && r.stage === 'failed')).length,
+    current: steps.find(s => ['generating', 'checking'].includes(s.stage))?.title ?? null, facts: Array.isArray(run.facts) ? run.facts : [] } : null;
   // A blocked card offer (roadmap-lifecycle.js recordOfferBlocked), shown only while its step still waits with no offer: the Chat recovery entry's one question or help.
   const held = scopeJson.offerRecovery, blockedStep = held && stepOf(held.stepId);
   const offerRecovery = held && !proposal && blockedStep && ['planned', 'cancelled', 'incomplete'].includes(blockedStep.state) && ['active', 'paused'].includes(roadmap.state)
@@ -108,7 +113,7 @@ export async function roadmapView(db, access, roadmap) {
     roadmap: { id, boardId: roadmap.board_id, state: roadmap.state, revision: roadmap.revision, planVersion: roadmap.plan_version, acceptedPlanVersion: roadmap.accepted_plan_version ?? null, depth: depthOf(roadmap.depth),
       practiceMode: roadmap.practice_mode, instruction: first?.text ?? '', language: roadmap.language, scope: { kind: scopeJson.kind || 'whole', chars: scopeJson.chars ?? null, source: { key: roadmap.source_key, rev: roadmap.source_rev, name: sourceName }, fingerprint: roadmap.scope_fingerprint },
       ceiling: roadmap.ceiling, deliveredCount: roadmap.delivered_count, mode: roadmap.mode, modeRevision: roadmap.mode_revision, threadId, invitationId, createdAt: iso(roadmap.created_at), updatedAt: iso(roadmap.updated_at) },
-    question: shown?.question ?? null, limitation: shown?.limitation ?? null, offerRecovery,
+    question: shown?.question ?? null, limitation: shown?.limitation ?? null, offerRecovery, course,
     plan: plan && planShape(active, plan, steps, { depth: depthOf(plan.settings?.depth ?? roadmap.depth) }),
     acceptedPlan, planDraft: draft ?? null, revisionPending, // planDraft, not `draft`: the R5 proposal-draft route already answers `draft`
     steps, proposal: proposal ?? null, results,

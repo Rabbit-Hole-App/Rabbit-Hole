@@ -1,6 +1,7 @@
 // Owner decision 2026-10-24 (ledger 69b00255): an explicit /motion command in Auto mode requests the Motion review and
 // confirmation flow; ordinary prose that merely mentions motion stays a plain Chat turn; missing information is asked
 // for inside the Motion flow; recognising the command never skips confirmation. Wiring only: no browser, no network, no model.
+import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

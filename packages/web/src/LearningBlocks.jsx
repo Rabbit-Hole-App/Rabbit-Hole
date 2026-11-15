@@ -8,14 +8,14 @@ import { dropView, publishView } from './cad-viewer-store.js';
 import { holdViewerGestures } from './content-gestures.js';
 import { createContext, Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
-import { SourceRefHeader } from './SourceRefChip.jsx';
+import { PassageHeader, SourceRefHeader } from './SourceRefChip.jsx';
 import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Square, Trash2, Volume2, X } from 'lucide-react';
 import { fullContent } from './card-layout.js';
 import { Md } from './ask.jsx';
 import { diagramsAsText } from './diagram-fence.js';
 import { MdInline } from './Md.jsx';
 import IllustrationFigure from './IllustrationFigure.jsx';
-import { FollowUp, HighlightMenu, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
+import { FollowUp, HighlightMenu, PassageIcon, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
 import { splitLead } from './explanation-lead.js';
 import { isMinimized, minimizedVisual, tileSummary } from './explanation-minimize.js';
 import TutorDiagram from './tutor-diagrams/TutorDiagram.js';
@@ -54,6 +54,8 @@ import PaidConfirm from './PaidConfirm.jsx';
 import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, pressOperation, readsAgain, recoveryButtons, resumesJob, videoLabel, withoutEnd } from './learn-video-label.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { describeNotebook } from './learn-notebook.js';
+import { docText } from './doc-text.js';
+import { runText } from './rehearsal-cards.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
 import { hasMarks, sketchText } from './explain-sketch.js';
@@ -2070,7 +2072,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
       <div data-explanation-head data-focus-hide className="shrink-0">
         {block.anchor
           ? <CardHeader block={block} size="xs" className="px-4 pt-3 pb-2" />
-          : <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : null}>Explanation</Kicker>}
+          : <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2" action={headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : block.fromPassage ? <PassageHeader block={block} /> : null}>Explanation</Kicker>}
       </div>
       {/* E1 (approved card 07): one continuous reading flow. The body, its visuals and the supplementary sections all scroll together under the pinned head. */}
       <div ref={layer?.flowRef} data-scroll data-explanation-flow {...layer?.flowProps} className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">
@@ -2088,7 +2090,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
         ))}
         {layer && <Suggestions layer={layer} />}
       </div>
-      {layer && <><TermNote layer={layer} /><SelectionBar layer={layer} /><HighlightMenu layer={layer} /><FollowUp layer={layer} /></>}
+      {layer && <><TermNote layer={layer} /><SelectionBar layer={layer} /><HighlightMenu layer={layer} /><PassageIcon layer={layer} /><FollowUp layer={layer} /></>}
     </div>
   );
 }
@@ -2344,6 +2346,10 @@ function describeBlockOwn(block) {
   if (block.type === 'animation3d') return { kind: 'Animation', title: block.title, text: [`3D animation on the canvas: ${block.title}`, block.fixtureId ? 'A built-in example scene, not generated from a request.' : '', block.animation3dJob ? `Generation status: ${block.animation3dJob.stage}` : ''].filter(Boolean).join(NEWLINE) };
   if (block.type === 'whiteboardVideo') return describeWhiteboard(block);
   if (block.type === 'notebook') return describeNotebook(block);
+  // A document card (DocCard.jsx): its words as plain text, bounded like any card's description.
+  // A Run card (RunCard.jsx): its commands and last outputs, bounded like any card's description.
+  if (block.type === 'run') return { kind: 'Run card', title: block.title || '', text: runText(block) };
+  if (block.type === 'doc') return { kind: 'Document', title: block.title || '', text: ['Document on the canvas:', docText(block.blocks).slice(0, 12000)].join(NEWLINE) };
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
   if (block.type === 'whiteboard') return { kind: 'Whiteboard', title: block.title, text: `Learner whiteboard: ${block.title}` };

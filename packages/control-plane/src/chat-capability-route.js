@@ -15,6 +15,7 @@ import { CHAT_ROUTE_PROTOCOL_VERSION, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCa
 import { SLASH, commandLabel, typedOf, unavailableCommand } from '../../web/src/agent/slash.js';
 import { imageAllowed } from './image-settings.js';
 import { paidOf } from '../../web/src/inline-ai-decide.js';
+import { USE_SCOPE, codebaseUseRequest, readCodebaseUse, useDecision } from '../../web/src/codebase-use-route.js';
 
 const TOKEN_TTL_S = 300, TEXT_MAX = 20000;
 const REQUEST_ID = /^[A-Za-z0-9-]{8,80}$/;
@@ -62,7 +63,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
     const removed = unavailableCommand(typedOf(name), { imageGeneration: imageAllowed(env, email), whiteboard: env.WHITEBOARD_ENABLED === 'true' }); // name is a stable id; unavailableCommand takes what was typed
     if (removed) return refuse(via, removed);
     const declared = chatCapability(name);
-    const entry = SLASH.find(command => command.name === name && command.places.includes('learn'));
+    const entry = SLASH.find(command => command.name === name && command.places.includes('learn')) ?? (declared?.standalone ? { needs: null } : null); // standalone: a router-only capability the browser runs (Create a course, owner 2026-11-14)
     if (!entry) return refuse(via, `/${name} is not a Learn command.`);
     if (!availability(env, { name, needs: entry.needs || null }, enabled, email)) return { ...refuse(via, unavailable(env, name, email)), ...extra };
     const flow = declared?.flow === 'proposal' && reviewRequired(name) ? 'proposal' : 'direct';
@@ -85,7 +86,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   const routes = offeredRoutes(env);
   let out, read;
   try {
-    out = await ask(env, chatRouteRequest({ text, selection: fields.selection, sourceRefs: fields.source_refs }, JEV_TRANSPORTS[transport].model, routes), { transport, timeoutMs });
+    out = await ask(env, chatRouteRequest({ text, selection: fields.selection, sourceRefs: fields.source_refs, history: fields.history }, JEV_TRANSPORTS[transport].model, routes), { transport, timeoutMs });
     read = readChatRoute(out.body, routes);
   } catch (error) {
     const code = error instanceof JevError ? (error.code === 'timeout' ? 'timeout' : 'unavailable') : 'malformed';
@@ -97,12 +98,29 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   log({ request_id: requestId, outcome: 'routed', choice: read.choice, confidence: read.confidence, probability: read.probability, ms: meta.ms, cost: meta.cost, input_tokens: meta.input_tokens });
   const ranked = read.ranked.filter(id => id !== 'answer');
   if (read.choice === 'several') return { ...base, ...scored, route: 'clarify', via: 'jev', clarification: { question: 'This asks for more than one thing. Which first?', options: [...ranked.slice(0, 2), 'answer'] } };
-  if (read.choice === 'none') return { ...base, ...scored, route: 'unsupported', via: 'jev', message: 'That isn\'t something chat can do here.' };
-  if (read.choice === 'answer') return answer('jev', scored);
-  if (read.probability < thresholds.probability || read.confidence < thresholds.confidence) {
-    return { ...base, ...scored, route: 'clarify', via: 'jev', clarification: { question: `Did you want ${(chatCapability(read.choice)?.label || read.choice).toLowerCase()}, or an answer in chat?`, options: [read.choice, 'answer'] } };
-  }
+  // No slash command found (owner 2026-11-13): a normal chat answer. That is JEV's own answer or none, and a command it is not sure of (below the thresholds).
+  if (read.choice === 'none' || read.choice === 'answer') return answer('jev', scored);
+  if (read.probability < thresholds.probability || read.confidence < thresholds.confidence) return answer('jev-low', scored);
   return pick(read.choice, 'jev', text.trim(), scored);
+}
+
+// The scoped call for the Tutor's intake question (web/src/codebase-use-route.js: why it does not breach the 2026-10-21 rule): the same JEV transport, timeout and
+// thresholds, over the 14 codebase uses instead of the chat capabilities. No token, no capability, nothing runs here: it only says which use the typed words ask for
+// (use: null when it is not sure, so the chips stay; a failure or a missing key is the same: nothing is guessed).
+export async function decideCodebaseUse(env, { requestId, text }, { ask = askJev, timeoutMs = ROUTE_TIMEOUT_MS, thresholds = ROUTE_THRESHOLDS } = {}) {
+  const none = (via, extra = {}) => ({ use: null, via, confidence: null, probability: null, ...extra });
+  const transport = jevTransport(env);
+  if (!transport) { log({ request_id: requestId, outcome: 'unavailable', scope: USE_SCOPE, reason: 'no_transport' }); return none('fallback', { retryable: true, code: 'unavailable' }); }
+  const started = Date.now();
+  try {
+    const out = await ask(env, codebaseUseRequest({ text }, JEV_TRANSPORTS[transport].model), { transport, timeoutMs });
+    const read = readCodebaseUse(out.body);
+    log({ request_id: requestId, outcome: 'routed', scope: USE_SCOPE, choice: read.choice, confidence: read.confidence, probability: read.probability, ms: out.ms ?? Date.now() - started });
+    return useDecision(read, { thresholds });
+  } catch (error) {
+    log({ request_id: requestId, outcome: error instanceof JevError ? error.code : 'malformed', scope: USE_SCOPE, ms: Date.now() - started });
+    return none('fallback', { retryable: true, code: error instanceof JevError && error.code === 'timeout' ? 'timeout' : 'unavailable' });
+  }
 }
 
 // The route a chat turn's route_token names, when it verifies for this learner and these exact turn fields: { cap, flow },
@@ -134,6 +152,7 @@ export async function chatRouteFetch(req, env, { authorize = authorizedBoardApp,
   if (allowed instanceof Response) return allowed;
   const refused = subscriptionOwnerRefusal(env, allowed);
   if (refused) return refused;
-  const fields = { app: body.app, text: body.text, mode: body.mode, selection: body.selection, source_refs: body.source_refs, motion: body.motion };
+  if (body.scope === USE_SCOPE) return json(await decideCodebaseUse(env, { requestId: body.request_id, text: body.text }, deps)); // the Tutor's intake question: which of the 14 uses, nothing else
+  const fields = { app: body.app, text: body.text, mode: body.mode, selection: body.selection, source_refs: body.source_refs, motion: body.motion, history: body.history };
   return json(await decideChat(env, { email: allowed.email, app: body.app, requestId: body.request_id, fields, capability: body.capability ?? null, enabled: body.enabled ?? null }, deps));
 }

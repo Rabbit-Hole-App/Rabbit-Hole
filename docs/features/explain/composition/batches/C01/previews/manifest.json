@@ -1,0 +1,402 @@
+{
+  "ml-linear-regression-linear-unit": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 623,
+        "height": 274
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 274
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 274
+      }
+    }
+  },
+  "ml-linear-regression-linear-unit-brief": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 271
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 258
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 258
+      }
+    }
+  },
+  "ml-linear-regression-linear-unit-balanced": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 623,
+        "height": 274
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 274
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 274
+      }
+    }
+  },
+  "ml-linear-regression-linear-unit-detailed": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 623,
+        "height": 291
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 274
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 274
+      }
+    }
+  },
+  "ml-linear-regression-linear-unit-detailed-detail": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 435.5
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 464.5
+      },
+      "natural": {
+        "requested": 320,
+        "width": 320,
+        "height": 405.5
+      }
+    }
+  },
+  "ml-neural-networks-hidden-layer": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 658,
+        "height": 274
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 274
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 274
+      }
+    }
+  },
+  "ml-neural-networks-hidden-layer-brief": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 271
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 258
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 275
+      }
+    }
+  },
+  "ml-neural-networks-hidden-layer-balanced": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 658,
+        "height": 274
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 274
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 274
+      }
+    }
+  },
+  "ml-neural-networks-hidden-layer-detailed": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 658,
+        "height": 291
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 274
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 291
+      }
+    }
+  },
+  "ml-neural-networks-hidden-layer-detailed-detail": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 416,
+        "height": 284
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 414
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 414
+      }
+    }
+  },
+  "ml-regularization-regularized-objective": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 349
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 397
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 397
+      }
+    }
+  },
+  "ml-regularization-regularized-objective-brief": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 291
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 306
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 306
+      }
+    }
+  },
+  "ml-regularization-regularized-objective-balanced": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 349
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 397
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 397
+      }
+    }
+  },
+  "ml-regularization-regularized-objective-detailed": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 349
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 397
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 397
+      }
+    }
+  },
+  "ml-regularization-regularized-objective-detailed-detail": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 321
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 254
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 254
+      }
+    }
+  },
+  "ml-regularization-dropout-mask": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 602,
+        "height": 284
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 310
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 310
+      }
+    }
+  },
+  "ml-regularization-dropout-mask-brief": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 308
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 271
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 271
+      }
+    }
+  },
+  "ml-regularization-dropout-mask-balanced": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 602,
+        "height": 284
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 310
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 310
+      }
+    }
+  },
+  "ml-regularization-dropout-mask-detailed": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 602,
+        "height": 284
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 310
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 310
+      }
+    }
+  },
+  "ml-regularization-dropout-mask-detailed-detail": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 400
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 343
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 343
+      }
+    }
+  }
+}

@@ -32,7 +32,7 @@ const SELECTORS = {
   openInCompanion: '[data-graph-card-expand]', // GRAPH: the graph card's Show in the Graph beside Chat
   addToCanvas: 'Add to canvas', // the selection controls' menu button, when the choices sit behind one
   nodeAddCard: '[data-node-add-card]', // GRAPH: the node details' Add code card
-  addCodeCard: 'Add code card', addSelectionAsGraph: 'Add selection as graph', addGraphToCanvas: 'Add to canvas', // the graph header's blue button (owner brief 2026-10-16 item 4)
+  addCodeCard: 'Add code card', addSelectionAsGraph: 'Add selection as graph',
   // Context: a graph card selected with no node inside it rides as a graph-scope ref (GRAPH).
   graphScopeRef: ref => ref.kind === 'graph' || String(ref.sourceId || '').startsWith('graph:'),
   // ACCESS: the owner-checked source route for a card. Owner reads are served from the fixture here (a keyless stack has no
@@ -438,18 +438,27 @@ await check('5 Add selection as graph: one repo-graph subgraph card with exactly
 
 // Owner brief 2026-10-16 item 5: the card is the graph the panel shows (on 502ef340 the panel drew its 24-node overview and the
 // card every indexed node, 58 here), fitted to the card with readable labels; a focused view stays focused.
+// Owner 2026-11-15: the Graph header's Add to canvas is gone, so a card is made from a SELECTION (Add selection as graph): the nodes
+// selected in the panel (shift-click), in the overview and in a focused view. selectNodes picks exactly those ids.
+const selectNodes = async (ids, scope = graphPanel()) => {
+  await node(ids[0], scope).click();
+  for (const id of ids.slice(1)) await node(id, scope).click({ modifiers: ['Shift'] });
+  await waitFor(async () => (await selectedIn(scope)).length === ids.length, 5000, `${ids.length} nodes selected`);
+  await chooseAdd(SELECTORS.addSelectionAsGraph);
+};
 const drawn = scope => scope.locator('[data-graph-node]').evaluateAll(all => all.map(n => n.dataset.graphNode).sort());
 const labelPx = scope => scope.locator('[data-graph-node] text').first().evaluate(t => t.getBoundingClientRect().height);
-await check('6 Add to canvas: the card shows the nodes the panel shows (its overview, then a focus), readable, not the whole repository; Undo removes it', async () => {
+await check('6 Add selection as graph: the card shows exactly the nodes selected in the panel (from its overview, then from a focus), readable, not the whole repository; Undo removes it', async () => {
   await openGraph();
   await page.keyboard.press('Escape');
-  const panelIds = await drawn(graphPanel());
-  assert.ok(panelIds.length > 0 && panelIds.length < SNAPSHOT.graph.nodes.length, `the panel overview is bounded (${panelIds.length} of ${SNAPSHOT.graph.nodes.length})`);
-  await graphPanel().locator('[data-graph-add-to-canvas]').first().click();
-  await waitCount('repo-graph', 2, 'Add to canvas');
+  const shown = await drawn(graphPanel());
+  assert.ok(shown.length > 0 && shown.length < SNAPSHOT.graph.nodes.length, `the panel overview is bounded (${shown.length} of ${SNAPSHOT.graph.nodes.length})`);
+  const panelIds = shown.slice(0, 6);
+  await selectNodes(panelIds);
+  await waitCount('repo-graph', 2, 'Add selection as graph');
   const card = (await ofType('repo-graph')).find(b => b.id !== facts.c5?.id);
-  assert.equal(card.scope, 'subgraph', 'a bounded view is stored as its nodes');
-  assert.deepEqual([...card.nodeIds].sort(), panelIds, 'the stored nodes are the panel view');
+  assert.equal(card.scope, 'subgraph', 'a selection is stored as its nodes');
+  assert.deepEqual([...card.nodeIds].sort(), panelIds, 'the stored nodes are the selected nodes');
   await assertPlaced([card], 'the graph card');
   const el = cardEl(card.id).locator(SELECTORS.graphCard);
   await el.locator('[data-graph-node]').first().waitFor({ timeout: 20000 });
@@ -461,15 +470,15 @@ await check('6 Add to canvas: the card shows the nodes the panel shows (its over
     return [...svg.querySelectorAll('[data-graph-node] :is(circle, rect)')].every(n => { const r = n.getBoundingClientRect(); return r.x >= frame.x - 1 && r.right <= frame.right + 1 && r.y >= frame.y - 1 && r.bottom <= frame.bottom + 1; });
   });
   assert.ok(inside, 'every node fits inside the card');
-  assert.match((await el.innerText()).replace(/\s+/g, ' '), new RegExp(`Graph view · ${panelIds.length} nodes`), 'the card names the panel view');
+  assert.match((await el.innerText()).replace(/\s+/g, ' '), /Subgraph/, 'the card names a subgraph');
   await shot('04-panel-view-card');
   // A focused view: one node's neighbourhood, added as that neighbourhood.
   await graphPanel().locator(`[data-graph-node="${N.model}"]`).dispatchEvent('dblclick');
-  await waitFor(async () => (await drawn(graphPanel())).length !== panelIds.length, 8000, 'the focus did not change the panel view');
+  await waitFor(async () => (await drawn(graphPanel())).length !== shown.length, 8000, 'the focus did not change the panel view');
   await page.waitForTimeout(400);
   const focusIds = await drawn(graphPanel());
-  await graphPanel().locator('[data-graph-add-to-canvas]').first().click();
-  await waitCount('repo-graph', 3, 'Add to canvas from a focus');
+  await selectNodes(focusIds);
+  await waitCount('repo-graph', 3, 'Add selection as graph from a focus');
   const focused = (await ofType('repo-graph')).find(b => b.id !== facts.c5?.id && b.id !== card.id);
   assert.deepEqual([...focused.nodeIds].sort(), focusIds, 'a focus adds its neighbourhood, not the whole repository');
   const fel = cardEl(focused.id).locator(SELECTORS.graphCard);
@@ -819,11 +828,9 @@ await check('16b more than 250 connections: the graph says "Showing 250 of N con
     assert.deepEqual([now.shown, now.eligible, want], [250, 870, 870], 'focus: the label follows the focused scope');
     await shot('06-edge-limit-focus');
     // A card draws the panel's view (owner brief item 5) and reads the same stored graph: its label counts its own nodes' connections.
-    await panel.locator('[data-graph-clear]').click().catch(() => {});
-    await panel.getByRole('button', { name: 'Reset graph' }).click().catch(() => {});
-    await page.keyboard.press('Escape');
+    // 2026-11-15: no header Add to canvas; the card is made from the focus's 30 selected nodes (870 connections between them).
     const before = (await ofType('repo-graph')).map(b => b.id);
-    await panel.locator('[data-graph-add-to-canvas]').first().click();
+    await selectNodes(await drawn(panel), panel);
     const card = await waitFor(async () => (await ofType('repo-graph')).find(b => !before.includes(b.id)), 8000, 'no graph card');
     const el = cardEl(card.id).locator(SELECTORS.graphCard), cardLimit = el.locator('[data-graph-edge-limit]');
     await cardLimit.waitFor({ timeout: 20000 });

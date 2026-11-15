@@ -1,5 +1,9 @@
 # R4 contract: roadmap API
 
+> **Superseded in part by the owner decision of 2026-11-14 (Create a course).** One Generate course makes every card of the accepted plan; there is no per-card Accept, Cancel, Edit card, Next card,
+> Propose next step, End roadmap, Tab accept or proposal editor any more, the invitation reads **Create a course | Cancel**, the draft **Accept | Edit**, plan steps carry a `section`, cards are authored on
+> Gemini Flash, and a new file replaces the canvas's unfinished roadmap (one course per canvas). Where this document says otherwise, `docs/features/create-a-course.md` wins.
+
 Status: DRAFT CONTRACT. No route exists on main. Reconciled with the implementation checklist (`checklist-map.md`): wire field `revision` is the checklist's `revision` (the roadmap revision the client last saw; the first draft called it `expectedRevision`), and function names are in section 11. Fixtures: `contracts/fixtures/*.json` (27 API files including `index.json`, plus `planner-double.json`). Every request and response below has a fixture of the same name. The UI builds against the fixtures; State builds the routes to produce them. States and error codes come from `states.md` / `src/roadmap/roadmap-contract.js`.
 
 ## 1. Conventions copied from code that exists
@@ -160,3 +164,17 @@ R3 (lane `tutor-r3`, `source-ref.js`, `source-refs.js`) mints and re-reads a `So
 4. **Delivered card.** The adapter attaches `sourceRef` (R3's `publicRef(row)` read by id from `learn_source_refs` with `org` + `owner_email`, no session needed) as metadata exactly as R3's `artifactFetch` does (`{ ...out.block, sourceRef: passage }`); the model never sees or writes it. R3's `learn_source_ref_cards` index is written by the board save, which is the learner's request, so the ack path needs nothing more.
 5. **Shape mapping.** The checklist's `SourceRef` `{ source_key, source_rev, kind, anchor }` is the locator view of R3's shape: `source_key = source.key`, `source_rev = source.rev`, `kind` and `anchor` equal (`sourceLocator()` in the contract module). R3's `current/changed/missing/unavailable` map to the checklist's `resolved/changed/missing/inaccessible` (`SOURCE_STATUS_MAP`); `unsupported` has no R3 status and is refused before minting (any key that is not a `file:fs_...` Markdown source in R4). Requests carry `sourceRefId` (R3), never a client-built anchor.
 6. **Two anchors, on purpose.** `steps[].passage = { start, end }` are character offsets into the snapshot: private, server-only, used by the validator and for coverage. `sourceRef.anchor.quote` is R3's durable, navigable anchor. They are linked at mint time and never compared at read time.
+
+## Course routes (2026-11-14)
+
+All owner-only, same guards as the other roadmap routes (board, revision, `actionKey`); the answer is the RoadmapView.
+
+| Route | Does |
+|---|---|
+| `POST /:rm/course/start` | Generate course: the accepted plan's planned steps become a running course (`scope_json.course`); the first offer Accept plan left pending is accepted at once. 409 `course_running`, `roadmap_not_active`, `nothing_to_generate`. |
+| `POST /:rm/course/stop` | Cancel: no new card starts; the card in hand finishes. `course.stopped = 'cancelled'`. |
+| `POST /:rm/course/retry` | Try again: the steps whose card could not be made are planned again and the course runs for them. 409 `nothing_to_retry`. |
+| `POST /` (create) | Replaces the canvas's other unfinished roadmap (`replaceUnfinished`); 422 `course_running` while a course is being made, `course_busy` while a card is still being made; 422 `source_too_short` (under 100 words of prose), `source_not_prose` (over 70% code); the first plan screens the source with JEV (limitation `source_unsafe`). |
+
+View additions: `steps[].section`; `course` = `{ running, stopped, total, made, failed, current, facts[] }` where `stopped` is `cancelled`, `allowance`, `blocked`, `source_changed`, `failures` (three cards in a row could not be made),
+`safety` (two withheld in a row, or a learner's signs of danger) or `incomplete` (some cards could not be made: Try again). Limits: step ceilings 10 / 20 / 40 by Depth.

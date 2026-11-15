@@ -1,0 +1,78 @@
+C:\Users\cyudhist\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py:89: DeprecationError: 2026-06-18: The `modal.billing.workspace_billing_report()` function is deprecated. Use the `workspace.billing.report()` method on the `modal.Workspace` object instead.
+  self._context.run(self._callback, *self._args)
+sandbox created: sb-01M7E9N8VKEW2EKE9YT55DW0T9
+C:\Users\cyudhist\AppData\Local\Programs\Python\Python313\Lib\asyncio\events.py:89: DeprecationError: 2026-06-18: The `modal.billing.workspace_billing_report()` function is deprecated. Use the `workspace.billing.report()` method on the `modal.Workspace` object instead.
+  self._context.run(self._callback, *self._args)
+{
+  "modalProfile": "default",
+  "modalEnvironment": "(default environment)",
+  "imageSpec": {
+    "base": "python:3.12-slim",
+    "apt": [
+      "git",
+      "ca-certificates"
+    ],
+    "pip": [
+      {
+        "packages": [
+          "torch"
+        ],
+        "index_url": "https://download.pytorch.org/whl/cpu"
+      },
+      {
+        "packages": [
+          "numpy"
+        ]
+      }
+    ],
+    "run": [
+      "mkdir -p /work/repo"
+    ]
+  },
+  "tags": {
+    "job": "5e91e55f5cc8c38deda64baaf02bbeedcf389b46ccc653cc527cb610178c1d44",
+    "repo": "probe/rehearsal",
+    "commit": "0000000000000000000000000000000000000000",
+    "hardware": "cpu"
+  },
+  "sandboxId": "sb-01M7E9N8VKEW2EKE9YT55DW0T9",
+  "image": {
+    "ref": "modal:im-m1OM46c0i7hRl2Ekd9vjeU (python:3.12-slim)",
+    "digest": "sha256:eb30cf2d7ebec3a9a10b0931166d334d19094e54353cfbb218596958961616bd"
+  },
+  "imageBuildSec": 79.8,
+  "pythonSeen": "Python 3.12.16",
+  "pythonRc": 0,
+  "nvidiaOrCudaPackages": "0",
+  "torch": "2.15.0+cpu False",
+  "tagsReadBack": {
+    "commit": "0000000000000000000000000000000000000000",
+    "hardware": "cpu",
+    "job": "5e91e55f5cc8c38deda64baaf02bbeedcf389b46ccc653cc527cb610178c1d44",
+    "repo": "probe/rehearsal"
+  },
+  "allowlistProof": {
+    "pypi.org (expected 200)": "200",
+    "example.com (expected an error: not allowlisted)": "urllib.error.URLError: <urlopen error [Errno 104] Connection reset by peer>"
+  },
+  "terminated": true,
+  "leftover": [],
+  "lifetimeSec": 84.5,
+  "billing": {
+    "before": {
+      "ok": true,
+      "job": 0.0,
+      "app": 0.0,
+      "items": 0,
+      "at": "2026-11-15T00:26:42Z"
+    },
+    "after": {
+      "ok": true,
+      "job": 0.0,
+      "app": 0.0,
+      "items": 0,
+      "at": "2026-11-15T00:28:08Z"
+    },
+    "note": "measured 0.0000 USD for job 5e91e55f5cc8c38deda64baaf02bbeedcf389b46ccc653cc527cb610178c1d44 at 2026-11-15T00:28:08Z (app delta 0.0000 USD, 0 report items; hourly buckets may lag, 0 means not yet visible)"
+  }
+}

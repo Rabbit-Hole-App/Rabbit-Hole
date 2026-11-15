@@ -134,3 +134,26 @@ test('without a Chat workspace, Explore next and actions still render under the 
   assert.doesNotMatch(typed, /Regenerate answer/);
   assert.doesNotMatch(html({}), /Why does it rise\?/, 'no composer at all: nothing to prepare, so no suggestions');
 });
+
+// Owner 2026-11-13: the footer's controls show only while the pointer is over that answer (or a key is on it); Create as card makes a written /explain card from the question
+// for a substantive ordinary answer.
+test('the footer row is hidden until the answer is hovered or focused, and stays for a touch screen or while it has something to read', () => {
+  const html = render(answer(), { latest: true });
+  assert.match(html, /data-answer-footer="true" class="[^"]*opacity-0[^"]*group-focus-within\/answer:opacity-100[^"]*group-hover\/answer:opacity-100[^"]*\[@media\(hover:none\)\]:opacity-100/);
+  assert.match(read('AnswerFooter.jsx'), /\(reason !== null \|\| note \|\| copied\) && 'opacity-100'/);
+});
+
+test('Create as card: only where the page gives it AND JEV said the reply is worth keeping, and it is a /explain on the learner\'s question', () => {
+  // Server-rendered markup has run no effects, so JEV has not been asked: no button.
+  assert.doesNotMatch(render(answer()), /data-create-explain-card/);
+  assert.doesNotMatch(render(answer(), { onCreateExplainCard: () => {}, checkKeep: async () => true }), /data-create-explain-card/, 'not before JEV answers');
+  const footer = read('AnswerFooter.jsx');
+  assert.match(footer, /\{onCreateExplainCard && keepIt && <button type="button" data-create-explain-card disabled=\{created\} title="Make a written explanation card from this question, with \/explain"/);
+  assert.match(footer, /Promise\.resolve\(checkKeep\(\)\)\.then\(ok => \{ if \(live\) setKeepIt\(!!ok\); \}\)/);
+  assert.match(footer, /const \[keepIt, setKeepIt\] = useState\(false\), \[asked, setAsked\] = useState\(!!latest\);/, 'the latest reply is asked at once, an older one on first pointer or focus');
+  assert.match(footer, /!footerShown\(message\)\) return undefined;/, 'never while the reply is still streaming');
+  const messages = read('ChatMessages.jsx');
+  assert.match(messages, /const explainable = !!onCreateExplainCard && kind\.ordinary && !!asked\.trim\(\);/, 'only an ordinary reply to a question can be asked about');
+  assert.match(messages, /checkKeep=\{explainable && checkKeep \? \(\) => checkKeep\(\{ id: m\.messageId \?\? m\.id \?\? null, question: asked, reply: m\.content \}\) : null\}/);
+  assert.match(messages, /onCreateExplainCard: chat\?\.ask \? \(question => chat\.ask\(\{ line: `\/\$\{typedOf\('explanation'\)\} \$\{question\}` \}\)\) : null/, 'through the Chat\'s own command dispatcher');
+});

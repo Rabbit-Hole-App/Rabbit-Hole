@@ -1,0 +1,602 @@
+{
+  "ml-attention-scaled-score-normalization": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 621,
+        "height": 349
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 354
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 354
+      }
+    }
+  },
+  "ml-attention-scaled-score-normalization-brief": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 332
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 397
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 397
+      }
+    }
+  },
+  "ml-attention-scaled-score-normalization-balanced": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 621,
+        "height": 349
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 354
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 354
+      }
+    }
+  },
+  "ml-attention-scaled-score-normalization-detailed": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 621,
+        "height": 349
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 354
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 354
+      }
+    }
+  },
+  "ml-attention-scaled-score-normalization-detailed-detail": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 745
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 409
+      },
+      "natural": {
+        "requested": 684,
+        "width": 684,
+        "height": 409
+      }
+    }
+  },
+  "ml-model-evaluation-training-diagnostics": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 1077
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 1060
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 1060
+      }
+    }
+  },
+  "ml-model-evaluation-training-diagnostics-brief": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 583
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 583
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 583
+      }
+    }
+  },
+  "ml-model-evaluation-training-diagnostics-balanced": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 1077
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 1060
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 1060
+      }
+    }
+  },
+  "ml-model-evaluation-training-diagnostics-detailed": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 1077
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 1077
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 1077
+      }
+    }
+  },
+  "ml-model-evaluation-training-diagnostics-detailed-detail": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 306
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 271
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 271
+      }
+    }
+  },
+  "ml-model-evaluation-schedule-run-diagnostics": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 1101
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 1084
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 1084
+      }
+    }
+  },
+  "ml-model-evaluation-schedule-run-diagnostics-brief": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 583
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 566
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 566
+      }
+    }
+  },
+  "ml-model-evaluation-schedule-run-diagnostics-balanced": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 1101
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 1084
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 1084
+      }
+    }
+  },
+  "ml-model-evaluation-schedule-run-diagnostics-detailed": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 1101
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 1084
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 1084
+      }
+    }
+  },
+  "ml-model-evaluation-schedule-run-diagnostics-detailed-detail": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 1097
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 1080
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 1080
+      }
+    }
+  },
+  "ml-time-series-recursive-rollout": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 880
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 863
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 863
+      }
+    }
+  },
+  "ml-time-series-recursive-rollout-brief": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 559
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 559
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 559
+      }
+    }
+  },
+  "ml-time-series-recursive-rollout-balanced": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 880
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 863
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 863
+      }
+    }
+  },
+  "ml-time-series-recursive-rollout-detailed": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 444,
+        "height": 863
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 863
+      },
+      "natural": {
+        "requested": 884,
+        "width": 720,
+        "height": 863
+      }
+    }
+  },
+  "ml-time-series-recursive-rollout-detailed-detail": {
+    "kind": "coordinate-plot",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 669
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 652
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 669
+      }
+    }
+  },
+  "ml-distribution-shift-input-distribution-shift": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 817
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 445
+      },
+      "natural": {
+        "requested": 684,
+        "width": 684,
+        "height": 445
+      }
+    }
+  },
+  "ml-distribution-shift-input-distribution-shift-brief": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 608
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 349
+      },
+      "natural": {
+        "requested": 684,
+        "width": 684,
+        "height": 349
+      }
+    }
+  },
+  "ml-distribution-shift-input-distribution-shift-balanced": {
+    "kind": "comparison",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 817
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 445
+      },
+      "natural": {
+        "requested": 684,
+        "width": 684,
+        "height": 445
+      }
+    }
+  },
+  "ml-distribution-shift-input-distribution-shift-detailed": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 329
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 312
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 329
+      }
+    }
+  },
+  "ml-distribution-shift-input-distribution-shift-detailed-detail": {
+    "kind": "bar-chart",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 420,
+        "height": 351
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 312
+      },
+      "natural": {
+        "requested": 420,
+        "width": 420,
+        "height": 351
+      }
+    }
+  },
+  "ml-distribution-shift-concept-shift": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 343
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 278
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 278
+      }
+    }
+  },
+  "ml-distribution-shift-concept-shift-brief": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 301
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 254
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 254
+      }
+    }
+  },
+  "ml-distribution-shift-concept-shift-balanced": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 343
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 278
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 278
+      }
+    }
+  },
+  "ml-distribution-shift-concept-shift-detailed": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 343
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 278
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 278
+      }
+    }
+  },
+  "ml-distribution-shift-concept-shift-detailed-detail": {
+    "kind": "panels",
+    "renders": {
+      "408": {
+        "requested": 408,
+        "width": 408,
+        "height": 301
+      },
+      "960": {
+        "requested": 960,
+        "width": 720,
+        "height": 254
+      },
+      "natural": {
+        "requested": 680,
+        "width": 680,
+        "height": 254
+      }
+    }
+  }
+}

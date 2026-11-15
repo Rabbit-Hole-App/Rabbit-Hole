@@ -1,0 +1,528 @@
+{
+  "version": "rehearsal-1",
+  "routeId": "serve_fixtures_web",
+  "repo": "simonw/datasette",
+  "commit": "b98e1a2e146596dc4a83ce1b249a85b36cdc1528",
+  "hardware": "cpu",
+  "provider": "modal",
+  "sandboxId": "sb-01M7F8H42G874TZZ1M5Q4Y4WZY",
+  "terminated": true,
+  "sandboxesLeftAfter": 0,
+  "image": {
+    "ref": "modal:im-8VpybE4cwE9oblPPZlmrdr (python:3.12-slim)",
+    "digest": "sha256:03b891cb7412bb76303f343d744a4c4bb150d7267840e9371122d21ac8f66d84"
+  },
+  "model": "claude-sonnet-5-5",
+  "startedUtc": "2026-11-15T09:27:32Z",
+  "finishedUtc": "2026-11-15T09:28:39Z",
+  "wallSec": 66.6,
+  "environment": {
+    "python": "3.12.16",
+    "cpu": 2,
+    "memGiB": 4.0,
+    "packagesAfter": {
+      "accessible-pygments": "0.0.5",
+      "aiofiles": "25.1.0",
+      "alabaster": "1.0.0",
+      "annotated-types": "0.8.0",
+      "anyio": "4.16.0",
+      "asgiref": "3.13.0",
+      "asyncinject": "0.7",
+      "babel": "2.18.0",
+      "beautifulsoup4": "4.15.0",
+      "black": "26.10.1",
+      "blacken-docs": "1.20.0",
+      "certifi": "2026.10.23",
+      "cffi": "2.1.1",
+      "charset-normalizer": "3.5.2",
+      "click": "8.5.1",
+      "click-default-group": "1.2.4",
+      "codespell": "2.4.3",
+      "cogapp": "3.6.0",
+      "colorama": "0.4.6",
+      "cryptography": "50.0.2",
+      "datasette": "1.0a42",
+      "docutils": "0.22.4",
+      "execnet": "2.1.2",
+      "filelock": "4.2.4",
+      "fsspec": "2026.9.0",
+      "furo": "2025.12.19",
+      "h11": "0.16.0",
+      "httpcore2": "2.16.0",
+      "httpx2": "2.16.0",
+      "hupper": "1.12.1",
+      "idna": "3.20",
+      "imagesize": "2.0.1",
+      "iniconfig": "2.3.1",
+      "itsdangerous": "2.2.0",
+      "Jinja2": "3.1.6",
+      "markdown-it-py": "4.3.0",
+      "MarkupSafe": "3.0.3",
+      "mdit-py-plugins": "0.7.0",
+      "mdurl": "0.1.2",
+      "mergedeep": "1.3.4",
+      "mpmath": "1.3.0",
+      "multipart-form-data-conformance": "0.1a0",
+      "mypy_extensions": "1.2.0",
+      "myst-parser": "5.2.0",
+      "networkx": "3.7",
+      "numpy": "2.5.4",
+      "opentelemetry-api": "1.45.2",
+      "opentelemetry-sdk": "1.45.2",
+      "opentelemetry-semantic-conventions": "0.66b2",
+      "packaging": "26.3",
+      "pathspec": "1.1.1",
+      "pip": "26.3",
+      "platformdirs": "4.14.5",
+      "pluggy": "1.7.0",
+      "psutil": "7.2.2",
+      "pycparser": "3.12",
+      "pydantic": "2.14.3",
+      "pydantic_core": "2.50.4",
+      "Pygments": "2.21.0",
+      "pytest": "9.2.0",
+      "pytest-asyncio": "1.5.0",
+      "pytest-timeout": "2.4.0",
+      "pytest-xdist": "3.8.0",
+      "python-dateutil": "4.0.0",
+      "pytokens": "0.4.1",
+      "PyYAML": "6.0.3",
+      "requests": "2.34.2",
+      "roman-numerals": "4.1.0",
+      "ruamel.yaml": "0.19.1",
+      "ruff": "0.17.5",
+      "setuptools": "78.1.0",
+      "snowballstemmer": "3.1.1",
+      "soupsieve": "4.1.1",
+      "Sphinx": "9.0.4",
+      "sphinx-autobuild": "2025.8.25",
+      "sphinx-basic-ng": "1.0.0b2",
+      "sphinx-copybutton": "0.5.2",
+      "sphinx_inline_tabs": "2025.12.21.14",
+      "sphinx-markdown-builder": "0.6.11",
+      "sphinxcontrib-applehelp": "2.0.0",
+      "sphinxcontrib-devhelp": "2.0.0",
+      "sphinxcontrib-htmlhelp": "2.1.0",
+      "sphinxcontrib-jsmath": "2.0.0",
+      "sphinxcontrib-qthelp": "2.0.0",
+      "sphinxcontrib-serializinghtml": "2.0.0",
+      "sqlite-fts4": "1.0.3",
+      "sqlite-utils": "4.2.1",
+      "starlette": "1.10.0",
+      "sympy": "1.14.0",
+      "tabulate": "0.10.0",
+      "torch": "2.15.0+cpu",
+      "trustme": "1.2.1",
+      "truststore": "0.10.5",
+      "typing_extensions": "4.16.0",
+      "typing-inspection": "0.4.5",
+      "tzdata": "2026.6",
+      "urllib3": "2.8.0",
+      "uvicorn": "0.54.0",
+      "watchfiles": "1.3.0",
+      "websockets": "17.4"
+    }
+  },
+  "route": {
+    "routeId": "serve_fixtures_web",
+    "title": "Browse a sample database as an interactive website",
+    "whyChosen": "These are the three documented steps (install from the checkout with the dev dependency group, generate fixtures.db, serve it on the default port 8001); the `uv run ` prefix in docs/contributing.rst:146 is dropped because the sandbox has no uv, and the install uses `-e .` from the checkout rather than PyPI.",
+    "prerequisites": [],
+    "install": [
+      {
+        "cmd": "python3 -m pip install --upgrade pip",
+        "source": "repair fix 1"
+      },
+      {
+        "cmd": "python3 -m pip install -e . --group dev",
+        "source": "docs/contributing.rst:46"
+      }
+    ],
+    "steps": [
+      {
+        "id": "install_checkout",
+        "cmd": "python3 -m pip install -e . --group dev",
+        "source": "docs/contributing.rst:46",
+        "timeoutSec": 600,
+        "checks": [
+          {
+            "type": "exit_zero"
+          }
+        ]
+      },
+      {
+        "id": "make_fixtures_db",
+        "cmd": "python tests/fixtures.py fixtures.db",
+        "source": "docs/contributing.rst:146",
+        "timeoutSec": 120,
+        "checks": [
+          {
+            "type": "exit_zero"
+          },
+          {
+            "type": "files_exist",
+            "paths": [
+              "fixtures.db"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "serve_fixtures",
+        "cmd": "datasette serve fixtures.db",
+        "source": "README.md:43",
+        "timeoutSec": 120,
+        "longRunning": true,
+        "checks": [
+          {
+            "type": "port_listens",
+            "port": 8001
+          },
+          {
+            "type": "http_200",
+            "port": 8001,
+            "path": "/"
+          },
+          {
+            "type": "http_200",
+            "port": 8001,
+            "path": "/fixtures.json"
+          }
+        ]
+      }
+    ],
+    "knobs": [
+      {
+        "step": "serve_fixtures",
+        "flag": "--port",
+        "default": "8001",
+        "type": "int",
+        "source": "datasette/cli.py:378",
+        "safeValue": "8011"
+      },
+      {
+        "step": "serve_fixtures",
+        "flag": "--host",
+        "default": "127.0.0.1",
+        "type": "string",
+        "source": "datasette/cli.py:368",
+        "safeValue": "0.0.0.0"
+      },
+      {
+        "step": "serve_fixtures",
+        "flag": "--cors",
+        "default": "",
+        "type": "bool",
+        "source": "datasette/cli.py:393",
+        "optional": true
+      },
+      {
+        "step": "serve_fixtures",
+        "flag": "--setting",
+        "default": "",
+        "type": "string",
+        "source": "datasette/cli.py:430",
+        "safeValue": "default_page_size 10",
+        "optional": true
+      },
+      {
+        "step": "serve_fixtures",
+        "flag": "--reload",
+        "default": "",
+        "type": "bool",
+        "source": "datasette/cli.py:388",
+        "optional": true
+      },
+      {
+        "step": "make_fixtures_db",
+        "flag": "--recreate",
+        "default": "False",
+        "type": "bool",
+        "source": "tests/fixtures.py:430"
+      },
+      {
+        "step": "make_fixtures_db",
+        "flag": "--extra-db-filename",
+        "default": "",
+        "type": "string",
+        "source": "tests/fixtures.py:436"
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "step": "install",
+      "n": 1,
+      "cmd": "python3 -m pip install -e . --group dev",
+      "rc": 2,
+      "sec": 0.6,
+      "stderrTail": "\nUsage:   \n  /usr/local/bin/python3 -m pip install [options] <requirement specifier> [package-index-options] ...\n  /usr/local/bin/python3 -m pip install [options] -r <requirements file> [package-index-options] ...\n  /usr/local/bin/python3 -m pip install [options] [-e] <vcs project url> ...\n  /usr/local/bin/python3 -m pip install [options] [-e] <local project path> ...\n  /usr/local/bin/python3 -m pip install [options] <archive url/path> ...\n\nno such option: --group",
+      "log": "logs/install-1.log"
+    },
+    {
+      "step": "install_pre",
+      "n": 1,
+      "cmd": "python3 -m pip install --upgrade pip",
+      "rc": 0,
+      "sec": 1.94,
+      "stderrTail": "Requirement already satisfied: pip in /usr/local/lib/python3.12/site-packages (25.0.1)\nCollecting pip\n  Downloading pip-26.3-py3-none-any.whl.metadata (4.6 kB)\nDownloading pip-26.3-py3-none-any.whl (2.0 MB)\n   \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 2.0/2.0 MB 50.1 MB/s eta 0:00:00\nInstalling collected packages: pip\n  Attempting uninstall: pip\n    Found existing installation: pip 25.0.1\n    Uninstalling pip-25.0.1:\n      Successfully uninstalled pip-25.0.1\nSuccessfully installed pip-26.3",
+      "log": "logs/install_pre-1.log"
+    },
+    {
+      "step": "install",
+      "n": 2,
+      "cmd": "python3 -m pip install -e . --group dev",
+      "rc": 0,
+      "sec": 15.26,
+      "stderrTail": "  /tmp/pip-build-env-j0hs5xeu/overlay/lib/python3.12/site-packages/setuptools/command/editable_wheel.py:354: BuildBackendWarning: Editable installation.\n  !!\n  \n          ********************************************************************************\n          Please be careful with folders in your working directory with the same\n          name as your package as they may take precedence during imports.\n          ********************************************************************************\n  \n  !!\n    with strategy, WheelFile(wheel_path, \"w\") as wheel_obj:",
+      "log": "logs/install-2.log"
+    },
+    {
+      "step": "install_checkout",
+      "n": 1,
+      "cmd": "python3 -m pip install -e . --group dev",
+      "rc": 0,
+      "sec": 3.38,
+      "stderrTail": "  /tmp/pip-build-env-jb3lhtwp/overlay/lib/python3.12/site-packages/setuptools/command/editable_wheel.py:354: BuildBackendWarning: Editable installation.\n  !!\n  \n          ********************************************************************************\n          Please be careful with folders in your working directory with the same\n          name as your package as they may take precedence during imports.\n          ********************************************************************************\n  \n  !!\n    with strategy, WheelFile(wheel_path, \"w\") as wheel_obj:",
+      "log": "logs/install_checkout-1.log"
+    },
+    {
+      "step": "make_fixtures_db",
+      "n": 1,
+      "cmd": "python tests/fixtures.py fixtures.db",
+      "rc": 0,
+      "sec": 1.76,
+      "stderrTail": "Test tables written to fixtures.db",
+      "log": "logs/make_fixtures_db-1.log"
+    },
+    {
+      "step": "serve_fixtures",
+      "n": 1,
+      "cmd": "datasette serve fixtures.db",
+      "rc": 0,
+      "sec": 2.86,
+      "stderrTail": "INFO:     Started server process [851]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)\nWARNING:  Invalid HTTP request received.\nINFO:     127.0.0.1:28703 - \"GET / HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:44883 - \"GET /fixtures.json HTTP/1.1\" 200 OK",
+      "log": "logs/serve_fixtures-1.log"
+    }
+  ],
+  "fixes": [
+    {
+      "n": 1,
+      "step": "install",
+      "kind": "add_step_before",
+      "change": "python3 -m pip install --upgrade pip",
+      "evidence": "stderr: \"no such option: --group\"; pipListAfterLastInstall shows pip==25.0.1 (--group needs pip>=25.1); pyproject.toml:61 defines [dependency-groups] dev.",
+      "modelCalls": 2
+    }
+  ],
+  "steps": [
+    {
+      "id": "install_checkout",
+      "cmd": "python3 -m pip install -e . --group dev",
+      "rc": 0,
+      "sec": 3.38,
+      "checks": [
+        {
+          "type": "exit_zero",
+          "passed": true
+        }
+      ],
+      "files": {},
+      "log": "logs/install_checkout-1.log",
+      "warnings": [
+        "/tmp/pip-build-env-jb3lhtwp/overlay/lib/python3.12/site-packages/setuptools/command/editable_wheel.py:354: BuildBackendWarning: Editable installation."
+      ],
+      "stdoutHead": "Obtaining file:///work/repo\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nRequirement already satisfied: pytest>=9 in /usr/local/lib/python3.12/site-packages (9.2.0)\nRequirement already satisfied: pytest-xdist>=2.2.1 in /usr/local/lib/python3.12/site-packages (3.8.0)\nRequirement already satisfied: pytest-asyncio>=1.2.0 in /usr/local/lib/python3.12/site-packages (1.5.0)\nRequirement already satisfied: beautifulsoup4>=4.8.1 in /usr/local/lib/python3.12/site-packages (4.15.0)\nRequirement already satisfied: black==26.10.1 in /usr/local/lib/python3.12/site-packages (26.10.1)\nRequirement already satisfied: blacken-docs==1.20.0 in /usr/local/lib/python3.12/site-packages (1.20.0)\nRequirement already satisfied: pytest-timeout>=1.4.2 in /usr/local/lib/python3.12/site-packages (2.4.0)\nRequirement already satisfied: trustme>=0.7 in /usr/local/lib/python3.12/site-packages (1.2.1)\nRequirement already satisfied: cogapp>=3.3.0 in /usr/local/lib/python3.12/site-packages (3.6.0)\nRequirement already satisfied: multipart-form-data-conformance==0.1a0 in /usr/local/lib/python3.12/site-packages (0.1a0)\nRequirement already satisfied: ruff>=0.16.0 in /usr/local/lib/python3.12/site-packages (0.17.5)\nRequirement already satisfied: opentelemetry-sdk>=1.37 in /usr/local/lib/python3.12/site-packages (1.45.2)\nRequirement already satisfied: Sphinx==9.0.4 in /usr/local/lib/python3.12/site-packages (9.0.4)\nRequirement already satisfied: furo==2025.12.19 in /usr/local/lib/python3.12/site-packages (2025.12.19)",
+      "stdoutTail": "Requirement already satisfied: pydantic-core==2.50.4 in /usr/local/lib/python3.12/site-packages (from pydantic>=2->datasette==1.0a42) (2.50.4)\nRequirement already satisfied: typing-inspection>=0.4.4 in /usr/local/lib/python3.12/site-packages (from pydantic>=2->datasette==1.0a42) (0.4.5)\nRequirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/site-packages (from requests>=2.30.0->Sphinx==9.0.4) (3.5.2)\nRequirement already satisfied: urllib3<3,>=1.26 in /usr/local/lib/python3.12/site-packages (from requests>=2.30.0->Sphinx==9.0.4) (2.8.0)\nRequirement already satisfied: certifi>=2023.5.7 in /usr/local/lib/python3.12/site-packages (from requests>=2.30.0->Sphinx==9.0.4) (2026.10.23)\nRequirement already satisfied: python-dateutil in /usr/local/lib/python3.12/site-packages (from sqlite-utils>=4.0->datasette==1.0a42) (4.0.0)\nRequirement already satisfied: sqlite-fts4 in /usr/local/lib/python3.12/site-packages (from sqlite-utils>=4.0->datasette==1.0a42) (1.0.3)\nRequirement already satisfied: tzdata in /usr/local/lib/python3.12/site-packages (from python-dateutil->sqlite-utils>=4.0->datasette==1.0a42) (2026.6)\nBuilding wheels for collected packages: datasette\n  Building editable for datasette (pyproject.toml): started\n  Building editable for datasette (pyproject.toml): finished with status 'done'\n  Created wheel for datasette: filename=datasette-1.0a42-0.editable-py3-none-any.whl size=9713 sha256=3a5bc8c518fe99ae7a5c1ae181ecaf464ce1551e4e3df03d290fbc1714963222\n  Stored in directory: /tmp/pip-ephem-wheel-cache-8q_3kikc/wheels/3a/4a/18/2e0c658c99e17426cd11b3c369a39c9159b7d6a4981ab576c1\nSuccessfully built datasette\nInstalling collected packages: datasette\n  Attempting uninstall: datasette\n    Found existing installation: datasette 1.0a42\n    Uninstalling datasette-1.0a42:\n      Successfully uninstalled datasette-1.0a42\nSuccessfully installed datasette-1.0a42"
+    },
+    {
+      "id": "make_fixtures_db",
+      "cmd": "python tests/fixtures.py fixtures.db",
+      "rc": 0,
+      "sec": 1.76,
+      "checks": [
+        {
+          "type": "exit_zero",
+          "passed": true
+        },
+        {
+          "type": "files_exist",
+          "passed": true
+        }
+      ],
+      "files": {
+        "fixtures.db": {
+          "bytes": 249856,
+          "sha256": "bb02de1ccb1dbb9de79ab6ff31363daccc60addea390014de037b4e4b1cbfea1"
+        }
+      },
+      "log": "logs/make_fixtures_db-1.log",
+      "warnings": [],
+      "stdoutHead": "Test tables written to fixtures.db",
+      "stdoutTail": "Test tables written to fixtures.db"
+    },
+    {
+      "id": "serve_fixtures",
+      "cmd": "datasette serve fixtures.db",
+      "rc": 0,
+      "sec": 2.86,
+      "startedSec": 1.54,
+      "checks": [
+        {
+          "type": "port_listens",
+          "passed": true
+        },
+        {
+          "type": "http_200",
+          "passed": true,
+          "body": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <title>Datasette: fixtures</title>\n    <link rel=\"stylesheet\" href=\"/-/static/app.css?_hash=3d78d20edee2\">\n    <meta name=\"viewport\" content=\"width=device-w"
+        },
+        {
+          "type": "http_200",
+          "passed": true,
+          "body": "{\"ok\": true, \"database\": \"fixtures\", \"private\": false, \"path\": \"/fixtures\", \"size\": 249856, \"tables\": [{\"name\": \"123_starts_with_digits\", \"columns\": [\"content\"], \"primary_keys\": [], \"count\": 0, \"count"
+        }
+      ],
+      "files": {},
+      "log": "logs/serve_fixtures-1.log",
+      "warnings": [
+        "WARNING:  Invalid HTTP request received."
+      ],
+      "stdoutHead": "INFO:     Started server process [851]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)\nWARNING:  Invalid HTTP request received.\nINFO:     127.0.0.1:28703 - \"GET / HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:44883 - \"GET /fixtures.json HTTP/1.1\" 200 OK",
+      "stdoutTail": "INFO:     Started server process [851]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8001 (Press CTRL+C to quit)\nWARNING:  Invalid HTTP request received.\nINFO:     127.0.0.1:28703 - \"GET / HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:44883 - \"GET /fixtures.json HTTP/1.1\" 200 OK"
+    }
+  ],
+  "traps": [
+    {
+      "id": "extra-db-filename_with_equals_sign",
+      "cmd": "python tests/fixtures.py fixtures.db --extra-db-filename=A=B",
+      "rc": 1,
+      "sec": 0.77,
+      "stderrTail": "Error: fixtures.db already exists, use --recreate to reset it",
+      "failsAsExpected": true,
+      "log": "logs/trap-extra-db-filename_with_equals_sign.log"
+    },
+    {
+      "id": "unknown_key",
+      "cmd": "python tests/fixtures.py fixtures.db --recrate=",
+      "rc": 2,
+      "sec": 0.77,
+      "stderrTail": "Usage: fixtures.py [OPTIONS] [DB_FILENAME] [CONFIG] [METADATA] [PLUGINS_PATH]\nTry 'fixtures.py --help' for help.\n\nError: No such option '--recrate'. Did you mean '--recreate'?",
+      "failsAsExpected": true,
+      "log": "logs/trap-unknown_key.log"
+    }
+  ],
+  "knobsVerified": [],
+  "allChecksPassed": true,
+  "network": {
+    "outboundDomainAllowlist": [
+      "pypi.org",
+      "files.pythonhosted.org",
+      "download.pytorch.org",
+      "github.com",
+      "*.github.com",
+      "codeload.github.com",
+      "raw.githubusercontent.com",
+      "objects.githubusercontent.com",
+      "*.githubusercontent.com"
+    ],
+    "outboundCidrAllowlist": [],
+    "allowDomainFixes": []
+  },
+  "modelCalls": [
+    {
+      "role": "discovery",
+      "model": "claude-sonnet-5-5",
+      "inputTokens": 10206,
+      "outputTokens": 1073,
+      "usd": 0.031142
+    },
+    {
+      "role": "repair",
+      "model": "claude-sonnet-5-5",
+      "inputTokens": 3283,
+      "outputTokens": 218,
+      "usd": 0.008746
+    },
+    {
+      "role": "repair",
+      "model": "claude-sonnet-5-5",
+      "inputTokens": 4493,
+      "outputTokens": 222,
+      "usd": 0.011206
+    },
+    {
+      "role": "plan",
+      "model": "claude-sonnet-5-5",
+      "inputTokens": 4576,
+      "outputTokens": 850,
+      "usd": 0.017652
+    }
+  ],
+  "modelSpendUsd": 0.068746,
+  "sandboxSpendNote": "not yet visible (billing report returned 3 items at 2026-11-15T09:28:38Z; job cost not in an hourly bucket yet)",
+  "draftPlan": {
+    "repo": "simonw/datasette",
+    "commit": "b98e1a2e146596dc4a83ce1b249a85b36cdc1528",
+    "hardware": "cpu",
+    "timeBudgetMin": 20,
+    "totalMin": 6,
+    "steps": [
+      {
+        "n": 1,
+        "pattern": "see",
+        "title": "See the map: install from the checkout, tests/fixtures.py builds fixtures.db, `datasette serve` serves it on port 8001",
+        "minutes": 2,
+        "check": null
+      },
+      {
+        "n": 2,
+        "pattern": "run",
+        "title": "Install datasette from the checkout with the dev group",
+        "minutes": 1,
+        "cmd": "python3 -m pip install -e . --group dev",
+        "measuredSec": 3.38,
+        "check": {
+          "type": "exit_zero"
+        }
+      },
+      {
+        "n": 3,
+        "pattern": "run",
+        "title": "Generate the sample fixtures database",
+        "minutes": 1,
+        "cmd": "python tests/fixtures.py fixtures.db",
+        "measuredSec": 1.76,
+        "check": {
+          "type": "files_exist",
+          "paths": [
+            "fixtures.db"
+          ]
+        }
+      },
+      {
+        "n": 4,
+        "pattern": "run",
+        "title": "Serve fixtures.db on port 8001",
+        "minutes": 2,
+        "cmd": "datasette serve fixtures.db",
+        "measuredSec": 2.86,
+        "check": {
+          "type": "recorded"
+        }
+      }
+    ],
+    "install": [
+      "python3 -m pip install --upgrade pip",
+      "python3 -m pip install -e . --group dev"
+    ],
+    "trapsToWarn": [
+      "The README never says `pip install -e . --group dev` needs pip 25.1 or newer; older pip fails with \"no such option: --group\", so run `python3 -m pip install --upgrade pip` first.",
+      "The docs write the fixtures step with a `uv run ` prefix; without uv, drop the prefix and run `python tests/fixtures.py fixtures.db` directly.",
+      "`--extra-db-filename=A=B` fails if fixtures.db already exists: the script refuses to overwrite it unless you pass --recreate.",
+      "A misspelled flag such as `--recrate=` is rejected with \"No such option\"; the script only accepts the exact flag names (here `--recreate`)."
+    ]
+  },
+  "gaveUp": null,
+  "snapshotImage": "im-01M7F8JT4DGYNFX4XZAKS4BJFH"
+}

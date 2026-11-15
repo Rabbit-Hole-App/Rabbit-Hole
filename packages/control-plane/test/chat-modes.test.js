@@ -1,6 +1,7 @@
 // Learn chat modes, server side (agent-coordination/tasks/chat-workspace-CONTRACT.md A2, A4, B1, B5, B6, B7): the request
 // fields, Auto intent, the Tutor syllabus in the journey path shape, and apiAsk's writes and SSE order, run with the real
 // askStream against SQLite (repository-schema.sql) and a mocked provider.
+import '../../web/src/agent/slash-flags-test-on.mjs'; // every slash command on: these tests are about routing, not which commands ship (web SLASH_FLAGS); first, so every later import sees the flags
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

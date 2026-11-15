@@ -81,7 +81,7 @@ test('the equation is its LaTeX: saved, reloaded and compared by its source', as
 
 test('copy and duplicate keep the source: an item copy is the whole item under a new id', () => {
   const canvas = read('./AdaptiveCanvas.jsx');
-  assert.match(canvas, /const itemsCopy = pickedItems\.map\(item => \(\{ \.\.\.item, id: newId\(item\.id\), groupId: groupFor\(item\), locked: undefined, x: item\.x \+ step, y: item\.y \+ step, fresh: false \}\)\);/);
+  assert.match(canvas, /const itemsCopy = pickedItems\.map\(item => \(\{ \.\.\.item, id: newId\(item\.id\), groupId: groupFor\(item\), locked: undefined, x: item\.x \+ by\.x, y: item\.y \+ by\.y, fresh: false \}\)\);/);
   assert.match(canvas, /duplicate: \(\) => !!pasteIds\(selectedRef\.current\)/);
   // The same copy as the canvas makes, run here: latex and size ride.
   const item = { id: 'e1', kind: 'equation', x: 0, y: 0, latex: MATRIX, size: 40 };

@@ -3,23 +3,31 @@
 // composer (Lane A's composer.prepare, contract A6) or inserts the answer's own notebook code: rendering never sends, never
 // generates and never fetches. Actions make artifacts, questions continue the talk, so the two are drawn apart.
 import { useState } from 'react';
-import { ChartLine, ChevronDown, CircleHelp, Code, CornerDownRight, Film, Image, NotebookPen, PencilLine, Video, Workflow } from 'lucide-react';
+import { ChartLine, ChevronDown, CircleHelp, Code, CornerDownRight, Film, Image, NotebookPen, PencilLine, SlidersHorizontal, Video, Workflow } from 'lucide-react';
 import { isLearnCommand } from './learn-slash.js';
+import { addKnobToCard, knobActionOn, knobFromAnswer } from './tutor-knob-action.js';
+import { REHEARSAL } from './rehearsal-flag.js';
+
+// What the Run card said back (RunNode answers the event: tutor-knob-action.js addKnobToCard).
+const KNOB_NOTE = { added: 'Added to the Run card.', exists: 'The Run card already has it.', nostep: 'Start the Run card session first, so I know which step it belongs to.', locked: 'The Run card is locked or view-only.', full: 'The Run card has the most added parameters it can hold.', invalid: 'I cannot add that one.', none: 'This canvas has no Run card for this repository.' };
 
 const ICON = { diagram: Workflow, graph: ChartLine, video: Video, image: Image, notebook: NotebookPen, code: Code, practice: PencilLine, quiz: CircleHelp, motion: Film };
 
-export default function AnswerSuggestions({ message, latest, threadId, prepare, insertNotebook }) {
+// question: what the learner asked, for the Run card's add-a-parameter action (tutor-knob-action.js).
+export default function AnswerSuggestions({ message, latest, threadId, prepare, insertNotebook, question = '' }) {
   // Opened on an older answer by key, so a reused instance never carries it to another chat or message.
   const key = `${threadId}:${message?.messageId}`;
-  const [openKey, setOpenKey] = useState(null);
-  if (message?.role !== 'assistant' || message.status !== 'done' || !message.meta) return null;
+  const [openKey, setOpenKey] = useState(null), [knobNote, setKnobNote] = useState({ key: '', text: '' });
+  if (message?.role !== 'assistant' || message.status !== 'done') return null;
+  // Run card v1.1 Part 1b: an answer to a question about changing a parameter that quotes the line declaring it carries ONE action, Add the flag to the Run card. Nothing is guessed (tutor-knob-action.js).
+  const knob = REHEARSAL && knobActionOn() ? knobFromAnswer({ question, content: message.content, contextRefs: message.meta?.contextRefs }) : null;
   // Only records that can be drawn and run: a malformed one (an object label, no subject, no code) is skipped, never thrown.
   const text = value => typeof value === 'string' && value.trim() !== '';
   // A saved answer keeps the actions it was validated with: one from before the 2026-10-20 cleanup can name a removed command
   // (compare, animate), whose Send only says it is no longer available, so only a command the composer can run is offered.
-  const actions = (Array.isArray(message.meta.actions) ? message.meta.actions : []).filter(a => a && isLearnCommand(a.capabilityId) && text(a.label) && (a.generationRequired ? text(a.args?.subject) : Array.isArray(a.args?.code?.cells)));
-  const followUps = (Array.isArray(message.meta.followUps) ? message.meta.followUps : []).filter(f => f && text(f.text));
-  if (!actions.length && !followUps.length) return null;
+  const actions = (Array.isArray(message.meta?.actions) ? message.meta.actions : []).filter(a => a && isLearnCommand(a.capabilityId) && text(a.label) && (a.generationRequired ? text(a.args?.subject) : Array.isArray(a.args?.code?.cells)));
+  const followUps = (Array.isArray(message.meta?.followUps) ? message.meta.followUps : []).filter(f => f && text(f.text));
+  if (!actions.length && !followUps.length && !knob) return null;
   const open = latest || openKey === key;
   if (!open) return (
     <button type="button" data-answer-suggestions-toggle aria-expanded="false" onClick={() => setOpenKey(key)}
@@ -32,8 +40,19 @@ export default function AnswerSuggestions({ message, latest, threadId, prepare, 
   const run = a => (a.generationRequired ? prepare({ command: a.capabilityId, text: a.args.subject, contextRefs: a.contextRefs }) : insertNotebook(a.args.code.cells, a.args.code.language));
   return (
     <div data-answer-suggestions={key} className="mt-2 flex flex-col gap-2">
-      {actions.length > 0 && (
-        <div role="group" aria-label="Suggested actions" className="flex flex-wrap gap-1.5">
+      {(actions.length > 0 || knob) && (
+        <div role="group" aria-label="Suggested actions" className="flex flex-wrap items-center gap-1.5">
+          {REHEARSAL && knob && (
+            <>
+              <button type="button" data-answer-action="run-card-knob" onClick={() => setKnobNote({ key, text: KNOB_NOTE[addKnobToCard(knob)] || '' })}
+                title="Adds this parameter to the Run card of this repository"
+                className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-2 py-1 text-xs font-medium text-ink hover:bg-hover">
+                <SlidersHorizontal size={14} aria-hidden="true" className="shrink-0 text-ink-2" />
+                <span>Add <code className="font-mono">{knob.flag}</code> to the Run card</span>
+              </button>
+              {knobNote.key === key && knobNote.text && <span role="status" data-answer-action-note className="text-xs text-ink-2">{knobNote.text}</span>}
+            </>
+          )}
           {actions.map(a => {
             const Icon = ICON[a.capabilityId] || Code;
             return (

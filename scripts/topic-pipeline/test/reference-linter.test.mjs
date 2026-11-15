@@ -212,6 +212,14 @@ test('rule 11: 200 KB/40-file boundaries and topic allowlist pass; excess/escape
   for (const name of ['../escape.js', 'packages/control-plane/src/server.js', 'packages/web/src/tutor-diagrams/topic-other-data.js']) {
     assert.ok(lintAuthoredFiles({ ...options, files: [{ path: name, content: 'export const data = [];' }] }).some(issue => issue.detail.includes('allowlist')));
   }
+  // Composition references pass for any subject (with or without a topic); only composition-<subject>-references.js in the diagrams folder.
+  for (const name of ['packages/web/src/tutor-diagrams/composition-regularization-references.js', 'packages/web/src/tutor-diagrams/composition-neural-networks-references.js']) {
+    assert.deepEqual(lintAuthoredFiles({ ...options, files: [{ path: name, content: 'export const data = [];' }] }), [], name);
+    assert.deepEqual(lintAuthoredFiles({ files: [{ path: name, content: 'export const data = [];' }], repoRoot: process.cwd() }), [], `${name} without a topic`);
+  }
+  for (const name of ['packages/web/src/tutor-diagrams/composition-regularization-data.js', 'packages/web/src/tutor-diagrams/composition-regularization-references.mjs', 'packages/web/src/tutor-diagrams/sub/composition-regularization-references.js', 'packages/web/src/tutor-diagrams/composition--references.js', 'packages/control-plane/src/composition-x-references.js']) {
+    assert.ok(lintAuthoredFiles({ ...options, files: [{ path: name, content: 'export const data = [];' }] }).some(issue => issue.detail.includes('allowlist')), name);
+  }
 });
 
 async function fixture(t, files) {

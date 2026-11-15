@@ -1,6 +1,8 @@
 // Owner 2026-11-09: Ctrl+K over highlighted words in a card. The words are the request's subject (a text range of the card), shown as a short chip, marked on the card
 // while the window is open, with the window beside them. Pure helpers (no React); the editor and the canvas call them.
 import { cardText } from './canvas-semantics.js';
+import { quoteFromRange } from './learn-wiki-highlights.js';
+import { heldPassage } from './passage-link.js';
 
 // The chip's text: the first 2-3 words, at most `max` characters, the ellipsis inside the chip (owner: [ maximum likelihod.., x ]).
 export function firstWords(text, { words = 3, max = 24 } = {}) {
@@ -32,6 +34,14 @@ export function locate(whole, passage) {
   return { from: at[found], to: at[found + want.length - 1] + 1 };
 }
 
+// HL-1: the words of a Markdown file card as the quote its source reference is minted from (source-ref.js markdownDraft), taken from the card's rendered text exactly as FileDocMarkdown's own
+// Explain takes it; a selection that starts or ends in typeset math or a diagram has no quote (its text is markup, not words), and any other card has none.
+export function passageQuote(card, block, range) {
+  const md = block?.kind === 'markdown' ? card?.querySelector?.('[data-file-doc-md]') : null;
+  const rich = at => (at.nodeType === 1 ? at : at.parentElement)?.closest?.('.katex, [data-chat-math], [data-md-diagram]');
+  return md && !rich(range.startContainer) && !rich(range.endContainer) ? quoteFromRange(md, range) : null;
+}
+
 // The highlighted words of the card under the selection: { id, range, highlight } or null. highlight: the live Range (kept so the words stay marked after focus moves
 // into the Ctrl+K field and the native selection collapses), its client rects, the first line's top relative to the card in world units (alignY: the new card starts level
 // with the highlighted line), and the words.
@@ -50,7 +60,7 @@ export function pickedHighlight(root, blocks, zoom = 1, selection = typeof windo
   if (!rects.length) return null;
   const top = Math.min(...rects.map(rect => rect.top)), cardTop = card.getBoundingClientRect().top;
   return { id, range: spot ? { id, from: spot.from, to: spot.to, text: cardText(block).slice(spot.from, spot.to) } : null,
-    highlight: { id, text, rects, live: range.cloneRange(), alignY: Math.max(0, Math.round((top - cardTop) / (zoom || 1))) } };
+    highlight: { id, text, rects, quote: passageQuote(card, block, range), passage: heldPassage(id, text), live: range.cloneRange(), alignY: Math.max(0, Math.round((top - cardTop) / (zoom || 1))) } };
 }
 
 // The whole card as one context object (owner 2026-11-09): which card it is and everything in it, with the highlighted words flagged: { cardId, cardType, title, highlighted, body (the prose, the
@@ -145,6 +155,29 @@ export function cameraForWords(words, win, view, area, { max = CAMERA_ZOOM_MAX, 
 export const settleRects = (rects, from, to) => rects.map(r => ({ left: (r.left - from.x) / from.z * to.z + to.x, top: (r.top - from.y) / from.z * to.z + to.y, width: r.width / from.z * to.z, height: r.height / from.z * to.z }));
 
 // A scrim over `size` that leaves the given rects (plus `pad`) undimmed: one even-odd path (the outer box, then one hole per rect).
+// HL-2: the scrim path cuts even-odd, so two holes that overlap would leave the overlap dimmed (a range's rects hold an element's box and the text inside it, and a passage explained twice
+// is painted twice). Rects that mostly overlap (half of the smaller one or more: nested boxes, repeats) become their bounding box, until none do; neighbouring lines that only touch stay apart.
+export function mergeRects(rects) {
+  const out = rects.filter(r => r.width > 0 && r.height > 0).map(r => ({ left: r.left, top: r.top, width: r.width, height: r.height }));
+  const meet = (a, b) => {
+    const w = Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left), h = Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+    return w > 0 && h > 0 && w * h >= 0.5 * Math.min(a.width * a.height, b.width * b.height);
+  };
+  for (let again = true; again;) {
+    again = false;
+    for (let i = 0; i < out.length && !again; i += 1) {
+      for (let j = i + 1; j < out.length; j += 1) {
+        if (!meet(out[i], out[j])) continue;
+        const left = Math.min(out[i].left, out[j].left), top = Math.min(out[i].top, out[j].top);
+        out[i] = { left, top, width: Math.max(out[i].left + out[i].width, out[j].left + out[j].width) - left, height: Math.max(out[i].top + out[i].height, out[j].top + out[j].height) - top };
+        out.splice(j, 1);
+        again = true;
+        break;
+      }
+    }
+  }
+  return out;
+}
 export function scrimPath(size, rects, pad = 3) {
   const holes = rects.map(r => `M${Math.round(r.left - pad)} ${Math.round(r.top - pad)}h${Math.round(r.width + pad * 2)}v${Math.round(r.height + pad * 2)}h${-Math.round(r.width + pad * 2)}z`).join('');
   return `path(evenodd, "M0 0H${Math.round(size.w)}V${Math.round(size.h)}H0z${holes}")`;

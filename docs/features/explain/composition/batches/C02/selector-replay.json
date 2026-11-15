@@ -1,0 +1,414 @@
+{
+  "version": 1,
+  "baseline": "767ba06c4721d2964d05b5e5295d9d899169d60f",
+  "schemaBase": "1944b48cf24c9d6bd7f53b34ddbe258d1c6113df",
+  "method": "Offline prior-pick parity with deterministic source-kind JEV plans",
+  "baselineReferences": 450,
+  "priorCases": 2721,
+  "baselineCasesSha256": "e21d10b06b12d5c4270d48f1d0bb86c671e2bec96df429f37ed72e289dec0639",
+  "unchangedPriorReferencePayloads": true,
+  "passed": true,
+  "changedPriorPicks": [],
+  "collisions": [],
+  "rows": [
+    {
+      "id": "c02-1",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "brief",
+      "firstHit": "ml-attention-scaled-score-normalization",
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c02-1",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "balanced",
+      "firstHit": "ml-attention-scaled-score-normalization",
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c02-1",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "detailed",
+      "firstHit": "ml-attention-scaled-score-normalization",
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c02-2",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "brief",
+      "firstHit": "ml-model-evaluation-training-diagnostics",
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-2",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "balanced",
+      "firstHit": "ml-model-evaluation-training-diagnostics",
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-2",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "detailed",
+      "firstHit": "ml-model-evaluation-training-diagnostics",
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-3",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "brief",
+      "firstHit": "ml-model-evaluation-schedule-run-diagnostics",
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-3",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "balanced",
+      "firstHit": "ml-model-evaluation-schedule-run-diagnostics",
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-3",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "detailed",
+      "firstHit": "ml-model-evaluation-schedule-run-diagnostics",
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-4",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "brief",
+      "firstHit": "ml-time-series-recursive-rollout",
+      "referenceId": "ml-time-series-recursive-rollout",
+      "firstPick": true,
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "kind": "coordinate-plot"
+        }
+      ]
+    },
+    {
+      "id": "c02-4",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "balanced",
+      "firstHit": "ml-time-series-recursive-rollout",
+      "referenceId": "ml-time-series-recursive-rollout",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-4",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "detailed",
+      "firstHit": "ml-time-series-recursive-rollout",
+      "referenceId": "ml-time-series-recursive-rollout",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-5",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "brief",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-5",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "balanced",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-5",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "detailed",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "kind": "bar-chart"
+        }
+      ]
+    },
+    {
+      "id": "c02-6",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "brief",
+      "firstHit": "ml-distribution-shift-concept-shift",
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c02-6",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "balanced",
+      "firstHit": "ml-distribution-shift-concept-shift",
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c02-6",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "detailed",
+      "firstHit": "ml-distribution-shift-concept-shift",
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift",
+          "kind": "panels"
+        }
+      ]
+    },
+    {
+      "id": "c02-5-alias",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "brief",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-5-alias",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "balanced",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "kind": "comparison"
+        }
+      ]
+    },
+    {
+      "id": "c02-5-alias",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "detailed",
+      "firstHit": "ml-distribution-shift-input-distribution-shift",
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "firstPick": true,
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "collision": false,
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "kind": "bar-chart"
+        }
+      ]
+    }
+  ]
+}

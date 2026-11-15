@@ -45,10 +45,10 @@ test('VOICE-01: off, the mic is the neutral composer button; it waits while a ty
   assert.match(off, /aria-label="Voice mode"/);
   assert.match(off, /aria-pressed="false"/);
   assert.doesNotMatch(off, /disabled/);
-  assert.match(off, /rounded-lg border border-line/, 'COMPOSER_ADD, like the + button');
+  assert.match(off, /rounded-full border border-line/, 'COMPOSER_ADD, like the + button');
   assert.match(buttons(render(VoiceToggle, { voice: voiceIn('off'), disabled: true }))[0], /disabled=""/);
   // At the end of the dock's (or the Chat pane's) leading row, only while off, and disabled while busy (its Stop is in that slot).
-  assert.match(ask, /\{\(dock \|\| chat\) && chatControl\}\n\s+\{\(dock \|\| chat\) && voice && voice\.state === 'off' && \(chat \? <span [^\n]*><VoiceToggle voice=\{voice\} disabled=\{busy\} \/><\/span> : <VoiceToggle voice=\{voice\} disabled=\{busy\} \/>\)\}\n\s+<\/>\}/);
+  assert.match(ask, /\{\(dock \|\| chat\) && chatControl\}\n\s+\{SHOW_VOICE_TOGGLE && \(dock \|\| chat\) && voice && voice\.state === 'off' && \(chat \? <span [^\n]*><VoiceToggle voice=\{voice\} disabled=\{busy\} \/><\/span> : <VoiceToggle voice=\{voice\} disabled=\{busy\} \/>\)\}\n\s+<\/>\}/);
 });
 
 test('r36: with listening paused, the mic says so, is disabled and cannot start Voice Mode', () => {
@@ -135,7 +135,7 @@ test('VOICE-08: a small lower-left window shows only the reply being spoken now,
   assert.ok(html.includes('aria-expanded="true" aria-label="Hide the Tutor caption"'));
   assert.ok(mode.includes('if (!open) return <aside aria-label="Tutor caption" data-tutor-caption className={`${place} rounded-lg border border-line bg-white shadow-pop`}>{toggle}</aside>;'));
   // The anchor is a zero-width slot right before the surface; the floating tools column sits over the surface's left edge.
-  assert.ok(canvas.includes('gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = \'canvas\', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null')); // the prop list may grow after onSignIn (roadmap, onSkeletonsDropped): pin the rail props, not the end of the list
+  assert.ok(canvas.includes('gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null')); // the prop list may grow after onSignIn (roadmap, onSkeletonsDropped): pin the rail props, not the end of the list
   // The rail is one stack at that corner; the caption is held in its flow (relative, no corner offsets), at every width
   // (UI-19, owner 2026-10-21: the canvas row no longer stacks on a phone). The Professor Next Steps card left it for the lower right (owner, 2026-10-08), and the
   // stack sits above the floating strip's left column (--chrome-left), the minimap and zoom.

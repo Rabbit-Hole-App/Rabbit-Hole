@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { DepthSlider } from './DepthMenu.jsx';
 import { STRINGS } from './roadmap-strings.js';
 
@@ -37,7 +38,9 @@ export default function RoadmapPlan({ draft, disabled = false, onDepth }) {
         <div className="mb-3 text-[11px] font-medium text-ink-2">{STRINGS.roadmapDraft}</div>
         <ol className="m-0 list-none p-0">
           {draft.steps.map((step, index) => (
-            <li key={`${index}:${step.title}`} className="mb-4 flex gap-3 last:mb-0">
+            <Fragment key={`${index}:${step.title}`}>
+            {step.section && step.section !== draft.steps[index - 1]?.section && <li data-roadmap-section className="mb-2 break-words text-[13px] leading-5 font-semibold text-ink">{step.section}</li>}
+            <li className="mb-4 flex gap-3 last:mb-0">
               <span className="min-w-[17px] pt-px text-xs text-ink-2 tabular-nums">{index + 1}.</span>
               <div className="min-w-0">
                 <div className="break-words text-[13px] leading-5 font-semibold text-ink">{step.title}</div>
@@ -45,6 +48,7 @@ export default function RoadmapPlan({ draft, disabled = false, onDepth }) {
                 {step.format && <div className="text-[10px] text-ink-3">{STRINGS.formatName[step.format] || step.format}</div>}
               </div>
             </li>
+            </Fragment>
           ))}
         </ol>
       </section>

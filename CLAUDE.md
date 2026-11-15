@@ -361,6 +361,33 @@ npx wrangler deploy --config wrangler.dev.jsonc --name rabbit-hole-web-dev-<work
 - The app is then at `https://rabbit-hole-web-dev-<worktree>.tryrabbithole.workers.dev`.
 - MVP-labelled work deploys this clone with `scripts/mvp-fast-path.mjs preview --mvp` ([MVP fast path](#mvp-fast-path)).
 
+### The owner's local app (127.0.0.1:8878)
+
+Standing owner rule (owner, 2026-11-08, written here 2026-11-14). "Local host" and "local dev" mean
+`http://127.0.0.1:8878/` (never `localhost`), the owner's own app on this machine. It runs from the worktree
+`C:/s/explain-layout-web` on branch `owner/local`. Agents never work in that worktree; they only merge into it.
+
+- **Keep it on the latest `main`.** After a release lands on `main`, and after each green fix the owner should try, merge
+  it into `owner/local` (`git fetch -q rabbit-hole main`, then `git -C C:/s/explain-layout-web merge <sha or rabbit-hole/main>`),
+  rebuild, and say so with the URL. Asked "is 8878 up to date?", compare the worktree commit with `rabbit-hole/main`
+  instead of assuming.
+- **Rebuild** (the stack keeps running, data is kept, about 10 s):
+  `bash C:/s/spec/owner-local/rebuild.sh C:/s/explain-layout-web --fast`. Pass the path: the script's default worktree is
+  another one. `--fast` builds only `dist-dev`, enough for a UI-only change; leave it out to build `dist` too (server or
+  Worker code). Then the owner hard-refreshes with Ctrl+Shift+R. If a page is white or still old, the worker kept the old
+  page HTML: restart the stack (below), then check `/library`'s script URLs answer 200.
+- **Run it** (full table: `C:/s/spec/owner-local/README.md`): `node C:/s/spec/owner-local/build-bundles.mjs <worktree>`
+  (reads the tldraw key by name), `python C:/s/spec/owner-local/make-owner-stack.py <worktree>`, then from the worktree
+  `KEYHELPER=C:/s/spec/latency-lab/explainbench/addkey-owner.cjs bash C:/s/spec/owner-local/owner-stack.sh start C:/s/spec/owner-local/persist`.
+  `KEYHELPER` pins `MASTER_KEY` (the owner stays signed in across restarts) and adds the model keys, so Chat and /explain
+  generate real cards; `make-owner-stack.py` drops that hook line, so re-insert it before the `cp "$W/packages/control-plane/.dev.vars"`
+  line after every run. Sign in at `/sign-in` with the mock form. Optional hot reload:
+  `node C:/s/spec/owner-local/dev-server.mjs start <worktree>` as a background task, then `http://127.0.0.1:5173/`.
+- **Stop** only the recorded processes: `bash C:/s/spec/owner-local/owner-stack.sh stop C:/s/spec/owner-local/persist` from the
+  worktree, and `node C:/s/spec/owner-local/dev-server.mjs stop`. At most 3 local stacks on this machine.
+- Does not work locally: renderer, voice, email, Cloudflare Access, real OAuth. The owner does the browsing; this does not
+  authorize Claude to run browser checks ([Browser verification](#browser-verification)).
+
 ### Worktree closeout after merge
 
 Removing a merged worktree is part of completing the task (owner, 2026-10-21; stale worktrees filled drive C:). This

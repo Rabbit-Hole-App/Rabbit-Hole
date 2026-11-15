@@ -1,5 +1,6 @@
 // /whiteboard (id whiteboard-video): the web build holds no switch; the SERVER's answer (GET /api/learn/whiteboard/jobs, its
 // WHITEBOARD_ENABLED) turns the command on (whiteboard-capability.js). A fake fetch stands in for the route; nothing is reached.
+import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WHITEBOARD_VIDEO, commandsFor, resolveCommand, whiteboardVideoLive } from './agent/slash.js';

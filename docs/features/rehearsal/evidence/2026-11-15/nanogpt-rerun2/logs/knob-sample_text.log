@@ -1,0 +1,14 @@
+Overriding: out_dir = out-shakespeare-char
+Overriding: device = cpu
+Overriding: temperature = 0.5
+Overriding: num_samples = 2
+Overriding: start = hello
+Overriding: max_new_tokens = 1
+Overriding: top_k = 1
+Overriding: seed = 1
+number of parameters: 0.80M
+Loading meta from data/shakespeare_char/meta.pkl...
+hellow
+---------------
+hellow
+---------------

@@ -18,6 +18,8 @@ import { AUTO_KINDS, autoProposalHandler, settingsFanoutHandler } from './roadma
 import { roadmapAutoEnabled } from './roadmap-settings-events.js';
 import { revalidateSourceAsJob } from './roadmap-access.js';
 import { readMarkdownForActor } from './roadmap-source-reader.js';
+import { accessForRoadmap } from './roadmap-access.js';
+import { advanceCourse } from './roadmap-course.js';
 
 const scopeOf = access => ({ org: access.org, ownerUserId: access.actorUserId, boardId: access.boardId });
 
@@ -26,7 +28,9 @@ const scopeOf = access => ({ org: access.org, ownerUserId: access.actorUserId, b
 export function roadmapKick(env, ctx) {
   return async (_env, access) => {
     if (env.ROADMAP_JOBS) return kickRoadmapJobs(env, scopeOf(access));
-    const run = runDueRoadmapEvents(env, { scope: scopeOf(access) }).catch(() => 0);
+    // No RoadmapJobs object here (a dev or local stack): a kick drains the due events until none is left (bounded), as the object's alarm does, so a chain whose next step is made by a handler
+    // (a course) is not left waiting for the next kick (found on the owner stack: a failed card stalled the course until something else woke it).
+    const run = (async () => { for (let pass = 0; pass < 60; pass += 1) { if (!(await runDueRoadmapEvents(env, { scope: scopeOf(access) }).catch(() => 0))) break; } })();
     if (ctx?.waitUntil) ctx.waitUntil(run); else await run;
     return true;
   };
@@ -68,7 +72,14 @@ export function roadmapDeps(env, ctx = null, { settings = learnerSettings(env), 
 // R6: the automatic-proposal handlers (roadmap-auto.js) are registered too; they do nothing unless ROADMAP_AUTO_ENABLED is 'true'.
 export function registerRoadmapHandlers(deps = {}) {
   registerRoadmapHandler('plan_requested', (env, event, ctx) => planningHandler(env, event, ctx, deps));
-  registerRoadmapHandler('step_accepted', (env, event, ctx) => generationHandler(env, event, ctx, deps));
+  // Create a course (roadmap-course.js): once a step's card is made, the run starts the next step; the event stays pending while an earlier outcome is unresolved (BE.12).
+  registerRoadmapHandler('step_accepted', async (env, event, ctx) => {
+    const out = await generationHandler(env, event, ctx, deps);
+    if (out?.retry) return out;
+    const access = await accessForRoadmap(env.LEARN_DB, event, { checkBoard: false });
+    const next = access ? await advanceCourse(env, access, event.roadmap_id, { compose: deps.compose, revalidate: deps.revalidate || revalidateSourceAsJob, callModel: deps.callModel, factsInline: true, now: ctx?.now }).catch(() => null) : null;
+    return next?.status === 'unresolved' ? { retry: true } : out;
+  });
   for (const kind of AUTO_KINDS) registerRoadmapHandler(kind, (env, event, ctx) => autoProposalHandler(env, event, ctx, deps));
   registerRoadmapHandler('settings_changed', (env, event, ctx) => settingsFanoutHandler(env, event, ctx, { kick: wakeBoard, ...deps }));
 }

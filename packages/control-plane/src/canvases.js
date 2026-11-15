@@ -129,13 +129,13 @@ export async function canvasAccess(req, env, name, pending = null) {
 }
 // Titles are labels, never identities (docs/features/canvas-naming.md): different people may share one. One owner's canvases never do
 // (owner 2026-11-07, superseding "a typed title is kept exactly"): a canvas made or copied for its owner - New canvas, a Duplicate, a fork -
-// steps to the next free " (n)" when that owner's top-level Library (archived included) already has the title, "Example", "Example (2)",
+// steps to the next free " (n)" when that owner's top-level Library (archived included, Trash not) already has the title, "Example", "Example (2)",
 // "Example (3)", skipping numbers in use; a rename to a title another of their canvases has is refused (409 title_taken). Compared case-insensitively
 // (SQLite NOCASE: ASCII letters). Nested Rabbit Holes, other owners and projects never count.
 export async function freeTitle(db, org, owner, title) {
   const base = title.replace(/ \(\d+\)$/, '') || title;
   const like = `${base.replace(/[\\%_]/g, char => `\\${char}`)} (%)`;
-  const { results } = await db.prepare(`SELECT c.title FROM canvases c WHERE c.org=? AND c.owner_email=? AND (c.title COLLATE NOCASE=? OR c.title COLLATE NOCASE=? OR c.title LIKE ? ESCAPE '\\') AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%')`)
+  const { results } = await db.prepare(`SELECT c.title FROM canvases c WHERE c.org=? AND c.owner_email=? AND ${NOT_TRASHED('c.org', 'c.name')} AND (c.title COLLATE NOCASE=? OR c.title COLLATE NOCASE=? OR c.title LIKE ? ESCAPE '\\') AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%')`)
     .bind(org, owner, title, base, like, org, owner).all();
   const taken = new Set(results.map(row => row.title.toLowerCase()));
   if (!taken.has(title.toLowerCase())) return title;
@@ -148,7 +148,7 @@ export async function freeTitle(db, org, owner, title) {
 export async function titleTakenByOther(db, org, owner, title, exceptName) {
   // A nested Rabbit Hole is identified by its parent and origin and needs no unique title (canvas-naming.md): renaming one is never refused.
   if (await db.prepare("SELECT 1 FROM canvas_dives WHERE org=? AND owner_email=? AND child=? AND parent_app NOT LIKE 'share:%'").bind(org, owner, exceptName).first()) return false;
-  const row = await db.prepare(`SELECT 1 AS taken FROM canvases c WHERE c.org=? AND c.owner_email=? AND c.title COLLATE NOCASE=? AND c.name<>? AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') LIMIT 1`)
+  const row = await db.prepare(`SELECT 1 AS taken FROM canvases c WHERE c.org=? AND c.owner_email=? AND ${NOT_TRASHED('c.org', 'c.name')} AND c.title COLLATE NOCASE=? AND c.name<>? AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') LIMIT 1`)
     .bind(org, owner, title, exceptName, org, owner).first();
   return !!row;
 }
@@ -500,7 +500,10 @@ export async function canvasesFetch(req, env) {
         if (action === 'trash' && await db.prepare("SELECT 1 FROM canvas_dives WHERE org = ? AND child = ? AND parent_app NOT LIKE 'share:%'").bind(user.org, name).first()) {
           return json({ error: 'A Rabbit Hole inside another canvas goes to Trash with its canvas.' }, 409);
         }
-        await db.batch(trashStatements(db, user.org, name, action === 'trash'));
+        // A canvas in Trash does not hold its title (owner 2026-11-14): a new canvas may take it. Restore then steps the restored one to the
+        // next free " (n)" when its title is in use again; checked while it is still trashed, so it never counts itself.
+        const restored = action === 'untrash' ? await freeTitle(db, user.org, user.email, app.title) : app.title;
+        await db.batch([...trashStatements(db, user.org, name, action === 'trash'), ...(restored === app.title ? [] : [db.prepare('UPDATE canvases SET title=? WHERE id=?').bind(restored, app.id)])]);
         return json(await ownedCanvas(env, user, name));
       }
       // Archived means out of Explore too (the safest reading): restoring never publishes it again by itself.

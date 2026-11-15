@@ -7,7 +7,8 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { BookOpen, FileText, ScanText } from 'lucide-react';
 import { api } from './api.js';
 import { NO_FILE_CARD, STATUS_SHORT, STATUS_TEXT, navigable, refLabel, sourceRefOf } from './source-ref.js';
-import { cachedExcerpt, publishBlocks, published, resolveSourceRef, stepExcerpt, subscribeBlocks, viewPassage } from './source-refs.js';
+import { cachedExcerpt, goToPassage, publishBlocks, published, resolveSourceRef, stepExcerpt, subscribeBlocks, viewPassage } from './source-refs.js';
+import { PASSAGE_STATUS_TEXT, passageSource } from './passage-link.js';
 
 const NONE = [];
 const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) });
@@ -17,7 +18,7 @@ const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(bo
 export function useSourceRefIndex(blocks, focus) {
   const latest = useRef(focus);
   latest.current = focus;
-  const stable = useCallback(id => latest.current?.(id), []);
+  const stable = useCallback((id, options) => latest.current?.(id, options), []);
   useEffect(() => { publishBlocks(blocks, stable); }, [blocks, stable]);
   useEffect(() => () => publishBlocks([], null), []);
 }
@@ -80,6 +81,8 @@ export function SourceRefHeader({ block, app }) {
   if (!ref) return null;
   return <SourceRefHead ref_={ref} status={status} note={note} onOpen={() => setNote(viewPassage(ref, { raw: !!block.stepId }) === 'no-card' ? NO_FILE_CARD : '')} />;
 }
+// HL-3 (owner 2026-11-14): over a Markdown passage the header's button is 'Go to highlight' (the pink passage in the file card); a PDF keeps 'View passage' (the reader at the page).
+export const HEAD_OPEN = ref => (ref?.kind === 'markdown' ? 'Go to highlight' : 'View passage');
 export function SourceRefHead({ ref_: ref, status, note = '', onOpen }) {
   const bad = status && status !== 'current';
   return (
@@ -89,7 +92,26 @@ export function SourceRefHead({ ref_: ref, status, note = '', onOpen }) {
       {bad && <span data-source-ref-note role="status" title={STATUS_TEXT[status]} aria-label={STATUS_TEXT[status]} className="shrink-0">{STATUS_SHORT[status]}</span>}
       {!bad && note && <span data-source-ref-note role="status" className="shrink-0">{note}</span>}
       {navigable(ref) && status === 'current' && (
-        <button type="button" data-source-ref-open data-view-section aria-label="View passage" title="View passage" onClick={onOpen}
+        <button type="button" data-source-ref-open data-view-section aria-label={HEAD_OPEN(ref)} title={HEAD_OPEN(ref)} onClick={onOpen}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"><ScanText size={16} aria-hidden="true" /></button>
+      )}
+    </span>
+  );
+}
+
+// HL-146: the header of a card made from a passage of an Explanation card (fromPassage): 'From: <that card>' and Go to highlight (the same ScanText icon), through the published blocks. A card that is gone, a highlight
+// that was removed or text that changed says so and offers nothing: the passage is never found by position.
+export function PassageHeader({ block }) {
+  const blocks = useSourceRefBlocks(), found = passageSource(blocks, block);
+  if (!found) return null;
+  const bad = found.status !== 'current';
+  return (
+    <span data-passage-source data-passage-source-status={found.status} onPointerDown={event => event.stopPropagation()} className="flex min-w-0 items-center gap-1.5 text-xs text-ink-2">
+      <FileText size={14} className="shrink-0" aria-hidden="true" />
+      <span className="min-w-0 truncate" title={found.title}>From: {found.title || 'Explanation'}</span>
+      {bad && <span data-passage-source-note role="status" title={PASSAGE_STATUS_TEXT[found.status]} aria-label={PASSAGE_STATUS_TEXT[found.status]} className="shrink-0">{found.status === 'changed' ? 'Source changed' : 'Source not available'}</span>}
+      {!bad && (
+        <button type="button" data-passage-source-open aria-label="Go to highlight" title="Go to highlight" onClick={() => goToPassage(found)}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"><ScanText size={16} aria-hidden="true" /></button>
       )}
     </span>

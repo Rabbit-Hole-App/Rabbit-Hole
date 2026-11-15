@@ -13,7 +13,6 @@
 // Prints `ok <label>` per check, ids and counts only (no cookies, no secrets); exits 1 on any failure.
 // Evidence goes to OUT: results.json and *.png (the picker, chips, the standalone card, grouped backlinks).
 // Usage: BASE=http://127.0.0.1:8931 SMALL_CP=http://127.0.0.1:8933 VARS=<cp .dev.vars> OUT=<dir> node e2e/canvas-refs-check.mjs
-import { chooseWorkspace } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -104,11 +103,10 @@ const shot = (name, clip = null) => (clip
   : page.screenshot({ path: `${OUT}/${name}.png` })).catch(() => {});
 // A poll that throws (a transient 5xx page from the local D1) is not an answer yet.
 const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await Promise.resolve().then(test).catch(() => null); if (value) return value; if (Date.now() > end) throw Error(what); await new Promise(resolve => setTimeout(resolve, 150)); } };
-const profile = async ({ view = null } = {}) => {
+const profile = async () => {
   if (context) await context.close();
   context = await browser.newContext({ viewport: { width: 1800, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
-  if (view) await context.addInitScript(([key, value]) => { try { localStorage.setItem(key, value); } catch { /* the default */ } }, [`${keyOf(A.name)}:view`, view]);
   await context.route('**/*', router);
   page = await newPage();
 };
@@ -375,7 +373,7 @@ await check('3 forward: a same-tab click on a chip title opens the target; its L
   await waitFor(async () => !new URL(page.url()).searchParams.has('card'), 4000, 'card= stays in the address');
   assert.equal(refused.length + chat.length, calls, 'navigating sent an AI or chat request');
 });
-await check('3 a backlink in a new tab, out of Editor view, and to a card that is gone', async () => {
+await check('3 a backlink in a new tab, to a board whose legacy document is now a Document card, and to a card that is gone', async () => {
   const href = (await backlinkRefs(T, A)).find(r => r.object === 'a2')?.href;
   assert.ok(href && new URL(href, BASE).searchParams.get('card') === 'a2', `the backlink href does not name the card: ${href}`);
   const fresh = await newPage();
@@ -383,13 +381,12 @@ await check('3 a backlink in a new tab, out of Editor view, and to a card that i
   await loaded(fresh, 'a2');
   await waitFor(async () => (await selected(fresh)).join() === 'a2', 8000, 'a new tab did not select the origin card');
   await fresh.close();
-  // Editor view on: the link shows Canvas view and keeps the document.
-  await profile({ view: 'editor' });
+  // The seed's legacy `doc` is migrated into a Document card at load (canvas-doc.js migrateDocToCard): the link selects the origin card and the document's text survives as that card.
+  await profile();
   await page.goto(new URL(href, BASE).href);
   await loaded(page, 'a2');
-  await waitFor(async () => (await selected()).join() === 'a2', 8000, 'out of Editor view the origin card was not selected');
-  assert.equal(await page.locator('[data-canvas-doc]').count(), 0, 'Editor view still covers the canvas');
-  assert.ok(JSON.stringify((await boardOf(A.name)).state.doc?.blocks || []).includes(`Document kept ${run}`), 'the document was lost');
+  await waitFor(async () => (await selected()).join() === 'a2', 8000, 'the origin card was not selected');
+  await waitFor(async () => (await boardOf(A.name)).state.blocks.some(b => b.type === 'doc' && JSON.stringify(b.blocks).includes(`Document kept ${run}`)), 15000, 'the document was lost: no Document card holds it');
   await profile();
   await page.goto(`${BASE}/apps/${A.name}?card=gone-${run}`);
   await loaded(page, 'a1');
@@ -554,7 +551,7 @@ await check('9 card duplicate: Ctrl+D gives the copy new reference ids with the 
 });
 
 // ================================================================ 10: regressions
-await check('10 the card menu keeps its items, each with an icon; panel tabs keep their order, with no Links tab (now in Search); BlockNote Canvas/Editor still switches', async () => {
+await check('10 the card menu keeps its items, each with an icon; panel tabs keep their order, with no Links tab (now in Search); a legacy document is a Document card', async () => {
   await rightClick('a1');
   const labels = await menu().locator('[role="menuitem"]').evaluateAll(rows => rows.map(row => ({ text: (row.querySelector(':scope > span') || row).innerText.split('\n')[0].trim(), icon: !!row.querySelector(':scope > svg, :scope > img') })));
   // UI-25 (owner brief 2026-10-22): a card's whole-card copy reads Copy (owner 2026-11-07), apart from Copy text, code or LaTeX.
@@ -564,11 +561,7 @@ await check('10 the card menu keeps its items, each with an icon; panel tabs kee
   const tabs = await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-panel-tab')));
   assert.deepEqual(tabs, ['chat', 'toc', 'progress', 'comments', 'find'], `panel tabs: ${tabs.join(',')}`);
   assert.equal(await page.locator('[data-panel-tab="links"]').count(), 0, 'Links is a Search filter, not a tab');
-  await chooseWorkspace(page, 'Editor'); // Owner brief 2026-10-22: View > Workspace
-  await waitFor(async () => (await page.locator('[data-canvas-doc]').getAttribute('data-doc-state').catch(() => null)) === 'ready', 20000, 'Editor view never got ready');
-  assert.ok((await page.locator('[data-canvas-doc]').innerText()).includes(`Document kept ${run}`), 'the document is not shown');
-  await chooseWorkspace(page, 'Canvas');
-  await waitFor(async () => (await page.locator('[data-canvas-doc]').count()) === 0, 5000, 'Canvas view still shows the document');
+  await waitFor(async () => (await page.locator('[data-doc-card]').first().innerText()).includes(`Document kept ${run}`), 20000, 'the Document card does not show the document');
 });
 
 await check('no AI or model-capable request, no chat write from navigation, no page error, no other origin', async () => {

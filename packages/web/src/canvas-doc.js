@@ -1,5 +1,5 @@
-// The canvas's one document (docs/features/blocknote-canvas.md), the parts the page and the canvas need without loading
-// BlockNote: the block types this version edits, the per-viewer view choice, and the board's size against the server limit.
+// Document cards (docs/features/blocknote-canvas.md), the parts the page and the canvas need without loading BlockNote:
+// the block types this version edits, the migration of a legacy single document into a card, and the board's size against the server limit.
 
 // BlockNote 0.54's default blocks less image, video, audio and file (no media in this MVP; CanvasDoc.jsx builds the schema
 // from the same list). A saved block of any other type is content this version cannot edit, never dropped.
@@ -7,14 +7,10 @@ export const DOC_BLOCK_TYPES = ['paragraph', 'heading', 'quote', 'bulletListItem
 const KNOWN = new Set(DOC_BLOCK_TYPES);
 export const unknownDocBlock = blocks => (blocks || []).some(block => !KNOWN.has(block?.type) || unknownDocBlock(block?.children));
 
-// Canvas or Editor, remembered in this browser for this person and this canvas (owner decision B1); Canvas when unset.
-export const docViewKey = canvasKey => `${canvasKey}:view`;
-export const readDocView = (storage, canvasKey) => {
-  try { return storage.getItem(docViewKey(canvasKey)) === 'editor' ? 'editor' : 'canvas'; } catch { return 'canvas'; }
-};
-export const writeDocView = (storage, canvasKey, view) => {
-  try { storage.setItem(docViewKey(canvasKey), view === 'editor' ? 'editor' : 'canvas'); } catch { /* the choice lasts this visit */ }
-};
+// A document as a card (owner decision 2026-11-14, docs/features/blocknote-canvas.md): a canvas block of type 'doc' holding native
+// BlockNote blocks, so it is saved, copied, shared and forked with the board like any card. Several per canvas.
+export const DOC_CARD_SIZE = { w: 640, h: 640 };
+export const newDocBlock = () => ({ id: crypto.randomUUID(), type: 'doc', dx: 0, dy: 0, blocks: [] });
 
 // The server refuses a board over 1.9 MB (learn-boards.js MAX_STATE); the page warns from 85% of it, before a save fails.
 export const BOARD_LIMIT = 1_900_000;
@@ -25,27 +21,28 @@ const hasText = block => (Array.isArray(block?.content) ? block.content.some(par
   || (block?.type !== 'paragraph' && block?.type !== undefined && !Array.isArray(block?.content)) || (block?.children || []).some(hasText);
 export const docIsEmpty = doc => !doc || !Array.isArray(doc.blocks) || !doc.blocks.some(hasText);
 
-// A newer server copy on open (LearnPage's board load). kept: this browser's document put aside by Reload and keep my
-// document (a 409): it goes over the server's board as the newer edit - unless it is the server's already. replaced: this
-// browser's copy the server's replaces. Whatever loses comes back as `replaced`, for the page to keep under :replaced, and
-// its document, when it has words the result lacks, is offered back (Restore my unsaved document): with kept, the losing
-// document is the server's; otherwise it is this browser's. Nothing is ever dropped silently.
-export function docOnServerCopy(serverState, { kept = null, replaced = null } = {}) {
-  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-  const keep = !!kept && !same(kept, serverState?.doc);
-  const state = keep ? { ...serverState, doc: kept } : serverState;
-  const lost = keep && !docIsEmpty(serverState?.doc) ? { ...(replaced || {}), doc: serverState.doc } : replaced;
-  const offer = lost?.doc && !docIsEmpty(lost.doc) && !same(lost.doc, state?.doc) ? lost.doc : null;
-  return { state, push: keep, offer, replaced: lost || null };
+// A legacy board's single document (state.doc, retired 2026-11-15) becomes one Document card appended to the board's blocks, the
+// blocks verbatim (an unknown block type is kept, never dropped). A pure load-time transform: the card id is a deterministic hash
+// of the blocks, so two clients migrating the same state make the same card and the save's dedupe collapses them. An empty doc is
+// dropped with no card; no doc is a no-op (the same object). Two FNV-1a runs with different seeds: synchronous (crypto.subtle is not).
+const hashText = text => [0x811c9dc5, 0x01000193 ^ 0x5bd1e995].map(seed => {
+  let h = seed;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(16).padStart(8, '0');
+}).join('');
+export const docCardId = blocks => `doc-${hashText(JSON.stringify(blocks))}`;
+export function migrateDocToCard(state) {
+  if (!state || typeof state !== 'object' || !('doc' in state)) return state;
+  const { doc, ...rest } = state;
+  if (docIsEmpty(doc)) return rest;
+  const id = docCardId(doc.blocks), blocks = Array.isArray(rest.blocks) ? rest.blocks : [];
+  if (blocks.some(block => block?.id === id)) return { ...rest, blocks };
+  return { ...rest, blocks: [...blocks, { id, type: 'doc', dx: 0, dy: 0, title: 'Document', blocks: doc.blocks }] };
 }
 
 // A press that keeps the document editor's focus (AdaptiveCanvas's shell blurs a focused field when a press lands outside
 // it): BlockNote's slash menu, toolbars and drag handles sit beside its contenteditable, inside the same [data-canvas-doc].
 export const pressKeepsDocFocus = (active, target) => !!active?.closest?.('[data-canvas-doc]')?.contains(target);
-
-// The save status after a PUT (LearnPage saveBoard): Saved only when the document sent is the document as shown, the
-// editor's unsaved words included (liveBoard().doc); otherwise the push that carries them, already on its way, says Saved.
-export const docSaved = (sent, shown) => JSON.stringify(sent ?? null) === JSON.stringify(shown ?? null);
 
 // A drag the canvas's file drop must leave alone: anything without files (BlockNote's block drag carries blocknote/html),
 // and any drag that began on this page - an image or link inside a card, a Files row - even when the browser adds a Files
@@ -60,13 +57,6 @@ if (typeof document !== 'undefined') {
   document.addEventListener('drop', () => notePageDrag(false));
 }
 export const isFileDrag = dataTransfer => !pageDrag && !!dataTransfer?.types && [...dataTransfer.types].includes('Files');
-
-// Where the document's caret is on screen (CanvasDoc, for the camera's caret follow): the range's own rect, or - on an
-// empty line, where the caret sits beside the line's <br> and has no rect - the line's box.
-export const caretRect = range => {
-  const node = range?.startContainer, line = node && (node.nodeType === 1 ? node : node.parentElement);
-  return [range?.getClientRects?.()[0], range?.getBoundingClientRect?.(), line?.getBoundingClientRect?.()].find(box => box && (box.width || box.height)) || null;
-};
 
 // Ctrl/Cmd+End and Ctrl/Cmd+Home in the document: 'end' or 'start', for the editor to move the caret itself (CanvasDoc).
 export const docEdgeKey = ({ key, ctrlKey, metaKey, shiftKey, altKey }) => ((ctrlKey || metaKey) && !shiftKey && !altKey ? ({ End: 'end', Home: 'start' }[key] || null) : null);

@@ -3,6 +3,7 @@
 // generation-review-contract.md section 10), as /motion does. Since Tutor cleanup P2 no Learn turn goes to a Tutor plan route; this
 // holds the command's side: while image generation is offered, /image comes back as a prompt for the chat route (promptsChat).
 // Wiring only: no browser, no network, no model.
+import './agent/slash-flags-test-on.mjs'; // every slash command on: this test is about a command's behaviour, not which ones ship
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { promptsChat, runLearnCommand } from './learn-slash.js';

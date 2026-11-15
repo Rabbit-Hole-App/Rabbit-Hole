@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rabbit-hole.local/rehearsal/run-card-state.json",
+  "title": "The `run` canvas card's saved state (block.run)",
+  "description": "Saved with the board. Never a session id, never file bytes: outputs are kept by reference (run id, kinds, produced-file metadata) plus a text tail of at most 4 KB; bytes are re-fetched from the controller while the session lives and read 'produced earlier, no longer available' after. History is per card (so per repo, commit and route), capped at 50 (oldest dropped first), shared read-only with viewers; presets belong to the learner (deletable; the card itself is not).",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "tab": {
+      "enum": [
+        "run",
+        "custom",
+        "history"
+      ]
+    },
+    "addedKnobs": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "flag",
+          "type",
+          "default",
+          "source",
+          "addedBy"
+        ],
+        "properties": {
+          "flag": {
+            "type": "string",
+            "pattern": "^--[A-Za-z0-9_-]+$"
+          },
+          "type": {
+            "enum": [
+              "string",
+              "float",
+              "int",
+              "bool"
+            ]
+          },
+          "default": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          },
+          "addedBy": {
+            "const": "tutor"
+          }
+        }
+      }
+    },
+    "customRuns": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "steps",
+          "knobs",
+          "createdAt"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "knobs": {
+            "type": "object"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "at",
+          "source",
+          "ok",
+          "sec"
+        ],
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "string"
+          },
+          "sessionLabel": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Run · train, or Custom · \"name\""
+          },
+          "cellId": {
+            "type": "string"
+          },
+          "custom": {
+            "type": "object"
+          },
+          "flags": {
+            "type": "object",
+            "description": "only the flags that differ from the defaults"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "rc": {
+            "type": "integer"
+          },
+          "sec": {
+            "type": "number"
+          },
+          "error": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "kinds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tail": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "files": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "bytes": {
+                  "type": "integer"
+                },
+                "sha256": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

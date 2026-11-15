@@ -510,13 +510,14 @@ await check('15 Arrange and View submenus: Align stays greyed with nothing selec
 });
 
 // Pinned Study (UI-27 Release 1, approved spec 2026-10-22: Canvas and Study live inside View, no extra top row).
-await check('16 View has Canvas and Study radios above Workspace (Canvas checked); Study opens the reference pane, Canvas closes it, the Workspace choice is untouched, and neither asks anything', async () => {
+await check('16 View has Canvas and Study radios above Show / hide (Canvas checked); Study opens the reference pane, Canvas closes it, View has no Workspace and no Go to document start (2026-11-15), and neither asks anything', async () => {
   const before = counts();
   const radios = async () => { const view = await openMenu(page, 'View'); const out = await view.getByRole('menuitemradio').evaluateAll(rows => rows.filter(row => !row.parentElement.closest('[role="menu"] [role="menu"]')).map(row => [row.textContent.trim(), row.getAttribute('aria-checked')])); await closeMenus(page); return out; };
   assert.deepEqual(await radios(), [['Canvas', 'true'], ['Study', 'false']]);
   const rows = await (await openMenu(page, 'View')).evaluate(menu => [...menu.querySelectorAll(':scope [role^="menuitem"]')].filter(row => row.closest('[role="menu"]') === menu).map(row => row.textContent.trim()));
   await closeMenus(page);
-  assert.ok(rows.indexOf('Study') > rows.indexOf('Fit selection') && rows.indexOf('Study') < rows.indexOf('Workspace'), `Canvas and Study sit above Workspace: ${rows.join(', ')}`);
+  assert.ok(rows.indexOf('Study') > rows.indexOf('Fit selection') && rows.indexOf('Study') < rows.indexOf('Show / hide'), `Canvas and Study sit above Show / hide: ${rows.join(', ')}`);
+  assert.ok(!rows.includes('Workspace') && !rows.includes('Go to document start'), `the single document's rows are gone: ${rows.join(', ')}`);
   const view = await openMenu(page, 'View');
   await view.getByRole('menuitemradio', { name: 'Study', exact: true }).click();
   await closeMenus(page);
@@ -527,9 +528,6 @@ await check('16 View has Canvas and Study radios above Workspace (Canvas checked
   await closeMenus(page);
   await page.locator('[data-study-pane]').waitFor({ state: 'detached', timeout: 10000 });
   assert.deepEqual(await radios(), [['Canvas', 'true'], ['Study', 'false']]);
-  const workspace = await openMenu(page, 'View', 'Workspace');
-  assert.deepEqual(await workspace.getByRole('menuitemradio').allInnerTexts(), ['Canvas', 'Editor'], 'Workspace keeps its own Canvas / Editor');
-  await closeMenus(page);
   await quiet(page, 'Canvas / Study', before);
 });
 

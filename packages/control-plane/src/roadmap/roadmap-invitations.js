@@ -7,6 +7,7 @@
 import { StateError } from './roadmap-contract.js';
 import { decideInvitation } from './roadmap-validate.js';
 import { readUnfinishedRoadmap } from './roadmap-store.js';
+import { courseOf } from './roadmap-course.js';
 import { newId, sha256 } from './roadmap-money.js';
 import { reserveRoadmapQuota } from './roadmap-quota.js';
 
@@ -43,7 +44,7 @@ export async function offerInvitation(db, access, { sourceKeys, idleKey, mode: h
   const mode = MODES.includes(stored.mode) ? stored.mode : MODES.includes(hint) ? hint : 'tutor';
   const setKey = await sha256(sources.map(s => `${s.key}@${s.rev}`).join('|'));
   const existing = sources.length ? await db.prepare('SELECT * FROM learn_roadmap_invitations WHERE org = ? AND owner_user_id = ? AND board_id = ? AND source_set_key = ?').bind(access.org, access.actorUserId, access.boardId, setKey).first() : null;
-  const decision = decideInvitation({ sourceSupported: sources.length > 0, autoSuggest: explicit || stored.autoSuggest !== false, mode: explicit ? 'tutor' : mode, unfinishedRoadmap: !!(await readUnfinishedRoadmap(db, access)), alreadyOffered: !!existing });
+  const decision = decideInvitation({ sourceSupported: sources.length > 0, autoSuggest: explicit || stored.autoSuggest !== false, mode: explicit ? 'tutor' : mode, unfinishedRoadmap: courseOf(await readUnfinishedRoadmap(db, access))?.running === true, alreadyOffered: !!existing }); // owner 2026-11-14: one course per canvas; a drop is answered at once unless a course is being made, and Create a course replaces any other unfinished roadmap (roadmap-routes.js)
   // An invitation that is still offered is returned as it is (reload, a second device, the same idle window sent twice).
   if (!decision.offer && existing?.state === 'offered' && decision.reason === 'already_offered') return { status: 200, body: { invitation: view(existing, sources.map(s => s.name).join(', ')) } };
   if (!decision.offer) return { status: 200, body: { invitation: null, suppressed: { reason: decision.reason } } };

@@ -142,12 +142,12 @@ test('Ask about this adds the range to the chat and nothing else', () => {
 });
 
 const text = html => html.replace(/<!-- -->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-test('chips and pane: nothing outside a Learn canvas; This canvas first; an empty Sources pane says how to add one', () => {
+test('chips and pane: nothing outside a Learn canvas; no This canvas pill; an empty Sources pane says how to add one', () => {
   assert.equal(C.renderToStaticMarkup(C.createElement(C.ContextChips)), '');
   assert.equal(C.renderToStaticMarkup(C.createElement(C.SourcesPane)), '');
   const inCanvas = node => C.renderToStaticMarkup(C.createElement(C.ChatWorkspaceProvider, { canvas: 'canvas-0123abcd' }, C.createElement(node)));
-  assert.match(inCanvas(C.ContextChips), /^<div data-context-chips="true"><ul aria-label="Context for this chat"[^>]*><li data-canvas-context="true"/);
-  assert.equal(text(inCanvas(C.ContextChips)), 'This canvas');
+  assert.match(inCanvas(C.ContextChips), /^<div data-context-chips="true" class="has-\[ul:empty\]:hidden"><ul aria-label="Context for this chat"[^>]*><\/ul><\/div>$/);
+  assert.equal(text(inCanvas(C.ContextChips)), '', 'owner 2026-11-13: no This canvas pill');
   const pane = text(inCanvas(C.SourcesPane));
   // UI-26: no Sources or Materials heading, and Add context (owner brief 2026-10-29: was Upload) sits in the Context header
   // (ContextUpload), never between the files. The empty list says a web page URL can be added too.

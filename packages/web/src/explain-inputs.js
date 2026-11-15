@@ -128,7 +128,7 @@ export function inputPills(world, links, to, nameOf = nameOfEntry) {
 }
 
 // ---- freezing: the content a board-held source had, hashed the same way here and on the server --------------------------
-const LAYOUT = new Set(['dx', 'dy', 'x', 'y', 'w', 'h', 'slot', 'x1', 'y1', 'x2', 'y2', 'space', 'cardLayout', 'groupId', 'fresh', 'grading', 'sketchOpen', 'home', 'z']);
+const LAYOUT = new Set(['dx', 'dy', 'at', 'x', 'y', 'w', 'h', 'slot', 'x1', 'y1', 'x2', 'y2', 'space', 'cardLayout', 'groupId', 'fresh', 'grading', 'sketchOpen', 'home', 'z']);
 export function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(entry => (entry === undefined ? 'null' : canonicalJson(entry))).join(',')}]`;
   if (value && typeof value === 'object') return `{${Object.keys(value).filter(key => value[key] !== undefined).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;

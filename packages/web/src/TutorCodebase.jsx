@@ -14,7 +14,7 @@ import { codeRef } from './chat-sources.js';
 import { coachingCanvas } from './learn-coaching-client.js';
 import { CODEBASE_GOALS, CODEBASE_PROMPT, EVIDENCE_LABEL, NOT_RUN_NOTE, OMISSION_TEXT, QUESTION_LABEL, SOMETHING_ELSE, goalOf, isCitation, isRepositorySource, linesText, sourceLabel, startSource } from './learn-codebase-goals.js';
 
-const CHOICE = 'cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50';
+export const CHOICE = 'cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50';
 const CHIP = 'inline-flex max-w-full cursor-pointer items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-xs font-medium text-ink hover:bg-hover';
 const LINK = 'cursor-pointer font-medium text-ink underline-offset-2 hover:underline disabled:cursor-default disabled:opacity-50';
 const OMITTED = { ...OMISSION_TEXT, not_indexed: 'not indexed', outside_snapshot: 'outside this repository snapshot: not inspected', not_shown: 'related, not shown yet', other_commit: 'selected at another commit', other_repository: 'not from this repository', not_in_snapshot: 'not in this snapshot', deleted: 'deleted', not_read: 'could not be read', path_too_long: 'path too long' };
@@ -43,6 +43,25 @@ export function openCited(chat, repo, ref, { reader = false } = {}) {
   else chat.openSource?.(codeRef({ repo, commit: ref.version, path, start, end }));
 }
 
+// The rehearsal runtime's thin trigger chip is gone (owner, rehearsal-chip-is-temporary): the pipeline is the Tutor's own conversation in the Chat, TutorRehearsal.jsx.
+
+// A goal chosen (the existing goal flow, unchanged; the Tutor's intake chips in TutorRehearsal.jsx start it too): POST /api/learn/codebase, then the first two cited source
+// files go on the canvas as code cards at this commit (LearnPage small:code-card); nothing is sent. -> { ok: true } or { note } in plain words.
+export async function startGoal({ chat, board, repository, goalId, text }) {
+  try {
+    const out = await codebasePost(chat, board, { action: 'start', goal: goalId, question: text });
+    if (out.route === 'not_found') return { note: `I couldn't find that in ${repository.repo} at ${short(repository.commit)}. Try other words, or open Files and pick the code.` };
+    for (const citation of out.map.citations.filter(c => out.map.nodes.find(n => n.path === c.path)?.role === 'source').slice(0, 2)) {
+      window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: citation.text, path: citation.path, start: citation.start, end: citation.end, commit: citation.commit, repo: out.map.repository.repo } }));
+    }
+    await chat.coaching.reload?.();
+    chat.composer?.focus?.();
+    return { ok: true };
+  } catch (error) {
+    return { note: error?.data?.error === 'question_required' ? error.data.clarify : 'That could not be started. Nothing was saved; try again.' };
+  }
+}
+
 // useTutorCodebase({ chat, entry, typing }) -> { menu, view }. menu: the codebase menu stands in for the general welcome.
 export function useTutorCodebase({ chat, entry, typing = false }) {
   const { coaching } = chat, board = chat.board || 'main';
@@ -65,23 +84,13 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
 
   const start = async (goalId, text) => {
     setBusy(true); setNote(null);
-    try {
-      const out = await codebasePost(chat, board, { action: 'start', goal: goalId, question: text });
-      if (out.route === 'not_found') { setNote(`I couldn't find that in ${repository.repo} at ${short(repository.commit)}. Try other words, or open Files and pick the code.`); return; }
-      setPending(null); setQuestion('');
-      // The first two cited source files go on the canvas as code cards at this commit (LearnPage small:code-card); nothing is sent.
-      for (const citation of out.map.citations.filter(c => out.map.nodes.find(n => n.path === c.path)?.role === 'source').slice(0, 2)) {
-        window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: citation.text, path: citation.path, start: citation.start, end: citation.end, commit: citation.commit, repo: out.map.repository.repo } }));
-      }
-      await coaching.reload?.();
-      chat.composer?.focus?.();
-    } catch (error) {
-      setNote(error?.data?.error === 'question_required' ? error.data.clarify : 'That could not be started. Nothing was saved; try again.');
-    } finally { setBusy(false); }
+    const out = await startGoal({ chat, board, repository, goalId, text });
+    if (out.note) setNote(out.note); else { setPending(null); setQuestion(''); }
+    setBusy(false);
   };
 
   const goal = pending ? goalOf(pending) : null;
-  const view = menu && <section data-codebase-menu aria-label="Tutor" className="mb-2 flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
+  const view = menu ? <section data-codebase-menu aria-label="Tutor" className="mb-2 flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
     <p className="text-sm text-ink">{CODEBASE_PROMPT}</p>
     {!goal && <div className="flex flex-wrap gap-1.5">
       {CODEBASE_GOALS.map(g => <button key={g.id} type="button" data-codebase-goal={g.id} disabled={busy} onClick={() => (g.clarify ? setPending(g.id) : start(g.id, ''))} className={CHOICE}>{g.label}</button>)}
@@ -99,7 +108,7 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
     </form>}
     <p className="text-xs text-ink-2">Or type any question below; it does not need to be about this code.</p>
     {note && <p role="alert" data-codebase-note className="text-xs text-fail">{note}</p>}
-  </section>;
+  </section> : null;
   return { menu, view };
 }
 

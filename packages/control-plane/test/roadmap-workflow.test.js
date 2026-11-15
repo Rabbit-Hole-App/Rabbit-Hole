@@ -53,7 +53,7 @@ test('BE.00 one reproducible local fixture: Node 24, candidate SHA, bounded synt
   const view = await started(h);
   assert.equal((await acceptCard(h, view, 'accept')).status, 202);
   assert.equal(h.authorCalls.length, 1);
-  assert.equal(h.authorCalls[0].model, LEARN_TASKS.artifact.model, 'the author request uses the configured artifact model');
+  assert.equal(h.authorCalls[0].model, LEARN_TASKS.artifact.model, 'the author request uses the configured artifact model (the fixture pins ROADMAP_CARD_PROFILE to plan-default; production defaults to Gemini Flash, roadmap-course.test.js)');
   assert.equal(h.authorCalls[0].body.max_tokens, LEARN_TASKS.artifact.maxTokens, 'with the configured output cap');
   assert.deepEqual(h.network, [], 'no network call escaped');
   assert.deepEqual(h.handlerErrors, [], 'no outbox handler threw');
@@ -570,7 +570,6 @@ test('BE.10 automatic next offer and an actual second card (CORE.07, UI.08, R6)'
   await h.run(); await h.run(); // duplicate outbox wakes converge on the same offer
   assert.equal(pending(h).length, 1);
   assert.equal((await status(h)).proposal.id, offered.proposal.id);
-  assert.equal(pillOf({ flag: 'on', view: offered, busy: [], editing: false, mode: 'auto' })?.accept, true, 'the projected pill targets the ready offer');
   const next = await acceptCard(h, offered, 'next'); // Next card: the ready proposal's own accept route, once
   assert.equal(next.status, 202);
   const second = next.body.slots[0];

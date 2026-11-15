@@ -47,7 +47,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     const started = scope;
     if (!handoff) setInput('');
     setProposal(null); setBusy(true);
-    setNotice({ tone: 'busy', text: `Working on /${name}` });
+    setNotice(null); // no "Working on /name" pill (owner 2026-11-13): the chat already shimmers while the command works
     const turn = onRun?.(raw, handoff) || null;
     let out;
     try { out = await run(raw, target, turn, handoff); }

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rabbit-hole.local/rehearsal/catalogue-job.json",
+  "title": "Catalogue job request (POST /catalogues; poll GET /catalogues/<key>; result GET /catalogues/<key>/asset)",
+  "description": "Sent by the control plane when the repository snapshot turns ready. No sandbox and no clone: the controller reads only what is sent. `files` maps each indexed text path to its text (the snapshot's own files object, at most 8 MB, as indexed); `graphLabels` is the graph's node labels (symbol names) for grouping hints. The asset is a catalogue.json document (schemas/catalogue.json). Status answers schemas/status.json with the catalogue states: queued, discovering (rule pass), planning (the one model call), ready, failed (error carries a plain reason; failed no_catalogue after the one re-ask).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["key", "repo", "commit", "hardware", "files", "version"],
+  "properties": {
+    "key": { "type": "string", "pattern": "^[a-f0-9]{64}$", "description": "sha256 of app|commit|hardware|catalogue" },
+    "repo": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "hardware": { "enum": ["cpu"] },
+    "files": { "type": "object", "maxProperties": 2000, "additionalProperties": { "type": "string" } },
+    "graphLabels": { "type": "array", "maxItems": 10000, "items": { "type": "string", "maxLength": 200 } },
+    "version": { "const": "catalogue-1" }
+  }
+}

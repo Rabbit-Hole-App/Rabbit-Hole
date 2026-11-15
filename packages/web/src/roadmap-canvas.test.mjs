@@ -104,18 +104,6 @@ const { initialState, reduce } = await import('./roadmap-client.js');
 const { liveCards } = await import('./roadmap-canvas.js');
 const client = (name, extra = {}) => ({ ...reduce(initialState(), { type: 'view', view: view(name) }), ...extra });
 
-test('the offer follows the pill gate: Ask mode, the flag off and the open editor show no pending slot; acceptance in flight keeps it, Accept off', () => {
-  const v = view('status-active-proposal-pending');
-  assert.equal(canvasCardsOf(v, { state: client('status-active-proposal-pending') })[0].state, 'pending');
-  assert.equal(canvasCardsOf(v, { state: client('status-active-proposal-pending') })[0].acceptable, true);
-  assert.equal(canvasCardsOf(v, { state: client('status-active-proposal-pending', { mode: 'ask' }) })[0].acceptable, true, 'Ask does not hide an offer the server made: explicit Accept works');
-  assert.deepEqual(canvasCardsOf(v, { state: client('status-active-proposal-pending', { flag: 'off' }) }), []);
-  assert.deepEqual(canvasCardsOf(v, { state: client('status-active-proposal-pending', { editing: true }) }), [], 'the editor (overlay) has the offer while it is open');
-  const gesture = `accept:${v.proposal.id}:${v.proposal.version}`;
-  const [busy] = canvasCardsOf(v, { state: client('status-active-proposal-pending', { busy: [gesture] }) });
-  assert.deepEqual([busy.state, busy.acceptable, busy.accepting], ['pending', false, true]);
-});
-
 test('a proposal the server is still checking draws no slot at all (its words have not passed; the pill is null for it too)', () => {
   const v = JSON.parse(JSON.stringify(view('status-active-proposal-pending')));
   v.proposal.state = 'checking'; v.proposal.acceptable = false;

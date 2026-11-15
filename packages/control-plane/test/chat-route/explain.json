@@ -1,0 +1,269 @@
+{
+  "command": "explanation",
+  "typed": "explain",
+  "about": "The written explanation card: the learner wants a whole topic understood, as a question (\"how does a transformer work?\") or a write-up request, and would keep it on the board. Not a narrow definition, a follow-up about the card or the last reply, advice, an opinion, or small talk.",
+  "cases": [
+    {
+      "text": "How does a transformer work?",
+      "expect": "explanation"
+    },
+    {
+      "text": "How do LLMs actually predict the next token?",
+      "expect": "explanation"
+    },
+    {
+      "text": "Why do language models hallucinate?",
+      "expect": "explanation"
+    },
+    {
+      "text": "What is the difference between fine-tuning, LoRA and prompt tuning?",
+      "expect": "explanation"
+    },
+    {
+      "text": "How does backpropagation compute the gradients?",
+      "expect": "explanation"
+    },
+    {
+      "text": "I need a proper write-up of how RLHF turns a base model into an assistant, for my notes.",
+      "expect": "explanation"
+    },
+    {
+      "text": "Write up how attention works so I can refer back to it.",
+      "expect": "explanation"
+    },
+    {
+      "text": "Why does attention need multiple heads?",
+      "expect": "explanation"
+    },
+    {
+      "text": "How does retrieval-augmented generation cut down hallucinations?",
+      "expect": "explanation"
+    },
+    {
+      "text": "What caused the First World War?",
+      "expect": "explanation"
+    },
+    {
+      "text": "How do vaccines train the immune system?",
+      "expect": "explanation"
+    },
+    {
+      "text": "How does compound interest work?",
+      "expect": "explanation"
+    },
+    {
+      "text": "and what about the encoder side?",
+      "history": [
+        {
+          "user": "How does a transformer work?",
+          "reply": "",
+          "command": "explanation"
+        }
+      ],
+      "expect": "explanation"
+    },
+    {
+      "text": "now how does DPO differ from it?",
+      "history": [
+        {
+          "user": "How does RLHF work?",
+          "reply": "",
+          "command": "explanation"
+        },
+        {
+          "user": "thanks",
+          "reply": "You're welcome.",
+          "command": null
+        }
+      ],
+      "expect": "explanation"
+    },
+    {
+      "text": "What does perplexity mean?",
+      "expect": "answer"
+    },
+    {
+      "text": "Why did you use a transformer as the example?",
+      "history": [
+        {
+          "user": "How does attention work?",
+          "reply": "Attention lets each token weigh every other token.",
+          "command": "explanation"
+        }
+      ],
+      "expect": "answer"
+    },
+    {
+      "text": "Is attention better than an RNN here?",
+      "expect": "answer"
+    },
+    {
+      "text": "Draw how attention flows between the tokens.",
+      "expect": "diagram"
+    },
+    {
+      "text": "Make me a quick quiz on how attention works.",
+      "expect": "quiz"
+    },
+    {
+      "text": "ok so i dont get how transformers actually work like the attention part esp",
+      "expect": "explanation",
+      "persona": "Priya, CS undergrad typing fast at 2am"
+    },
+    {
+      "text": "why does my llm keep making stuff up lol",
+      "expect": "explanation",
+      "persona": "Priya, CS undergrad typing fast at 2am",
+      "ambiguous": true
+    },
+    {
+      "text": "whats the diff between bert and gpt",
+      "expect": "explanation",
+      "persona": "Priya, CS undergrad typing fast at 2am"
+    },
+    {
+      "text": "RAG vs fine-tuning, when and why. need to understand before the meeting",
+      "expect": "explanation",
+      "persona": "Marcus, senior backend engineer, impatient"
+    },
+    {
+      "text": "kv cache. how does it work",
+      "expect": "explanation",
+      "persona": "Marcus, senior backend engineer, impatient"
+    },
+    {
+      "text": "i want understand how language model learn the next word, please teach me",
+      "expect": "explanation",
+      "persona": "Yuki, non-native English speaker"
+    },
+    {
+      "text": "How is working the tokenization? I am confuse",
+      "expect": "explanation",
+      "persona": "Yuki, non-native English speaker"
+    },
+    {
+      "text": "how does chatgpt even know stuff",
+      "expect": "explanation",
+      "persona": "Sam, high school student"
+    },
+    {
+      "text": "bro what is a neural network",
+      "expect": "explanation",
+      "persona": "Sam, high school student"
+    },
+    {
+      "text": "can u break down how gradient descent works, i have a test tmrw",
+      "expect": "explanation",
+      "persona": "Sam, high school student"
+    },
+    {
+      "text": "why did the roman empire fall",
+      "expect": "explanation",
+      "persona": "Sam, high school student"
+    },
+    {
+      "text": "Walk me through how mixture-of-experts routing avoids expert collapse.",
+      "expect": "explanation",
+      "persona": "Dr Okafor, ML researcher, precise"
+    },
+    {
+      "text": "Contrast DPO with PPO-based RLHF in terms of stability.",
+      "expect": "explanation",
+      "persona": "Dr Okafor, ML researcher, precise"
+    },
+    {
+      "text": "I need to understand what a vector database is and why we'd need one, for a stakeholder doc",
+      "expect": "explanation",
+      "persona": "Lena, product manager, non-technical"
+    },
+    {
+      "text": "How do embeddings work, in plain English?",
+      "expect": "explanation",
+      "persona": "Lena, product manager, non-technical"
+    },
+    {
+      "text": "hows diffusion models make pictures from noise",
+      "expect": "explanation",
+      "persona": "Tom, hobbyist on his phone"
+    },
+    {
+      "text": "whys the sky blue",
+      "expect": "explanation",
+      "persona": "Tom, hobbyist on his phone",
+      "ambiguous": true
+    },
+    {
+      "text": "n what about audio",
+      "expect": "explanation",
+      "persona": "Tom, hobbyist on his phone",
+      "history": [
+        {
+          "user": "hows diffusion models make pictures from noise",
+          "reply": "They start from pure noise and learn to remove it a little at a time, guided by the prompt, until an image appears.",
+          "command": "explanation"
+        }
+      ],
+      "ambiguous": true
+    },
+    {
+      "text": "I'm putting together a lesson on how LLMs are trained. Something I can reuse in class would be great",
+      "expect": "explanation",
+      "persona": "Ana, teacher preparing a lesson"
+    },
+    {
+      "text": "Need something on the history of neural networks I can keep",
+      "expect": "explanation",
+      "persona": "Ana, teacher preparing a lesson"
+    },
+    {
+      "text": "what is a transformer",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "whats backprop",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what is rag",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "how do gpus even work",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what even is machine learning",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "yo how does wifi work",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what is inflation",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "how do vaccines work lol",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "wtf is a vector database",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    },
+    {
+      "text": "what is overfitting",
+      "expect": "explanation",
+      "persona": "Casual short questions, any asker"
+    }
+  ]
+}

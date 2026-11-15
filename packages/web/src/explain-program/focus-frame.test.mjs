@@ -69,7 +69,7 @@ test('Focus shows one title (the card hides its own kicker and title) and the ca
   assert.match(readFileSync(new URL('../LearningBlocks.jsx', import.meta.url), 'utf8'), /<div data-focus-hide><Kicker block=\{block\}>/);
   assert.match(readFileSync(new URL('../LearningBlocks.jsx', import.meta.url), 'utf8'), /<div data-explanation-head data-focus-hide className="shrink-0">\s*\{block\.anchor\s*\? <CardHeader [^\n]*\/>\s*: <Kicker block=\{block\} size="lg"[^\n]*>Explanation<\/Kicker>\}/, 'a text Explanation too (its CORE.09 pinned header, now with the type icon: owner 2026-11-07)');
   const canvas = readFileSync(new URL('../AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(canvas, /const drawnWidgets = focusWidgets\(\{ minimap, holeMap, curious \}, !!focus\);/);
+  assert.match(canvas, /const drawnWidgets = focusWidgets\(\{ minimap, holeMap, curious \}, !!focus, \{ keepCurious: studyHides\(\{ mode: widgetMode, repository: studyRepository \}\) \}\);/, 'Curious stands down in Focus, except on a repository canvas in Study (Show suggestions works there)');
   assert.match(canvas, /\{drawnWidgets\.minimap && <div data-canvas-minimap>/);
   assert.match(canvas, /!readOnly && toolbarShown && <div ref=\{toolbarRef\}/, 'the toolbar stays in Focus, except over a pinned Study notebook (toolbarDrawn)');
 });

@@ -164,15 +164,18 @@ export function Avatar({ email, src = null, className }) {
 }
 
 export const Tabs = TabsPrimitive.Root;
-export function TabsList({ className, pill = false, ...props }) {
+export function TabsList({ className, pill = false, square = false, ...props }) {
   // pill = segmented control: one outer pill track, the active segment fills dark
-  return <TabsPrimitive.List className={cn(pill ? 'inline-flex w-max items-center gap-0.5 rounded-full border border-line bg-hover p-0.5' : 'flex gap-4 border-b border-line', className)} {...props} />;
+  return <TabsPrimitive.List className={cn(square ? 'inline-flex w-max items-center gap-0.5 rounded-lg border border-line p-0.5' : pill ? 'inline-flex w-max items-center gap-0.5 rounded-full border border-line bg-hover p-0.5' : 'flex gap-4 border-b border-line', className)} {...props} />;
 }
-export function TabsTrigger({ className, pill = false, ...props }) {
+// square = the same segmented control with square corners (the Choice look in RabbitHoleSettings: rounded-lg track, rounded-md active segment in bg-active); the caller sets height, padding and text size.
+export function TabsTrigger({ className, pill = false, square = false, ...props }) {
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        pill
+        square
+          ? 'flex items-center rounded-md text-ink-2 transition-colors duration-100 hover:bg-hover hover:text-ink disabled:pointer-events-none disabled:opacity-40 data-[state=active]:bg-active data-[state=active]:font-medium data-[state=active]:text-ink'
+          : pill
           ? 'flex h-7 items-center rounded-full px-3.5 text-sm text-ink-2 transition-colors duration-100 hover:text-ink disabled:pointer-events-none disabled:opacity-40 data-[state=active]:bg-ink data-[state=active]:font-medium data-[state=active]:text-white'
           : cn(
               '-mb-px flex h-8 items-center border-b-2 border-transparent text-sm text-ink-2 transition-colors duration-100 hover:text-ink',
@@ -538,6 +541,19 @@ export function Menu({ open, onClose, className, style, portal = false, anchor =
   );
   // portal escapes overflow-hidden/auto ancestors (settings modal panes etc.)
   return portal ? createPortal(node, document.body) : node;
+}
+
+// A card's own inline menu (the Document and Notebook cards' three-dot rows): while it is open, a press anywhere else (outside the menu and its button, which toggles it
+// itself) or Escape closes it (owner 2026-11-15). `inside` is the selector of the menu and its button.
+export function useDismissMenu(open, close, inside) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const press = event => { if (!event.target.closest?.(inside)) close(); };
+    const key = event => { if (event.key === 'Escape') close(); };
+    document.addEventListener('pointerdown', press, true);
+    window.addEventListener('keydown', key, true);
+    return () => { document.removeEventListener('pointerdown', press, true); window.removeEventListener('keydown', key, true); };
+  }, [open, close, inside]);
 }
 
 // A header button's portaled dropdown (owner brief 2026-10-16 items 1-2): pinned under the button's left edge, then kept inside

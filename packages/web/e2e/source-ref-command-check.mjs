@@ -96,20 +96,26 @@ const select = page => page.evaluate(sentence => {
 try {
   const { context, page } = await open();
   const toolbar = () => page.locator('[data-block-id="repeat.md"] [data-file-doc-selection-toolbar]');
-  await step('selecting a sentence offers Highlight and Explain', async () => {
+  await step('selecting a sentence offers the Ctrl+K quick-ask and Highlight', async () => {
     assert.equal(await select(page), true);
     await toolbar().waitFor();
-    await toolbar().getByRole('button', { name: 'Explain' }).waitFor();
+    await toolbar().locator('[data-quick-ask]').waitFor();
     await toolbar().getByRole('button', { name: 'Highlight' }).waitFor();
   });
-  await step('Explain mints the reference to this file at this revision and quote, opens Ctrl+K with the interactive pill and the passage (no job yet), and sending it starts the explanation with its id and the passage', async () => {
-    await toolbar().getByRole('button', { name: 'Explain' }).click();
+  await step('Explain mints the reference to this file at this revision and quote, opens Ctrl+K with the passage as a pill and an empty box (no job yet), and sending it starts the explanation with its id and the passage', async () => {
+    await toolbar().locator('[data-quick-ask]').click();
     // The bulb never generates (LearnPage.jsx onPassage -> inlineAi with HIGHLIGHT_EXPLAIN_COMMAND, source-refs.js:130): the learner sends the Ctrl+K line.
     const editor = page.locator('[data-inline-ai]');
     await editor.waitFor({ timeout: 20000 });
-    await editor.locator('[data-command-pill="explain"]').waitFor();
-    assert.ok((await editor.locator('[data-inline-prompt]').inputValue()).includes(SENTENCE), 'the passage is the Ctrl+K words');
+    // CK-2/CK-3/CK-6: the passage is a pill (title = the full words), the box starts empty, an empty Enter explains the passage, no preview and no Accept, and the Chat pane does not open.
+    await editor.locator('[data-inline-chip]').waitFor();
+    assert.ok((await editor.locator('[data-inline-chip]').getAttribute('title')).includes(SENTENCE), 'the passage is the pill');
+    assert.equal(await editor.locator('[data-inline-prompt]').inputValue(), '', 'the box starts empty');
+    assert.equal(await editor.locator('[data-command-pill]').count(), 0, 'no command pill');
     assert.equal(flow.jobs.length, 0, 'the bulb starts no job by itself');
+    const hide = page.getByRole('button', { name: 'Hide the right panel' });
+    if (await hide.count()) { await hide.first().click(); await page.getByRole('button', { name: 'Show the right panel' }).first().waitFor(); } // closed first, so any opening is seen
+    const panelOpened = () => page.getByRole('button', { name: 'Hide the right panel' }).count();
     await editor.locator('[data-inline-submit]').click();
     await until(() => flow.jobs.length === 1, 'one explanation job');
     assert.equal(flow.mints.length, 1);
@@ -119,6 +125,8 @@ try {
     assert.equal(flow.jobs[0].sourceRefId, REF_ID, 'the job is given the id, never an anchor');
     assert.equal('sourceRef' in flow.jobs[0], false);
     assert.ok(JSON.stringify(flow.jobs[0].context).includes(SENTENCE), 'the passage is the job context');
+    assert.equal(await page.locator('[data-inline-accept]').count(), 0, 'no Accept: the card is made, not previewed');
+    assert.equal(await panelOpened(), 0, 'Ctrl+K /explain leaves the right panel closed (CK-6)');
   });
   await step('the pending card shows where it came from', async () => {
     const chip = page.locator(`[data-block-id="${flow.jobs[0].cardId}"] [data-source-ref]`);
@@ -130,7 +138,7 @@ try {
     flow.mode = 'changed';
     const before = flow.jobs.length;
     assert.equal(await select(page), true);
-    await toolbar().getByRole('button', { name: 'Explain' }).click();
+    await toolbar().locator('[data-quick-ask]').click();
     await page.locator('[data-block-id="repeat.md"] [data-file-doc-highlight-notice]').getByText('This source changed since you selected this passage. Select the passage again.').waitFor();
     assert.equal(flow.jobs.length, before);
   });

@@ -260,14 +260,15 @@ export function explainTx({ requestId, text, frozen, board, boxes, size, visible
 // place (A7): the spot its ghost showed - the card goes at the end of the column (end: no other card moves), offset
 // (dx, dy) to that spot, its connector on the facing sides. Without one, it follows the target card in the column.
 // The card keeps the words typed into the editor (frozen.words) as its prompt (card-prompt.js).
-export function cardTx({ requestId, block, frozen, board, route, place = null }) {
+export function cardTx({ requestId, block, frozen, board, route, place = null, parent = null }) {
   const inline = inlineProvenance({ requestId, route, frozen });
-  const card = withPrompt({ ...block, id: cardId(requestId), dx: place ? place.dx : 0, dy: place ? place.dy : 0, inline }, frozen.words);
-  const after = place ? null : frozen.ids.find(id => (board.blocks || []).some(entry => entry.id === id)) || null;
+  // parent { id, dy }: the source card and the passage line (release 146): the connector layer draws the arrow from it, so no straight annotation link is added.
+  const card = withPrompt({ ...block, id: cardId(requestId), dx: place ? place.dx : 0, dy: place ? place.dy : 0, inline, ...(parent ? { parentCard: { id: parent.id, dy: parent.dy } } : {}) }, frozen.words);
+  // CK-5: never inserted after its source (that pushed every card after it down the column), and never at the camera's flow index (AdaptiveCanvas apply): always appended (`end`), its offsets (dx, dy) putting it beside the source.
   const one = explainConnects(frozen.ids, board) ? frozen.ids[0] : null;
   const [fromSide, toSide] = place ? FACING[place.side] || FACING.right : ['top', 'bottom'];
-  const link = one ? { id: linkId(requestId), from: card.id, fromSide, to: one, toSide, color: '#6b7280', route: 'straight', head: true, kind: 'annotation', inline } : null;
-  return { id: requestId, kind: 'card', block: card, after, ...(place ? { end: true } : {}), links: link ? [link] : [] };
+  const link = one && !parent ? { id: linkId(requestId), from: card.id, fromSide, to: one, toSide, color: '#6b7280', route: 'straight', head: true, kind: 'annotation', inline } : null;
+  return { id: requestId, kind: 'card', block: card, after: null, end: true, links: link ? [link] : [] };
 }
 
 export const editTx = ({ requestId, changes, additions=[], removals=[] }) => ({ id: requestId, kind: 'edit', changes: changes.map(({ id, list, after }) => ({ id, list, after })), additions, removals });
@@ -279,7 +280,7 @@ export function applyTx(state, tx) {
   const has = (list, id) => (state[list] || []).some(entry => entry.id === id);
   if (tx.kind === 'edit'||tx.kind==='annotations') {
     for (const change of tx.changes) next[change.list] = (next[change.list] || state[change.list] || []).map(entry => (entry.id === change.id ? change.after : entry));
-    for(const removal of tx.removals||[])next[removal.list]=(next[removal.list]||[]).filter(entry=>entry.id!==removal.id);
+    for(const removal of tx.removals||[])next[removal.list]=(next[removal.list]||[]).filter(entry=>entry.id!==removal.id||entry.generated);
     for(const addition of tx.additions||[])if(!(next[addition.list]||[]).some(entry=>entry.id===addition.id))next[addition.list]=[...(next[addition.list]||[]),addition.after];
     return next;
   }
