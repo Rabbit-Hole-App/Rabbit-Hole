@@ -8,6 +8,7 @@ import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendO
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { fileContext } from './file-context.js';
 import { CANVAS_UNAVAILABLE, canvasMentions } from './canvas-refs.js';
+import { codeExplainTurn } from './learn-code-explain.js';
 import { chatContext, chatFields, chatSystem, codebaseUseId, docIds, logTutorCall, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory, tutorRecord, TUTOR_OUTLINE_SYSTEM } from './chat-modes.js';
 import { progressQuestionContext } from './learn-progress-context.js';
 import { answerMetaSystem, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
@@ -1350,9 +1351,15 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
   // Docs tutor-prompts-and-routing.md section 1c: the record every Tutor model call carries, and the route decision, in the answer's meta (never a silent pick).
   // route: 'code-explain' when the verified route chose it (the handler runs it, learn-code-explain.js), else 'answer'; tutor.route: the use a routed typed line chose, with its confidence.
   const useRoute = body.use_route, tutorUse = codebaseUseId(body.use);
-  const tutor = repository?.tutor && research.system?.includes(repository.tutor.text) ? tutorRecord(repository.tutor, { route: tutorUse && Number.isFinite(useRoute?.confidence) ? { use: tutorUse, confidence: useRoute.confidence } : null, model: modelId }) : null;
-  if (tutor) logTutorCall(tutor);
-  const turnMeta = base => { const merged = { ...base, ...(tutor ? { tutor } : {}), ...(chat && (tutor || routeDecision) ? { route: routeDecision?.cap === 'code-explain' ? 'code-explain' : 'answer' } : {}) }; return Object.keys(merged).length ? merged : null; };
+  const tutorRoute = tutorUse && Number.isFinite(useRoute?.confidence) ? { use: tutorUse, confidence: useRoute.confidence } : null;
+  const tutor = repository?.tutor && research.system?.includes(repository.tutor.text) ? tutorRecord(repository.tutor, { route: tutorRoute, model: modelId }) : null;
+  // A verified code-explain route (learn-code-explain.js): one structured Sonnet call answers the turn (askStream calls research.answer instead of the research loop), and
+  // the answer's meta carries codeExplain (the card payload, or null with its reason). The turn falls back to the ordinary chat answer when nothing usable came back.
+  const codeExplain = research && chat && routeDecision?.cap === 'code-explain' && !chat.command && !chat.regenerate
+    ? codeExplainTurn({ env: seam ? { ...env, DB: db } : env, question: message, refs: chat.contextRefs, use: tutorUse, route: tutorRoute, snapshot: async () => repository?.snapshot ?? (await seam?.snapshot?.(chat.contextRefs)) ?? null, logChat: () => tutor && logTutorCall(tutor) }) : null;
+  if (codeExplain) { const split = research.onAnswer; Object.assign(research, { answer: codeExplain.answer, onAnswer: text => codeExplain.close(split ? split(text) : text) }); }
+  else if (tutor) logTutorCall(tutor);
+  const turnMeta = base => { const record = codeExplain?.tutor() ?? tutor, merged = { ...base, ...(record ? { tutor: record } : {}), ...(chat && (record || routeDecision) ? { route: routeDecision?.cap === 'code-explain' ? 'code-explain' : 'answer' } : {}), ...codeExplain?.meta() }; return Object.keys(merged).length ? merged : null; };
   // tools ride only when the user can edit the scope - a viewer's model has none
   const toolOpts = canAct && conversation !== 'learn'
     ? {

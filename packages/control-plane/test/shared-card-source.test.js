@@ -172,3 +172,29 @@ test('a malformed percent escape in the link or card id is the same 404, never a
   const { token } = await f.shareProject({ state: STATE });
   for (const path of [`/api/learn/boards/shared/${token}/cards/%E0%A4%A/source`, `/api/learn/boards/shared/%zz${token.slice(3)}/cards/c1/source`]) assert.equal((await f.call('GET', path)).status, 404, path);
 });
+
+// The code-explain card names its repository and commit (no app): it is withheld and read by the same rule as a repo-code card.
+const EXPLAIN = { id: 'e1', type: 'codeExplain', x: 40, y: 1200, title: 'How attention hides later tokens', question: 'how?', repo: 'karpathy/nanoGPT', commit: SHA, files: [{ cardId: 'self', path: 'model.py', ranges: [{ id: 'r1', start: 2, end: 3 }] }], mentioned: [], depth: 'standard',
+  depths: { brief: { prose: 'It hides later words.', anchors: [] }, standard: { prose: 'A secret sentence about the mask.', anchors: [{ sentence: 0, target: 'r1' }] }, detailed: { prose: 'More.', anchors: [] } }, figure: null, suggestions: ['a?', 'b?', 'c?'], evidence: { model: 'm', sources: ['model.py:2-3'], createdAt: 'T' } };
+
+test('a codeExplain card on a public repository is whole on a share link and its primary file reads through the card source route', async t => {
+  const f = world(t);
+  const { token } = await f.shareProject({ state: { blocks: [EXPLAIN] } });
+  const ben = await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ben' });
+  assert.deepEqual(ben.body.state.blocks.find(b => b.id === 'e1'), EXPLAIN);
+  const primary = await f.source(token, 'e1');
+  assert.equal(primary.status, 200, primary.text);
+  assert.deepEqual(primary.body, { path: 'model.py', commit: SHA, start: 1, content: SNAPSHOT.files['model.py'] }, 'the first file, whole');
+  assert.equal(primary.text.includes(UNRELATED), false, 'no other file of the repository');
+});
+
+test('a codeExplain card on a repository not confirmed public is its place and kind only for a viewer who does not own it: no title, prose, path or source', async t => {
+  const f = world(t, { visibility: null });
+  const { token } = await f.shareProject({ state: { blocks: [EXPLAIN] } });
+  const ben = await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ben' });
+  assert.deepEqual(ben.body.state.blocks, [{ id: 'e1', type: 'codeExplain', x: 40, y: 1200, redacted: true }]);
+  for (const secret of ['secret sentence', 'How attention', 'model.py', 'karpathy', SHA]) assert.equal(ben.text.includes(secret), false, secret);
+  assert.equal((await f.source(token, 'e1', 'ben')).status, 404);
+  const ana = await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ana' });
+  assert.deepEqual(ana.body.state.blocks.find(b => b.id === 'e1'), EXPLAIN, 'the owner sees her own card');
+});

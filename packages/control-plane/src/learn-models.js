@@ -108,6 +108,9 @@ export const LEARN_TASKS = Object.freeze({
   roadmap_proposal: Object.freeze({ provider: 'anthropic', model: CHAT_GEMINI, effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 600 }), // Tutor R5: the proposal edit composer (roadmap-edit.js), platform-funded
   // Tutor R7a index role (roadmap-source-summary.js): bounded navigation summaries of long-Markdown chunks, platform-funded, one tool, no fallback. NOT evidence.
   roadmap_index: Object.freeze({ provider: 'anthropic', model: CHAT_GEMINI, effort: null, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (one tool)', maxTokens: 2000 }),
+  // The code-explain card (learn-code-explain.js, docs tutor-prompts-and-routing.md 5 and code-explain-card-spec.md 5): one Sonnet 5.5 call at low effort, one tool (the structured output) on auto,
+  // exactly one call of it (Opus 5.5 400s on a forced tool with thinking off; the repo keeps one pattern). 4,000 output tokens, thinking included; the handler also caps input at 30k tokens and a card at US$0.50.
+  code_explain: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 4000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.
