@@ -2454,9 +2454,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           {/* Study | Canvas (pinned-study-codebase-spec.md 2f, owner 2026-11-15): small, at the far right end of the header row (the header is positioned), not in the centred group. Only when this
               canvas has a generated Run card or Runbook, or a pinned card. Drives the same mode View > Canvas / Study set. */}
           {studyPill(canvasApi.current?.blocks?.() || [], study.state.pin) && <Tabs value={study.mode === 'study' ? 'study' : 'canvas'} onValueChange={study.setMode}>
-            <TabsList pill data-study-toggle aria-label="Study or Canvas" className="absolute top-4 right-3 h-6 max-md:top-3 max-md:right-2">
-              <TabsTrigger pill value="study" data-study-toggle-option="study" className="h-5 px-2.5 text-xs">Study</TabsTrigger>
-              <TabsTrigger pill value="canvas" data-study-toggle-option="canvas" className="h-5 px-2.5 text-xs">Canvas</TabsTrigger>
+            <TabsList square data-study-toggle aria-label="Study or Canvas" className="absolute top-4 right-3 h-6 max-md:top-3 max-md:right-2">
+              <TabsTrigger square value="study" data-study-toggle-option="study" className="h-5 px-2.5 text-xs">Study</TabsTrigger>
+              <TabsTrigger square value="canvas" data-study-toggle-option="canvas" className="h-5 px-2.5 text-xs">Canvas</TabsTrigger>
             </TabsList>
           </Tabs>}
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
