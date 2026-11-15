@@ -359,3 +359,11 @@ test('an Opus brief refused once is corrected once: the second Opus call carries
   assert.deepEqual([job.stage, job.design.fast.opusBrief, s.opus.length], ['awaiting_approval', true, 2]);
   assert.match(JSON.parse(s.opus[1].messages[0].content[0].text).correction.problems[0], /^formula height at /);
 });
+
+test('a dev design pin that pins this Depth answers the author role: the fast path steps aside (no pick, no fill) and the job reaches approval', async t => {
+  const s = fastStack(t, { answers: [GOOD], env: { ...SEEK, SMALL_ENV: 'dev', INTERACT_DESIGN_FIXTURE: 'toss' }, evidence: [] });
+  const { body } = await s.create({ depth: 'brief' });
+  const { job } = await s.design(body.job.id);
+  assert.equal(s.picks.length, 0, 'no pick'); assert.equal(s.fills.length, 0, 'no fill'); assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure));
+  assert.equal(job.design.fast ?? null, null, 'the fast path did not run');
+});

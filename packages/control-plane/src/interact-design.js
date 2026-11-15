@@ -21,6 +21,7 @@ import { programEnabled, programTupleFor, statefulEnabled } from './explain-prog
 import { modelEvidence } from './explain-evidence.js';
 import { INTERACT_LIMITS, InteractModelError } from './interact-models.js';
 import { briefSchema } from '../../web/src/interact-plan-brief.js';
+import { designPinOf, pinnedFixtureId } from './interact-design-pin.js';
 import { INTERACT_FAMILIES } from './interact-families.js';
 import { pickFamily, pickThreshold } from './interact-design-pick.js';
 import { fillSystem, formulaProblems } from './interact-design-fill.js';
@@ -264,7 +265,9 @@ export async function fastDesign(job, ctx) {
 export async function authorDesign(job, ctx) {
   // The fast path runs once per design (design.fast is stored by the first result); an Edit or a retried Opus author never re-enters it.
   let fast;
-  if (ctx.designKind === 'fast' && !job.design.fast) { const out = await fastDesign(job, ctx); if (out.plan || out.stop) return out; fast = out.fast; }
+  // A dev-only design pin (INTERACT_DESIGN_FIXTURE, interact-design-pin.js) that pins this Depth answers the author role from the fixture plan, so the fast path steps aside for it (a pinned job runs no pick and no fill).
+  const pinned = designPinOf(ctx.env ?? {}) && pinnedFixtureId(designPinOf(ctx.env ?? {}), job.depth);
+  if (ctx.designKind === 'fast' && !job.design.fast && !pinned) { const out = await fastDesign(job, ctx); if (out.plan || out.stop) return out; fast = out.fast; }
   const result = await opusAuthor(job, ctx);
   return fast ? { ...result, fast } : result;
 }
