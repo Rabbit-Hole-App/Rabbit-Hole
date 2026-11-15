@@ -85,7 +85,22 @@ KNOB_VERIFY_MAX_STEP_SEC = 60  # knobs and traps run only for steps whose measur
 
 
 def knob_value(k: dict) -> str:
-    return k.get('safeValue') or {'float': '0.5', 'int': '1', 'string': 'hello'}.get(k['type'], '')
+    """The value a knob is verified with. It must differ from the knob's default: a run that sets a knob to its own default does not show the knob reached the program (run 3: discovery gave --temperature a safeValue of 0.8, the default)."""
+    quotes = "'" + '"'
+    default = str(k.get('default', '')).strip().strip(quotes)
+    chosen = str(k.get('safeValue') or '').strip()
+    isnum = lambda v: v.replace('.', '', 1).lstrip('-').isdigit()
+    same = lambda a, b: a == b or (isnum(a) and isnum(b) and float(a) == float(b))
+    if chosen and not same(chosen.strip(quotes), default):
+        return chosen
+    if k['type'] == 'float':
+        try: return f'{float(default) * 0.5:g}' if default and float(default) != 0 else '0.5'
+        except ValueError: return '0.5'
+    if k['type'] == 'int':
+        return '2' if default == '1' else '1'
+    if k['type'] == 'string':
+        return 'hello' if default != 'hello' else 'world'
+    return chosen
 
 
 def set_flag(cmd: str, flag: str, value: str) -> str:
