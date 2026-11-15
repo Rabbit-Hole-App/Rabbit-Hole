@@ -144,6 +144,17 @@ export async function repositorySnapshot(env,app,commit=app.commit_sha) {
 // repository public now, and the indexer refusing it (private now, gone, or the branch gone) makes it unknown, which a
 // share treats as private. Best effort: a missing table leaves it unknown, never blocks an import.
 const markVisibility=(env,app,known)=>env.LEARN_DB.prepare(known?"INSERT OR REPLACE INTO repository_visibility(app_id,visibility,checked_at) VALUES(?,'public',datetime('now'))":'DELETE FROM repository_visibility WHERE app_id=?').bind(app.id).run().catch(()=>{});
+// Owner-stack rehearsal fixtures only: an import pinned to a commit instead of the branch head. Accepted only where REHEARSAL_PIN_COMMIT=1 (set by
+// the owner-local key helper; no wrangler config has it, so production and the shared dev Worker refuse it). A short hash is expanded by GitHub.
+async function pinnedCommit(env,repo,value){
+  if(env.REHEARSAL_PIN_COMMIT!=='1')throw Error('commit is not accepted by this server');
+  if(typeof value!=='string'||!/^[a-f0-9]{7,40}$/i.test(value))throw Error('commit must be 7 to 40 hexadecimal characters');
+  const sha=value.toLowerCase();if(sha.length===40)return sha;
+  const response=await fetch(`https://api.github.com/repos/${repo}/commits/${sha}`,{headers:{Accept:'application/vnd.github.sha','User-Agent':'Small-Learn'}}).catch(()=>null);
+  const full=response?.ok?(await response.text()).trim():'';
+  if(!/^[a-f0-9]{40}$/.test(full))throw Error('Commit not found in this repository');
+  return full;
+}
 async function enqueue(env,app,repo,branch,resolved=null) {
   const head=resolved||await repositoryMetadata(env,repo,{branch}).catch(async error=>{if(!error.status)await markVisibility(env,app,false);throw error;});
   await markVisibility(env,app,true);
@@ -222,7 +233,8 @@ export async function repositoriesFetch(req,env,ctx){
       if(typeof body.branch!=='string'||!body.branch.trim()||body.branch.length>250)throw Error('Choose a branch');
       const name=`repo-${crypto.randomUUID().slice(0,8)}-${repo.split('/')[1].toLowerCase().replace(/[^a-z0-9-]/g,'-').slice(0,28)}`;
       // Confirm public visibility and branch before creating a project.
-      const head=await repositoryMetadata(env,repo,{branch:body.branch});
+      let head=await repositoryMetadata(env,repo,{branch:body.branch});
+      if(body.commit!==undefined)head={commit:await pinnedCommit(env,repo,body.commit)};
       const count=await db.prepare('SELECT COUNT(*) AS n FROM repository_apps WHERE org=? AND owner_email=?').bind(user.org,user.email).first();if(count.n>=25)throw Error('You have reached the 25 repository preview limit');
       // With its Learn main board (canvases.js emptyBoard), in one batch: a project is never without one.
       await db.batch([db.prepare('INSERT INTO repository_apps(org,name,owner_email,repo,branch) VALUES(?,?,?,?,?)').bind(user.org,name,user.email,repo,body.branch),emptyBoard(db,user.org,user.email,name)]);
