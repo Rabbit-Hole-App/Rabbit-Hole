@@ -55,6 +55,7 @@ import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, pressOperation, reads
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { describeNotebook } from './learn-notebook.js';
 import { docText } from './doc-text.js';
+import { runText } from './rehearsal-cards.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
 import { hasMarks, sketchText } from './explain-sketch.js';
@@ -2346,6 +2347,8 @@ function describeBlockOwn(block) {
   if (block.type === 'whiteboardVideo') return describeWhiteboard(block);
   if (block.type === 'notebook') return describeNotebook(block);
   // A document card (DocCard.jsx): its words as plain text, bounded like any card's description.
+  // A Run card (RunCard.jsx): its commands and last outputs, bounded like any card's description.
+  if (block.type === 'run') return { kind: 'Run card', title: block.title || '', text: runText(block) };
   if (block.type === 'doc') return { kind: 'Document', title: block.title || '', text: ['Document on the canvas:', docText(block.blocks).slice(0, 12000)].join(NEWLINE) };
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };

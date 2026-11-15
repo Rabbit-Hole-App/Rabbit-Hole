@@ -1,0 +1,9 @@
+{
+  "fixture": "datasette-e9d45fe",
+  "rule": "each runs once after the route succeeds; each must exit non-zero with the fragment in stderr/stdout",
+  "traps": [
+    { "id": "port_not_an_integer", "cmd": "datasette serve fixtures.db --port abc --get /-/versions.json", "expectRcNonZero": true, "outputContains": "is not a valid integer", "cause": "datasette/cli.py:377 type=click.IntRange(0, 65535)", "learnerWarning": "--port takes a number from 0 to 65535" },
+    { "id": "fixtures_db_exists", "cmd": "python tests/fixtures.py fixtures.db", "expectRcNonZero": true, "outputContains": "already exists, use --recreate", "cause": "tests/fixtures.py:452-455", "learnerWarning": "fixtures.py refuses to overwrite; add --recreate" },
+    { "id": "fixtures_wrong_extension", "cmd": "python tests/fixtures.py data.sqlite", "expectRcNonZero": true, "outputContains": "Database file should end with .db", "cause": "tests/fixtures.py:450-451", "learnerWarning": "the fixtures database must be named *.db" }
+  ]
+}

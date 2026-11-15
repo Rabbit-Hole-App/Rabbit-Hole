@@ -206,7 +206,9 @@ export const COMMON_ACTIONS = [
   // A group's Delete removes its members too, so it says so (brief section 3).
   { id: 'delete', label: t => (t.kind === 'group' ? 'Delete group and contents' : 'Delete'), icon: 'Trash2', group: 'delete', order: 10,
     targets: [...SELECTION_KINDS, 'connector'], keys: 'delete', shortcut: { key: 'Delete' }, danger: true, mutates: true, requires: 'canvas.local-edit',
-    applies: t => t.ids.length > 0, data: 'data-menu-delete', run: (t, ctx) => ctx.commands.deleteSelection() },
+    applies: t => t.ids.length > 0, data: 'data-menu-delete', run: (t, ctx) => ctx.commands.deleteSelection(),
+    // A generated card (the Run card, the Runbook: rehearsal-cards.js) has no Delete; a selection of only those shows none, a mixed one deletes the rest and leaves them.
+    state: t => (t.objects?.length && t.objects.every(object => object?.generated) ? { hidden: true } : null) },
 ];
 
 // SHARE lanes register their own entries here (contract section 6); each call returns its undo.

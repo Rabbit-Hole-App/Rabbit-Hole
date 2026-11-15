@@ -4,6 +4,7 @@ import CardHeader from './CardHeader.jsx';
 import { CardActionRows } from './CanvasMenu.jsx';
 import CanvasDoc from './CanvasDoc.jsx';
 import { unknownDocBlock } from './canvas-doc.js';
+import { openRunbookLink } from './learn-runbook.js';
 
 // A BlockNote document as a card (owner decision 2026-11-14, docs/features/blocknote-canvas.md): the Notebook card's shell (CardHeader, its three-dot
 // menu on the card's own action rows; the drag strip and corner resize are CanvasNode's, AdaptiveCanvas DocNode) around CanvasDoc's editor, which scrolls inside.
@@ -43,6 +44,13 @@ export default function DocCard({ block, readOnly, onBlocks, onLive }) {
   };
   const action = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
   const stop = event => event.stopPropagation();
+  // The Runbook (a generated card, rehearsal-cards.js) cites the repository as links at its commit: ONE delegated click on the editor turns a click on such a link into Files at those
+  // lines (small:open-code, as TutorCodebase.jsx openFiles), and GitHub at that commit when nothing answers. Any other link in any document is left to the editor.
+  const source = block.generated?.kind === 'rehearsal' ? block.generated : null;
+  const follow = event => {
+    const link = source && event.target.closest?.('a[href]');
+    if (link && openRunbookLink(link.getAttribute('href'), { app: source.app, repo: source.repo, commit: source.commit })) { event.preventDefault(); event.stopPropagation(); }
+  };
   return (
     <>
       <CardHeader block={block} className="relative px-4 pb-2" meta="Document" trailing={<>
@@ -54,7 +62,7 @@ export default function DocCard({ block, readOnly, onBlocks, onLive }) {
           </div>
         )}
       </>} />
-      <div data-canvas-doc data-doc-card data-scroll className="min-h-0 flex-1 overflow-y-auto rounded-b-xl border-t border-line py-2 [&_.bn-editor]:px-3">
+      <div data-canvas-doc data-doc-card data-scroll onClickCapture={follow} className="min-h-0 flex-1 overflow-y-auto rounded-b-xl border-t border-line py-2 [&_.bn-editor]:px-3">
         {unknownDocBlock(block.blocks)
           ? <p role="alert" className="px-4 py-2 text-sm text-ink-2">This document holds content this version cannot edit, so it opens read-only here. Nothing in it was changed.</p>
           : <CanvasDoc key={epoch} blocks={block.blocks} editable={!readOnly} onChange={change} />}
