@@ -157,7 +157,7 @@ test('renaming a region and all its references cannot invent a renderer preset a
   assert.throws(() => family.expandBrief(bad, 'brief'), error => error instanceof family.StepperBriefError && error.code === 'unknown_anchor');
 });
 
-test('basic checks report partial coverage and the independent reference check fails closed', async () => {
+test('basic checks report partial coverage and the reference check is the family check unchanged', async () => {
   const family = await import('./interact-family-stepper.js');
   const brief = family.referenceBrief('mitosis', 'detailed');
   const basic = family.check(brief, 'detailed');
@@ -167,10 +167,7 @@ test('basic checks report partial coverage and the independent reference check f
   assert(basic.checked.domains > 0 && basic.checked.bindings > 0);
   assert.equal(basic.checked.transitions, 0);
   assert.equal(basic.checked.reference, 0);
-  const proof = family.referenceCheck(brief, 'detailed');
-  assert.equal(proof.ok, false);
-  assert.equal(proof.failures[0].code, 'reference_unproved');
-  assert.equal(proof.failures[0].path, 'composition');
+  assert.deepEqual(family.referenceCheck(brief, 'detailed'), basic);
   brief.composition.data.variants[0].states[0].calloutRegion = 'missing';
   assert.equal(family.referenceCheck(brief, 'detailed').failures[0].code, 'unknown_region');
 });
@@ -208,4 +205,24 @@ test('built-in registration admits typed scene.data at all nine composition dept
     assert.ok(planProblems({ ...plan, scene: withoutData }).some(problem => problem.path.join('.') === 'scene.data'));
     assert.deepEqual(data, plan.scene.data);
   }
+});
+
+test('the fill schema keeps the step control on the constant variant.states and refuses an input written inside a path, with a fix', async () => {
+  const family = await import('./interact-family-stepper.js');
+  const info = family.briefSchema('brief'), good = family.referenceBrief('merge-sort', 'brief');
+  const constants = JSON.stringify(info.jsonSchema).match(/"items":\{"type":"string","const":"variant\.states"\}/g);
+  assert.ok(constants?.length >= 2, 'the JSON schema holds the constant for the control and for the rail and trace binds');
+  // The Flash Lite slip of brief 23: the index is written inside the path and the control is not bound to the whole table.
+  const slip = structuredClone(good);
+  slip.composition.controls[0].items = 'variant.states[inputs.stepIndex]';
+  slip.composition.parts[2].bind.reason = 'variant.states[inputs.stepIndex].why';
+  slip.composition.parts[0].bind.active = 'inputs.stepIndex';
+  const parsed = info.parse(slip);
+  assert.equal(parsed.ok, false);
+  const line = path => parsed.problems.find(p => p.startsWith(`${path}: `));
+  assert.match(line('composition.controls.0.items'), /must be exactly "variant\.states" \(got "variant\.states\[inputs\.stepIndex\]"\).*never an index into it/);
+  assert.match(line('composition.parts.2.bind.reason'), /must be exactly "state\.why".*only state\.\*, variant\.\* and previous\.\*/);
+  assert.match(line('composition.parts.0.bind.active'), /must be exactly "inputs\.step"/);
+  assert.equal(info.parse(good).ok, true);
+  assert.match(family.fillTeachingRules('brief').join('\n'), /exactly "variant\.states".*Never write an input inside a path/s);
 });

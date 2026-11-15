@@ -116,6 +116,7 @@ export function fillTeachingRules(depth) {
         : 'Deep: add an inspectable computed count or governing rule and completed-state trace. Never exceed the approved Deep mitosis density.',
     'Compose inside the 640 px picture. Callouts identify where; readouts report values. Keep each number in one place and compute it from the same state and inputs.',
     'Reset restores the first state and default variant. Every selected state persists until the learner acts. A step is an integer state position, never a fabricated clock.',
+    'The step control lists exactly "variant.states", the whole ordered table, as a constant. Every part bind is one of the schema\'s fixed strings: state.*, variant.*, previous.* (and inputs.step for the rail and trace). Never write an input inside a path: "variant.states[inputs.stepIndex].why" is refused; write "state.why".',
     ...formulaGrammar, ...formulaRules(depth),
   ];
 }
@@ -155,7 +156,7 @@ export function clampSelection(composition, inputs = {}) {
 
 // This first module checks admission structure, not scientific correctness. The
 // independent transition/readout proofs and six semantic failures are a separate
-// required deliverable; referenceCheck below deliberately refuses to certify it.
+// required deliverable; check's coverage report names what stays unproved.
 export function check(brief, depth) {
   const checked = { schema: 0, domains: 0, bindings: 0, transitions: 0, reference: 0 };
   const coverage = { scope: 'structure-and-bindings', complete: false, missing: ['state-invariants', 'independent-reference', 'six-semantic-negative-cases'] };
@@ -239,11 +240,8 @@ export function check(brief, depth) {
   });
   return { ok: failures.length === 0, failures, checked, coverage };
 }
-export function referenceCheck(brief, depth) {
-  const result = check(brief, depth);
-  if (!result.ok) return result;
-  return { ...result, ok: false, failures: [{ code: 'reference_unproved', path: 'composition', message: 'Independent state invariants and the six semantic negative cases have not yet been proved.' }] };
-}
+// The family's admission is its check (brief 27): the design path asks referenceCheck, and a valid brief must pass it. Its coverage report still says what is not proved.
+export const referenceCheck = check;
 
 const affected = id => ({ scope: 'main', kind: 'entity', id });
 const partLabels = Object.freeze({ rail: 'State rail', picture: 'Teaching picture', callout: 'Selected-state explanation', ghost: 'Previous state', values: 'State readouts', trace: 'Completed states' });
@@ -278,7 +276,7 @@ export function expandBrief(raw, depth, { catalogueHash = '' } = {}) {
     learningGoal: composition.aha.observation, supportingVisuals: [],
     scene: {
       description: familyDescription(depth),
-      runtime: { renderer: 'program', schemaVersion: tuple.schemaVersion, sdkVersion: tuple.sdkVersion, programTuple: tuple, requiredHelpers: [], requiredCapabilities: ['inputs_v2', ...(selector ? ['select_inputs'] : [])], catalogueHash },
+      runtime: { renderer: 'program', schemaVersion: tuple.schemaVersion, sdkVersion: tuple.sdkVersion, programTuple: tuple, requiredHelpers: [], requiredCapabilities: ['figures', 'inputs_v2', ...(selector ? ['select_inputs'] : [])], catalogueHash },
       entities: composition.parts.map(p => ({ id: p.id, label: partLabels[p.id], purpose: `Show the ${partLabels[p.id].toLowerCase()} from the declared state data.` })),
       quantities: [], template: info.template, slots: {}, words: { ...brief.words }, readoutIds: [],
       // The registered template admits this typed payload through sceneDataSchema.

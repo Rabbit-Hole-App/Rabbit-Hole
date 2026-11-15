@@ -33,6 +33,7 @@ export const STEPPER_PLANS = Object.freeze({
         },
         "requiredHelpers": [],
         "requiredCapabilities": [
+          "figures",
           "inputs_v2"
         ],
         "catalogueHash": "94f0d79c050cb092691f6c937d8d00fd13bdaa1d28f50eec3cb213bbd8bcf06e"

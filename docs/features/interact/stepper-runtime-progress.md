@@ -12,8 +12,10 @@ data sets round-trip exactly and reference briefs retain the approved HTML's tit
 There is no timeline, formula quantity or JSON encoded inside `scene.words`. Native item ids normalize to
 `state0`, `state1`, and so on while semantic state ids remain in typed data.
 
-`check` reports its structural/binding coverage explicitly. `referenceCheck` fails closed with `reference_unproved`
-until the separately required independent state/readout invariants and six semantic negatives are implemented.
+`check` reports its structural/binding coverage explicitly. Since brief 27 `referenceCheck` is `check` unchanged (no
+`reference_unproved`); the independent state/readout invariants and six semantic negatives are still not implemented, and
+the coverage report says so. The plan declares `figures` (selects the sdk-8 tuple), `inputs_v2` (its index input) and,
+with a selector, `select_inputs`.
 The family is now in the built-in registry after brief 24 made shared admission safe. The renderer modules are
 wired into its descriptor; unsupported canonical pictures and depths fail before source emission.
 
@@ -122,7 +124,7 @@ retaining all visible copy, composition and geometry. No generator or renderer c
 reader inventory explicitly classifies this new plan's structural teaching-picture links; its detector is unchanged.
 
 This milestone proves ScenePlan admission and the sealed Brief build, not independent semantic certification or
-live fill. `referenceCheck` still fails closed until the later invariants deliverable. TCP and mitosis renderer
+live fill. TCP and mitosis renderer
 work, broader pin depths, clone fit and provider benchmarking remain subsequent work.
 
 Final verification: **214/214 focused tests pass**, with no skips: stepper schemas/data/parts/pin and reference

@@ -47,5 +47,6 @@ export function source(ctx) {
     if (!drawPart) { const e = new Error(`unknown stepper part ${kind}`); e.code = 'part_binding'; e.path = 'composition.parts'; throw e; }
     return `${JSON.stringify(kind)}:${drawPart.toString()}`;
   });
-  return `const C=(${compositionDecoderSource})(${compositionSourceData(composition)});\nconst W=${JSON.stringify(words)};\nconst partDraws={${functions.join(',')}};\nconst assembleFrame=${assembleFrame.toString()};\nexport function evaluate({inputs}) { return {frame:assembleFrame(C,inputs,sdk,W),quantities:{}}; }`;
+  // The inlined functions carry their checkout's line endings (toString); the sealed program must not depend on them.
+  return `const C=(${compositionDecoderSource})(${compositionSourceData(composition)});\nconst W=${JSON.stringify(words)};\nconst partDraws={${functions.join(',')}};\nconst assembleFrame=${assembleFrame.toString()};\nexport function evaluate({inputs}) { return {frame:assembleFrame(C,inputs,sdk,W),quantities:{}}; }`.replace(/\r\n/g, '\n');
 }
