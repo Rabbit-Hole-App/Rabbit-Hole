@@ -320,8 +320,10 @@ def ds_install(rec, exp):
             hit = [(c, src) for c, src in inst if e['cmdMustInclude'] in cmdnorm(c)]
             check(bool(hit), f"install includes '{e['cmdMustInclude']}'", f"install '{hit[0][0]}'" if hit else 'install', f'no install command contains it; install is {[c for c, _ in inst]}')
             if hit:
-                check(any(src in e['sourceAnyOf'] for _, src in hit), f"install source one of {e['sourceAnyOf']}", f"source {hit[0][1]}",
-                      f"source {[src for _, src in hit]} is not allowed (the fixture lists only the pyproject/README citation)")
+                files = e.get('sourceFileAnyOf')  # fixtures v4: matched by FILE, not line (the citation lands on pyproject.toml:1 or the contributing line)
+                ok = any(src.split(':')[0] in files for _, src in hit) if files else any(src in e['sourceAnyOf'] for _, src in hit)
+                check(ok, f"install source {'file ' if files else ''}one of {files or e['sourceAnyOf']}", f"source {hit[0][1]}",
+                      f"source {[src for _, src in hit]} is not allowed (the fixture lists {files or e['sourceAnyOf']})")
         else:
             ok = any(set(o.split(' ')[2:]) <= toks for o in e['cmdAnyOf'])
             check(ok, f"install is the dev group ({e['source']})", '--group dev or the explicit list installed', f"neither of {e['cmdAnyOf']} is covered by the install commands")
@@ -334,7 +336,7 @@ def ds_fixes(rec, route):
         c = norm(f['change'])
         if f['kind'] == 'edit_command' and ('uv run' in c or re.search(r'-m "not serial"|-p no:cacheprovider', c)):
             continue
-        if f['kind'] == 'install_package' and (c == 'pip install uv' or (route == 'tests' and c == 'pip install pytest pytest-xdist pytest-asyncio beautifulsoup4 pytest-timeout trustme')):
+        if f['kind'] == 'install_package' and (c == 'pip install uv' or c == 'pip install pytest' or (route == 'tests' and c == 'pip install pytest pytest-xdist pytest-asyncio beautifulsoup4 pytest-timeout trustme')):
             continue
         if f['kind'] in ('install_package', 'add_step_before') and PIP_UP.match(c):
             notes.append(f"fix {f['n']} '{c}' ({f['kind']}): the documented pip-too-old repair for `--group` (pip < 25.1)")
@@ -352,7 +354,7 @@ def ds_fixes(rec, route):
 def ds_find(rsteps, exp_step):
     """the route step whose command matches (strict, or extra flags under --relax): (index, step) or None"""
     for i, s in enumerate(rsteps):
-        if any(same_cmd(s['cmd'], c) for c in ([exp_step['cmd']] if 'cmd' in exp_step else exp_step['cmdAnyOf'])):
+        if any(same_cmd(s['cmd'], c) for c in ([exp_step['cmd']] if 'cmd' in exp_step else []) + exp_step.get('cmdAnyOf', [])):  # fixtures v4: a step lists its command and the equivalent forms
             return i, s
     return None
 

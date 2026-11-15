@@ -3,17 +3,18 @@
   "route": "A (serve and open)",
   "hardware": "cpu",
   "matchRules": {
-    "steps": "same order; cmd compared after whitespace collapse; `uv run` prefix removal and `--port` value differences pass",
+    "steps": "same order for the steps the fixture lists; extra record steps (e.g. an explicit install step) are allowed before them; cmd compared after whitespace collapse; `uv run` prefix removal and `--port` value differences pass",
     "longRunning": "the serve step must be longRunning: true, started in the background, probed, then stopped"
   },
   "install": [
     {
       "cmdMustInclude": "pip install -e .",
-      "sourceAnyOf": [
-        "README.md:37",
-        "docs/contributing.rst:46",
-        "pyproject.toml:55"
-      ]
+      "sourceFileAnyOf": [
+        "pyproject.toml",
+        "README.md",
+        "docs/contributing.rst"
+      ],
+      "note": "Reviewer 15:20: match the install source by FILE, not line \u2014 S1b makes facts come from source and the citation lands on pyproject.toml:1 (the file) or the contributing line."
     }
   ],
   "steps": [
@@ -64,7 +65,13 @@
       "bodyMustContain": {
         "/-/versions.json": "\"datasette\""
       },
-      "note": "default port 8001 (cli.py:376); /-/versions routed at app.py:2805"
+      "note": "Reviewer 15:20: `datasette fixtures.db` is the same as `datasette serve fixtures.db` (serve is the default command, cli.py); either form passes. default port 8001 (cli.py:376); /-/versions routed at app.py:2805",
+      "cmdAnyOf": [
+        "datasette serve fixtures.db --port 8001",
+        "datasette fixtures.db",
+        "datasette serve fixtures.db",
+        "datasette fixtures.db --port 8001"
+      ]
     }
   ],
   "knobs": [
@@ -85,7 +92,9 @@
       "flag": "--memory",
       "type": "bool",
       "default": "false",
-      "source": "datasette/cli.py:418"
+      "source": "datasette/cli.py:418",
+      "optional": true,
+      "note": "optional (Reviewer 15:20): discovery lists the knobs the step's own command declares; --memory is a serve option the record may omit"
     },
     {
       "flag": "--setting",
@@ -121,6 +130,11 @@
     {
       "kind": "allow_domain",
       "note": "not expected: pypi.org and files.pythonhosted.org are already allowlisted"
+    },
+    {
+      "kind": "install_package",
+      "change": "pip install pytest",
+      "evidence": "tests/fixtures.py imports pytest (Reviewer 15:20)"
     }
   ],
   "notExpected": [
