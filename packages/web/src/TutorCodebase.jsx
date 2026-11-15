@@ -13,7 +13,7 @@ import { api } from './api.js';
 import { codeRef } from './chat-sources.js';
 import { coachingCanvas } from './learn-coaching-client.js';
 import { REHEARSAL_FIXES_HEADING, REHEARSAL_LABEL, REHEARSAL_POLL_MS, readyView, rehearsalDone, statusLine } from './learn-rehearsal-view.js';
-import RunCard from './RunCard.jsx';
+import { openRehearsalCard } from './rehearsal-cards.js';
 import { toast } from './ui.jsx';
 import { CODEBASE_GOALS, CODEBASE_PROMPT, EVIDENCE_LABEL, NOT_RUN_NOTE, OMISSION_TEXT, QUESTION_LABEL, SOMETHING_ELSE, goalOf, isCitation, isRepositorySource, linesText, sourceLabel, startSource } from './learn-codebase-goals.js';
 
@@ -52,8 +52,8 @@ export function openCited(chat, repo, ref, { reader = false } = {}) {
 // 5 s from GET until ready or failed; ready shows the draft plan and the fixes. No Accept, no Contents write, no assessment.
 // ponytail: the retired menu (menu = false above) has no goal chips to append this to, so it stands alone in the menu's section;
 // move it after CODEBASE_GOALS.map if the menu returns.
-function RehearsalTrigger({ chat, board }) {
-  const [data, setData] = useState(null), [busy, setBusy] = useState(false), [runOpen, setRunOpen] = useState(false);
+function RehearsalTrigger({ chat, board, repository }) {
+  const [data, setData] = useState(null), [busy, setBusy] = useState(false);
   const live = useRef(true), timer = useRef(null);
   useEffect(() => { live.current = true; return () => { live.current = false; clearTimeout(timer.current); }; }, []);
   const follow = out => {
@@ -69,6 +69,10 @@ function RehearsalTrigger({ chat, board }) {
     try { follow(await api('/api/learn/rehearsal', { method: 'POST', body: JSON.stringify({ app: chat.canvas, board }) })); }
     catch (error) { if (live.current) toast(error.data?.error || error.message, { tone: 'error', action: { label: 'Retry', run: start } }); }
     finally { if (live.current) setBusy(false); }
+  };
+  const openCard = kind => {
+    const done = openRehearsalCard(chat.canvasOps, kind, data.record, { app: chat.canvas, board, repositoryApp: repository?.app });
+    if (!done) toast('This canvas cannot take a new card here.');
   };
   const running = data && !rehearsalDone(data);
   const ready = data?.status === 'ready' ? readyView(data.record) : null;
@@ -91,10 +95,12 @@ function RehearsalTrigger({ chat, board }) {
         <p className="font-medium">{REHEARSAL_FIXES_HEADING}</p>
         <ul className="list-disc pl-5">{ready.fixes.map((line, i) => <li key={i}>{line}</li>)}</ul>
       </>}
-      {/* ponytail: the Run card is a panel here, not a canvas card (a card type needs persistence and sharing work); it moves into the Tutor's chat later. */}
-      <button type="button" data-run-card-open aria-expanded={runOpen} onClick={() => setRunOpen(open => !open)} className={`${CHOICE} w-fit`}>{runOpen ? 'Close run card' : 'Open run card'}</button>
+      {/* The Run card and the Runbook are canvas cards (rehearsal-cards.js): a press makes the card beside its sibling, or focuses the one already made (the Runbook is regenerated in place). */}
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" data-run-card-open disabled={!chat.canvasOps} onClick={() => openCard('run')} className={CHOICE}>Open run card</button>
+        <button type="button" data-runbook-open disabled={!chat.canvasOps} onClick={() => openCard('runbook')} className={CHOICE}>Open runbook</button>
+      </div>
     </div>}
-    {ready && runOpen && <RunCard app={chat.canvas} board={board} />}
   </section>;
 }
 
@@ -154,7 +160,7 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
     </form>}
     <p className="text-xs text-ink-2">Or type any question below; it does not need to be about this code.</p>
     {note && <p role="alert" data-codebase-note className="text-xs text-fail">{note}</p>}
-  </section> : REHEARSAL && repository && <RehearsalTrigger key={chat.canvas} chat={chat} board={board} />;
+  </section> : REHEARSAL && repository && <RehearsalTrigger key={chat.canvas} chat={chat} board={board} repository={repository} />;
   return { menu, view };
 }
 

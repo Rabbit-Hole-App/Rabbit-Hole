@@ -36,6 +36,10 @@ Two deliberate differences from the Reviewer's first sketch: a run request carri
 
 The browser polls every 2 s; no Durable Object and no WebSocket. The control plane never accepts a command; it forwards `cellId` and `flags` only.
 
+## Canvas card (owner 2026-11-14; `packages/web/src/RunCard.jsx`, `rehearsal-cards.js`)
+
+The Run card is a canvas card of type `run`, made by the chat message's Open run card beside the Runbook card (one per repo and commit; a second press focuses it). It is a generated card: `generated: { kind: 'rehearsal', repo, commit }`, and no delete path removes it (the canvas's menu hides Delete, the keys and a multi-selection delete leave it, undo never removes it). The card keeps `run: { app, board, commit, hardware, cells, results, flags }`: the record reference, the cells of the last session, each cell's last output (cut to its last 8 KB) with status, rc, seconds and time, and the flag values typed. It never keeps a session id: on load it shows Start session; Stop, an expired session or a hard timeout return it to Start with the last outputs still shown, labelled with their time. A viewer who cannot edit the canvas sees the card and the last outputs with Run and Start disabled; the control plane refuses a non-owner anyway.
+
 ## Limits (limits.py)
 
 One session per (canvas, user, commit); 2 concurrent per controller; hard cap 3600 s; idle 600 s; cell timeout = the step's route timeout (train 1200 to 1500 s); tails 200 lines / 32 KB. Stop-loss unchanged (running Modal figure, US$20).
