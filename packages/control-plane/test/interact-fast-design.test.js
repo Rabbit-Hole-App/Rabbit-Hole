@@ -367,3 +367,10 @@ test('a dev design pin that pins this Depth answers the author role: the fast pa
   assert.equal(s.picks.length, 0, 'no pick'); assert.equal(s.fills.length, 0, 'no fill'); assert.equal(job.stage, 'awaiting_approval', JSON.stringify(job.failure));
   assert.equal(job.design.fast ?? null, null, 'the fast path did not run');
 });
+
+test('a pinned plan the closing checks keep refusing ends the design (the revision bound counts pinned revisions) instead of looping between revising and verifying', async t => {
+  const s = fastStack(t, { answers: [GOOD], env: { SMALL_ENV: 'dev', INTERACT_DESIGN_FIXTURE: 'stepper' }, evidence: [] }); // no inputs_v2 and no seek capability: the stepper plan is refused every time
+  const { body } = await s.create({ depth: 'brief' });
+  const { job, seen } = await s.design(body.job.id);
+  assert.equal(job.stage, 'failed', JSON.stringify(job.failure)); assert.ok(seen.filter(x => x === 'design_revising').length <= 4, `bounded: ${seen.length} stages`);
+});

@@ -1165,6 +1165,7 @@ export class ExplainJobs {
     } else if (stage === 'design_revising') {
       d.pending = out.revision; d.problems = [];
       d.revisions.push({ n: d.revisions.length + 1, fromHash: d.planHash, changes: out.revision.changes.length, unresolved: out.revision.unresolvedFindingIds });
+      d.counts.revise = Math.max(d.counts.revise || 0, d.revisions.length); // a pinned (dev fixture) revision makes no counted call: the bound still sees every revision, so a plan the checks keep refusing ends the design instead of looping
       await keep(`revision-${d.revisions.length}`, { revision: out.revision, fromHash: d.planHash, at: now });
       next('design_verifying');
     } else if (out.next === 'revise') {
