@@ -77,8 +77,16 @@ def derive_cells(record: dict) -> list:
                 continue
             value = _flag_value(kv['cmd'], k['flag'])
             if value is not None:
+                # The verification run set numeric knobs to probe values (top_k=1, seed=1: greedy, repetitive text). The learner's cell starts from the repository's own defaults; string knobs keep the verified prompt.
+                default = str(k.get('default', '')).strip().strip(chr(39) + chr(34))
+                rule = _TYPE_RULES.get(k['type'])
+                if k['type'] in ('float', 'int') and rule and rule[0].fullmatch(default):
+                    value = default
                 flags.append({'flag': k['flag'], 'type': k['type'], 'value': value, 'editable': True})
-        cells.append({'cellId': 'knobs', 'kind': 'knobs', 'title': 'Make it yours', 'cmd': kv['cmd'], 'timeoutSec': limits.step_timeout(final['timeoutSec']), 'flags': flags,
+        cmd = kv['cmd']
+        for f in flags:
+            cmd = set_flag(cmd, f['flag'], shlex.quote(f['value']) if re.search(r'[^A-Za-z0-9_.:/=,-]', f['value']) else f['value'])
+        cells.append({'cellId': 'knobs', 'kind': 'knobs', 'title': 'Make it yours', 'cmd': cmd, 'timeoutSec': limits.step_timeout(final['timeoutSec']), 'flags': flags,
                       'expected': {'sec': kv.get('sec')}})  # ponytail: the record keeps no stdout for the knob run, so no stdoutHead
     return cells
 
