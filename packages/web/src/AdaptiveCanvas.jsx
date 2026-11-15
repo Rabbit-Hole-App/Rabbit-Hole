@@ -20,7 +20,7 @@ import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
-import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
+import { DOC_CARD_SIZE, isFileDrag, newDocBlock, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
 import { explanationCardWidth, openedExplanation } from './explanation-card-width.js';
@@ -141,6 +141,8 @@ const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The eq
 const InlineAiEditor = lazyFeature(() => import('./InlineAiEditor.jsx'), 'The AI editor');
 // The canvas's document editor (BlockNote), loaded only when Editor view first shows it (docs/features/blocknote-canvas.md).
 const CanvasDoc = lazyFeature(() => import('./CanvasDoc.jsx'), 'The document editor');
+// A document as a card (DocNode below), loaded with the first such card, never with the canvas.
+const DocCard = lazyFeature(() => import('./DocCard.jsx'), 'The document editor');
 // The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
 const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
 // SVG, audio and video card bodies load with the first such card (docs/features/canvas-file-imports.md, Media).
@@ -926,6 +928,23 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   );
 }
 
+// A BlockNote document as a card (DocCard.jsx, docs/features/blocknote-canvas.md 2026-11-14): { blocks } on the block, like any card's content. Its words are saved quietly, as a
+// notebook's are (not canvas undo steps; BlockNote keeps its own history). The card is the Notebook card's shell at its own opening size; a view-only canvas, a copy and a locked card
+// show the editor read-only.
+function DocNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
+  const edit = useContext(CanvasEdit);
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={DOC_CARD_SIZE.w} height={block.h || DOC_CARD_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the document</p>}>
+        <DocCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)}
+          onBlocks={blocks => edit.patchBlock?.(block.id, { blocks }, true)} onLive={blocks => edit.docLive?.(block.id, blocks)} />
+      </Suspense>
+    </CanvasNode>
+  );
+}
+
 function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
@@ -963,6 +982,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'doc') return <DocNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A code card (repo-graph Release 2, code-card.js): resizable; Full content (the menu's row) shows all its code.
   if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={CODE_CARD.h} autoMax={undefined} cardLayout={block.cardLayout} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} /></CanvasNode>;
   if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CardCustomTitle block={block} /><CanvasRefCard block={block} /></CanvasNode>;
@@ -1883,7 +1903,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   onSaveRef.current = onSave;
   // The board as last rendered, for persist(): a caller holding an older canvasApi still saves the latest.
   const boardRef = useRef(null);
-  boardRef.current = { strokes, shapes, items, links, blocks, groups, areas, ...(toc ? { toc } : {}), ...(doc ? { doc } : {}) };
+  // Document cards' words typed in the last half second (DocCard): held here, not in `blocks`, so typing never re-renders the canvas, and read by every save path through the board
+  // below, as docLive is for the one document. The card patches its blocks after the pause and takes its entry back.
+  const docCardLive = useRef(new Map());
+  const withDocCardLive = list => (docCardLive.current.size ? list.map(block => (docCardLive.current.has(block.id) ? { ...block, blocks: docCardLive.current.get(block.id) } : block)) : list);
+  const docCardWords = (id, next) => {
+    if (!next) { docCardLive.current.delete(id); return; }
+    docCardLive.current.set(id, next);
+    boardRef.current = { ...boardRef.current, blocks: withDocCardLive(blocksRef.current) };
+  };
+  boardRef.current = { strokes, shapes, items, links, blocks: withDocCardLive(blocks), groups, areas, ...(toc ? { toc } : {}), ...(doc ? { doc } : {}) };
   // The board as this canvas first showed it, which retire() compares the live board against (pendingWork).
   const mountedBoard = useRef(null);
   if (!mountedBoard.current) mountedBoard.current = boardRef.current;
@@ -2330,6 +2359,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       insertNotebook: () => {
         snapshot();
         return insertAtView(newNotebookBlock());
+      },
+      // Insert > Document: an empty BlockNote document card (DocCard.jsx), beside the one selected card or object in free space, else where the learner is looking.
+      insertDocument: () => {
+        if (readOnlyRef.current || localCopyRef.current) return null;
+        const only = selectedRef.current.length === 1 ? selectedRef.current[0] : null, target = only && boxesOf([only])[0];
+        snapshot();
+        return target ? placeBeside(newDocBlock(), DOC_CARD_SIZE, target, only) : insertAtView(newDocBlock());
       },
       // An imported .ipynb or .py, as the Add to canvas dialog made it (canvas-file-drop.md): at its drop point - the
       // column slot at that height - or, uploaded, where the learner is looking.
@@ -5705,13 +5741,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const made = notebookFromCode(code || itemsRef.current.find(entry => entry.id === id))?.block;
     const target = boxesOf([id])[0];
     if (!made || !target || readOnlyRef.current) return null;
-    // NotebookCard's opening size. It joins the end of the column (gap-5, a wide card centred on it, as insertBlock's)
-    // and is drawn at the placed spot by its offset from there.
-    const size = { w: 640, h: 540 };
+    snapshot();
+    return placeBeside(made, { w: 640, h: 540 }, target, id); // NotebookCard's opening size
+  };
+  // A new card beside `target` (a measured box; `id` its object) in free space - placeNote and its obstacles - selected, and panned to when the spot is off-screen. The card
+  // joins the end of the column (gap-5, a wide card centred on it, as insertBlock's) and is drawn at the placed spot by its offset from there. The caller snapshots (one undo step).
+  const placeBeside = (made, size, target, id) => {
     const spot = placeNote(target, size, [...inlineCanvas.obstacles([id]), ...placementChrome()], inlineCanvas.visibleWorld());
     const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
     const added = { ...made, dx: Math.round(spot.x - (COLUMN - size.w) / 2), dy: Math.round(spot.y - flowY) };
-    snapshot();
     perfMark(added.id, 'insert');
     setBlocks(previous => [...previous, added]);
     setSelection([added.id]);
@@ -6383,7 +6421,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>

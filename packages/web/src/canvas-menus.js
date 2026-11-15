@@ -5,7 +5,7 @@
 // There is no Files menu (the right panel's Context and Search do that work) and no Share, Publish or Embed here (the Share button).
 // Row kinds, drawn by CanvasMenubar: an action (label, icon, hint, disabled, onSelect), a submenu (items), a radio or check row
 // (radio / check, a check row stays open), a choice (the Page guides selector) and a divider. Disabled rows stay, greyed, never explained.
-import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, ArrowUpToLine, Clipboard, Copy, CopyPlus, Eye, Focus, Globe, Grid2X2, Group, Heading1, Keyboard, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, PanelsTopLeft, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut, Frame, GraduationCap, Ruler, Heading2, Heading3 } from 'lucide-react';
+import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, ArrowUpToLine, Clipboard, Copy, CopyPlus, Eye, FilePen, Focus, Globe, Grid2X2, Group, Heading1, Keyboard, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, PanelsTopLeft, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut, Frame, GraduationCap, Ruler, Heading2, Heading3 } from 'lucide-react';
 import { ariaFor, hintFor, isMac } from './shortcuts.js';
 
 // Section, sub-sections, text box, sticky note, divider and equation: inserted on this canvas only, no request, no model call.
@@ -27,6 +27,8 @@ export const ownerInsertItems = ({ canvas, onUpload, onSearchSources, onLinkToCa
   ...localInsertItems(canvas),
   { divider: true },
   { label: 'Notebook', icon: NotebookPen, onSelect: () => canvas()?.insertNotebook() },
+  // A BlockNote document card (owner decision 2026-11-14): the canvas can hold several.
+  { label: 'Document', icon: FilePen, onSelect: () => canvas()?.insertDocument() },
   { label: 'Upload a file', icon: Upload, onSelect: onUpload },
   { label: 'Webpage', icon: Globe, onSelect: () => canvas()?.insertWebpage() },
   { label: 'Search sources', icon: Search, onSelect: onSearchSources },

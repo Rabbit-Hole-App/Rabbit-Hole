@@ -7,6 +7,11 @@ export const DOC_BLOCK_TYPES = ['paragraph', 'heading', 'quote', 'bulletListItem
 const KNOWN = new Set(DOC_BLOCK_TYPES);
 export const unknownDocBlock = blocks => (blocks || []).some(block => !KNOWN.has(block?.type) || unknownDocBlock(block?.children));
 
+// A document as a card (owner decision 2026-11-14, docs/features/blocknote-canvas.md): a canvas block of type 'doc' holding the same native
+// BlockNote blocks as the canvas's one document, so it is saved, copied, shared and forked with the board like any card. Several per canvas.
+export const DOC_CARD_SIZE = { w: 640, h: 640 };
+export const newDocBlock = () => ({ id: crypto.randomUUID(), type: 'doc', dx: 0, dy: 0, blocks: [] });
+
 // Canvas or Editor, remembered in this browser for this person and this canvas (owner decision B1); Canvas when unset.
 export const docViewKey = canvasKey => `${canvasKey}:view`;
 export const readDocView = (storage, canvasKey) => {
