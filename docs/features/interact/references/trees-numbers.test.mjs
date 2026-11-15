@@ -24,3 +24,6 @@ if(has('overview-vote-board-majority-vote.html'))test('forest vote oracle uses f
 if(has('overview-split-accounting-gini-split.html'))test('Gini accounting exposes exact weighted score and parent-minus-child gain at every depth',()=>{
  for(const depth of ['overview','standard','deep']){const u=card(depth,'split-accounting','gini-split');u.change('cut',4);assert.equal(u.card.evidence.weighted,3/16);assert.deepEqual(Array.from(u.card.evidence.gain),[9,32]);assert.ok(u.svg().includes(depth==='deep'?'9/32':'0.28125'))}
 });
+if(has('overview-partition-map-decision-regions.html'))test('decision regions respect branch-local cuts and ≤ boundaries',()=>{
+ const u=card('deep','partition-map','decision-regions');u.change('x',6);u.change('y',1);for(const [stage,pred]of [[0,0],[1,1],[2,0]]){u.change('stage',stage);assert.equal(u.card.evidence.prediction,pred)}u.change('x',4);u.change('y',8);assert.equal(u.card.evidence.region,'L');u.change('x',6);u.change('y',2);assert.equal(u.card.evidence.region,'RL');assert.deepEqual(Array.from(u.card.evidence.members),['E']);u.change('y',3);assert.equal(u.card.evidence.region,'RR');
+});
