@@ -2,7 +2,8 @@
 // takes over its light entry in the registry (interact-family-registry.js). Not imported by plan validation: the family modules pull in the templates and the brief expander.
 import { verticalThrow } from './interact-family-vertical-throw.js';
 import { curveSliders } from './interact-family-curve-sliders.js';
+import { stepperStates } from './interact-family-stepper.js';
 import { registerFamily } from './interact-family-registry.js';
 
-export const builtinFamilies = Object.freeze([verticalThrow, curveSliders]);
+export const builtinFamilies = Object.freeze([verticalThrow, curveSliders, stepperStates]);
 export const registerBuiltinFamilies = () => { for (const family of builtinFamilies) registerFamily(family); };

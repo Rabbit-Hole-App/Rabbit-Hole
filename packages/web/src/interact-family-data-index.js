@@ -2,5 +2,6 @@
 // family's template roles and words. A new family adds its data module here and its full module to interact-family-index.js.
 import { verticalThrowData } from './interact-family-vertical-throw-data.js';
 import { curveData } from './interact-curve-data.js';
+import { stepperData } from './interact-family-stepper-data.js';
 
-export const builtinFamilyData = Object.freeze([verticalThrowData, curveData]);
+export const builtinFamilyData = Object.freeze([verticalThrowData, curveData, stepperData]);

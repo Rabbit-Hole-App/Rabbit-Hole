@@ -27,11 +27,11 @@ const stubFamily = Object.freeze({
 const mapText = readFileSync(new URL('../../../scripts/ci/check-map.json', import.meta.url), 'utf8');
 
 test('the built-in families are registered through the same call and the derived tables list them in registration order', () => {
-  assert.deepEqual(registeredFamilies().map(f => f.id), ['vertical-throw', 'curve-sliders']);
-  assert.deepEqual(Object.keys(TEMPLATE_ROLES), ['one-body', 'two-lane', 'body-plot', 'curve-one', 'curve-compare', 'curve-readouts']);
+  assert.deepEqual(registeredFamilies().map(f => f.id), ['vertical-throw', 'curve-sliders', 'stepper-states']);
+  assert.deepEqual(Object.keys(TEMPLATE_ROLES), ['one-body', 'two-lane', 'body-plot', 'curve-one', 'curve-compare', 'curve-readouts', 'stepper-brief', 'stepper-standard', 'stepper-deep']);
   assert.deepEqual(Object.keys(TEMPLATES), Object.keys(TEMPLATE_ROLES));
   assert.deepEqual(Object.keys(TEMPLATE_WORDS), Object.keys(TEMPLATE_ROLES));
-  assert.deepEqual(INTERACT_FAMILIES.map(f => f.id), ['vertical-throw', 'curve-sliders']);
+  assert.deepEqual(INTERACT_FAMILIES.map(f => f.id), ['vertical-throw', 'curve-sliders', 'stepper-states']);
   assert.ok(pinFixtures().includes('toss') && pinFixtures().includes('curve') && pinFixtures().includes('toss-mvp') && pinFixtures().includes('ledge-toss-moon'));
 });
 
@@ -42,7 +42,7 @@ test('a stub family is found in the pick criteria, the template table, the templ
     assert.ok(INTERACT_FAMILIES.some(f => f.id === 'stub-family'));
     const criteria = pickQuestions(INTERACT_FAMILIES).family.criteria;
     assert.equal(criteria['stub-family'], stubFamily.pickCriterion);
-    assert.deepEqual(Object.keys(criteria), ['vertical-throw', 'curve-sliders', 'stub-family', 'none']);
+    assert.deepEqual(Object.keys(criteria), ['vertical-throw', 'curve-sliders', 'stepper-states', 'stub-family', 'none']);
     // (b) the template table: generateProgram resolves the stub's template (it stops in the stub's own normalize), plan validation knows its roles, words and name
     assert.equal(TEMPLATES['stub-template'], stubTemplate);
     assert.deepEqual(TEMPLATE_ROLES['stub-template'], { lanes: 0, roles: ['y'] });
@@ -60,7 +60,7 @@ test('a stub family is found in the pick criteria, the template table, the templ
     assert.deepEqual(missingRows(JSON.parse(mapText), registeredFamilies()).map(p => p.path), ['packages/web/src/interact-family-stub.js']);
     assert.deepEqual(missingRows(JSON.parse(applyFamilyRows(mapText, familyRows())), registeredFamilies()), []);
   } finally { unregister(); }
-  assert.deepEqual(INTERACT_FAMILIES.map(f => f.id), ['vertical-throw', 'curve-sliders']);
+  assert.deepEqual(INTERACT_FAMILIES.map(f => f.id), ['vertical-throw', 'curve-sliders', 'stepper-states']);
   assert.ok(!isRegisteredTemplate('stub-template') && !('stub-template' in TEMPLATES) && !pinFixtures().includes('stub-pin'));
   assert.equal(interactOracle(STUB_PLAN) ?? null, null);
   assert.throws(() => generateProgram(STUB_PLAN, {}), error => error.code === 'no_template');
@@ -71,7 +71,7 @@ test('registration refuses a duplicate id, a template another family owns, and a
   assert.throws(() => registerFamily({ ...stubFamily, templates: ['one-body'], templateData: { 'one-body': { roles: [] } }, templateModules: { 'one-body': {} } }), /already belongs/);
   assert.throws(() => registerFamily({ id: 'bare', templates: ['bare-template'], templateData: {}, templateModules: {} }), /needs its templateData/);
   assert.throws(() => registerFamily({ templates: [] }), /needs an id/);
-  assert.deepEqual(registeredFamilies().map(f => f.id), ['vertical-throw', 'curve-sliders']);
+  assert.deepEqual(registeredFamilies().map(f => f.id), ['vertical-throw', 'curve-sliders', 'stepper-states']);
 });
 
 test('plan validation accepts a registered template name and refuses an unknown one', () => {

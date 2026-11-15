@@ -120,6 +120,11 @@ const READERS = {
   'web/src/tutor-diagrams/teaching-layouts.js': 'TutorDiagram transformation links (before-item to after-item), not board links',
   'web/src/tutor-diagrams/ml-composition-layouts.js': 'TutorDiagram panels links (arrow and operation between neighbouring panels), not board links',
   'web/src/tutor-diagrams/topic-logistic-regression-references.js': 'the softmax panels reference’s links between panels, not board links',
+  'web/src/interact-family-stepper.js': 'typed links between declared teaching-picture regions, not board links',
+  'web/src/interact-stepper-data.js': 'interned canonical teaching-picture data and its structural links, not board links',
+  'web/src/interact-stepper-plans.js': 'pinned typed teaching-picture states and their structural region links, not board links',
+  'web/src/interact-stepper-schema.js': 'closed schema for structural links between teaching-picture regions, not board links',
+  'web/src/interact-templates/fixed-picture.js': 'draws declared teaching-picture links between preset region anchors, not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {
   const root = new URL('../../', import.meta.url);

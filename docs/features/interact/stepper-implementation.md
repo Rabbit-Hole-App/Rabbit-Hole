@@ -59,11 +59,15 @@ Verify that seam before committing a runtime family against it; report any unsup
 
 ## Current gate receipt
 
-Fast-path's per-input sign fix landed at `5b56fa253` and has been merged: an input may explicitly declare
-`positive`, `nonnegative` or `any`, with existing-family defaults preserved. At that tip `interact-families.js` still
-declares its family array by hand; the required one-place registration change has not landed. No stepper runtime
-module, parts, invariants or pins have been implemented before this gate.
+The owner unblocked implementation at 13:45 PT. Both required fixes are merged: per-input signs from `5b56fa253`
+and `registerFamily` from `6eb21f3f2` (lane merge `74c042ec1`). The next ordered proof is merge sort at Brief, then
+TCP after the native dynamic-domain hook, then mitosis. The owner accepted dynamic domains and a per-family object
+budget as Claude Code's shared contract work. Keep every approved reference unchanged.
 
 [The contract preflight](stepper-contract-preflight.md) additionally records the dynamic TCP index-domain seam and
 measured limits on faithful primitive lowering. Include these in the shared contract handoff before promising
 HTML-derived frame equality; the reference pictures have not been simplified to conceal either issue.
+
+[Runtime progress and the exact remaining admission hooks](stepper-runtime-progress.md) distinguish a registered
+generator proof from a plan the product's design/build path can admit. Module data uses a real typed `scene.data`
+field; do not put serialized data into words or introduce scalar formulas to bypass the shared schema.
