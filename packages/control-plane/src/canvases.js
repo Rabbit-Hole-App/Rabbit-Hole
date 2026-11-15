@@ -4,7 +4,8 @@ import { FILE_SOURCE, validFileRange } from '../../web/src/file-chat-ref.js';
 import { progressScope } from '../../web/src/learn-progress-question.js';
 import { CANVAS_SOURCE } from '../../web/src/canvas-mention-ref.js';
 import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
-import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } from './repository-context.js';
+import { REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } from './repository-context.js';
+import { repositoryChatPrompt } from './tutor-prompt.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { purgeCanvasAttachments } from './comment-attachments.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
@@ -554,15 +555,15 @@ export async function canvasesFetch(req, env) {
 // same system note and code tools, on the project's current snapshot. apiAsk reads it on every ask, and only as the
 // caller's own project in this workspace: another person's, one in Trash, one gone or not indexed yet, or a snapshot
 // that will not load leaves a general canvas, quietly.
-export async function projectRepository(env, app) {
+export async function projectRepository(env, app, use = null) {
   if (!app.project) return null;
   try {
     const row = await env.LEARN_DB.prepare(`SELECT * FROM repository_apps r WHERE r.org=? AND r.name=? AND r.owner_email=? AND ${NOT_TRASHED('r.org', 'r.name')}`).bind(app.org, app.project, app.email).first();
     if (!row?.commit_sha) return null;
-    const snapshot = await repositorySnapshot(env, row);
+    const snapshot = await repositorySnapshot(env, row), tutor = repositoryChatPrompt(use);
     return {
       context: `SCOPE: canvas ${JSON.stringify(app.title)} in the project ${row.repo} - a learning canvas whose content lives in the learner's browser, about this repository: ${JSON.stringify({ repo: row.repo, commit: row.commit_sha })}`,
-      system: REPOSITORY_SYSTEM, tools: REPOSITORY_TOOLS, runTool: (name, input) => repositoryTool(snapshot, name, input),
+      system: tutor.text, tutor, tools: REPOSITORY_TOOLS, runTool: (name, input) => repositoryTool(snapshot, name, input),
       // The learner's code refs (graph and Files selections), read from this snapshot only (repository-context.js).
       // A code card pinned to another commit of a repository the learner owns is read at that commit (cardCodeRefs).
       selected: async refs => ({ selectedEntities: await cardCodeRefs(env, { org: app.org, email: app.email }, refs, snapshot), selectedNote: SELECTED_NOTE }),
@@ -579,7 +580,7 @@ export function canvasAskSeam(env, app) {
     app, db,
     // The title is a weak hint (chat workspace brief section 8): a stale title must never outrank the discussion or material.
     context: `SCOPE: canvas ${JSON.stringify(app.title)} - a standalone learning canvas whose content lives in the learner's browser. The title is a weak hint and may be outdated: it is never the topic when the request, recent turns, attached material or the selection say otherwise. Teach as a general tutor.`,
-    repository: () => projectRepository(env, app),
+    repository: use => projectRepository(env, app, use),
     // Code cards and selections on a canvas outside a project (or whose project the asker cannot read): each read at its own
     // commit under the repository rule (repositories.js readableVersion), so a fork or a copy can ask about them too.
     selected: async refs => ({ selectedEntities: await cardCodeRefs(env, { org: app.org, email: app.email }, refs), selectedNote: SELECTED_NOTE }),

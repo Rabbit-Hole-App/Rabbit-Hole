@@ -23,7 +23,7 @@ const PINS = {
   chat: '8dec2ba4f43830de', // 2026-11-08: MATH_FORMAT's \frac no longer a form feed; canvas seam and app asks; 2026-10-28: shared MATH_FORMAT sentence; 2026-10-14: earlier answers are history, not evidence; a title is a weak hint; any subject, request first (topic-restriction brief)
   chatSnapshot: '515097516f004b1d', // 2026-11-08: MATH_FORMAT's \frac no longer a form feed; an app ask carrying a lesson_snapshot (legacy selection contract)
   chatOutline: '1db4e50cd1560652', // 2026-11-08: MATH_FORMAT's \frac no longer a form feed
-  repository: '2a6021c86afbfc83', // 2026-11-08: MATH_FORMAT's \frac no longer a form feed
+  repository: '1ad3ef5a89d815c8', // 2026-11-15: REPOSITORY_SYSTEM is now the Tutor loader's base + tasks/chat.md (docs tutor-prompts-and-routing.md; every earlier sentence kept in chat.md); 2026-11-08: MATH_FORMAT's \frac no longer a form feed
   artifact: '59bf728d08447e8d', // 2026-11-08: owner N1 + worked-example clause (owner correct-SVG change); owner N1, the one number rule, and MATH_FORMAT's \frac no longer a form feed; 2026-10-28: MATH_FORMAT; 2026-10-21 L10: when to make an interactive scene (make_animation)
   sceneVerify: '95072982913f0bc1', // 2026-10-21 L10 (owner): the verifier pass over a generated scene (learn-scene-author.test.js sends it)
   board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
