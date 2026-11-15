@@ -15,6 +15,7 @@ CATALOGUE_SPEND_CAP_USD = 0.5   # the catalogue's one model call (and its one re
 CATALOGUE_MAX_OUTPUT_TOKENS = 6000
 CATALOGUE_INPUT_TOKENS = 60_000  # README texts first, then the top 200 candidates by source kind
 CATALOGUE_MAX_CANDIDATES = 200
+CATALOGUE_MAX_DOWNLOAD_GB = 0.5  # a route that downloads more than this is not practical in the sandbox (owner, 2026-11-15)
 CATALOGUE_MAX_QUEUE = 4
 MAX_ALLOW_DOMAIN_FIXES = 2     # allow_domain fixes per job (each re-creates the sandbox with one more domain)
 MAX_QUEUE = 4
