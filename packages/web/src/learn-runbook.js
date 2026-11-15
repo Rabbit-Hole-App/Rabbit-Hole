@@ -12,7 +12,8 @@ import { repositoryUrl } from './card-sources.js';
 export const HEAD_LINES = 20; // stdout heads are cut here; commands never are
 const TAIL_LINES = 5;
 const RUNBOOK_ID = /^runbook-\d+$/;
-export const runbookTitle = record => `Runbook - ${record.repo} @ ${String(record.commit || '').slice(0, 7)}`;
+// The route's title follows (initial pipeline: one runbook per (repo, commit, routeId)): the record's own route title, else the one the caller passes.
+export const runbookTitle = (record, routeTitle) => [`Runbook - ${record.repo} @ ${String(record.commit || '').slice(0, 7)}`, String(record.route?.title || routeTitle || '').trim()].filter(Boolean).join(' · ');
 // The runbook's own blocks carry these ids (BlockNote keeps a block's id through edits and saves): regenerating replaces only them.
 export const isRunbookBlock = block => RUNBOOK_ID.test(String(block?.id || ''));
 
@@ -266,10 +267,10 @@ export function provenance(record) {
 export const SECTIONS = [['Purpose', purpose], ['What you need', needs], ['Run it', runIt], ['Make it yours', makeItYours], ["What the README didn't say", readmeGaps], ['How it is organised', organised], ['If it breaks', ifItBreaks], ['Provenance', provenance]];
 
 // record -> blocks (the title, then each section that has data, in the spec's order). Ids mark the blocks as the runbook's own.
-export function buildRunbook(record) {
+export function buildRunbook(record, { routeTitle } = {}) {
   if (!record || !record.repo || !record.commit) return [];
   const ctx = { repo: record.repo, commit: record.commit };
   const body = SECTIONS.flatMap(([, section]) => section(record, ctx));
   if (!body.length) return [];
-  return [heading(1, runbookTitle(record)), ...body].map((block, i) => ({ id: `runbook-${i + 1}`, ...block }));
+  return [heading(1, runbookTitle(record, routeTitle)), ...body].map((block, i) => ({ id: `runbook-${i + 1}`, ...block }));
 }

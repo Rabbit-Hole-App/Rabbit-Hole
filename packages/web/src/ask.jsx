@@ -55,6 +55,9 @@ import { reviewRequired } from './proposal-capabilities.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode } from './chat-route.js';
 import { TutorCoaching } from './use-learn-coaching.jsx';
+import TutorRehearsalFlow from './TutorRehearsal.jsx';
+import { offerIntakeText } from './codebase-use-route.js';
+import { rehearsalOn } from './learn-rehearsal-view.js';
 import RoadmapTranscript, { TutorMessage } from './RoadmapTranscript.jsx';
 import { TutorActivity } from './TutorActivity.jsx';
 import { fileReviews } from './learn-progress-question.js';
@@ -604,6 +607,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const chips = keepDraft ? [] : mentions;
     const message = [...chips.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return false;
+    // The Tutor's intake question is open on a repository canvas (TutorRehearsal.jsx; dev flag): a plain line is the reply to it, routed to one of the 14 uses, not sent as a turn.
+    if (chat && !tocView && !regenerate && !keepDraft && !prompted && !commandName && !file && !message.startsWith('/') && rehearsalOn() && offerIntakeText(chat.canvas, message)) { setInput(''); return; }
     // EXP-T20 slice 3: while an /explain brief waits for Generate (its card says so), a plain Chat turn refines it (the job's refine route), as a
     // chat turn revises a live Motion proposal. The words are saved as the learner's message; the next version of the brief
     // appears in this thread when it is ready. A refusal keeps the words in the composer and says why.
@@ -1097,6 +1102,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         {!(sheetMode && sheetHistory) && <ChatMessages renderTutor={chat && !tocView && roadmap?.on ? m => <SurfaceBoundary artifact="tutor_entry" fallback={<div className="min-w-0 whitespace-pre-wrap text-sm">{String(m.content ?? '')}</div>}><TutorMessage m={m} roadmap={roadmap} chat={chat} /></SurfaceBoundary> : null} msgs={msgs} sheetMode={sheetMode} busy={busy} learnChat={learnChat} privateChat={privateChat} fileApp={fileApp} appName={appName} onGraph={onGraph} onAddToCanvas={onAddToCanvas} setMsgs={setMsgs} setInput={setInput} inputRef={inputRef} setFilePeek={setFilePeek} setRunPeek={setRunPeek} />}
         {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
         {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
+        {/* The initial pipeline's Tutor messages after the thread's own (TutorRehearsal.jsx; dev flag VITE_REHEARSAL_TRIGGER=1). */}
+        {chat && !tocView && chat.coaching && rehearsalOn() && <TutorRehearsalFlow chat={chat} />}
         {choices && (
           <div className="py-2">
             <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>

@@ -5,7 +5,9 @@ import { CardActionRows } from './CanvasMenu.jsx';
 import { api } from './api.js';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
 import { resultsToRuns, runFromStored, storedCell, storedResult } from './rehearsal-cards.js';
-import { EXPECTED_HEADING, HISTORY_TAB, RUN_POLL_MS, cellTabTitle, expectedView, initialFlags, paneText, progressOf, runLabel, runTone, seconds, sendFlags, sessionEnded, sessionLabel, sessionReady } from './run-card-view.js';
+import { tutorLine } from './tutor-lines.js';
+import { SENTENCES, cellFailedLine, flagRefusedLine } from './tutor-rehearsal-text.js';
+import { EXPECTED_HEADING, HISTORY_TAB, RUN_POLL_MS, cellTabTitle, cellTone, expectedView, failedStepOf, initialFlags, paneText, progressOf, runLabel, runTone, seconds, sendFlags, sessionEnded, sessionLabel, sessionReady } from './run-card-view.js';
 
 // The Run card (packages/rehearsal-runtime/RUN_CARD.md): the rehearsal's route as notebook-shaped cells, run one at a time in one
 // sandbox through POST /api/learn/run. One tab per cell, the knob cell as the Custom Run tab, and a History tab with what the rehearsal
@@ -62,7 +64,10 @@ export default function RunCard({ block, readOnly, onSave }) {
 
   // Each save builds on the last, so two before a render never drop one; the canvas applies only this patch to the block.
   const save = patch => { if (readOnly) return; store.current = { ...store.current, ...patch }; onSave?.(store.current); };
-  const call = body => api('/api/learn/run', { method: 'POST', body: JSON.stringify({ app, board, ...body }) });
+  // routeId rides on every action (initial pipeline): the record of that route; absent is the record made before the catalogue.
+  const call = body => api('/api/learn/run', { method: 'POST', body: JSON.stringify({ app, board, ...(saved.routeId ? { routeId: saved.routeId } : {}), ...body }) });
+  // A failure is a Tutor line in the chat, never a stack trace or a bare notice (cannot-run-edge-cases.md section 1a); tutor-lines.js shows it as a notice where no chat flow is mounted.
+  const tell = text => { if (live.current) tutorLine(app, text); };
   const fail = error => { if (live.current) toast(error.data?.error || error.message, { tone: 'error' }); };
 
   // action start is idempotent (a second start returns the existing session), so it is repeated every poll until status is ready.
@@ -85,7 +90,7 @@ export default function RunCard({ block, readOnly, onSave }) {
         if (!live.current || startGen.current !== mine) return;
       }
     } catch (error) {
-      if (live.current && startGen.current === mine) { setSession({ status: 'failed', error: error.data?.error || error.message }); fail(error); }
+      if (live.current && startGen.current === mine) { setSession({ status: 'failed' }); tell(SENTENCES.runStartFailed); }
     }
   }
 
@@ -101,7 +106,10 @@ export default function RunCard({ block, readOnly, onSave }) {
         if (!live.current || runGen.current !== mine) return;
         const done = status.complete ? storedResult(status, paneText(status)) : null;
         setRuns(old => ({ ...old, [cellId]: { ...status, runId, ...(done ? { at: done.at } : {}) } }));
-        if (done) save({ results: { ...store.current.results, [cellId]: done } });
+        if (done) {
+          save({ results: { ...store.current.results, [cellId]: done } });
+          if (['error', 'timeout'].includes(status.status)) tell(cellFailedLine({ title: cell.title, out: paneText(status), status: status.status, inRehearsal: !!failedStepOf(saved.failedSteps, cellId) }));
+        }
         if (logsOpen.current[cellId] !== undefined) { const { log } = await call({ action: 'log', sessionId, runId }); if (live.current && runGen.current === mine) setLogs(old => ({ ...old, [cellId]: log })); }
         if (status.complete) break;
         await wait(timer, RUN_POLL_MS);
@@ -111,9 +119,10 @@ export default function RunCard({ block, readOnly, onSave }) {
       if (live.current && runGen.current === mine) {
         // The run is gone, so the cell shows what it last kept; a session the controller no longer has (idle or hard timeout) sends the card back to Start.
         setRuns(old => { const { [cellId]: _gone, ...rest } = old; const prior = store.current.results?.[cellId]; return prior ? { ...rest, [cellId]: runFromStored(prior) } : rest; });
-        if ([404, 410].includes(error.status)) setSession(old => ({ ...old, status: 'expired' }));
+        if ([404, 410].includes(error.status)) { setSession(old => ({ ...old, status: 'expired' })); tell(SENTENCES.sessionEnded); begin(); } // not an error tone: a new session starts, the earlier outputs stay
+        else if (error.status === 400) tell(flagRefusedLine({ repo: block.generated?.repo, message: error.data?.error || error.message, accepted: (cell.flags || []).filter(f => f.editable).map(f => f.flag) }));
+        else tell(SENTENCES.runFailed);
       }
-      fail(error);
     } finally { if (live.current && runGen.current === mine) setActive(null); }
   }
 
@@ -149,15 +158,16 @@ export default function RunCard({ block, readOnly, onSave }) {
 
   // One cell: its status, Run and Stop, a progress bar while it runs, the command with its editable flags, the output pane.
   const renderCell = cell => {
-    const r = runs[cell.cellId], tone = runTone(r), editable = initialFlags(cell), full = logs[cell.cellId], progress = progressOf(r);
+    const r = runs[cell.cellId], tone = cellTone(r, failedStepOf(saved.failedSteps, cell.cellId)), failedHere = failedStepOf(saved.failedSteps, cell.cellId), editable = initialFlags(cell), full = logs[cell.cellId], progress = progressOf(r);
     return (
       <div data-run-cell={cell.cellId} className="flex flex-col gap-2 px-4 py-3">
         <div className="flex items-center gap-2">
           <p className="min-w-0 flex-1 text-sm font-medium text-ink">{cell.title}</p>
-          <span data-run-status data-run-tone={tone} className={`flex items-center gap-1 text-xs font-medium ${TONE[tone] || 'text-ink-2'}`}><Mark tone={tone} />{[runLabel(r), seconds(r?.sec)].filter(Boolean).join(' · ')}</span>
+          <span data-run-status data-run-tone={tone} className={`flex items-center gap-1 text-xs font-medium ${TONE[tone] || 'text-ink-2'}`}><Mark tone={tone} />{[runLabel(r) || (failedHere ? 'Failed in the rehearsal' : ''), seconds(r?.sec)].filter(Boolean).join(' · ')}</span>
           <Button type="button" variant="secondary" size="sm" data-run-run disabled={readOnly || !ready || !!active} onClick={() => run(cell)}><Play size={12} aria-hidden="true" />Run</Button>
           <Button type="button" variant={active === cell.cellId ? 'danger' : 'ghost'} size="sm" data-run-stop disabled={readOnly || active !== cell.cellId} onClick={stop}><Square size={12} aria-hidden="true" />Stop</Button>
         </div>
+        {failedHere && !r && <p data-run-rehearsal-failed className="text-xs text-fail">The rehearsal stopped at this step{failedHere.error ? `: ${failedHere.error}` : ''}</p>}
         {progress && <Progress progress={progress} />}
         <pre data-run-cmd className={PRE}>{r?.cmd || cell.cmd}</pre>
         {cell.flags.length > 0 && <div className="flex flex-wrap gap-x-3 gap-y-1.5">
@@ -204,7 +214,7 @@ export default function RunCard({ block, readOnly, onSave }) {
           : <Tabs value={current} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
             <TabsList className="shrink-0 overflow-x-auto px-4" aria-label="Run cells">
               {cells.map(cell => {
-                const tone = runTone(runs[cell.cellId]);
+                const tone = cellTone(runs[cell.cellId], failedStepOf(saved.failedSteps, cell.cellId));
                 return (
                   <TabsTrigger key={cell.cellId} value={cell.cellId} data-run-tab={cell.cellId} data-run-tone={tone} title={cell.title} className="shrink-0 whitespace-nowrap">
                     <span className={`flex items-center gap-1 ${TONE[tone]}`}><Mark tone={tone} />{cellTabTitle(cell)}</span>

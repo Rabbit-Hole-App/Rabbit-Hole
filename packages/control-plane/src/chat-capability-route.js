@@ -15,6 +15,7 @@ import { CHAT_ROUTE_PROTOCOL_VERSION, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCa
 import { SLASH, commandLabel, typedOf, unavailableCommand } from '../../web/src/agent/slash.js';
 import { imageAllowed } from './image-settings.js';
 import { paidOf } from '../../web/src/inline-ai-decide.js';
+import { USE_SCOPE, codebaseUseRequest, readCodebaseUse, useDecision } from '../../web/src/codebase-use-route.js';
 
 const TOKEN_TTL_S = 300, TEXT_MAX = 20000;
 const REQUEST_ID = /^[A-Za-z0-9-]{8,80}$/;
@@ -103,6 +104,25 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   return pick(read.choice, 'jev', text.trim(), scored);
 }
 
+// The scoped call for the Tutor's intake question (web/src/codebase-use-route.js: why it does not breach the 2026-10-21 rule): the same JEV transport, timeout and
+// thresholds, over the 14 codebase uses instead of the chat capabilities. No token, no capability, nothing runs here: it only says which use the typed words ask for
+// (use: null when it is not sure, so the chips stay; a failure or a missing key is the same: nothing is guessed).
+export async function decideCodebaseUse(env, { requestId, text }, { ask = askJev, timeoutMs = ROUTE_TIMEOUT_MS, thresholds = ROUTE_THRESHOLDS } = {}) {
+  const none = (via, extra = {}) => ({ use: null, via, confidence: null, probability: null, ...extra });
+  const transport = jevTransport(env);
+  if (!transport) { log({ request_id: requestId, outcome: 'unavailable', scope: USE_SCOPE, reason: 'no_transport' }); return none('fallback', { retryable: true, code: 'unavailable' }); }
+  const started = Date.now();
+  try {
+    const out = await ask(env, codebaseUseRequest({ text }, JEV_TRANSPORTS[transport].model), { transport, timeoutMs });
+    const read = readCodebaseUse(out.body);
+    log({ request_id: requestId, outcome: 'routed', scope: USE_SCOPE, choice: read.choice, confidence: read.confidence, probability: read.probability, ms: out.ms ?? Date.now() - started });
+    return useDecision(read, { thresholds });
+  } catch (error) {
+    log({ request_id: requestId, outcome: error instanceof JevError ? error.code : 'malformed', scope: USE_SCOPE, ms: Date.now() - started });
+    return none('fallback', { retryable: true, code: error instanceof JevError && error.code === 'timeout' ? 'timeout' : 'unavailable' });
+  }
+}
+
 // The route a chat turn's route_token names, when it verifies for this learner and these exact turn fields: { cap, flow },
 // else null. body is the /api/learn/ask body.
 export async function verifyChatRoute(env, body, email) {
@@ -132,6 +152,7 @@ export async function chatRouteFetch(req, env, { authorize = authorizedBoardApp,
   if (allowed instanceof Response) return allowed;
   const refused = subscriptionOwnerRefusal(env, allowed);
   if (refused) return refused;
+  if (body.scope === USE_SCOPE) return json(await decideCodebaseUse(env, { requestId: body.request_id, text: body.text }, deps)); // the Tutor's intake question: which of the 14 uses, nothing else
   const fields = { app: body.app, text: body.text, mode: body.mode, selection: body.selection, source_refs: body.source_refs, motion: body.motion, history: body.history };
   return json(await decideChat(env, { email: allowed.email, app: body.app, requestId: body.request_id, fields, capability: body.capability ?? null, enabled: body.enabled ?? null }, deps));
 }
