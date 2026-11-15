@@ -46,6 +46,7 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
     copied, listed, knobs, traps, sb_started = {}, [], [], [], False
     t_created = t_stopped = None
     terminated, left = False, []
+    knob_err = None
     try:
         status('provisioning')
         provider.start(tags)
@@ -74,6 +75,8 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
                 runner.reset_for_restart()
         if ok:
             knobs, traps = runner.verify_knobs(), runner.run_traps()
+            if knobs and knobs[0]['rc'] != 0:  # knobsVerified[0] is the plan's 'Change it' command: it must have run
+                knob_err = JobFailed('knob_verification_failed', f"knobsVerified[0] exited {knobs[0]['rc']}: {knobs[0]['cmd']}")
         env = environment(provider)
         copied, listed = collect_files(provider, runner.steps)
     except (JobFailed, DiscoveryFailed) as e:
@@ -88,6 +91,8 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
                 left = provider.leftover(tags)
             except Exception:  # noqa: BLE001
                 left = ['unknown']
+    if knob_err and err is None:
+        err = knob_err
     if sb_started and (not terminated or left) and err is None:
         err = JobFailed('sandbox_left', f'sandbox not confirmed terminated (terminated={terminated}, left={left})')
 
