@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import CardHeader from './CardHeader.jsx';
+import { useDismissMenu } from './ui.jsx';
 import { CardActionRows } from './CanvasMenu.jsx';
 import CanvasDoc from './CanvasDoc.jsx';
 import { unknownDocBlock } from './canvas-doc.js';
@@ -44,6 +45,7 @@ export default function DocCard({ block, readOnly, onBlocks, onLive }) {
   };
   const action = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
   const stop = event => event.stopPropagation();
+  useDismissMenu(menu, () => setMenu(false), '[data-card-menu], [aria-label="More document actions"]');
   // The Runbook (a generated card, rehearsal-cards.js) cites the repository as links at its commit: ONE delegated click on the editor turns a click on such a link into Files at those
   // lines (small:open-code, as TutorCodebase.jsx openFiles), and GitHub at that commit when nothing answers. Any other link in any document is left to the editor.
   const source = block.generated?.kind === 'rehearsal' ? block.generated : null;

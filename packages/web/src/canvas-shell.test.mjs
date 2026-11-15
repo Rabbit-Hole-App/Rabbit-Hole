@@ -74,8 +74,8 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.doesNotMatch(canvas, /ComposerHide\.Provider/);
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
   assert.match(strip, /\{\/\*[^\n]*\*\/\}\n\s+\{hooks && <div data-hooks-slot[^\n]*\n\s+\{composer\}/, 'the three Curious pills, then the composer');
-  // The Minimize circle hangs on the pill's own top border (ChatComposer), never on the context chips above the pill; it tells the canvas by an event.
-  assert.match(read('ChatComposer.jsx'), /\{onMinimize && <button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{onMinimize\}\n[^\n]*absolute -top-3 left-7[^\n]*h-6 w-6[^\n]*rounded-full/);
+  // Minimize is the last button of the one tools pill inside the chat box (ChatComposer, owner 2026-11-15); it tells the canvas by an event.
+  assert.match(read('ChatComposer.jsx'), /\{onMinimize && <button type="button" data-composer-hide aria-label="Minimize chat composer"[^\n]*onClick=\{onMinimize\}\n\s+className=\{COMPOSER_TOOL\}><ChevronsDown/);
   assert.match(read('ask.jsx'), /onMinimize=\{stripMode \? \(\) => window\.dispatchEvent\(new Event\('rh-strip-minimize'\)\) : null\}/);
   assert.match(canvas, /window\.addEventListener\('rh-strip-minimize', hideComposer\)/);
   assert.match(read('ask.jsx'), /className=\{cn\('relative shrink-0', stripMode \? 'w-full' : 'mt-2', !compact && !stripMode && 'sticky bottom-0 bg-white pt-1 pb-2'\)\}/, 'in the strip nothing behind the pill is opaque: no sticky white band clipping the canvas');
@@ -103,12 +103,12 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(ask, /data-chat-window-minimize aria-label="Minimize chat"/);
   assert.match(ask, /winState === 'min' && 'hidden'\)\}>/, 'minimized, the window is gone completely');
   assert.match(ask, /data-chat-window-toggle aria-label=\{winState === 'min' \? 'Show chat' : 'Hide chat'\}/, 'the strip\'s chat button brings it back');
-  assert.match(ask, /trailing=\{stripMode \? <>\{curiousButton\}\{chatWindowButton\}<\/> : dock \|\| chat \? null : chatControl\}/, 'the two view buttons at the right end of the tool row under the pill');
-  assert.match(composer, /if \(pill\) return <div className="flex flex-col gap-1">[\s\S]*?\{body\}\n\s+\{send\}\n\s+<\/form>\n\s+\{\/\*[^\n]*\n\s+<div data-composer-toolbar className="flex min-w-0 items-center gap-1\.5 px-1">\n\s+<div data-composer-tools className="flex items-center gap-0\.5 rounded-full border border-line bg-white p-0\.5 shadow-sm empty:hidden">\{leading\}/, 'the pill holds the field and Send; the tools are one row below it, each group on its own white pill');
+  assert.match(ask, /trailing=\{stripMode \? <>\{curiousButton\}\{chatWindowButton\}<\/> : dock \|\| chat \? null : chatControl\}/, 'the two view buttons are in the one tools pill inside the chat box');
+  assert.match(composer, /if \(pill\) return <form data-chat-composer data-composer-pill[\s\S]*?<div data-composer-tools className="flex shrink-0 items-center gap-0\.5 rounded-full border border-line bg-white p-0\.5 shadow-sm">\n\s+\{leading\}\s+\{trailing\}[\s\S]*?<\/div>\s+\{body\}\s+\{send\}\s+<\/form>/, 'the tools and Minimize are one white pill inside the chat box at its left, before the field and Send');
   assert.match(ask, /data-chat-window-maximize aria-label=\{winState === 'max' \? 'Restore chat size' : 'Maximize chat'\}/);
   assert.match(page, /chatWindow=\{panelOpen \? null : <div ref=\{setWindowHost\} data-canvas-chat-window className="empty:hidden" \/>\}/);
   assert.match(canvas, /\{chatWindow\}\n\s+\{\/\*[^\n]*\n\s+\{hooks && <div data-hooks-slot/, 'above the suggestions and the composer');
-  assert.match(composer, /rounded-full py-2 pr-2\.5 pl-4/, 'round on both sides');
+  assert.match(composer, /rounded-full py-2 pr-2\.5 pl-2.5/, 'round on both sides');
   assert.doesNotMatch(read('ChatComposer.jsx'), /data-canvas-strip-composer/, 'never a second composer element');
 });
 

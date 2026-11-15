@@ -3,7 +3,7 @@ import CardHeader from './CardHeader.jsx';
 import { FolderTree, MoreHorizontal, Play, RotateCcw } from 'lucide-react';
 import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, activePath, ipynbPath, notebookUrl, trimOutputs } from './learn-notebook.js';
 import { EXPORT_WORKSPACES, workspaceIdFor, workspaceStore } from './learn-board-assets.js';
-import { toast } from './ui.jsx';
+import { toast, useDismissMenu } from './ui.jsx';
 import { CardActionRows } from './CanvasMenu.jsx';
 import { perfMark } from './learn-perf.js';
 import { registerNotebookEditor, notebookCellRequest } from './notebook-inline-client.js';
@@ -132,6 +132,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
   const toggleFiles = () => { send('files', { open: !files }); setFiles(!files); };
   const action = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
   const stop = event => event.stopPropagation();
+  useDismissMenu(menu, () => setMenu(false), '[data-card-menu], [aria-label="More notebook actions"]');
 
   return (
     <>
