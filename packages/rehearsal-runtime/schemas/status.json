@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rabbit-hole.local/rehearsal/status.json",
+  "title": "Rehearsal status (GET /rehearsals/<key>)",
+  "description": "The chat shows `status`, `step`, `attempt` and `fixes` verbatim under the shimmer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "elapsedSec"],
+  "properties": {
+    "status": { "enum": ["queued", "discovering", "provisioning", "running", "repairing", "planning", "ready", "failed"] },
+    "step": { "type": "string" },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "fixes": { "type": "integer", "minimum": 0 },
+    "elapsedSec": { "type": "number", "minimum": 0 },
+    "error": { "type": "string", "description": "present when status is failed" }
+  }
+}

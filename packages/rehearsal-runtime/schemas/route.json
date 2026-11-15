@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rabbit-hole.local/rehearsal/route.json",
+  "title": "Rehearsal route: the shortest documented route to a visible result",
+  "description": "Produced by discovery (one model call, structured output). Commands are verbatim from the repository; a flag is added only if the README itself adds it for this hardware. A step without a `source` is rejected. CHECK RULES (apply to every check): `stdout_matches`, `metric_decreased` and `metric_below` patterns are Python regular expressions applied with re.MULTILINE, so `^` and `$` match at every line, to the step's whole stdout+stderr. `metric_decreased` takes the FIRST and LAST match in order of appearance (capture group 1, compared as floats) and passes when last < first. `metric_below` compares the LAST match to `value` (passes when last < value). `files_exist` paths are relative to the repository root in the sandbox. `exit_zero` passes when the step's rc is 0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["routeId", "title", "whyChosen", "alternatives", "install", "steps", "knobs"],
+  "properties": {
+    "routeId": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "title": { "type": "string", "minLength": 1 },
+    "whyChosen": { "type": "string", "minLength": 1 },
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["routeId", "rejected"],
+        "properties": { "routeId": { "type": "string", "pattern": "^[a-z0-9_]+$" }, "rejected": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "install": {
+      "type": "array",
+      "description": "Install commands. When discovery trims the README's install line to the packages the route's scripts import (static scan of each step's script and the local modules it imports), `trimmedFrom` holds the README's full line.",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["cmd", "source"],
+        "properties": { "cmd": { "type": "string", "minLength": 1 }, "source": { "type": "string", "minLength": 1 }, "trimmedFrom": { "type": "string" } }
+      }
+    },
+    "steps": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "cmd", "source", "timeoutSec", "checks"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+          "cmd": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1, "description": "where in the repository the command came from, e.g. README.md:85" },
+          "timeoutSec": { "type": "integer", "minimum": 1, "maximum": 1500 },
+          "checks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/check" } }
+        }
+      }
+    },
+    "knobs": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["step", "flag", "default", "type", "source"],
+        "properties": {
+          "step": { "type": "string" },
+          "flag": { "type": "string", "pattern": "^--[A-Za-z0-9_-]+$" },
+          "default": { "type": "string" },
+          "type": { "enum": ["string", "float", "int", "bool"] },
+          "source": { "type": "string", "minLength": 1 },
+          "safeValue": { "type": "string" },
+          "optional": { "type": "boolean" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "check": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "exit_zero" } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "paths"], "properties": { "type": { "const": "files_exist" }, "paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "pattern"], "properties": { "type": { "const": "stdout_matches" }, "pattern": { "type": "string", "minLength": 1 } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "pattern"], "properties": { "type": { "const": "metric_decreased" }, "pattern": { "type": "string", "minLength": 1 } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "pattern", "value"], "properties": { "type": { "const": "metric_below" }, "pattern": { "type": "string", "minLength": 1 }, "value": { "type": "number" } } }
+      ]
+    }
+  }
+}

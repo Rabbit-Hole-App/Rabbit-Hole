@@ -1,0 +1,35 @@
+{
+  "fixture": "nanogpt-3adf61e",
+  "rule": "each cmd is run once after the route succeeds; it MUST exit non-zero; stderr must contain the fragment; a trap that passes is a finding (configurator.py changed)",
+  "cause": "configurator.py:42 `assert type(attempt) == type(globals()[key])` type-checks every --key=value against the default's type; configurator.py:32 `key, val = arg.split('=')` splits once",
+  "traps": [
+    {
+      "id": "temperature_int_not_float",
+      "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --temperature=1 --num_samples=1 --max_new_tokens=5",
+      "expectRcNonZero": true,
+      "stderrContains": "AssertionError",
+      "learnerWarning": "--temperature must be written as a float: 1.0, not 1"
+    },
+    {
+      "id": "start_with_equals_sign",
+      "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --start=A=B --num_samples=1 --max_new_tokens=5",
+      "expectRcNonZero": true,
+      "stderrContains": "ValueError",
+      "learnerWarning": "--start cannot contain an = sign"
+    },
+    {
+      "id": "unknown_key",
+      "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --temprature=0.5 --num_samples=1 --max_new_tokens=5",
+      "expectRcNonZero": true,
+      "stderrContains": "Unknown config key",
+      "learnerWarning": "a misspelled flag is rejected by name (configurator.py:47)"
+    }
+  ],
+  "knobVerification": {
+    "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --start=ROMEO: --temperature=0.5 --num_samples=1 --max_new_tokens=200",
+    "expectRcZero": true,
+    "stdoutFirstSampleStartsWith": "ROMEO:",
+    "separatorsCount": 1,
+    "note": "sample.py prints decode(y[0]) which includes the prompt, so the prefix is true by construction whenever the command ran; the check proves the knob reached the program, not that the text changed"
+  }
+}
