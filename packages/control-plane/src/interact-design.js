@@ -12,7 +12,7 @@
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { DesignReviewSchema, DesignRevisionSchema, PLAN_LIMITS, ScenePlanSchema, captureBudgetProblems, contentHash, descriptionFitProblems, parseScenePlan, planHash, revisionProblems } from '../../web/src/interact-plan.js';
 import { interactCapabilities } from '../../web/src/interact-control-catalogue.js';
-import { CAPABILITIES as PROGRAM_CAPABILITIES } from '../../web/src/explain-program/contract.js';
+import { KNOWN_CAPABILITIES } from '../../web/src/explain-program/contract.js';
 import { SUPPORTED_PROGRAM_TUPLES } from '../../web/src/explain-program/stamps.js';
 import { programSdkSource } from '../../web/src/explain-program/sdk.js';
 import { catalogue as componentCatalogue } from '../../web/src/visual-components/registry.js';
@@ -97,7 +97,7 @@ export function runtimeProblems(plan, capabilities) {
       continue;
     }
     if (runtime.schemaVersion === 2 && !capabilities.stateful) bad([...path, 'schemaVersion'], 'stateful_unavailable', 'the stateful program schema is not enabled');
-    runtime.requiredCapabilities.forEach(name => { if (!PROGRAM_CAPABILITIES.includes(name)) bad([...path, 'requiredCapabilities'], 'unsupported_capability', `"${name}" is not a program capability`); });
+    runtime.requiredCapabilities.forEach(name => { if (!KNOWN_CAPABILITIES.includes(name)) bad([...path, 'requiredCapabilities'], 'unsupported_capability', `"${name}" is not a program capability`); });
     const sealed = programTupleFor(runtime.requiredCapabilities, runtime.schemaVersion === 2);
     if (canonicalJson(sealed) !== canonicalJson(runtime.programTuple)) bad([...path, 'programTuple'], 'tuple_mismatch', `a program needing ${runtime.requiredCapabilities.join(', ') || 'no extension capability'} is sealed as ${sealed.sdkVersion} schema ${sealed.schemaVersion}, not ${runtime.programTuple.sdkVersion} schema ${runtime.programTuple.schemaVersion}`);
     if (!SUPPORTED_PROGRAM_TUPLES.some(tuple => canonicalJson(tuple) === canonicalJson(sealed))) bad([...path, 'programTuple'], 'unsupported_tuple', 'the sealed tuple is not one the player runs');

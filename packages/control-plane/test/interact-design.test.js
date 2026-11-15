@@ -8,6 +8,7 @@ import { DESIGN_AUTHOR_SYSTEM, designAuthorSchema } from '../src/agents/interact
 import { DESIGN_REVIEW_SYSTEM, TUTOR_SCENE_REVIEWER_PROMPT, designReviewSchema } from '../src/agents/interact-design-review.js';
 import { DESIGN_REVISE_SYSTEM, designReviseSchema } from '../src/agents/interact-design-revise.js';
 import { DESIGN_BOUNDS, authorDesign, designPromptContracts, freshDesign, planDiff, reviewDesign, runtimeProblems, verifyDesignRevision } from '../src/interact-design.js';
+import { programTupleFor } from '../src/explain-program.js';
 import { INTERACT_LIMITS } from '../src/interact-models.js';
 import { planHash } from '../../web/src/interact-plan.js';
 import { pinnedPlan } from '../src/interact-design-pin.js';
@@ -171,6 +172,27 @@ test('every panel, including a control-free static support panel, must carry a r
   const spec = clone(PLAN.overview); spec.scene.runtime.requiredHelpers = ['no_such_component'];
   assert.ok(runtimeProblems(spec, fixtures.capabilities).some(p => p.code === 'unsupported_helper'));
   assert.ok(runtimeProblems(PLAN.standard, { ...fixtures.capabilities, stateful: false }).length === 0, 'schema 1 needs no stateful switch');
+});
+
+test('runtimeProblems knows every program capability name and only the tuple-bearing ones choose the sealed tuple', () => {
+  const sdk8 = clone(PLAN.standard), panel = sdk8.supportingVisuals[0];
+  panel.runtime.requiredCapabilities = ['figures'];
+  const sealed = programTupleFor(['figures'], false);
+  panel.runtime.programTuple = sealed; panel.runtime.sdkVersion = sealed.sdkVersion;
+  assert.equal(sealed.sdkVersion, 'sdk-8');
+  assert.deepEqual(runtimeProblems(sdk8, fixtures.capabilities), []);
+  // The non-tuple names (the index input's inputs_v2, the select and number inputs, time) are accepted and leave the sdk-8 tuple as it is.
+  for (const extra of ['inputs_v2', 'select_inputs', 'number_inputs', 'time_playback']) {
+    panel.runtime.requiredCapabilities = ['figures', extra];
+    assert.deepEqual(runtimeProblems(sdk8, fixtures.capabilities), [], extra);
+  }
+  panel.runtime.requiredCapabilities = ['figures', 'inputs_v2', 'select_inputs'];
+  assert.deepEqual(runtimeProblems(sdk8, fixtures.capabilities), []);
+  // inputs_v2 alone does not select sdk-8: a plan declaring it with the sdk-8 tuple and no tuple-bearing capability is still a mismatch.
+  panel.runtime.requiredCapabilities = ['inputs_v2'];
+  assert.deepEqual(runtimeProblems(sdk8, fixtures.capabilities).map(p => p.code), ['tuple_mismatch']);
+  panel.runtime.requiredCapabilities = ['figures', 'no_such_capability'];
+  assert.ok(runtimeProblems(sdk8, fixtures.capabilities).some(p => p.code === 'unsupported_capability'));
 });
 
 // ---- INT-02-C09, C10, C15: the flow through the real job ----
