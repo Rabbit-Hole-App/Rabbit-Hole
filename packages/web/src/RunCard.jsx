@@ -8,7 +8,7 @@ import { resultsToRuns, runFromStored, storedCell, storedResult } from './rehear
 import { tutorLine } from './tutor-lines.js';
 import { SENTENCES, cellFailedLine, flagRefusedLine, flagRejectedLine, valueRuleLine } from './tutor-rehearsal-text.js';
 import { CUSTOM_KEY, EXPECTED_HEADING, REHEARSAL_OUTPUT, RUN_POLL_MS, TABS, cellTone, expectedView, failedStepOf, paneText, progressOf, runLabel, seconds, sessionEnded, sessionLabel, sessionReady } from './run-card-view.js';
-import { cellRunBody, cleanOverrides, customRunBody, knobFields, openSourceLine, stepCells, stepIdOf } from './run-card-knobs.js';
+import { cellRunBody, cleanOverrides, customRunBody, knobFields, lastStepId, openSourceLine, stepCells, stepIdOf } from './run-card-knobs.js';
 import { addHistory, addPreset, deletePreset, historyEntry, presetFromDraft, presetFromEntry, runAgainSpec, sessionLabelOf } from './run-card-history.js';
 import { fileQuery } from './run-card-outputs.js';
 import { KnobFields, Mark, OutputPane, PRE, Progress, TONE } from './RunParts.jsx';
@@ -35,6 +35,8 @@ export default function RunCard({ block, readOnly, onSave }) {
   const [active, setActive] = useState(null); // the key (a cellId, or CUSTOM_KEY) whose run is in progress: one run at a time
   const [tab, setTabNow] = useState(TABS.some(([id]) => id === saved.tab) ? saved.tab : 'run'), [menu, setMenu] = useState(false), [filter, setFilter] = useState('All');
   const [draft, setDraft] = useState({ steps: [], values: {}, name: '' });
+  // "Make it yours" is the Custom run tab (owner 2026-11-15): the route's last step, with its parameters, is the tab's first pick, once; the Run tab no longer draws that cell.
+  const seeded = useRef(false);
   const live = useRef(true), timer = useRef(null), startGen = useRef(0), runGen = useRef(0), logsOpen = useRef({}), runsRef = useRef(runs), store = useRef(saved);
   const seen = useRef({}), specs = useRef({}), sess = useRef({ id: null, n: saved.sessionSeq || 0 }); // seen: runId -> last status (this page); specs: key -> what is running; sess: this page's session counter
   logsOpen.current = logs; runsRef.current = runs;
@@ -201,6 +203,7 @@ export default function RunCard({ block, readOnly, onSave }) {
   }
 
   const ready = sessionReady(session), ended = sessionEnded(session), idle = !session || ended, cells = (session?.cells?.length ? session.cells : saved.cells) || [];
+  useEffect(() => { if (seeded.current || !cells.length) return; seeded.current = true; const last = lastStepId(cells); if (last) setDraft(d => (d.steps.length ? d : { ...d, steps: [last] })); }, [cells.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const sessionTone = session?.status === 'ready' ? 'success' : ended ? 'error' : 'idle';
   const action = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
   const stopPress = event => event.stopPropagation();
@@ -271,7 +274,7 @@ export default function RunCard({ block, readOnly, onSave }) {
           <TabsContent value="run" data-scroll className={content}>
             {cells.length === 0
               ? <p className="px-4 py-3 text-sm text-ink-2">Start a session to see the cells of this route and run them.</p>
-              : <div className="flex flex-col divide-y divide-line">{cells.map(renderCell)}</div>}
+              : <div className="flex flex-col divide-y divide-line">{cells.filter(cell => cell.kind !== 'knobs').map(renderCell)}</div>}
           </TabsContent>
           <TabsContent value="custom" data-scroll className={content}>
             <RunCustom cells={cells} added={added} draft={draft} setDraft={setDraft} ready={ready} active={active} readOnly={readOnly} run={customRun} full={logs[CUSTOM_KEY]} presets={saved.customRuns || []}
