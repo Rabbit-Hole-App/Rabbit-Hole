@@ -35,3 +35,6 @@ if(has('overview-error-inspector-depth-overfit.html'))test('overfit keeps illust
  const d=card('deep','error-inspector','depth-overfit');for(const [depth,train,held]of [[0,37.5,50],[1,12.5,0],[2,0,50]]){d.change('depth',depth);assert.equal(d.card.evidence.train,train);assert.equal(d.card.evidence.held,held)}assert.equal(d.card.evidence.heldPredictions.find(r=>r.id==='J').prediction,0);
  const u=card('standard','error-inspector','depth-overfit');u.change('depth',3);assert.equal(u.card.evidence.held,23);u.change('depth',8);assert.equal(u.card.evidence.train,0);assert.equal(u.card.evidence.held,43);assert.equal(u.card.evidence.differenceFromBest,20);
 });
+if(has('overview-forest-size-inspector-forest-size-accuracy.html'))test('forest-size observations and marginal gains use the five supplied illustrative settings',()=>{
+ const u=card('deep','forest-size-inspector','forest-size-accuracy');for(const [i,n,y]of [[0,1,.78],[1,5,.86],[2,10,.89],[3,50,.92],[4,200,.925]]){u.change('count',i);assert.equal(u.card.evidence.trees,n);assert.equal(u.card.evidence.accuracy,y)}assert.ok(Math.abs(u.card.evidence.delta-.5)<1e-12);assert.ok(Math.abs(u.card.evidence.perTree-1/300)<1e-12);u.change('count',0);assert.equal(u.card.evidence.delta,null);
+});

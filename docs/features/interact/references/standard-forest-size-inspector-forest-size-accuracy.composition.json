@@ -1,0 +1,147 @@
+{
+  "family": "forest-size-inspector",
+  "canonical": "discrete-forest-size-gains",
+  "layout": {
+    "width": 640,
+    "height": 370
+  },
+  "story": "These five illustrative forest sizes improve test accuracy by different amounts. Select a measured setting, then compare its gain with the previous setting; more trees do not buy a constant improvement.",
+  "aha": {
+    "inputs": {
+      "count": 4
+    },
+    "observation": "Going from 50 to 200 trees adds 150 trees for only 0.5 percentage points of accuracy in this illustrative series.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "curve",
+      "kind": "log-observation-plot",
+      "bind": "data.points"
+    },
+    {
+      "id": "probe",
+      "kind": "discrete-observation-probe",
+      "bind": "computed.selected"
+    },
+    {
+      "id": "comparison",
+      "kind": "adjacent-setting-comparison",
+      "bind": "computed.previous; computed.delta"
+    }
+  ],
+  "controls": [
+    {
+      "id": "count",
+      "kind": "range",
+      "label": "Number of trees",
+      "min": 0,
+      "max": 4,
+      "step": 1,
+      "effect": "Select one of the five supplied forest sizes, changing accuracy, the selected interval and computed marginal gain."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "How much did the extra trees buy?",
+    "heading": "Illustrative test accuracy by forest size",
+    "prompt": "how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest?",
+    "instructions": "Visit each forest size. Compare the last jump with the early jumps; only five settings were supplied.",
+    "initialInputs": {
+      "count": 0
+    },
+    "points": [
+      {
+        "x": 1,
+        "y": 0.78,
+        "label": "1 tree"
+      },
+      {
+        "x": 5,
+        "y": 0.86,
+        "label": "5 trees"
+      },
+      {
+        "x": 10,
+        "y": 0.89,
+        "label": "10 trees"
+      },
+      {
+        "x": 50,
+        "y": 0.92,
+        "label": "50 trees"
+      },
+      {
+        "x": 200,
+        "y": 0.925,
+        "label": "200 trees"
+      }
+    ],
+    "calculations": [
+      "Use only the five supplied illustrative (tree count, accuracy) observations; the horizontal axis is logarithmic.",
+      "Accuracy percent = source accuracy × 100. Gain in percentage points = (new accuracy − previous accuracy) × 100.",
+      "Gain per added tree = gain in percentage points / (new count − previous count). The last interval adds 150 trees for 0.5 pp, or 1/300 pp per added tree.",
+      "The connecting line is a guide between observations, not additional measured forest sizes."
+    ],
+    "sourceKind": "illustrative run; no new model training",
+    "missingCounterparts": [
+      "discrete log-axis observation probe",
+      "adjacent-setting comparison",
+      "gain-per-added-tree ledger"
+    ],
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "count": 0
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "count": 4
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-forest-size-accuracy",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 39,
+      "cases": 5,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "standard-forest-size-inspector-forest-size-accuracy",
+  "depth": "balanced"
+}
