@@ -21,3 +21,6 @@ if(has('overview-vote-board-majority-vote.html'))test('forest vote oracle uses f
  const u=card('standard','vote-board','majority-vote');for(const [id,votes,winner]of [['I',[0,0,0],0],['J',[0,1,1],1]]){u.change('row',id);u.change('reveal',3);assert.deepEqual(Array.from(u.card.evidence.votes),votes);assert.equal(u.card.evidence.winner,winner)}u.change('row','J');u.change('reveal',2);assert.equal(u.card.evidence.winner,null);assert.deepEqual(Array.from(u.card.evidence.counts),[1,1]);
  const d=card('deep','vote-board','majority-vote');d.change('row','J');for(let i=0;i<3;i++){d.change('tree',String(i));assert.ok(d.card.evidence.route.length>=2);assert.equal(d.card.evidence.sample.length,8)}
 });
+if(has('overview-split-accounting-gini-split.html'))test('Gini accounting exposes exact weighted score and parent-minus-child gain at every depth',()=>{
+ for(const depth of ['overview','standard','deep']){const u=card(depth,'split-accounting','gini-split');u.change('cut',4);assert.equal(u.card.evidence.weighted,3/16);assert.deepEqual(Array.from(u.card.evidence.gain),[9,32]);assert.ok(u.svg().includes(depth==='deep'?'9/32':'0.28125'))}
+});
