@@ -34,11 +34,34 @@ def norm(cmd):
     return ' '.join(str(cmd).split())
 
 
+RELAX = False  # --relax: a discovered command may carry extra flags (the runner adds --top_k/--seed to traps) and step ids are matched by command
+
+
 def same_cmd(a, b):
-    """Whitespace collapsed; flags (tokens starting with --) in any order."""
+    """Whitespace collapsed; flags (tokens starting with --) in any order. Under --relax the discovered command may carry extra flags."""
     ta, tb = norm(a).split(' '), norm(b).split(' ')
+    if RELAX and set(tb) <= set(ta) and [x for x in ta if not x.startswith('--')] == [x for x in tb if not x.startswith('--')]:
+        return True
     split = lambda t: ([x for x in t if not x.startswith('--')], sorted(x for x in t if x.startswith('--')))
     return split(ta) == split(tb)
+
+
+def relax_ids(rec, exp):
+    """--relax only: discovery names routes and steps itself (shakespeare_char_cpu, prepare_data), so map each expected step id to the discovered step with the same command and rename it everywhere. Printed as INFO, never silent."""
+    rid = exp['routeId']
+    if rec['route']['routeId'] != rid and rec['route']['routeId'].startswith(rid):
+        print(f"INFO    [relax] routeId {rec['route']['routeId']} treated as {rid} (prefix)")
+        rec['route']['routeId'] = rid
+    for es in exp['steps']:
+        for s in rec['route']['steps']:
+            if s['id'] != es['id'] and same_cmd(s['cmd'], es['cmd']):
+                old = s['id']
+                print(f"INFO    [relax] step {old} treated as {es['id']} (same command)")
+                for lst in (rec['route']['steps'], rec['steps'], rec['attempts'], rec['fixes'], rec['route']['knobs']):
+                    for x in lst:
+                        if x.get('id', x.get('step')) == old:
+                            x['id' if 'id' in x else 'step'] = es['id']
+                break
 
 
 def load(path):
@@ -228,13 +251,18 @@ def main(argv=None):
     ap.add_argument('record')
     ap.add_argument('--fixture', default='fixtures/nanogpt-3adf61e')
     ap.add_argument('--logs', help="the artifact zip's logs directory")
+    ap.add_argument('--relax', action='store_true', help="match steps by command and allow extra flags (discovery chooses ids; see relax_ids); every relaxation is printed as INFO")
     a = ap.parse_args(argv)
+    global RELAX
+    RELAX = a.relax
     fx = Path(a.fixture)
     if not fx.is_dir() and (HERE / fx).is_dir():
         fx = HERE / fx
     rec = load(a.record)
     exp = {n: load(fx / f'expected-{n}.json') for n in ('route', 'fixes', 'traps', 'files')}
     print(f"record {a.record}\nfixture {fx.name}\n")
+    if a.relax:
+        relax_ids(rec, exp['route'])
     score_route(rec, exp['route'])
     score_fixes(rec, exp['fixes'])
     score_traps(rec, exp['traps'])
