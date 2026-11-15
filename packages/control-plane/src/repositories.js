@@ -37,7 +37,7 @@ export function parseRepository(value) {
 const unavailable=(message,status=503)=>Object.assign(Error(message),{status});
 const INDEXER_DOWN='Repository import is unavailable right now because the indexing service did not respond. Try again in a minute.';
 async function repositoryMetadata(env, repo, options={}) {
-  if(!/^https:\/\//i.test(env.SCENE_WORKER_URL||'')||!env.SCENE_WORKER_TOKEN)throw unavailable('Repository import is unavailable because the indexing service is not configured on this server.');
+  if(!/^(https:\/\/|http:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?(\/|$))/i.test(env.SCENE_WORKER_URL||'')||!env.SCENE_WORKER_TOKEN)throw unavailable('Repository import is unavailable because the indexing service is not configured on this server.');
   const response=await workerRequest(env,'/repository-metadata',{repo,...options}).catch(()=>{throw unavailable(INDEXER_DOWN);});
   if([401,403].includes(response.status))throw unavailable('Repository import is unavailable because the indexing service rejected this server\'s credential.',502);
   if(response.status>=500)throw unavailable(INDEXER_DOWN);
