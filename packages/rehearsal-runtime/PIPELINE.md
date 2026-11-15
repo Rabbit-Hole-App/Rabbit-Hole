@@ -24,3 +24,6 @@ Flow: start a rabbit hole with a GitHub URL, canvas and right panel open, indexi
 
 ## No silent failure
 Every stopping point has a Tutor sentence (cannot-run-edge-cases.md section 1a). A rehearsal whose repair loop gives up completes the record with the steps that passed and the failing step marked; the Run card still appears.
+
+## Partial records and `/api/learn/run` with a route
+A rehearsal whose repair loop gives up completes: the record carries the steps that passed plus the failing step marked `failed` with `error` (one line) and `tried`, `allChecksPassed` false and `gaveUp` set; the controller answers status `ready` (not `failed`), the DO stores the record, and the chat says so (cannot-run-edge-cases.md section 1a). `POST /api/learn/run` takes an optional `routeId` on every action (`start` reads that route's record); a `run` card stores the routeId; absent means the record written before the catalogue.

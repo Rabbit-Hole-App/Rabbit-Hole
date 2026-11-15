@@ -66,6 +66,9 @@
         "properties": {
           "id": { "type": "string" }, "cmd": { "type": "string" }, "rc": { "type": "integer" }, "sec": { "type": "number", "minimum": 0 },
           "startedSec": { "type": "number", "minimum": 0, "description": "longRunning steps: seconds to the first successful probe" },
+          "failed": { "type": "boolean", "description": "the step the repair loop gave up on: recorded with its last attempt, marked, so the Run card still appears with the steps that passed" },
+          "error": { "type": "string", "maxLength": 300, "description": "failed steps: the error in one line, plain words, no stack trace" },
+          "tried": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "description": "failed steps: what the repair loop tried, one short phrase each" },
           "checks": {
             "type": "array",
             "items": {
