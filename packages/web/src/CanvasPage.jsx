@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { api, navigate } from './api.js';
 import { Button } from './ui.jsx';
 import LearnPage from './LearnPage.jsx';
-import { titleOf } from './agent/catalog.js';
 import { browserStorage, canvasKeys, NOT_HERE, NOT_HERE_WHY, opensHere } from './home/canvas-local.js';
 import { savedStudy } from './study-loading.js';
 import { CodeRefs } from './code-refs.js';
@@ -36,14 +35,11 @@ export function CanvasLearn({ app, project, switcher = null, canvasProps = null 
 
 // A column, not a Fragment: LearnPage brings its own <main>, which no longer matches index.css's
 // [data-shell-sidebar] ~ main phone padding, so the column restores it. Learn's header names the canvas
-// (feature/parallel-work 07e1f15), so the row only links a parent project: one title (user, WP6 closeout).
+// (feature/parallel-work 07e1f15): one title (user, WP6 closeout). The 'In <project> →' row above it is gone (owner 2026-11-15): the header's repository dropdown already links the project.
 // A canvas in a repository project gets that repository's Files and Graph here too (the association, not the route).
 export default function CanvasPage({ app, project }) {
   const wired = useRepositoryCanvas(project);
   return <CodeRefs.Provider value={wired?.codeRefs || null}><div className={CANVAS_PAGE_COLUMN}>
-    {project && <div data-canvas-parent className="flex shrink-0 items-center gap-2 pt-5 pr-8 pl-14 text-xs text-ink-2 max-md:px-4 max-md:pt-3">
-      <button type="button" className="cursor-pointer hover:text-ink hover:underline" onClick={() => navigate(`/apps/${project.name}`)}>In {titleOf(project)} →</button>
-    </div>}
     <CanvasLearn app={app} project={project} canvasProps={wired?.canvasProps} />
   </div></CodeRefs.Provider>;
 }
