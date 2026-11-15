@@ -40,6 +40,12 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 // token (UI-16, the Learn composers): the chosen command's pill as one inline token before the text. It sits over the
 // field's first line and the text is indented by its width, so the words start right after it and wrap under it.
 export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-full px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
+// One tool button of the chat strip's pill (owner 2026-11-15: the strip is one component everywhere, the owner's canvas and a shared canvas alike): the Curious toggle, the chat toggle
+// and the shared canvas's Add and / buttons are all this. A button that does not apply stays drawn, greyed (disabled), with its name.
+export function StripTool({ label, title, on = false, disabled = false, onClick, className = '', children, ...rest }) {
+  return <button type="button" aria-label={label} title={title || label} aria-pressed={on ? true : undefined} disabled={disabled} onMouseDown={event => event.preventDefault()} onClick={onClick} {...rest}
+    className={`${COMPOSER_TOOL}${on ? ' bg-hover text-accent hover:text-accent' : ''}${className ? ` ${className}` : ''}`}>{children}</button>;
+}
 export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, hold = '', ready = false, voice = null, stacked = false, chips = null, tocView = false, token = null, pill = false, onMinimize = null }) {
   // The Table of contents' own composer (TocWorkspace: its AskPanel passes tocView) is data-toc-composer, so [data-chat-composer]
   // stays the one Chat composer. A prop, so this file never imports chat-workspace.jsx's graph (voice-ui.test.mjs bundles it).
