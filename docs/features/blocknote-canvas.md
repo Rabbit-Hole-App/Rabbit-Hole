@@ -1,5 +1,7 @@
 # Rabbit Hole — BlockNote-on-Canvas MVP
 
+**Owner decision 2026-11-14 (reverses section 1; the rest of this brief stands for the editor itself).** The BlockNote editor is no longer the canvas's one document. It is a card type, `doc` (`{ blocks }` on a canvas block, like the Notebook card; DocCard.jsx): Insert > Document adds one beside the selection, and a canvas can hold several. The Runbook is generated into a `doc` card. Commit 1 (this change) adds the card and leaves View > Workspace > Editor and the single document untouched; commit 3 removes View > Workspace entirely (the Canvas and Editor rows), `docView`, the per-canvas view choice and the single-document save path, and migrates a board whose document has text into one `doc` card, never dropping a block.
+
 (Owner brief, received 2026-10-14 about 9:45 PM PT, verbatim. QUEUED: start only after the PDF refinement release is pushed and cleared in production. Then build with subagents, the toolbar session and Home, push and clear, then the owner's second task.)
 
 This replaces the earlier BlockNote brief.

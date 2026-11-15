@@ -20,9 +20,9 @@ const allMenus = () => [
   { title: 'Insert', items: walk(ownerInsertItems({ canvas })) },
 ];
 
-test('Insert: sections, local rows, then Notebook, Upload a file, Webpage, Search sources, then Add a link', () => {
+test('Insert: sections, local rows, then Notebook, Document, Upload a file, Webpage, Search sources, then Add a link', () => {
   const insert = ownerInsertItems({ canvas, onUpload() {}, onSearchSources() {}, onLinkToCanvas() {} });
-  assert.deepEqual(groups(insert), [['Section', 'Text box', 'Sticky note', 'Divider', 'Equation'], ['Notebook', 'Upload a file', 'Webpage', 'Search sources'], ['Add a link']]);
+  assert.deepEqual(groups(insert), [['Section', 'Text box', 'Sticky note', 'Divider', 'Equation'], ['Notebook', 'Document', 'Upload a file', 'Webpage', 'Search sources'], ['Add a link']]);
   assert.deepEqual(labels(find(insert, 'Section').items), ['Section', 'Sub-section', 'Sub-sub-section']);
   assert.ok(find(insert, 'Section').items.every(item => !item.size && !item.weight && item.icon), 'H1, H2 and H3 icons (owner 2026-11-07), typography not enlarged');
   assert.deepEqual(groups(localInsertItems(canvas)), [['Section', 'Text box', 'Sticky note', 'Divider', 'Equation']], 'a shared canvas gets the local rows');
