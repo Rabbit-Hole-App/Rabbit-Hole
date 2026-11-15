@@ -3,6 +3,7 @@
 // packages/rehearsal-runtime/schemas: session state (session.json), cells (cells.json), run status (run-status.json).
 // Pure: no storage, no network, no React.
 import { collapseCR } from './run-card-outputs.js';
+import { scrubRunText } from './run-card-copy.js';
 
 export const RUN_POLL_MS = 2000;
 export const EXPECTED_HEADING = 'What a real run produced';
@@ -57,7 +58,7 @@ export function expectedView(expected) {
 }
 
 // The run pane's text: stdout tail, then stderr tail, with carriage-return progress (tqdm) collapsed to its last state.
-export const paneText = run => collapseCR([run?.stdoutTail, run?.stderrTail].filter(Boolean).join('\n'));
+export const paneText = run => scrubRunText(collapseCR([run?.stdoutTail, run?.stderrTail].filter(Boolean).join('\n')));
 
 // The colour family of a run: green while running and on success, red on an error, a timeout or a stop (owner 2026-11-14).
 export function runTone(run) {
