@@ -54,6 +54,7 @@ import PaidConfirm from './PaidConfirm.jsx';
 import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, pressOperation, readsAgain, recoveryButtons, resumesJob, videoLabel, withoutEnd } from './learn-video-label.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { describeNotebook } from './learn-notebook.js';
+import { docText } from './doc-text.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
 import { hasMarks, sketchText } from './explain-sketch.js';
@@ -2344,6 +2345,8 @@ function describeBlockOwn(block) {
   if (block.type === 'animation3d') return { kind: 'Animation', title: block.title, text: [`3D animation on the canvas: ${block.title}`, block.fixtureId ? 'A built-in example scene, not generated from a request.' : '', block.animation3dJob ? `Generation status: ${block.animation3dJob.stage}` : ''].filter(Boolean).join(NEWLINE) };
   if (block.type === 'whiteboardVideo') return describeWhiteboard(block);
   if (block.type === 'notebook') return describeNotebook(block);
+  // A document card (DocCard.jsx): its words as plain text, bounded like any card's description.
+  if (block.type === 'doc') return { kind: 'Document', title: block.title || '', text: ['Document on the canvas:', docText(block.blocks).slice(0, 12000)].join(NEWLINE) };
   if (block.type === 'code') return { kind: 'Code exercise', title: block.title, text: `Code exercise: ${block.title}\n${block.brief}\nGiven setup:\n${block.setup}\nLearner's current code:\n${block.draft ?? block.starter}\nChecks it must pass:\n${block.checks}` };
   if (block.type === 'audio') return { kind: 'Narration', title: block.title, text: [`Narration block: ${block.title}`, block.text].join(NEWLINE) };
   if (block.type === 'whiteboard') return { kind: 'Whiteboard', title: block.title, text: `Learner whiteboard: ${block.title}` };
