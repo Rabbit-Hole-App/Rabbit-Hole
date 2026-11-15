@@ -13,7 +13,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SNAPSHOT as WEB_SNAPSHOT, content, COMMIT } from '../../web/e2e/nanogpt-repository-fixture.mjs';
-import { runCodeExplain, sentencesOf, gatherCode, userMessage, relationshipLines, estimateTokens, CODE_EXPLAIN_MODEL, CODE_EXPLAIN_TOOL } from '../src/learn-code-explain.js';
+import { runCodeExplain, sentencesOf, gatherCode, userMessage, relationshipLines, relatedFiles, briefIdentifiers, estimateTokens, CODE_EXPLAIN_MODEL, CODE_EXPLAIN_TOOL } from '../src/learn-code-explain.js';
 import { composeTutorPrompt } from '../src/tutor-prompt.js';
 
 // The control plane's snapshot shape: files are { path: text }.
@@ -36,7 +36,6 @@ const DEFAULTS = [{ path: 'sample.py', from: /^init_from = /, to: /^exec\(open\(
 // ---- the checks -------------------------------------------------------------------------------------------------------------------------
 const proseOf = (card, depth) => card?.depths?.[depth]?.prose ?? '';
 const allProse = card => ['brief', 'standard', 'detailed'].map(d => proseOf(card, d)).join(' ');
-const SYMBOL = /`|\w+_\w+|\w+\(\)|\.\w+\(|\bself\b/;
 // A line of `path` is covered by an anchor of the Standard depth (its target is a range or mention that holds the line).
 const covers = (card, path, line) => {
   const spans = new Map();
@@ -55,11 +54,11 @@ const common = (row, { card, firstTry, codeText }) => {
   if (!card) return out;
   const brief = sentencesOf(proseOf(card, 'brief'));
   out.push(check('brief <= 2 sentences', brief.length <= 2, `${brief.length}`));
-  const q = row.question.toLowerCase();
-  const symbols = (proseOf(card, 'brief').match(new RegExp(SYMBOL.source, 'g')) ?? []).filter(s => !q.includes(s.replace(/`/g, '').toLowerCase()));
-  out.push(check('brief names no symbol the question did not', symbols.length === 0, symbols.join(' ')));
+  // Prompts file 5 (v1.1): BRIEF has no identifiers and no backticks unless the question used that exact name.
+  const symbols = briefIdentifiers(proseOf(card, 'brief'), row.question);
+  out.push(check('brief has no identifier or backtick the question did not use', symbols.length === 0, symbols.join(' ')));
   out.push(check('trace only on detailed', !('trace' in card.depths.brief) && !('trace' in card.depths.standard)));
-  if (row.trace) out.push(check('detailed has a trace', !!card.depths.detailed.trace));
+  out.push(check('detailed has a trace (v1.1: always; control flow when there is no arithmetic)', !!card.depths.detailed.trace));
   const ungrounded = [...new Set([proseOf(card, 'brief'), standard(card)].join(' ').match(/\b\d[\d,.]*\d\b/g) ?? [])].filter(n => !codeText.includes(n) && !row.question.includes(n));
   out.push(check('numbers in Brief and Standard come from the code', ungrounded.length === 0, ungrounded.join(' ')));
   out.push(check('prose never names the use case', !/use_codebase|debug_behavior|\buse case\b|use the codebase|fix something|change something/i.test(allProse(card))));
@@ -131,9 +130,11 @@ const apiCall = key => async (env, body, model) => fetch('https://api.anthropic.
 async function preflight(rows) {
   for (const row of rows) {
     const refs = row.refs.map(ref), code = gatherCode(SNAPSHOT, refs);
-    const message = userMessage({ question: row.question, snapshot: SNAPSHOT, code: code.text, relationships: relationshipLines(SNAPSHOT, code.shown), fileNames: Object.keys(SNAPSHOT.files).join(', ') });
+    const related = relatedFiles(SNAPSHOT, code.shown);
+    const message = userMessage({ question: row.question, snapshot: SNAPSHOT, code: code.text, relationships: [...relationshipLines(SNAPSHOT, code.shown), ...related.lines], fileNames: Object.keys(SNAPSHOT.files).join(', ') });
     const system = composeTutorPrompt({ task: 'code-explain', use: row.use }).text;
     console.log(`row ${String(row.n).padStart(2)}  code lines ${code.shown.reduce((n, s) => n + s.end - s.start + 1, 0)}  est. input tokens ${estimateTokens(system, message, JSON.stringify(CODE_EXPLAIN_TOOL))}  ${row.question}`);
+    for (const line of [...relationshipLines(SNAPSHOT, code.shown), ...related.lines]) console.log(`        ${line}`);
   }
 }
 
@@ -146,7 +147,7 @@ export async function runCalibration({ rows = ROWS, key, out = null, callModel =
     try { r = await runCodeExplain({ env: {}, snapshot: SNAPSHOT, question: row.question, refs, use: row.use, callModel }); } finally { console.log = log; }
     const card = r.codeExplain, checks = common(row, { card, firstTry: r.firstTry, codeText: code.text });
     if (card) { try { checks.push(...row.checks(card)); } catch (error) { checks.push(check('row checks ran', false, error.message)); } }
-    results.push({ n: row.n, question: row.question, use: row.use, pass: checks.every(c => c.ok), valid: !!card, firstTry: r.firstTry, attempts: r.attempts, reason: r.reason ?? null, checks, review: row.review,
+    results.push({ n: row.n, question: row.question, use: row.use, pass: checks.every(c => c.ok), valid: !!card, firstTry: r.firstTry, attempts: r.attempts, firstTryErrors: r.firstTryErrors, reason: r.reason ?? null, checks, review: row.review,
       inputTokens: r.usage.input, outputTokens: r.usage.output, usd: Number(r.usage.usd.toFixed(4)), figure: card ? card.figure?.referenceId ?? null : null, card, answer: r.answer });
     console.error(`row ${row.n}: ${results.at(-1).pass ? 'pass' : 'FAIL'}${card ? '' : ` (${r.reason})`}`);
   }
@@ -159,9 +160,9 @@ export async function runCalibration({ rows = ROWS, key, out = null, callModel =
 
 export function markdown({ summary, results }) {
   const head = `# Code-explain calibration (${summary.model}, nanoGPT ${summary.commit.slice(0, 7)}, ${summary.at})\n\n${summary.passed}/${summary.rows} rows pass, cost US$${summary.usd}\n\n`;
-  const rows = results.map(r => `| ${r.n} | ${r.question} | ${r.use ?? 'none'} | ${r.pass ? 'pass' : 'FAIL'} | ${r.valid ? (r.firstTry ? 'first try' : `after ${r.attempts} tries`) : 'no card'} | ${r.checks.filter(c => !c.ok).map(c => c.name + (c.detail ? ` (${c.detail})` : '')).join('; ') || (r.reason ?? '')} | ${r.inputTokens} / ${r.outputTokens} | ${r.usd} | ${r.figure ?? ''} | ${r.review} |`);
+  const rows = results.map(r => `| ${r.n} | ${r.question} | ${r.use ?? 'none'} | ${r.pass ? 'pass' : 'FAIL'} | ${r.valid ? (r.firstTry ? 'first try' : `after ${r.attempts} tries`) : 'no card'} | ${r.firstTryErrors.join('; ') || ''} | ${r.checks.filter(c => !c.ok).map(c => c.name + (c.detail ? ` (${c.detail})` : '')).join('; ') || (r.reason ?? '')} | ${r.inputTokens} / ${r.outputTokens} | ${r.usd} | ${r.figure ?? ''} | ${r.review} |`);
   const cross = summary.cross.length ? `\n\nRows 11-13 together: ${summary.cross.map(c => `${c.ok ? 'pass' : 'FAIL'} ${c.name}`).join('; ')}\n` : '';
-  return `${head}| # | question | goal | result | validator | failed checks | tokens in / out | USD | figure | a reader still checks |\n|---|---|---|---|---|---|---|---|---|---|\n${rows.join('\n')}${cross}\n`;
+  return `${head}| # | question | goal | result | validator | first-try errors | failed checks | tokens in / out | USD | figure | a reader still checks |\n|---|---|---|---|---|---|---|---|---|---|---|\n${rows.join('\n')}${cross}\n`;
 }
 
 // ---- the command line -------------------------------------------------------------------------------------------------------------------

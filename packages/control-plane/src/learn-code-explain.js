@@ -35,6 +35,9 @@ const source = (path, start, end) => `${path}:${start}${start === end ? '' : `-$
 // The renderer's split, the web's exact rule (packages/web/src/code-explain.js splitSentences): white space after . ! or ? (and closing quotes, brackets, backticks).
 // A "." inside a name such as model.py never splits; "e.g. " does. Anchors index sentences in this split.
 export const SENTENCE_BREAK = /(?<=[.!?]["')\]`]*)\s+/;
+// Identifier-like tokens in a Brief (prompts file 5: none, unless the question used that exact name): backticks, snake_case, calls, flags, camelCase, file names. For the calibration.
+const IDENT = /`[^`]*`|\b\w+_\w+\b|\b\w+\(\)|--\w[\w-]*|\b[a-z]+[A-Z]\w*\b|\b[\w-]+\.(?:py|js|ts|json|pkl|pt|md|toml|ya?ml|txt|bin|c|h)\b/g;
+export const briefIdentifiers = (prose, question) => (String(prose).match(IDENT) ?? []).filter(token => !String(question).toLowerCase().includes(token.replace(/`/g, '').toLowerCase()));
 export const sentencesOf = prose => { const text = String(prose ?? '').trim(); return text ? text.split(SENTENCE_BREAK) : []; };
 const linesOf = (snapshot, path) => (Object.hasOwn(snapshot.files, path) ? snapshot.files[path].split('\n') : null);
 
@@ -128,6 +131,45 @@ export function relationshipLines(snapshot, shown, { maxLines = 30, maxParts = 8
   return lines;
 }
 
+// Prompts file 8a-ii: what touches the cited code beyond the graph's edges. (a) config files that assign a global the cited code reads (name match in config/**:
+// nanoGPT's exec(open('configurator.py')) path), (b) files whose text names a file the cited code is, reads or writes (a basename search: meta.pkl, ckpt.pt,
+// configurator.py). Each as path:line, and counted against the caps. -> { lines, offered: [{ path, line }] }; `offered` is what the server adds to `mentioned`.
+// shortcut: top-level assignments are found by a line pattern (Python-style `name = value` at column 0), files by a substring search; upgrade with the indexer's own edges.
+const GLOBAL_ASSIGN = /^([A-Za-z_]\w*)\s*(?::[^=\n]+)?=(?!=)/gm;
+const FILE_LITERAL = /['"]([A-Za-z_][\w-]*(?:\.[A-Za-z]\w{0,5})+)['"]/g;
+const CONFIG_PATH = /(^|\/)configs?\//i;
+export const RELATED_LIMITS = Object.freeze({ names: 12, basenames: 6, filesPer: 3, offered: 6 });
+export function relatedFiles(snapshot, shown, { maxLines = 8 } = {}) {
+  const lines = [], offered = [], cited = new Set(shown.map(s => s.path));
+  const offer = (path, line) => { if (offered.length < RELATED_LIMITS.offered && !offered.some(o => o.path === path && o.line === line)) offered.push({ path, line }); };
+  const code = shown.map(s => (linesOf(snapshot, s.path) ?? []).slice(s.start - 1, s.end).join('\n')).join('\n');
+  const others = Object.keys(snapshot.files).filter(path => !cited.has(path)).sort();
+  // (a) globals the cited code reads: names assigned at the top level of a cited file and used in the shown lines.
+  const globals = new Set([...cited].flatMap(path => [...String(snapshot.files[path]).matchAll(GLOBAL_ASSIGN)].map(m => m[1])));
+  const read = [...new Set(code.match(/[A-Za-z_]\w{2,}/g) ?? [])].filter(name => globals.has(name)).slice(0, RELATED_LIMITS.names);
+  for (const name of read) {
+    if (lines.length >= maxLines) break;
+    const at = [];
+    for (const path of others.filter(p => CONFIG_PATH.test(p))) {
+      const text = linesOf(snapshot, path).findIndex(l => new RegExp(`^${name}\\s*=(?!=)`).test(l));
+      if (text >= 0 && at.length < RELATED_LIMITS.filesPer) at.push({ path, line: text + 1 });
+    }
+    if (at.length) { lines.push(`${name} (a setting the cited code reads) assigned in ${at.map(a => `${a.path}:${a.line}`).join('; ')} (INFERRED, name match)`); at.forEach(a => offer(a.path, a.line)); }
+  }
+  // (b) files whose text names the cited file or a file the cited code names in a string.
+  const names = [...new Set([...cited].map(path => path.split('/').pop()).concat([...code.matchAll(FILE_LITERAL)].map(m => m[1])))].slice(0, RELATED_LIMITS.basenames);
+  for (const name of names) {
+    if (lines.length >= maxLines) break;
+    const at = [];
+    for (const path of others) {
+      const text = linesOf(snapshot, path).findIndex(l => l.includes(name));
+      if (text >= 0 && at.length < RELATED_LIMITS.filesPer) at.push({ path, line: text + 1 });
+    }
+    if (at.length) { lines.push(`${name} (a file the cited code is, reads or writes) is named in ${at.map(a => `${a.path}:${a.line}`).join('; ')} (INFERRED, text search)`); at.forEach(a => offer(a.path, a.line)); }
+  }
+  return { lines, offered };
+}
+
 // Prompts file 5b, exactly. The use case is not in the message: it is the overlay layer of the system prompt.
 export function userMessage({ question, snapshot, code, relationships, fileNames }) {
   return `QUESTION\n${question}\n\n\nCODE THE LEARNER ADDED\n${code}\n\nRELATIONSHIPS (one hop, from the repository graph; EXTRACTED unless marked INFERRED)\n${relationships.join('\n') || '(none)'}\n\nREPOSITORY FILES (names only; you cannot read these unless they appear above)\n${fileNames}\n\nOUTPUT SCHEMA\n${JSON.stringify(CODE_EXPLAIN_OUTPUT_SCHEMA)}\n\nReturn it by calling the ${CODE_EXPLAIN_TOOL_NAME} tool once. repo: ${snapshot.repo}, commit: ${snapshot.commit}, depth: standard.`;
@@ -167,7 +209,7 @@ const MARKDOWN = /```|^\s*(?:[-*•]|\d+[.)])\s|^\s*#{1,6}\s/m;
 
 // The model's tool input -> the card payload (the contract's 2a minus files[*].cardId, figure not yet attached) and the errors the validator and the handler's own
 // checks find. The server's own facts are set here, never taken from the model: type, question, repo, commit, depth (the switch defaults to Standard), evidence.
-export function settleOutput(input, { question, snapshot, shown, model = CODE_EXPLAIN_MODEL, now = () => new Date().toISOString() }) {
+export function settleOutput(input, { question, snapshot, shown, offered = [], model = CODE_EXPLAIN_MODEL, now = () => new Date().toISOString() }) {
   const o = isObject(input) ? input : {};
   const byPath = new Map(); // a file named twice is one file
   for (const f of Array.isArray(o.files) ? o.files : []) {
@@ -179,6 +221,15 @@ export function settleOutput(input, { question, snapshot, shown, model = CODE_EX
   for (const name of ['brief', 'standard', 'detailed']) if (name in depthsIn) depths[name] = pickBody(depthsIn[name], name === 'detailed');
   const anchors = Array.isArray(depths.standard?.anchors) ? depths.standard.anchors.filter(a => isObject(a) && typeof a.target === 'string') : [];
   const placed = placeFiles([...byPath].map(([path, ranges]) => ({ path, ranges: ranges.filter(isObject) })), (Array.isArray(o.mentioned) ? o.mentioned : []).map(pickMention).filter(isObject), anchors);
+  // Prompts file 5: every file RELATIONSHIPS names as touching this behaviour is in `mentioned` even when the model did not discuss it: the server adds what the model left out
+  // (rule-found lines only; a file that already has a card or a mention is not repeated).
+  const taken = new Set([...placed.files.map(f => f.path), ...placed.mentioned.filter(isObject).map(m => m.path)]), used = new Set([...placed.files.flatMap(f => f.ranges.map(r => r.id)), ...placed.mentioned.filter(isObject).map(m => m.id)]);
+  for (const { path, line } of offered) {
+    if (taken.has(path)) continue;
+    let n = 1; while (used.has(`x${n}`)) n++;
+    used.add(`x${n}`); taken.add(path);
+    placed.mentioned.push({ id: `x${n}`, path, start: line, end: line });
+  }
   const sources = new Set();
   for (const f of placed.files) for (const r of f.ranges) sources.add(source(f.path, r.start, r.end));
   for (const m of placed.mentioned) sources.add(source(m.path, m.start, m.end));
@@ -199,6 +250,7 @@ export function settleOutput(input, { question, snapshot, shown, model = CODE_EX
     if (name === 'brief' && count > 2) errors.push(`depths.brief has ${count} sentences; at most 2`);
     if (Array.isArray(d.anchors)) for (const a of d.anchors) if (isObject(a) && isInt(a.sentence) && a.sentence >= count) errors.push(`depths.${name}: anchor sentence ${a.sentence} does not exist (the prose has ${count} sentences, counted from 0)`);
   }
+  if (isObject(depths.detailed) && !depths.detailed.trace) errors.push('depths.detailed needs a trace: one concrete input and its steps, or the control flow of one call when there is no arithmetic');
   if (isObject(depths.standard) && !anchors.length) errors.push('depths.standard needs at least one anchored sentence');
   for (const [i, f] of card.files.entries()) {
     const seen = shown.filter(s => s.path === f.path);
@@ -218,12 +270,16 @@ export function answerText(card) {
   return `${card.depths.standard.prose.trim()}${touched.length ? `\n\nAlso touched: ${list}.` : ''}`;
 }
 
-// Card spec section 5, Figure: the /explain selector on the question and the Standard prose's first two sentences; a worked reference, else null. No author, no planner.
+// Card spec section 5, Figure, gated by prompts file 8a-ii: the /explain selector on the question and the Standard prose's first two sentences. A figure only when it
+// returns a worked reference by an exact prompt match or a keyword score at its strong tier (the selector's `steer`), and that reference's kind is one a code answer can
+// use; else null. No author, no planner.
+export const FIGURE_KINDS = Object.freeze(['heatmap', 'matrix', 'coordinate-plot', 'flow', 'sequence']);
 export function figureFor(question, standardProse, select = selectForAuthor) {
   try {
     const prompt = `${question}\n${sentencesOf(standardProse).slice(0, 2).join(' ')}`;
-    const hit = select({ prompt, depth: 'standard', plan: null, excludeReferencePrefixes: ['shape-', 'general-'] }).references?.[0];
-    return hit ? { referenceId: hit.id, spec: hit.spec } : null;
+    const selection = select({ prompt, depth: 'standard', plan: null, excludeReferencePrefixes: ['shape-', 'general-'] }), hit = selection.references?.[0];
+    if (!hit || !selection.steer?.id || !hit.id.startsWith(selection.steer.id) || !FIGURE_KINDS.includes(hit.spec?.diagram?.kind)) return null;
+    return { referenceId: hit.id, spec: hit.spec };
   } catch { return null; }
 }
 
@@ -233,7 +289,7 @@ const addUsage = (total, u) => ({
   input: total.input + (u?.input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0), output: total.output + (u?.output_tokens ?? 0),
   usd: total.usd + (costUsd({ model: CODE_EXPLAIN_MODEL, ...(u ?? {}) }) ?? 0),
 });
-const refusal = (reason, extra = {}) => ({ answer: null, codeExplain: null, reason, tutor: null, attempts: 0, firstTry: false, usage: { input: 0, output: 0, usd: 0 }, ...extra });
+const refusal = (reason, extra = {}) => ({ answer: null, codeExplain: null, reason, tutor: null, attempts: 0, firstTry: false, firstTryErrors: [], usage: { input: 0, output: 0, usd: 0 }, ...extra });
 const REASONS = {
   snapshot: 'The repository snapshot for this code is not available.',
   code: 'None of the selected code could be read at this commit.',
@@ -255,20 +311,22 @@ export async function runCodeExplain({ env = {}, snapshot, question, refs, use =
   let message;
   const budgets = [{ files: 300, relationships: 30 }, { files: 40, relationships: 8 }, { files: 0, relationships: 0 }];
   const system = env.SUBSCRIPTION_ONLY === 'true' ? composed.text : [{ type: 'text', text: composed.text, cache_control: { type: 'ephemeral' } }];
+  let related = { lines: [], offered: [] };
   for (const budget of budgets) {
-    message = userMessage({ question, snapshot, code: code.text, relationships: relationshipLines(snapshot, code.shown, { maxLines: budget.relationships }), fileNames: fileList(snapshot, budget.files) });
+    related = budget.relationships ? relatedFiles(snapshot, code.shown, { maxLines: Math.min(budget.relationships, 8) }) : { lines: [], offered: [] };
+    message = userMessage({ question, snapshot, code: code.text, relationships: [...relationshipLines(snapshot, code.shown, { maxLines: budget.relationships }), ...related.lines], fileNames: fileList(snapshot, budget.files) });
     if (estimateTokens(composed.text, message, JSON.stringify(CODE_EXPLAIN_TOOL)) <= CODE_EXPLAIN_LIMITS.inputTokens) break;
     message = null;
   }
   if (!message) return refusal(REASONS.large);
 
   const request = messages => ({ max_tokens: CODE_EXPLAIN_LIMITS.outputTokens, output_config: { effort: LEARN_TASKS.code_explain.effort }, system, tools: [CODE_EXPLAIN_TOOL], tool_choice: { type: 'auto' }, messages });
-  let messages = [{ role: 'user', content: message }], usage = { input: 0, output: 0, usd: 0 }, last = null, errors = [], attempts = 0;
+  let messages = [{ role: 'user', content: message }], usage = { input: 0, output: 0, usd: 0 }, last = null, errors = [], attempts = 0, firstTryErrors = [];
   const tutor = () => ({ ...record, usage: { inputTokens: usage.input, outputTokens: usage.output, credits: Math.round(creditsOf(Math.ceil(usage.usd * 1e6)) * 100) / 100 } });
   const done = fields => {
     // The operator's line (dollars live here and nowhere a learner reads): the section 1c record, the usage and the outcome.
     try { console.log(JSON.stringify({ event: 'code_explain_call', ...record, attempts, inputTokens: usage.input, outputTokens: usage.output, usd: Number(usage.usd.toFixed(6)), outcome: fields.codeExplain ? 'card' : 'no_card', reason: fields.reason ?? null })); } catch { /* never worth a failed turn */ }
-    return { attempts, firstTry: !!fields.codeExplain && attempts === 1, usage, tutor: tutor(), ...fields };
+    return { attempts, firstTry: !!fields.codeExplain && attempts === 1, firstTryErrors, usage, tutor: tutor(), ...fields };
   };
   for (let round = 0; round < 2; round++) {
     attempts++;
@@ -285,7 +343,7 @@ export async function runCodeExplain({ env = {}, snapshot, question, refs, use =
     if (result?.stop_reason === 'max_tokens') errors = ['the output was cut off before the tool call finished; answer more briefly'];
     else if (calls.length !== 1) errors = [`call ${CODE_EXPLAIN_TOOL_NAME} exactly once (got ${calls.length})`];
     else {
-      settled = settleOutput(normalizeToolInput(CODE_EXPLAIN_OUTPUT_SCHEMA, calls[0].input), { question, snapshot, shown: code.shown, now });
+      settled = settleOutput(normalizeToolInput(CODE_EXPLAIN_OUTPUT_SCHEMA, calls[0].input), { question, snapshot, shown: code.shown, offered: related.offered, now });
       errors = settled.errors;
       if (typeof settled.card.depths?.standard?.prose === 'string' && settled.card.depths.standard.prose.trim()) last = settled.card.depths.standard.prose.trim();
       if (!errors.length) {
@@ -293,6 +351,7 @@ export async function runCodeExplain({ env = {}, snapshot, question, refs, use =
         return done({ answer: answerText(card), codeExplain: { ...card, figure: figureFor(question, card.depths.standard.prose) } });
       }
     }
+    if (round === 0) firstTryErrors = [...errors];
     if (round === 1) break;
     // One re-ask with the errors, if one more call still fits the card's cost cap and the input cap.
     const next = [...messages,

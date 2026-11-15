@@ -935,7 +935,7 @@ test('a project canvas chat turn composes base + chat (+ the goal overlay) and r
   const good = {
     title: 'What lab.py does', suggestions: ['Why torch?', 'What does print do here?', 'What if it printed 2?'],
     files: [{ path: 'lab.py', ranges: [{ id: 'r1', start: 1, end: 1 }, { id: 'r2', start: 2, end: 2 }] }], mentioned: [],
-    depths: { brief: { prose: 'It prints a number.', anchors: [] }, standard: { prose: 'It imports torch. Then it prints one.', anchors: [{ sentence: 0, target: 'r1' }, { sentence: 1, target: 'r2' }] }, detailed: { prose: 'Nothing is trained. It only prints.', anchors: [{ sentence: 1, target: 'r2' }] } },
+    depths: { brief: { prose: 'It prints a number.', anchors: [] }, standard: { prose: 'It imports torch. Then it prints one.', anchors: [{ sentence: 0, target: 'r1' }, { sentence: 1, target: 'r2' }] }, detailed: { prose: 'Nothing is trained. It only prints.', anchors: [{ sentence: 1, target: 'r2' }], trace: { input: 'one call', steps: ['import torch', 'print 1'] } } },
   };
   codeModel.calls.length = 0;
   codeModel.queue.push(reply(good));

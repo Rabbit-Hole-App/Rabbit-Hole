@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CODE_EXPLAIN_MAX_CARDS, validateCodeExplain, validateMessageMeta } from '../src/code-explain-contract.js';
-import { CODE_EXPLAIN_LIMITS, CODE_EXPLAIN_MODEL, CODE_EXPLAIN_TOOL, UNANCHORED_LINE, SENTENCE_BREAK, answerText, codeExplainTurn, estimateTokens, figureFor, gatherCode, placeFiles, relationshipLines, runCodeExplain, sentencesOf, settleOutput } from '../src/learn-code-explain.js';
+import { CODE_EXPLAIN_LIMITS, CODE_EXPLAIN_MODEL, CODE_EXPLAIN_TOOL, UNANCHORED_LINE, SENTENCE_BREAK, answerText, codeExplainTurn, estimateTokens, figureFor, gatherCode, placeFiles, relatedFiles, relationshipLines, briefIdentifiers, RELATED_LIMITS, runCodeExplain, sentencesOf, settleOutput } from '../src/learn-code-explain.js';
 import { composeTutorPrompt } from '../src/tutor-prompt.js';
 
 const SHA = 'a'.repeat(40);
@@ -150,7 +150,7 @@ test('ranking and the cap: six cited files give four cards in walk order, the re
       brief: { prose: 'One. Two.', anchors: [] },
       // sentence counts per file: f 3, c 2, a 1, b 1, d 1, e 0; first anchors: f 0, c 1, a 2, b 3...
       standard: { prose: 'S0. S1. S2. S3. S4. S5. S6.', anchors: [{ sentence: 0, target: 'rf' }, { sentence: 1, target: 'rc' }, { sentence: 2, target: 'ra' }, { sentence: 3, target: 'rb' }, { sentence: 4, target: 'rf' }, { sentence: 5, target: 'rd' }, { sentence: 6, target: 'rc' }, { sentence: 6, target: 'rf' }] },
-      detailed: { prose: 'D0. D1.', anchors: [{ sentence: 0, target: 'rd' }, { sentence: 1, target: 're' }] },
+      detailed: { prose: 'D0. D1.', anchors: [{ sentence: 0, target: 'rd' }, { sentence: 1, target: 're' }], trace: { input: 'x', steps: ['y'] } },
     },
   });
   const model = stub(message(input));
@@ -322,4 +322,86 @@ test('recordAnswer: answer_meta carries route, codeExplain and reason only for a
   assert.deepEqual([withCard.answerMeta.route, withCard.answerMeta.codeExplain, withCard.answerMeta.reason], ['code-explain', null, 'why not']);
   const plain = await record({ route: 'answer' });
   assert.deepEqual(['route' in plain.answerMeta, 'codeExplain' in plain.answerMeta, 'reason' in plain.answerMeta], [false, false, false]);
+});
+
+// ---- Prompts file v1.1, section 8a-ii (calibration run 1) ----
+
+// A small repository shaped like nanoGPT's trouble spots: a setting set in config/, a file written here and read elsewhere.
+const TRAIN = ['eval_interval = 2000', 'out_dir = "out"', 'def run(it):', '    if it % eval_interval == 0:', '        torch.save(x, os.path.join(out_dir, "ckpt.pt"))'].join('\n');
+const related = () => snapshotOf({ 'train.py': TRAIN, 'config/small.py': '# a config\neval_interval = 250\nout_dir = "x"', 'sample.py': 'import torch\nckpt = load("ckpt.pt")\nprint(ckpt)' });
+
+test('related files by rule: a config that assigns a global the cited code reads, and a file whose text names a file the cited code writes, each as path:line', () => {
+  const snapshot = related();
+  const { lines, offered } = relatedFiles(snapshot, [{ path: 'train.py', start: 3, end: 5 }]);
+  assert.deepEqual(lines, [
+    'eval_interval (a setting the cited code reads) assigned in config/small.py:2 (INFERRED, name match)',
+    'out_dir (a setting the cited code reads) assigned in config/small.py:3 (INFERRED, name match)',
+    'ckpt.pt (a file the cited code is, reads or writes) is named in sample.py:2 (INFERRED, text search)',
+  ]);
+  assert.deepEqual(offered, [{ path: 'config/small.py', line: 2 }, { path: 'config/small.py', line: 3 }, { path: 'sample.py', line: 2 }]);
+  // The cited file itself is never its own relative, and a name the shown lines never use finds nothing.
+  assert.deepEqual(relatedFiles(snapshot, [{ path: 'sample.py', start: 1, end: 1 }]).lines.filter(l => /sample\.py \(a file/.test(l)), []);
+  assert.deepEqual(relatedFiles(snapshot, [{ path: 'train.py', start: 4, end: 4 }]).lines.map(l => l.split(' ')[0]), ['eval_interval']);
+  // Counted against the caps: at most maxLines lines and RELATED_LIMITS.offered offers.
+  assert.equal(relatedFiles(snapshot, [{ path: 'train.py', start: 3, end: 5 }], { maxLines: 1 }).lines.length, 1);
+  assert.ok(relatedFiles(snapshotOf({ 'train.py': TRAIN, ...Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`config/c${i}.py`, `eval_interval = ${i}`])) }), [{ path: 'train.py', start: 3, end: 5 }]).offered.length <= RELATED_LIMITS.offered);
+});
+
+test('the related lines are in the RELATIONSHIPS part of the message, and the server adds the ones the model left out of `mentioned` (never twice, never a file that has a card)', async () => {
+  const snapshot = related();
+  const own = { id: 'r1', start: 3, end: 5 };
+  const input = output({ files: [{ path: 'train.py', ranges: [own] }], mentioned: [], depths: { ...output().depths, standard: { prose: 'It saves.', anchors: [{ sentence: 0, target: 'r1' }] }, detailed: { ...output().depths.detailed, anchors: [{ sentence: 0, target: 'r1' }] }, brief: { prose: 'It saves a file.', anchors: [] } } });
+  const model = stub(message(input));
+  const [result] = await run(model, { snapshot, refs: [ref('train.py', 3, 5)] });
+  const text = model.calls[0].body.messages[0].content;
+  assert.ok(text.includes('eval_interval (a setting the cited code reads) assigned in config/small.py:2'));
+  assert.ok(text.includes('ckpt.pt (a file the cited code is, reads or writes) is named in sample.py:2'));
+  assert.deepEqual(result.codeExplain.mentioned, [{ id: 'x1', path: 'config/small.py', start: 2, end: 2 }, { id: 'x2', path: 'sample.py', start: 2, end: 2 }]);
+  assert.deepEqual(result.codeExplain.evidence.sources, ['train.py:3-5', 'config/small.py:2', 'sample.py:2']);
+  assert.ok(result.answer.endsWith('Also touched: config/small.py:2, sample.py:2.'));
+  assert.deepEqual(validateCodeExplain(result.codeExplain, { mode: 'server', lines: lines(snapshot) }), []);
+  // A mention the model already made is not repeated.
+  const again = settleOutput(output({ files: [{ path: 'train.py', ranges: [own] }], mentioned: [{ id: 'm1', path: 'sample.py', start: 2, end: 2 }], depths: { ...input.depths, standard: { ...input.depths.standard } } }), { question: QUESTION, snapshot, shown: [{ path: 'train.py', start: 1, end: 5 }], offered: [{ path: 'sample.py', line: 2 }, { path: 'config/small.py', line: 2 }, { path: 'train.py', line: 1 }] });
+  assert.deepEqual(again.card.mentioned.map(m => [m.id, m.path]), [['m1', 'sample.py'], ['x1', 'config/small.py']]);
+});
+
+test('a DETAILED without a trace is invalid (v1.1); a control-flow trace is a trace', () => {
+  const ctx = { question: QUESTION, snapshot: snapshotOf(), shown: [{ path: 'model.py', start: 4, end: 14 }] };
+  const noTrace = output({ depths: { ...output().depths, detailed: { prose: 'Why. More.', anchors: [{ sentence: 0, target: 'r1' }] } } });
+  assert.match(settleOutput(noTrace, ctx).errors.join('\n'), /depths\.detailed needs a trace/);
+  const flow = output({ depths: { ...output().depths, detailed: { prose: 'Why. More.', anchors: [{ sentence: 0, target: 'r1' }], trace: { input: 'one call to forward', steps: ['the flash branch is skipped', 'masked_fill runs', 'softmax runs'] } } } });
+  assert.deepEqual(settleOutput(flow, ctx).errors, []);
+});
+
+test('figure gate: only an exact-prompt or strong-tier match of a plot, grid, flow or sequence kind; the run 1 false positives stay null', () => {
+  const ref = kind => ({ id: 'ref-1', spec: { version: 1, diagram: { kind } } });
+  const select = (kind, steer) => () => ({ references: [ref(kind)], steer });
+  for (const kind of ['heatmap', 'matrix', 'coordinate-plot', 'flow', 'sequence']) assert.equal(figureFor('q', 'a. b.', select(kind, { id: 'ref-1', score: 40 }))?.referenceId, 'ref-1', kind);
+  assert.equal(figureFor('q', 'a. b.', select('flow', null)), null, 'no strong-tier steer: a weak keyword hit is no figure');
+  assert.equal(figureFor('q', 'a. b.', select('flow', { id: 'other', score: 40 })), null, 'the steered reference is not the one picked');
+  for (const kind of ['tree', 'comparison', 'timeline', 'relationship']) assert.equal(figureFor('q', 'a. b.', select(kind, { id: 'ref-1', score: 40 })), null, kind);
+  assert.equal(figureFor('q', 'a. b.', () => ({ references: [] })), null);
+  // The real selector on the run 1 text: binary-cross-entropy-loss (ckpt.pt), tree-folder-hierarchy (the sampler's settings), learning-rate-schedules (a weak hit).
+  assert.equal(figureFor('when is ckpt.pt written?', 'The write happens only inside the evaluation block. The check compares the validation loss with the best loss so far.'), null);
+  assert.equal(figureFor('what do these settings do?', 'These lines set defaults for sampling. The out directory is where the checkpoint is read from.'), null);
+  assert.equal(figureFor('how does the learning rate change over training?', 'It rises during warmup. It then decays with a cosine.'), null);
+  assert.equal(figureFor('how does the decoder use a causal mask?', 'The mask hides later tokens. Softmax then gives them zero weight.').referenceId, 'ml-transformer-causal-mask', 'a strong-tier heatmap reference still attaches');
+});
+
+test('the first try\'s validation errors are kept, so the prompt can be fixed and not only the retry counted', async () => {
+  const bad = output({ depths: { ...output().depths, brief: { prose: 'One. Two. Three.', anchors: [] } } });
+  const [again] = await run(stub(message(bad), message(output())));
+  assert.equal(again.attempts, 2);
+  assert.deepEqual(again.firstTryErrors, ['depths.brief has 3 sentences; at most 2']);
+  const [first] = await run(stub(message(output())));
+  assert.deepEqual(first.firstTryErrors, []);
+  const [twice] = await run(stub(message(bad), message(bad)));
+  assert.deepEqual(twice.firstTryErrors, ['depths.brief has 3 sentences; at most 2']);
+});
+
+test('briefIdentifiers: backticks, snake_case, calls, flags, camelCase and file names are identifiers unless the question used that exact name', () => {
+  assert.deepEqual(briefIdentifiers('It blanks out every later word. So a word only sees what came before.', QUESTION), []);
+  assert.deepEqual(briefIdentifiers('It saves `ckpt` when always_save_checkpoint is set, via torch.save() and --out_dir in sample.py or maskFill.', 'when is it written?'), ['`ckpt`', 'always_save_checkpoint', 'save()', '--out_dir', 'sample.py', 'maskFill']);
+  assert.deepEqual(briefIdentifiers('It rewrites `train.py` and --flags before training.', 'how do my --flags end up changing train.py?'), []);
+  assert.deepEqual(briefIdentifiers('Plain words, e.g. like this.', 'q'), []);
 });

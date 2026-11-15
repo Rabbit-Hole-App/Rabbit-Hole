@@ -44,3 +44,26 @@ test('the thirteen rows of prompts file 8a run through the handler and make a pa
   assert.equal(md, markdown(JSON.parse(readFileSync(join(out, 'code-explain-calibration.json'), 'utf8'))), 'the file is the table of the JSON');
   assert.equal(JSON.parse(readFileSync(join(out, 'code-explain-calibration.json'), 'utf8')).results.length, 13);
 });
+
+// v1.1 (prompts file 5 and 8a-ii): the row records what failed on the first try, and the checks follow the new rules.
+test('a row that needed the re-ask records its first-try errors in the JSON and the table; Brief identifiers and a missing trace are caught', async t => {
+  const err = console.error; console.error = () => {}; t.after(() => { console.error = err; });
+  let calls = 0;
+  const flaky = async (env, body) => {
+    const res = await model(env, body), msg = await res.json(), input = msg.content[0].input;
+    if (++calls === 1) input.depths.brief.prose = 'One. Two. Three.'; // fails the handler's rule on the first try
+    return Response.json(msg);
+  };
+  const report = await runCalibration({ rows: [ROWS[1]], callModel: flaky });
+  const row = report.results[0];
+  assert.equal(row.attempts, 2);
+  assert.deepEqual(row.firstTryErrors, ['depths.brief has 3 sentences; at most 2']);
+  assert.match(markdown(report), /\| after 2 tries \| depths\.brief has 3 sentences; at most 2 \|/);
+  // A Brief with identifiers and a DETAILED with no trace fail their checks (row 5's run 1 miss: always_save_checkpoint in BRIEF).
+  const identifiers = async (env, body) => { const msg = await (await model(env, body)).json(); msg.content[0].input.depths.brief.prose = 'It saves `ckpt` when always_save_checkpoint is set.'; return Response.json(msg); };
+  const named = (await runCalibration({ rows: [ROWS[4]], callModel: identifiers })).results[0];
+  assert.deepEqual(named.checks.filter(c => !c.ok && /^brief/.test(c.name)).map(c => c.detail), ['always_save_checkpoint'], 'ckpt is inside the question ckpt.pt');
+  const noTrace = async (env, body) => { const msg = await (await model(env, body)).json(); delete msg.content[0].input.depths.detailed.trace; return Response.json(msg); };
+  const bare = (await runCalibration({ rows: [ROWS[0]], callModel: noTrace })).results[0];
+  assert.deepEqual([bare.valid, bare.attempts, bare.firstTryErrors[0].slice(0, 30)], [false, 2, 'depths.detailed needs a trace:']);
+});
