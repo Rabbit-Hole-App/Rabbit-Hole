@@ -1,0 +1,636 @@
+{
+  "family": "vote-board",
+  "canonical": "source-forest-vote",
+  "layout": {
+    "width": 640,
+    "height": 360
+  },
+  "story": "Every tree predicts the same row. Count those actual predictions: a majority can correct a single tree’s mistake, but agreement is a vote, not certainty.",
+  "aha": {
+    "inputs": {
+      "row": "J",
+      "reveal": 3
+    },
+    "observation": "For J, the trees vote 0, 1, 1. Class 1 wins by two votes to one; the first tree alone would be wrong.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "trees",
+      "kind": "tree-vote-tiles",
+      "bind": "data.forest; computed.votes"
+    },
+    {
+      "id": "tally",
+      "kind": "vote-accumulator",
+      "bind": "computed.revealedVotes"
+    },
+    {
+      "id": "row",
+      "kind": "point-card",
+      "bind": "data.rows; inputs.row"
+    }
+  ],
+  "controls": [
+    {
+      "id": "row",
+      "kind": "select",
+      "label": "Held-out row",
+      "values": [
+        "I",
+        "J"
+      ],
+      "labels": [
+        "I · (2, 6), true class 0",
+        "J · (6, 1), true class 1"
+      ],
+      "effect": "Send the other held-out row through all three fitted trees."
+    },
+    {
+      "id": "reveal",
+      "kind": "range",
+      "label": "Count the tree votes",
+      "min": 1,
+      "max": 3,
+      "step": 1,
+      "effect": "Add actual predictions to the tally; two tied votes do not declare a winner."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "The same row, three opinions.",
+    "heading": "Forest vote for the selected row",
+    "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+    "instructions": "Reveal all three votes. Compare the forest answer with the row’s true class.",
+    "initialInputs": {
+      "row": "I",
+      "reveal": 1
+    },
+    "rows": [
+      {
+        "id": "I",
+        "x": 2,
+        "y": 6,
+        "label": 0
+      },
+      {
+        "id": "J",
+        "x": 6,
+        "y": 1,
+        "label": 1
+      }
+    ],
+    "forest": [
+      {
+        "sample": [
+          {
+            "id": "A",
+            "x": 1,
+            "y": 1,
+            "label": 0
+          },
+          {
+            "id": "A",
+            "x": 1,
+            "y": 1,
+            "label": 0
+          },
+          {
+            "id": "C",
+            "x": 3,
+            "y": 3,
+            "label": 0
+          },
+          {
+            "id": "D",
+            "x": 3,
+            "y": 7,
+            "label": 0
+          },
+          {
+            "id": "E",
+            "x": 5,
+            "y": 1,
+            "label": 0
+          },
+          {
+            "id": "F",
+            "x": 5,
+            "y": 3,
+            "label": 1
+          },
+          {
+            "id": "G",
+            "x": 7,
+            "y": 5,
+            "label": 1
+          },
+          {
+            "id": "H",
+            "x": 7,
+            "y": 7,
+            "label": 1
+          }
+        ],
+        "tree": {
+          "counts": [
+            5,
+            3
+          ],
+          "prediction": 0,
+          "split": {
+            "feature": "x",
+            "threshold": 4,
+            "leftCounts": [
+              4,
+              0
+            ],
+            "rightCounts": [
+              1,
+              3
+            ],
+            "leftGini": [
+              0,
+              1
+            ],
+            "rightGini": [
+              3,
+              8
+            ],
+            "weighted": [
+              3,
+              16
+            ],
+            "gain": [
+              9,
+              32
+            ]
+          },
+          "left": {
+            "counts": [
+              4,
+              0
+            ],
+            "prediction": 0
+          },
+          "right": {
+            "counts": [
+              1,
+              3
+            ],
+            "prediction": 1,
+            "split": {
+              "feature": "y",
+              "threshold": 2,
+              "leftCounts": [
+                1,
+                0
+              ],
+              "rightCounts": [
+                0,
+                3
+              ],
+              "leftGini": [
+                0,
+                1
+              ],
+              "rightGini": [
+                0,
+                1
+              ],
+              "weighted": [
+                0,
+                1
+              ],
+              "gain": [
+                3,
+                8
+              ]
+            },
+            "left": {
+              "counts": [
+                1,
+                0
+              ],
+              "prediction": 0
+            },
+            "right": {
+              "counts": [
+                0,
+                3
+              ],
+              "prediction": 1
+            }
+          }
+        },
+        "byFeature": {
+          "x": [
+            9,
+            32
+          ],
+          "y": [
+            3,
+            16
+          ]
+        },
+        "featureDraws": {
+          "root": [
+            "x"
+          ],
+          "rootr": [
+            "y"
+          ]
+        }
+      },
+      {
+        "sample": [
+          {
+            "id": "B",
+            "x": 1,
+            "y": 5,
+            "label": 0
+          },
+          {
+            "id": "B",
+            "x": 1,
+            "y": 5,
+            "label": 0
+          },
+          {
+            "id": "C",
+            "x": 3,
+            "y": 3,
+            "label": 0
+          },
+          {
+            "id": "D",
+            "x": 3,
+            "y": 7,
+            "label": 0
+          },
+          {
+            "id": "F",
+            "x": 5,
+            "y": 3,
+            "label": 1
+          },
+          {
+            "id": "F",
+            "x": 5,
+            "y": 3,
+            "label": 1
+          },
+          {
+            "id": "F",
+            "x": 5,
+            "y": 3,
+            "label": 1
+          },
+          {
+            "id": "G",
+            "x": 7,
+            "y": 5,
+            "label": 1
+          }
+        ],
+        "tree": {
+          "counts": [
+            4,
+            4
+          ],
+          "prediction": 0,
+          "split": {
+            "feature": "y",
+            "threshold": 4,
+            "leftCounts": [
+              1,
+              3
+            ],
+            "rightCounts": [
+              3,
+              1
+            ],
+            "leftGini": [
+              3,
+              8
+            ],
+            "rightGini": [
+              3,
+              8
+            ],
+            "weighted": [
+              3,
+              8
+            ],
+            "gain": [
+              1,
+              8
+            ]
+          },
+          "left": {
+            "counts": [
+              1,
+              3
+            ],
+            "prediction": 1,
+            "split": {
+              "feature": "x",
+              "threshold": 4,
+              "leftCounts": [
+                1,
+                0
+              ],
+              "rightCounts": [
+                0,
+                3
+              ],
+              "leftGini": [
+                0,
+                1
+              ],
+              "rightGini": [
+                0,
+                1
+              ],
+              "weighted": [
+                0,
+                1
+              ],
+              "gain": [
+                3,
+                8
+              ]
+            },
+            "left": {
+              "counts": [
+                1,
+                0
+              ],
+              "prediction": 0
+            },
+            "right": {
+              "counts": [
+                0,
+                3
+              ],
+              "prediction": 1
+            }
+          },
+          "right": {
+            "counts": [
+              3,
+              1
+            ],
+            "prediction": 0,
+            "split": {
+              "feature": "x",
+              "threshold": 5,
+              "leftCounts": [
+                3,
+                0
+              ],
+              "rightCounts": [
+                0,
+                1
+              ],
+              "leftGini": [
+                0,
+                1
+              ],
+              "rightGini": [
+                0,
+                1
+              ],
+              "weighted": [
+                0,
+                1
+              ],
+              "gain": [
+                3,
+                8
+              ]
+            },
+            "left": {
+              "counts": [
+                3,
+                0
+              ],
+              "prediction": 0
+            },
+            "right": {
+              "counts": [
+                0,
+                1
+              ],
+              "prediction": 1
+            }
+          }
+        },
+        "byFeature": {
+          "x": [
+            3,
+            8
+          ],
+          "y": [
+            1,
+            8
+          ]
+        },
+        "featureDraws": {
+          "root": [
+            "y"
+          ],
+          "rootl": [
+            "x"
+          ],
+          "rootr": [
+            "x"
+          ]
+        }
+      },
+      {
+        "sample": [
+          {
+            "id": "A",
+            "x": 1,
+            "y": 1,
+            "label": 0
+          },
+          {
+            "id": "B",
+            "x": 1,
+            "y": 5,
+            "label": 0
+          },
+          {
+            "id": "C",
+            "x": 3,
+            "y": 3,
+            "label": 0
+          },
+          {
+            "id": "D",
+            "x": 3,
+            "y": 7,
+            "label": 0
+          },
+          {
+            "id": "D",
+            "x": 3,
+            "y": 7,
+            "label": 0
+          },
+          {
+            "id": "G",
+            "x": 7,
+            "y": 5,
+            "label": 1
+          },
+          {
+            "id": "H",
+            "x": 7,
+            "y": 7,
+            "label": 1
+          },
+          {
+            "id": "H",
+            "x": 7,
+            "y": 7,
+            "label": 1
+          }
+        ],
+        "tree": {
+          "counts": [
+            5,
+            3
+          ],
+          "prediction": 0,
+          "split": {
+            "feature": "x",
+            "threshold": 5,
+            "leftCounts": [
+              5,
+              0
+            ],
+            "rightCounts": [
+              0,
+              3
+            ],
+            "leftGini": [
+              0,
+              1
+            ],
+            "rightGini": [
+              0,
+              1
+            ],
+            "weighted": [
+              0,
+              1
+            ],
+            "gain": [
+              15,
+              32
+            ]
+          },
+          "left": {
+            "counts": [
+              5,
+              0
+            ],
+            "prediction": 0
+          },
+          "right": {
+            "counts": [
+              0,
+              3
+            ],
+            "prediction": 1
+          }
+        },
+        "byFeature": {
+          "x": [
+            15,
+            32
+          ],
+          "y": [
+            0,
+            1
+          ]
+        },
+        "featureDraws": {
+          "root": [
+            "x"
+          ]
+        }
+      }
+    ],
+    "calculations": [
+      "Each vote is predict(complete fitted source tree, selected held-out row), including downstream tests.",
+      "Tally is the count of revealed class predictions; a partial tie is reported as a tie.",
+      "Vote share = votes for winning class / number of trees; not a calibrated class probability."
+    ],
+    "sourceKind": "worked three-tree forest",
+    "missingCounterparts": [
+      "tree-vote-tiles",
+      "vote accumulator",
+      "complete tree/sample inspection"
+    ],
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "row": "I",
+          "reveal": 1
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "row": "J",
+          "reveal": 3
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-majority-vote",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 23,
+      "cases": 6,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "standard-vote-board-majority-vote",
+  "depth": "balanced"
+}

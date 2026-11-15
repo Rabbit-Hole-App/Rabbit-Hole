@@ -17,3 +17,7 @@ if(has('overview-split-sandbox-threshold-search.html'))test('threshold search re
  for(const [feature,scores]of [['x',[3/8,3/16,5/24]],['y',[3/8,7/16,11/24]]]){u.change('feature',feature);for(const [i,cut]of [2,4,6].entries()){u.change('cut',cut);assert.ok(Math.abs(u.card.evidence.weighted-scores[i])<1e-12);assert.equal(u.card.evidence.left.length+u.card.evidence.right.length,8)}}
  u.change('feature','x');u.change('cut',4);assert.deepEqual(Array.from(u.card.evidence.left),['A','B','C','D']);assert.deepEqual(Array.from(u.card.evidence.gain),[9,32]);
 });
+if(has('overview-vote-board-majority-vote.html'))test('forest vote oracle uses full downstream predicates and reports partial ties',()=>{
+ const u=card('standard','vote-board','majority-vote');for(const [id,votes,winner]of [['I',[0,0,0],0],['J',[0,1,1],1]]){u.change('row',id);u.change('reveal',3);assert.deepEqual(Array.from(u.card.evidence.votes),votes);assert.equal(u.card.evidence.winner,winner)}u.change('row','J');u.change('reveal',2);assert.equal(u.card.evidence.winner,null);assert.deepEqual(Array.from(u.card.evidence.counts),[1,1]);
+ const d=card('deep','vote-board','majority-vote');d.change('row','J');for(let i=0;i<3;i++){d.change('tree',String(i));assert.ok(d.card.evidence.route.length>=2);assert.equal(d.card.evidence.sample.length,8)}
+});
