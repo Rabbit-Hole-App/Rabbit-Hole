@@ -184,12 +184,18 @@ const CHAT_META = {
   several: 'More than one of these outputs is asked for at once (for example a diagram and a video).',
   none: 'None of these fits: an action neither a chat reply nor these tools can do, such as sending an email or booking something.',
 };
+// docs tutor-prompts-and-routing.md section 1b: code-explain is a route, not a command (no slash entry, no picker row), so it is declared here and not in CHAT_CAPABILITIES.
+// It is offered to the router only while the chat holds at least one code ref (the server passes it to chatRoutesWith, chat-capability-route.js); with none it is not a
+// route, so a code question stays an ordinary answer. flow 'direct': the chat turn's own handler runs it (control-plane learn-code-explain.js).
+export const CODE_CAPABILITIES = Object.freeze({
+  'code-explain': { flow: 'direct', intent: 'An explanation of how a specific piece of this repository\'s code works — what these lines do, how a function or feature behaves, how one part calls another. The chat holds code references the learner added.' },
+});
 // The chat choice options: 'answer', every declared capability the router may choose (not an explicit-only one), several, none.
 // Only commands whose flag is ON are options (agent/slash.js SLASH_FLAGS, owner 2026-11-13): an off command can never be chosen, so its message stays a chat answer.
 // standalone: a capability the router may choose that is no slash command (no picker row, colour or window card): the browser runs it itself (ask.jsx; owner 2026-11-14, Create a course).
 export const CHAT_ROUTES = Object.freeze({ answer: CHAT_ANSWER, ...Object.fromEntries(Object.entries(CHAT_CAPABILITIES).filter(([id, entry]) => !entry.explicit && !entry.guarded && (SLASH_FLAGS[id] || entry.standalone))) });
 // The routes with the guarded capabilities this server enables added (EXP-T15): the server decides, never the browser.
-export const chatRoutesWith = (offered = []) => Object.freeze({ ...Object.fromEntries(Object.entries(CHAT_ROUTES).filter(([id]) => id === 'answer' || SLASH_FLAGS[id] || CHAT_CAPABILITIES[id]?.standalone)), ...Object.fromEntries(offered.filter(id => CHAT_CAPABILITIES[id]?.guarded && SLASH_FLAGS[id]).map(id => [id, CHAT_CAPABILITIES[id]])) });
+export const chatRoutesWith = (offered = []) => Object.freeze({ ...Object.fromEntries(Object.entries(CHAT_ROUTES).filter(([id]) => id === 'answer' || SLASH_FLAGS[id] || CHAT_CAPABILITIES[id]?.standalone)), ...Object.fromEntries(offered.filter(id => CHAT_CAPABILITIES[id]?.guarded && SLASH_FLAGS[id]).map(id => [id, CHAT_CAPABILITIES[id]])), ...Object.fromEntries(offered.filter(id => CODE_CAPABILITIES[id]).map(id => [id, CODE_CAPABILITIES[id]])) });
 // One capability's whole declaration: the registry entry's label, kind, action and needs with the chat fields.
 export const chatCapability = id => {
   const chat = CHAT_CAPABILITIES[id], entry = SLASH.find(command => command.name === id) ?? (chat?.standalone ? { label: 'Course', kind: 'action', action: 'course' } : null);

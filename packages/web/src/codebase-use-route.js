@@ -70,3 +70,11 @@ export async function routeIntakeText({ post, app, text }) {
 // ask.jsx send() offers every plain line here first. While the intake is open the Tutor's flow takes it (preventDefault), so the line is a reply to the question.
 export const INTAKE_TEXT_EVENT = 'rh:codebase-intake-text';
 export const offerIntakeText = (canvas, text, target = globalThis.window) => !!target && target.dispatchEvent(new CustomEvent(INTAKE_TEXT_EVENT, { detail: { canvas, text }, cancelable: true })) === false;
+
+// The codebase use the canvas's active goal is (one of the 14 use ids; a goal's id is its use's id), sent as `use` on a repository chat ask so the server composes that use's prompt
+// overlay (control plane tutor-prompt; code-explain-card-spec.md, owner 2026-11-15). state: the coaching state (use-learn-coaching.jsx). null when no goal is active or the activity is not a
+// codebase one; the server ignores any value that is not a use id.
+export function canvasUseId(state) {
+  const activity = state?.activities?.find(a => a.activityId === state.activeActivityId && a.goalId === state.activeGoalId) || null;
+  return useOf(activity?.checkpoint?.codebase?.goal)?.id ?? null;
+}

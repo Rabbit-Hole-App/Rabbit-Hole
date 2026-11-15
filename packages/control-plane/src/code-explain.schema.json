@@ -1,0 +1,596 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rabbit-hole.local/code-explain/code-explain.json",
+  "title": "Code-explain card data contract (spec section 2, frozen)",
+  "description": "The code-explain card (code-explain-card-spec.md section 2). Entry points under $defs: codeExplain (2a, the board-saved primary card block), codeCardAdditions (2b, the two fields a satellite code card gains), messageMeta (section 3 step 3 and section 5, what the control plane returns with a chat answer, its payload is codeExplainMetaPayload), codeExplainModelOutput (section 5, the one structured Sonnet call: 2a minus files[*].cardId and figure). Rules JSON Schema cannot express (files[0].cardId is \"self\", other cardIds are code cards on the board, anchor targets resolve, ids are unique, ranges within line counts, start <= end, evidence.sources is the union of ranges and mentions) are enforced by the validators in code-explain-contract.js, which also exports the cap CODE_EXPLAIN_MAX_CARDS.",
+  "$defs": {
+    "depthName": {
+      "enum": [
+        "brief",
+        "standard",
+        "detailed"
+      ]
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A highlighted line range, 1-based inclusive.",
+      "required": [
+        "id",
+        "start",
+        "end"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,32}$",
+          "description": "Unique across every range and mention of the card (anchor targets are bare ids)."
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "start <= end, within the file's line count at the commit (the snapshot's files[].lines)."
+        }
+      }
+    },
+    "mention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "start",
+        "end"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,32}$"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sentence",
+        "target"
+      ],
+      "properties": {
+        "sentence": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Index of the sentence in prose (the renderer splits on sentence boundaries)."
+        },
+        "target": {
+          "type": "string",
+          "description": "An id in files[*].ranges or mentioned. A target whose card was deleted renders as a file:line link; anchors are never dropped."
+        }
+      }
+    },
+    "depthBody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prose",
+        "anchors"
+      ],
+      "properties": {
+        "prose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/anchor"
+          }
+        }
+      }
+    },
+    "detailedBody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prose",
+        "anchors"
+      ],
+      "properties": {
+        "prose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/anchor"
+          }
+        },
+        "trace": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "One concrete input traced through. Optional; only on detailed.",
+          "required": [
+            "input",
+            "steps"
+          ],
+          "properties": {
+            "input": {
+              "type": "string",
+              "minLength": 1
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "figure": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "referenceId",
+        "spec"
+      ],
+      "description": "null, or a worked /explain reference that hit (selectForAuthor). No new renderer kinds; spec is the existing explanation renderer's own object.",
+      "properties": {
+        "referenceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "spec": {
+          "type": "object"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "sources",
+        "createdAt"
+      ],
+      "properties": {
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^.+:[0-9]+(-[0-9]+)?$"
+          },
+          "description": "Exactly the union of every range and mention as path:start-end (path:start when start = end)."
+        },
+        "createdAt": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cardId",
+        "path",
+        "ranges"
+      ],
+      "properties": {
+        "cardId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "\"self\" for files[0]; every other value names a code card on the board."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ranges": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/range"
+          }
+        }
+      }
+    },
+    "modelFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A file as the model writes it: the client assigns cardId on insert.",
+      "required": [
+        "path",
+        "ranges"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ranges": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/range"
+          }
+        }
+      }
+    },
+    "codeExplain": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The primary card block (spec 2a), saved with the board.",
+      "required": [
+        "type",
+        "title",
+        "question",
+        "repo",
+        "commit",
+        "files",
+        "mentioned",
+        "depth",
+        "depths",
+        "figure",
+        "suggestions",
+        "evidence"
+      ],
+      "properties": {
+        "type": {
+          "const": "codeExplain"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Model-written, at most 60 characters (spec section 6)."
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "pattern": "^[^/\\s]+/[^/\\s]+$",
+          "description": "owner/name."
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$",
+          "description": "The commit the ranges and line counts are at."
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/file"
+          },
+          "description": "At most CODE_EXPLAIN_MAX_CARDS (4: the primary plus 3 satellites); the maxItems here is that constant, a test keeps them equal. files[0] is the primary card (\"self\"). Walk order = array order."
+        },
+        "mentioned": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mention"
+          },
+          "description": "Files the answer cites that got no card (beyond the cap, or lower ranked): rendered as file:line links that open the Files panel."
+        },
+        "depth": {
+          "$ref": "#/$defs/depthName"
+        },
+        "depths": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "All three depths present; trace only on detailed. Depth is technical level, not length.",
+          "required": [
+            "brief",
+            "standard",
+            "detailed"
+          ],
+          "properties": {
+            "brief": {
+              "$ref": "#/$defs/depthBody"
+            },
+            "standard": {
+              "$ref": "#/$defs/depthBody"
+            },
+            "detailed": {
+              "$ref": "#/$defs/detailedBody"
+            }
+          }
+        },
+        "figure": {
+          "$ref": "#/$defs/figure"
+        },
+        "suggestions": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "pattern": "\\?\\s*$"
+          },
+          "description": "Exactly three, each a question ending in \"?\"."
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    },
+    "codeExplainModelOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Spec section 5: 2a minus files[*].cardId and figure.",
+      "required": [
+        "type",
+        "title",
+        "question",
+        "repo",
+        "commit",
+        "files",
+        "mentioned",
+        "depth",
+        "depths",
+        "suggestions",
+        "evidence"
+      ],
+      "properties": {
+        "type": {
+          "const": "codeExplain"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Model-written, at most 60 characters (spec section 6)."
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "pattern": "^[^/\\s]+/[^/\\s]+$",
+          "description": "owner/name."
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$",
+          "description": "The commit the ranges and line counts are at."
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/modelFile"
+          },
+          "description": "At most CODE_EXPLAIN_MAX_CARDS (4: the primary plus 3 satellites); the maxItems here is that constant, a test keeps them equal. files[0] is the primary card (\"self\"). Walk order = array order."
+        },
+        "mentioned": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mention"
+          },
+          "description": "Files the answer cites that got no card (beyond the cap, or lower ranked): rendered as file:line links that open the Files panel."
+        },
+        "depth": {
+          "$ref": "#/$defs/depthName"
+        },
+        "depths": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "All three depths present; trace only on detailed. Depth is technical level, not length.",
+          "required": [
+            "brief",
+            "standard",
+            "detailed"
+          ],
+          "properties": {
+            "brief": {
+              "$ref": "#/$defs/depthBody"
+            },
+            "standard": {
+              "$ref": "#/$defs/depthBody"
+            },
+            "detailed": {
+              "$ref": "#/$defs/detailedBody"
+            }
+          }
+        },
+        "suggestions": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "pattern": "\\?\\s*$"
+          },
+          "description": "Exactly three, each a question ending in \"?\"."
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    },
+    "codeExplainMetaPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The meta payload: 2a minus files[*].cardId. figure is optional here because the server attaches it after the model call (spec section 5 Figure); the section 5 model output has none.",
+      "required": [
+        "type",
+        "title",
+        "question",
+        "repo",
+        "commit",
+        "files",
+        "mentioned",
+        "depth",
+        "depths",
+        "suggestions",
+        "evidence"
+      ],
+      "properties": {
+        "type": {
+          "const": "codeExplain"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "Model-written, at most 60 characters (spec section 6)."
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "type": "string",
+          "pattern": "^[^/\\s]+/[^/\\s]+$",
+          "description": "owner/name."
+        },
+        "commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$",
+          "description": "The commit the ranges and line counts are at."
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/modelFile"
+          },
+          "description": "At most CODE_EXPLAIN_MAX_CARDS (4: the primary plus 3 satellites); the maxItems here is that constant, a test keeps them equal. files[0] is the primary card (\"self\"). Walk order = array order."
+        },
+        "mentioned": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mention"
+          },
+          "description": "Files the answer cites that got no card (beyond the cap, or lower ranked): rendered as file:line links that open the Files panel."
+        },
+        "depth": {
+          "$ref": "#/$defs/depthName"
+        },
+        "depths": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "All three depths present; trace only on detailed. Depth is technical level, not length.",
+          "required": [
+            "brief",
+            "standard",
+            "detailed"
+          ],
+          "properties": {
+            "brief": {
+              "$ref": "#/$defs/depthBody"
+            },
+            "standard": {
+              "$ref": "#/$defs/depthBody"
+            },
+            "detailed": {
+              "$ref": "#/$defs/detailedBody"
+            }
+          }
+        },
+        "figure": {
+          "$ref": "#/$defs/figure"
+        },
+        "suggestions": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "string",
+            "pattern": "\\?\\s*$"
+          },
+          "description": "Exactly three, each a question ending in \"?\"."
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    },
+    "codeCardAdditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The two fields an existing code card (repo-code) gains when it is a satellite. Both optional on a plain code card; a satellite carries both.",
+      "required": [],
+      "properties": {
+        "ranges": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/range"
+          },
+          "description": "Several highlighted ranges, lines between dimmed."
+        },
+        "from": {
+          "type": "string",
+          "pattern": "^codeExplain:.+$",
+          "description": "Back-reference \"codeExplain:<primary card id>\" (the board id of the primary card)."
+        }
+      }
+    },
+    "messageMeta": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What the control plane returns in the message meta with an answer. route \"answer\" always has codeExplain null.",
+      "required": [
+        "route",
+        "codeExplain"
+      ],
+      "properties": {
+        "route": {
+          "enum": [
+            "code-explain",
+            "answer"
+          ]
+        },
+        "codeExplain": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/codeExplainMetaPayload"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Why there is no card (validation failed twice, or below the confidence threshold). Required when route is code-explain and codeExplain is null: no silent failure."
+        }
+      }
+    }
+  }
+}

@@ -11,6 +11,7 @@ import { EQUATION_LEVELS, equationLevel } from './canvas-equation.js';
 import { pdfBytesUrl } from './pdf-source.js';
 import { codeCardOf } from './code-card.js';
 import { notebookActions } from './notebook-inline-client.js';
+import { openCode, openDetail } from './code-explain.js';
 import { viewOf } from './cad-viewer-store.js';
 import { eligible } from './study-state.js';
 
@@ -168,6 +169,13 @@ export const TYPE_ACTIONS = [
     id: 'code.open-source', label: 'Open source', icon: 'ExternalLink', group: 'type', order: 12,
     targets: ['card'], types: ['repo-code'], requires: 'open', data: 'data-menu-open-source',
     applies: t => !!codeCardOf(t.id)?.openSource, run: t => codeCardOf(t.id).openSource(),
+  },
+  // A code-explain card (CodeExplainCard.jsx): Files at the answer's first range, as the card header's Open in Files does (the same small:open-code event, else GitHub at the commit).
+  {
+    id: 'codeexplain.open-files', label: 'Open in Files', icon: 'ExternalLink', group: 'type', order: 12,
+    targets: ['card'], types: ['codeExplain'], requires: 'open', data: 'data-menu-open-files',
+    applies: t => !!t.object?.files?.[0]?.path,
+    run: t => { const file = t.object.files[0], range = file.ranges?.[0]; openCode(openDetail(t.object, { path: file.path, start: range?.start, end: range?.end })); },
   },
   {
     id: 'code.edit', label: 'Edit code', icon: 'Pencil', group: 'type', order: 20,

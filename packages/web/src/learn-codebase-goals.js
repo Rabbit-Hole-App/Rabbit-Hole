@@ -201,20 +201,20 @@ export function startSource(refs, goalId) {
 // `intent` is the one sentence of what the person wants, the scoped capability description the router reads (below). Pure data.
 export const CODEBASE_USE_GROUPS = ['Using it', 'Understanding it', 'The knowledge behind it', 'Working on it', 'Passing it on'];
 export const CODEBASE_USES = /* @__PURE__ */ Object.freeze([
-  { id: 'use_codebase', number: 1, group: 'Using it', label: 'Use the codebase', enabled: true, intent: 'Run it, configure it and get a result: see it work.' },
-  { id: 'build_on_it', number: 2, group: 'Using it', label: 'Build on it', enabled: false, intent: 'Call it from my own code, or adapt it to my own data.' },
-  { id: 'operate_it', number: 3, group: 'Using it', label: 'Operate it', enabled: false, intent: 'Deploy it, monitor it and know what breaks.' },
-  { id: 'understand_feature', number: 4, group: 'Understanding it', label: 'Understand a feature', enabled: true, goalId: 'understand_feature', intent: 'Trace one behaviour end to end: how a particular feature works.' },
-  { id: 'how_organized', number: 5, group: 'Understanding it', label: 'How it is organized', enabled: false, intent: 'See the map: the main parts and how they connect.' },
-  { id: 'why_built', number: 6, group: 'Understanding it', label: 'Why it is built this way', enabled: false, intent: 'Understand the design choices and trade-offs.' },
-  { id: 'learn_concept', number: 7, group: 'The knowledge behind it', label: 'Learn a concept through this codebase', enabled: true, goalId: 'learn_concept', intent: 'Learn the science or idea the code implements.' },
-  { id: 'tech_stack', number: 8, group: 'The knowledge behind it', label: 'The tech stack', enabled: false, intent: 'Learn the tools and libraries it relies on.' },
-  { id: 'domain', number: 9, group: 'The knowledge behind it', label: 'The domain', enabled: false, intent: "Learn the field's vocabulary and practices." },
-  { id: 'debug_behavior', number: 10, group: 'Working on it', label: 'Debug behavior', enabled: true, goalId: 'debug_behavior', intent: 'Find and confirm the cause of a problem or a wrong result.' },
-  { id: 'make_change', number: 11, group: 'Working on it', label: 'Make a change', enabled: true, goalId: 'make_change', intent: 'Make a safe, focused change to the code.' },
-  { id: 'prepare_contribute', number: 12, group: 'Working on it', label: 'Prepare to contribute', enabled: true, goalId: 'prepare_contribute', intent: 'Learn the conventions, tests and where things belong so I can contribute.' },
-  { id: 'review_change', number: 13, group: 'Working on it', label: 'Review a change', enabled: false, intent: "Judge someone else's change, or an AI's change." },
-  { id: 'teach_it', number: 14, group: 'Passing it on', label: 'Teach it', enabled: false, intent: 'Explain the codebase to others: build a course or an onboarding path from it.' },
+  { id: 'use_codebase', number: 1, promptFile: 'uses/use_codebase.md', group: 'Using it', label: 'Use the codebase', enabled: true, intent: 'Run it, configure it and get a result: see it work.' },
+  { id: 'build_on_it', number: 2, promptFile: 'uses/build_on_it.md', group: 'Using it', label: 'Build on it', enabled: false, intent: 'Call it from my own code, or adapt it to my own data.' },
+  { id: 'operate_it', number: 3, promptFile: 'uses/operate_it.md', group: 'Using it', label: 'Operate it', enabled: false, intent: 'Deploy it, monitor it and know what breaks.' },
+  { id: 'understand_feature', number: 4, promptFile: 'uses/understand_feature.md', group: 'Understanding it', label: 'Understand a feature', enabled: true, goalId: 'understand_feature', intent: 'Trace one behaviour end to end: how a particular feature works.' },
+  { id: 'how_organized', number: 5, promptFile: 'uses/how_organized.md', group: 'Understanding it', label: 'How it is organized', enabled: false, intent: 'See the map: the main parts and how they connect.' },
+  { id: 'why_built', number: 6, promptFile: 'uses/why_built.md', group: 'Understanding it', label: 'Why it is built this way', enabled: false, intent: 'Understand the design choices and trade-offs.' },
+  { id: 'learn_concept', number: 7, promptFile: 'uses/learn_concept.md', group: 'The knowledge behind it', label: 'Learn a concept through this codebase', enabled: true, goalId: 'learn_concept', intent: 'Learn the science or idea the code implements.' },
+  { id: 'tech_stack', number: 8, promptFile: 'uses/tech_stack.md', group: 'The knowledge behind it', label: 'The tech stack', enabled: false, intent: 'Learn the tools and libraries it relies on.' },
+  { id: 'domain', number: 9, promptFile: 'uses/domain.md', group: 'The knowledge behind it', label: 'The domain', enabled: false, intent: "Learn the field's vocabulary and practices." },
+  { id: 'debug_behavior', number: 10, promptFile: 'uses/debug_behavior.md', group: 'Working on it', label: 'Debug behavior', enabled: true, goalId: 'debug_behavior', intent: 'Find and confirm the cause of a problem or a wrong result.' },
+  { id: 'make_change', number: 11, promptFile: 'uses/make_change.md', group: 'Working on it', label: 'Make a change', enabled: true, goalId: 'make_change', intent: 'Make a safe, focused change to the code.' },
+  { id: 'prepare_contribute', number: 12, promptFile: 'uses/prepare_contribute.md', group: 'Working on it', label: 'Prepare to contribute', enabled: true, goalId: 'prepare_contribute', intent: 'Learn the conventions, tests and where things belong so I can contribute.' },
+  { id: 'review_change', number: 13, promptFile: 'uses/review_change.md', group: 'Working on it', label: 'Review a change', enabled: false, intent: "Judge someone else's change, or an AI's change." },
+  { id: 'teach_it', number: 14, promptFile: 'uses/teach_it.md', group: 'Passing it on', label: 'Teach it', enabled: false, intent: 'Explain the codebase to others: build a course or an onboarding path from it.' },
 ]);
 export const useOf = id => CODEBASE_USES.find(use => use.id === id) || null;
 // Typed text is routed to one of these by the existing JEV router (chat-capability-route.js decideChat, a Choice over a capability

@@ -19,13 +19,16 @@ const lines = (start, end) => (start ? `:${start}${end && end > start ? `-${end}
 
 // A repository card's block (no id or position: insertCard places it). label: a symbol's name, shown after the file's.
 // A symbol (nodeId) with only its first line reads on from there; lines start-end are exactly that range.
-export function repoCodeCard({ app, repo, commit, path, start = null, end = null, nodeId = null, label = null }) {
+// ranges, from (a code-explain satellite, code-explain-card-spec.md 2b; schema in control-plane code-explain.schema.json codeCardAdditions): several highlighted ranges [{ id, start, end }]
+// with the lines between dimmed (CodeLines.jsx), and "codeExplain:<primary card id>", the card this one was added from.
+export function repoCodeCard({ app, repo, commit, path, start = null, end = null, nodeId = null, label = null, ranges = null, from = null }) {
   const file = nameOf(path);
   return {
     type: 'repo-code',
     title: label && label !== file ? `${file} · ${label}` : file,
     language: codeLanguage(path),
     source: { kind: 'repository', app, repo, commit, path, ...(start ? { start, ...(end ? { end } : {}) } : {}), ...(nodeId ? { nodeId } : {}) },
+    ...(ranges?.length ? { ranges } : {}), ...(from ? { from } : {}),
   };
 }
 

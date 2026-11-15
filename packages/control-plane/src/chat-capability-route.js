@@ -11,7 +11,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { MOTION_PAUSED, motionOffered, motionPaused, reviewRequired } from './generation-proposal.js';
 import { sha256, sign, verify } from './token.js';
-import { CHAT_ROUTE_PROTOCOL_VERSION, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCapability, chatRouteRequest, chatRoutesWith, explicitCommand, isPlainExplain, isSmallTalk, readChatRoute } from '../../web/src/inline-ai-route.js';
+import { CHAT_ROUTE_PROTOCOL_VERSION, CODE_CAPABILITIES, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCapability, chatRouteRequest, chatRoutesWith, explicitCommand, isPlainExplain, isSmallTalk, readChatRoute } from '../../web/src/inline-ai-route.js';
 import { SLASH, commandLabel, typedOf, unavailableCommand } from '../../web/src/agent/slash.js';
 import { imageAllowed } from './image-settings.js';
 import { paidOf } from '../../web/src/inline-ai-decide.js';
@@ -48,7 +48,10 @@ export const answerToolsOn = (env, mode) => {
 };
 // The guarded capabilities plain words may reach here (EXP-T15): /explain v2 only where EXPLAIN_V2_ENABLED (explain-job.js
 // explainEnabled). Off, the router's question is exactly what it was; a typed /explain still dispatches either way.
-const offeredRoutes = env => chatRoutesWith(env.EXPLAIN_V2_ENABLED === 'true' ? ['explain'] : []);
+// code-explain (docs tutor-prompts-and-routing.md section 1b) is offered only while the chat holds at least one code ref (context_refs kind 'code', ids code:<repo>@<commit>:<path>):
+// with none it is not a route, so a code question stays an ordinary chat answer.
+export const hasCodeRef = refs => Array.isArray(refs) && refs.some(ref => ref?.kind === 'code' || /^code:/.test(String(ref?.sourceId ?? '')));
+const offeredRoutes = (env, fields = {}) => chatRoutesWith([...(env.EXPLAIN_V2_ENABLED === 'true' ? ['explain'] : []), ...(hasCodeRef(fields.source_refs) ? Object.keys(CODE_CAPABILITIES) : [])]);
 const unavailable = (env, name, email = null) => (name === 'motion' && motionPaused(env, email) ? MOTION_PAUSED : name === 'motion' ? 'Video explainers (Motion) are not available on this canvas.' : `${commandLabel(name)} isn't available here.`);
 
 // One chat line's decision. deps.ask is the JEV call (counted in tests). Returns the response body.
@@ -62,12 +65,14 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   const pick = async (name, via, args, extra = {}) => {
     const removed = unavailableCommand(typedOf(name), { imageGeneration: imageAllowed(env, email), whiteboard: env.WHITEBOARD_ENABLED === 'true' }); // name is a stable id; unavailableCommand takes what was typed
     if (removed) return refuse(via, removed);
-    const declared = chatCapability(name);
-    const entry = SLASH.find(command => command.name === name && command.places.includes('learn')) ?? (declared?.standalone ? { needs: null } : null); // standalone: a router-only capability the browser runs (Create a course, owner 2026-11-14)
+    const codeRoute = CODE_CAPABILITIES[name] ?? null; // a route with no slash command: only while the chat holds a code ref, whoever asked for it
+    if (codeRoute && !hasCodeRef(fields.source_refs)) return answer(via);
+    const declared = chatCapability(name) ?? codeRoute;
+    const entry = codeRoute ? { needs: null } : SLASH.find(command => command.name === name && command.places.includes('learn')) ?? (declared?.standalone ? { needs: null } : null); // standalone: a router-only capability the browser runs (Create a course, owner 2026-11-14)
     if (!entry) return refuse(via, `/${name} is not a Learn command.`);
     if (!availability(env, { name, needs: entry.needs || null }, enabled, email)) return { ...refuse(via, unavailable(env, name, email)), ...extra };
     const flow = declared?.flow === 'proposal' && reviewRequired(name) ? 'proposal' : 'direct';
-    const token = await sign({ t: 'chat-route', cap: name, flow, h: await bindingOf(email, fields), exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_S }, await signingKey(env));
+    const token = await sign({ t: 'chat-route', cap: name, flow, c: Number.isFinite(extra.confidence) ? extra.confidence : null, h: await bindingOf(email, fields), exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_S }, await signingKey(env));
     return { ...base, ...extra, route: `capability:${name}`, via, capability: name, flow, args, paid: paidOf(name), settings: flow === 'proposal' && declared?.settings?.length ? declared.settings : null, token };
   };
   if (capability === 'answer') return answer('capability');
@@ -83,7 +88,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   // Which piece of router configuration is missing is logged (names only), so a production fallback is explained by its Worker log line.
   const keyed = !!transport && !!(await signingKey(env));
   if (!keyed) { log({ request_id: requestId, outcome: 'unavailable', reason: transport ? 'no_signing_key' : 'no_transport', ms: Date.now() - started }); return failed('unavailable'); }
-  const routes = offeredRoutes(env);
+  const routes = offeredRoutes(env, fields);
   let out, read;
   try {
     out = await ask(env, chatRouteRequest({ text, selection: fields.selection, sourceRefs: fields.source_refs, history: fields.history }, JEV_TRANSPORTS[transport].model, routes), { transport, timeoutMs });
@@ -106,9 +111,9 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
 
 // The scoped call for the Tutor's intake question (web/src/codebase-use-route.js: why it does not breach the 2026-10-21 rule): the same JEV transport, timeout and
 // thresholds, over the 14 codebase uses instead of the chat capabilities. No token, no capability, nothing runs here: it only says which use the typed words ask for
-// (use: null when it is not sure, so the chips stay; a failure or a missing key is the same: nothing is guessed).
+// (use: null when it is not sure, so the chips stay; a failure or a missing key is the same: nothing is guessed). route: { use, confidence } when a use was chosen, else null (docs tutor-prompts-and-routing.md 1a).
 export async function decideCodebaseUse(env, { requestId, text }, { ask = askJev, timeoutMs = ROUTE_TIMEOUT_MS, thresholds = ROUTE_THRESHOLDS } = {}) {
-  const none = (via, extra = {}) => ({ use: null, via, confidence: null, probability: null, ...extra });
+  const none = (via, extra = {}) => ({ use: null, via, confidence: null, probability: null, route: null, ...extra });
   const transport = jevTransport(env);
   if (!transport) { log({ request_id: requestId, outcome: 'unavailable', scope: USE_SCOPE, reason: 'no_transport' }); return none('fallback', { retryable: true, code: 'unavailable' }); }
   const started = Date.now();
@@ -116,7 +121,8 @@ export async function decideCodebaseUse(env, { requestId, text }, { ask = askJev
     const out = await ask(env, codebaseUseRequest({ text }, JEV_TRANSPORTS[transport].model), { transport, timeoutMs });
     const read = readCodebaseUse(out.body);
     log({ request_id: requestId, outcome: 'routed', scope: USE_SCOPE, choice: read.choice, confidence: read.confidence, probability: read.probability, ms: out.ms ?? Date.now() - started });
-    return useDecision(read, { thresholds });
+    const decision = useDecision(read, { thresholds });
+    return { ...decision, route: decision.use ? { use: decision.use, confidence: decision.confidence } : null }; // section 1a: the record the saved goal and the message meta carry
   } catch (error) {
     log({ request_id: requestId, outcome: error instanceof JevError ? error.code : 'malformed', scope: USE_SCOPE, ms: Date.now() - started });
     return none('fallback', { retryable: true, code: error instanceof JevError && error.code === 'timeout' ? 'timeout' : 'unavailable' });
@@ -131,7 +137,7 @@ export async function verifyChatRoute(env, body, email) {
   const payload = await verify(body.route_token, key).catch(() => null);
   const fields = { app: body.scope?.app, text: body.message, mode: body.mode, selection: body.canvas_target, source_refs: body.context_refs, motion: body.generation?.motion };
   if (!payload || payload.t !== 'chat-route' || payload.h !== await bindingOf(email, fields)) return null;
-  return { cap: payload.cap, flow: payload.flow };
+  return { cap: payload.cap, flow: payload.flow, confidence: payload.c ?? null };
 }
 
 // POST /api/learn/chat/route (dev-worker.js). Authorized for the canvas as the chat turn is.
