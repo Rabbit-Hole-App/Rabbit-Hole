@@ -100,7 +100,8 @@ const ZOOM_ROW_H = 30; // the zoom row: 28px IconBtns in a 1px border
 // study: the owner page's useStudy object, already read from this canvas's saved arrangement; in Study the placeholder draws the
 // minimap only when the learner chose it there, the same rule the canvas applies (widget-visibility.js). No study: Canvas.
 export function CanvasChromeLoading({ tools = true, feedback = false, top = 0, study = null }) {
-  const prefs = effectiveWidgets({ mode: study?.mode === 'study' ? 'study' : 'canvas', canvas: uiPrefs(), study: study?.state?.maps });
+  const prefs = effectiveWidgets({ mode: study?.mode === 'study' ? 'study' : 'canvas', canvas: uiPrefs(), study: study?.state?.maps, repository: !!study?.repository });
+  if (study?.mode === 'study' && study?.repository) prefs.toolbar = false; // a repository canvas in Study draws no toolbar (widget-visibility.js)
   const lowerLeft = (prefs.minimap ? MINIMAP_SIZE.h + 8 : 0) + ZOOM_ROW_H + 20;
   return (
     <div aria-hidden="true" data-loading-chrome className="pointer-events-none absolute inset-0">

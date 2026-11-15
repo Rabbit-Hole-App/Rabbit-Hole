@@ -1,3 +1,4 @@
+import { REHEARSAL } from './rehearsal-flag.js';
 import { equationTransaction } from './inline-equation-apply.js';
 import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, downloadCadArtifact } from './CadCard.jsx';
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
@@ -144,7 +145,8 @@ const InlineAiEditor = lazyFeature(() => import('./InlineAiEditor.jsx'), 'The AI
 // A document as a card (DocNode below), loaded with the first such card, never with the canvas.
 const DocCard = lazyFeature(() => import('./DocCard.jsx'), 'The document editor');
 // A Run card (RunCard.jsx; rehearsal-cards.js), loaded with the first such card.
-const RunCard = lazyFeature(() => import('./RunCard.jsx'), 'The run card');
+// The literal env test beside the import is what lets Vite drop the chunk from a build without VITE_REHEARSAL_TRIGGER (the form home/review-fixtures.js uses); it runs only when the card renders.
+const RunCard = lazyFeature(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./RunCard.jsx') : Promise.reject(new Error('The run card is not part of this build'))), 'The run card');
 // The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
 const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
 // SVG, audio and video card bodies load with the first such card (docs/features/canvas-file-imports.md, Media).
@@ -956,6 +958,7 @@ function RunNode({ block, zoom, selected, connected, onSelect, onMove, onLayout,
   const latest = useRef({ block, edit });
   latest.current = { block, edit };
   useEffect(() => {
+    if (!REHEARSAL) return undefined;
     const take = event => {
       if (event.defaultPrevented) return;
       const { block: card, edit: ctx } = latest.current, out = applyKnobEvent(card.run, card.generated, event.detail);
@@ -974,9 +977,11 @@ function RunNode({ block, zoom, selected, connected, onSelect, onMove, onLayout,
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       hoverTools={!selected ? <HoverActions id={block.id} select={onSelect} joined /> : null}
       tools={selected ? <SelectionActionsHost id={block.id} joined /> : null}>
+      {REHEARSAL && (
       <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the run card</p>}>
         <RunCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)} onSave={run => edit.patchBlock?.(block.id, { run }, true)} />
       </Suspense>
+      )}
     </CanvasNode>
   );
 }
@@ -2041,15 +2046,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Study (focus-study.md): there both maps are hidden unless the learner chose one in Study. minimap and holeMap below are what
   // is shown (render, footprint, onState checkmarks); the Canvas preferences above are never written by Study.
   const widgetMode = study?.mode === 'study' ? 'study' : 'canvas';
-  const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps });
+  // study.repository: a repository canvas, where Study hides the toolbar and both maps outright (widget-visibility.js studyHides).
+  const studyRepository = !!study?.repository;
+  const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps, repository: studyRepository });
   // Focus (docs/features/focus-study.md): one card alone in the working pane, through focus-controller.js. Presentation only:
   // no board write, no undo entry (snapshot is never called for it), no model call. The adapter restyles the card's own host.
   const [focus, dispatchFocus] = useReducer(focusReducer, null);
   // The toolbar drawn: View > Toolbar, except over a pinned Study's notebook in Focus (widget-visibility.js toolbarDrawn); `toolbar`
   // stays the saved choice (View menu checkmark, onState).
-  const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind });
+  const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
   const showWidget = (name, on) => {
-    const route = widgetToggle({ mode: widgetMode, name, on });
+    const route = widgetToggle({ mode: widgetMode, name, on, repository: studyRepository });
     if (!route) return;
     if (route.store === 'study') { study?.setMap(name, on); return; }
     ({ minimap: setMinimapPref, holeMap: setHoleMapPref, curious: setCurious, toolbar: setToolbar })[name](on);

@@ -89,7 +89,7 @@ function MenuPanel({ items, label, nested = false, focusFirst = false, onDone, o
         const kind = item.check !== undefined ? 'menuitemcheckbox' : item.radio !== undefined ? 'menuitemradio' : 'menuitem';
         const on = kind === 'menuitemcheckbox' ? item.check : kind === 'menuitemradio' ? item.radio : undefined;
         return (
-          <button key={item.label} type="button" role={kind} data-menu-item={item.label} disabled={item.disabled} aria-checked={on === undefined ? undefined : !!on} aria-keyshortcuts={item.keys || undefined}
+          <button key={item.label} type="button" role={kind} data-menu-item={item.label} disabled={item.disabled} title={item.title || undefined} aria-checked={on === undefined ? undefined : !!on} aria-keyshortcuts={item.keys || undefined}
             onPointerEnter={hover(item)}
             // A check row flips in place and the menu stays open, so the canvas reflows beside it; anything else closes the menu.
             onClick={() => { if (kind === 'menuitemcheckbox') { item.onToggle(!item.check); return; } onDone(); item.onSelect?.(); }}

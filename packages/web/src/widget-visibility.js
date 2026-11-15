@@ -7,12 +7,20 @@ import { STUDY_MAPS } from './study-state.js';
 
 export const WIDGETS = Object.freeze(['minimap', 'holeMap', 'curious', 'toolbar']);
 
+// A repository canvas in Study (pinned-study-codebase-spec.md 2d): the work and reference panes are the whole screen, so the toolbar, the minimap and the
+// Rabbit Hole map are hidden whatever the saved choices, the Study map choice included. Release 1 canvases (no repository) keep the rule below.
+export const STUDY_HIDDEN = Object.freeze(['toolbar', 'minimap', 'holeMap']);
+export const HIDDEN_IN_STUDY = 'Hidden in Study';
+export const studyHides = ({ mode, repository = false } = {}) => mode === 'study' && !!repository;
+// View > Show / hide's rows that cannot be changed now (greyed, tooltip HIDDEN_IN_STUDY). Nothing is written to the Canvas preferences.
+export const widgetLocked = ({ mode, repository = false, name } = {}) => studyHides({ mode, repository }) && STUDY_HIDDEN.includes(name);
+
 // mode: 'canvas' | 'study'. canvas: the Canvas preferences in force ({ minimap, holeMap, curious, toolbar }). study: the Study
 // arrangement's maps ({ minimap?, holeMap? }); a map with no explicit Study choice is hidden while studying.
-export function effectiveWidgets({ mode, canvas, study } = {}) {
+export function effectiveWidgets({ mode, canvas, study, repository = false } = {}) {
   const out = {};
   for (const name of WIDGETS) out[name] = typeof canvas?.[name] === 'boolean' ? canvas[name] : UI_PREF_DEFAULTS[name];
-  if (mode === 'study') for (const name of STUDY_MAPS) out[name] = study?.[name] === true;
+  if (mode === 'study') for (const name of STUDY_MAPS) out[name] = !repository && study?.[name] === true;
   return out;
 }
 
@@ -20,8 +28,8 @@ export function effectiveWidgets({ mode, canvas, study } = {}) {
 //   { store: 'study', action } - dispatch action to the Study reducer (study-state.js setMap); the Canvas preference is untouched;
 //   { store: 'canvas', name, on } - the Canvas preference (AdaptiveCanvas state + saveUiPref); the Study choice is untouched.
 // null for a name that is not a widget.
-export function widgetToggle({ mode, name, on }) {
-  if (!WIDGETS.includes(name) || typeof on !== 'boolean') return null;
+export function widgetToggle({ mode, name, on, repository = false }) {
+  if (!WIDGETS.includes(name) || typeof on !== 'boolean' || widgetLocked({ mode, repository, name })) return null;
   if (mode === 'study' && STUDY_MAPS.includes(name)) return { store: 'study', action: { type: 'setMap', name, on } };
   return { store: 'canvas', name, on };
 }
@@ -38,5 +46,6 @@ export function focusWidgets(shown, focused) {
 
 // The drawing toolbar is drawn as View > Toolbar says, except over a pinned Study's notebook in Focus (owner, 2026-10-29): there it
 // stands down too. A view, never written back: Canvas or unpinning shows the saved choice again, a hidden toolbar still hidden.
-export const toolbarDrawn = (toolbar, { studying = false, pinned = false, focusKind = null } = {}) =>
-  !!toolbar && !(studying && pinned && focusKind === 'notebook');
+// On a repository canvas the toolbar is not drawn in Study at all: for every focusKind, and for work 'canvas' (owner, 2026-11-15).
+export const toolbarDrawn = (toolbar, { studying = false, pinned = false, focusKind = null, repository = false } = {}) =>
+  !!toolbar && !(studying && repository) && !(studying && pinned && focusKind === 'notebook');

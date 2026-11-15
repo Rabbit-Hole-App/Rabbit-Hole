@@ -91,3 +91,38 @@ test('toolbarDrawn: hidden over the pinned Study notebook only, otherwise the sa
     assert.equal(toolbarDrawn(saved), saved);
   }
 });
+
+// Pinned Study for a codebase canvas (pinned-study-codebase-spec.md 2d): on a repository canvas, Study hides the toolbar, the minimap and the Rabbit Hole map
+// whatever the saved choices, for every work and focus kind; a Release 1 canvas keeps its rules; nothing is written.
+import { HIDDEN_IN_STUDY, studyHides, widgetLocked } from './widget-visibility.js';
+
+test('repository canvas in Study: toolbar, minimap and holeMap hidden for every work x focusKind; Canvas mode and Release 1 canvases keep the saved choices', () => {
+  const study = { minimap: true, holeMap: true };
+  for (const work of ['canvas', 'notebook', 'run', 'runbook']) for (const focusKind of [null, 'notebook', 'run', 'doc', 'pdf']) {
+    const shown = effectiveWidgets({ mode: 'study', canvas: ALL_ON, study, repository: true });
+    assert.deepEqual([shown.minimap, shown.holeMap, toolbarDrawn(true, { studying: true, pinned: work === 'notebook', focusKind, repository: true })], [false, false, false], `${work} ${focusKind}`);
+  }
+  assert.deepEqual(effectiveWidgets({ mode: 'canvas', canvas: ALL_ON, study, repository: true }), ALL_ON, 'Canvas: as saved');
+  assert.equal(toolbarDrawn(true, { studying: false, repository: true }), true);
+  assert.deepEqual(effectiveWidgets({ mode: 'study', canvas: ALL_ON, study }), { ...ALL_ON }, 'Release 1: the Study map choice still shows them');
+  assert.equal(toolbarDrawn(true, { studying: true, pinned: false, focusKind: 'notebook' }), true, 'Release 1: the toolbar rule is unchanged');
+});
+
+test('repository Study: the toggles are locked with the tooltip; nothing reaches either store; leaving Study shows the saved choices', () => {
+  assert.equal(HIDDEN_IN_STUDY, 'Hidden in Study');
+  for (const name of ['toolbar', 'minimap', 'holeMap']) {
+    assert.equal(widgetLocked({ mode: 'study', repository: true, name }), true, name);
+    assert.equal(widgetToggle({ mode: 'study', name, on: true, repository: true }), null, `${name}: no store is written`);
+    assert.equal(widgetLocked({ mode: 'canvas', repository: true, name }), false);
+    assert.equal(widgetLocked({ mode: 'study', repository: false, name }), false);
+  }
+  assert.equal(widgetLocked({ mode: 'study', repository: true, name: 'curious' }), false);
+  assert.deepEqual(widgetToggle({ mode: 'study', name: 'curious', on: false, repository: true }), { store: 'canvas', name: 'curious', on: false });
+  assert.deepEqual(widgetToggle({ mode: 'study', name: 'minimap', on: true }), { store: 'study', action: { type: 'setMap', name: 'minimap', on: true } }, 'Release 1: unchanged');
+  assert.equal(studyHides({ mode: 'study', repository: true }), true);
+  assert.equal(studyHides({ mode: 'canvas', repository: true }), false);
+  const prefs = memory(), before = readUiPrefs(prefs);
+  effectiveWidgets({ mode: 'study', canvas: before, study: {}, repository: true });
+  assert.deepEqual(readUiPrefs(prefs), before, 'computing the Study view writes nothing');
+  assert.deepEqual(effectiveWidgets({ mode: 'canvas', canvas: before, study: {}, repository: true }), effectiveWidgets({ mode: 'canvas', canvas: before }), 'leaving Study: the saved choices');
+});

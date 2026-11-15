@@ -200,7 +200,7 @@ export function startSource(refs, goalId) {
 // never hidden. `goalId` links a use to an existing CODEBASE_GOALS entry; `use_codebase` has none (it runs the rehearsal pipeline).
 // `intent` is the one sentence of what the person wants, the scoped capability description the router reads (below). Pure data.
 export const CODEBASE_USE_GROUPS = ['Using it', 'Understanding it', 'The knowledge behind it', 'Working on it', 'Passing it on'];
-export const CODEBASE_USES = Object.freeze([
+export const CODEBASE_USES = /* @__PURE__ */ Object.freeze([
   { id: 'use_codebase', number: 1, group: 'Using it', label: 'Use the codebase', enabled: true, intent: 'Run it, configure it and get a result: see it work.' },
   { id: 'build_on_it', number: 2, group: 'Using it', label: 'Build on it', enabled: false, intent: 'Call it from my own code, or adapt it to my own data.' },
   { id: 'operate_it', number: 3, group: 'Using it', label: 'Operate it', enabled: false, intent: 'Deploy it, monitor it and know what breaks.' },
@@ -221,4 +221,4 @@ export const useOf = id => CODEBASE_USES.find(use => use.id === id) || null;
 // set), with THIS set instead of CHAT_CAPABILITIES, and ONLY while the intake question is open on a repository canvas. It is a reply to
 // the Tutor's own question, so the 2026-10-21 rule "plain words never start goal changes" is not breached. Below the router's own
 // confidence threshold the chips stay and nothing is guessed. Disabled uses may be chosen by the router: the Tutor then says it is not built yet.
-export const CODEBASE_USE_CAPABILITIES = Object.freeze(Object.fromEntries(CODEBASE_USES.map(use => [use.id, Object.freeze({ intent: use.intent, enabled: use.enabled })])));
+export const CODEBASE_USE_CAPABILITIES = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.fromEntries(CODEBASE_USES.map(use => [use.id, Object.freeze({ intent: use.intent, enabled: use.enabled })])));

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ChartLine, ChevronDown, CircleHelp, Code, CornerDownRight, Film, Image, NotebookPen, PencilLine, SlidersHorizontal, Video, Workflow } from 'lucide-react';
 import { isLearnCommand } from './learn-slash.js';
 import { addKnobToCard, knobActionOn, knobFromAnswer } from './tutor-knob-action.js';
+import { REHEARSAL } from './rehearsal-flag.js';
 
 // What the Run card said back (RunNode answers the event: tutor-knob-action.js addKnobToCard).
 const KNOB_NOTE = { added: 'Added to the Run card.', exists: 'The Run card already has it.', nostep: 'Start the Run card session first, so I know which step it belongs to.', locked: 'The Run card is locked or view-only.', full: 'The Run card has the most added parameters it can hold.', invalid: 'I cannot add that one.', none: 'This canvas has no Run card for this repository.' };
@@ -19,7 +20,7 @@ export default function AnswerSuggestions({ message, latest, threadId, prepare, 
   const [openKey, setOpenKey] = useState(null), [knobNote, setKnobNote] = useState({ key: '', text: '' });
   if (message?.role !== 'assistant' || message.status !== 'done') return null;
   // Run card v1.1 Part 1b: an answer to a question about changing a parameter that quotes the line declaring it carries ONE action, Add the flag to the Run card. Nothing is guessed (tutor-knob-action.js).
-  const knob = knobActionOn() ? knobFromAnswer({ question, content: message.content, contextRefs: message.meta?.contextRefs }) : null;
+  const knob = REHEARSAL && knobActionOn() ? knobFromAnswer({ question, content: message.content, contextRefs: message.meta?.contextRefs }) : null;
   // Only records that can be drawn and run: a malformed one (an object label, no subject, no code) is skipped, never thrown.
   const text = value => typeof value === 'string' && value.trim() !== '';
   // A saved answer keeps the actions it was validated with: one from before the 2026-10-20 cleanup can name a removed command
@@ -41,7 +42,7 @@ export default function AnswerSuggestions({ message, latest, threadId, prepare, 
     <div data-answer-suggestions={key} className="mt-2 flex flex-col gap-2">
       {(actions.length > 0 || knob) && (
         <div role="group" aria-label="Suggested actions" className="flex flex-wrap items-center gap-1.5">
-          {knob && (
+          {REHEARSAL && knob && (
             <>
               <button type="button" data-answer-action="run-card-knob" onClick={() => setKnobNote({ key, text: KNOB_NOTE[addKnobToCard(knob)] || '' })}
                 title="Adds this parameter to the Run card of this repository"

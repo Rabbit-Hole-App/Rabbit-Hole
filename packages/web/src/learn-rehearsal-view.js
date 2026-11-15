@@ -4,8 +4,9 @@
 // { status: 'ready', elapsedSec, record } (record per schemas/record.json), failure = { status: 'failed', elapsedSec, error }.
 // Pure: no storage, no network, no React.
 
-// Read when used, not at import: a test bundle that imports this module has no import.meta.env. Dev builds only (VITE_REHEARSAL_TRIGGER=1): the new Tutor chat flow.
-export const rehearsalOn = () => import.meta.env.VITE_REHEARSAL_TRIGGER === '1';
+// Dev builds only (VITE_REHEARSAL_TRIGGER=1, rehearsal-flag.js): the new Tutor chat flow.
+import { REHEARSAL } from './rehearsal-flag.js';
+export const rehearsalOn = () => REHEARSAL;
 export const REHEARSAL_LABEL = 'Use the codebase';
 export const REHEARSAL_FIXES_HEADING = "What the README didn't say";
 export const REHEARSAL_POLL_MS = 5000;
