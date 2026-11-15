@@ -60,3 +60,23 @@ test('the family lists: the registry, and the registry plus the inline curve-sli
   assert.equal(r.family, 'vertical-throw');
   assert.equal((await stubPick({}, { request: 'How does DNS resolve a name?' }, { families: lists.vt })).family, null);
 });
+
+test('three-family run: the groups are the both-vote rows and the design-pick labels; outcome and the report pick the highest threshold with 0 wrong fits', async () => {
+  const { threePrompts, outcome, threeReportMarkdown } = await import('../../../scripts/interact/bench-pick.mjs');
+  const cov = [
+    { set: 's', id: 'a', prompt: 'merge sort', jevTop: 'stepper-states', sonnetChoice: 'stepper-states' },
+    { set: 's', id: 'b', prompt: 'split vote', jevTop: 'stepper-states', sonnetChoice: 'none' },
+    { set: 's', id: 'c', prompt: 'poetry', jevTop: 'none', sonnetChoice: 'none' },
+  ];
+  const design = [{ id: 1, prompt: 'toss', label: 'vertical-throw' }, { id: 11, prompt: 'either', label: 'either' }, { id: 3, prompt: 'neg', label: 'none' }];
+  const prompts = threePrompts(cov, design);
+  assert.deepEqual(prompts.map(p => `${p.group}:${p.label}`), ['a:stepper-states', 'b:vertical-throw', 'c:none', 'd:none']);
+  const call = (id, p) => ({ list: 'three', id, depth: 'balanced', rep: 0, probabilities: p });
+  const rows = [
+    call('st:s/a', { 'stepper-states': 0.8, none: 0.2 }), call('dp:1', { 'vertical-throw': 0.99, none: 0.01 }),
+    call('no:s/c', { 'stepper-states': 0.6, none: 0.4 }), call('dp:3', { none: 1 }),
+  ];
+  assert.deepEqual([0.5, 0.7, 0.9].map(t => outcome([rows[0]], 'stepper-states', t)), ['ok', 'ok', 'm']);
+  assert.deepEqual([0.5, 0.7].map(t => outcome([rows[2]], 'none', t)), ['W', '-']);
+  assert.match(threeReportMarkdown(rows, prompts, { thresholds: [0.5, 0.7, 0.9] }), /Chosen threshold on groups a, b, c: \*\*0\.9\*\*/); // the highest threshold with 0 wrong fits, however many fits it misses
+});

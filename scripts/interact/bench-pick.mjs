@@ -4,6 +4,8 @@
 // per list, so each list is its own 540 JEV calls, 1080 in all). pickFamily runs once per call with threshold 0, so the raw choice and probabilities are stored; the thresholds are applied offline to the stored rows.
 //   node scripts/interact/bench-pick.mjs [--concurrency 4] [--repeats 3] [--depths brief,balanced,detailed] [--limit-prompts N] [--lists vt,vt+curve] [--dry] [--no-write]
 //   node scripts/interact/bench-pick.mjs --report        (docs/features/interact/benchmarks/bench-pick.jsonl -> bench-pick.md)
+//   node scripts/interact/bench-pick.mjs --three [--date 2026-11-15]   (brief 27 task 2: the THREE registered families over the stepper, toss/curve and none prompt groups, balanced only, thresholds
+//     0.5 to 0.95 -> docs/features/interact/benchmarks/bench-pick/<date>/rows.jsonl and bench-pick-<date>.md)
 // --dry: no network, a keyword stub stands in for pickFamily (harness proof). A real run needs TYPESAFE_API_KEY, read BY NAME from small-deploy/.env and never printed. No Opus; JEV only.
 import { parseArgs } from 'node:util';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -92,6 +94,49 @@ export function reportMarkdown(rows, set, opts = {}) {
   return lines.join('\n') + '\n';
 }
 
+// ---- the three-family run (brief 27 task 2): the registered families, four prompt groups ----
+export const THREE_THRESHOLDS = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95];
+// (a) the coverage rows both votes call stepper-states, (b) the toss and curve prompts of design-pick.json (label as is; `either` is left out), (c) the coverage rows both votes call none; (d) is the
+// design-pick `none` prompts, an extra negative set reported beside the brief's three groups, not part of its rule.
+export function threePrompts(coverageRows, designSet) {
+  const both = want => coverageRows.filter(r => r.jevTop === want && r.sonnetChoice === want);
+  return [
+    ...both('stepper-states').map(r => ({ id: `st:${r.set}/${r.id}`, prompt: r.prompt, label: 'stepper-states', group: 'a' })),
+    ...designSet.filter(p => p.label === 'vertical-throw' || p.label === 'curve-sliders').map(p => ({ id: `dp:${p.id}`, prompt: p.prompt, label: p.label, group: 'b' })),
+    ...both('none').map(r => ({ id: `no:${r.set}/${r.id}`, prompt: r.prompt, label: 'none', group: 'c' })),
+    ...designSet.filter(p => p.label === 'none').map(p => ({ id: `dp:${p.id}`, prompt: p.prompt, label: 'none', group: 'd' })),
+  ];
+}
+// One prompt's calls at one threshold: W a wrong fit (any call), m a missed fit (most calls gap), ok a right fit, - a none prompt left at gap.
+export function outcome(calls, label, t) {
+  if (calls.some(r => { const got = decide(r, t); return got && got !== label; })) return 'W';
+  if (label === 'none') return '-';
+  return calls.filter(r => !decide(r, t)).length * 2 > calls.length ? 'm' : 'ok';
+}
+export function threeReportMarkdown(rows, prompts, { thresholds = THREE_THRESHOLDS } = {}) {
+  const byId = id => rows.filter(r => String(r.id) === id);
+  const scan = groups => {
+    const ps = prompts.filter(p => groups.includes(p.group)), res = {};
+    for (const t of thresholds) res[t] = { wrong: ps.filter(p => outcome(byId(p.id), p.label, t) === 'W').length, missed: ps.filter(p => outcome(byId(p.id), p.label, t) === 'm').length };
+    return res;
+  };
+  const main = scan(['a', 'b', 'c']), extra = scan(['a', 'b', 'c', 'd']);
+  const chosen = [...thresholds].reverse().find(t => main[t].wrong === 0) ?? null, n = g => prompts.filter(p => p.group === g).length;
+  const lines = ['# bench-pick, three registered families (2026-11-15, brief 27 task 2)', '',
+    `${rows.length} JEV calls (pickFamily, threshold 0, probabilities stored; thresholds applied offline), families vertical-throw, curve-sliders, stepper-states, depth balanced, ${Math.round(rows.length / (prompts.length || 1))} calls per prompt. Groups: (a) stepper prompts, both coverage votes stepper-states: ${n('a')}; (b) toss and curve prompts of design-pick.json: ${n('b')}; (c) both-vote none rows of bench-coverage.jsonl: ${n('c')}; (d) the design-pick none prompts, an extra negative set: ${n('d')}.`, '',
+    'A wrong fit is a prompt where ANY call fits a family other than its label; a missed fit is a prompt with a family label where more than half of its calls come back gap. Threshold rule (brief 13): the HIGHEST value with 0 wrong fits.', '',
+    `Chosen threshold on groups a, b, c: **${chosen ?? 'none has 0 wrong fits'}**.`, '',
+    '| Threshold | Wrong (a+b+c) | Missed (a+b+c) | Wrong (a+b+c+d) | Missed (a+b+c+d) |', '|---|---|---|---|---|',
+    ...thresholds.map(t => `| ${t} | ${main[t].wrong} | ${main[t].missed} | ${extra[t].wrong} | ${extra[t].missed} |`), '',
+    'Per prompt: top family of each call (`none` included) with its probability, then W wrong fit, m missed fit, ok right fit, - none prompt left at gap, at each threshold.', '',
+    `| Id | Group | Label | Prompt | Calls: top family (confidence) | ${thresholds.join(' | ')} |`, `|---|---|---|---|---|${thresholds.map(() => '---').join('|')}|`];
+  for (const p of prompts) {
+    const calls = byId(p.id), tops = calls.map(r => { const [k, v] = topOf(r); return k ? `${k} ${round(v)}` : 'no answer'; }).join('; ');
+    lines.push(`| ${p.id} | ${p.group} | ${p.label} | ${p.prompt.replace(/\|/g, '/').slice(0, 90)} | ${tops} | ${thresholds.map(t => outcome(calls, p.label, t)).join(' | ')} |`);
+  }
+  return lines.join('\n') + '\n';
+}
+
 // ---- the run ----
 const keyFromEnvFile = (file = ENV_FILE) => {
   if (!existsSync(file)) return null;
@@ -100,9 +145,9 @@ const keyFromEnvFile = (file = ENV_FILE) => {
 };
 // A keyword stand-in for pickFamily so the harness runs with no network (--dry): throw words -> vertical-throw, curve words -> curve-sliders (when listed), else none.
 export const stubPick = async (env, { request }, { families }) => {
-  const ids = families.map(f => f.id), vt = /\b(throw|thrown|toss|tossed|ball)\b/i.test(request), curve = /\b(curve|sigmoid|logistic|decay|rate)\b/i.test(request);
+  const ids = families.map(f => f.id), vt = /\b(throw|thrown|toss|tossed|ball)\b/i.test(request), curve = /\b(curve|sigmoid|logistic|decay|rate)\b/i.test(request), steps = /\b(step|steps|algorithm|protocol|cycle)\b/i.test(request);
   const probabilities = Object.fromEntries([...ids, 'none'].map(k => [k, 0.05]));
-  const top = vt && ids.includes('vertical-throw') ? 'vertical-throw' : curve && ids.includes('curve-sliders') ? 'curve-sliders' : 'none';
+  const top = vt && ids.includes('vertical-throw') ? 'vertical-throw' : curve && ids.includes('curve-sliders') ? 'curve-sliders' : steps && ids.includes('stepper-states') ? 'stepper-states' : 'none';
   probabilities[top] = 0.9;
   return { family: top === 'none' ? null : top, confidence: 0.9, probabilities, ms: 1, reason: 'stub' };
 };
@@ -117,9 +162,37 @@ async function loadPick(dry) {
 export const FAMILY_LISTS = registry => ({ vt: registry, 'vt+curve': [...registry, CURVE_SLIDERS] });
 const LIST_NAMES = { vt: 'vertical-throw', 'vt+curve': 'vertical-throw+curve-sliders' };
 
+async function runThree(values) {
+  const dir = join(BENCH_DIR, 'bench-pick', values.date), strip = text => text.replace(/^﻿/, '');
+  const coverage = readFileSync(join(BENCH_DIR, 'bench-coverage.jsonl'), 'utf8').split(/\r?\n/).filter(Boolean).map(l => JSON.parse(l));
+  const prompts = threePrompts(coverage, JSON.parse(strip(readFileSync(SET_FILE, 'utf8')))).slice(0, values['limit-prompts'] ? Number(values['limit-prompts']) : undefined);
+  const depth = values.depths === DEPTHS.join(',') ? 'balanced' : values.depths, repeats = Number(values.repeats), concurrency = Math.max(1, Number(values.concurrency));
+  if (!DEPTHS.includes(depth)) throw new Error(`--depths takes one of ${DEPTHS.join(', ')} with --three`);
+  const key = values.dry ? 'stub' : keyFromEnvFile();
+  if (!key) throw new Error('TYPESAFE_API_KEY is not in small-deploy/.env. Next: add it there, or run with --dry.');
+  const { pickFamily, registry } = await loadPick(values.dry), env = { TYPESAFE_API_KEY: key };
+  const jobs = prompts.flatMap(p => Array.from({ length: repeats }, (_, rep) => ({ p, rep })));
+  console.log(`${jobs.length} calls (${registry.map(f => f.id).join(', ')}; ${prompts.length} prompts x ${repeats} repeats, depth ${depth}), concurrency ${concurrency}${values.dry ? ', DRY (stub, no network)' : ''}`);
+  const rows = []; let next = 0;
+  const worker = async () => {
+    for (let i = next++; i < jobs.length; i = next++) {
+      const { p, rep } = jobs[i], started = globalThis.performance.now();
+      let r; try { r = await pickFamily(env, { request: p.prompt, depth }, { families: registry, threshold: 0 }); } catch (error) { r = { family: null, confidence: 0, probabilities: null, reason: `threw: ${String(error.message).slice(0, 120)}` }; }
+      rows.push({ list: 'three', id: p.id, group: p.group, label: p.label, depth, rep, family: r.family ?? null, confidence: r.confidence ?? null, probabilities: r.probabilities ?? null, ms: Math.round(r.ms ?? globalThis.performance.now() - started), reason: r.reason ?? null, failed: !r.probabilities, at: new Date().toISOString() });
+      if (rows.length % 50 === 0) console.log(`${rows.length}/${jobs.length}`);
+    }
+  };
+  await Promise.all(Array.from({ length: concurrency }, worker));
+  const md = threeReportMarkdown(rows, prompts);
+  if (!values['no-write']) { mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'rows.jsonl'), rows.map(r => JSON.stringify(r)).join('\n') + '\n'); writeFileSync(join(dir, `bench-pick-${values.date}.md`), md); }
+  console.log(md.split('\n').slice(0, 26).join('\n'));
+}
+
 async function main() {
   const { values } = parseArgs({ options: { concurrency: { type: 'string', default: '4' }, repeats: { type: 'string', default: '3' }, depths: { type: 'string', default: DEPTHS.join(',') }, 'limit-prompts': { type: 'string' }, lists: { type: 'string', default: 'vt,vt+curve' },
-    dry: { type: 'boolean', default: false }, report: { type: 'boolean', default: false }, 'no-write': { type: 'boolean', default: false }, set: { type: 'string', default: SET_FILE } } });
+    dry: { type: 'boolean', default: false }, report: { type: 'boolean', default: false }, 'no-write': { type: 'boolean', default: false }, set: { type: 'string', default: SET_FILE },
+    three: { type: 'boolean', default: false }, date: { type: 'string', default: '2026-11-15' } } });
+  if (values.three) { await runThree(values); return; }
   const set = JSON.parse(readFileSync(values.set, 'utf8').replace(/^﻿/, ''));
   const prompts = set.slice(0, values['limit-prompts'] ? Number(values['limit-prompts']) : set.length);
   if (values.report) {
