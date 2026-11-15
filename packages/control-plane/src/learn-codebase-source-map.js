@@ -238,7 +238,7 @@ const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
 const ACTION_ID = /^[A-Za-z0-9_-]{8,120}$/;
 
 // The canvas's project repository, as projectRepository (canvases.js) reads it: the learner's own import, not in Trash, indexed.
-async function canvasRepository(env, access) {
+export async function canvasRepository(env, access) {
   if (!access.project) return null;
   const row = await env.LEARN_DB.prepare(`SELECT r.id, r.name, r.repo, r.commit_sha FROM repository_apps r WHERE r.org = ? AND r.name = ? AND r.owner_email = ? AND ${NOT_TRASHED('r.org', 'r.name')}`)
     .bind(access.org, access.project, access.email).first();

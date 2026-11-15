@@ -36,3 +36,14 @@ US$30 credit, no account cap. **Sprint stop-loss US$20 consumed on the Modal usa
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
 python -m pytest
 ```
+
+## Owner stack
+
+The control plane reaches the controller (`python packages/rehearsal-runtime/server.py`, port 8891) through the Durable Object `RepositoryRehearsals` (`packages/control-plane/src/learn-rehearsal.js`, route `/api/learn/rehearsal`). Two lines in the stack's `.dev.vars` (the file `owner-stack.sh` copies next to each config; `make-owner-stack.py` drops hook lines, so re-insert them after every run, as for `KEYHELPER`):
+
+```
+REHEARSAL_WORKER_URL=http://127.0.0.1:8891
+REHEARSAL_WORKER_TOKEN=<the same value the controller was started with>
+```
+
+Plain `http` is accepted for a loopback address only; any other `REHEARSAL_WORKER_URL` must be `https`. The binding `REPOSITORY_REHEARSALS` is declared in `packages/web/wrangler.dev.jsonc` and `scripts/ci/config/integ-local.jsonc` (the owner stack's worker config); production does not bind it and the route answers 404 there. `curl-b.sh` is the start, poll, ready, second-POST check for this path.

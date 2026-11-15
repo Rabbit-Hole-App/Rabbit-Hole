@@ -24,6 +24,10 @@
       {
         "name": "REPOSITORY_IMPORTS",
         "class_name": "RepositoryImports"
+      },
+      {
+        "name": "REPOSITORY_REHEARSALS",
+        "class_name": "RepositoryRehearsals"
       }
     ]
   },
@@ -44,6 +48,12 @@
       "tag": "repository-imports-1",
       "new_sqlite_classes": [
         "RepositoryImports"
+      ]
+    },
+    {
+      "tag": "repository-rehearsals-1",
+      "new_sqlite_classes": [
+        "RepositoryRehearsals"
       ]
     }
   ],

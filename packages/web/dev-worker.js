@@ -16,6 +16,7 @@ import { chatProposalFetch } from '../control-plane/src/chat-proposal-route.js';
 import { chatOutputsFetch } from '../control-plane/src/chat-outputs-route.js';
 import { libraryFoldersFetch, libraryFoldersRoute } from '../control-plane/src/library-folders.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
+export { RepositoryRehearsals } from '../control-plane/src/learn-rehearsal.js';
 export { LearnScenes } from '../control-plane/src/learn-scene.js';
 export { FileJobs } from '../control-plane/src/file-jobs.js';
 export { CadJobs } from '../control-plane/src/cad-jobs.js';
@@ -60,6 +61,7 @@ import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback,
 import { ownedNextStepsRoute } from '../control-plane/src/learn-next-steps-routes.js';
 import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
 import { codebaseRoute } from '../control-plane/src/learn-codebase-source-map.js';
+import { rehearsalRoute } from '../control-plane/src/learn-rehearsal.js';
 import { attemptRoute } from '../control-plane/src/learn-attempt-routes.js';
 import { cardFeedbackRoute } from '../control-plane/src/card-feedback-routes.js';
 import { userSettingsRoute } from '../control-plane/src/learn-user-settings.js';
@@ -331,6 +333,8 @@ const routes = {
     if (path === '/api/learn/coaching') return coachingRoute(path, req, env);
     // The Tutor's codebase goals and source drift (learn-codebase-source-map.js): the learner's own canvas, no model, no execution.
     if (path === '/api/learn/codebase') return codebaseRoute(path, req, env);
+    // Rehearsal of a connected repository (learn-rehearsal.js): the owner's own canvas; 404 where REPOSITORY_REHEARSALS is not bound (production).
+    if (path === '/api/learn/rehearsal') return rehearsalRoute(path, req, env);
     // Home answers, in place, from the signed-in user's own library (learn-home-ask.js); never the old apps agent.
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
     // A learner's derived Progress for one goal (learn-progress.js): their own records only, no model call.
