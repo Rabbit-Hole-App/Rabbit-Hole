@@ -26,10 +26,19 @@
     }
   ],
   "knobVerification": {
-    "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --start=ROMEO: --temperature=0.5 --num_samples=1 --max_new_tokens=200",
+    "rule": "semantic, not a literal command (Reviewer 11-14 17:10). knobsVerified[0] must: run sample.py with --device=cpu; carry a --start=<string> (any value, no '='), a --temperature=<float> strictly below the default 0.8, a --num_samples=<int> >= 1; exit 0; the first sample must start with the --start value actually used; the count of '---------------' separators must equal the --num_samples value actually used. Extra flags (--top_k, --seed, --max_new_tokens) allowed.",
+    "mustInclude": [
+      "python sample.py",
+      "--out_dir=out-shakespeare-char",
+      "--device=cpu",
+      "--start=",
+      "--temperature=",
+      "--num_samples="
+    ],
+    "temperatureBelow": 0.8,
     "expectRcZero": true,
-    "stdoutFirstSampleStartsWith": "ROMEO:",
-    "separatorsCount": 1,
-    "note": "sample.py prints decode(y[0]) which includes the prompt, so the prefix is true by construction whenever the command ran; the check proves the knob reached the program, not that the text changed"
+    "stdoutFirstSampleStartsWith": "<the --start value used>",
+    "separatorsCount": "<the --num_samples value used>",
+    "note": "sample.py prints decode(y[0]) which includes the prompt, so the prefix is true by construction whenever the command ran; the check proves the knob reached the program. compare_record must label the PASS line with the start value actually used, not the fixture's old 'ROMEO:' text."
   }
 }

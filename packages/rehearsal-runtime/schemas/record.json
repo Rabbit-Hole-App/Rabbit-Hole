@@ -106,6 +106,15 @@
         }
       }
     },
+    "network": {
+      "type": "object", "additionalProperties": false, "required": ["outboundDomainAllowlist", "outboundCidrAllowlist", "allowDomainFixes"],
+      "description": "what the sandbox could reach (spec 8a); allowDomainFixes lists the domains added by allow_domain fixes",
+      "properties": {
+        "outboundDomainAllowlist": { "type": "array", "items": { "type": "string" } },
+        "outboundCidrAllowlist": { "type": "array", "items": { "type": "string" } },
+        "allowDomainFixes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "allChecksPassed": { "type": "boolean" },
     "modelCalls": {
       "type": "array",

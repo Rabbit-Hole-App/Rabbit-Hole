@@ -122,6 +122,7 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
         'environment': env or {'python': '', 'cpu': 1, 'memGiB': 0, 'packagesAfter': {}},
         'route': route, 'attempts': runner.attempts, 'fixes': runner.fixes, 'steps': runner.steps, 'traps': traps, 'knobsVerified': knobs,
         'allChecksPassed': gave_up is None and len(runner.steps) == len(route['steps']),
+        'network': {'outboundDomainAllowlist': list(limits.OUTBOUND_DOMAIN_ALLOWLIST) + list(provider.extra_domains), 'outboundCidrAllowlist': [], 'allowDomainFixes': [f['change'] for f in runner.fixes if f['kind'] == 'allow_domain']},
         'modelCalls': caller.calls, 'modelSpendUsd': caller.spend, 'sandboxSpendNote': billing.spend_note(before, after, job['key'], lifetime),
         'draftPlan': plan, 'gaveUp': gave_up,
     }
