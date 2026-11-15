@@ -21,7 +21,8 @@ import { CANVAS_UNAVAILABLE, canvasMentions } from '../src/canvas-refs.js';
 import { canvasMentionRef } from '../../web/src/canvas-mention-ref.js';
 import { learnDb } from './learn-grade-fixture.js';
 import * as chatModes from '../src/chat-modes.js';
-import { answerToolsOn } from '../src/chat-capability-route.js';
+import { answerToolsOn, decideChat, verifyChatRoute } from '../src/chat-capability-route.js';
+import { composeTutorPrompt } from '../src/tutor-prompt.js';
 import { CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson } from '../src/chat-tools.js';
 import * as answerMeta from '../src/chat-answer-meta.js';
 import { randomHex } from '../src/token.js';
@@ -61,7 +62,7 @@ const deps = {
   learnMedia,
   contextDocumentBlocks,
   ...chatModes,
-  answerToolsOn, CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson,
+  answerToolsOn, verifyChatRoute, CHAT_TOOLS_POLICY, LESSON_POLICY, LESSON_TOOL_NAME, alternativesFor, chatToolDefs, checkLessonCall, checkToolCall, fitProblem, lessonToolDef, parseLesson,
   ...answerMeta,
   canvasMentions,
   CANVAS_UNAVAILABLE,
@@ -867,6 +868,53 @@ test('a project canvas asks with its own project\'s repository, re-checked on ev
     assert.match(answer.context, /a standalone learning canvas/, name);
     assert.deepEqual(repositoryTools(answer), [], name);
   }
+});
+
+// Docs tutor-prompts-and-routing.md sections 1c, 2, 7: a project canvas's chat turn asks with base + chat (+ the goal's overlay when the browser names one of the
+// fourteen uses), and the answer's meta records the route decision and the prompt record. askStream is the recording stub, so no model is called.
+test('a project canvas chat turn composes base + chat (+ the goal overlay) and records route and the prompt record in the answer meta', async t => {
+  const env = fixture(t);
+  env.INLINE_DECISION_KEY = 'k'.repeat(40);
+  env.DB = { prepare: sql => { throw new Error(`live D1 touched: ${sql}`); }, batch: async () => { throw new Error('live D1 touched: batch'); } };
+  const sqlite = new DatabaseSync(':memory:');
+  t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  env.LEARN_DB = { batch: async statements => Promise.all(statements.map(statement => statement.run())), prepare: sql => ({ bind: (...params) => ({
+    first: async () => sqlite.prepare(sql).get(...params) || null,
+    all: async () => ({ results: sqlite.prepare(sql).all(...params) }),
+    run: async () => ({ meta: sqlite.prepare(sql).run(...params) }),
+  }) }) };
+  const SHA = 'a'.repeat(40), snapshot = { repo: 'acme/lab', commit: SHA, graph: { nodes: [], edges: [] }, files: { 'lab.py': 'import torch\nprint(1)' } };
+  env.REPOSITORY_SNAPSHOTS = { get: async key => (key === 'snap/lab' ? { json: async () => snapshot } : null) };
+  sqlite.exec(`INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('workspace-a','repo-0a0a0a0a-lab','owner@example.test','acme/lab','main','${SHA}','ready')`);
+  sqlite.exec("INSERT INTO repository_versions(app_id,commit_sha,storage_key) SELECT id,commit_sha,'snap/lab' FROM repository_apps");
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title,project) VALUES('workspace-a','canvas-0a1b2c3d','owner@example.test','Attention','repo-0a0a0a0a-lab')");
+  const seam = () => canvasAskSeam(env, canvasApp(sqlite.prepare('SELECT * FROM canvases WHERE name=?').get('canvas-0a1b2c3d'), owner));
+  const code = { sourceId: `code:acme/lab@${SHA}:lab.py`, kind: 'code', name: 'lab.py', version: '', range: { path: 'lab.py', start: 1, end: 2 } };
+  const message = 'What does lab.py do?';
+  const ask = async extra => { assert.equal((await handlers.apiAsk(request({ scope: { app: 'canvas-0a1b2c3d' }, message, mode: 'auto', context_refs: [code], ...extra }), env, {}, owner, 'learn', seam())).status, 200); return env.answers.at(-1); };
+  const meta = () => JSON.parse(sqlite.prepare("SELECT meta_json FROM chat_message_meta WHERE role='assistant' ORDER BY message_id DESC LIMIT 1").get().meta_json);
+  const logs = [], log = console.log; console.log = line => logs.push(String(line)); t.after(() => { console.log = log; });
+
+  const plain = await ask({});
+  assert.ok(plain.research.system.includes(composeTutorPrompt({ task: 'chat' }).text), 'base + chat, no overlay');
+  assert.ok(!plain.research.system.includes(readFileSync(new URL('../src/prompts/tutor/uses/use_codebase.md', import.meta.url), 'utf8').trimEnd()));
+  assert.deepEqual([meta().route, meta().tutor.task, meta().tutor.use, meta().tutor.layers.use, meta().tutor.route, meta().tutor.model], ['answer', 'chat', null, null, null, null]);
+  assert.equal(meta().tutor.layers.base, composeTutorPrompt({ task: 'chat' }).layers.base);
+
+  const goal = await ask({ use: 'use_codebase', use_route: { confidence: 0.91 } });
+  assert.ok(goal.research.system.includes(composeTutorPrompt({ task: 'chat', use: 'use_codebase' }).text), 'the goal\'s overlay comes after base + chat');
+  assert.deepEqual([meta().tutor.use, meta().tutor.layers.use, meta().tutor.route], ['use_codebase', composeTutorPrompt({ task: 'chat', use: 'use_codebase' }).layers.use, { use: 'use_codebase', confidence: 0.91 }]);
+  assert.ok(logs.some(line => JSON.parse(line).event === 'tutor_call' && JSON.parse(line).use === 'use_codebase'), 'every call logs its record');
+
+  assert.equal((await ask({ use: '../../etc/passwd' })).research.system.includes('This use is not built yet'), false);
+  assert.equal(meta().tutor.use, null, 'an id that is not one of the fourteen is no goal');
+
+  // A verified code-explain route is recorded; the model call itself is the handler's (learn-code-explain.js), not this turn's.
+  const routed = await decideChat(env, { email: owner.email, app: 'canvas-0a1b2c3d', requestId: 'req-00000009', fields: { app: 'canvas-0a1b2c3d', text: message, mode: 'auto', selection: null, source_refs: [code], motion: null }, capability: 'code-explain' });
+  assert.equal(routed.route, 'capability:code-explain');
+  await ask({ route_token: routed.token });
+  assert.equal(meta().route, 'code-explain');
 });
 
 // repo-canvas-graph.md sections 6-8: a project canvas's code refs (graph nodes, Files selections) are read from the project's
