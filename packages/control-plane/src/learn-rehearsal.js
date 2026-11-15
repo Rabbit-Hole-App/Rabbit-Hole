@@ -3,28 +3,37 @@
 // The controller (packages/rehearsal-runtime/server.py) runs one job per (app, commit, hardware); this module starts it, follows it
 // and keeps its record. Once per repository and commit: the record lives in R2 and a second request is answered from it.
 //
-//   POST /api/learn/rehearsal {app, board}      -> the record when R2 has it, else starts the job (or joins the one running)
-//   GET  /api/learn/rehearsal?app=&board=       -> the same answer without starting anything
-// Reply, one of (HTTP 200):
+//   POST /api/learn/rehearsal {app, board}                        -> the old single-route flow: the record in R2 (rehearsal-cpu.json), else starts the job
+//   POST /api/learn/rehearsal {app, board, action:'catalogue'}   -> start (or return the cached) catalogue; answers GET's shape plus catalogueDoc when ready
+//   POST /api/learn/rehearsal {app, board, action:'start', routeId} -> rehearse that catalogue route only; answers the status shape below
+//   GET  /api/learn/rehearsal?app=&board=[&routeId=]              -> schemas/learn-rehearsal-get.json: {indexing, catalogue:{status, practicalRoutes?, error?}, routes[], record? (routeId asked, ready)}
+// The catalogue is not a click: the repository import (repositories.js) calls startCatalogue when the snapshot turns ready; a GET that finds a ready repository with no catalogue job starts one too.
+// A rehearsal reply, one of (HTTP 200):
 //   {status: queued|discovering|provisioning|running|repairing|planning, step?, attempt?, fixes?, elapsedSec}   (schemas/status.json)
-//   {status: 'ready', elapsedSec, record}                                                                      (record: schemas/record.json)
+//   {status: 'ready', elapsedSec, record}                                                                      (record: schemas/record.json; also one that gave up: gaveUp set, a step failed)
 //   {status: 'failed', elapsedSec, error}
 // Request errors are 4xx {error}. 404 on GET: no rehearsal was started for this repository version.
-// Status lives in the RepositoryRehearsals object only (no D1 table); the record and the artifact zip live in R2.
+// Status lives in the RepositoryRehearsals object only (no D1 table; one object per rehearsal key, and one per catalogue key); the record, the artifact zip and the catalogue live in R2.
 import { authorizedBoardApp } from './learn-board.js';
 import { canvasRepository } from './learn-codebase-source-map.js';
+import { NOT_TRASHED } from './library-trash.js';
 import { repositorySnapshot } from './repositories.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
-const HARDWARE = 'cpu', VERSION = 'rehearsal-1', TIME_BUDGET_MIN = 20;
-const TIMEOUT_MS = 40 * 60 * 1000, POLL_MS = 5000, MAX_MISSES = 12; // 12 unanswered 5 s ticks: the controller is not there
+const HARDWARE = 'cpu', VERSION = 'rehearsal-1', CATALOGUE_VERSION = 'catalogue-1', TIME_BUDGET_MIN = 20;
+const CATALOGUE = 'catalogue', ROUTE_ID = /^[a-z0-9_]+$/; // 'catalogue' is the catalogue's slot in the key space, so it is never a routeId
+const TIMEOUT_MS = 40 * 60 * 1000, CATALOGUE_TIMEOUT_MS = 10 * 60 * 1000, POLL_MS = 5000, MAX_MISSES = 12; // 12 unanswered 5 s ticks: the controller is not there
 const MAX_ZIP = 64 * 1024 * 1024, MAX_RECORD = 2 * 1024 * 1024;
 const ACTIVE = ['queued', 'running'];
 const STATES = ['queued', 'discovering', 'provisioning', 'running', 'repairing', 'planning'];
-const recordKey = (appId, commit) => `learn-repositories-dev/${appId}/${commit}/rehearsal-${HARDWARE}.json`;
-const zipKey = (appId, commit) => `learn-repositories-dev/${appId}/${commit}/rehearsal-${HARDWARE}-artifacts.zip`;
+const prefix = (appId, commit) => `learn-repositories-dev/${appId}/${commit}/`;
+// One record per (repo, commit, routeId, hardware); a record without a routeId (made before the catalogue) is rehearsal-cpu.json.
+const recordKey = (appId, commit, routeId) => `${prefix(appId, commit)}rehearsal-${routeId ? `${routeId}-` : ''}${HARDWARE}.json`;
+const zipKey = (appId, commit, routeId) => `${prefix(appId, commit)}rehearsal-${routeId ? `${routeId}-` : ''}${HARDWARE}-artifacts.zip`;
+const catalogueKey = (appId, commit) => `${prefix(appId, commit)}catalogue-${HARDWARE}.json`;
+const configured = env => Boolean(env.REHEARSAL_WORKER_URL && env.REHEARSAL_WORKER_TOKEN);
 
 // Worker -> controller, as workerRequest (learn-scene.js): Bearer token, 20 s timeout, no redirects. The controller is a local
 // process on the owner's machine this sprint, so plain http is allowed for a loopback address and nowhere else.
@@ -35,16 +44,44 @@ export async function rehearsalRequest(env, path, body) {
   return fetch(new URL(path, base), { method: body ? 'POST' : 'GET', headers: { Authorization: `Bearer ${env.REHEARSAL_WORKER_TOKEN}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(20000) });
 }
 
-// sha256 hex of `${appId}|${commit}|cpu`: the DO's name, the controller's job key and the idempotency key in one.
-export async function rehearsalKey(appId, commit) {
-  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${appId}|${commit}|${HARDWARE}`));
+// sha256 hex of `${appId}|${commit}|${routeId}|cpu` (a rehearsal), `${appId}|${commit}|catalogue|cpu` (the catalogue) or, with no routeId, the old `${appId}|${commit}|cpu`:
+// the DO's name, the controller's job key and the idempotency key in one.
+export async function rehearsalKey(appId, commit, routeId) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${appId}|${commit}|${routeId ? `${routeId}|` : ''}${HARDWARE}`));
   return [...new Uint8Array(bytes)].map(n => n.toString(16).padStart(2, '0')).join('');
 }
-// schemas/job.json from the repository snapshot ({repo, commit, files: {path: text}}): README text and the indexed paths.
+// schemas/job.json from the repository snapshot ({repo, commit, files: {path: text}}): README text and the indexed paths; for a catalogue route also routeId, catalogueRoute and prerequisiteRoutes.
 export function rehearsalJob(job, snapshot) {
   const paths = Object.keys(snapshot.files || {}), readme = paths.find(p => /^readme(\.[a-z]+)?$/i.test(p));
   return { key: job.key, repo: job.repo, commit: job.commit, hardware: HARDWARE, timeBudgetMin: TIME_BUDGET_MIN,
-    readme: readme ? String(snapshot.files[readme]).slice(0, 400000) : '', files: paths.filter(p => p.length <= 512).slice(0, 20000), version: VERSION };
+    readme: readme ? String(snapshot.files[readme]).slice(0, 400000) : '', files: paths.filter(p => p.length <= 512).slice(0, 20000), version: VERSION,
+    ...(job.routeId ? { routeId: job.routeId, catalogueRoute: job.catalogueRoute, ...(job.prerequisiteRoutes?.length ? { prerequisiteRoutes: job.prerequisiteRoutes } : {}) } : {}) };
+}
+// schemas/catalogue-job.json: no sandbox and no clone, the controller reads what is sent. `files` is the snapshot's own files object (text by path), `graphLabels` the graph's node labels.
+export function catalogueJob(job, snapshot) {
+  const files = {};
+  for (const [path, text] of Object.entries(snapshot.files || {})) if (typeof text === 'string' && path.length <= 512 && Object.keys(files).length < 2000) files[path] = text;
+  const labels = [...new Set((snapshot.graph?.nodes || []).map(n => n?.label).filter(l => typeof l === 'string' && l.length > 0))].map(l => l.slice(0, 200)).slice(0, 10000);
+  return { key: job.key, repo: job.repo, commit: job.commit, hardware: HARDWARE, files, graphLabels: labels, version: CATALOGUE_VERSION };
+}
+// The routes a route needs, in dependency order (a prerequisite before the route that needs it), the route itself left out.
+export function prerequisiteRoutes(doc, route, seen = new Set()) {
+  const out = [];
+  for (const id of route.prerequisites || []) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const needed = doc.routes.find(r => r.routeId === id);
+    if (needed) out.push(...prerequisiteRoutes(doc, needed, seen), needed);
+  }
+  return out;
+}
+// A plain sentence for the Tutor from a catalogue failure: never the controller's own text, a stack trace or a provider term.
+export function catalogueReason(raw) {
+  const text = String(raw || '');
+  if (/no_catalogue/.test(text)) return 'The README and scripts did not give a clear way to use this repository.';
+  if (/not configured|HTTPS|not reachable|rejected/i.test(text)) return 'The service that reads repositories is not reachable right now.';
+  if (/timed out/i.test(text)) return 'Reading this repository took longer than I allow.';
+  return 'The catalogue could not be written just now.';
 }
 // One entry of a zip (central directory, stored or deflate), as bytes. The controller's asset zip carries record.json at its root.
 export async function zipEntry(bytes, name) {
@@ -84,45 +121,53 @@ export class RepositoryRehearsals {
       if (req.method === 'GET') return job ? json(reply(job)) : json({ error: 'not_started' }, 404);
       const request = await req.json();
       if (job && ACTIVE.includes(job.status)) return json(reply(job)); // joins the run in progress
-      job = { key: request.key, appId: request.appId, repo: request.repo, commit: request.commit, status: 'queued', started: Date.now(), misses: 0 };
+      job = { key: request.key, appId: request.appId, repo: request.repo, commit: request.commit, status: 'queued', started: Date.now(), misses: 0,
+        ...(request.kind === CATALOGUE ? { kind: CATALOGUE } : request.routeId ? { routeId: request.routeId, catalogueRoute: request.catalogueRoute, prerequisiteRoutes: request.prerequisiteRoutes || [] } : {}) };
       await this.state.storage.put('job', job);
       await this.state.storage.setAlarm(Date.now() + 100);
       return json(reply(job), 202);
     });
   }
-  // As RepositoryImports.alarm (repositories.js): send the job, then poll; transient trouble is retried until the timeout.
+  // As RepositoryImports.alarm (repositories.js): send the job, then poll; transient trouble is retried until the timeout. A catalogue job (job.kind) goes to /catalogues, a rehearsal to /rehearsals.
   async alarm() {
     const job = await this.state.storage.get('job'); if (!job || !ACTIVE.includes(job.status)) return;
+    const catalogue = job.kind === CATALOGUE, base = catalogue ? '/catalogues' : '/rehearsals';
     try {
-      if (Date.now() - job.started > TIMEOUT_MS) throw Error('The rehearsal timed out after 40 minutes. Retry it.');
+      if (Date.now() - job.started > (catalogue ? CATALOGUE_TIMEOUT_MS : TIMEOUT_MS)) throw Error(catalogue ? 'The catalogue timed out after 10 minutes.' : 'The rehearsal timed out after 40 minutes. Retry it.');
       if (job.status === 'queued') {
         const snapshot = await repositorySnapshot(this.env, { id: job.appId }, job.commit);
-        const r = await rehearsalRequest(this.env, '/rehearsals', rehearsalJob(job, snapshot));
+        const r = await rehearsalRequest(this.env, base, catalogue ? catalogueJob(job, snapshot) : rehearsalJob(job, snapshot));
         if (r.ok || r.status === 409) job.status = 'running'; // 409: the controller already holds this key
         else if (![429, 502, 503, 504].includes(r.status)) throw Error(rejected(r.status));
       } else {
-        const r = await rehearsalRequest(this.env, `/rehearsals/${job.key}`);
+        const r = await rehearsalRequest(this.env, `${base}/${job.key}`);
         if (r.status === 404) job.status = 'queued'; // the controller lost it (restarted): send it again
         else if (r.ok) {
           const result = await r.json();
-          if (result.status === 'failed') throw Error(result.error || 'The rehearsal failed');
-          if (result.status === 'ready') {
-            const asset = await rehearsalRequest(this.env, `/rehearsals/${job.key}/asset`); if (!asset.ok) throw Error('Rehearsal download failed');
+          if (result.status === 'failed') throw Error(result.error || (catalogue ? 'The catalogue failed' : 'The rehearsal failed'));
+          if (result.status === 'ready' && catalogue) {
+            const asset = await rehearsalRequest(this.env, `${base}/${job.key}/asset`); if (!asset.ok) throw Error('Catalogue download failed');
+            const text = await asset.text(), doc = JSON.parse(text);
+            if (doc.repo !== job.repo || doc.commit !== job.commit || doc.hardware !== HARDWARE || !Array.isArray(doc.routes) || text.length > MAX_RECORD) throw Error('Invalid catalogue result');
+            await this.env.REPOSITORY_SNAPSHOTS.put(catalogueKey(job.appId, job.commit), text, { httpMetadata: { contentType: 'application/json' } });
+            job.status = 'ready';
+          } else if (result.status === 'ready') {
+            const asset = await rehearsalRequest(this.env, `${base}/${job.key}/asset`); if (!asset.ok) throw Error('Rehearsal download failed');
             if (Number(asset.headers.get('content-length')) > MAX_ZIP) throw Error('Rehearsal result too large');
             const zip = new Uint8Array(await asset.arrayBuffer());
             if (zip.length > MAX_ZIP) throw Error('Rehearsal result too large');
             const text = new TextDecoder().decode(await zipEntry(zip, 'record.json')), record = JSON.parse(text);
-            if (record.version !== VERSION || record.repo !== job.repo || record.commit !== job.commit || record.hardware !== HARDWARE) throw Error('Invalid rehearsal result');
-            await this.env.REPOSITORY_SNAPSHOTS.put(zipKey(job.appId, job.commit), zip, { httpMetadata: { contentType: 'application/zip' } });
-            await this.env.REPOSITORY_SNAPSHOTS.put(recordKey(job.appId, job.commit), text, { httpMetadata: { contentType: 'application/json' } });
-            job.status = 'ready';
+            if (record.version !== VERSION || record.repo !== job.repo || record.commit !== job.commit || record.hardware !== HARDWARE || (job.routeId && record.routeId !== job.routeId)) throw Error('Invalid rehearsal result');
+            await this.env.REPOSITORY_SNAPSHOTS.put(zipKey(job.appId, job.commit, job.routeId), zip, { httpMetadata: { contentType: 'application/zip' } });
+            await this.env.REPOSITORY_SNAPSHOTS.put(recordKey(job.appId, job.commit, job.routeId), text, { httpMetadata: { contentType: 'application/json' } });
+            job.status = 'ready'; // a record that gave up (gaveUp set, a step failed) is stored and answered as ready like any other
           } else if (STATES.includes(result.status)) job.last = { status: result.status, step: result.step, attempt: result.attempt, fixes: result.fixes };
         } else if ([401, 403].includes(r.status)) throw Error(rejected(r.status));
       }
       job.misses = 0;
     } catch (error) {
-      if (Date.now() - job.started > TIMEOUT_MS || !/fetch|network|connection|timeout/i.test(error.message)) { job.status = 'failed'; job.error = error.message; }
-      else if (++job.misses >= MAX_MISSES) { job.status = 'failed'; job.error = 'The rehearsal controller is not reachable. Start it on this machine and retry.'; }
+      if (Date.now() - job.started > (catalogue ? CATALOGUE_TIMEOUT_MS : TIMEOUT_MS) || !/fetch|network|connection|timeout/i.test(error.message)) { job.status = 'failed'; job.error = error.message; }
+      else if (++job.misses >= MAX_MISSES) { job.status = 'failed'; job.error = `The ${catalogue ? 'catalogue' : 'rehearsal'} controller is not reachable. Start it on this machine and retry.`; }
     }
     if (!ACTIVE.includes(job.status)) job.ended = Date.now();
     await this.state.storage.put('job', job);
@@ -131,12 +176,88 @@ export class RepositoryRehearsals {
 }
 const rejected = status => ([401, 403].includes(status) ? 'The rehearsal controller rejected this server\'s credential.' : 'The rehearsal controller rejected the request.');
 
-// The stored record, as the ready reply. null: this repository version has not been rehearsed.
-async function storedRecord(env, repo) {
-  const object = await env.REPOSITORY_SNAPSHOTS.get(recordKey(repo.id, repo.commit));
-  if (!object) return null;
-  const record = await object.json();
-  return { status: 'ready', elapsedSec: record.wallSec ?? 0, record };
+// The stored record, as the ready reply. null: this repository version has not been rehearsed (for that route).
+async function storedRecord(env, repo, routeId, doc) {
+  const object = await env.REPOSITORY_SNAPSHOTS.get(recordKey(repo.id, repo.commit, routeId));
+  let record = object ? await object.json() : null;
+  if (!record && routeId) { // a record made before the catalogue (rehearsal-cpu.json) is the record of the route it names, so the first nanoGPT canvas keeps its Run card
+    const legacy = await env.REPOSITORY_SNAPSHOTS.get(recordKey(repo.id, repo.commit));
+    const old = legacy ? await legacy.json() : null;
+    if (old && namesRoute(old, routeId, doc)) record = old;
+  }
+  return record ? { status: 'ready', elapsedSec: record.wallSec ?? 0, record } : null;
+}
+// A legacy record names a route by its routeId, or (the catalogue's ids are model-chosen) by the first source of the route's sketch appearing among its steps.
+const namesRoute = (record, routeId, doc) => {
+  if (record.routeId) return record.routeId === routeId;
+  const route = record.route || {}, wanted = doc?.routes?.find(r => r.routeId === routeId);
+  if (route.routeId === routeId) return true;
+  const first = wanted?.stepsSketch?.[0]?.source;
+  return Boolean(first) && (route.steps || []).some(step => step.source === first);
+};
+async function storedCatalogue(env, repo) {
+  const object = await env.REPOSITORY_SNAPSHOTS.get(catalogueKey(repo.id, repo.commit));
+  return object ? object.json() : null;
+}
+// The owner's own repository canvas row, indexed or not (canvasRepository answers only an indexed one): {id, repo, commit, status, error}.
+async function canvasRepositoryRow(env, access) {
+  if (!access.project) return null;
+  const row = await env.LEARN_DB.prepare(`SELECT r.id, r.repo, r.commit_sha, r.status, r.error FROM repository_apps r WHERE r.org = ? AND r.name = ? AND r.owner_email = ? AND ${NOT_TRASHED('r.org', 'r.name')}`)
+    .bind(access.org, access.project, access.email).first();
+  return row ? { id: row.id, repo: row.repo, commit: row.commit_sha, status: row.status, error: row.error } : null;
+}
+
+// Start the catalogue for a repository version, unless R2 already has it or it is running: called by the repository import when the snapshot turns ready (repositories.js).
+// `retry` also restarts a failed one. -> the DO's reply ({status, ...}), or null when the controller is not set up here (nothing is started).
+export async function startCatalogue(env, repo, { retry = false } = {}) {
+  if (!env.REPOSITORY_REHEARSALS || !configured(env)) return null;
+  if (await storedCatalogue(env, repo)) return { status: 'ready' };
+  const key = await rehearsalKey(repo.id, repo.commit, CATALOGUE), actor = env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key));
+  const seen = await actor.fetch('https://rehearsal/status');
+  if (seen.status !== 404) { // running, ready or failed: a failed one waits for the owner's retry (the chat's action 'catalogue')
+    const job = await seen.json();
+    if (job.status !== 'failed' || !retry) return job;
+  }
+  const response = await actor.fetch('https://rehearsal/start', { method: 'POST', body: JSON.stringify({ kind: CATALOGUE, key, appId: repo.id, repo: repo.repo, commit: repo.commit }) });
+  return response.json();
+}
+// The catalogue's state for the Tutor: ready (with the document), queued, or failed with a plain reason. `start` starts it when nothing is running; `retry` also when it failed.
+async function catalogueState(env, repo, { start = false, retry = false } = {}) {
+  const doc = await storedCatalogue(env, repo);
+  if (doc) return { state: { status: 'ready', practicalRoutes: doc.routes.filter(r => r.practical).length }, doc };
+  if (!env.REPOSITORY_REHEARSALS || !configured(env)) return { state: { status: 'failed', error: catalogueReason('not configured') } };
+  const key = await rehearsalKey(repo.id, repo.commit, CATALOGUE), actor = env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key));
+  let response = await actor.fetch('https://rehearsal/status');
+  let job = response.status === 404 ? null : await response.json();
+  if (!job || (job.status === 'failed' && retry)) { // nothing started yet (an import older than the trigger), or the owner asks again
+    if (!start) return { state: { status: 'queued' } };
+    response = await actor.fetch('https://rehearsal/start', { method: 'POST', body: JSON.stringify({ kind: CATALOGUE, key, appId: repo.id, repo: repo.repo, commit: repo.commit }) });
+    job = await response.json();
+  }
+  if (job.status === 'failed') return { state: { status: 'failed', error: catalogueReason(job.error) } };
+  if (job.status === 'ready') return { state: { status: 'failed', error: catalogueReason('missing') } }; // the DO says ready but R2 has nothing: never silent
+  return { state: { status: 'queued' } };
+}
+// Per routeId that has a record or a rehearsal: its state (schemas/learn-rehearsal-get.json `routes`). The catalogue's practical routes are always listed (none when not started).
+async function routeStates(env, repo, doc) {
+  const ids = new Set((doc?.routes || []).filter(r => r.practical).map(r => r.routeId));
+  const have = new Set();
+  const list = await env.REPOSITORY_SNAPSHOTS.list?.({ prefix: `${prefix(repo.id, repo.commit)}rehearsal-` }).catch(() => null);
+  for (const { key } of list?.objects || []) {
+    const m = /rehearsal-([a-z0-9_]+)-cpu\.json$/.exec(key);
+    if (m) { ids.add(m[1]); have.add(m[1]); }
+  }
+  const legacy = await env.REPOSITORY_SNAPSHOTS.get(recordKey(repo.id, repo.commit)); // rehearsal-cpu.json, made before the catalogue
+  const old = legacy ? await legacy.json() : null;
+  const out = [];
+  for (const routeId of ids) {
+    if (have.has(routeId) || (old && namesRoute(old, routeId, doc))) { out.push({ routeId, status: 'ready' }); continue; }
+    const key = await rehearsalKey(repo.id, repo.commit, routeId), response = await env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key)).fetch('https://rehearsal/status');
+    if (response.status === 404) { out.push({ routeId, status: 'none' }); continue; }
+    const state = await response.json();
+    out.push({ routeId, status: state.status, ...(state.step ? { step: state.step } : {}), ...(state.status === 'failed' && state.error ? { error: String(state.error).split('\n')[0].slice(0, 200) } : {}) });
+  }
+  return out;
 }
 
 // The signed-in owner's own canvas: canvasAccess resolves only canvases the caller owns, and canvasRepository only their own import.
@@ -153,6 +274,36 @@ async function ownerAccess(req, env, body, deps) {
   return access;
 }
 
+// The old single-route flow (POST with no action): one record at rehearsal-cpu.json, one job per (app, commit, cpu).
+async function legacyRehearsal(req, env, access) {
+  const repo = await canvasRepository(env, access);
+  if (!repo) return json({ error: 'no_repository' }, 409);
+  const stored = await storedRecord(env, repo);
+  if (stored) return json(stored);
+  const key = await rehearsalKey(repo.id, repo.commit), actor = env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key));
+  if (!configured(env)) return json({ status: 'failed', elapsedSec: 0, error: 'The rehearsal controller is not configured on this server.' });
+  const response = await actor.fetch('https://rehearsal/start', { method: 'POST', body: JSON.stringify({ key, appId: repo.id, repo: repo.repo, commit: repo.commit }) });
+  const state = await response.json();
+  return json(state.status === 'ready' ? (await storedRecord(env, repo)) || { status: 'failed', elapsedSec: state.elapsedSec, error: 'The rehearsal record is missing.' } : state);
+}
+
+// {action:'start', routeId}: rehearse one practical route of the catalogue (its prerequisite routes inlined by the controller), or answer from its record.
+async function startRoute(env, repo, routeId) {
+  const doc = await storedCatalogue(env, repo);
+  if (!doc) return json({ error: 'catalogue_not_ready' }, 409);
+  const route = doc.routes.find(r => r.routeId === routeId);
+  if (!route) return json({ error: 'unknown_route' }, 404);
+  const needs = prerequisiteRoutes(doc, route);
+  if (!route.practical || needs.some(r => !r.practical)) return json({ error: 'route_not_practical' }, 409);
+  const stored = await storedRecord(env, repo, routeId, doc);
+  if (stored) return json(stored);
+  if (!configured(env)) return json({ status: 'failed', elapsedSec: 0, error: 'The rehearsal controller is not configured on this server.' });
+  const key = await rehearsalKey(repo.id, repo.commit, routeId), actor = env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key));
+  const response = await actor.fetch('https://rehearsal/start', { method: 'POST', body: JSON.stringify({ key, appId: repo.id, repo: repo.repo, commit: repo.commit, routeId, catalogueRoute: route, prerequisiteRoutes: needs }) });
+  const state = await response.json();
+  return json(state.status === 'ready' ? (await storedRecord(env, repo, routeId, doc)) || { status: 'failed', elapsedSec: state.elapsedSec, error: 'The rehearsal record is missing.' } : state);
+}
+
 export async function rehearsalRoute(path, req, env, deps = {}) {
   if (path !== '/api/learn/rehearsal') return null;
   if (!env.REPOSITORY_REHEARSALS) return json({ error: 'Not found' }, 404); // production does not bind the object
@@ -160,24 +311,33 @@ export async function rehearsalRoute(path, req, env, deps = {}) {
   let body;
   if (req.method === 'GET') {
     const query = new URL(req.url).searchParams;
-    body = { app: query.get('app'), board: query.get('board') };
+    body = { app: query.get('app'), board: query.get('board'), ...(query.get('routeId') ? { routeId: query.get('routeId') } : {}) };
   } else {
     try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
     if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid JSON' }, 400);
   }
+  const { action, routeId } = body;
+  if (action !== undefined && !['catalogue', 'start'].includes(action)) return json({ error: "action must be 'catalogue' or 'start'" }, 400);
+  if (routeId !== undefined && (typeof routeId !== 'string' || !ROUTE_ID.test(routeId) || routeId === CATALOGUE)) return json({ error: 'routeId is not valid' }, 400);
+  if (action === 'start' && !routeId) return json({ error: 'routeId is required to start a route' }, 400);
   const access = await ownerAccess(req, env, body, deps);
   if (access instanceof Response) return access;
   try {
-    const repo = await canvasRepository(env, access);
-    if (!repo) return json({ error: 'no_repository' }, 409);
-    const stored = await storedRecord(env, repo);
-    if (stored) return json(stored);
-    const key = await rehearsalKey(repo.id, repo.commit), actor = env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key));
-    if (req.method === 'POST' && (!env.REHEARSAL_WORKER_URL || !env.REHEARSAL_WORKER_TOKEN)) return json({ status: 'failed', elapsedSec: 0, error: 'The rehearsal controller is not configured on this server.' });
-    const response = await actor.fetch(req.method === 'GET' ? 'https://rehearsal/status' : 'https://rehearsal/start', req.method === 'GET' ? undefined : { method: 'POST', body: JSON.stringify({ key, appId: repo.id, repo: repo.repo, commit: repo.commit }) });
-    if (response.status === 404) return json({ error: 'not_started' }, 404);
-    const state = await response.json();
-    return json(state.status === 'ready' ? (await storedRecord(env, repo)) || { status: 'failed', elapsedSec: state.elapsedSec, error: 'The rehearsal record is missing.' } : state);
+    if (req.method === 'POST' && !action) return await legacyRehearsal(req, env, access);
+    const row = await canvasRepositoryRow(env, access);
+    if (!row) return json({ error: 'no_repository' }, 409);
+    const indexed = row.status === 'ready' && row.commit, repo = indexed ? { id: row.id, repo: row.repo, commit: row.commit } : null;
+    const indexing = ['queued', 'indexing', 'failed'].includes(row.status) ? row.status : indexed ? 'ready' : 'indexing';
+    if (action === 'start') return repo ? await startRoute(env, repo, routeId) : json({ error: 'not_indexed' }, 409);
+    if (!repo) return json({ indexing, catalogue: indexing === 'failed' ? { status: 'failed', error: 'The repository could not be indexed.' } : { status: 'queued' } }); // the catalogue waits for the snapshot
+    // GET and {action:'catalogue'}: the catalogue state; a ready repository with no catalogue job (an import older than the trigger) starts one here; only the owner's action retries a failed one
+    const { state, doc } = await catalogueState(env, repo, { start: true, retry: action === 'catalogue' });
+    const out = { indexing, catalogue: state, ...(action === 'catalogue' && doc ? { catalogueDoc: doc } : {}), routes: await routeStates(env, repo, doc) };
+    if (req.method === 'GET' && routeId) {
+      const stored = await storedRecord(env, repo, routeId, doc);
+      if (stored) out.record = stored.record;
+    }
+    return json(out);
   } catch (error) {
     console.error('rehearsal route', error.message);
     return json({ error: 'rehearsal_unavailable' }, 503);
@@ -185,11 +345,11 @@ export async function rehearsalRoute(path, req, env, deps = {}) {
 }
 
 // ---- Run card (packages/rehearsal-runtime/RUN_CARD.md): POST /api/learn/run {app, board, action, sessionId?, cellId?, flags?, runId?} ----
-// action start | run | poll | log | stop, forwarded to the controller's session routes. The browser polls every 2 s; no Durable Object.
+// action start | run | poll | log | stop, forwarded to the controller's session routes. An optional routeId (every action) names the catalogue route whose record `start` reads. The browser polls every 2 s; no Durable Object.
 // The control plane never accepts or forwards a command: a run names a cellId and flag values, the controller builds the command.
 const SESSION_ID = /^[a-f0-9]{32}$/, RUN_ID = /^[a-f0-9]{16}$/, CELL_ID = /^[a-z0-9_]+$/, FLAG = /^--[A-Za-z0-9_-]+$/;
 const RUN_ACTIONS = ['start', 'run', 'poll', 'log', 'stop'], PASS = [400, 404, 409, 410, 429], MAX_LOG = 1000000;
-const RUN_FIELDS = ['app', 'board', 'action', 'sessionId', 'cellId', 'flags', 'runId'];
+const RUN_FIELDS = ['app', 'board', 'action', 'sessionId', 'cellId', 'flags', 'runId', 'routeId'];
 // An opaque, stable id for the controller (never the email): sha256 hex of `${org}|${user_id}`, first 32 characters.
 export async function runUser(access) {
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${access.org}|${access.user_id}`));
@@ -208,7 +368,8 @@ export async function runRoute(path, req, env, deps = {}) {
   if ('cmd' in body) return json({ error: 'A command cannot be sent: name a cell and its flags' }, 400);
   const unknown = Object.keys(body).find(key => !RUN_FIELDS.includes(key));
   if (unknown) return json({ error: `Unknown field ${unknown}` }, 400);
-  const { action, sessionId, cellId, runId, flags } = body;
+  const { action, sessionId, cellId, runId, flags, routeId } = body;
+  if (routeId !== undefined && (typeof routeId !== 'string' || !ROUTE_ID.test(routeId) || routeId === CATALOGUE)) return json({ error: 'routeId is not valid' }, 400);
   if (!RUN_ACTIONS.includes(action)) return json({ error: `action must be one of ${RUN_ACTIONS.join(', ')}` }, 400);
   if (action !== 'start' && !SESSION_ID.test(sessionId)) return json({ error: 'sessionId is not valid' }, 400);
   if (action === 'run' && !CELL_ID.test(cellId)) return json({ error: 'cellId is not valid' }, 400);
@@ -221,7 +382,7 @@ export async function runRoute(path, req, env, deps = {}) {
     if (!repo) return json({ error: 'no_repository' }, 409);
     let response;
     if (action === 'start') {
-      const stored = await storedRecord(env, repo);
+      const stored = await storedRecord(env, repo, routeId, routeId ? await storedCatalogue(env, repo) : null); // a routeId reads that route's record; none, the record made before the catalogue
       if (!stored) return json({ error: 'no_record' }, 409);
       response = await rehearsalRequest(env, '/sessions', { repo: repo.repo, commit: repo.commit, canvas: body.app, user: await runUser(access), record: stored.record });
     } else if (action === 'run') response = await rehearsalRequest(env, `/sessions/${sessionId}/run`, { cellId, ...(flags && Object.keys(flags).length ? { flags } : {}) });
