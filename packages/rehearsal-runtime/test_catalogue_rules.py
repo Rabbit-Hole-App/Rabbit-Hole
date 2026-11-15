@@ -75,8 +75,10 @@ def test_foreign_toolchain():
     assert derived(language='Python with C extensions')[0] is True
 
 
-def test_first_hit_wins_the_effort_and_the_reason():
-    assert derived(gpu=True, docker=True, accounts=['x'])[1:] == ('Heavy — needs a GPU', 'needs a GPU')
+def test_first_hit_wins_the_effort_and_the_reason_lists_every_cause():
+    ok, effort, reason = derived(gpu=True, docker=True, accounts=['x'])
+    assert effort == 'Heavy — needs a GPU' and reason.startswith('needs a GPU') and 'account' in reason and 'Docker' in reason
+    assert 'browser' in derived(downloadHosts=['cdn.playwright.dev'])[2]
     assert derived(docker=True, accounts=['x'])[1] == 'Medium — needs Docker'
     assert derived(downloadGB=5, docker=True)[1] == 'Heavy — large download'
 

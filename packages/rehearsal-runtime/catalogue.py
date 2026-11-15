@@ -633,7 +633,7 @@ def merged_requirements(route: dict, scan: dict = None) -> dict:
 
 
 def derive(route: dict) -> tuple:
-    """-> (practical, effort, reason or None) from route['requirements'] (use merged_requirements first). The rule table, first hit wins, so one cause names both the effort and the reason:
+    """-> (practical, effort, reason or None) from route['requirements'] (use merged_requirements first). The rule table: the first hit names the effort, the reason lists every hit:
     GPU > download over MAX_DOWNLOAD_GB > Docker > a service that needs Docker > a download host outside the sandbox allowlist > accounts > a non-Linux platform > a non-Python toolchain.
     No hit: practical, 'Quick — just Python'."""
     req = route.get('requirements') or {}
@@ -645,18 +645,21 @@ def derive(route: dict) -> tuple:
         langs -= {'c', 'cpp', 'c++'}  # Python with C extensions is still Python
     foreign = sorted({_FOREIGN[t] for t in langs if t in _FOREIGN})
     accounts = [a for a in req.get('accounts', []) if isinstance(a, str)]
+    hits = []
     for hit, effort, reason in (
         (req.get('gpu'), 'Heavy — needs a GPU', 'needs a GPU'),
         (gb > limits.CATALOGUE_MAX_DOWNLOAD_GB, 'Heavy — large download', f'needs a download of about {gb:g} GB'),
         (req.get('docker'), 'Medium — needs Docker', DOCKER_REASON),
         (service, 'Medium — needs Docker', f'needs {service}, which needs Docker'),
-        (blocked, 'Not practical here', f'needs to download from {blocked[0] if blocked else ""}, which the sandbox blocks'),
+        (blocked, 'Not practical here', (f'needs to download a browser from {blocked[0]}, which the sandbox blocks' if blocked and 'playwright' in blocked[0] else f'needs to download from {blocked[0] if blocked else ""}, which the sandbox blocks')),
         (accounts, 'Not practical here', f"needs an account or API key ({', '.join(accounts[:2])})"),
         (str(req.get('platform', '')).lower() in _NOT_LINUX, 'Not practical here', f"needs {req.get('platform')}, which the sandbox is not"),
         (foreign, 'Not practical here', f"needs a {foreign[0] if foreign else ''} toolchain, which isn't available in the sandbox yet"),
     ):
         if hit:
-            return False, effort, reason[:200]
+            hits.append((effort, reason))
+    if hits:  # the first hit names the effort; the reason names every cause, so a reader sees all of them (a Docker publish route also needs an account)
+        return False, hits[0][0], '; '.join(dict.fromkeys(r for _, r in hits))[:200]
     return True, 'Quick — just Python', None
 
 
