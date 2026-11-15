@@ -12,3 +12,8 @@ if(has('overview-graph-active-path-grown-tree.html'))test('grown-tree source ora
  d.change('x',6);d.change('y',2);d.change('trace',2);assert.equal(d.card.evidence.path.at(-1),'rootrl');assert.equal(d.card.evidence.prediction,0);
  const J=d.card.scene.data.rows.find(r=>r.id==='J');assert.equal(J.label,1);assert.equal(d.card.scene.data.tree.counts.join(','),'5,3');
 });
+if(has('overview-split-sandbox-threshold-search.html'))test('threshold search recomputes all six source fractions and actual child membership',()=>{
+ const u=card('deep','split-sandbox','threshold-search');
+ for(const [feature,scores]of [['x',[3/8,3/16,5/24]],['y',[3/8,7/16,11/24]]]){u.change('feature',feature);for(const [i,cut]of [2,4,6].entries()){u.change('cut',cut);assert.ok(Math.abs(u.card.evidence.weighted-scores[i])<1e-12);assert.equal(u.card.evidence.left.length+u.card.evidence.right.length,8)}}
+ u.change('feature','x');u.change('cut',4);assert.deepEqual(Array.from(u.card.evidence.left),['A','B','C','D']);assert.deepEqual(Array.from(u.card.evidence.gain),[9,32]);
+});

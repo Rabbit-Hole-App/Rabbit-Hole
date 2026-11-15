@@ -1,0 +1,369 @@
+{
+  "family": "split-sandbox",
+  "canonical": "candidate-cut-experiment",
+  "story": "Move the cut between distinct feature values. The rows change sides, and their weighted Gini changes. The best cut is the one with the lowest score.",
+  "aha": {
+    "inputs": {
+      "cut": 4,
+      "feature": "x"
+    },
+    "observation": "On x, the middle candidate has the lowest weighted Gini; a perfectly pure left side is not enough unless the right side is also considered.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "rows",
+      "kind": "ordered-row-strip",
+      "bind": "data.rows; inputs.feature"
+    },
+    {
+      "id": "cut",
+      "kind": "movable-cut",
+      "bind": "inputs.cut"
+    },
+    {
+      "id": "children",
+      "kind": "class-buckets",
+      "bind": "computed.left; computed.right"
+    },
+    {
+      "id": "scores",
+      "kind": "candidate-score-plot",
+      "bind": "data.trials; inputs.cut"
+    },
+    {
+      "id": "arithmetic",
+      "kind": "exact-impurity-ledger",
+      "bind": "computed.trial"
+    }
+  ],
+  "controls": [
+    {
+      "id": "feature",
+      "kind": "select",
+      "label": "Search feature",
+      "values": [
+        "x",
+        "y"
+      ],
+      "effect": "Reorder the same training rows and use that feature’s candidate scores."
+    },
+    {
+      "id": "cut",
+      "kind": "range",
+      "label": "Candidate threshold",
+      "min": 2,
+      "max": 6,
+      "step": 2,
+      "effect": "Repartition the actual rows, change child impurities and select a score."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "Every threshold earns its score.",
+    "heading": "Search the candidate midpoints",
+    "prompt": "how does a decision tree search for the best threshold on one feature?",
+    "instructions": "Try each candidate. Find the lowest weighted Gini, then inspect which rows moved.",
+    "initialInputs": {
+      "cut": 2,
+      "feature": "x"
+    },
+    "rows": [
+      {
+        "id": "A",
+        "x": 1,
+        "y": 1,
+        "label": 0
+      },
+      {
+        "id": "B",
+        "x": 1,
+        "y": 5,
+        "label": 0
+      },
+      {
+        "id": "C",
+        "x": 3,
+        "y": 3,
+        "label": 0
+      },
+      {
+        "id": "D",
+        "x": 3,
+        "y": 7,
+        "label": 0
+      },
+      {
+        "id": "E",
+        "x": 5,
+        "y": 1,
+        "label": 0
+      },
+      {
+        "id": "F",
+        "x": 5,
+        "y": 3,
+        "label": 1
+      },
+      {
+        "id": "G",
+        "x": 7,
+        "y": 5,
+        "label": 1
+      },
+      {
+        "id": "H",
+        "x": 7,
+        "y": 7,
+        "label": 1
+      }
+    ],
+    "trials": {
+      "x": [
+        {
+          "feature": "x",
+          "threshold": 2,
+          "leftCounts": [
+            2,
+            0
+          ],
+          "rightCounts": [
+            3,
+            3
+          ],
+          "leftGini": [
+            0,
+            1
+          ],
+          "rightGini": [
+            1,
+            2
+          ],
+          "weighted": [
+            3,
+            8
+          ],
+          "gain": [
+            3,
+            32
+          ]
+        },
+        {
+          "feature": "x",
+          "threshold": 4,
+          "leftCounts": [
+            4,
+            0
+          ],
+          "rightCounts": [
+            1,
+            3
+          ],
+          "leftGini": [
+            0,
+            1
+          ],
+          "rightGini": [
+            3,
+            8
+          ],
+          "weighted": [
+            3,
+            16
+          ],
+          "gain": [
+            9,
+            32
+          ]
+        },
+        {
+          "feature": "x",
+          "threshold": 6,
+          "leftCounts": [
+            5,
+            1
+          ],
+          "rightCounts": [
+            0,
+            2
+          ],
+          "leftGini": [
+            5,
+            18
+          ],
+          "rightGini": [
+            0,
+            1
+          ],
+          "weighted": [
+            5,
+            24
+          ],
+          "gain": [
+            25,
+            96
+          ]
+        }
+      ],
+      "y": [
+        {
+          "feature": "y",
+          "threshold": 2,
+          "leftCounts": [
+            2,
+            0
+          ],
+          "rightCounts": [
+            3,
+            3
+          ],
+          "leftGini": [
+            0,
+            1
+          ],
+          "rightGini": [
+            1,
+            2
+          ],
+          "weighted": [
+            3,
+            8
+          ],
+          "gain": [
+            3,
+            32
+          ]
+        },
+        {
+          "feature": "y",
+          "threshold": 4,
+          "leftCounts": [
+            3,
+            1
+          ],
+          "rightCounts": [
+            2,
+            2
+          ],
+          "leftGini": [
+            3,
+            8
+          ],
+          "rightGini": [
+            1,
+            2
+          ],
+          "weighted": [
+            7,
+            16
+          ],
+          "gain": [
+            1,
+            32
+          ]
+        },
+        {
+          "feature": "y",
+          "threshold": 6,
+          "leftCounts": [
+            4,
+            2
+          ],
+          "rightCounts": [
+            1,
+            1
+          ],
+          "leftGini": [
+            4,
+            9
+          ],
+          "rightGini": [
+            1,
+            2
+          ],
+          "weighted": [
+            11,
+            24
+          ],
+          "gain": [
+            1,
+            96
+          ]
+        }
+      ]
+    },
+    "calculations": [
+      "Candidates are midpoints between adjacent distinct feature values.",
+      "Child Gini = 2*n0*n1/(n0+n1)^2; weighted Gini = nLeft/n*GLeft + nRight/n*GRight.",
+      "All x and y trial fractions come from recomputing the supplied 8-row toy."
+    ],
+    "sourceKind": "worked 8-row split",
+    "missingCounterparts": [
+      "ordered-row-strip",
+      "movable-cut",
+      "class-buckets",
+      "discrete score plot",
+      "exact impurity ledger"
+    ],
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "cut": 2,
+          "feature": "x"
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "cut": 4,
+          "feature": "x"
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-threshold-search-detailed",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 52,
+      "cases": 6,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "deep-split-sandbox-threshold-search",
+  "depth": "detailed",
+  "layout": {
+    "width": 640,
+    "height": 370
+  }
+}
