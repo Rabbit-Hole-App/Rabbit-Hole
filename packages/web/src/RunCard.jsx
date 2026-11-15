@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Play, Square } from 'lucide-react';
+import { ListChecks, Loader2, Play, Square } from 'lucide-react';
 import CardHeader from './CardHeader.jsx';
 import { api, apiFetch } from './api.js';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
 import { resultsToRuns, runFromStored, storedCell, storedResult } from './rehearsal-cards.js';
 import { tutorLine } from './tutor-lines.js';
 import { SENTENCES, cellFailedLine, flagRefusedLine, flagRejectedLine, valueRuleLine } from './tutor-rehearsal-text.js';
-import { CUSTOM_KEY, EXPECTED_HEADING, REHEARSAL_OUTPUT, RUN_POLL_MS, TABS, cellTone, expectedView, failedStepOf, paneText, progressOf, runLabel, seconds, sessionEnded, sessionLabel, sessionReady } from './run-card-view.js';
-import { cellRunBody, cleanOverrides, customRunBody, knobFields, lastStepId, openSourceLine, stepCells, stepIdOf } from './run-card-knobs.js';
+import { CUSTOM_KEY, RUN_POLL_MS, TABS, failedStepOf, paneText, progressOf, sessionEnded, sessionReady } from './run-card-view.js';
+import { RUN_CARD_COPY as COPY, headerState, sessionGoneText, stepState, whatHappens } from './run-card-copy.js';
+import { cellRunBody, cleanOverrides, customRunBody, knobFields, openSourceLine, stepCells, stepIdOf } from './run-card-knobs.js';
 import { addHistory, addPreset, deletePreset, historyEntry, presetFromDraft, presetFromEntry, runAgainSpec, sessionLabelOf } from './run-card-history.js';
 import { fileQuery } from './run-card-outputs.js';
-import { KnobFields, Mark, OutputPane, PRE, Progress, TONE } from './RunParts.jsx';
+import { CMD_PRE, Chip, OutputPane, Progress, StepBadge } from './RunParts.jsx';
 import RunOutputs from './RunOutputs.jsx';
 import RunCustom from './RunCustom.jsx';
 import RunHistory from './RunHistory.jsx';
@@ -21,7 +22,7 @@ import RunHistory from './RunHistory.jsx';
 // timeout or a stop. The shell and header are the Notebook card's (CardHeader.jsx, its action buttons); tabs are the ui.jsx kit; the output pane is the code block of ask.jsx; notices are toast().
 // The browser polls every RUN_POLL_MS; nothing is polled once a run completes, the session is stopped, or the card unmounts. It is a canvas card (type 'run', rehearsal-cards.js): the card keeps
 // the record reference (block.run: app, board, commit, hardware), the cells, each cell's last output, the typed flag values, and since v1.1 its tab, the Tutor-added knobs, the presets and the
-// History (run-card-state.json); it never keeps a session id. On load it shows Start session; Stop, a stopped or expired session and a hard timeout return it to Start with the last outputs still
+// History (run-card-state.json); it never keeps a session id. On load it shows Ready to run and Start; Stop, a stopped or expired session and a hard timeout return it to Start with the last outputs still
 // shown. A viewer who cannot edit sees the card, its History and its presets with Run, Start and every field disabled (a session is the owner's; POST /api/learn/run refuses anyone else).
 // Buttons are the ui.jsx kit: Run secondary, Stop ghost (grey) until its run is in progress and then danger (the app's filled red Stop), the session control ghost.
 const wait = (timer, ms) => new Promise(resolve => { timer.current = setTimeout(resolve, ms); });
@@ -31,10 +32,11 @@ const wait = (timer, ms) => new Promise(resolve => { timer.current = setTimeout(
 export default function RunCard({ block, readOnly, onSave }) {
   const saved = block.run || {}, { app, board } = saved, repo = block.generated?.repo, added = saved.addedKnobs || [];
   const [session, setSession] = useState(null), [runs, setRuns] = useState(() => resultsToRuns(saved.results)), [logs, setLogs] = useState({}), [flags, setFlags] = useState(saved.flags || {});
+  const [notes, setNotes] = useState({}), [expanded, setExpanded] = useState({}); // notes: a state the card set itself per step; expanded: output panes opened past their last lines
   const [active, setActive] = useState(null); // the key (a cellId, or CUSTOM_KEY) whose run is in progress: one run at a time
   const [tab, setTabNow] = useState(TABS.some(([id]) => id === saved.tab) ? saved.tab : 'run'), [filter, setFilter] = useState('All');
   const [draft, setDraft] = useState({ steps: [], values: {}, name: '' });
-  // "Make it yours" is the Custom run tab (owner 2026-11-15): the route's last step, with its parameters, is the tab's first pick, once; the Run tab no longer draws that cell.
+  // Custom run opens with every step on, once; a pill turned off is skipped (run-card-ux-spec.md section 1).
   const seeded = useRef(false);
   const live = useRef(true), timer = useRef(null), startGen = useRef(0), runGen = useRef(0), logsOpen = useRef({}), runsRef = useRef(runs), store = useRef(saved);
   const seen = useRef({}), specs = useRef({}), sess = useRef({ id: null, n: saved.sessionSeq || 0 }); // seen: runId -> last status (this page); specs: key -> what is running; sess: this page's session counter
@@ -82,8 +84,9 @@ export default function RunCard({ block, readOnly, onSave }) {
   // spec: { key, body (the request), cellId | custom, flags, title, known (the flags the card takes), sid }
   async function launch(spec) {
     const mine = ++runGen.current, { key, sid } = spec;
+    let final = null;
     specs.current[key] = spec;
-    setActive(key);
+    setActive(key); setNotes(old => { const { [key]: _gone, ...rest } = old; return rest; });
     setRuns(old => ({ ...old, [key]: { status: 'queued', complete: false, sec: 0, stdoutTail: '', stderrTail: '' } }));
     try {
       const { runId } = await call({ ...spec.body, sessionId: sid });
@@ -91,6 +94,7 @@ export default function RunCard({ block, readOnly, onSave }) {
         const status = await call({ action: 'poll', sessionId: sid, runId });
         if (!live.current || runGen.current !== mine) return;
         seen.current[runId] = { ...status, runId };
+        if (status.complete) final = { ...status, runId };
         const done = status.complete ? storedResult(status, paneText(status)) : null;
         setRuns(old => ({ ...old, [key]: { ...status, runId, ...(done ? { at: done.at } : {}) } }));
         if (done) {
@@ -110,11 +114,12 @@ export default function RunCard({ block, readOnly, onSave }) {
       if (live.current && runGen.current === mine) {
         // The run is gone, so the cell shows what it last kept; a session the controller no longer has (idle or hard timeout) sends the card back to Start.
         setRuns(old => { const { [key]: _gone, ...rest } = old; const prior = spec.cellId && store.current.results?.[spec.cellId]; return prior ? { ...rest, [key]: runFromStored(prior) } : rest; });
-        if ([404, 410].includes(error.status)) { setSession(old => ({ ...old, status: 'expired' })); tell(SENTENCES.sessionEnded); begin(); } // not an error tone: a new session starts, the earlier outputs stay
-        else if (error.status === 400) tell(flagRefusedLine({ repo, message: error.data?.error || error.message, accepted: spec.known }));
+        if ([404, 410].includes(error.status)) { setSession(old => ({ ...old, status: 'expired' })); setNotes(old => ({ ...old, [key]: { tone: 'warn', chip: COPY.header.ended, line: COPY.lines.sessionEnded } })); } // not an error: the header says Ended and the earlier outputs stay; Start again is the learner's
+        else if (error.status === 400) { setNotes(old => ({ ...old, [key]: { tone: 'idle', chip: COPY.step.validator, line: error.data?.error || error.message } })); tell(flagRefusedLine({ repo, message: error.data?.error || error.message, accepted: spec.known })); }
         else tell(SENTENCES.runFailed);
       }
     } finally { if (live.current && runGen.current === mine) setActive(null); }
+    return final;
   }
 
   // The Run tab: one cell. values: the typed overrides (the cell's own by default); an invalid value is shown and not sent, and the chat says nothing ran.
@@ -123,6 +128,12 @@ export default function RunCard({ block, readOnly, onSave }) {
     if (errors.length) { tell(valueRuleLine({ flag: errors[0].flag, message: errors[0].message })); return Promise.resolve(); }
     save({ flags: { ...store.current.flags, [cell.cellId]: cleanOverrides(values) } });
     return launch({ key: cell.cellId, sid, body, cellId: cell.cellId, flags: body.flags, title: cell.title, known: fields.filter(f => f.editable).map(f => f.flag) });
+  }
+  async function runAll() {
+    for (const cell of stepCells(cells)) {
+      const final = await runCell(cell);
+      if (!final || final.status !== 'done') return;
+    }
   }
   // The Custom run tab (and a preset, and Run again of a custom row): steps in route order, their knobs, a name.
   function runCustom(d = draft, { sid = session?.sessionId, cells: list = cells } = {}) {
@@ -202,79 +213,82 @@ export default function RunCard({ block, readOnly, onSave }) {
   }
 
   const ready = sessionReady(session), ended = sessionEnded(session), idle = !session || ended, cells = (session?.cells?.length ? session.cells : saved.cells) || [];
-  useEffect(() => { if (seeded.current || !cells.length) return; seeded.current = true; const last = lastStepId(cells); if (last) setDraft(d => (d.steps.length ? d : { ...d, steps: [last] })); }, [cells.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (seeded.current || !cells.length) return; seeded.current = true; const all = stepCells(cells).map(stepIdOf); if (all.length) setDraft(d => (d.steps.length ? d : { ...d, steps: all })); }, [cells.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const sessionTone = session?.status === 'ready' ? 'success' : ended ? 'error' : 'idle';
   const stopPress = event => event.stopPropagation();
 
-  // One cell, a section of the Run tab: its status, Run and Stop, a progress bar while it runs, the command, its parameters, the output pane, what the run produced, and the rehearsal's output.
-  const renderCell = cell => {
-    const r = runs[cell.cellId], failedHere = failedStepOf(saved.failedSteps, cell.cellId), tone = cellTone(r, failedHere), full = logs[cell.cellId], progress = progressOf(r);
-    const fields = knobFields(cell, { overrides: flags[cell.cellId], added, cells }), expected = expectedView(cell.expected), busy = active === cell.cellId;
-    const setField = (flag, value) => setFlags(old => ({ ...old, [cell.cellId]: { ...old[cell.cellId], [flag]: value } }));
-    const leave = () => save({ flags: { ...store.current.flags, ...Object.fromEntries(Object.entries(flags).map(([id, values]) => [id, cleanOverrides(values)])) } });
+  // One step, a card of the Run tab: a number, the plan's title and what happens, one state chip, Run; the command only on request; the output once it has run, past 12 lines under Show all.
+  const renderStep = (cell, index) => {
+    const r = runs[cell.cellId], failedHere = failedStepOf(saved.failedSteps, cell.cellId), full = logs[cell.cellId], progress = progressOf(r), busy = active === cell.cellId;
+    const state = stepState(r, { failedHere: !!failedHere, rehearsalPassed: !failedHere && !!saved.results?.[cell.cellId]?.status && saved.results[cell.cellId].status === 'done', timeoutMin: Math.round((cell.timeoutSec || 0) / 60) || null, note: notes[cell.cellId] });
+    const text = (full !== undefined ? full : paneText(r)) || (r?.complete ? COPY.step.noOutput : COPY.step.waiting), lines = text.split('\n'), long = lines.length > 12, open = expanded[cell.cellId];
+    const pane = r && !sessionGoneText(`${r.stderrTail || ''}${r.stdoutTail || ''}`) && <OutputPane running={!r.complete} text={long && !open ? lines.slice(-12).join('\n') : text} />;
+    const what = whatHappens(cell);
     return (
-      <section key={cell.cellId} data-run-cell={cell.cellId} className="flex flex-col gap-2 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <p className="min-w-0 flex-1 text-sm font-medium text-ink">{cell.title}</p>
-          <span data-run-status data-run-tone={tone} className={`flex items-center gap-1 text-xs font-medium ${TONE[tone] || 'text-ink-2'}`}><Mark tone={tone} />{[runLabel(r) || (failedHere ? 'Failed in the rehearsal' : ''), seconds(r?.sec)].filter(Boolean).join(' · ')}</span>
-          <Button type="button" variant="secondary" size="sm" data-run-run disabled={readOnly || !ready || !!active} onClick={() => runCell(cell)}><Play size={12} aria-hidden="true" />Run</Button>
-          <Button type="button" variant={busy ? 'danger' : 'ghost'} size="sm" data-run-stop disabled={readOnly || !busy} onClick={stop}><Square size={12} aria-hidden="true" />Stop</Button>
+      <section key={cell.cellId} data-run-cell={cell.cellId} data-run-state={state.tone} className="flex flex-col gap-2 px-4 py-3" onKeyDown={event => { if (event.key === 'Enter' && event.target === event.currentTarget && ready && !active && !readOnly) runCell(cell); }} tabIndex={0}>
+        <div className="flex items-start gap-3">
+          <StepBadge n={index + 1} done={state.tone === 'success'} />
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <p className="text-sm font-medium text-ink">{cell.title}</p>
+            {what && <p data-run-what className="text-xs text-ink-2">{what}</p>}
+          </div>
+          <Chip tone={state.tone} data-run-status>{state.label}</Chip>
+          <Button type="button" variant="secondary" size="sm" data-run-run disabled={readOnly || !ready || !!active} onClick={() => runCell(cell)}><Play size={12} aria-hidden="true" />{COPY.step.run}</Button>
+          {busy && <Button type="button" variant="danger" size="sm" data-run-stop onClick={stop}><Square size={12} aria-hidden="true" />{COPY.header.stop}</Button>}
         </div>
-        {failedHere && !r && <p data-run-rehearsal-failed className="text-xs text-fail">The rehearsal stopped at this step{failedHere.error ? `: ${failedHere.error}` : ''}</p>}
-        {progress && <Progress progress={progress} />}
-        <pre data-run-cmd className={PRE}>{r?.cmd || cell.cmd}</pre>
-        <div onBlur={leave}><KnobFields fields={fields} disabled={readOnly || busy} onChange={setField} onReset={() => { setFlags(old => ({ ...old, [cell.cellId]: {} })); save({ flags: { ...store.current.flags, [cell.cellId]: {} } }); }} onOpen={openSource} /></div>
-        {r && <div data-run-output className="flex flex-col gap-1.5">
-          {r.at && <p data-run-at className="text-xs text-ink-2">Last run {new Date(r.at).toLocaleString()}</p>}
-          <OutputPane running={!r.complete} text={(full !== undefined ? full : paneText(r)) || (r.complete ? 'No output' : 'Waiting for output')} />
-          {r.runId && <Button type="button" variant="ghost" size="sm" data-run-log className="w-fit" onClick={() => toggleLog(cell.cellId)}>{full !== undefined ? 'Show the latest lines' : 'Show the full log'}</Button>}
-          {(r.runId || r.producedFiles?.length > 0) && <RunOutputs status={r} cell={cell} gone={!r.runId} load={path => loadFile(r.runId, path)} />}
-        </div>}
-        {(expected.facts.length > 0 || expected.output) && (
-          <details data-run-expected={cell.cellId} className="text-xs text-ink-2">
-            <summary className="cursor-pointer select-none">{REHEARSAL_OUTPUT}</summary>
-            <div className="mt-1.5 flex flex-col gap-1">
-              <p className="font-medium">{EXPECTED_HEADING}</p>
-              {expected.facts.length > 0 && <ul className="list-disc pl-5">{expected.facts.map((line, i) => <li key={i}>{line}</li>)}</ul>}
-              {expected.output && <pre className={PRE}>{expected.output}</pre>}
+        {state.line && <p data-run-line className={`pl-9 text-xs ${state.tone === 'danger' ? 'text-fail' : 'text-ink-2'}`}>{state.line}</p>}
+        {progress && <div className="pl-9"><Progress progress={progress} /></div>}
+        <details data-run-command className="pl-9 text-xs text-ink-2">
+          <summary className="cursor-pointer select-none">{COPY.step.showCommand}</summary>
+          <pre data-run-cmd className={`mt-1 ${CMD_PRE}`}>{r?.cmd || cell.cmd}</pre>
+        </details>
+        {r && (
+          <div data-run-output className="flex flex-col gap-1.5 pl-9">
+            {state.tone === 'danger'
+              ? <details className="text-xs text-ink-2"><summary className="cursor-pointer select-none">{COPY.step.details}</summary><div className="mt-1.5">{pane}</div></details>
+              : pane}
+            <div className="flex flex-wrap items-center gap-2">
+              {long && <Button type="button" variant="ghost" size="sm" onClick={() => setExpanded(old => ({ ...old, [cell.cellId]: !open }))}>{open ? COPY.step.showLess : COPY.step.showAll}</Button>}
+              {r.runId && <Button type="button" variant="ghost" size="sm" data-run-log onClick={() => toggleLog(cell.cellId)}>{full !== undefined ? 'Show the latest lines' : 'Show the full log'}</Button>}
             </div>
-          </details>
+            {(r.runId || r.producedFiles?.length > 0) && <RunOutputs status={r} cell={cell} gone={!r.runId} load={path => loadFile(r.runId, path)} />}
+          </div>
         )}
       </section>
     );
   };
 
-  const customRun = runs[CUSTOM_KEY], content = 'min-h-0 flex-1 overflow-y-auto';
+  const customRun = runs[CUSTOM_KEY], content = 'min-h-0 flex-1 overflow-y-auto', hs = headerState(session), dirty = !!draft.name || Object.values(draft.values || {}).some(v => Object.keys(v || {}).length > 0);
   return (
     <>
-      <CardHeader block={block} className="relative px-4 pt-3 pb-2" meta="Run card · sandbox" trailing={<>
-        <Button type="button" variant={idle ? 'secondary' : 'ghost'} size="sm" data-run-session disabled={readOnly || (!idle && !session?.sessionId)} onPointerDown={stopPress} onClick={idle ? begin : stop}>
-          {idle ? <Play size={12} aria-hidden="true" /> : <Square size={12} aria-hidden="true" />}{idle ? 'Start session' : 'Stop session'}
+      <CardHeader block={block} className="relative px-4 pt-3 pb-2" meta={COPY.subtitle} trailing={<>
+        <Chip tone={hs.tone} data-run-session-chip>{hs.busy && <Loader2 aria-hidden="true" size={12} className="motion-safe:animate-spin" />}{hs.chip}</Chip>
+        <Button type="button" variant={hs.button === 'stop' ? 'danger' : 'primary'} size="sm" data-run-session disabled={readOnly || hs.busy || (hs.button === 'stop' && !session?.sessionId)} onPointerDown={stopPress} onClick={hs.button === 'stop' ? stop : begin}>
+          {hs.button === 'stop' ? <Square size={12} aria-hidden="true" /> : <Play size={12} aria-hidden="true" />}{hs.button === 'stop' ? COPY.header.stop : hs.button === 'startAgain' ? COPY.header.startAgain : hs.button === 'tryAgain' ? COPY.header.tryAgain : COPY.header.start}
         </Button>
       </>} />
-      <div data-run-card aria-label="Run card" className="flex min-h-0 flex-1 flex-col rounded-b-xl border-t border-line">
-        <div className="flex items-center gap-2 px-4 py-2" data-run-session-status={session?.status || 'idle'}>
-          {session?.status === 'starting' && <Loader2 aria-hidden="true" size={16} className="shrink-0 text-pass motion-safe:animate-spin" />}
-          {session?.status === 'starting' && <div role="progressbar" aria-label="Starting sandbox" className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-hover"><div className="h-full w-2/5 rounded-full bg-success motion-safe:animate-pulse" /></div>}
-          <p aria-live="polite" className={`text-sm ${session?.status === 'starting' ? 'shimmer' : `font-medium ${TONE[sessionTone] || 'text-ink-2'}`}`}>{session ? sessionLabel(session) : 'Session not started'}</p>
-        </div>
+      <div data-run-card data-run-session-status={session?.status || 'idle'} aria-label="Run card" className="flex min-h-0 flex-1 flex-col rounded-b-xl border-t border-line">
         <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <TabsList className="shrink-0 overflow-x-auto px-4" aria-label="Run card">
-            {TABS.map(([id, label]) => <TabsTrigger key={id} value={id} data-run-tab={id} className="shrink-0 whitespace-nowrap">{label}</TabsTrigger>)}
+            {TABS.map(([id]) => <TabsTrigger key={id} value={id} data-run-tab={id} className="shrink-0 whitespace-nowrap">{COPY.tabs[id]}{id === 'custom' && dirty && <span aria-label={COPY.custom.unsaved} title={COPY.custom.unsaved} className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-accent" />}</TabsTrigger>)}
           </TabsList>
           <TabsContent value="run" data-scroll className={content}>
-            {cells.length === 0
-              ? <p className="px-4 py-3 text-sm text-ink-2">Start a session to see the cells of this route and run them.</p>
-              : <div className="flex flex-col divide-y divide-line">{cells.filter(cell => cell.kind !== 'knobs').map(renderCell)}</div>}
+            {stepCells(cells).length === 0
+              ? <p className="px-4 py-3 text-sm text-ink-2">{COPY.step.startFirst}</p>
+              : <>
+                <div className="flex items-center justify-end px-4 pt-3"><Button type="button" variant="primary" size="sm" data-run-all disabled={readOnly || !ready || !!active} onClick={runAll}><ListChecks size={12} aria-hidden="true" />{COPY.step.runAll}</Button></div>
+                <div className="flex flex-col divide-y divide-line">{stepCells(cells).map(renderStep)}</div>
+              </>}
           </TabsContent>
           <TabsContent value="custom" data-scroll className={content}>
             <RunCustom cells={cells} added={added} draft={draft} setDraft={setDraft} ready={ready} active={active} readOnly={readOnly} run={customRun} full={logs[CUSTOM_KEY]} presets={saved.customRuns || []}
               onRun={() => runCustom()} onStop={stop} onSave={savePresetDraft} onLog={() => toggleLog(CUSTOM_KEY)} onOpen={openSource} load={loadFile}
               onRunPreset={preset => { const next = { steps: preset.steps, values: preset.knobs, name: preset.name }; setDraft(next); runCustom(next); }}
+              onRename={(preset, name) => save({ customRuns: (saved.customRuns || []).map(p => (p === preset ? { ...p, name } : p)) })}
               onDelete={preset => save({ customRuns: deletePreset(saved.customRuns, preset) })} />
           </TabsContent>
           <TabsContent value="history" data-run-history data-scroll className={content}>
-            <RunHistory history={saved.history || []} cells={cells} readOnly={readOnly} ready={ready} filter={filter} setFilter={setFilter} getStatus={getStatus} load={loadFile} onRunAgain={runAgain} onSavePreset={savePresetFrom} />
+            <RunHistory history={saved.history || []} cells={cells} rehearsal={cells} readOnly={readOnly} ready={ready} filter={filter} setFilter={setFilter} getStatus={getStatus} load={loadFile} onRunAgain={runAgain} onSavePreset={savePresetFrom} />
           </TabsContent>
         </Tabs>
       </div>

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { AlignLeft, Braces, ChartLine, Check, ChevronDown, ChevronRight, Code, File, Film, Image, NotebookPen, Play, Save, Table, Volume2, X } from 'lucide-react';
 import { Button, Pill } from './ui.jsx';
-import { OutputPane, PRE, TONE } from './RunParts.jsx';
+import { RUN_CARD_COPY as COPY } from './run-card-copy.js';
+import { Chip } from './RunParts.jsx';
+import { OutputPane, PRE } from './RunParts.jsx';
 import RunOutputs, { MetricChart } from './RunOutputs.jsx';
 import { FILTERS, chipsOf, compareCell, compareModel, filterHistory } from './run-card-history.js';
-import { paneText, seconds } from './run-card-view.js';
+import { expectedView, paneText, seconds } from './run-card-view.js';
+import { stepIdOf } from './run-card-knobs.js';
 
 // The History tab (Run card v1.1 Part 3c): every run this card made, newest first, the last 50. A row is the time, the source, the flags that differ from the defaults as chips, the exit
 // mark, the duration, the kinds of output as icons and the session. Expanded it shows the run's outputs: re-fetched from the controller while the session lives (getStatus), else the
@@ -30,9 +33,9 @@ function Detail({ entry, cells, readOnly, ready, getStatus, load, onRunAgain, on
         </>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="secondary" size="sm" data-run-again disabled={readOnly} onClick={() => onRunAgain(entry)}><Play size={12} aria-hidden="true" />Run again</Button>
-        <Button type="button" variant="ghost" size="sm" data-run-save-custom disabled={readOnly || !!(entry.cellId && !cell) || (entry.cellId && cell?.kind === 'install')} onClick={() => onSavePreset(entry)}><Save size={12} aria-hidden="true" />Save as custom run</Button>
-        <Button type="button" variant="ghost" size="sm" data-run-compare aria-pressed={compare} disabled={!cell || cell.kind === 'install'} onClick={() => setCompare(v => !v)}>Compare with rehearsal</Button>
+        <Button type="button" variant="secondary" size="sm" data-run-again disabled={readOnly} onClick={() => onRunAgain(entry)}><Play size={12} aria-hidden="true" />{COPY.history.runAgain}</Button>
+        <Button type="button" variant="ghost" size="sm" data-run-save-custom disabled={readOnly || !!(entry.cellId && !cell) || (entry.cellId && cell?.kind === 'install')} onClick={() => onSavePreset(entry)}><Save size={12} aria-hidden="true" />{COPY.history.saveAsRun}</Button>
+        <Button type="button" variant="ghost" size="sm" data-run-compare aria-pressed={compare} disabled={!cell || cell.kind === 'install'} onClick={() => setCompare(v => !v)}>{COPY.history.compare}</Button>
       </div>
       {model?.kind === 'chart' && <MetricChart series={model.series} reference={model.ref} />}
       {model?.kind === 'text' && (
@@ -49,25 +52,55 @@ function Detail({ entry, cells, readOnly, ready, getStatus, load, onRunAgain, on
   );
 }
 
-export default function RunHistory({ history, cells, readOnly, ready, filter, setFilter, getStatus, load, onRunAgain, onSavePreset }) {
+// The rehearsal is a permanent first row (soft accent tint): what a real run produced, per step, and the comparison target for Compare with rehearsal.
+function RehearsalRow({ cells }) {
+  const [on, setOn] = useState(false);
+  const steps = (cells || []).filter(cell => cell.kind === 'step').map(cell => ({ cell, view: expectedView(cell.expected) })).filter(s => s.view.facts.length > 0 || s.view.output);
+  return (
+    <li data-run-history-rehearsal className="flex flex-col rounded-lg bg-accent/10 px-3 py-2">
+      <button type="button" aria-expanded={on} onClick={() => setOn(v => !v)} className="flex w-full items-center gap-2 text-left text-xs">
+        {on ? <ChevronDown size={12} aria-hidden="true" className="shrink-0 text-accent" /> : <ChevronRight size={12} aria-hidden="true" className="shrink-0 text-accent" />}
+        <span className="font-medium text-accent">{COPY.history.rehearsal}</span>
+      </button>
+      {on && (steps.length === 0
+        ? <p className="pl-5 pt-1 text-xs text-ink-2">{COPY.history.rehearsalNone}</p>
+        : <div className="flex flex-col gap-2 pl-5 pt-2">{steps.map(({ cell, view }) => (
+          <div key={stepIdOf(cell)} data-run-rehearsal-step={stepIdOf(cell)} className="flex flex-col gap-1">
+            <p className="text-xs font-medium text-ink">{cell.title}</p>
+            {view.facts.length > 0 && <ul className="list-disc pl-5 text-xs text-ink-2">{view.facts.map((line, i) => <li key={i}>{line}</li>)}</ul>}
+            {view.output && <pre className={PRE}>{view.output}</pre>}
+          </div>))}</div>)}
+    </li>
+  );
+}
+
+// The source column: Run · "<step title>" for a step, Custom run · "<name>" for a custom run.
+const sourceText = (entry, cells) => {
+  if (entry.custom) return `${COPY.tabs.custom} · "${String(entry.custom.name || (entry.custom.steps || []).join(' + ')).slice(0, 60)}"`;
+  const cell = (cells || []).find(c => c.cellId === entry.cellId);
+  return `${COPY.tabs.run} · "${cell?.title || entry.cellId}"`;
+};
+
+export default function RunHistory({ history, cells, rehearsal = null, readOnly, ready, filter, setFilter, getStatus, load, onRunAgain, onSavePreset }) {
   const [open, setOpen] = useState(null), rows = filterHistory(history, filter);
   return (
     <div data-run-history-list className="flex flex-col gap-2 px-4 py-3">
       <div role="group" aria-label="Filter runs" className="flex flex-wrap gap-1.5">
-        {FILTERS.map(name => <Button key={name} type="button" size="sm" variant={filter === name ? 'secondary' : 'ghost'} aria-pressed={filter === name} data-run-filter={name} onClick={() => setFilter(name)}>{name}</Button>)}
+        {FILTERS.map(name => <Button key={name} type="button" size="sm" variant={filter === name ? 'secondary' : 'ghost'} aria-pressed={filter === name} data-run-filter={name} onClick={() => setFilter(name)}>{COPY.history.filters[name] || name}</Button>)}
       </div>
-      {rows.length === 0 && <p className="text-sm text-ink-2">{(history || []).length ? 'No runs match this filter.' : 'Runs from the Run and Custom run tabs are listed here.'}</p>}
-      <ol className="m-0 flex list-none flex-col p-0">
+      {rows.length === 0 && <p className="text-sm text-ink-2">{(history || []).length ? COPY.history.noMatch : COPY.history.empty}</p>}
+      <ol className="m-0 flex list-none flex-col gap-1 p-0">
+        {rehearsal && <RehearsalRow cells={rehearsal} />}
         {rows.map(entry => {
-          const key = `${entry.at}-${entry.runId || entry.source}`, on = open === key, tone = entry.ok ? 'success' : 'error';
+          const key = `${entry.at}-${entry.runId || entry.source}`, on = open === key;
           return (
             <li key={key} data-run-history-row={entry.source} data-run-ok={entry.ok} className="flex flex-col border-t border-line py-2 first:border-t-0">
               <button type="button" aria-expanded={on} onClick={() => setOpen(on ? null : key)} className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-left text-xs text-ink-2">
                 {on ? <ChevronDown size={12} aria-hidden="true" className="shrink-0" /> : <ChevronRight size={12} aria-hidden="true" className="shrink-0" />}
                 <span data-run-history-at>{new Date(entry.at).toLocaleString()}</span>
-                <span className="font-medium text-ink">{entry.source}</span>
+                <span className="font-medium text-ink">{sourceText(entry, cells)}</span>
                 {chipsOf(entry).map(chip => <Pill key={chip} color="grey" className="font-mono">{chip}</Pill>)}
-                <span className={`flex items-center gap-0.5 font-medium ${TONE[tone]}`} data-run-history-rc>{entry.ok ? <Check size={12} aria-hidden="true" /> : <X size={12} aria-hidden="true" />}{entry.ok ? 'rc 0' : Number.isInteger(entry.rc) ? `rc ${entry.rc}` : 'failed'}</span>
+                <Chip tone={entry.ok ? 'success' : 'danger'} data-run-history-rc>{entry.ok ? COPY.step.done : COPY.step.didnt}</Chip>
                 <span>{seconds(entry.sec)}</span>
                 <span className="flex items-center gap-1">{(entry.kinds || []).map(kind => { const [Icon, label] = KIND[kind] || KIND.text; return <Icon key={kind} size={12} aria-label={label} role="img" />; })}</span>
                 {entry.sessionLabel && <span>{entry.sessionLabel}</span>}

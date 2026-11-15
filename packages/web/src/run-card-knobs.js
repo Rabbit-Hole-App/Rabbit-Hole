@@ -130,7 +130,7 @@ export function addKnob(run, knob) {
   return { run: { ...run, addedKnobs: [...list, { ...k, addedBy: 'tutor' }] }, status: 'added' };
 }
 
-// The step a source file belongs to: the first step cell whose command runs that file (sample.py -> the sample step). null when no cell does (or the cells are not known yet).
+// The step a source file belongs to: the first step cell whose command runs that file (a script path maps to the step that runs it). null when no cell does (or the cells are not known yet).
 export function stepForSource(cells, source) {
   const file = String(source || '').split(':')[0].split('/').pop();
   if (!file) return null;
