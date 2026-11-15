@@ -1,0 +1,215 @@
+{
+  "family": "impurity-probe",
+  "canonical": "mixture-and-two-scores",
+  "layout": {
+    "width": 640,
+    "height": 390
+  },
+  "story": "Change the share of class 1. A pure mixture has zero uncertainty; an even mix is hardest to predict. Gini and entropy agree about that pattern but use different scales.",
+  "aha": {
+    "inputs": {
+      "p": 0.5
+    },
+    "observation": "At an even mixture, Gini is 0.5 and entropy is 1 bit. Both return to zero at either pure endpoint.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "curves",
+      "kind": "dual-analytic-plot",
+      "bind": "computed.giniCurve; computed.entropyCurve"
+    },
+    {
+      "id": "probe",
+      "kind": "shared-probability-probe",
+      "bind": "inputs.p"
+    },
+    {
+      "id": "mixture",
+      "kind": "continuous-mixture-strip",
+      "bind": "inputs.p; 1-inputs.p"
+    },
+    {
+      "id": "scores",
+      "kind": "dual-score-readouts",
+      "bind": "computed.g; computed.h"
+    },
+    {
+      "id": "formula",
+      "kind": "formula-substitution",
+      "bind": "computed.g; computed.h; inputs.p"
+    }
+  ],
+  "controls": [
+    {
+      "id": "p",
+      "kind": "range",
+      "label": "Class 1 fraction p",
+      "min": 0,
+      "max": 1,
+      "step": 0.05,
+      "effect": "Change the mixture, both curve markers and both computed impurity values."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "Substitute the same mixture twice.",
+    "heading": "Probe Gini and entropy together",
+    "prompt": "how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy?",
+    "instructions": "Move p from a pure endpoint to an even mix. Compare both curves at the same fraction.",
+    "initialInputs": {
+      "p": 0.15
+    },
+    "reference": {
+      "kind": "coordinate-plot",
+      "title": "Gini impurity and entropy",
+      "x": {
+        "label": "Class fraction p",
+        "min": 0,
+        "max": 1
+      },
+      "y": {
+        "label": "Impurity score",
+        "min": 0,
+        "max": 1
+      },
+      "series": [
+        {
+          "label": "Gini impurity",
+          "kind": "line",
+          "smooth": true,
+          "samples": {
+            "x": {
+              "start": 0,
+              "step": 1,
+              "divisor": 10
+            },
+            "y": [
+              0,
+              180,
+              320,
+              420,
+              480,
+              500,
+              480,
+              420,
+              320,
+              180,
+              0
+            ],
+            "divisor": 1000
+          }
+        },
+        {
+          "label": "Entropy (bits)",
+          "kind": "line",
+          "smooth": true,
+          "samples": {
+            "x": {
+              "start": 0,
+              "step": 1,
+              "divisor": 10
+            },
+            "y": [
+              0,
+              469,
+              722,
+              881,
+              971,
+              1000,
+              971,
+              881,
+              722,
+              469,
+              0
+            ],
+            "divisor": 1000
+          }
+        }
+      ],
+      "annotations": [
+        {
+          "kind": "point",
+          "x": 0.5,
+          "y": 0.5,
+          "label": "Gini peak"
+        },
+        {
+          "kind": "point",
+          "x": 0.5,
+          "y": 1,
+          "label": "Entropy peak"
+        }
+      ],
+      "caption": "Worked example. $G(p)=2p(1-p)$ and $H(p)=-p\\log_2 p-(1-p)\\log_2(1-p)$. Rounded samples. At the endpoints, the zero-share term vanishes by continuity."
+    },
+    "calculations": [
+      "G(p) = 2*p*(1-p). H(p) = -p*log2(p) - (1-p)*log2(1-p), in bits.",
+      "At p=0 or 1, define 0*log2(0) by its zero limit; evaluate entropy as 0 without computing log2(0).",
+      "Curve samples are recomputed from these formulas; source samples round to 3 decimals. Peak scaling uses G/0.5 and H/1, not raw-score equality.",
+      "The mixture strip encodes proportions continuously; it is not an invented integer training sample."
+    ],
+    "missingCounterparts": [
+      "endpoint-safe analytic entropy",
+      "shared dual-curve probe",
+      "continuous mixture strip",
+      "normalization-aware plot",
+      "formula substitution"
+    ],
+    "sourceKind": "analytic formulas",
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "p": 0.15
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "p": 0.5
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-gini-vs-entropy-detailed",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 35,
+      "cases": 21,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "deep-impurity-probe-gini-vs-entropy",
+  "depth": "detailed"
+}

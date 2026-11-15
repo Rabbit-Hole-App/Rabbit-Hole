@@ -27,3 +27,7 @@ if(has('overview-split-accounting-gini-split.html'))test('Gini accounting expose
 if(has('overview-partition-map-decision-regions.html'))test('decision regions respect branch-local cuts and ≤ boundaries',()=>{
  const u=card('deep','partition-map','decision-regions');u.change('x',6);u.change('y',1);for(const [stage,pred]of [[0,0],[1,1],[2,0]]){u.change('stage',stage);assert.equal(u.card.evidence.prediction,pred)}u.change('x',4);u.change('y',8);assert.equal(u.card.evidence.region,'L');u.change('x',6);u.change('y',2);assert.equal(u.card.evidence.region,'RL');assert.deepEqual(Array.from(u.card.evidence.members),['E']);u.change('y',3);assert.equal(u.card.evidence.region,'RR');
 });
+if(has('overview-impurity-probe-gini-vs-entropy.html'))test('Gini/entropy endpoints, peaks and original rounded samples agree with independent formulas',()=>{
+ const u=card('overview','impurity-probe','gini-vs-entropy');for(const [p,g,h]of [[0,0,0],[.5,.5,1],[1,0,0]]){u.change('p',p);assert.equal(u.card.evidence.g,g);assert.equal(u.card.evidence.h,h)}for(let i=1;i<10;i++){const p=i/10;u.change('p',p);const h=-(p*Math.log(p)+(1-p)*Math.log(1-p))/Math.LN2;assert.ok(Math.abs(u.card.evidence.h-h)<1e-12);assert.ok(Math.abs(h-u.card.scene.data.reference.series[1].samples.y[i]/1000)<=.0005)}
+ const s=card('standard','impurity-probe','gini-vs-entropy');s.change('p',.5);s.change('scale','peak');assert.equal(s.card.evidence.g,.5);assert.equal(s.card.evidence.giniPlot,1);
+});
