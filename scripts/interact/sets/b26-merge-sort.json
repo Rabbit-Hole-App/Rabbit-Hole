@@ -1,0 +1,7 @@
+[
+ {
+  "id": "merge-sort",
+  "prompt": "how does merge sort work?",
+  "expect": "fit"
+ }
+]
