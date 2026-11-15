@@ -1,7 +1,6 @@
 // Current-canvas Search. Pure and unbudgeted: callers supply only already-authorized live data.
 // No fetch, model, OCR, persisted mutation, or inference from URL-looking prose.
 import { cardText } from './canvas-semantics.js';
-import { docText } from './doc-text.js';
 import { pdfRef } from './pdf-source.js';
 import { validSources } from './card-sources.js';
 import { cadArtifact } from './cad-client.js';
@@ -15,7 +14,7 @@ export const SEARCH_TYPE_CATEGORY = { video: 'video', videoGenerate: 'video', 'f
   quiz: 'quiz', flashcards: 'flashcards', challenge: 'challenge', explainBack: 'challenge', explanation: 'explanation', walkthrough: 'explanation',
   table: 'table', 'file:table': 'table', 'file:workbook': 'table', cad: 'cad', model3d: 'cad', scene: 'cad', 'file:model': 'cad',
   animation: 'animation', mathAnimation: 'animation', audio: 'audio', 'file:audio': 'audio', slide: 'slides', 'file:presentation': 'slides',
-  'file:document': 'document', 'file:markdown': 'document', 'file:text': 'document' };
+  doc: 'document', 'file:document': 'document', 'file:markdown': 'document', 'file:text': 'document' };
 const string = value => typeof value === 'string' ? value : '';
 const at = (collection, id) => collection instanceof Map ? collection.get(id) : collection?.[id];
 const array = value => Array.isArray(value) ? value : [];
@@ -166,12 +165,6 @@ export function updateSearchIndex(previous, input) {
       return entry;
     });
   }
-  const walk = (blocks, path = []) => array(blocks).forEach((block, position) => {
-    const id = block.id || `position:${[...path, position].join('.')}`;
-    if (docText([{ ...block, children: [] }]).trim()) put(`document:${id}`, [block], () => ({ id: `document:${id}`, objectId: 'doc', kind: 'document', title: block.type === 'heading' ? docText([{ ...block, children: [] }]).replace(/^#+\s*/, '') : 'Canvas document', categories: ['text', ...(block.type === 'codeBlock' ? ['code'] : [])], references: [], rabbitHoles: [], availability: { status: 'ready' }, target: { kind: 'document', id: 'doc', docBlockId: id }, location: { blockId: id }, fields: fields('body', docText([{ ...block, children: [] }]), 'card', { blockId: id }) }));
-    walk(block.children, [...path, position]);
-  });
-  walk(board.doc?.blocks);
   for (const [direction, groups] of [['from', input.links?.from], ['to', input.links?.to]]) for (const group of array(groups)) {
     const key = direction === 'from' ? group.target : group.source;
     if (key) put(`link:${direction}:${key}`, [group], () => linkEntry(direction, key, group));
