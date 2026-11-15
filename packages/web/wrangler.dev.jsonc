@@ -26,6 +26,11 @@
         "name": "REPOSITORY_IMPORTS",
         "class_name": "RepositoryImports"
       },
+      // Rehearsal runs, one object per (app, commit, hardware) (control-plane/src/learn-rehearsal.js); dev only, production does not bind it.
+      {
+        "name": "REPOSITORY_REHEARSALS",
+        "class_name": "RepositoryRehearsals"
+      },
       // Durable file-conversion jobs (control-plane/src/file-jobs.js); production binds the same class (docs/features/file-jobs-production.md).
       {
         "name": "FILE_JOBS",
@@ -111,6 +116,12 @@
       "tag": "roadmap-jobs-1",
       "new_sqlite_classes": [
         "RoadmapJobs"
+      ]
+    },
+    {
+      "tag": "repository-rehearsals-1",
+      "new_sqlite_classes": [
+        "RepositoryRehearsals"
       ]
     }
   ],
