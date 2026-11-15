@@ -58,7 +58,7 @@ import { TutorCoaching } from './use-learn-coaching.jsx';
 import { REHEARSAL } from './rehearsal-flag.js';
 // The literal env test beside the import lets Vite drop the chunk from a build without VITE_REHEARSAL_TRIGGER; it runs only when the flow renders.
 const TutorRehearsalFlow = lazy(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./TutorRehearsal.jsx') : Promise.reject(new Error('not part of this build'))));
-import { offerIntakeText } from './codebase-use-route.js';
+import { canvasUseId, offerIntakeText } from './codebase-use-route.js';
 import RoadmapTranscript, { TutorMessage } from './RoadmapTranscript.jsx';
 import { TutorActivity } from './TutorActivity.jsx';
 import { fileReviews } from './learn-progress-question.js';
@@ -820,6 +820,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         ...(model !== 'auto' ? { model } : {}),
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
+        // Dev flag (rehearsal-flag.js): a repository chat names the canvas goal's use so the server composes its prompt overlay (codebase-use-route.js canvasUseId).
+        ...(REHEARSAL && chat && codebase && canvasUseId(chat.coaching?.state) ? { use: canvasUseId(chat.coaching.state) } : {}),
         ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
         // R2: the learner's Depth for this canvas (Balanced sends nothing).
         ...depthSnapshot,
