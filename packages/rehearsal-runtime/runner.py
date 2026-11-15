@@ -485,7 +485,11 @@ class Runner:
             pre = {'id': step['id'] + '_pre', 'cmd': change, 'source': f'repair fix {len(self.fixes) + 1}', 'timeoutSec': 600, 'checks': [{'type': 'exit_zero'}]}
             if not self._run_pre(pre):
                 return 'the added step failed'
-            i = self.route['steps'].index(step)
+            try:
+                i = self.route['steps'].index(step)
+            except ValueError:  # the install pseudo-step is not in route['steps']: the added command joins the install commands instead (it already ran)
+                self.route['install'].insert(0, {'cmd': change, 'source': pre['source']})
+                return ''
             self.route['steps'].insert(i, pre)
         else:
             return 'unknown fix kind'
