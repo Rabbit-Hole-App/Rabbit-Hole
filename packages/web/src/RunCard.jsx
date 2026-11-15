@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Check, Loader2, Play, Square, X } from 'lucide-react';
 import CardHeader from './CardHeader.jsx';
 import { api } from './api.js';
-import { Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
 import { EXPECTED_HEADING, HISTORY_TAB, RUN_POLL_MS, cellTabTitle, expectedView, initialFlags, paneText, progressOf, runLabel, runTone, seconds, sendFlags, sessionEnded, sessionLabel, sessionReady } from './run-card-view.js';
 
 // The Run card (packages/rehearsal-runtime/RUN_CARD.md): the rehearsal's route as notebook-shaped cells, run one at a time in one
@@ -12,9 +12,8 @@ import { EXPECTED_HEADING, HISTORY_TAB, RUN_POLL_MS, cellTabTitle, expectedView,
 // code block of ask.jsx; notices are toast(). The browser polls every RUN_POLL_MS; nothing is polled once a run completes, the session
 // is stopped, or the card unmounts. Self-contained on purpose: it takes only the canvas and board, so it can be mounted in a Tutor
 // panel today and as a canvas card later.
-const ACTION = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
-// Stop is grey when nothing runs and red only while a run is in progress (owner 2026-11-14).
-const STOP = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-fail hover:bg-hover disabled:opacity-40';
+// Buttons are the ui.jsx kit: Run secondary, Stop ghost (grey) until its cell is running and then danger (the app's filled red Stop), the session
+// control ghost. Status text uses the --color-pass and --color-fail tokens.
 const PRE = 'rounded-sm bg-code p-3 font-mono text-xs leading-relaxed text-ink whitespace-pre-wrap break-words';
 const TONE = { running: 'text-pass', success: 'text-pass', error: 'text-fail', idle: '' }; // the app's own status text tokens (index.css --color-pass, --color-fail: contrast-safe in light and dark)
 const HEADER = { id: 'run-card', type: 'notebook', title: 'Run the codebase' };
@@ -129,8 +128,8 @@ export default function RunCard({ app, board }) {
         <div className="flex items-center gap-2">
           <p className="min-w-0 flex-1 text-sm font-medium text-ink">{cell.title}</p>
           <span data-run-status data-run-tone={tone} className={`flex items-center gap-1 text-xs font-medium ${TONE[tone] || 'text-ink-2'}`}><Mark tone={tone} />{[runLabel(r), seconds(r?.sec)].filter(Boolean).join(' · ')}</span>
-          <button type="button" data-run-run className={ACTION} disabled={!ready || !!active} onClick={() => run(cell)}><Play size={12} />Run</button>
-          <button type="button" data-run-stop className={active === cell.cellId ? STOP : ACTION} disabled={active !== cell.cellId} onClick={stop}><Square size={12} />Stop</button>
+          <Button type="button" variant="secondary" size="sm" data-run-run disabled={!ready || !!active} onClick={() => run(cell)}><Play size={12} aria-hidden="true" />Run</Button>
+          <Button type="button" variant={active === cell.cellId ? 'danger' : 'ghost'} size="sm" data-run-stop disabled={active !== cell.cellId} onClick={stop}><Square size={12} aria-hidden="true" />Stop</Button>
         </div>
         {progress && <Progress progress={progress} />}
         <pre data-run-cmd className={PRE}>{r?.cmd || cell.cmd}</pre>
@@ -146,7 +145,7 @@ export default function RunCard({ app, board }) {
         </div>}
         {r && <div data-run-output className="flex flex-col gap-1">
           <OutputPane running={!r.complete} text={(full !== undefined ? full : paneText(r)) || (r.complete ? 'No output' : 'Waiting for output')} />
-          {r.runId && <button type="button" data-run-log className="w-fit cursor-pointer text-xs font-medium text-ink underline-offset-2 hover:underline" onClick={() => toggleLog(cell.cellId)}>{full !== undefined ? 'Show the latest lines' : 'Show the full log'}</button>}
+          {r.runId && <Button type="button" variant="ghost" size="sm" data-run-log className="w-fit" onClick={() => toggleLog(cell.cellId)}>{full !== undefined ? 'Show the latest lines' : 'Show the full log'}</Button>}
         </div>}
       </div>
     );
@@ -155,9 +154,9 @@ export default function RunCard({ app, board }) {
   return (
     <section data-run-card aria-label="Run card" className="mb-2 flex max-h-[70vh] flex-col rounded-xl border border-line bg-white shadow-sm">
       <CardHeader block={HEADER} className="px-4 pt-3 pb-2" meta="Run card · sandbox" trailing={
-        <button type="button" data-run-session className={active ? STOP : ACTION} disabled={!session?.sessionId && !ended} onClick={ended ? begin : stop}>
-          {ended ? <Play size={12} /> : <Square size={12} />}{ended ? 'Start session' : 'Stop session'}
-        </button>} />
+        <Button type="button" variant={ended ? 'secondary' : 'ghost'} size="sm" data-run-session disabled={!session?.sessionId && !ended} onClick={ended ? begin : stop}>
+          {ended ? <Play size={12} aria-hidden="true" /> : <Square size={12} aria-hidden="true" />}{ended ? 'Start session' : 'Stop session'}
+        </Button>} />
       <div className="flex items-center gap-2 px-4 pb-2" data-run-session-status={session?.status}>
         {session?.status === 'starting' && <Loader2 aria-hidden="true" size={16} className="shrink-0 text-pass motion-safe:animate-spin" />}
         {session?.status === 'starting' && <div role="progressbar" aria-label="Starting sandbox" className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-hover"><div className="h-full w-2/5 rounded-full bg-success motion-safe:animate-pulse" /></div>}
