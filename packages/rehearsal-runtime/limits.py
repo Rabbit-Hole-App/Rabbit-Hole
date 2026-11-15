@@ -11,6 +11,7 @@ MAX_FIX_CYCLES = 6
 MAX_FIX_CYCLES_PER_STEP = 3
 MAX_MODEL_CALLS = 12
 MODEL_SPEND_CAP_USD = 3.0
+MAX_ALLOW_DOMAIN_FIXES = 2     # allow_domain fixes per job (each re-creates the sandbox with one more domain)
 MAX_QUEUE = 4                   # one job in flight per controller, this many waiting
 REPAIR_EXEC_TIMEOUT_SEC = 300   # the repair agent's exec tool
 REPAIR_READ_MAX_LINES = 200     # the repair agent's read_file tool
@@ -47,3 +48,8 @@ class Budget:
     def charge_model(self, usd: float) -> None:
         self.model_calls += 1
         self.model_spend_usd += usd
+
+
+# Sandbox network (spec v1.3 8a): TLS-only domain allowlist, no CIDR ranges. A repository that needs another host gets it through an allow_domain fix.
+OUTBOUND_DOMAIN_ALLOWLIST = ['pypi.org', 'files.pythonhosted.org', 'download.pytorch.org', 'github.com', '*.github.com', 'codeload.github.com',
+                             'raw.githubusercontent.com', 'objects.githubusercontent.com', '*.githubusercontent.com']

@@ -51,8 +51,8 @@
         "type": "object", "additionalProperties": false, "required": ["n", "step", "kind", "change", "evidence", "modelCalls"],
         "properties": {
           "n": { "type": "integer", "minimum": 1 }, "step": { "type": "string" },
-          "kind": { "enum": ["install_package", "add_flag", "set_env", "edit_command", "add_step_before"] },
-          "change": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["install_package", "add_flag", "set_env", "edit_command", "add_step_before", "allow_domain"] },
+          "change": { "type": "string", "minLength": 1, "description": "for allow_domain: the domain added (the sandbox is re-created with it)" },
           "evidence": { "type": "string", "minLength": 1, "description": "a file:line or a log line" },
           "modelCalls": { "type": "integer", "minimum": 0 }
         }
