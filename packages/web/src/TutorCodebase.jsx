@@ -7,17 +7,21 @@
 // code reader at the cited lines; the commit, hashes, execution status, the full source list, the inferred links and what was
 // left out stay in a collapsed Source details. When the repository moved on, the cited files that changed are marked and the
 // learner chooses the saved revision or an updated activity.
-import { useEffect, useState } from 'react';
-import { FileCode } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { FileCode, Loader2 } from 'lucide-react';
 import { api } from './api.js';
 import { codeRef } from './chat-sources.js';
 import { coachingCanvas } from './learn-coaching-client.js';
+import { REHEARSAL_FIXES_HEADING, REHEARSAL_LABEL, REHEARSAL_POLL_MS, readyView, rehearsalDone, statusLine } from './learn-rehearsal-view.js';
+import { toast } from './ui.jsx';
 import { CODEBASE_GOALS, CODEBASE_PROMPT, EVIDENCE_LABEL, NOT_RUN_NOTE, OMISSION_TEXT, QUESTION_LABEL, SOMETHING_ELSE, goalOf, isCitation, isRepositorySource, linesText, sourceLabel, startSource } from './learn-codebase-goals.js';
 
 const CHOICE = 'cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50';
 const CHIP = 'inline-flex max-w-full cursor-pointer items-center gap-1 rounded-full border border-line bg-white px-2 py-0.5 text-xs font-medium text-ink hover:bg-hover';
 const LINK = 'cursor-pointer font-medium text-ink underline-offset-2 hover:underline disabled:cursor-default disabled:opacity-50';
 const OMITTED = { ...OMISSION_TEXT, not_indexed: 'not indexed', outside_snapshot: 'outside this repository snapshot: not inspected', not_shown: 'related, not shown yet', other_commit: 'selected at another commit', other_repository: 'not from this repository', not_in_snapshot: 'not in this snapshot', deleted: 'deleted', not_read: 'could not be read', path_too_long: 'path too long' };
+// Dev builds only (VITE_REHEARSAL_TRIGGER=1): the rehearsal runtime's thin trigger. Unset, no chip is rendered.
+const REHEARSAL = import.meta.env.VITE_REHEARSAL_TRIGGER === '1';
 const short = commit => String(commit || '').slice(0, 7);
 const newId = () => `cb-${crypto.randomUUID()}`;
 
@@ -43,11 +47,58 @@ export function openCited(chat, repo, ref, { reader = false } = {}) {
   else chat.openSource?.(codeRef({ repo, commit: ref.version, path, start, end }));
 }
 
+// The rehearsal runtime's thin trigger (spec s9): POST /api/learn/rehearsal, then the status line (the shimmer of ExplainPending) every
+// 5 s from GET until ready or failed; ready shows the draft plan and the fixes. No Accept, no Contents write, no assessment.
+// ponytail: the retired menu (menu = false above) has no goal chips to append this to, so it stands alone in the menu's section;
+// move it after CODEBASE_GOALS.map if the menu returns.
+function RehearsalTrigger({ chat, board }) {
+  const [data, setData] = useState(null), [busy, setBusy] = useState(false);
+  const live = useRef(true), timer = useRef(null);
+  useEffect(() => { live.current = true; return () => { live.current = false; clearTimeout(timer.current); }; }, []);
+  const follow = out => {
+    if (!live.current) return;
+    setData(out);
+    clearTimeout(timer.current);
+    if (!rehearsalDone(out)) timer.current = setTimeout(poll, REHEARSAL_POLL_MS);
+  };
+  const poll = () => api(`/api/learn/rehearsal?app=${encodeURIComponent(chat.canvas)}&board=${encodeURIComponent(board)}`)
+    .then(follow, error => { if (live.current) setData({ status: 'failed', error: error.data?.error || error.message }); });
+  const start = async () => {
+    setBusy(true);
+    try { follow(await api('/api/learn/rehearsal', { method: 'POST', body: JSON.stringify({ app: chat.canvas, board }) })); }
+    catch (error) { if (live.current) toast(error.data?.error || error.message, { tone: 'error', action: { label: 'Retry', run: start } }); }
+    finally { if (live.current) setBusy(false); }
+  };
+  const running = data && !rehearsalDone(data);
+  const ready = data?.status === 'ready' ? readyView(data.record) : null;
+  return <section data-rehearsal-trigger aria-label="Tutor" className="mb-2 flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
+    <div className="flex flex-wrap gap-1.5">
+      <button type="button" data-rehearsal-chip disabled={busy || running} onClick={start} className={CHOICE}>{REHEARSAL_LABEL}</button>
+    </div>
+    {running && <div data-rehearsal-message={data.status} className="flex items-center gap-2">
+      <Loader2 aria-hidden="true" size={16} className="shrink-0 text-claude motion-safe:animate-spin" />
+      <p aria-live="polite" className="shimmer text-sm">{statusLine(data)}</p>
+    </div>}
+    {data?.status === 'failed' && <div data-rehearsal-message="failed" className="flex flex-col items-start gap-1.5">
+      <p role="alert" className="text-sm text-red-700">{data.error}</p>
+      <button type="button" data-rehearsal-retry disabled={busy} onClick={start} className={CHOICE}>Retry</button>
+    </div>}
+    {ready && <div data-rehearsal-message="ready" className="flex flex-col gap-2 text-sm text-ink">
+      {ready.gaveUp && <p>{ready.gaveUp}</p>}
+      {ready.plan.length > 0 && <ol className="list-decimal pl-5">{ready.plan.map((line, i) => <li key={i}>{line}</li>)}</ol>}
+      {ready.fixes.length > 0 && <>
+        <p className="font-medium">{REHEARSAL_FIXES_HEADING}</p>
+        <ul className="list-disc pl-5">{ready.fixes.map((line, i) => <li key={i}>{line}</li>)}</ul>
+      </>}
+    </div>}
+  </section>;
+}
+
 // useTutorCodebase({ chat, entry, typing }) -> { menu, view }. menu: the codebase menu stands in for the general welcome.
 export function useTutorCodebase({ chat, entry, typing = false }) {
   const { coaching } = chat, board = chat.board || 'main';
   // Read only when it can matter: the Tutor would offer something with no goal.
-  const wanted = coachingCanvas(chat.canvas) && coaching.status === 'ready' && ['welcome', 'existing_work'].includes(entry.kind);
+  const wanted = coachingCanvas(chat.canvas) && coaching.status === 'ready' && (REHEARSAL || ['welcome', 'existing_work'].includes(entry.kind));
   const [info, setInfo] = useState(null);
   const [dismissed, setDismissed] = useState(null); // the canvas whose menu the learner set aside (Learn something else)
   const [pending, setPending] = useState(null), [question, setQuestion] = useState(''), [busy, setBusy] = useState(false), [note, setNote] = useState(null);
@@ -81,7 +132,7 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
   };
 
   const goal = pending ? goalOf(pending) : null;
-  const view = menu && <section data-codebase-menu aria-label="Tutor" className="mb-2 flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
+  const view = menu ? <section data-codebase-menu aria-label="Tutor" className="mb-2 flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
     <p className="text-sm text-ink">{CODEBASE_PROMPT}</p>
     {!goal && <div className="flex flex-wrap gap-1.5">
       {CODEBASE_GOALS.map(g => <button key={g.id} type="button" data-codebase-goal={g.id} disabled={busy} onClick={() => (g.clarify ? setPending(g.id) : start(g.id, ''))} className={CHOICE}>{g.label}</button>)}
@@ -99,7 +150,7 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
     </form>}
     <p className="text-xs text-ink-2">Or type any question below; it does not need to be about this code.</p>
     {note && <p role="alert" data-codebase-note className="text-xs text-fail">{note}</p>}
-  </section>;
+  </section> : REHEARSAL && repository && <RehearsalTrigger key={chat.canvas} chat={chat} board={board} />;
   return { menu, view };
 }
 
