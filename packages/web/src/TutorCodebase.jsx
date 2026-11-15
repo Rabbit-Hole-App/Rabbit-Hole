@@ -22,7 +22,8 @@ const CHIP = 'inline-flex max-w-full cursor-pointer items-center gap-1 rounded-f
 const LINK = 'cursor-pointer font-medium text-ink underline-offset-2 hover:underline disabled:cursor-default disabled:opacity-50';
 const OMITTED = { ...OMISSION_TEXT, not_indexed: 'not indexed', outside_snapshot: 'outside this repository snapshot: not inspected', not_shown: 'related, not shown yet', other_commit: 'selected at another commit', other_repository: 'not from this repository', not_in_snapshot: 'not in this snapshot', deleted: 'deleted', not_read: 'could not be read', path_too_long: 'path too long' };
 // Dev builds only (VITE_REHEARSAL_TRIGGER=1): the rehearsal runtime's thin trigger. Unset, no chip is rendered.
-const REHEARSAL = import.meta.env.VITE_REHEARSAL_TRIGGER === '1';
+// Read when rendering, not at import: a test bundle that imports this module has no import.meta.env.
+const rehearsalOn = () => import.meta.env.VITE_REHEARSAL_TRIGGER === '1';
 const short = commit => String(commit || '').slice(0, 7);
 const newId = () => `cb-${crypto.randomUUID()}`;
 
@@ -108,7 +109,7 @@ function RehearsalTrigger({ chat, board, repository }) {
 export function useTutorCodebase({ chat, entry, typing = false }) {
   const { coaching } = chat, board = chat.board || 'main';
   // Read only when it can matter: the Tutor would offer something with no goal.
-  const wanted = coachingCanvas(chat.canvas) && coaching.status === 'ready' && (REHEARSAL || ['welcome', 'existing_work'].includes(entry.kind));
+  const wanted = coachingCanvas(chat.canvas) && coaching.status === 'ready' && (rehearsalOn() || ['welcome', 'existing_work'].includes(entry.kind));
   const [info, setInfo] = useState(null);
   const [dismissed, setDismissed] = useState(null); // the canvas whose menu the learner set aside (Learn something else)
   const [pending, setPending] = useState(null), [question, setQuestion] = useState(''), [busy, setBusy] = useState(false), [note, setNote] = useState(null);
@@ -160,7 +161,7 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
     </form>}
     <p className="text-xs text-ink-2">Or type any question below; it does not need to be about this code.</p>
     {note && <p role="alert" data-codebase-note className="text-xs text-fail">{note}</p>}
-  </section> : REHEARSAL && repository && <RehearsalTrigger key={chat.canvas} chat={chat} board={board} repository={repository} />;
+  </section> : rehearsalOn() && repository && <RehearsalTrigger key={chat.canvas} chat={chat} board={board} repository={repository} />;
   return { menu, view };
 }
 
