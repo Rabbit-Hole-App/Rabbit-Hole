@@ -207,10 +207,10 @@ test('a fit below the threshold is a gap; INTERACT_PICK_THRESHOLD moves the line
 
 test('the default threshold is a function of the registry size; the setting overrides it, bad values are ignored', () => {
   const one = [{ id: 'a' }], two = [{ id: 'a' }, { id: 'b' }];
-  assert.deepEqual([defaultThreshold(1), defaultThreshold(2), defaultThreshold(3)], [0.7, 0.9, 0.9]);
-  assert.deepEqual([pickThreshold({}, one), pickThreshold({}, two)], [0.7, 0.9]);
+  assert.deepEqual([defaultThreshold(1), defaultThreshold(2), defaultThreshold(3)], [0.7, 0.95, 0.95]);
+  assert.deepEqual([pickThreshold({}, one), pickThreshold({}, two)], [0.7, 0.95]);
   assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0.55' }, two), 0.55); assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0' }, two), 0);
-  assert.deepEqual([pickThreshold({ INTERACT_PICK_THRESHOLD: 'x' }, one), pickThreshold({ INTERACT_PICK_THRESHOLD: '7' }, two), pickThreshold({ INTERACT_PICK_THRESHOLD: '' }, one)], [0.7, 0.9, 0.7]);
+  assert.deepEqual([pickThreshold({ INTERACT_PICK_THRESHOLD: 'x' }, one), pickThreshold({ INTERACT_PICK_THRESHOLD: '7' }, two), pickThreshold({ INTERACT_PICK_THRESHOLD: '' }, one)], [0.7, 0.95, 0.7]);
 });
 
 // The captured failure of the fast clone (2026-11-14, three of three Detailed plans): the model's own checkpoint asks for gravity 1, where body-plot's acceleration arrow (a fixed 3.4 px per m/s^2 then) was shorter than the

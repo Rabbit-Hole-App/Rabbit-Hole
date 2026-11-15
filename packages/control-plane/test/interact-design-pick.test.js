@@ -19,9 +19,9 @@ test('the registry has its families (toss, curve, stepper) and the question has 
 test('a second family is one more entry: a choice is added, no code changes', async () => {
   const two = [verticalThrow, CURVE];
   assert.deepEqual(Object.keys(pickQuestions(two).family.criteria), ['vertical-throw', 'curve-sliders', 'none']);
-  const out = await pickFamily(ENV, INPUT, { families: two, fetchImpl: answer('curve-sliders', 0.9) });
+  const out = await pickFamily(ENV, INPUT, { families: two, fetchImpl: answer('curve-sliders', 0.95) });
   assert.equal(out.family, 'curve-sliders');
-  const one = await pickFamily(ENV, INPUT, { families: [verticalThrow], fetchImpl: answer('curve-sliders', 0.9) });
+  const one = await pickFamily(ENV, INPUT, { families: [verticalThrow], fetchImpl: answer('curve-sliders', 0.95) });
   assert.equal(one.family, null); assert.equal(one.reason, 'unknown_choice');
 });
 
@@ -35,16 +35,16 @@ test('the request: the planner transport, model, key name, state and questions',
 });
 
 test('a fit: the chosen family with confidence at or above the threshold', async () => {
-  const out = await pickFamily(ENV, INPUT, { fetchImpl: answer('vertical-throw', 0.93, { 'vertical-throw': 0.93, none: 0.07 }) });
-  assert.deepEqual([out.family, out.confidence, out.reason], ['vertical-throw', 0.93, 'fit']);
-  assert.deepEqual(out.probabilities, { 'vertical-throw': 0.93, none: 0.07 }); assert.equal(typeof out.ms, 'number');
+  const out = await pickFamily(ENV, INPUT, { fetchImpl: answer('vertical-throw', 0.97, { 'vertical-throw': 0.97, none: 0.03 }) });
+  assert.deepEqual([out.family, out.confidence, out.reason], ['vertical-throw', 0.97, 'fit']);
+  assert.deepEqual(out.probabilities, { 'vertical-throw': 0.97, none: 0.03 }); assert.equal(typeof out.ms, 'number');
 });
 
-test('the threshold boundary: one family uses 0.7, two use 0.9, and the threshold is an option', async () => {
+test('the threshold boundary: one family uses 0.7, two or more use 0.95, and the threshold is an option', async () => {
   assert.equal(PICK_THRESHOLD, 0.7);
   assert.equal((await pickFamily(ENV, INPUT, { families: [verticalThrow], fetchImpl: answer('vertical-throw', 0.7) })).family, 'vertical-throw');
-  assert.equal((await pickFamily(ENV, INPUT, { fetchImpl: answer('curve-sliders', 0.9) })).family, 'curve-sliders');
-  assert.equal((await pickFamily(ENV, INPUT, { fetchImpl: answer('curve-sliders', 0.89) })).reason, 'below_threshold');
+  assert.equal((await pickFamily(ENV, INPUT, { fetchImpl: answer('curve-sliders', 0.95) })).family, 'curve-sliders');
+  assert.equal((await pickFamily(ENV, INPUT, { fetchImpl: answer('curve-sliders', 0.94) })).reason, 'below_threshold');
   const below = await pickFamily(ENV, INPUT, { fetchImpl: answer('vertical-throw', 0.69) });
   assert.deepEqual([below.family, below.reason, below.confidence], [null, 'below_threshold', 0.69]);
   assert.equal((await pickFamily(ENV, INPUT, { threshold: 0.5, fetchImpl: answer('vertical-throw', 0.69) })).family, 'vertical-throw');
