@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rabbit-hole.local/rehearsal/cells.json",
+  "title": "Run card cells and the allowed-command rule",
+  "description": "The Run card's cells are DERIVED by the controller from the rehearsal record sent at session creation; the browser never sends a command. DERIVATION: cell `install` = route.install[].cmd joined with ' && ' (kind install, timeoutSec 600); one cell per route.steps[] (kind step, cellId = step id, cmd = step cmd, timeoutSec = limits.step_timeout(step.timeoutSec)); a last cell `knobs` (kind knobs) whose cmd is knobsVerified[0].cmd. Each cell carries `expected`, built from the record only: the step's measured sec, the metric_decreased/metric_below first and last values, the files the step produced (path, bytes), and stdoutHead/stdoutTail when the record has them. ALLOWED COMMAND (the whole v1 security rule beyond the sandbox): a run request names a cellId and may carry `flags` only for the flags listed in that cell's `flags` with editable true (for `knobs`: the route.knobs entries of the final step that appear in knobsVerified[0].cmd). The controller builds the command by REPLACING those flags' values in the cell's cmd (runner.set_flag) and shell-quoting each value; any other flag, any unknown cellId, any value failing its type rule is refused with 400 and a message naming the flag and the rule. TYPE RULES: float must match ^-?[0-9]+\\.[0-9]+$ (an int-looking value for a float knob is refused: the repository's configurator type-checks, so write 0.5, 1.0); int ^-?[0-9]+$; bool true|false|True|False; string ^[A-Za-z0-9 :,.'_-]{0,80}$ and must not contain '='. No arbitrary shell, no free command field.",
+  "$defs": {
+    "flag": {
+      "type": "object", "additionalProperties": false, "required": ["flag", "type", "value", "editable"],
+      "properties": {
+        "flag": { "type": "string", "pattern": "^--[A-Za-z0-9_-]+$" },
+        "type": { "enum": ["string", "float", "int", "bool"] },
+        "value": { "type": "string", "description": "the value in the cell's current command (what the record's run used)" },
+        "editable": { "type": "boolean" }
+      }
+    },
+    "expected": {
+      "type": "object", "additionalProperties": false, "required": ["sec"],
+      "description": "what the rehearsal produced for this cell, to compare against; every field comes from the record",
+      "properties": {
+        "sec": { "type": ["number", "null"] },
+        "metrics": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["name"], "properties": { "name": { "type": "string" }, "first": { "type": "number" }, "last": { "type": "number" } } } },
+        "files": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["path", "bytes"], "properties": { "path": { "type": "string" }, "bytes": { "type": "integer", "minimum": 0 } } } },
+        "stdoutHead": { "type": "string" },
+        "stdoutTail": { "type": "string" }
+      }
+    },
+    "cell": {
+      "type": "object", "additionalProperties": false, "required": ["cellId", "kind", "title", "cmd", "timeoutSec", "flags", "expected"],
+      "properties": {
+        "cellId": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+        "kind": { "enum": ["install", "step", "knobs"] },
+        "title": { "type": "string", "minLength": 1 },
+        "cmd": { "type": "string", "minLength": 1, "description": "display command with the record's flag values" },
+        "timeoutSec": { "type": "integer", "minimum": 1, "maximum": 1500 },
+        "flags": { "type": "array", "items": { "$ref": "#/$defs/flag" } },
+        "expected": { "$ref": "#/$defs/expected" }
+      }
+    }
+  },
+  "type": "array",
+  "items": { "$ref": "#/$defs/cell" }
+}

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 import limits
 from agent import GiveUp, RepairAgent
 from limits import Budget
+from redact import redact_text
 
 REPO = '/work/repo'
 _PIP = re.compile(r'^pip install [A-Za-z0-9_.\[\],<>=!~-]+( [A-Za-z0-9_.\[\],<>=!~-]+)*$')
@@ -33,6 +34,24 @@ class RestartSandbox(Exception):
 
 def tail(text: str, n: int) -> str:
     return '\n'.join(text.splitlines()[-n:])
+
+
+def head_tail(text: str, limit: int = 2000) -> dict:
+    """{'stdoutHead': first lines, 'stdoutTail': last lines}, each at most `limit` chars (schemas/record.json); empty output gives {}. A single overlong line is cut."""
+    lines = redact_text(text).splitlines()
+    if not any(l.strip() for l in lines):
+        return {}
+
+    def take(seq):
+        out, n = [], 0
+        for l in seq:
+            l = l[:limit]
+            if n + len(l) + 1 > limit and out:
+                break
+            out.append(l)
+            n += len(l) + 1
+        return out
+    return {'stdoutHead': '\n'.join(take(lines)), 'stdoutTail': '\n'.join(take(lines[::-1])[::-1])}
 
 
 # ---------------------------------------------------------------- checks (rules: schemas/route.json description)
@@ -85,7 +104,22 @@ KNOB_VERIFY_MAX_STEP_SEC = 60  # knobs and traps run only for steps whose measur
 
 
 def knob_value(k: dict) -> str:
-    return k.get('safeValue') or {'float': '0.5', 'int': '1', 'string': 'hello'}.get(k['type'], '')
+    """The value a knob is verified with. It must differ from the knob's default: a run that sets a knob to its own default does not show the knob reached the program (run 3: discovery gave --temperature a safeValue of 0.8, the default)."""
+    quotes = "'" + '"'
+    default = str(k.get('default', '')).strip().strip(quotes)
+    chosen = str(k.get('safeValue') or '').strip()
+    isnum = lambda v: v.replace('.', '', 1).lstrip('-').isdigit()
+    same = lambda a, b: a == b or (isnum(a) and isnum(b) and float(a) == float(b))
+    if chosen and not same(chosen.strip(quotes), default):
+        return chosen
+    if k['type'] == 'float':
+        try: return f'{float(default) * 0.5:g}' if default and float(default) != 0 else '0.5'
+        except ValueError: return '0.5'
+    if k['type'] == 'int':
+        return '2' if default == '1' else '1'
+    if k['type'] == 'string':
+        return 'hello' if default != 'hello' else 'world'
+    return chosen
 
 
 def set_flag(cmd: str, flag: str, value: str) -> str:
@@ -208,7 +242,7 @@ class Runner:
                         if c['type'] == 'files_exist':
                             for p, fs in self.provider.stat(c['paths']).items():
                                 files.setdefault(p, {'bytes': fs.bytes, 'sha256': fs.sha256})
-                    self.steps.append({'id': name, 'cmd': step['cmd'], 'rc': res.rc, 'sec': res.sec, 'checks': checks, 'files': files, 'log': path, 'warnings': warnings_in(output)})
+                    self.steps.append({'id': name, 'cmd': step['cmd'], 'rc': res.rc, 'sec': res.sec, 'checks': checks, 'files': files, 'log': path, 'warnings': warnings_in(output), **head_tail(res.stdout)})
                 return True
             if not self._repair(step, res, checks):
                 return False

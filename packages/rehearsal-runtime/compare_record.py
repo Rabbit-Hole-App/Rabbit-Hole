@@ -98,11 +98,13 @@ def score_route(rec, exp):
         cmds = [i['cmd'] for i in route['install']]
         ok = any(pkg_in(c, 'torch') and pkg_in(c, 'numpy') for c in cmds)
         check(ok, 'route.install superset of torch+numpy', f'install {cmds}', 'torch and numpy not both installed by the route')
-    seen = {a['routeId']: a.get('rejected', '') for a in route['alternatives']}
+    # fixture v2: alternatives are matched by REASON, not id (discovery names its routes itself).
+    reasons = [a.get('rejected', '') for a in route['alternatives'] if a.get('rejected')]
+    check(len(reasons) >= 2, 'route.alternatives count >= 2 with reasons', f'{len(reasons)} rejected alternatives with a reason', 'fewer than 2')
     for ea in exp['alternatives']:
-        # fixture: rejectedBecause; schema: rejected. Reasons are free text; only the routeId must appear, with a reason.
-        check(ea['routeId'] in seen and bool(seen.get(ea['routeId'])), 'route.alternatives routeId + reason (fixture rejectedBecause = schema rejected)',
-              f"{ea['routeId']} rejected: {seen.get(ea['routeId'], '')[:70]}", 'alternative missing or has no reason')
+        terms = ea['reasonMustMention']
+        hit = next((r for r in reasons if any(t.lower() in r.lower() for t in terms)), None)
+        check(hit is not None, f"route.alternatives a reason mentions one of {terms}", (hit or '')[:80], 'no reason mentions it')
     knobs = {(k['step'], k['flag']): k for k in route['knobs']}
     for ek in exp['knobs']:
         k = knobs.get((ek['step'], ek['flag']))
@@ -161,11 +163,23 @@ def score_traps(rec, exp):
         check(False, 'knobVerification vs knobsVerified[0]', 'knobsVerified[0]', 'record.knobsVerified is empty')
         return
     k = kv[0]
-    check(same_cmd(k['cmd'], ev['cmd']), 'knobVerification cmd', 'knobsVerified[0].cmd', f"ran '{norm(k['cmd'])}', fixture '{norm(ev['cmd'])}'")
+    # fixture v2: semantic, not a literal command.
+    toks = norm(k['cmd']).split(' ')
+    flag = lambda name: next((t.split('=', 1)[1] for t in toks if t.startswith(name + '=')), None)
+    missing = [m for m in ev['mustInclude'] if not any(m.rstrip('=') == ' '.join(toks[:2]) or t == m or (m.endswith('=') and t.startswith(m)) for t in toks) and m not in norm(k['cmd'])]
+    check(not missing, 'knobVerification command carries', 'knobsVerified[0].cmd has ' + ', '.join(ev['mustInclude']), f'missing {missing}')
+    start, temp, num = flag('--start'), flag('--temperature'), flag('--num_samples')
+    check(start is not None and '=' not in start and start != '', 'knobVerification --start is a string without =', f'--start={start}', 'absent or contains =')
+    try: tv = float(temp)
+    except (TypeError, ValueError): tv = None
+    check(tv is not None and tv < ev['temperatureBelow'], 'knobVerification --temperature below the default', f"--temperature={temp} < {ev['temperatureBelow']}", 'absent, not a float, or not below')
+    try: nv = int(num)
+    except (TypeError, ValueError): nv = None
+    check(nv is not None and nv >= 1, 'knobVerification --num_samples >= 1', f'--num_samples={num}', 'absent or < 1')
     check((k['rc'] == 0) == ev['expectRcZero'], 'knobVerification rc 0', f"knobsVerified[0].rc {k['rc']}", 'the knob command failed')
-    check(k['startsWithPrompt'] is True, 'knobVerification startsWithPrompt', f"startsWithPrompt (output starts with {ev['stdoutFirstSampleStartsWith']})", 'false')
+    check(k['startsWithPrompt'] is True, 'knobVerification startsWithPrompt', f"startsWithPrompt (first sample starts with the start value used: {start!r})", 'false')
     if 'separators' in k:
-        check(k['separators'] == ev['separatorsCount'], 'knobVerification separators', f"separators {k['separators']}", f"expected {ev['separatorsCount']}")
+        check(nv is not None and k['separators'] == nv, 'knobVerification separators == num_samples used', f"separators {k['separators']} for --num_samples={num}", f'expected {num}')
     else:
         skip('knobVerification separators', 'record.knobsVerified[0] has no separators')
 

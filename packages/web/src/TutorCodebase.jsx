@@ -13,6 +13,7 @@ import { api } from './api.js';
 import { codeRef } from './chat-sources.js';
 import { coachingCanvas } from './learn-coaching-client.js';
 import { REHEARSAL_FIXES_HEADING, REHEARSAL_LABEL, REHEARSAL_POLL_MS, readyView, rehearsalDone, statusLine } from './learn-rehearsal-view.js';
+import RunCard from './RunCard.jsx';
 import { toast } from './ui.jsx';
 import { CODEBASE_GOALS, CODEBASE_PROMPT, EVIDENCE_LABEL, NOT_RUN_NOTE, OMISSION_TEXT, QUESTION_LABEL, SOMETHING_ELSE, goalOf, isCitation, isRepositorySource, linesText, sourceLabel, startSource } from './learn-codebase-goals.js';
 
@@ -52,7 +53,7 @@ export function openCited(chat, repo, ref, { reader = false } = {}) {
 // ponytail: the retired menu (menu = false above) has no goal chips to append this to, so it stands alone in the menu's section;
 // move it after CODEBASE_GOALS.map if the menu returns.
 function RehearsalTrigger({ chat, board }) {
-  const [data, setData] = useState(null), [busy, setBusy] = useState(false);
+  const [data, setData] = useState(null), [busy, setBusy] = useState(false), [runOpen, setRunOpen] = useState(false);
   const live = useRef(true), timer = useRef(null);
   useEffect(() => { live.current = true; return () => { live.current = false; clearTimeout(timer.current); }; }, []);
   const follow = out => {
@@ -90,7 +91,10 @@ function RehearsalTrigger({ chat, board }) {
         <p className="font-medium">{REHEARSAL_FIXES_HEADING}</p>
         <ul className="list-disc pl-5">{ready.fixes.map((line, i) => <li key={i}>{line}</li>)}</ul>
       </>}
+      {/* ponytail: the Run card is a panel here, not a canvas card (a card type needs persistence and sharing work); it moves into the Tutor's chat later. */}
+      <button type="button" data-run-card-open aria-expanded={runOpen} onClick={() => setRunOpen(open => !open)} className={`${CHOICE} w-fit`}>{runOpen ? 'Close run card' : 'Open run card'}</button>
     </div>}
+    {ready && runOpen && <RunCard app={chat.canvas} board={board} />}
   </section>;
 }
 

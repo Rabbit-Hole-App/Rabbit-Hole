@@ -241,7 +241,7 @@ Rules:
 - Every step cites its source as FILE:LINE (for example README.md:85), taken from the numbered lines or the candidate list.
 - The first step's checks must include exit_zero or files_exist. Give each step checks that prove its result (files it writes, a line it prints, a metric that falls). Use the check vocabulary and regex rules in the schema description.
 - install lists the README's install command(s) with their source; the controller trims it afterwards.
-- knobs: flags a learner may change on a step, with type string/float/int/bool read from the script's defaults (cite FILE:LINE). Include the ones that change the visible output (prompt, temperature, count, length). Add safeValue (a value that runs fast) when sensible.
+- knobs: flags a learner may change on a step, with type string/float/int/bool read from the script's defaults (cite FILE:LINE). Include the ones that change the visible output (prompt, temperature, count, length). Add safeValue (a value that runs fast) when sensible; for string knobs choose a value meaningful in the repository's domain (for a Shakespeare sampler, a line start such as ROMEO:), not a placeholder like hello.
 Reply with ONE JSON object that validates against the schema, and nothing else (no markdown fence needed)."""
 
 

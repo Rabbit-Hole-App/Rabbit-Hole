@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rabbit-hole.local/rehearsal/run-request.json",
+  "title": "Run one cell (POST /sessions/<id>/run)",
+  "description": "No command field exists on purpose: the controller builds the command from the cell and the validated flags (schemas/cells.json, ALLOWED COMMAND). Answers {runId} (HTTP 202); 400 with a message for an unknown cell or a bad flag; 409 while another run is active in the session (one run at a time per sandbox); 404/410 for an unknown or ended session.",
+  "type": "object", "additionalProperties": false, "required": ["cellId"],
+  "properties": {
+    "cellId": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "flags": { "type": "object", "maxProperties": 8, "propertyNames": { "pattern": "^--[A-Za-z0-9_-]+$" }, "additionalProperties": { "type": "string", "maxLength": 80 } }
+  }
+}

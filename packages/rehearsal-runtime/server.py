@@ -15,6 +15,8 @@ JOBS: dict = {}
 LOCK = threading.Lock()
 SLOT = threading.BoundedSemaphore(1)
 KEY_PATH = re.compile(r'/rehearsals/([a-f0-9]{64})(/asset)?')
+SESSION_PATH = re.compile(r'/sessions(?:/([a-f0-9]{32})(?:/(run|stop)|/runs/([a-f0-9]{16})(/log)?)?)?')  # Run card sessions (RUN_CARD.md)
+SESSION_BODY_MAX = 2_000_000  # a session request carries the whole record
 TOKEN = ''
 MODEL = None
 
@@ -74,6 +76,65 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_text(self, text: str, status=200):
+        body = text.encode()
+        self.send_response(status)
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def read_json(self, contract: str = ''):
+        """The request body as JSON (validated against schemas/<contract>.json when given); None after answering 400."""
+        import contracts
+        try:
+            length = int(self.headers.get('Content-Length', '0'))
+            if not 0 < length <= SESSION_BODY_MAX:
+                raise ValueError('request body must be 1 byte to 2 MB')
+            body = json.loads(self.rfile.read(length))
+            errs = contracts.errors(contract, body) if contract else []
+            if errs:
+                raise ValueError('; '.join(errs[:3]))
+            return body
+        except (ValueError, TypeError) as e:
+            self.send_json({'error': 'Invalid request: ' + str(e)[:300]}, 400)
+            return None
+
+    def sessions(self, method: str) -> None:
+        """Run card routes. Every path ends in a status here: nothing reaches Modal before the body and session checks pass."""
+        import sessions
+        m = SESSION_PATH.fullmatch(self.path)
+        if not m:
+            self.send_json({'error': 'Not found'}, 404)
+            return
+        sid, verb, run_id, log = m.groups()
+        try:
+            if sid is None and method == 'POST':
+                body = self.read_json()
+                if body is not None:
+                    st, code = sessions.create(body)
+                    self.send_json(st, code)
+            elif sid and not verb and not run_id and method == 'GET':
+                self.send_json(sessions.state(sid))
+            elif verb == 'run' and method == 'POST':
+                sessions.get(sid)  # 404 before the body is read
+                body = self.read_json('run-request')
+                if body is not None:
+                    self.send_json({'runId': sessions.start_run(sid, body['cellId'], body.get('flags') or {})}, 202)
+            elif verb == 'stop' and method == 'POST':
+                self.send_json(sessions.stop(sid))
+            elif run_id and method == 'GET':
+                if log:
+                    self.send_text(sessions.run_log(sid, run_id))
+                else:
+                    self.send_json(sessions.run_status(sid, run_id))
+            else:
+                self.send_json({'error': 'Not found'}, 404)
+        except sessions.SessionError as e:
+            self.send_json({'error': e.message}, e.status)
+        except Exception as e:  # noqa: BLE001 - the control plane must always get a JSON answer
+            self.send_json({'error': f'internal_error: {type(e).__name__}'}, 500)
+
     def authorized(self) -> bool:
         if not hmac.compare_digest(self.headers.get('Authorization', ''), 'Bearer ' + TOKEN):
             self.send_json({'error': 'Unauthorized'}, 401)
@@ -85,6 +146,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({'ok': True})
             return
         if not self.authorized():
+            return
+        if self.path.startswith('/sessions'):
+            self.sessions('GET')
             return
         m = KEY_PATH.fullmatch(self.path)
         if not m:
@@ -110,6 +174,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if not self.authorized():
+            return
+        if self.path.startswith('/sessions'):
+            self.sessions('POST')
             return
         if self.path != '/rehearsals':
             self.send_json({'error': 'Not found'}, 404)
@@ -152,6 +219,8 @@ def main() -> None:
     TOKEN = os.environ['REHEARSAL_WORKER_TOKEN']
     from model import AnthropicModel
     MODEL = AnthropicModel()
+    import sessions
+    threading.Thread(target=sessions.reaper_loop, daemon=True).start()  # terminates orphaned, expired and idle session sandboxes
     server = ThreadingHTTPServer((os.environ.get('REHEARSAL_HOST', '127.0.0.1'), PORT), Handler)
     print(f'rehearsal controller listening on {server.server_address[0]}:{PORT} (provider: modal)', flush=True)
     server.serve_forever()

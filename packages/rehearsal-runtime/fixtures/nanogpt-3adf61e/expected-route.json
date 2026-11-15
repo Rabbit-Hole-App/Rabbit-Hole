@@ -7,17 +7,39 @@
   "routeId": "shakespeare_char",
   "matchRules": {
     "routeId": "exact",
-    "steps": "same ids in the same order; cmd compared after collapsing whitespace; the train step may carry the README's CPU flags either in the discovered cmd or as a later add_flag fix — both pass",
-    "alternatives": "both rejected routeIds must appear, reasons free text",
-    "knobs": "the three listed must appear with these types; extra knobs allowed"
+    "steps": "same ids in the same order; cmd compared after collapsing whitespace; the train step may carry the README's CPU flags either in the discovered cmd or as a later add_flag fix \u2014 both pass",
+    "alternatives": "ids are model-chosen and NOT matched. Rule: at least 2 rejected alternatives, each with a non-empty reason; at least one reason mentions a GPU/A100 and at least one mentions a download or pretrained checkpoint. (Reviewer 11-14 17:10: run2 named them shakespeare_char_gpu / openwebtext_gpt2_repro / finetune_shakespeare_gpt2 / sample_gpt2_xl / eval_gpt2_baselines, all with sound reasons.)",
+    "knobs": "the three listed must appear with these types; extra knobs allowed (run2 also listed train.py knobs, fine). safeValue for string knobs is advisory: discovery should pick a value meaningful in the repository's domain (ROMEO: for a Shakespeare sampler), not a placeholder like hello; not scored.",
+    "alternativesScoring": "two lines: 'alternatives count >= 2 with reasons' and 'reasons cover both a GPU route and a download/pretrained route' (case-insensitive substring on any reason)"
   },
   "install": [
-    { "cmd": "pip install torch numpy transformers datasets tiktoken wandb tqdm", "source": "README.md:22",
-      "note": "discovery may trim this to the packages the route imports; any superset of torch+numpy passes" }
+    {
+      "cmd": "pip install torch numpy transformers datasets tiktoken wandb tqdm",
+      "source": "README.md:22",
+      "note": "discovery may trim this to the packages the route imports; any superset of torch+numpy passes"
+    }
   ],
   "alternatives": [
-    { "routeId": "reproduce_gpt2", "rejectedBecause": "8x A100 40GB node, ~4 days (README 'reproducing GPT-2')" },
-    { "routeId": "finetune_gpt2", "rejectedBecause": "downloads a GPT-2 checkpoint, README assumes a GPU (README 'finetuning')" }
+    {
+      "anyIdMatching": ".*",
+      "reasonMustMention": [
+        "GPU",
+        "A100",
+        "8x",
+        "days"
+      ],
+      "note": "the GPT-2 reproduction route (README 'reproducing GPT-2')"
+    },
+    {
+      "anyIdMatching": ".*",
+      "reasonMustMention": [
+        "download",
+        "pretrained",
+        "checkpoint",
+        "gpt2"
+      ],
+      "note": "the fine-tune / pretrained-weights route (README 'finetuning')"
+    }
   ],
   "steps": [
     {
@@ -26,9 +48,21 @@
       "source": "README.md:40",
       "timeoutSec": 600,
       "checks": [
-        { "type": "exit_zero" },
-        { "type": "files_exist", "paths": ["data/shakespeare_char/train.bin", "data/shakespeare_char/val.bin", "data/shakespeare_char/meta.pkl"] },
-        { "type": "stdout_matches", "pattern": "vocab size: 65" }
+        {
+          "type": "exit_zero"
+        },
+        {
+          "type": "files_exist",
+          "paths": [
+            "data/shakespeare_char/train.bin",
+            "data/shakespeare_char/val.bin",
+            "data/shakespeare_char/meta.pkl"
+          ]
+        },
+        {
+          "type": "stdout_matches",
+          "pattern": "vocab size: 65"
+        }
       ]
     },
     {
@@ -37,10 +71,23 @@
       "source": "README.md:85",
       "timeoutSec": 1500,
       "checks": [
-        { "type": "exit_zero" },
-        { "type": "files_exist", "paths": ["out-shakespeare-char/ckpt.pt"] },
-        { "type": "metric_decreased", "pattern": "^iter \\d+: loss ([\\d.]+)" },
-        { "type": "stdout_matches", "pattern": "^step 2000: train loss" }
+        {
+          "type": "exit_zero"
+        },
+        {
+          "type": "files_exist",
+          "paths": [
+            "out-shakespeare-char/ckpt.pt"
+          ]
+        },
+        {
+          "type": "metric_decreased",
+          "pattern": "^iter \\d+: loss ([\\d.]+)"
+        },
+        {
+          "type": "stdout_matches",
+          "pattern": "^step 2000: train loss"
+        }
       ]
     },
     {
@@ -49,16 +96,53 @@
       "source": "README.md:91",
       "timeoutSec": 600,
       "checks": [
-        { "type": "exit_zero" },
-        { "type": "stdout_matches", "pattern": "Loading meta from data/shakespeare_char/meta.pkl" },
-        { "type": "stdout_matches", "pattern": "---------------" }
+        {
+          "type": "exit_zero"
+        },
+        {
+          "type": "stdout_matches",
+          "pattern": "Loading meta from data/shakespeare_char/meta.pkl"
+        },
+        {
+          "type": "stdout_matches",
+          "pattern": "---------------"
+        }
       ]
     }
   ],
   "knobs": [
-    { "step": "sample", "flag": "--start", "default": "\\n", "type": "string", "source": "sample.py:14", "safeValue": "ROMEO:" },
-    { "step": "sample", "flag": "--temperature", "default": "0.8", "type": "float", "source": "sample.py:17", "safeValue": "0.5" },
-    { "step": "sample", "flag": "--num_samples", "default": "10", "type": "int", "source": "sample.py:15", "safeValue": "1" },
-    { "step": "sample", "flag": "--max_new_tokens", "default": "500", "type": "int", "source": "sample.py:16", "safeValue": "200", "optional": true }
+    {
+      "step": "sample",
+      "flag": "--start",
+      "default": "\\n",
+      "type": "string",
+      "source": "sample.py:14",
+      "safeValue": "ROMEO:"
+    },
+    {
+      "step": "sample",
+      "flag": "--temperature",
+      "default": "0.8",
+      "type": "float",
+      "source": "sample.py:17",
+      "safeValue": "0.5"
+    },
+    {
+      "step": "sample",
+      "flag": "--num_samples",
+      "default": "10",
+      "type": "int",
+      "source": "sample.py:15",
+      "safeValue": "1"
+    },
+    {
+      "step": "sample",
+      "flag": "--max_new_tokens",
+      "default": "500",
+      "type": "int",
+      "source": "sample.py:16",
+      "safeValue": "200",
+      "optional": true
+    }
   ]
 }

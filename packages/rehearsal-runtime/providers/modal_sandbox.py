@@ -23,7 +23,9 @@ def image_digest() -> str:
 
 
 class ModalSandbox:
-    def __init__(self, on_created=None, root: str = REPO_DIR):
+    def __init__(self, on_created=None, root: str = REPO_DIR, image_id: str = '', timeout: int = limits.JOB_WALL_SEC, idle_timeout: int = limits.SANDBOX_IDLE_TIMEOUT_SEC):
+        self.image_id = image_id  # Run card sessions: a record.snapshotImage id (clone and install already in place); empty = the pinned image
+        self.timeout, self.idle_timeout = timeout, idle_timeout
         self.on_created = on_created  # called with the sandbox id the moment it exists, so a restarted controller can terminate an orphan
         self.root = root
         self.sandbox_id = ''
@@ -37,19 +39,23 @@ class ModalSandbox:
     def start(self, tags: dict) -> None:
         import modal
         self.app = modal.App.lookup(APP_NAME, create_if_missing=True)
-        image = modal.Image.from_registry(IMAGE_SPEC['base']).apt_install(*IMAGE_SPEC['apt'])
-        for spec in IMAGE_SPEC['pip']:
-            image = image.pip_install(*spec['packages'], **({'index_url': spec['index_url']} if 'index_url' in spec else {}))
-        image = image.run_commands(*IMAGE_SPEC['run'])
-        t = time.time()
-        image.build(self.app)
-        build = time.time() - t
-        self.image_build_sec = round(build, 1) if build > 5 else 0.0  # a cached image answers in well under 5 s
-        self.image = {'ref': f'modal:{image.object_id} ({IMAGE_SPEC["base"]})', 'digest': image_digest()}
+        if self.image_id:
+            image = modal.Image.from_id(self.image_id)  # assumed: hydrates lazily, usable as Sandbox.create(image=...) (unverified until the first real session)
+            self.image = {'ref': f'modal:{self.image_id} (snapshot)', 'digest': image_digest()}
+        else:
+            image = modal.Image.from_registry(IMAGE_SPEC['base']).apt_install(*IMAGE_SPEC['apt'])
+            for spec in IMAGE_SPEC['pip']:
+                image = image.pip_install(*spec['packages'], **({'index_url': spec['index_url']} if 'index_url' in spec else {}))
+            image = image.run_commands(*IMAGE_SPEC['run'])
+            t = time.time()
+            image.build(self.app)
+            build = time.time() - t
+            self.image_build_sec = round(build, 1) if build > 5 else 0.0  # a cached image answers in well under 5 s
+            self.image = {'ref': f'modal:{image.object_id} ({IMAGE_SPEC["base"]})', 'digest': image_digest()}
         # timeout and idle_timeout are set explicitly (the default lifetime is 5 minutes and would kill training). Network: TLS domain allowlist only (spec 8a), no CIDR ranges.
         # No secrets= and no name=; env is the only thing injected.
         self.sb = modal.Sandbox.create('sleep', 'infinity', app=self.app, image=image, cpu=limits.SANDBOX_CPU, memory=limits.SANDBOX_MEMORY_MIB,
-                                       timeout=limits.JOB_WALL_SEC, idle_timeout=limits.SANDBOX_IDLE_TIMEOUT_SEC, workdir='/work', tags=dict(tags),
+                                       timeout=self.timeout, idle_timeout=self.idle_timeout, workdir='/work', tags=dict(tags),
                                        env={'PYTHONUNBUFFERED': '1', 'OMP_NUM_THREADS': '2'},
                                        outbound_domain_allowlist=limits.OUTBOUND_DOMAIN_ALLOWLIST + self.extra_domains, outbound_cidr_allowlist=[])
         self.sandbox_id = self.sb.object_id
@@ -66,6 +72,11 @@ class ModalSandbox:
         except Exception:
             return False
 
+    def snapshot(self, timeout: int = 120) -> str:
+        """sb.snapshot_filesystem(timeout=..., ttl=...) -> Image; its object id (`im-...`) is what record.snapshotImage holds. Raises on failure (the caller records nothing)."""
+        img = self.sb.snapshot_filesystem(timeout=timeout)  # default ttl 30 days
+        return img.object_id
+
     def leftover(self, tags: dict) -> list:
         import modal
         ids = []
@@ -78,18 +89,24 @@ class ModalSandbox:
 
     # -- commands and files
     def exec(self, cmd: str, timeout: int, cwd: str = '/work') -> ExecResult:
+        out, err = [], []
+        rc, sec = self.exec_stream(cmd, timeout, cwd, out.append, err.append)
+        return ExecResult(rc, ''.join(out), ''.join(err), sec)
+
+    def exec_stream(self, cmd: str, timeout: int, cwd: str, on_out, on_err) -> tuple:
+        """Run one shell command, handing each stdout and stderr chunk to the callbacks as it arrives; (rc, sec), rc=124 on timeout. Run card runs use this directly."""
         import modal.exception as mexc
         t = time.time()
-        out, err, fail = [], [], []
+        fail = []
         p = self.sb.exec('bash', '-lc', f'cd {shlex.quote(cwd)} && {cmd}', timeout=int(timeout))
 
         def drain(stream, sink):
             try:
                 for chunk in stream:
-                    sink.append(chunk)
+                    sink(chunk)
             except Exception as e:  # noqa: BLE001 - a stream failure is recorded, then handled below
                 fail.append(e)
-        threads = [threading.Thread(target=drain, args=(p.stdout, out), daemon=True), threading.Thread(target=drain, args=(p.stderr, err), daemon=True)]
+        threads = [threading.Thread(target=drain, args=(p.stdout, on_out), daemon=True), threading.Thread(target=drain, args=(p.stderr, on_err), daemon=True)]
         for th in threads:
             th.start()
         timed_out = False
@@ -103,7 +120,7 @@ class ModalSandbox:
             rc, timed_out = 124, True
         elif fail:
             raise fail[0]
-        return ExecResult(124 if timed_out else rc, ''.join(out), ''.join(err), round(time.time() - t, 2))
+        return (124 if timed_out else rc), round(time.time() - t, 2)
 
     def stat(self, paths: list) -> dict:
         """{path: FileStat} for existing regular files; paths are relative to the repository root."""

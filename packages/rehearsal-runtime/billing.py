@@ -26,11 +26,13 @@ def snapshot(job_key: str) -> dict:
 
 
 def spend_note(before: dict, after: dict, job_key: str, lifetime_sec: float) -> str:
-    """The record's sandboxSpendNote. The hourly bucket can lag the run: a delta of 0 means 'not yet visible', not 'free'."""
+    """The record's sandboxSpendNote. A measurement and an estimate never share a field, and a lagging report is neither: a report with no job cost yet says 'not yet visible' and carries no number."""
     if after.get('ok'):
         base = before.get('job', 0.0) if before.get('ok') else 0.0
+        delta = after['job'] - base
+        if after['items'] == 0 or delta <= 0:
+            return f"not yet visible (billing report returned {after['items']} items at {after['at']}; job cost not in an hourly bucket yet)"
         app_base = before.get('app', 0.0) if before.get('ok') else 0.0
-        return (f"measured {after['job'] - base:.4f} USD for job {job_key} at {after['at']} (app delta {after['app'] - app_base:.4f} USD, "
-                f"{after['items']} report items; hourly buckets may lag, 0 means not yet visible)")
+        return f"measured {delta:.4f} USD for job {job_key} at {after['at']} (app delta {after['app'] - app_base:.4f} USD, {after['items']} report items)"
     return (f"billing report refused: {after.get('error')}; estimate = lifetime x requested resources (cpu 2, memory 4 GiB) at the pricing page rates, "
             f"labelled estimate; lifetime {lifetime_sec:.0f} s")

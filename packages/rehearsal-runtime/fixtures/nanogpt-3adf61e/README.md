@@ -1,6 +1,6 @@
 # Fixture — karpathy/nanoGPT at 3adf61e (CPU, 20-minute budget)
 
-Written by the Reviewer 2026-11-14 16:00 PT from the source at `3adf61e154c3fe3fca428ad6bc3818b27a3b8291` (every line number below was read on a clone at that commit; see `use-codebase-use-cases.md` §4). Destination in the repo: `packages/rehearsal-runtime/fixtures/nanogpt-3adf61e/` (spec §10). Lane C's `compare_record.py` scores a `record.json` against these four files and prints a pass/fail list; lane A's A2 run is accepted when every line passes or every miss is explained and accepted by the Reviewer.
+Written by the Reviewer 2026-11-14 16:00 PT; **v2 17:10 PT after run2** (meta.pkl bound 500; alternatives matched by reason, not id; knob verification semantic) from the source at `3adf61e154c3fe3fca428ad6bc3818b27a3b8291` (every line number below was read on a clone at that commit; see `use-codebase-use-cases.md` §4). Destination in the repo: `packages/rehearsal-runtime/fixtures/nanogpt-3adf61e/` (spec §10). Lane C's `compare_record.py` scores a `record.json` against these four files and prints a pass/fail list; lane A's A2 run is accepted when every line passes or every miss is explained and accepted by the Reviewer.
 
 | File | What it asserts | Matched against |
 |---|---|---|

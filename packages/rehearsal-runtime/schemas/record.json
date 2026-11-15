@@ -80,6 +80,8 @@
             }
           },
           "log": { "type": "string" },
+          "stdoutHead": { "type": "string", "maxLength": 2000, "description": "the first lines of the step output (Run card shows it as what a real run produced)" },
+          "stdoutTail": { "type": "string", "maxLength": 2000, "description": "the last lines of the step output" },
           "warnings": { "type": "array", "maxItems": 10, "items": { "type": "string" } }
         }
       }
@@ -104,6 +106,16 @@
           "cmd": { "type": "string" }, "rc": { "type": "integer" }, "sec": { "type": "number", "minimum": 0 },
           "startsWithPrompt": { "type": "boolean" }, "separators": { "type": "integer", "minimum": 0 }
         }
+      }
+    },
+    "snapshotImage": { "type": "string", "pattern": "^im-[A-Za-z0-9]+$", "description": "Modal image id from sb.snapshot_filesystem() taken at the end of the job (clone, install and produced files in place); Run card sessions start from it. Absent when the snapshot failed." },
+    "network": {
+      "type": "object", "additionalProperties": false, "required": ["outboundDomainAllowlist", "outboundCidrAllowlist", "allowDomainFixes"],
+      "description": "what the sandbox could reach (spec 8a); allowDomainFixes lists the domains added by allow_domain fixes",
+      "properties": {
+        "outboundDomainAllowlist": { "type": "array", "items": { "type": "string" } },
+        "outboundCidrAllowlist": { "type": "array", "items": { "type": "string" } },
+        "allowDomainFixes": { "type": "array", "items": { "type": "string" } }
       }
     },
     "allChecksPassed": { "type": "boolean" },

@@ -12,7 +12,15 @@ MAX_FIX_CYCLES_PER_STEP = 3
 MAX_MODEL_CALLS = 12
 MODEL_SPEND_CAP_USD = 3.0
 MAX_ALLOW_DOMAIN_FIXES = 2     # allow_domain fixes per job (each re-creates the sandbox with one more domain)
-MAX_QUEUE = 4                   # one job in flight per controller, this many waiting
+MAX_QUEUE = 4
+# Run card sessions (one sandbox per canvas, user and commit; schemas/session.json)
+SESSION_HARD_TIMEOUT_SEC = 60 * 60
+SESSION_IDLE_TIMEOUT_SEC = 10 * 60
+MAX_SESSIONS = 2                # concurrent sessions per controller
+REAPER_INTERVAL_SEC = 60
+RUN_TAIL_LINES = 200
+RUN_TAIL_MAX_BYTES = 32 * 1024
+RUN_FLAG_MAX_PROPERTIES = 8                   # one job in flight per controller, this many waiting
 REPAIR_EXEC_TIMEOUT_SEC = 300   # the repair agent's exec tool
 REPAIR_READ_MAX_LINES = 200     # the repair agent's read_file tool
 MODEL_CONTEXT_TAIL_LINES = 60   # logs on disk are never truncated; only what goes into the model's context
