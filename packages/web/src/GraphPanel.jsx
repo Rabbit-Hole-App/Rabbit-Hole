@@ -74,11 +74,12 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
   // A right-clicked node outside the selection becomes the selection, so the menu acts on what is lit.
   const openMenu = (node, at) => { if (!selected.includes(node.id)) setSelected([node.id]); setMenu(at); };
   const menuIds = menu ? selected : [];
+  const [searchOpen, setSearchOpen] = useState(false); // the small Search window over the graph
 
   // Escape closes an open menu first, before the graph clears its selection (clarification section 5).
   return <section data-graph-panel aria-label="Repository graph" className="flex min-h-0 flex-1 flex-col gap-2"
     onKeyDownCapture={event => { if (menu && event.key === 'Escape') { event.stopPropagation(); setMenu(null); } }}>
-    <header className="flex shrink-0 items-center gap-2 text-xs text-ink-2">
+    {!snapshot && <header className="flex shrink-0 items-center gap-2 text-xs text-ink-2">
       <span data-graph-status={status} className="flex min-w-0 flex-1 items-center gap-1.5">
         {status === 'unavailable' ? <span>Repository content unavailable</span> : <>
           <span className="min-w-0 truncate font-medium text-ink" title={app?.repo}>{app?.repo || 'Repository'}</span>
@@ -87,16 +88,33 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
           {snapshot && repository.commit && repository.commit !== snapshot.commit && <span className="shrink-0 text-ink-3">· loading {short(repository.commit)}</span>}
         </>}
       </span>
-      {memory && snapshot && <Button size="sm" data-map-layers-open aria-controls="graph-layers" aria-expanded={layersOpen} onClick={() => setLayersOpen(value => !value)}><Layers size={14} />Layers<ChevronDown size={12} className="text-ink-3" /></Button>}
-    </header>
+    </header>}
     <Body repository={repository} />
     {snapshot && <>
-      <label className="relative shrink-0">
-        <Search size={14} aria-hidden className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-ink-3" />
-        <Input aria-label="Search repository" placeholder="Search files or symbols" value={query} onChange={event => setQuery(event.target.value)} className="w-full pl-7" />
-      </label>
       {layersOpen && memory && <aside id="graph-layers" aria-label="Layers" className="shrink-0 rounded-lg border border-line p-2"><LayersRow memory={memory} layers={layers} onToggle={key => setLayers(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; })} /></aside>}
-      {shown.nodes.length ? <div className="flex min-h-64 flex-1 flex-col">
+      {shown.nodes.length ? <div className="relative flex min-h-64 flex-1 flex-col">
+        {/* Owner 2026-11-15, to save space: the repository and its commit sit inside the graph window at its top left; Search and Layers are icons at its top right (Search opens a small window). */}
+        <span data-graph-window-label className="pointer-events-none absolute top-2 left-2 z-10 flex max-w-[60%] items-center gap-1.5 rounded-md bg-white/90 px-2 py-1 text-xs text-ink-2 shadow-sm">
+        <span data-graph-status={status} className="flex min-w-0 flex-1 items-center gap-1.5">
+          {status === 'unavailable' ? <span>Repository content unavailable</span> : <>
+            <span className="min-w-0 truncate font-medium text-ink" title={app?.repo}>{app?.repo || 'Repository'}</span>
+            {snapshot && <span className="shrink-0 font-mono" title={`Indexed commit ${snapshot.commit}`}>{short(snapshot.commit)}</span>}
+            {['queued', 'indexing'].includes(status) && <span className="flex shrink-0 items-center gap-1"><Loader2 size={12} className="animate-spin" aria-hidden />{snapshot ? 'Indexing a newer commit' : status === 'queued' ? 'Waiting for the indexer' : 'Indexing'}</span>}
+            {snapshot && repository.commit && repository.commit !== snapshot.commit && <span className="shrink-0 text-ink-3">· loading {short(repository.commit)}</span>}
+          </>}
+        </span>
+        </span>
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+          <IconBtn data-graph-search-open aria-label="Search files or symbols" title="Search files or symbols" aria-expanded={searchOpen} className={query.trim() ? 'bg-accent/10 text-accent' : ''} onClick={() => setSearchOpen(open => !open)}><Search size={14} /></IconBtn>
+          {memory && <IconBtn data-map-layers-open aria-label="Layers" title="Layers" aria-controls="graph-layers" aria-expanded={layersOpen} onClick={() => setLayersOpen(value => !value)}><Layers size={14} /></IconBtn>}
+        </div>
+        {searchOpen && <div data-graph-search-window role="search" className="absolute top-11 right-2 z-20 w-64 max-w-[calc(100%-1rem)] rounded-lg border border-line bg-white p-1.5 shadow-pop"
+          onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setSearchOpen(false); } }}>
+          <label className="relative block">
+            <Search size={14} aria-hidden className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-ink-3" />
+            <Input autoFocus aria-label="Search repository" placeholder="Search files or symbols" value={query} onChange={event => setQuery(event.target.value)} className="w-full pl-7" />
+          </label>
+        </div>}
         <RepositoryGraph key={snapshot.commit} fit graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu} onShown={ids => { onScreen.current = ids; }}
           camera={camera} onCamera={value => repository.graph.setCamera({ ...value, commit: snapshot.commit })} />
       </div> : <p data-graph-empty className="text-sm text-ink-2">This repository has no code graph. You can still ask about its code in Chat.</p>}

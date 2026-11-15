@@ -56,8 +56,8 @@ export default function DocCard({ block, readOnly, onBlocks, onLive }) {
   return (
     <>
       <CardHeader block={block} className="relative px-4 pb-2" meta="Document" trailing={<>
-        <button type="button" aria-label="More document actions" className={action} onPointerDown={stop} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>
-        {menu && (
+        {!source && <button type="button" aria-label="More document actions" className={action} onPointerDown={stop} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>}
+        {menu && !source && (
           // The card's own rows from the canvas action registry, run like the right-click menu's (CanvasMenu.jsx), as the Notebook card's.
           <div role="menu" aria-label="Document actions" data-card-menu className="absolute top-8 right-3 z-30 w-60 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={stop}>
             <CardActionRows id={block.id} groups={['primary', 'clipboard', 'lock', 'delete']} onDone={() => setMenu(false)} />
