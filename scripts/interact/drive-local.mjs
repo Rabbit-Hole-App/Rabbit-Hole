@@ -1,0 +1,157 @@
+// Brief 27 task 3: drives a list of prompts at ONE depth through /interactive on the owner's LOCAL stack (default http://127.0.0.1:8878), on ONE fresh canvas in that stack's own storage.
+//   node scripts/interact/drive-local.mjs --prompts scripts/interact/sets/ml-prompts.json [--depth brief] [--base http://127.0.0.1:8878] [--out <dir>] [--email <test identity>] [--stop-usd N]
+//   node scripts/interact/drive-local.mjs --check     sign in, create the canvas, load the signed-in page and the jobs route, write ml-canvas.json; sends NO prompt and spends nothing (HTTP only, no browser)
+//   node scripts/interact/drive-local.mjs --check-browser   as --check, plus a headless browser looks for the Chat composer and Depth menu (still sends nothing)
+// Sign-in is plain HTTP through the local mock OAuth (OAUTH_MOCK=true on the stack): /auth/google/start, the mock authorize with a fixed sub and email, then the callback, which sets the small_session cookie.
+// The test identity is not the owner's account, so the owner's canvases are untouched. Per prompt it records: pick, fill result, build result, prompt-to-card ms, USD, the saved job record, the plan, the sealed
+// manifest, the captured frames when the stack exposes them, and a 100% zoom screenshot of the card (headless Chromium, 1440x900, deviceScaleFactor 1). Diagnostics (detail=1) need EXPLAIN_DIAGNOSTICS=true on the stack.
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const SPEC_DIR = 'C:/s/spec/interact-real', UA = { 'User-Agent': 'rabbit-hole-owner-launcher/1' };
+const DEPTHS = ['brief', 'balanced', 'detailed'];
+const USAGE = 'usage: node scripts/interact/drive-local.mjs (--prompts <list.json> [--depth brief|balanced|detailed] | --check | --check-browser) [--base <url>] [--out <dir>] [--email <addr>] [--canvas-file <path>] [--stop-usd N]';
+
+const argv = process.argv.slice(2);
+const flag = name => argv.includes(`--${name}`), opt = (name, dflt) => { const i = argv.indexOf(`--${name}`); return i < 0 ? dflt : argv[i + 1]; };
+const fail = (message, code = 1) => { console.log(`RESULT FAILED: ${message}`); process.exit(code); };
+if (flag('help')) { console.log(USAGE); process.exit(0); }
+const check = flag('check') || flag('check-browser'), promptsFile = opt('prompts'), depth = opt('depth', 'brief');
+const BASE = opt('base', 'http://127.0.0.1:8878').replace(/\/$/, ''), EMAIL = opt('email', 'owner-interact-ml@example.com');
+const OUT = opt('out', join(REPO, 'docs/features/interact/evidence/2026-11-15-b27')), CANVAS_FILE = opt('canvas-file', `${SPEC_DIR}/ml-canvas.json`);
+const stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
+if (!DEPTHS.includes(depth)) fail(`--depth takes ${DEPTHS.join(', ')}. ${USAGE}`, 2);
+if (!check && !promptsFile) fail(`--prompts <list.json> is required (or --check). ${USAGE}`, 2);
+if (!(stopUsd > 0)) fail(`--stop-usd is a positive number. ${USAGE}`, 2);
+let PROMPTS = [];
+if (promptsFile) {
+  try { PROMPTS = JSON.parse(readFileSync(promptsFile, 'utf8').replace(/^﻿/, '')); } catch (error) { fail(`--prompts ${promptsFile} is not readable JSON (${error.message}). ${USAGE}`, 2); }
+  if (!Array.isArray(PROMPTS) || !PROMPTS.length || PROMPTS.some(p => !p?.prompt || p.id === undefined)) fail(`--prompts takes a list of { id, prompt, expect }. ${USAGE}`, 2);
+}
+const log = (...a) => console.log(new Date().toISOString(), ...a), sleep = ms => new Promise(r => setTimeout(r, ms));
+const firstLine = s => (s == null ? null : String(s).split('\n')[0].slice(0, 400));
+
+// Mock sign-in over HTTP: the cookie jar carries the signed oauth flow cookie (rh_oauth) from start to callback; the session comes back as small_session.
+const jar = {};
+const eat = r => { for (const c of r.headers.getSetCookie?.() || []) { const kv = c.split(';')[0], i = kv.indexOf('='); jar[kv.slice(0, i)] = kv.slice(i + 1); } };
+const cookies = () => Object.entries(jar).map(([k, v]) => `${k}=${v}`).join('; ');
+const hop = async url => { const r = await fetch(url, { redirect: 'manual', headers: { ...UA, cookie: cookies() } }); eat(r); return r; };
+const signIn = async () => {
+  const start = await hop(`${BASE}/auth/google/start`), authorize = start.headers.get('location');
+  if (start.status !== 302 || !authorize?.includes('/test/oauth/authorize')) throw new Error(`/auth/google/start did not redirect to the mock authorize page (HTTP ${start.status}); the stack needs OAUTH_MOCK=true`);
+  const u = new URL(authorize, BASE); u.searchParams.set('sub', 'owner-interact-ml'); u.searchParams.set('email', EMAIL);
+  const granted = await hop(u), callback = granted.headers.get('location');
+  if (!callback?.includes('/auth/google/callback')) throw new Error(`the mock authorize step did not redirect to the callback (HTTP ${granted.status})`);
+  await hop(new URL(callback, BASE));
+  if (!jar.small_session) throw new Error('the callback set no small_session cookie');
+  return jar.small_session;
+};
+let session;
+try { session = await signIn(); } catch (error) { fail(`${error.message}. Next: is the local stack up at ${BASE} (bash C:/s/spec/owner-local/owner-stack.sh)?`); }
+const api = async (method, path, body) => {
+  const r = await fetch(`${BASE}${path}`, { method, headers: { ...UA, cookie: `small_session=${session}`, ...(body ? { 'Content-Type': 'application/json', origin: BASE } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  return { status: r.status, data: await r.json().catch(() => null) };
+};
+
+const made = await api('POST', '/api/canvases', { title: `ML stepper ${Date.now().toString(36)}` });
+const app = made.data?.name; if (!app) fail(`could not create a canvas (HTTP ${made.status}).`);
+const saved = await api('PUT', `/api/learn/boards/${app}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] } });
+const boardId = saved.data?.board_id; if (!boardId) fail(`could not save the canvas board (HTTP ${saved.status}).`);
+const url = `${BASE}/apps/${app}`; // never ?board=
+mkdirSync(SPEC_DIR, { recursive: true }); mkdirSync(OUT, { recursive: true });
+const record = jobs => writeFileSync(CANVAS_FILE, JSON.stringify({ base: BASE, email: EMAIL, app, boardId, depth, createdAt, jobs }, null, 2));
+const createdAt = new Date().toISOString(); record([]);
+const jobsOf = async () => { const l = await api('GET', `/api/learn/explain/jobs?board=${boardId}`); return Array.isArray(l.data) ? l.data : (l.data?.jobs || []); };
+
+if (check) {
+  const page = await fetch(url, { headers: { ...UA, cookie: `small_session=${session}` } }), jobs = await api('GET', `/api/learn/explain/jobs?board=${encodeURIComponent(boardId)}`);
+  let composers = 'not checked (HTTP only; --check-browser looks)';
+  if (flag('check-browser')) { const { page: tab, browser } = await openBrowser(); await tab.goto(url); composers = await tab.locator('[data-chat-pane] [data-chat-composer]').first().waitFor({ timeout: 60000 }).then(() => 'found', () => 'NOT found'); await browser.close(); }
+  console.log(`signed in as ${EMAIL} on ${BASE} (cookie small_session set); canvas ${app}; board ${boardId}; page HTTP ${page.status}; explain jobs route HTTP ${jobs.status} (${(Array.isArray(jobs.data) ? jobs.data : jobs.data?.jobs || []).length} jobs); Chat composer ${composers}; wrote ${CANVAS_FILE}`);
+  const ok = page.ok && jobs.status === 200 && !String(composers).startsWith('NOT');
+  const why = !page.ok ? `the signed-in page answered HTTP ${page.status}` : jobs.status === 404 ? 'sign-in, canvas and page work, but the explain jobs route answers 404: the stack runs without EXPLAIN_V2_ENABLED=true or without the EXPLAIN_JOBS Durable Object (see the hand-back)' : `the explain jobs route answered HTTP ${jobs.status}`;
+  console.log(ok ? 'RESULT CHECK OK: sign-in, canvas, signed-in page and the explain jobs route work; nothing was sent' : `RESULT FAILED: ${why}`);
+  await sleep(200); // lets the HTTP sockets close first: exiting at once can trip a libuv assertion on Windows
+  process.exit(ok ? 0 : 1);
+}
+
+async function openBrowser() {
+  const { chromium } = createRequire('C:/s/explain-layout-web/package.json')('playwright');
+  let browser; try { browser = await chromium.launch({ channel: 'chrome', headless: true }); } catch { browser = await chromium.launch({ headless: true }); }
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+  await context.addCookies([{ name: 'small_session', value: session, url: BASE, httpOnly: true, sameSite: 'Lax' }]);
+  return { browser, page: await context.newPage() };
+}
+
+const { browser, page } = await openBrowser();
+page.on('pageerror', e => log('pageerror', String(e).slice(0, 200)));
+let approveFailed = null;
+page.on('response', async r => { if (/\/explain\/jobs\/[^/]+\/approve/.test(r.url()) && r.status() >= 400) approveFailed = `approve ${r.status()}: ${(await r.text().catch(() => '')).slice(0, 200)}`; });
+await page.goto(url);
+await page.locator('[data-chat-pane] [data-chat-composer]').first().waitFor({ timeout: 90000 });
+await page.waitForTimeout(2000);
+const depthButton = page.locator('[data-depth-menu] [data-depth]').first();
+if (await depthButton.getAttribute('data-depth').catch(() => null) !== depth) {
+  await depthButton.click(); await page.locator(`[data-depth-option="${depth}"]`).click(); await page.waitForTimeout(300);
+  if (await depthButton.getAttribute('data-depth') !== depth) fail(`could not set Depth to ${depth}`);
+}
+const box = page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
+const detailOf = async (id, version) => (await api('GET', `/api/learn/explain/jobs/${id}?board=${boardId}&detail=1${version ? `&version=${version}` : ''}`)).data;
+const save = (name, value) => { if (value == null) return null; writeFileSync(`${OUT}/${name}`, JSON.stringify(value, null, 2)); return name; };
+
+const results = []; let spent = 0, stopped = null;
+for (const { id, prompt, expect } of PROMPTS) {
+  const tag = String(id), known = new Set((await jobsOf()).map(j => j.id)), plans0 = await page.locator('[data-generation-proposal] [data-proposal-generate]').count();
+  await box.click(); await box.fill(`/interactive ${prompt}`); await page.waitForTimeout(200);
+  const tSent = Date.now(); await box.press('Enter'); log(tag, 'sent');
+  const r = { id: tag, prompt, expect: expect ?? 'fit', depth, jobId: null, stage: null, stopReason: null, pick: null, fill: null, build: null, promptToCardMs: null, usd: null, files: {} };
+  let job = null, shown = false;
+  const planWait = page.waitForFunction(count => document.querySelectorAll('[data-generation-proposal] [data-proposal-generate]').length > count, plans0, { timeout: 300000, polling: 'raf' }).then(() => { shown = true; }, () => {});
+  // a fast pass builds straight through (ready with no proposal); a job that ends first (failed, cancelled) ends the wait too
+  const jobEnd = (async () => { while (!shown && Date.now() - tSent < 300000) { job ??= (await jobsOf()).find(j => !known.has(j.id)); const s = job && (await api('GET', `/api/learn/explain/jobs/${job.id}?board=${boardId}`)).data?.job; if (s && ['failed', 'cancelled', 'ready'].includes(s.stage)) return s; await sleep(400); } return null; })();
+  const early = await Promise.race([planWait.then(() => null), jobEnd]);
+  let end = early;
+  if (early) { r.jobId = early.id ?? job?.id; if (early.stage === 'ready') r.promptToCardMs = Date.now() - tSent; }
+  else if (shown) {
+    const proposal = page.locator('[data-generation-proposal][data-proposal-job]').last();
+    r.jobId = await proposal.getAttribute('data-proposal-job'); await proposal.screenshot({ path: `${OUT}/${tag}-plan.png` }).catch(() => {});
+    await proposal.locator('[data-proposal-generate]').click(); log(tag, 'job', r.jobId, 'plan shown, Generate pressed');
+    const tGen = Date.now();
+    while (Date.now() - tGen < 300000) { end = (await api('GET', `/api/learn/explain/jobs/${r.jobId}?board=${boardId}`)).data?.job; if (['ready', 'failed', 'cancelled'].includes(end?.stage) || end?.terminal || approveFailed) break; await sleep(400); }
+    if (end?.stage === 'ready') r.promptToCardMs = Date.now() - tSent;
+  }
+  if (!r.jobId) { r.jobId = job?.id ?? null; }
+  Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed ?? (end ? null : 'no job ended within 300 s') });
+  if (end?.stage === 'ready') {
+    const card = page.locator('[data-program-card]').last();
+    try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: `${OUT}/${tag}-card.png` }); r.files.screenshot = `${tag}-card.png`; } catch (e) { r.files.screenshot = `not taken: ${firstLine(e.message)}`; }
+  } else await page.screenshot({ path: `${OUT}/${tag}-${end?.stage ?? 'nostage'}.png` }).catch(() => {});
+  if (r.jobId) {
+    const full = await detailOf(r.jobId), d = full?.diagnostics ?? null, row = d?.ledger ?? null, fast = d?.designFast ?? null;
+    r.diagnostics = d ? 'on' : 'off (the stack answers no detail=1: EXPLAIN_DIAGNOSTICS is not true)';
+    r.pick = row ? { family: row.pickFamily ?? null, confidence: row.pickConfidence ?? null, ms: row.msPick ?? null } : null;
+    const fb = row?.designFallback ?? fast?.fallback ?? null, firstProblem = fast?.firstProblem ?? null, lastProblem = fast?.lastProblem ?? null;
+    r.fill = row || fast ? { ok: !fb && row?.designKind === 'fast' && end?.stopReason !== 'design_gap', fallback: fb, corrected: !!firstProblem && !fb, firstProblem: firstLine(firstProblem), lastProblem: firstLine(lastProblem), designKind: row?.designKind ?? null }
+      : { ok: end?.stopReason !== 'design_gap' && !/design|fill/i.test(String(r.failure ?? '')), line: firstLine(r.failure) };
+    r.build = end?.stage === 'ready' ? { ok: true } : { ok: false, line: firstLine(r.failure) };
+    const calls = Array.isArray(d?.calls) ? d.calls : [], callSum = calls.reduce((s, c) => s + (Number(c.costUsd ?? c.cost) || 0), 0);
+    r.usd = row ? (Number(row.designCostUsd) || 0) + (Number(row.costUsd) || 0) : d ? callSum : null;
+    spent += r.usd ?? 0;
+    r.files.job = save(`${tag}-job.json`, full);
+    r.files.plan = save(`${tag}-plan.json`, full?.scenePlan ?? null);
+    const programHash = [d?.program?.programHash, d?.program?.hash, d?.artifact?.programHash, d?.artifact?.hash].find(h => /^[0-9a-f]{16}$/.test(h ?? ''));
+    const ver = programHash ? (await detailOf(r.jobId, programHash))?.version ?? null : null;
+    r.files.manifest = save(`${tag}-manifest.json`, ver?.manifest ?? null);
+    r.files.frames = save(`${tag}-frames.json`, d?.captures?.length ? d.captures.slice(0, 4) : null); // capture metadata and traces; the pixel bytes are not exposed by detail=1
+  }
+  results.push(r); appendFileSync(`${OUT}/results.jsonl`, JSON.stringify(r) + '\n'); record(results.map(x => ({ id: x.id, jobId: x.jobId, stage: x.stage }))); log(tag, JSON.stringify({ stage: r.stage, pick: r.pick, fill: r.fill?.ok, build: r.build?.ok, ms: r.promptToCardMs, usd: r.usd }));
+  if (spent >= stopUsd) { stopped = `spent US$${spent.toFixed(2)} reached --stop-usd ${stopUsd}`; break; }
+}
+await browser.close();
+for (const r of results) console.log(`${r.id} ${String(r.stage).padEnd(9)} pick ${r.pick?.family ?? 'none'} ${r.pick?.confidence ?? '-'}; fill ${r.fill?.ok ? 'ok' : (r.fill?.firstProblem ?? r.fill?.line ?? '-')}; build ${r.build?.ok ? 'ok' : (r.build?.line ?? '-')}; ${r.promptToCardMs ?? '-'} ms; US$${r.usd?.toFixed(4) ?? '-'}`);
+const ok = !stopped && results.length === PROMPTS.length && results.every(r => r.stage === 'ready');
+console.log(ok ? `RESULT OK canvas ${app} (${EMAIL}): ${url}; evidence in ${OUT}` : `RESULT FAILED: ${stopped ?? 'not every prompt reached ready'}; ${results.length} of ${PROMPTS.length} done; canvas ${url}; evidence in ${OUT}`);
+process.exit(ok ? 0 : 1);
