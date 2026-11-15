@@ -1,0 +1,151 @@
+{
+  "family": "importance-comparison",
+  "canonical": "normalized-method-rank-comparison",
+  "layout": {
+    "width": 640,
+    "height": 370
+  },
+  "story": "The illustrative Noise ID feature gets a large MDI share but almost no held-out permutation share. Select a feature and compare its two scores; changing the ranking method exposes how differently the methods order the same features.",
+  "aha": {
+    "inputs": {
+      "feature": "Noise ID",
+      "order": "perm"
+    },
+    "observation": "Noise ID ranks first on MDI with a 45% share, but last on held-out permutation with a 1% share. These are normalized method shares, not raw accuracy drops.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "bars",
+      "kind": "method-ranked-paired-bars",
+      "bind": "data.features; data.mdi; data.permutation; computed.selected; computed.order"
+    },
+    {
+      "id": "ranks",
+      "kind": "feature-rank-readout",
+      "bind": "computed.selected"
+    }
+  ],
+  "controls": [
+    {
+      "id": "feature",
+      "kind": "select",
+      "label": "Inspect feature",
+      "values": [
+        "x",
+        "y",
+        "Noise ID"
+      ],
+      "effect": "Change the selected score pair, the highlighted feature and its two ranks."
+    },
+    {
+      "id": "order",
+      "kind": "select",
+      "label": "Order features by",
+      "values": [
+        "mdi",
+        "perm"
+      ],
+      "labels": [
+        "MDI share",
+        "Permutation share"
+      ],
+      "effect": "Reorder the actual bar rows by the selected method’s scores."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "Change the method. Change the ranking.",
+    "heading": "Illustrative normalized feature importance",
+    "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+    "instructions": "Inspect Noise ID. Compare its values and ranks under the two methods.",
+    "initialInputs": {
+      "feature": "x",
+      "order": "mdi"
+    },
+    "features": [
+      "x",
+      "y",
+      "Noise ID"
+    ],
+    "mdi": [
+      35,
+      20,
+      45
+    ],
+    "permutation": [
+      75,
+      24,
+      1
+    ],
+    "calculations": [
+      "The supplied illustrative arrays are MDI [35,20,45] and held-out permutation [75,24,1] for x, y and Noise ID.",
+      "Each series is normalized to 100%; no raw permutation accuracy drops or Noise ID training rows were supplied.",
+      "Ranks are computed by descending score, with stable source order for ties. Noise ID has rank 1 under MDI and rank 3 under permutation.",
+      "Totals are sums of the supplied shares. Reordering never changes values or denominators."
+    ],
+    "sourceKind": "illustrative normalized shares, not the eight-row toy forest",
+    "missingCounterparts": [
+      "selected-feature score pair",
+      "method-ranked paired bars",
+      "category-linked rank readout",
+      "normalization ledger"
+    ],
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "feature": "x",
+          "order": "mdi"
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "feature": "Noise ID",
+          "order": "perm"
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-feature-importance",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 33,
+      "cases": 6,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "standard-importance-comparison-feature-importance",
+  "depth": "balanced"
+}
