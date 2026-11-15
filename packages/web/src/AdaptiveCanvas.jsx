@@ -21,6 +21,7 @@ import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { DOC_CARD_SIZE, isFileDrag, newDocBlock, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
+import { GENERATED_NOTE, RUN_CARD_SIZE, deletableIds, isGenerated, keepGenerated } from './rehearsal-cards.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
 import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
 import { explanationCardWidth, openedExplanation } from './explanation-card-width.js';
@@ -143,6 +144,8 @@ const InlineAiEditor = lazyFeature(() => import('./InlineAiEditor.jsx'), 'The AI
 const CanvasDoc = lazyFeature(() => import('./CanvasDoc.jsx'), 'The document editor');
 // A document as a card (DocNode below), loaded with the first such card, never with the canvas.
 const DocCard = lazyFeature(() => import('./DocCard.jsx'), 'The document editor');
+// A Run card (RunCard.jsx; rehearsal-cards.js), loaded with the first such card.
+const RunCard = lazyFeature(() => import('./RunCard.jsx'), 'The run card');
 // The graph renderer loads with the first graph card, never with the canvas (repo-canvas-graph.md clarification section 11).
 const GraphCard = lazyFeature(() => import('./GraphCard.jsx'), 'The graph');
 // SVG, audio and video card bodies load with the first such card (docs/features/canvas-file-imports.md, Media).
@@ -945,6 +948,21 @@ function DocNode({ block, zoom, selected, connected, onSelect, onMove, onLayout,
   );
 }
 
+// A Run card (RunCard.jsx, rehearsal-runtime/RUN_CARD.md, owner 2026-11-14): the Notebook card's shell around the rehearsal's cells. What it keeps (block.run: the record reference,
+// cells, last outputs, typed flags; never a session) is saved quietly, as a notebook's words are. A viewer, a copy and a locked card see it with Run and Start disabled.
+function RunNode({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
+  const edit = useContext(CanvasEdit);
+  return (
+    <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
+      connected={connected} width={RUN_CARD_SIZE.w} height={block.h || RUN_CARD_SIZE.h} autoMax={undefined} saved={{ w: block.w, h: block.h }}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+      <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the run card</p>}>
+        <RunCard block={block} readOnly={edit.readOnly || edit.localCopy || edit.locked.has(block.id)} onSave={run => edit.patchBlock?.(block.id, { run }, true)} />
+      </Suspense>
+    </CanvasNode>
+  );
+}
+
 function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
@@ -983,6 +1001,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'doc') return <DocNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'run') return <RunNode block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A code card (repo-graph Release 2, code-card.js): resizable; Full content (the menu's row) shows all its code.
   if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={CODE_CARD.h} autoMax={undefined} cardLayout={block.cardLayout} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} /></CanvasNode>;
   if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CardCustomTitle block={block} /><CanvasRefCard block={block} /></CanvasNode>;
@@ -2367,6 +2386,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         snapshot();
         return target ? placeBeside(newDocBlock(), DOC_CARD_SIZE, target, only) : insertAtView(newDocBlock());
       },
+      // A card the rehearsal flow made (rehearsal-cards.js: the Run card, the Runbook): beside `beside` (its sibling) when that card is here, else beside the one selected card or
+      // object, else where the learner is looking. No undo step of its own: undo never removes a generated card (keepGenerated). -> its id, or null on a board that cannot be edited.
+      insertGenerated: (block, { beside = null } = {}) => {
+        if (readOnlyRef.current || localCopyRef.current || !alive.current) return null;
+        const only = beside && boundsRef.current[beside] ? beside : selectedRef.current.length === 1 ? selectedRef.current[0] : null, target = only && boxesOf([only])[0];
+        const size = block.type === 'run' ? RUN_CARD_SIZE : DOC_CARD_SIZE;
+        return target ? placeBeside(block, size, target, only) : insertAtView(block);
+      },
       // An imported .ipynb or .py, as the Add to canvas dialog made it (canvas-file-drop.md): at its drop point - the
       // column slot at that height - or, uploaded, where the learner is looking.
       insertImported: (block, at = null) => {
@@ -2641,6 +2668,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return hit.length;
       },
       removeBlock: async id => {
+        if (blocksRef.current.some(block => block.id === id && isGenerated(block))) { toast(GENERATED_NOTE); return; }
         const cad=blocksRef.current.find(block=>block.id===id && block.type==='cad' && block.jobId && !block.cadDetached);
         if(cad){if(cadRunning(cad.status) && !window.confirm('Removing this CAD card cancels its running job. Undo does not restart generation. Remove it?'))return;try{await cadClient(api,appName).action(cad.jobId,'placement',{hidden:true});}catch(problem){toast(problem.message);return;}}
         if (!blocksRef.current.some(block => block.id === id)) return;
@@ -2946,7 +2974,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // An Explain-back copy is a fresh exercise: the learner's answer, attempts and Sketch stay on the original.
     const drawn = { ...(saved.bounds || {}), ...boundsRef.current }; // a live box wins; a cut card's is the one kept at copy
     const target = clip && at ? pasteTarget({ at, blocks: pickedBlocks, chats: pickedChats, items: pickedItems, shapes: pickedShapes, list: blocksRef.current, bounds: drawn, index: flowIndexAt(at.y) }) : null;
-    const copyNode = (node, by = { x: step, y: step }) => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + by.x, dy: node.dy + by.y, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
+    const copyNode = (node, by = { x: step, y: step }) => ({ ...publicExplainBack(node), ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, generated: undefined, dx: node.dx + by.x, dy: node.dy + by.y, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
     const blocksCopy = pickedBlocks.map(node => copyNode(node, target?.shift || undefined));
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.
@@ -3550,8 +3578,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
     // A locked object is never deleted by accident: it stays, selected, and says so.
-    const ids = selectedRef.current.filter(id => !lockedRef.current.has(id));
-    if (ids.length < selectedRef.current.length) toast('Locked objects stay. Unlock them to delete.');
+    const unlocked = selectedRef.current.filter(id => !lockedRef.current.has(id));
+    if (unlocked.length < selectedRef.current.length) toast('Locked objects stay. Unlock them to delete.');
+    // A generated card (the Run card, the Runbook) is never deleted, alone or in a selection: the rest goes and these stay (rehearsal-cards.js).
+    const { ids, refused } = deletableIds(unlocked, blocksRef.current);
+    if (refused) toast(GENERATED_NOTE);
     if (!ids.length) return;
     const cad = blocksRef.current.filter(block=>ids.includes(block.id) && block.type==='cad' && block.jobId && !block.cadDetached);
     if(cad.some(block=>cadRunning(block.status)) && !window.confirm('Removing this CAD card cancels its running job. Undo restores the card but does not restart generation. Remove it?'))return;
@@ -3573,6 +3604,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A webpage card's Remove (a capture that was refused): the card and its connections, one undo step.
   const removeBlock = id => {
     if (readOnlyRef.current || !blocksRef.current.some(block => block.id === id)) return;
+    if (blocksRef.current.some(block => block.id === id && isGenerated(block))) { toast(GENERATED_NOTE); return; }
     snapshot();
     setBlocks(previous => previous.filter(block => block.id !== id));
     setLinks(previous => previous.filter(link => link.from !== id && link.to !== id));
@@ -3607,6 +3639,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // Cut: the copy machinery first; only a copy that succeeded deletes anything (and never a locked object).
   const cutSelection = () => {
+    // Only generated cards selected: nothing to cut, so nothing is copied either (a mixed selection cuts the rest; deleteSelection leaves these).
+    if (selectedRef.current.length && !deletableIds(selectedRef.current, blocksRef.current).ids.length) { toast(GENERATED_NOTE); return false; }
     if (!copySelection()) return false;
     deleteSelection();
     return true;
@@ -3711,7 +3745,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const entry = history.current[history.current.length - 1];
     if (!entry) return;
     history.current.pop();
-    setStrokes(entry.strokes); setShapes(entry.shapes); setItems(entry.items); setLinks(entry.links); setBlocks(entry.blocks);
+    setStrokes(entry.strokes); setShapes(entry.shapes); setItems(entry.items); setLinks(entry.links); setBlocks(keepGenerated(entry.blocks, blocksRef.current));
     if (entry.exchanges) onRestoreRef.current?.(entry.exchanges);
   };
   // A text edit is one undo step: opened when typing starts, dropped at the end if the edit changed nothing.
@@ -3734,7 +3768,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const before = blocksRef.current.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached), after = state.blocks.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached);
     for(const block of before.filter(block=>!after.some(next=>next.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:true}).catch(problem=>toast(problem.message));
     for(const block of after.filter(block=>!before.some(old=>old.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:false}).catch(problem=>toast(problem.message));
-    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); if (state.groups) setGroups(state.groups); if ('toc' in state) setToc(state.toc); setSelected(null);
+    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(keepGenerated(state.blocks, blocksRef.current)); if (state.groups) setGroups(state.groups); if ('toc' in state) setToc(state.toc); setSelected(null);
     if (state.exchanges) onRestoreRef.current?.(state.exchanges);
   };
   const travelHistory = (from,to) => {
@@ -6366,6 +6400,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const keyAction = id => {
     const done = runAction(id, selectionTarget(menuModel()), actionCtxRef.current);
     if (!done.ran && done.reason) toast(id === 'delete' && done.reason === 'Locked' ? 'Locked objects stay. Unlock them to delete.' : done.reason);
+    // Delete hides its row on generated cards alone (canvas-actions.js), so the key says why nothing happened.
+    else if (!done.ran && id === 'delete' && selectedRef.current.length && !deletableIds(selectedRef.current, blocksRef.current).ids.length) toast(GENERATED_NOTE);
     return done;
   };
   const keyActionRef = useRef(keyAction);

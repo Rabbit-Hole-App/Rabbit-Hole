@@ -575,6 +575,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return job;
     },
     removeCard: id => canvasApi.current?.removeBlock(id),
+    // The rehearsal flow's cards (rehearsal-cards.js openRehearsalCard): a new generated card beside its sibling, and the Runbook's regeneration in place.
+    insertGenerated: (block, options) => canvasApi.current?.insertGenerated(block, options),
+    updateCard: (id, change) => canvasApi.current?.updateBlock(id, change),
     // The canvas card a reviewed plan is the skeleton of (explain-client.js skeletonJobOf), or null.
     skeletonCardId: jobId => canvasApi.current?.blocks?.().find(block => skeletonJobOf(block)?.id === jobId)?.id ?? null,
     // A Chat turn while that brief waits (EXP-T20 slice 3, ask.jsx): the job prepares its next version (Lane C refine); the
