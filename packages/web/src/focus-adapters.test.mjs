@@ -31,6 +31,11 @@ test('workspaceFrame: the controller inset, then the header row taken off the to
   assert.equal(workspaceFrame(null), null);
 });
 
+test('workspaceFrame: bar false (Study Run and Runbook draw no header row) leaves the whole inset rectangle to the card', () => {
+  assert.deepEqual(workspaceFrame({ left: 0, top: 40, right: 1000, bottom: 800 }, { bar: false }), { left: 16, top: 56, width: 968, height: 728 });
+  assert.equal(workspaceFrame({ left: 0, top: 0, right: 100, bottom: 40 }, { bar: false }).height, 16, 'only the inset comes off');
+});
+
 test('syncFocus: enter once, update on a new frame or camera, exit then restore once without the focused card scroll', () => {
   calls.length = 0;
   const hosts = { a: host('a'), b: host('b') }, restored = [], gone = [];

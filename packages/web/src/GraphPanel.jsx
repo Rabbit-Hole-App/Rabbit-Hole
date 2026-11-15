@@ -147,6 +147,9 @@ function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
   if (MEMORY_KINDS.includes(node.kind)) return <div data-node-details className="shrink-0 border-t border-line pt-2 text-sm"><p className="font-medium">{node.label}</p><p className="text-xs text-ink-3">Fixture record</p></div>;
   const object = objectOf(snapshot.graph, node), Icon = ICONS[object.kind] || Braces;
   const groups = relationshipGroups(snapshot.graph, object.nodeId || node.id);
+  // Open in files (owner 2026-11-15): the node's own file and each listed file open in Files through the same onOpenSource as Open source; an entry that is not a file of this snapshot (math, inspect) has no icon.
+  const inFiles = path => !!path && !!snapshot.files?.some(file => file.path === path);
+  const openIcon = (path, line) => <IconBtn data-node-open-files aria-label="Open in files" title="Open in files" onClick={() => onOpenSource?.(path, line, line)}><FileCode size={14} /></IconBtn>;
   const href = object.path && repositoryUrl({ repo: app?.repo, commit: snapshot.commit, path: object.path, line: object.kind === 'file' ? null : object.line });
   return <div data-node-details className="flex max-h-[40%] shrink-0 flex-col gap-1.5 overflow-y-auto border-t border-line pt-2">
     <div className="flex items-center gap-1.5">
@@ -154,7 +157,7 @@ function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
       <h3 className="min-w-0 flex-1 truncate text-sm font-semibold" title={object.label}>{object.label}</h3>
       {href && <a data-node-github href={href} target="_blank" rel="noreferrer" aria-label="Open on GitHub" title="Open this source on GitHub at the indexed commit" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink"><ArrowUpRight size={14} /></a>}
     </div>
-    <p className="truncate text-xs text-ink-3" title={object.path || ''}>{object.path ? `${object.path}:${object.line || 1} · ` : ''}{typeOf(object)}</p>
+    <div className="flex items-center gap-1"><p className="min-w-0 flex-1 truncate text-xs text-ink-3" title={object.path || ''}>{object.path ? `${object.path}:${object.line || 1} · ` : ''}{typeOf(object)}</p>{inFiles(object.path) && openIcon(object.path, object.line)}</div>
     <div className="flex flex-wrap gap-1">
       <Button size="sm" variant="secondary" data-node-open-source disabled={!object.path} title={object.path ? 'Open in Files at this line' : 'An external dependency has no source here'} onClick={() => onOpenSource?.(object.path, object.line || 1, object.line || 1)}>Open source</Button>
       {ops?.insertCard && nodeCodeCard({ app: app?.name, repo: app?.repo, commit: snapshot.commit }, object) && <Button size="sm" variant="secondary" data-node-add-card title="Put this code on the canvas as a code card" onClick={() => insertCodeCard(ops, nodeCodeCard({ app: app.name, repo: app.repo, commit: snapshot.commit }, object))}><SquareCode size={13} />Add code card</Button>}
@@ -166,9 +169,12 @@ function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
     {groups.length > 0 && <div data-node-relationships className="text-sm">
       {groups.map(group => <div key={group.label} data-relation={group.label}>
         <p className="pt-1 text-xs text-ink-3">{group.label}</p>
-        {group.items.map(({ node: other, inferred }, i) => <button key={`${other.id}-${i}`} type="button" onClick={() => onSelect(other)} className="flex w-full items-center gap-2 rounded-sm px-1.5 py-0.5 text-left hover:bg-hover">
-          <span className="min-w-0 flex-1 truncate">{other.label}</span>{inferred && <span title="Inferred by the indexer, not read from the code" className="text-xs text-ink-3">inferred</span>}
-        </button>)}
+        {group.items.map(({ node: other, inferred }, i) => <div key={`${other.id}-${i}`} className="flex items-center gap-1">
+          <button type="button" onClick={() => onSelect(other)} className="flex min-w-0 flex-1 items-center gap-2 rounded-sm px-1.5 py-0.5 text-left hover:bg-hover">
+            <span className="min-w-0 flex-1 truncate">{other.label}</span>{inferred && <span title="Inferred by the indexer, not read from the code" className="text-xs text-ink-3">inferred</span>}
+          </button>
+          {inFiles(other.path) && openIcon(other.path, other.line)}
+        </div>)}
       </div>)}
     </div>}
   </div>;

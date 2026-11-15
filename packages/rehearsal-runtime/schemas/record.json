@@ -123,6 +123,11 @@
         "allowDomainFixes": { "type": "array", "items": { "type": "string" } }
       }
     },
+    "knobsFailed": {
+      "type": "array",
+      "description": "knob verification commands that did not run (a click option that takes two arguments, a value the program refuses): recorded with their one-line error, never dropped",
+      "items": { "type": "object", "additionalProperties": false, "required": ["cmd", "rc", "error"], "properties": { "cmd": { "type": "string" }, "rc": { "type": "integer" }, "error": { "type": "string", "maxLength": 300 } } }
+    },
     "allChecksPassed": { "type": "boolean" },
     "modelCalls": {
       "type": "array",

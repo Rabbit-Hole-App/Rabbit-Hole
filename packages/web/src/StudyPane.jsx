@@ -196,12 +196,9 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready, f
     if (!frame || !place) return;
     frame.style.marginLeft = place.marginLeft ? `${place.marginLeft}px` : '';
     frame.style.marginTop = `${place.marginTop}px`;
-    // The chat strip centred across both panes (spec 2e, index.css [data-study-band]): the frame starts after the reference pane, so the strip moves back
-    // by half of it. Only beside each other (stacked, the frame is already the full width).
-    if (study.repository && place.marginLeft) { frame.setAttribute('data-study-band', ''); frame.style.setProperty('--study-shift', `${place.marginLeft / 2}px`); }
-    else { frame.removeAttribute('data-study-band'); frame.style.removeProperty('--study-shift'); }
-  }, [place?.marginLeft, place?.marginTop, study.repository]); // eslint-disable-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => () => { const frame = canvasFrame.current; if (frame) { frame.style.marginLeft = ''; frame.style.marginTop = ''; frame.removeAttribute('data-study-band'); frame.style.removeProperty('--study-shift'); } }, [canvasFrame]);
+    // The chat strip is the canvas's own, unchanged (owner 2026-11-15): it sits where it does on the canvas, in the work pane (the frame).
+  }, [place?.marginLeft, place?.marginTop]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => () => { const frame = canvasFrame.current; if (frame) { frame.style.marginLeft = ''; frame.style.marginTop = ''; } }, [canvasFrame]);
 
   // Study opened with a card as the work (the notebook, Run or Runbook): frame it once the canvas has its cards. Only for the work the pane opened
   // with, so a press inside Study never captures the camera a second time.
@@ -321,7 +318,8 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready, f
           {tabs.map(([id, label]) => <TabsTrigger key={id} value={id} data-study-ref-tab={id}>{label}</TabsTrigger>)}
         </TabsList>
       </Tabs>}
-      {!onPin && <div data-study-ref-body={refTab} className="flex min-h-0 flex-1 flex-col px-4 pt-2 pb-4">{refTab === 'files' ? files : graph}</div>}
+      {/* Files fills the pane edge to edge: its own frame and the pane's lines would sit 16 px apart (owner 2026-11-15, misaligned borders), so the frame's border and corners go and the tab row, tree and reader share one set of lines. */}
+      {!onPin && <div data-study-ref-body={refTab} className={refTab === 'files' ? 'flex min-h-0 flex-1 flex-col [&>div]:rounded-none [&>div]:border-0' : 'flex min-h-0 flex-1 flex-col px-4 pt-2 pb-4'}>{refTab === 'files' ? files : graph}</div>}
       {onPin && <>
       {/* One 42 px row (WP6, owner brief 2026-10-24): pin, the name, Add to chat and Reference options. The pane keeps its
           "Pinned reference" name; the type, version and source sit in the options' details. Below 360 px Add to chat is its icon. */}
@@ -373,7 +371,7 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready, f
         onPointerUp={() => { if (drag != null) study.setSplit(drag); setDrag(null); }} onPointerCancel={() => setDrag(null)}
         className={`absolute z-10 touch-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/40 focus-visible:outline-none ${layout.stacked ? '-bottom-1 left-0 h-2 w-full cursor-row-resize' : 'top-0 -right-1 h-full w-2 cursor-col-resize'}`} />
     </aside>
-    <div role="group" aria-label="Working view" data-study-work={state.work} className={`absolute z-20 flex items-center justify-end gap-0.5 border-b border-line bg-white px-2 ${layout.stacked ? '' : 'border-l'}`} style={switchStyle}>
+    <div role="group" aria-label="Working view" data-study-work={state.work} className="absolute z-20 flex items-center justify-end gap-0.5 border-b border-line bg-white px-2" style={switchStyle}>
       {choices.map(({ work, label, disabled }) => <button key={work} type="button" data-study-work-option={work} aria-pressed={state.work === work}
         disabled={disabled} onClick={() => pickWork(work)}
         className={`h-6 rounded-md px-2 text-xs disabled:opacity-40 ${state.work === work ? 'bg-hover font-medium text-ink' : 'text-ink-2 hover:text-ink'}`}>{label}</button>)}

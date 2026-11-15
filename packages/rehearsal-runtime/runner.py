@@ -536,7 +536,8 @@ class Runner:
             checks = move_port_checks(checks, k, v)
         res, done, started = self._start_long(step, cmd, checks, keep=False, name='knob-' + step['id'])
         self._attempt_log_extra(logname, cmd, res)
-        return {'cmd': cmd, 'rc': 0 if all(c['passed'] for c in done) else 1, 'sec': started if started is not None else res.sec, 'startsWithPrompt': False, 'separators': 0}
+        return {'cmd': cmd, 'rc': 0 if all(c['passed'] for c in done) else 1, 'sec': started if started is not None else res.sec, 'startsWithPrompt': False, 'separators': 0,
+                '_error': one_line(res.stderr or res.stdout)}
 
     def _knob_run(self, cmd: str, strs: list, logname: str) -> dict:
         res = self.sh(cmd, 300)
@@ -544,7 +545,7 @@ class Runner:
         prompt = knob_value(strs[0]) if strs else None
         return {'cmd': cmd, 'rc': res.rc, 'sec': res.sec,
                 'startsWithPrompt': bool(prompt) and res.rc == 0 and re.search('^' + re.escape(prompt), res.stdout, re.M) is not None,
-                'separators': len(re.findall(r'^\s*[-=]{3,}\s*$', res.stdout, re.M))}
+                'separators': len(re.findall(r'^\s*[-=]{3,}\s*$', res.stdout, re.M)), '_error': one_line(res.stderr or res.stdout)}
 
     def verify_knobs(self) -> list:
         """One combined command per cheap step: the step's FINAL cmd with every knob set (replaced, never appended) to its safe value, run once.
@@ -553,7 +554,10 @@ class Runner:
         cheap = self.cheap_steps()
         for sid in dict.fromkeys(k['step'] for k in self.route['knobs']):
             step = next(s for s in self.route['steps'] if s['id'] == sid)
-            ks = [k for k in self.route['knobs'] if k['step'] == sid and k['type'] != 'bool']  # ponytail: bool knobs are not exercised
+            # A string knob is exercised only when it is prompt-like (--start, --prompt, a text the program echoes) or discovery gave it a safeValue: an arbitrary string
+            # (--init_from, --out_dir, --dataset) accepts only the repository's own values, and 'hello' made a sampler fail (nanoGPT re-run 2026-11-15).
+            ks = [k for k in self.route['knobs'] if k['step'] == sid and k['type'] != 'bool'
+                  and (k['type'] != 'string' or k.get('safeValue') or PROMPT_LIKE.search(k['flag']))]  # ponytail: bool knobs are not exercised
             if sid not in cheap or not ks:
                 continue
             if step.get('longRunning'):
@@ -588,6 +592,15 @@ class Runner:
 
 
 # ---------------------------------------------------------------- clone, environment, artifacts
+
+PROMPT_LIKE = re.compile(r'^--(start|prompt|text|input|query|message|question|seed_text|name|title)$')
+
+
+def one_line(text: str) -> str:
+    """The last non-empty line of a program's output, cut to 300 characters: the error a failed knob command left (never a stack trace in a message)."""
+    lines = [l.strip() for l in str(text or '').splitlines() if l.strip()]
+    return lines[-1][:300] if lines else ''
+
 
 def clone(provider, repo: str, commit: str) -> None:
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo) or not re.fullmatch(r'[a-f0-9]{40}', commit):

@@ -48,12 +48,22 @@ export function parseRepoLink(href, { repo, commit }) {
 
 // A click on a runbook citation: opens the Files reader at the lines exactly as TutorCodebase.jsx openFiles does (small:open-code,
 // cancelable; the repository canvas answers it), else GitHub at that commit. true: the link is this repository's and was handled here.
+// sameRepo: the card's own commit may not be the snapshot's (and an older card has no app), so the canvas's repository answers by repo alone (answersOpenCode).
 export function openRunbookLink(href, { app, repo, commit }, { dispatch = event => window.dispatchEvent(event), open = url => window.open(url, '_blank', 'noopener') } = {}) {
   const at = parseRepoLink(href, { repo, commit });
   if (!at) return false;
-  const event = new CustomEvent('small:open-code', { detail: { app, commit, path: at.path, start: at.start, end: at.end }, cancelable: true });
+  const event = new CustomEvent('small:open-code', { detail: { app, repo, commit, sameRepo: true, path: at.path, start: at.start, end: at.end }, cancelable: true });
   if (dispatch(event) !== false && !event.defaultPrevented) open(href);
   return true;
+}
+
+// Whether a repository canvas answers a small:open-code event (repository-canvas.jsx): { appName, repo, commit } are its own app and indexed snapshot. A Runbook or Run card's event
+// (sameRepo) is answered for the same repository whatever commit or app name the card carries (cards made before app was stored have none), and Files opens the snapshot's file;
+// any other card (a code card) is answered only at its own app and commit, never shown against a different revision.
+export function answersOpenCode(detail, { appName, repo, commit }) {
+  if (!detail?.path) return false;
+  if (detail.sameRepo) return !!detail.repo && !!repo && String(detail.repo).toLowerCase() === String(repo).toLowerCase();
+  return !!appName && detail.app === appName && !!commit && detail.commit === commit;
 }
 
 // ---- inline content --------------------------------------------------------------------------------------------------
