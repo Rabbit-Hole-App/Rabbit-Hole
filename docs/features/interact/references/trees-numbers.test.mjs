@@ -48,3 +48,6 @@ if(has('overview-sample-draw-bootstrap-roots.html'))test('bootstrap repeats and 
 if(has('overview-pruning-inspector-cost-complexity-pruning.html'))test('pruning uses the smallest best-accuracy illustrative candidate, without fabricated topology',()=>{
  const u=card('deep','pruning-inspector','cost-complexity-pruning');for(const[i,leaves,accuracy]of [[0,10,90],[1,8,90],[2,6,90],[3,4,82],[4,2,68]]){u.change('alpha',i);assert.equal(u.card.evidence.leaves,leaves);assert.equal(u.card.evidence.accuracy,accuracy);assert.equal(u.card.evidence.removed,10-leaves);assert.equal(u.card.evidence.bestAlpha,.01)}
 });
+if(has('standard-pruning-inspector-cost-complexity-pruning.html'))test('pruning log-axis decades are equally spaced in the actual SVG',()=>{
+ const u=card('standard','pruning-inspector','cost-complexity-pruning');const ticks=[...u.svg().matchAll(/<text\b([^>]+)>([^<]+)<\/text>/g)].map(m=>({text:m[2],a:Object.fromEntries([...m[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(v=>[v[1],v[2]]))})).filter(t=>Number(t.a.y)===233&&['0.0001','0.001','0.01','0.1','1'].includes(t.text));assert.equal(ticks.length,5);const xs=ticks.map(t=>Number(t.a.x)),spacing=(xs.at(-1)-xs[0])/4;assert.ok(spacing>70);for(let i=1;i<xs.length;i++)assert.ok(Math.abs(xs[i]-xs[i-1]-spacing)<1e-9,'equal alpha decades must have equal screen spacing');
+});
