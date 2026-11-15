@@ -45,3 +45,6 @@ if(has('overview-sample-draw-bootstrap-roots.html'))test('bootstrap repeats and 
  const u=card('standard','sample-draw','bootstrap-roots');for(const [i,draw,oob]of [[0,'A A C D E F G H',['B']],[1,'B B C D F F F G',['A','E','H']],[2,'A B C D D G H H',['E','F']]]){u.change('draw',String(i));assert.equal(Array.from(u.card.evidence.sample).join(' '),draw);assert.deepEqual(Array.from(u.card.evidence.omitted),oob)}
  const d=card('deep','sample-draw','bootstrap-roots');d.change('draw','1');d.change('feature','y');assert.ok(Math.abs(Math.min(...d.card.evidence.trials.map(t=>t.weighted))-3/8)<1e-12);d.change('feature','x');assert.equal(Math.min(...d.card.evidence.trials.map(t=>t.weighted)),0);assert.equal(d.card.evidence.root.feature,'y');assert.equal(d.card.evidence.frequencies.B,2);assert.equal(d.card.evidence.frequencies.F,3);
 });
+if(has('overview-pruning-inspector-cost-complexity-pruning.html'))test('pruning uses the smallest best-accuracy illustrative candidate, without fabricated topology',()=>{
+ const u=card('deep','pruning-inspector','cost-complexity-pruning');for(const[i,leaves,accuracy]of [[0,10,90],[1,8,90],[2,6,90],[3,4,82],[4,2,68]]){u.change('alpha',i);assert.equal(u.card.evidence.leaves,leaves);assert.equal(u.card.evidence.accuracy,accuracy);assert.equal(u.card.evidence.removed,10-leaves);assert.equal(u.card.evidence.bestAlpha,.01)}
+});

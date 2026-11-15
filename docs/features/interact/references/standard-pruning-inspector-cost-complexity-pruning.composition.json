@@ -1,0 +1,148 @@
+{
+  "family": "pruning-inspector",
+  "canonical": "illustrative-pruning-path",
+  "layout": {
+    "width": 640,
+    "height": 370
+  },
+  "story": "In this illustrative pruning path, larger alpha selects fewer leaves. Several smaller candidates preserve the same best held-out accuracy; choose the smallest on that plateau before accuracy drops.",
+  "aha": {
+    "inputs": {
+      "alpha": 2
+    },
+    "observation": "Alpha 0.01 gives six leaves at the best held-out accuracy of 90%. Larger alpha shrinks further but loses accuracy in this series.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "size",
+      "kind": "leaf-share-curve",
+      "bind": "computed.selected.leaves; data.baseLeaves"
+    },
+    {
+      "id": "quality",
+      "kind": "accuracy-readout",
+      "bind": "computed.selected.accuracy"
+    },
+    {
+      "id": "comparison",
+      "kind": "pruning-path-plot",
+      "bind": "data.settings; computed.best"
+    }
+  ],
+  "controls": [
+    {
+      "id": "alpha",
+      "kind": "range",
+      "label": "Pruning alpha",
+      "min": 0,
+      "max": 4,
+      "step": 1,
+      "effect": "Select a supplied alpha, changing leaf count, retained share, accuracy and the table/plot selection."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "Prune until accuracy begins to drop.",
+    "heading": "Illustrative pruning path",
+    "prompt": "how does cost-complexity pruning trade tree size against accuracy as alpha increases?",
+    "instructions": "Increase alpha through the supplied settings. Find the smallest tree still on the best-accuracy plateau.",
+    "initialInputs": {
+      "alpha": 0
+    },
+    "baseLeaves": 10,
+    "settings": [
+      {
+        "alpha": 0.0001,
+        "leaves": 10,
+        "accuracy": 90
+      },
+      {
+        "alpha": 0.001,
+        "leaves": 8,
+        "accuracy": 90
+      },
+      {
+        "alpha": 0.01,
+        "leaves": 6,
+        "accuracy": 90
+      },
+      {
+        "alpha": 0.1,
+        "leaves": 4,
+        "accuracy": 82
+      },
+      {
+        "alpha": 1,
+        "leaves": 2,
+        "accuracy": 68
+      }
+    ],
+    "calculations": [
+      "The supplied leaf-share series is percent of 10 initial leaves. Leaf count = share/100 × 10.",
+      "Choose maximal supplied held-out accuracy, then minimal leaf count among tied candidates: 90%, 6 leaves, alpha 0.01.",
+      "Removed leaves = 10 − selected leaves. Retained share = selected leaves/10 ×100.",
+      "No fitted topology or training-risk values were supplied. The count strip represents counts only; no numeric R_train + alpha*leaves objective or actual pruned branches are invented."
+    ],
+    "sourceKind": "illustrative path; unrelated to the eight-row toy topology",
+    "missingCounterparts": [
+      "leaf-count strip",
+      "alpha-linked quality comparison",
+      "smallest-best candidate ledger"
+    ],
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "alpha": 0
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "alpha": 2
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-cost-complexity-pruning",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 36,
+      "cases": 5,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "standard-pruning-inspector-cost-complexity-pruning",
+  "depth": "balanced"
+}
