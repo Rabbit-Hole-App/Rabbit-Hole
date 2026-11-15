@@ -61,7 +61,7 @@ import { boardFetch, authorizedBoardApp, paperFetch, mediaFetch, momentFeedback,
 import { ownedNextStepsRoute } from '../control-plane/src/learn-next-steps-routes.js';
 import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
 import { codebaseRoute } from '../control-plane/src/learn-codebase-source-map.js';
-import { rehearsalRoute } from '../control-plane/src/learn-rehearsal.js';
+import { rehearsalRoute, runRoute } from '../control-plane/src/learn-rehearsal.js';
 import { attemptRoute } from '../control-plane/src/learn-attempt-routes.js';
 import { cardFeedbackRoute } from '../control-plane/src/card-feedback-routes.js';
 import { userSettingsRoute } from '../control-plane/src/learn-user-settings.js';
@@ -335,6 +335,8 @@ const routes = {
     if (path === '/api/learn/codebase') return codebaseRoute(path, req, env);
     // Rehearsal of a connected repository (learn-rehearsal.js): the owner's own canvas; 404 where REPOSITORY_REHEARSALS is not bound (production).
     if (path === '/api/learn/rehearsal') return rehearsalRoute(path, req, env);
+    // The Run card's sandbox session (learn-rehearsal.js runRoute): start, run a cell, poll, log, stop; same owner-only canvas, same 404 where unbound.
+    if (path === '/api/learn/run') return runRoute(path, req, env);
     // Home answers, in place, from the signed-in user's own library (learn-home-ask.js); never the old apps agent.
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
     // A learner's derived Progress for one goal (learn-progress.js): their own records only, no model call.

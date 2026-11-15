@@ -139,6 +139,20 @@ async function storedRecord(env, repo) {
   return { status: 'ready', elapsedSec: record.wallSec ?? 0, record };
 }
 
+// The signed-in owner's own canvas: canvasAccess resolves only canvases the caller owns, and canvasRepository only their own import.
+// Shared by /api/learn/rehearsal and /api/learn/run: the access object, or the Response that refuses.
+async function ownerAccess(req, env, body, deps) {
+  const access = await (deps.authorize || authorizedBoardApp)(req, env, body.app, null);
+  if (access instanceof Response) return access;
+  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
+  const ownerRefused = subscriptionOwnerRefusal(env, access);
+  if (ownerRefused) return ownerRefused;
+  if (typeof body.board !== 'string' || !BOARD.test(body.board)) return json({ error: 'Board name must be 1-100 letters, digits, spaces, dots, dashes or underscores' }, 400);
+  if (access.kind !== 'canvas') return json({ error: 'rehearsal_on_canvases_only' }, 400);
+  if (!access.user_id) return json({ error: 'identity_unavailable' }, 401);
+  return access;
+}
+
 export async function rehearsalRoute(path, req, env, deps = {}) {
   if (path !== '/api/learn/rehearsal') return null;
   if (!env.REPOSITORY_REHEARSALS) return json({ error: 'Not found' }, 404); // production does not bind the object
@@ -151,15 +165,8 @@ export async function rehearsalRoute(path, req, env, deps = {}) {
     try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
     if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid JSON' }, 400);
   }
-  // The signed-in owner's own canvas: canvasAccess resolves only canvases the caller owns, and canvasRepository only their own import.
-  const access = await (deps.authorize || authorizedBoardApp)(req, env, body.app, null);
+  const access = await ownerAccess(req, env, body, deps);
   if (access instanceof Response) return access;
-  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
-  const ownerRefused = subscriptionOwnerRefusal(env, access);
-  if (ownerRefused) return ownerRefused;
-  if (typeof body.board !== 'string' || !BOARD.test(body.board)) return json({ error: 'Board name must be 1-100 letters, digits, spaces, dots, dashes or underscores' }, 400);
-  if (access.kind !== 'canvas') return json({ error: 'rehearsal_on_canvases_only' }, 400);
-  if (!access.user_id) return json({ error: 'identity_unavailable' }, 401);
   try {
     const repo = await canvasRepository(env, access);
     if (!repo) return json({ error: 'no_repository' }, 409);
@@ -174,5 +181,63 @@ export async function rehearsalRoute(path, req, env, deps = {}) {
   } catch (error) {
     console.error('rehearsal route', error.message);
     return json({ error: 'rehearsal_unavailable' }, 503);
+  }
+}
+
+// ---- Run card (packages/rehearsal-runtime/RUN_CARD.md): POST /api/learn/run {app, board, action, sessionId?, cellId?, flags?, runId?} ----
+// action start | run | poll | log | stop, forwarded to the controller's session routes. The browser polls every 2 s; no Durable Object.
+// The control plane never accepts or forwards a command: a run names a cellId and flag values, the controller builds the command.
+const SESSION_ID = /^[a-f0-9]{32}$/, RUN_ID = /^[a-f0-9]{16}$/, CELL_ID = /^[a-z0-9_]+$/, FLAG = /^--[A-Za-z0-9_-]+$/;
+const RUN_ACTIONS = ['start', 'run', 'poll', 'log', 'stop'], PASS = [400, 404, 409, 410, 429], MAX_LOG = 1000000;
+const RUN_FIELDS = ['app', 'board', 'action', 'sessionId', 'cellId', 'flags', 'runId'];
+// An opaque, stable id for the controller (never the email): sha256 hex of `${org}|${user_id}`, first 32 characters.
+export async function runUser(access) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${access.org}|${access.user_id}`));
+  return [...new Uint8Array(bytes)].map(n => n.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
+const validFlags = flags => !flags || (typeof flags === 'object' && !Array.isArray(flags) && Object.keys(flags).length <= 8
+  && Object.entries(flags).every(([name, value]) => FLAG.test(name) && typeof value === 'string' && value.length <= 80));
+
+export async function runRoute(path, req, env, deps = {}) {
+  if (path !== '/api/learn/run') return null;
+  if (!env.REPOSITORY_REHEARSALS) return json({ error: 'Not found' }, 404); // production does not bind the object
+  if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
+  let body;
+  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid JSON' }, 400);
+  if ('cmd' in body) return json({ error: 'A command cannot be sent: name a cell and its flags' }, 400);
+  const unknown = Object.keys(body).find(key => !RUN_FIELDS.includes(key));
+  if (unknown) return json({ error: `Unknown field ${unknown}` }, 400);
+  const { action, sessionId, cellId, runId, flags } = body;
+  if (!RUN_ACTIONS.includes(action)) return json({ error: `action must be one of ${RUN_ACTIONS.join(', ')}` }, 400);
+  if (action !== 'start' && !SESSION_ID.test(sessionId)) return json({ error: 'sessionId is not valid' }, 400);
+  if (action === 'run' && !CELL_ID.test(cellId)) return json({ error: 'cellId is not valid' }, 400);
+  if (action === 'run' && !validFlags(flags)) return json({ error: 'flags must be at most 8 `--name` keys with string values of at most 80 characters' }, 400);
+  if ((action === 'poll' || action === 'log') && !RUN_ID.test(runId)) return json({ error: 'runId is not valid' }, 400);
+  const access = await ownerAccess(req, env, body, deps);
+  if (access instanceof Response) return access;
+  try {
+    const repo = await canvasRepository(env, access);
+    if (!repo) return json({ error: 'no_repository' }, 409);
+    let response;
+    if (action === 'start') {
+      const stored = await storedRecord(env, repo);
+      if (!stored) return json({ error: 'no_record' }, 409);
+      response = await rehearsalRequest(env, '/sessions', { repo: repo.repo, commit: repo.commit, canvas: body.app, user: await runUser(access), record: stored.record });
+    } else if (action === 'run') response = await rehearsalRequest(env, `/sessions/${sessionId}/run`, { cellId, ...(flags && Object.keys(flags).length ? { flags } : {}) });
+    else if (action === 'stop') response = await rehearsalRequest(env, `/sessions/${sessionId}/stop`, {});
+    else response = await rehearsalRequest(env, `/sessions/${sessionId}/runs/${runId}${action === 'log' ? '/log' : ''}`);
+    if (!response.ok) {
+      const detail = await response.json().catch(() => null);
+      if (PASS.includes(response.status)) return json({ error: typeof detail?.error === 'string' ? detail.error : `The run controller refused the request (${response.status})` }, response.status);
+      if ([401, 403].includes(response.status)) return json({ error: rejected(response.status) }, 502);
+      return json({ error: 'rehearsal_unavailable' }, 503);
+    }
+    // shortcut: the log is cut to its last MAX_LOG characters here; the controller already bounds it, page it if a run ever needs more.
+    if (action === 'log') return json({ log: (await response.text()).slice(-MAX_LOG) });
+    return json(await response.json(), response.status);
+  } catch (error) {
+    console.error('run route', error.message);
+    return json({ error: /not configured|requires HTTPS/.test(error.message) ? error.message : 'rehearsal_unavailable' }, 503);
   }
 }
