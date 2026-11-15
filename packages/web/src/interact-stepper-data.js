@@ -110,7 +110,7 @@ export function decodeComposition(packet) {
 
 // This is trusted decoder code, kept separate from packet data. The generated program inserts the function as
 // normal source; neither packet values nor this module are evaluated as executable strings by the host.
-export const compositionDecoderSource = decodeComposition.toString();
+export const compositionDecoderSource = decodeComposition.toString().replace(/\r\n/g, '\n');
 export const compositionSourceData = composition => JSON.stringify(packComposition(composition));
 
 /** Validate untrusted packets, including their fully expanded size, before decoding allocates an output tree. */

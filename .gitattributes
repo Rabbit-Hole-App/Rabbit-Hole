@@ -10,3 +10,5 @@ packages/web/src/animation3d/testdata/sgd-golden.json text eol=lf
 # The demo-lesson04 runner is run by Git Bash: a CRLF checkout breaks it.
 scripts/explain-bench/*.sh text eol=lf
 docs/features/explain-on-canvas/handoff/figure-briefs export-ignore
+# The stepper scripted reference is generated and compared byte-for-byte (interact-stepper-templates.test.js) and its source size is pinned in the proof receipt: keep it LF.
+packages/web/src/interact-stepper-programs.js text eol=lf
