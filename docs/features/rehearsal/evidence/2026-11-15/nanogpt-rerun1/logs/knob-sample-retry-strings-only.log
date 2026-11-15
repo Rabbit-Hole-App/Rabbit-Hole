@@ -1,0 +1,11 @@
+Overriding: out_dir = out-shakespeare-char
+Overriding: device = cpu
+Overriding: init_from = hello
+Overriding: start = hello
+
+--- stderr ---
+Traceback (most recent call last):
+  File "/work/repo/sample.py", line 51, in <module>
+    model.eval()
+    ^^^^^
+NameError: name 'model' is not defined

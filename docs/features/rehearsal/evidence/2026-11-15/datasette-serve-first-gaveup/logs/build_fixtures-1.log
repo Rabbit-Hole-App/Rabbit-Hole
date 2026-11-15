@@ -1,0 +1,10 @@
+Test tables written to fixtures.db
+- metadata written to fixtures-metadata.json
+- config written to fixtures-config.json
+  Wrote plugin: plugins/messages_output_renderer.py
+  Wrote plugin: plugins/my_plugin.py
+  Wrote plugin: plugins/my_plugin_2.py
+  Wrote plugin: plugins/register_output_renderer.py
+  Wrote plugin: plugins/sleep_sql_function.py
+  Wrote plugin: plugins/view_name.py
+Test tables written to extra_database.db
