@@ -36,13 +36,19 @@ export function widgetToggle({ mode, name, on, repository = false }) {
 
 // While a card is focused (focus-controller.js) the canvas draws its content and its toolbar (but see toolbarDrawn), not its maps or Curious. A view of
 // what is shown, never written back: the three come back exactly as they were (hidden ones stay hidden) when Focus ends.
+// keepCurious: a repository canvas in Study (owner 2026-11-15): its Focus is the working view, so the Show suggestions toggle keeps working there.
 export const FOCUS_HIDDEN = Object.freeze(['minimap', 'holeMap', 'curious']);
-export function focusWidgets(shown, focused) {
+export function focusWidgets(shown, focused, { keepCurious = false } = {}) {
   if (!focused) return shown;
   const out = { ...shown };
-  for (const name of FOCUS_HIDDEN) if (name in out) out[name] = false;
+  for (const name of FOCUS_HIDDEN) if (name in out && !(keepCurious && name === 'curious')) out[name] = false;
   return out;
 }
+
+// Run or Runbook as the work of a repository canvas in Study (owner 2026-11-15): the card alone fills the right pane. The canvas surface, the other cards, the
+// zoom controls and the page's lower-left button are not drawn, and Focus's own header strip (title, Back to canvas) is left out: the work tabs are the way back.
+// A view only (CSS and what AdaptiveCanvas renders): the card's host stays mounted in place, so a Run card's session and the Runbook editor live on.
+export const studyCardOnly = ({ mode, repository = false, work } = {}) => studyHides({ mode, repository }) && (work === 'run' || work === 'runbook');
 
 // The drawing toolbar is drawn as View > Toolbar says, except over a pinned Study's notebook in Focus (owner, 2026-10-29): there it
 // stands down too. A view, never written back: Canvas or unpinning shows the saved choice again, a hidden toolbar still hidden.

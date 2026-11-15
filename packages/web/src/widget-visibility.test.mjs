@@ -2,7 +2,7 @@
 // otherwise in Study, and the two stores never write each other.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FOCUS_HIDDEN, effectiveWidgets, focusWidgets, toolbarDrawn, widgetToggle } from './widget-visibility.js';
+import { FOCUS_HIDDEN, effectiveWidgets, focusWidgets, studyCardOnly, toolbarDrawn, widgetToggle } from './widget-visibility.js';
 import { defaultStudy, readStudy, studyReducer, writeStudy } from './study-state.js';
 import { readUiPrefs, saveUiPref, UI_PREF_DEFAULTS } from './ui-prefs.js';
 
@@ -125,4 +125,22 @@ test('repository Study: the toggles are locked with the tooltip; nothing reaches
   effectiveWidgets({ mode: 'study', canvas: before, study: {}, repository: true });
   assert.deepEqual(readUiPrefs(prefs), before, 'computing the Study view writes nothing');
   assert.deepEqual(effectiveWidgets({ mode: 'canvas', canvas: before, study: {}, repository: true }), effectiveWidgets({ mode: 'canvas', canvas: before }), 'leaving Study: the saved choices');
+});
+
+// Owner 2026-11-15: a repository canvas in Study keeps Show suggestions working in Focus (Curious was hidden by every Focus, so the toggle did nothing there).
+test('focusWidgets keepCurious (a repository canvas in Study) leaves Curious as chosen, the maps still stand down', () => {
+  const shown = { minimap: true, holeMap: true, curious: true, toolbar: true };
+  assert.deepEqual(focusWidgets(shown, true, { keepCurious: true }), { minimap: false, holeMap: false, curious: true, toolbar: true });
+  assert.deepEqual(focusWidgets({ ...shown, curious: false }, true, { keepCurious: true }).curious, false, 'a hidden Curious stays hidden');
+  assert.equal(focusWidgets(shown, false, { keepCurious: true }), shown);
+});
+
+// Owner 2026-11-15: Run or Runbook as the Study work of a repository canvas shows the card alone.
+test('studyCardOnly: only Study on a repository canvas, only for Run and Runbook', () => {
+  assert.equal(studyCardOnly({ mode: 'study', repository: true, work: 'run' }), true);
+  assert.equal(studyCardOnly({ mode: 'study', repository: true, work: 'runbook' }), true);
+  for (const work of ['canvas', 'notebook', undefined]) assert.equal(studyCardOnly({ mode: 'study', repository: true, work }), false);
+  assert.equal(studyCardOnly({ mode: 'canvas', repository: true, work: 'run' }), false, 'Canvas mode');
+  assert.equal(studyCardOnly({ mode: 'study', repository: false, work: 'run' }), false, 'a Release 1 canvas has no such work');
+  assert.equal(studyCardOnly(), false);
 });

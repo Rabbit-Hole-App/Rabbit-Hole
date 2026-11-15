@@ -16,7 +16,8 @@ import CardHeader, { CardRename } from './CardHeader.jsx';
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
-import { effectiveWidgets, focusWidgets, toolbarDrawn, widgetToggle } from './widget-visibility.js';
+import { effectiveWidgets, focusWidgets, studyCardOnly, studyHides, toolbarDrawn, widgetToggle } from './widget-visibility.js';
+import { ownedId } from './study-state.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
@@ -2055,6 +2056,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The toolbar drawn: View > Toolbar, except over a pinned Study's notebook in Focus (widget-visibility.js toolbarDrawn); `toolbar`
   // stays the saved choice (View menu checkmark, onState).
   const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
+  // Run or Runbook as a repository canvas's Study work (widget-visibility.js studyCardOnly): the card alone fills the pane (index.css [data-study-card]), with no surface, zoom control,
+  // lower-left button or Focus header strip. Only while Study's own Focus is on that card, so a canvas whose card is gone never shows blank.
+  const cardOnly = studyCardOnly({ mode: widgetMode, repository: studyRepository, work: study?.state?.work }) && !!focus?.id && focus.id === ownedId(study.state);
   const showWidget = (name, on) => {
     const route = widgetToggle({ mode: widgetMode, name, on, repository: studyRepository });
     if (!route) return;
@@ -2195,10 +2199,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // never drift apart.
   // What is drawn: while a card is focused the minimap, the Rabbit Hole map and Curious stand down (focusWidgets); the widget choices
   // are untouched, so Back to canvas shows exactly what was shown before. The toolbar stays (except toolbarShown above).
-  const drawnWidgets = focusWidgets({ minimap, holeMap, curious }, !!focus);
+  const drawnWidgets = focusWidgets({ minimap, holeMap, curious }, !!focus, { keepCurious: studyHides({ mode: widgetMode, repository: studyRepository }) });
   const focusRef = useRef(null), focusShown = useRef(null);
   focusRef.current = focus;
-  const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) }); };
+  const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) }, { bar: !cardOnly }); };
   useLayoutEffect(() => { focusShown.current = syncFocus(focusShown.current, focus, { view, readOnly, find: id => surface.current?.querySelector(`[data-block][data-block-id="${CSS.escape(id)}"],[data-item-id="${CSS.escape(id)}"]`), restore: saved => commandsRef.current.restoreNavigation(saved), gone: id => dispatchFocus({ type: 'content-gone', id }) }); }, [focus, view, readOnly]);
   useLayoutEffect(() => () => { syncFocus(focusShown.current, null, { view: viewRef.current, readOnly: readOnlyRef.current }); }, []);
   // The pane measured again when a panel opens, the Study divider moves, the window or the bottom chrome resizes.
@@ -2214,7 +2218,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The minimap, Rabbit Hole map and Curious hide while focused: the pane is measured again without them before the first paint,
   // so the focused card never changes size a frame after entering (focus-chrome-check step 4 compares two entries). So for the
   // toolbar standing down or coming back while focused (pinned Study notebook, unpin).
-  useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id, toolbarShown]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { if (focus?.id && surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }, [focus?.id, toolbarShown, cardOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   // Deleted, or no longer focusable (read-only now, failed): a clean exit.
   useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
   // This canvas's own /explain cards (placeExplain): each opens in Focus once when ready, unless another card is focused then.
@@ -6359,7 +6363,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
-    <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
+    <div ref={shell} data-study-card={cardOnly ? '' : undefined} className="@container relative flex h-full min-h-0 flex-col"
       // A link in a card's Markdown (Md.jsx data-web-link) asks first, the same popup a pasted link gets: Open in new tab or Add webpage card.
       // Ctrl, Cmd, Shift, Alt and middle clicks, and a canvas that cannot add cards, keep the browser's own new tab (owner 2026-11-14).
       onClickCapture={event => {
@@ -6435,7 +6439,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <LaserPointer on={presenting !== null && laser} />
         <div ref={searchMark} hidden aria-hidden="true" data-search-drop="" data-thumbnail-hide className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-accent bg-accent/5 data-[search-drop=refuse]:border-line-strong data-[search-drop=refuse]:bg-surface data-[search-drop=refuse]:px-3 data-[search-drop=refuse]:py-2 data-[search-drop=refuse]:shadow-md"><span className="absolute -top-6 left-0 rounded-md bg-ink px-1.5 py-0.5 text-[11px] whitespace-nowrap text-surface in-data-[search-drop=refuse]:static in-data-[search-drop=refuse]:whitespace-normal in-data-[search-drop=refuse]:bg-transparent in-data-[search-drop=refuse]:p-0 in-data-[search-drop=refuse]:text-xs in-data-[search-drop=refuse]:text-ink" /></div>
         <SelectionActionBar anchor={barAnchor} box={barBox} />
-        {focus && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
+        {focus && !cardOnly && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
         {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
         {urlPaste && <div role="dialog" aria-label={urlPaste.link ? 'Open a link' : 'Paste a link'} data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
           onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); choosePaste(null); } }}
@@ -6857,11 +6861,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:flex-row md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
         <div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">
         {/* The page's own lower-left control (Learn: the feedback button). */}
-        {bottomLeft}
+        {!cardOnly && bottomLeft}
         {/* One positioned group (owner brief 2026-10-16 item 8, aligned-minimap mockup): the minimap directly above the zoom
             row, 8px apart, both one outer width - the column is as wide as its widest child (the minimap's fixed frame) and
             the zoom row stretches to it, its slack going to the percentage, so both edges line up at any zoom label. */}
-        <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
+        {!cardOnly && <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
         {drawnWidgets.minimap && <div data-canvas-minimap>
           <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
             surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
@@ -6875,7 +6879,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           <button type="button" title="Reset zoom" onClick={() => setView(homeView(controlArea(), COLUMN))} className="min-w-11 flex-1 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
         </div>
-        </div>
+        </div>}
         </div>
         {/* The shared composer shell's footprint: DOCK_WIDTH in a DOCK_PAD strip (ChatComposer.jsx). */}
         {/* Hide the composer (owner brief 2 item 5): it stays mounted - draft, attachments, the selected card's context and

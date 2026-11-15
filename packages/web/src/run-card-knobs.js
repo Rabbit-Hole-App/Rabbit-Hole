@@ -155,7 +155,7 @@ export function applyKnobEvent(run, generated, detail) {
 export function openSourceLine(source, { app, repo, commit }, { dispatch = event => window.dispatchEvent(event), open = url => window.open(url, '_blank', 'noopener') } = {}) {
   const m = /^([^\s:]+):(\d+)(?:-(\d+))?$/.exec(String(source || ''));
   if (!m) return false;
-  const start = Number(m[2]), end = Number(m[3] || m[2]), event = new CustomEvent('small:open-code', { detail: { app, commit, path: m[1], start, end }, cancelable: true });
+  const start = Number(m[2]), end = Number(m[3] || m[2]), event = new CustomEvent('small:open-code', { detail: { app, repo, commit, sameRepo: true, path: m[1], start, end }, cancelable: true });
   if (dispatch(event) !== false && !event.defaultPrevented && repo && commit) open(repositoryUrl({ repo, commit, path: m[1], line: start, lineEnd: end }));
   return true;
 }

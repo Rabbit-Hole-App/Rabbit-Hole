@@ -2451,6 +2451,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {/* Over the canvas (headerOver) it is an opaque band that takes the pointer (owner, 2026-10-29: no card shows between
             the title and the menus; supersedes 2026-10-22's see-through row). */}
         {!canvasState.presenting && <div data-canvas-header className={`${headerOver ? OWNER_HEADER_OVER : 'relative shrink-0'} ${OWNER_HEADER}`}>
+          {/* Study | Canvas (pinned-study-codebase-spec.md 2f, owner 2026-11-15): small, at the far right end of the header row (the header is positioned), not in the centred group. Only when this
+              canvas has a generated Run card or Runbook, or a pinned card. Drives the same mode View > Canvas / Study set. */}
+          {studyPill(canvasApi.current?.blocks?.() || [], study.state.pin) && <Tabs value={study.mode === 'study' ? 'study' : 'canvas'} onValueChange={study.setMode}>
+            <TabsList pill data-study-toggle aria-label="Study or Canvas" className="absolute top-4 right-3 h-6 max-md:top-3 max-md:right-2">
+              <TabsTrigger pill value="study" data-study-toggle-option="study" className="h-5 px-2.5 text-xs">Study</TabsTrigger>
+              <TabsTrigger pill value="canvas" data-study-toggle-option="canvas" className="h-5 px-2.5 text-xs">Canvas</TabsTrigger>
+            </TabsList>
+          </Tabs>}
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
@@ -2510,14 +2518,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           {finder && <SearchBar key={`${finder.source}:${finder.query}`} app={app.name} initialSource={finder.source} initialQuery={finder.query} onClose={closeFinder}
             onPick={(source, item) => { const blockId = pickResult(source, item, finder.origin?.into ?? null); finder.done({ added: !!blockId, blockId }); return blockId; }} />}
           <div className="flex items-center gap-0.5">
-            {/* Study | Canvas (pinned-study-codebase-spec.md 2f): only when this canvas has a generated Run card or Runbook, or a pinned card. Drives the same
-                mode View > Canvas / Study set. */}
-            {studyPill(canvasApi.current?.blocks?.() || [], study.state.pin) && <Tabs value={study.mode === 'study' ? 'study' : 'canvas'} onValueChange={study.setMode}>
-              <TabsList pill data-study-toggle aria-label="Study or Canvas" className="mr-1.5 h-8">
-                <TabsTrigger pill value="study" data-study-toggle-option="study">Study</TabsTrigger>
-                <TabsTrigger pill value="canvas" data-study-toggle-option="canvas">Canvas</TabsTrigger>
-              </TabsList>
-            </Tabs>}
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>
