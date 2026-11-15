@@ -8,6 +8,7 @@
   "required": ["version", "repo", "commit", "hardware", "provider", "sandboxId", "terminated", "image", "model", "startedUtc", "finishedUtc", "wallSec", "environment", "route", "attempts", "fixes", "steps", "traps", "knobsVerified", "allChecksPassed", "modelCalls", "modelSpendUsd", "sandboxSpendNote", "draftPlan", "gaveUp"],
   "properties": {
     "version": { "const": "rehearsal-1" },
+    "routeId": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "the catalogue route this record is for; one record per (repo, commit, routeId, hardware). R2: rehearsal-<routeId>-<hardware>.json. Absent on records made before the catalogue." },
     "repo": { "type": "string" },
     "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
     "hardware": { "enum": ["cpu"] },
@@ -64,6 +65,10 @@
         "type": "object", "additionalProperties": false, "required": ["id", "cmd", "rc", "sec", "checks", "files", "log", "warnings"],
         "properties": {
           "id": { "type": "string" }, "cmd": { "type": "string" }, "rc": { "type": "integer" }, "sec": { "type": "number", "minimum": 0 },
+          "startedSec": { "type": "number", "minimum": 0, "description": "longRunning steps: seconds to the first successful probe" },
+          "failed": { "type": "boolean", "description": "the step the repair loop gave up on: recorded with its last attempt, marked, so the Run card still appears with the steps that passed" },
+          "error": { "type": "string", "maxLength": 300, "description": "failed steps: the error in one line, plain words, no stack trace" },
+          "tried": { "type": "array", "items": { "type": "string", "maxLength": 200 }, "description": "failed steps: what the repair loop tried, one short phrase each" },
           "checks": {
             "type": "array",
             "items": {

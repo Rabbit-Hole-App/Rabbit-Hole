@@ -86,6 +86,7 @@ import TocConversation from './TocConversation.jsx';
 import { effectiveControls } from './learn-coaching-client.js';
 import { canSuggest } from './learn-coaching-contract.js';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
+import { rehearsalOn } from './learn-rehearsal-view.js';
 import { canvasContextNow } from './chat-canvas-context.js';
 import { MessageCircle, RotateCw } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
@@ -233,6 +234,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     if (graph) window.addEventListener('small:open-graph', showGraph);
     return () => { window.removeEventListener('small:open-files', showFiles); window.removeEventListener('small:open-graph', showGraph); };
   }, [!!files, !!graph]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Initial pipeline (dev flag): a repository canvas opens its right panel on Files the first time it arrives, once per canvas (remembered on this device), never on a reload or a later visit.
+  useEffect(() => {
+    if (!rehearsalOn() || !files) return;
+    try { const key = `rh.repository-panel-shown.${app.name}`; if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch { return; } // storage blocked: the panel is not forced open every time
+    companionNow.current.show('files');
+  }, [!!files, app.name]); // eslint-disable-line react-hooks/exhaustive-deps
   const [panelPinned, setPanelPinned] = useState(() => readPanelPin(() => localStorage));
   const pinPanel = value => { setPanelPinned(value); savePanelPin(() => localStorage, value); };
   const findInput = useRef(null);

@@ -1,0 +1,15 @@
+{
+  "key": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "repo": "karpathy/nanoGPT",
+  "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+  "hardware": "cpu",
+  "files": {
+    "README.md": "# nanoGPT\n...",
+    "train.py": "# training loop\n"
+  },
+  "graphLabels": [
+    "GPT",
+    "CausalSelfAttention"
+  ],
+  "version": "catalogue-1"
+}

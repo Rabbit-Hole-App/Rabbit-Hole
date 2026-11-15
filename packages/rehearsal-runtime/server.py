@@ -17,6 +17,10 @@ SLOT = threading.BoundedSemaphore(1)
 KEY_PATH = re.compile(r'/rehearsals/([a-f0-9]{64})(/asset)?')
 SESSION_PATH = re.compile(r'/sessions(?:/([a-f0-9]{32})(?:/(run|stop)|/runs/([a-f0-9]{16})(/log)?)?)?')  # Run card sessions (RUN_CARD.md)
 SESSION_BODY_MAX = 2_000_000  # a session request carries the whole record
+CATALOGUES: dict = {}  # catalogue jobs: no sandbox, no clone, their own light slot (never the rehearsal's one-job semaphore)
+CAT_SLOT = threading.BoundedSemaphore(1)
+CAT_PATH = re.compile(r'/catalogues/([a-f0-9]{64})(/asset)?')
+CATALOGUE_BODY_MAX = 12_000_000  # a catalogue request carries the snapshot's files (the indexer holds them to 8 MB of text)
 TOKEN = ''
 MODEL = None
 
@@ -55,6 +59,28 @@ def run(key: str, job: dict) -> None:
         SLOT.release()
 
 
+def catalogue(key: str, job: dict) -> None:
+    """One catalogue job: the rule pass and one model call (catalogue.py). Ends `ready` with the document, or `failed` with a plain error; nothing here reads a key value."""
+    import catalogue as cat
+
+    def status(state):
+        with LOCK:
+            CATALOGUES[key].update(status=state, updated=time.time())
+    CAT_SLOT.acquire()
+    try:
+        doc, calls = cat.run_catalogue(job, MODEL, status)
+        with LOCK:
+            CATALOGUES[key].update(status='ready', doc=doc, calls=calls, finished=time.time(), updated=time.time())
+    except cat.CatalogueFailed as e:
+        with LOCK:
+            CATALOGUES[key].update(status='failed', error=f'{e.code}: {e.detail}'[:400], finished=time.time(), updated=time.time())
+    except Exception as e:  # noqa: BLE001 - the job must end in a state the control plane can read; the class name only, never a message that might carry a key
+        with LOCK:
+            CATALOGUES[key].update(status='failed', error=f'catalogue_unavailable: {type(e).__name__}', finished=time.time(), updated=time.time())
+    finally:
+        CAT_SLOT.release()
+
+
 def public(j: dict) -> dict:
     end = j.get('finished') or time.time()
     out = {'status': j['status'], 'elapsedSec': round(end - j['created'], 1)}
@@ -84,13 +110,13 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def read_json(self, contract: str = ''):
+    def read_json(self, contract: str = '', limit: int = SESSION_BODY_MAX):
         """The request body as JSON (validated against schemas/<contract>.json when given); None after answering 400."""
         import contracts
         try:
             length = int(self.headers.get('Content-Length', '0'))
-            if not 0 < length <= SESSION_BODY_MAX:
-                raise ValueError('request body must be 1 byte to 2 MB')
+            if not 0 < length <= limit:
+                raise ValueError(f'request body must be 1 byte to {limit // 1_000_000} MB')
             body = json.loads(self.rfile.read(length))
             errs = contracts.errors(contract, body) if contract else []
             if errs:
@@ -150,6 +176,19 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith('/sessions'):
             self.sessions('GET')
             return
+        c = CAT_PATH.fullmatch(self.path)
+        if c:
+            with LOCK:
+                j = CATALOGUES.get(c[1])
+                snap = public(j) if j else None
+                doc = j.get('doc') if j else None
+            if not j:
+                self.send_json({'error': 'Job not found'}, 404)  # the control plane then resends the job
+            elif c[2]:
+                self.send_json(doc) if doc else self.send_json({'error': 'No catalogue yet'}, 409)
+            else:
+                self.send_json(snap)
+            return
         m = KEY_PATH.fullmatch(self.path)
         if not m:
             self.send_json({'error': 'Not found'}, 404)
@@ -172,11 +211,36 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_json(snap)
 
+    def catalogue_job(self) -> None:
+        """POST /catalogues (schemas/catalogue-job.json): accepted at once, run on a thread; the same key while held (queued, running, ready) is accepted again, a failed one is replaced (Retry)."""
+        import limits
+        job = self.read_json('catalogue-job', CATALOGUE_BODY_MAX)
+        if job is None:
+            return
+        key = job['key']
+        with LOCK:
+            old = CATALOGUES.get(key)
+            if old and old['status'] != 'failed':
+                self.send_json(public(old), 202)
+                return
+            if sum(1 for j in CATALOGUES.values() if j['status'] not in ('ready', 'failed')) >= 1 + limits.CATALOGUE_MAX_QUEUE:
+                self.send_json({'error': 'Catalogue queue is full'}, 429)
+                return
+            for k, j in list(CATALOGUES.items()):
+                if j['status'] in ('ready', 'failed') and time.time() - j['updated'] > 3600:
+                    del CATALOGUES[k]
+            CATALOGUES[key] = {'status': 'queued', 'created': time.time(), 'updated': time.time()}
+        threading.Thread(target=catalogue, args=(key, job), daemon=True).start()
+        self.send_json({'status': 'queued'}, 202)
+
     def do_POST(self):
         if not self.authorized():
             return
         if self.path.startswith('/sessions'):
             self.sessions('POST')
+            return
+        if self.path == '/catalogues':
+            self.catalogue_job()
             return
         if self.path != '/rehearsals':
             self.send_json({'error': 'Not found'}, 404)

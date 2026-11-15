@@ -194,3 +194,31 @@ export function startSource(refs, goalId) {
   const role = goalOf(goalId)?.roles[0];
   return refs.find(ref => ref.locator.role === role) || refs[0] || null;
 }
+
+// The fourteen things a person can want from a repository (use-codebase-use-cases.md section 2), in five groups, for the Tutor's
+// intake question (initial-pipeline-spec.md): a grouped chip list, every use shown, the unbuilt ones disabled and labelled "soon",
+// never hidden. `goalId` links a use to an existing CODEBASE_GOALS entry; `use_codebase` has none (it runs the rehearsal pipeline).
+// `intent` is the one sentence of what the person wants, the scoped capability description the router reads (below). Pure data.
+export const CODEBASE_USE_GROUPS = ['Using it', 'Understanding it', 'The knowledge behind it', 'Working on it', 'Passing it on'];
+export const CODEBASE_USES = Object.freeze([
+  { id: 'use_codebase', number: 1, group: 'Using it', label: 'Use the codebase', enabled: true, intent: 'Run it, configure it and get a result: see it work.' },
+  { id: 'build_on_it', number: 2, group: 'Using it', label: 'Build on it', enabled: false, intent: 'Call it from my own code, or adapt it to my own data.' },
+  { id: 'operate_it', number: 3, group: 'Using it', label: 'Operate it', enabled: false, intent: 'Deploy it, monitor it and know what breaks.' },
+  { id: 'understand_feature', number: 4, group: 'Understanding it', label: 'Understand a feature', enabled: true, goalId: 'understand_feature', intent: 'Trace one behaviour end to end: how a particular feature works.' },
+  { id: 'how_organized', number: 5, group: 'Understanding it', label: 'How it is organized', enabled: false, intent: 'See the map: the main parts and how they connect.' },
+  { id: 'why_built', number: 6, group: 'Understanding it', label: 'Why it is built this way', enabled: false, intent: 'Understand the design choices and trade-offs.' },
+  { id: 'learn_concept', number: 7, group: 'The knowledge behind it', label: 'Learn a concept through this codebase', enabled: true, goalId: 'learn_concept', intent: 'Learn the science or idea the code implements.' },
+  { id: 'tech_stack', number: 8, group: 'The knowledge behind it', label: 'The tech stack', enabled: false, intent: 'Learn the tools and libraries it relies on.' },
+  { id: 'domain', number: 9, group: 'The knowledge behind it', label: 'The domain', enabled: false, intent: "Learn the field's vocabulary and practices." },
+  { id: 'debug_behavior', number: 10, group: 'Working on it', label: 'Debug behavior', enabled: true, goalId: 'debug_behavior', intent: 'Find and confirm the cause of a problem or a wrong result.' },
+  { id: 'make_change', number: 11, group: 'Working on it', label: 'Make a change', enabled: true, goalId: 'make_change', intent: 'Make a safe, focused change to the code.' },
+  { id: 'prepare_contribute', number: 12, group: 'Working on it', label: 'Prepare to contribute', enabled: true, goalId: 'prepare_contribute', intent: 'Learn the conventions, tests and where things belong so I can contribute.' },
+  { id: 'review_change', number: 13, group: 'Working on it', label: 'Review a change', enabled: false, intent: "Judge someone else's change, or an AI's change." },
+  { id: 'teach_it', number: 14, group: 'Passing it on', label: 'Teach it', enabled: false, intent: 'Explain the codebase to others: build a course or an onboarding path from it.' },
+]);
+export const useOf = id => CODEBASE_USES.find(use => use.id === id) || null;
+// Typed text is routed to one of these by the existing JEV router (chat-capability-route.js decideChat, a Choice over a capability
+// set), with THIS set instead of CHAT_CAPABILITIES, and ONLY while the intake question is open on a repository canvas. It is a reply to
+// the Tutor's own question, so the 2026-10-21 rule "plain words never start goal changes" is not breached. Below the router's own
+// confidence threshold the chips stay and nothing is guessed. Disabled uses may be chosen by the router: the Tutor then says it is not built yet.
+export const CODEBASE_USE_CAPABILITIES = Object.freeze(Object.fromEntries(CODEBASE_USES.map(use => [use.id, Object.freeze({ intent: use.intent, enabled: use.enabled })])));

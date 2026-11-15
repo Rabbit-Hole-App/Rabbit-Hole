@@ -29,20 +29,26 @@ export function keepGenerated(next, current) {
 // ---- finding and building ----------------------------------------------------------------------------------------------
 
 const short = commit => String(commit || '').slice(0, 7);
-export const runTitle = record => `Run - ${record.repo} @ ${short(record.commit)}`;
-const generatedOf = (record, app) => ({ kind: 'rehearsal', repo: record.repo, commit: record.commit, ...(app ? { app } : {}) });
+// A route's title (initial pipeline: one pair of cards per (repo, commit, routeId)): the record's own route title, else the one the chat knows from the catalogue.
+export const routeTitleOf = (record, routeTitle) => String(record?.route?.title || routeTitle || '').trim();
+export const runTitle = (record, routeTitle) => [`Run - ${record.repo} @ ${short(record.commit)}`, routeTitleOf(record, routeTitle)].filter(Boolean).join(' · ');
+const generatedOf = (record, app, routeTitle) => ({ kind: 'rehearsal', repo: record.repo, commit: record.commit, ...(record.routeId ? { routeId: record.routeId } : {}), ...(app ? { app } : {}), ...(routeTitleOf(record, routeTitle) ? { routeTitle: routeTitleOf(record, routeTitle) } : {}) });
 
-// The card of this type already made for this (repo, commit). A copy (Duplicate, paste) has no `generated`, so it is never mistaken for it.
+// The card of this type already made for this (repo, commit, routeId); a record or card with no routeId is the one made before the catalogue. A copy (Duplicate, paste) has no `generated`, so it is never mistaken for it.
 export const findRehearsalCard = (blocks, type, record) => (blocks || []).find(block => block.type === type && isGenerated(block)
-  && block.generated.kind === 'rehearsal' && block.generated.repo === record.repo && block.generated.commit === record.commit) || null;
+  && block.generated.kind === 'rehearsal' && block.generated.repo === record.repo && block.generated.commit === record.commit
+  && (block.generated.routeId || null) === (record.routeId || null)) || null;
+
+// What the Run card keeps of the record's failed step (a rehearsal that gave up still yields a card): the step id and its one-line error, so the card marks that cell red.
+export const failedStepsOf = record => (record?.steps || []).filter(step => step.failed).map(step => ({ id: step.id, error: String(step.error || '').slice(0, 300) }));
 
 // The Run card: the record reference (app, board: where POST /api/learn/run finds it; commit; hardware), and nothing of a session. Cells and results arrive with the
 // first Start and the first run (RunCard.jsx).
-export const newRunBlock = (record, { app, board }) => ({ id: crypto.randomUUID(), type: 'run', dx: 0, dy: 0, title: runTitle(record), generated: generatedOf(record),
-  run: { app, board, commit: record.commit, hardware: record.hardware || 'cpu' } });
+export const newRunBlock = (record, { app, board, routeTitle }) => ({ id: crypto.randomUUID(), type: 'run', dx: 0, dy: 0, title: runTitle(record, routeTitle), generated: generatedOf(record, undefined, routeTitle),
+  run: { app, board, commit: record.commit, hardware: record.hardware || 'cpu', ...(record.routeId ? { routeId: record.routeId } : {}), ...(failedStepsOf(record).length ? { failedSteps: failedStepsOf(record) } : {}) } });
 
-export const newRunbookBlock = (record, repositoryApp) => ({ id: crypto.randomUUID(), type: 'doc', dx: 0, dy: 0, title: runbookTitle(record), generated: generatedOf(record, repositoryApp),
-  blocks: buildRunbook(record) });
+export const newRunbookBlock = (record, repositoryApp, routeTitle) => ({ id: crypto.randomUUID(), type: 'doc', dx: 0, dy: 0, title: runbookTitle(record, routeTitle), generated: generatedOf(record, repositoryApp, routeTitle),
+  blocks: buildRunbook(record, { routeTitle }) });
 
 // Regeneration in place: the generator's own blocks are replaced, as one run, where the first of them stood; everything else (the owner's annotations) is left where it
 // is. A runbook whose own blocks are all gone gets the fresh ones at the top.
@@ -56,19 +62,31 @@ export function regenerate(existing, fresh) {
 // Open one of the two cards (the chip's buttons). ops: the Chat's canvasOps (blocks, locate, canEdit, insertGenerated, updateCard). An existing card is focused (selected and
 // panned to); a Runbook is also regenerated in place. A new one goes beside its sibling, else beside the selection, else where the learner looks.
 // -> { id, existed } or null when the canvas cannot take a card (view-only).
-export function openRehearsalCard(ops, kind, record, { app, board, repositoryApp }) {
+export function openRehearsalCard(ops, kind, record, { app, board, repositoryApp, routeTitle }) {
   const blocks = ops.blocks?.() || [], type = kind === 'run' ? 'run' : 'doc';
   const existing = findRehearsalCard(blocks, type, record);
   if (existing) {
-    if (kind === 'runbook' && ops.canEdit?.()) ops.updateCard?.(existing.id, block => ({ ...block, blocks: regenerate(block.blocks, buildRunbook(record)) }));
+    if (kind === 'runbook' && ops.canEdit?.()) ops.updateCard?.(existing.id, block => ({ ...block, blocks: regenerate(block.blocks, buildRunbook(record, { routeTitle })) }));
     ops.locate?.(existing.id);
     return { id: existing.id, existed: true };
   }
   if (!ops.canEdit?.()) return null;
   const sibling = findRehearsalCard(blocks, kind === 'run' ? 'doc' : 'run', record);
-  const block = kind === 'run' ? newRunBlock(record, { app, board }) : newRunbookBlock(record, repositoryApp);
+  const block = kind === 'run' ? newRunBlock(record, { app, board, routeTitle }) : newRunbookBlock(record, repositoryApp, routeTitle);
   const id = ops.insertGenerated?.(block, { beside: sibling?.id || null });
   return id ? { id, existed: false } : null;
+}
+
+// The pair a ready record makes on its own (initial pipeline: no button press): the Run card, then the Runbook beside it, each only when this (repo, commit, routeId) has none yet;
+// an existing card is left as it is (no focus change, no regeneration). -> the kinds made ([] when both were there), or null when the canvas cannot take a card (view-only).
+// ponytail: the wait between the two inserts lets the canvas lay the Run card out first, so the Runbook can be placed beside it (insertGenerated reads the card's bounds).
+export async function ensureRehearsalCards(ops, record, { app, board, repositoryApp, routeTitle }, wait = ms => new Promise(resolve => setTimeout(resolve, ms))) {
+  if (!ops.canEdit?.()) return null;
+  const made = [];
+  let runId = findRehearsalCard(ops.blocks?.() || [], 'run', record)?.id || null;
+  if (!runId) { runId = ops.insertGenerated?.(newRunBlock(record, { app, board, routeTitle }), { beside: null }) || null; if (runId) { made.push('run'); await wait(300); } }
+  if (!findRehearsalCard(ops.blocks?.() || [], 'doc', record) && ops.insertGenerated?.(newRunbookBlock(record, repositoryApp, routeTitle), { beside: runId })) made.push('runbook');
+  return made;
 }
 
 // ---- what the Run card stores ------------------------------------------------------------------------------------------

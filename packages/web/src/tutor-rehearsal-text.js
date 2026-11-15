@@ -1,0 +1,161 @@
+// packages/web/src/tutor-rehearsal-text.js
+// What the Tutor says in the initial pipeline (initial-pipeline-spec.md; route-catalogue-spec.md section 4; cannot-run-edge-cases.md
+// sections 1, 1a, 3). The renderer, not the model, enforces the wording rules: the catalogue message is built here from the catalogue
+// document, and its text and chip labels are checked by `leaks` (no command, path or file:line); a violation falls back to the
+// title-less safe wording. Never a stack trace, a sandbox id, a dollar figure or a Modal term, and never "something went wrong".
+// Pure: no React, no network, no storage.
+import { CODEBASE_GOALS } from './learn-codebase-goals.js';
+
+export const STAR = '⭐';
+export const SOMETHING_ELSE_CHIP = 'Something else';
+export const FLAT_MAX = 5; // at most this many practical routes are listed flat; more are grouped by the catalogue's group label
+
+const lower1 = text => (text ? text[0].toLowerCase() + text.slice(1) : text);
+const upper1 = text => (text ? text[0].toUpperCase() + text.slice(1) : text);
+const noStop = text => String(text || '').trim().replace(/[.\s]+$/, '');
+export const repoName = repo => String(repo || '').split('/').pop() || 'this repository';
+
+// ---- the wording guard -------------------------------------------------------------------------------------------------
+// A command (backticks, a tool followed by what it runs), a path (a slash path with an extension, ./ or ../, or a bare file name of a
+// code or config extension) or a file:line. Node.js and similar names are not file names (js and ts are not in the bare list).
+const COMMAND = /`|\$ |\b(?:pip3?|npm|npx|yarn|pnpm|python3?|cargo|make|docker|pytest|torchrun|uvicorn|brew|bash|conda)\s+(?:install|run|test|build|start|apply|compose|exec|-\S+|[\w./-]+\.[a-z]{1,4}\b)/i;
+const PATH = /(?:[\w.-]+\/)+[\w.-]+\.[A-Za-z0-9]{1,5}\b|(?:^|[\s(])\.{1,2}\/\S+|\b[\w-]+\.(?:py|md|toml|ya?ml|sh|cfg|ini|txt|json|rs|go|rb|java)\b/;
+const FILE_LINE = /[\w./-]+:\d+\b/;
+// repo: the repository's own name is allowed to look like a file (next.js, repo.py).
+export function leaks(text, { repo = '' } = {}) {
+  let body = String(text || '');
+  const name = repoName(repo);
+  if (name) body = body.split(name).join('');
+  if (repo) body = body.split(String(repo)).join('');
+  return COMMAND.test(body) || PATH.test(body) || FILE_LINE.test(body);
+}
+// What no chat line may carry (cannot-run-edge-cases.md section 1a): a Modal term, a sandbox id, a dollar figure, a stack trace.
+const INTERNAL = /\bmodal\b|\bsb-[A-Za-z0-9]{6,}|\bim-[A-Za-z0-9]{6,}|\$\s?\d|\busd\b|traceback|\bat \S+:\d+|sandbox id|\bsandbox\b/i;
+export const internal = text => INTERNAL.test(String(text || ''));
+
+// ---- the catalogue message ---------------------------------------------------------------------------------------------
+
+const practicalOf = doc => (doc?.routes || []).filter(route => route.practical);
+const impracticalOf = doc => (doc?.routes || []).filter(route => !route.practical);
+const hardwareOf = doc => (doc?.hardware === 'cpu' || !doc?.hardware ? 'CPU' : String(doc.hardware).toUpperCase());
+const chipOf = route => ({ id: `route:${route.routeId}`, routeId: route.routeId, label: `${route.recommended ? `${STAR} ` : ''}${route.title}`, recommended: !!route.recommended });
+const blockOf = route => [`${route.recommended ? `${STAR} ` : ''}**${route.title}** · *${route.effort}*`, [route.description, route.recommended ? '**Recommended to start.**' : ''].filter(Boolean).join(' ')].filter(Boolean).join('\n');
+const closingLine = doc => {
+  const rest = impracticalOf(doc);
+  return rest.length ? `Not on this canvas: ${rest.map(route => `${route.title}${route.reason ? ` - ${noStop(route.reason)}` : ''}`).join('; ')}.` : '';
+};
+
+// The route list, flat up to FLAT_MAX practical routes, else under the group labels as plain-words lines.
+function routeBlocks(doc) {
+  const practical = practicalOf(doc);
+  if (practical.length <= FLAT_MAX) return practical.map(blockOf);
+  const out = [], labels = new Map((doc.groups || []).map(group => [group.id, group.label]));
+  const order = [...new Set(practical.map(route => route.group || ''))];
+  for (const id of order) {
+    const label = labels.get(id);
+    if (label) out.push(`${upper1(label)}:`);
+    out.push(...practical.filter(route => (route.group || '') === id).map(blockOf));
+  }
+  return out;
+}
+
+const opening = (doc, name) => `I've read **${name}**. ${doc.summary}`;
+const GOAL_CHIPS = () => CODEBASE_GOALS.map(goal => ({ id: `goal:${goal.id}`, goalId: goal.id, label: goal.label }));
+
+// The title-less wording used when anything built from the document would leak a command, a path or a file:line.
+function safeMessage(doc, name) {
+  const practical = practicalOf(doc);
+  if (!practical.length) return { kind: 'zero', safe: true, text: `I've read **${name}**. Running it here needs more than this canvas has. You can still explore the code.`, chips: GOAL_CHIPS() };
+  const text = `I've read **${name}**. Here's what you can do with it: there ${practical.length === 1 ? 'is one practical way' : `are ${practical.length} practical ways`} to use it on a ${hardwareOf(doc)}.`;
+  return { kind: practical.length === 1 ? 'one' : 'choose', safe: true, text, routeId: practical[0].routeId,
+    chips: practical.length === 1 ? [] : [...practical.map((route, i) => ({ id: `route:${route.routeId}`, routeId: route.routeId, label: `${route.recommended ? `${STAR} ` : ''}Way ${i + 1}`, recommended: !!route.recommended })), { id: 'else', label: SOMETHING_ELSE_CHIP }] };
+}
+
+// The can / cannot message. -> { kind: 'none' | 'zero' | 'one' | 'choose', text, chips, routeId?, safe? }
+//   none:   the catalogue found no route at all (section 1a): the five goals.
+//   zero:   routes, none practical: the four-part message (found, what it needs, what can be done, the five goals).
+//   one:    exactly one practical route: no question.
+//   choose: more than one practical route: the opening, the route blocks and the closing line. Its chips are the route question's
+//           (routeQuestion), shown once "Use the codebase" is chosen, so the list is not repeated.
+export function catalogueMessage(doc) {
+  const name = repoName(doc?.repo), practical = practicalOf(doc);
+  let built;
+  if (!(doc?.routes || []).length) {
+    built = { kind: 'none', text: `I read **${name}**. ${doc.summary} I didn't find a documented way to run it: no quick start, no scripts, no tests. You can read it, trace a feature, or tell me what you expected to run.`, chips: GOAL_CHIPS() };
+  } else if (!practical.length) {
+    const needs = impracticalOf(doc).map(route => `${route.title}${route.reason ? ` - ${noStop(route.reason)}` : ''}`).join('; ');
+    built = { kind: 'zero', text: `I read **${name}**. ${doc.summary}\n\nWhat running it needs: ${needs}.\n\nHere you can read the code, trace a feature, or learn a concept through it.`, chips: GOAL_CHIPS() };
+  } else if (practical.length === 1) {
+    const only = practical[0];
+    built = { kind: 'one', routeId: only.routeId, text: `${opening(doc, name)}\n\nThere's one practical way to use this on a ${hardwareOf(doc)}: ${lower1(noStop(only.description || only.title))}. Setting that up now.`, chips: [] };
+    if (impracticalOf(doc).length) built.text += `\n\n${closingLine(doc)}`;
+  } else {
+    built = { kind: 'choose', text: [opening(doc, name), "Here's what you can do with it:", ...routeBlocks(doc), closingLine(doc)].filter(Boolean).join('\n\n'), chips: [] };
+  }
+  const labels = [built.text, ...built.chips.map(chip => chip.label)].join('\n');
+  return leaks(labels, { repo: doc?.repo }) ? safeMessage(doc, name) : built;
+}
+
+// The route question once "Use the codebase" is chosen and more than one route is practical: one chip per practical route (the star on the recommended one) and
+// Something else. The blocks were shown in the can / cannot message, so this is the question and the chips.
+export function routeQuestion(doc) {
+  const practical = practicalOf(doc), safe = leaks(practical.map(route => route.title).join('\n'), { repo: doc?.repo }) ? safeMessage(doc, repoName(doc?.repo)) : null;
+  if (safe) return { text: 'Which way should I set up?', chips: safe.chips };
+  return { text: 'Which of these should I set up?', chips: [...practical.map(chipOf), { id: 'else', label: SOMETHING_ELSE_CHIP }] };
+}
+
+// ---- the other Tutor sentences (cannot-run-edge-cases.md section 1a) ------------------------------------------------------
+
+export const SENTENCES = {
+  unreachable: name => `I can't reach **${name}**: it looks private or gone. Rabbit Hole works with public GitHub repositories.`,
+  tooBig: (name, files) => `**${name}** is bigger than I can index here${files ? ` (${files} files; the limit is 2,000)` : ' (the limit is 2,000 files)'}. I can still read it with you, but I can't map or run it.`,
+  catalogueFailed: name => `I couldn't make sense of how **${name}** is meant to be used: the README and scripts didn't give me a clear route. You can read it, or point me at the file that starts it.`,
+  noMachine: name => `I couldn't start a machine to run **${name}** just now. Nothing is wrong with the repository. Try again in a minute; if it keeps happening, tell the owner.`,
+  costCap: name => `I stopped rehearsing **${name}** because it was costing more than I allow for one repository. Here is what ran.`,
+  rehearsalFailed: name => `I couldn't finish rehearsing **${name}** just now. Nothing is wrong with the repository. Try again in a minute, or read it with me.`,
+  runStartFailed: 'I couldn\'t start a machine for this run. Try again; nothing on the canvas is lost.',
+  runFailed: 'I couldn\'t run that cell just now. Try again; nothing on the canvas is lost.',
+  sessionEnded: 'Your run session ended. Starting a new one - your earlier outputs are kept.',
+  soon: label => `**${label}** isn't built yet. Pick one of the others below, or tell me what you want to do with this codebase.`,
+  notSure: 'I wasn\'t sure which of these you meant. Pick one below.',
+  intake: 'What do you want to do with this codebase?',
+};
+
+// Indexing failed: too big when the plain reason says so (a number of files or the limit), else the connect-time line.
+export function indexingFailure(name, error) {
+  const text = String(error || '');
+  if (/\blimit\b|too (?:big|large)|bigger than|\d[\d,]*\s+files/i.test(text)) return SENTENCES.tooBig(name, (/(\d[\d,]*)\s+files/i.exec(text) || [])[1] || '');
+  return SENTENCES.unreachable(name);
+}
+
+// A rehearsal that failed (status failed, error in plain words or not): the sentence and whether Retry is offered. A reason that names a machine, a
+// sandbox or a provider, or carries a dollar figure, never reaches the chat.
+export function rehearsalFailure(name, error) {
+  const text = String(error || '');
+  if (/\b(cost|budget|cap)\b/i.test(text)) return { text: SENTENCES.costCap(name), retry: false };
+  if (!text || internal(text) || /unreachable|controller|could not start|couldn't start|failed to start|provision|image|timeout|timed out|connect/i.test(text)) return { text: SENTENCES.noMachine(name), retry: true };
+  return { text: SENTENCES.rehearsalFailed(name), retry: true };
+}
+
+// A Run card cell that did not pass (rc != 0, a timeout): one line, the first error line of its output.
+export function firstErrorLine(out) {
+  const lines = String(out || '').split('\n').map(line => line.trim()).filter(Boolean);
+  const hit = [...lines].reverse().find(line => /error|exception|failed|not found|no such|denied/i.test(line) && !/^\s*at \S+:\d+/.test(line)) || lines[lines.length - 1] || '';
+  const one = hit.replace(/\s+/g, ' ').slice(0, 200);
+  return internal(one) ? '' : one;
+}
+export function cellFailedLine({ title, out, status, inRehearsal = false }) {
+  if (status === 'timeout') return `**${title}** took longer than I allow here, so I stopped it. The rehearsal's output under the cell shows how far it got.`;
+  const error = firstErrorLine(out);
+  const head = error ? `**${title}** failed: ${noStop(error)}.` : `**${title}** failed.`;
+  return inRehearsal
+    ? `${head} It stopped here in the rehearsal too, so this is not something you changed. You can run the steps before it, or read the code.`
+    : `${head} In the rehearsal it passed - the difference is usually a flag you changed or a file from an earlier cell. Undo the change, or run the previous cell first.`;
+}
+
+// The validator refused a flag (POST /api/learn/run 400). accepted: the flags the cell takes.
+export function flagRefusedLine({ repo, message, accepted = [] }) {
+  const flag = (/--[A-Za-z0-9_-]+/.exec(String(message || '')) || [])[0];
+  const takes = accepted.length ? ` The ones it takes: ${accepted.join(', ')}.` : ' This cell takes no editable flags.';
+  return `That ${flag ? 'flag' : 'value'} isn't one **${repoName(repo)}** accepts here${flag ? ` (\`${flag}\`)` : ''}.${takes}`;
+}

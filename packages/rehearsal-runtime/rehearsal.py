@@ -1,5 +1,7 @@
 """One rehearsal job, end to end: provision -> clone -> discover -> install + steps (+ repair) -> knobs -> traps -> artifacts -> terminate -> plan -> record.
-The server and run_job.py both call run_rehearsal(), so there is one code path."""
+The server and run_job.py both call run_rehearsal(), so there is one code path.
+A route (job.routeId, job.catalogueRoute) is rehearsed on its own. When the repair loop gives up the job still ends `ready`: the record carries the steps that passed and the failing step
+marked `failed`, with allChecksPassed false and gaveUp set (a finding about the repository). `failed` is for infrastructure: the sandbox could not start, the clone failed, no route."""
 import re
 import time
 from dataclasses import dataclass
@@ -79,7 +81,8 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
             knobs, traps = runner.verify_knobs(), runner.run_traps()
             if knobs and knobs[0]['rc'] != 0:  # knobsVerified[0] is the plan's 'Change it' command: it must have run
                 knob_err = JobFailed('knob_verification_failed', f"knobsVerified[0] exited {knobs[0]['rc']}: {knobs[0]['cmd']}")
-        if ok and knob_err is None and hasattr(provider, 'snapshot') and time.time() < deadline - 150:
+        partial = not ok and runner.gave_up is not None and any(not s.get('failed') for s in runner.steps)  # the steps before the failing one ran: the Run card can still start from them
+        if (ok or partial) and knob_err is None and hasattr(provider, 'snapshot') and time.time() < deadline - 150:
             try:  # Run card fast start: clone, install and produced files in one image. Never fails the job; a failure or timeout just leaves the record without snapshotImage (sessions then clone and install themselves).
                 image_id = provider.snapshot()
                 snapshot_image = image_id if isinstance(image_id, str) and re.fullmatch(r'im-[A-Za-z0-9]+', image_id) else ''
@@ -92,6 +95,8 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
     except Exception as e:  # noqa: BLE001 - every failure must still terminate the sandbox and say why
         err = JobFailed('internal_error', f'{type(e).__name__}: {e}')
     finally:
+        if runner:
+            runner.stop_background()  # a server that a failed route left running (run_route already stops them; this covers an error outside it)
         if sb_started:
             terminated = provider.stop()
             t_stopped = time.time()
@@ -105,31 +110,30 @@ def run_rehearsal(job: dict, provider, model_impl: Model, status=lambda *a, **k:
         err = JobFailed('sandbox_left', f'sandbox not confirmed terminated (terminated={terminated}, left={left})')
 
     plan = None
-    if runner and route and err is None and runner.gave_up is None:
+    if runner and route and err is None:  # also after a give-up: the plan then carries the failing step and what the README did not say
         status('planning')
-        plan = rec.make_plan(caller, job, rec.plan_summary(route, runner.steps, runner.fixes, traps, knobs))
+        plan = rec.make_plan(caller, job, rec.plan_summary(route, runner.steps, runner.fixes, traps, knobs, runner.gave_up))
 
     after = billing_fn(job['key'])
     lifetime = (t_stopped - t_created) if t_created and t_stopped else 0.0
     out = Outcome('failed', None, spend={'before': before, 'after': after})
     if err is not None:
         out.error = f'{err.code}: {err.detail}' if hasattr(err, 'code') else str(err)
-    elif runner and runner.gave_up:
-        out.error = f"gave up at step {runner.gave_up['step']}: {runner.gave_up['reason']}"
+    # a give-up is not an error: the record says where and why (gaveUp), and the job ends ready
     if not (runner and route):
         return out  # nothing ran past discovery: no record
 
     gave_up = runner.gave_up or ({'step': '-', 'reason': out.error} if err is not None else None)
     finished = time.time()
     record = {
-        'version': 'rehearsal-1', 'repo': job['repo'], 'commit': job['commit'], 'hardware': job['hardware'], 'provider': 'modal',
+        'version': 'rehearsal-1', **({'routeId': job['routeId']} if job.get('routeId') else {}), 'repo': job['repo'], 'commit': job['commit'], 'hardware': job['hardware'], 'provider': 'modal',
         'sandboxId': provider.sandbox_id or 'none', 'terminated': terminated, 'sandboxesLeftAfter': len(left),
         'image': provider.image, 'model': model_used or DEFAULT_MODEL, 'startedUtc': started, 'finishedUtc': rec.utc_iso(finished),
         'wallSec': round(max(0.0, finished - t0 - provider.image_build_sec), 1),
         **({'imageBuildSec': provider.image_build_sec} if provider.image_build_sec else {}),
         'environment': env or {'python': '', 'cpu': 1, 'memGiB': 0, 'packagesAfter': {}},
         'route': route, 'attempts': runner.attempts, 'fixes': runner.fixes, 'steps': runner.steps, 'traps': traps, 'knobsVerified': knobs,
-        'allChecksPassed': gave_up is None and len(runner.steps) == len(route['steps']),
+        'allChecksPassed': gave_up is None and sum(1 for s in runner.steps if not s.get('failed')) == len(route['steps']),
         'network': {'outboundDomainAllowlist': list(limits.OUTBOUND_DOMAIN_ALLOWLIST) + list(provider.extra_domains), 'outboundCidrAllowlist': [], 'allowDomainFixes': [f['change'] for f in runner.fixes if f['kind'] == 'allow_domain']},
         'modelCalls': caller.calls, 'modelSpendUsd': caller.spend, 'sandboxSpendNote': billing.spend_note(before, after, job['key'], lifetime),
         'draftPlan': plan, 'gaveUp': gave_up,
