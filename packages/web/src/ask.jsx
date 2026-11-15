@@ -1,4 +1,4 @@
-import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL } from './ChatComposer.jsx';
+import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL, StripTool } from './ChatComposer.jsx';
 import { takePrefill } from './creator-analytics.js';
 import ModeSelector from './ModeSelector.jsx';
 import ContextChips from './ContextChips.jsx';
@@ -318,8 +318,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const stripMode = !!(stripHost && chat && !tocView);
   // Curious's own toggle (owner 2026-11-13): in the canvas strip's toolbar, next to the / control; LearnPage owns the state (curiousToggle: { min, set }).
   const curiousButton = stripMode && curiousToggle ? (
-    <button type="button" data-curious-toggle aria-label={curiousToggle.min ? 'Show suggestions' : 'Hide suggestions'} aria-pressed={!curiousToggle.min} title={curiousToggle.min ? 'Show the suggestions' : 'Hide the suggestions'} onMouseDown={event => event.preventDefault()} onClick={() => curiousToggle.set(!curiousToggle.min)}
-      className={cn(COMPOSER_TOOL, !curiousToggle.min && 'bg-hover text-accent hover:text-accent')}><CircleHelp size={16} strokeWidth={1.7} /></button>) : null;
+    <StripTool data-curious-toggle label={curiousToggle.min ? 'Show suggestions' : 'Hide suggestions'} title={curiousToggle.min ? 'Show the suggestions' : 'Hide the suggestions'} on={!curiousToggle.min} onClick={() => curiousToggle.set(!curiousToggle.min)}><CircleHelp size={16} strokeWidth={1.7} /></StripTool>) : null;
   // The window above the strip (owner 2026-11-13): sending from the strip leaves the right panel closed and opens this small fixed-height window, which holds
   // the conversation (moved here without remounting) and can be minimized or maximized; a send reopens a minimized one.
   const [windowSeen, setWindowSeen] = useState(false), [winState, setWinState] = useState('normal');
@@ -336,8 +335,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   useLayoutEffect(() => { const where = windowMode ? windowBody.current : convSlot.current; if (where && convHost.parentNode !== where) where.appendChild(convHost); });
   // Minimized, the window is gone completely; this button in the strip's toolbar (next to the Curious toggle) shows it again, and hides it while it is open.
   const chatWindowButton = stripMode && windowHost && windowSeen ? (
-    <button type="button" data-chat-window-toggle aria-label={winState === 'min' ? 'Show chat' : 'Hide chat'} aria-pressed={winState !== 'min'} title={winState === 'min' ? 'Show the chat' : 'Hide the chat'} onMouseDown={event => event.preventDefault()} onClick={() => setWinState(winState === 'min' ? 'normal' : 'min')}
-      className={cn(COMPOSER_TOOL, winState !== 'min' && 'bg-hover text-accent hover:text-accent')}><MessageSquare size={16} strokeWidth={1.7} /></button>) : null;
+    <StripTool data-chat-window-toggle label={winState === 'min' ? 'Show chat' : 'Hide chat'} title={winState === 'min' ? 'Show the chat' : 'Hide the chat'} on={winState !== 'min'} onClick={() => setWinState(winState === 'min' ? 'normal' : 'min')}><MessageSquare size={16} strokeWidth={1.7} /></StripTool>) : null;
   const regionHost = useMemo(() => { const node = document.createElement('div'); node.style.display = 'contents'; return node; }, []);
   const inlineSlot = useRef(null);
   useLayoutEffect(() => { const where = stripMode ? stripHost : inlineSlot.current; if (where && regionHost.parentNode !== where) where.appendChild(regionHost); });
@@ -1401,6 +1399,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         <section data-chat-window data-chat-window-state={winState} aria-label="Chat" className={cn('mb-1.5 flex flex-col overflow-hidden rounded-xl border border-line-strong bg-white shadow-pop', winState === 'normal' && 'h-80 max-h-[55vh]', winState === 'max' && 'h-[min(75vh,760px)]', winState === 'min' && 'hidden')}>
           <header className="flex h-9 shrink-0 items-center gap-0.5 pr-1.5 pl-3">
             <h2 data-chat-window-title className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{chatTitle(chat.thread)}</h2>
+            <button type="button" data-chat-window-clear aria-label="Clear the conversation" title="Clear the conversation" disabled={busy} onClick={newChat}
+              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50"><Eraser size={14} /></button>
             <button type="button" data-chat-window-minimize aria-label="Minimize chat" title="Minimize the chat: the chat button in the strip brings it back" onClick={() => setWinState('min')}
               className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink"><Minus size={15} /></button>
             <button type="button" data-chat-window-maximize aria-label={winState === 'max' ? 'Restore chat size' : 'Maximize chat'} title={winState === 'max' ? 'Restore the chat size' : 'Maximize the chat'} onClick={() => setWinState(winState === 'max' ? 'normal' : 'max')}
