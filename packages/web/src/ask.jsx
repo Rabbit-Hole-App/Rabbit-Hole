@@ -20,7 +20,7 @@ import { codeRef } from './chat-sources.js';
 // ─── Ask (phase 1 - read only): the chat panel behind the Agent tab, the run
 // peek's ask box, and ⌘K's Ask tab. POST /api/ask streams SSE; org-scope
 // ambiguity comes back as { choose } and renders candidate pills. ───
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CodeRefs } from './code-refs.js';
 import { ChatMessages, JumpToLatest, RunResultCard } from './ChatMessages.jsx';
 import { useFollowLatest } from './chat-scroll.js';
@@ -55,9 +55,10 @@ import { reviewRequired } from './proposal-capabilities.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode } from './chat-route.js';
 import { TutorCoaching } from './use-learn-coaching.jsx';
-import TutorRehearsalFlow from './TutorRehearsal.jsx';
+import { REHEARSAL } from './rehearsal-flag.js';
+// The literal env test beside the import lets Vite drop the chunk from a build without VITE_REHEARSAL_TRIGGER; it runs only when the flow renders.
+const TutorRehearsalFlow = lazy(() => (import.meta.env.VITE_REHEARSAL_TRIGGER === '1' ? import('./TutorRehearsal.jsx') : Promise.reject(new Error('not part of this build'))));
 import { offerIntakeText } from './codebase-use-route.js';
-import { rehearsalOn } from './learn-rehearsal-view.js';
 import RoadmapTranscript, { TutorMessage } from './RoadmapTranscript.jsx';
 import { TutorActivity } from './TutorActivity.jsx';
 import { fileReviews } from './learn-progress-question.js';
@@ -608,7 +609,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const message = [...chips.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     if (!message || busy) return false;
     // The Tutor's intake question is open on a repository canvas (TutorRehearsal.jsx; dev flag): a plain line is the reply to it, routed to one of the 14 uses, not sent as a turn.
-    if (chat && !tocView && !regenerate && !keepDraft && !prompted && !commandName && !file && !message.startsWith('/') && rehearsalOn() && offerIntakeText(chat.canvas, message)) { setInput(''); return; }
+    if (chat && !tocView && !regenerate && !keepDraft && !prompted && !commandName && !file && !message.startsWith('/') && REHEARSAL && offerIntakeText(chat.canvas, message)) { setInput(''); return; }
     // EXP-T20 slice 3: while an /explain brief waits for Generate (its card says so), a plain Chat turn refines it (the job's refine route), as a
     // chat turn revises a live Motion proposal. The words are saved as the learner's message; the next version of the brief
     // appears in this thread when it is ready. A refusal keeps the words in the composer and says why.
@@ -1103,7 +1104,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
         {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
         {/* The initial pipeline's Tutor messages after the thread's own (TutorRehearsal.jsx; dev flag VITE_REHEARSAL_TRIGGER=1). */}
-        {chat && !tocView && chat.coaching && rehearsalOn() && <TutorRehearsalFlow chat={chat} />}
+        {chat && !tocView && chat.coaching && REHEARSAL && <Suspense fallback={null}><TutorRehearsalFlow chat={chat} /></Suspense>}
         {choices && (
           <div className="py-2">
             <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>
