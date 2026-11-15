@@ -1,0 +1,676 @@
+{
+  "family": "sample-draw",
+  "canonical": "replacement-rows-and-fitted-root",
+  "layout": {
+    "width": 640,
+    "height": 370
+  },
+  "story": "Drawing with replacement keeps every original row available. Repeated letters add copies, not new rows. Compare the fixed reference draws and the root each fitted tree uses.",
+  "aha": {
+    "inputs": {
+      "draw": "1"
+    },
+    "observation": "The second draw repeats B and F, leaving A, E and H out of bag. Its fitted root uses y because that node drew y as its candidate feature.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "bank",
+      "kind": "available-row-bank",
+      "bind": "data.rows"
+    },
+    {
+      "id": "sample",
+      "kind": "replacement-draw-strip",
+      "bind": "computed.sample"
+    },
+    {
+      "id": "repeats",
+      "kind": "multiplicity-emphasis",
+      "bind": "computed.frequencies"
+    },
+    {
+      "id": "omitted",
+      "kind": "out-of-bag-tray",
+      "bind": "computed.omitted"
+    },
+    {
+      "id": "root",
+      "kind": "fitted-root-card",
+      "bind": "computed.root"
+    }
+  ],
+  "controls": [
+    {
+      "id": "draw",
+      "kind": "select",
+      "label": "Reference bootstrap draw",
+      "values": [
+        "0",
+        "1",
+        "2"
+      ],
+      "labels": [
+        "Draw 1",
+        "Draw 2",
+        "Draw 3"
+      ],
+      "effect": "Change the actual replacement sample, repetitions, out-of-bag rows and source fitted root."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "Repeated, unique and out of bag.",
+    "heading": "Fixed bootstrap samples from the reference",
+    "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+    "instructions": "Switch reference draws. Find repeats and the rows that never appeared in the completed draw.",
+    "initialInputs": {
+      "draw": "0"
+    },
+    "rows": [
+      {
+        "id": "A",
+        "x": 1,
+        "y": 1,
+        "label": 0
+      },
+      {
+        "id": "B",
+        "x": 1,
+        "y": 5,
+        "label": 0
+      },
+      {
+        "id": "C",
+        "x": 3,
+        "y": 3,
+        "label": 0
+      },
+      {
+        "id": "D",
+        "x": 3,
+        "y": 7,
+        "label": 0
+      },
+      {
+        "id": "E",
+        "x": 5,
+        "y": 1,
+        "label": 0
+      },
+      {
+        "id": "F",
+        "x": 5,
+        "y": 3,
+        "label": 1
+      },
+      {
+        "id": "G",
+        "x": 7,
+        "y": 5,
+        "label": 1
+      },
+      {
+        "id": "H",
+        "x": 7,
+        "y": 7,
+        "label": 1
+      }
+    ],
+    "forest": [
+      {
+        "sample": [
+          {
+            "id": "A",
+            "x": 1,
+            "y": 1,
+            "label": 0
+          },
+          {
+            "id": "A",
+            "x": 1,
+            "y": 1,
+            "label": 0
+          },
+          {
+            "id": "C",
+            "x": 3,
+            "y": 3,
+            "label": 0
+          },
+          {
+            "id": "D",
+            "x": 3,
+            "y": 7,
+            "label": 0
+          },
+          {
+            "id": "E",
+            "x": 5,
+            "y": 1,
+            "label": 0
+          },
+          {
+            "id": "F",
+            "x": 5,
+            "y": 3,
+            "label": 1
+          },
+          {
+            "id": "G",
+            "x": 7,
+            "y": 5,
+            "label": 1
+          },
+          {
+            "id": "H",
+            "x": 7,
+            "y": 7,
+            "label": 1
+          }
+        ],
+        "tree": {
+          "counts": [
+            5,
+            3
+          ],
+          "prediction": 0,
+          "split": {
+            "feature": "x",
+            "threshold": 4,
+            "leftCounts": [
+              4,
+              0
+            ],
+            "rightCounts": [
+              1,
+              3
+            ],
+            "leftGini": [
+              0,
+              1
+            ],
+            "rightGini": [
+              3,
+              8
+            ],
+            "weighted": [
+              3,
+              16
+            ],
+            "gain": [
+              9,
+              32
+            ]
+          },
+          "left": {
+            "counts": [
+              4,
+              0
+            ],
+            "prediction": 0
+          },
+          "right": {
+            "counts": [
+              1,
+              3
+            ],
+            "prediction": 1,
+            "split": {
+              "feature": "y",
+              "threshold": 2,
+              "leftCounts": [
+                1,
+                0
+              ],
+              "rightCounts": [
+                0,
+                3
+              ],
+              "leftGini": [
+                0,
+                1
+              ],
+              "rightGini": [
+                0,
+                1
+              ],
+              "weighted": [
+                0,
+                1
+              ],
+              "gain": [
+                3,
+                8
+              ]
+            },
+            "left": {
+              "counts": [
+                1,
+                0
+              ],
+              "prediction": 0
+            },
+            "right": {
+              "counts": [
+                0,
+                3
+              ],
+              "prediction": 1
+            }
+          }
+        },
+        "byFeature": {
+          "x": [
+            9,
+            32
+          ],
+          "y": [
+            3,
+            16
+          ]
+        },
+        "featureDraws": {
+          "root": [
+            "x"
+          ],
+          "rootr": [
+            "y"
+          ]
+        }
+      },
+      {
+        "sample": [
+          {
+            "id": "B",
+            "x": 1,
+            "y": 5,
+            "label": 0
+          },
+          {
+            "id": "B",
+            "x": 1,
+            "y": 5,
+            "label": 0
+          },
+          {
+            "id": "C",
+            "x": 3,
+            "y": 3,
+            "label": 0
+          },
+          {
+            "id": "D",
+            "x": 3,
+            "y": 7,
+            "label": 0
+          },
+          {
+            "id": "F",
+            "x": 5,
+            "y": 3,
+            "label": 1
+          },
+          {
+            "id": "F",
+            "x": 5,
+            "y": 3,
+            "label": 1
+          },
+          {
+            "id": "F",
+            "x": 5,
+            "y": 3,
+            "label": 1
+          },
+          {
+            "id": "G",
+            "x": 7,
+            "y": 5,
+            "label": 1
+          }
+        ],
+        "tree": {
+          "counts": [
+            4,
+            4
+          ],
+          "prediction": 0,
+          "split": {
+            "feature": "y",
+            "threshold": 4,
+            "leftCounts": [
+              1,
+              3
+            ],
+            "rightCounts": [
+              3,
+              1
+            ],
+            "leftGini": [
+              3,
+              8
+            ],
+            "rightGini": [
+              3,
+              8
+            ],
+            "weighted": [
+              3,
+              8
+            ],
+            "gain": [
+              1,
+              8
+            ]
+          },
+          "left": {
+            "counts": [
+              1,
+              3
+            ],
+            "prediction": 1,
+            "split": {
+              "feature": "x",
+              "threshold": 4,
+              "leftCounts": [
+                1,
+                0
+              ],
+              "rightCounts": [
+                0,
+                3
+              ],
+              "leftGini": [
+                0,
+                1
+              ],
+              "rightGini": [
+                0,
+                1
+              ],
+              "weighted": [
+                0,
+                1
+              ],
+              "gain": [
+                3,
+                8
+              ]
+            },
+            "left": {
+              "counts": [
+                1,
+                0
+              ],
+              "prediction": 0
+            },
+            "right": {
+              "counts": [
+                0,
+                3
+              ],
+              "prediction": 1
+            }
+          },
+          "right": {
+            "counts": [
+              3,
+              1
+            ],
+            "prediction": 0,
+            "split": {
+              "feature": "x",
+              "threshold": 5,
+              "leftCounts": [
+                3,
+                0
+              ],
+              "rightCounts": [
+                0,
+                1
+              ],
+              "leftGini": [
+                0,
+                1
+              ],
+              "rightGini": [
+                0,
+                1
+              ],
+              "weighted": [
+                0,
+                1
+              ],
+              "gain": [
+                3,
+                8
+              ]
+            },
+            "left": {
+              "counts": [
+                3,
+                0
+              ],
+              "prediction": 0
+            },
+            "right": {
+              "counts": [
+                0,
+                1
+              ],
+              "prediction": 1
+            }
+          }
+        },
+        "byFeature": {
+          "x": [
+            3,
+            8
+          ],
+          "y": [
+            1,
+            8
+          ]
+        },
+        "featureDraws": {
+          "root": [
+            "y"
+          ],
+          "rootl": [
+            "x"
+          ],
+          "rootr": [
+            "x"
+          ]
+        }
+      },
+      {
+        "sample": [
+          {
+            "id": "A",
+            "x": 1,
+            "y": 1,
+            "label": 0
+          },
+          {
+            "id": "B",
+            "x": 1,
+            "y": 5,
+            "label": 0
+          },
+          {
+            "id": "C",
+            "x": 3,
+            "y": 3,
+            "label": 0
+          },
+          {
+            "id": "D",
+            "x": 3,
+            "y": 7,
+            "label": 0
+          },
+          {
+            "id": "D",
+            "x": 3,
+            "y": 7,
+            "label": 0
+          },
+          {
+            "id": "G",
+            "x": 7,
+            "y": 5,
+            "label": 1
+          },
+          {
+            "id": "H",
+            "x": 7,
+            "y": 7,
+            "label": 1
+          },
+          {
+            "id": "H",
+            "x": 7,
+            "y": 7,
+            "label": 1
+          }
+        ],
+        "tree": {
+          "counts": [
+            5,
+            3
+          ],
+          "prediction": 0,
+          "split": {
+            "feature": "x",
+            "threshold": 5,
+            "leftCounts": [
+              5,
+              0
+            ],
+            "rightCounts": [
+              0,
+              3
+            ],
+            "leftGini": [
+              0,
+              1
+            ],
+            "rightGini": [
+              0,
+              1
+            ],
+            "weighted": [
+              0,
+              1
+            ],
+            "gain": [
+              15,
+              32
+            ]
+          },
+          "left": {
+            "counts": [
+              5,
+              0
+            ],
+            "prediction": 0
+          },
+          "right": {
+            "counts": [
+              0,
+              3
+            ],
+            "prediction": 1
+          }
+        },
+        "byFeature": {
+          "x": [
+            15,
+            32
+          ],
+          "y": [
+            0,
+            1
+          ]
+        },
+        "featureDraws": {
+          "root": [
+            "x"
+          ]
+        }
+      }
+    ],
+    "calculations": [
+      "Use the three fixed 8-position replacement samples verbatim from the source.",
+      "Multiplicity is the count of each ID in the revealed sample; extra copies = sample positions − unique IDs.",
+      "Out-of-bag is the original row bank minus IDs in the complete sample; an unfinished prefix is not labelled a complete OOB result.",
+      "Root candidate thresholds are midpoints of adjacent distinct values in the sampled rows. Weighted Gini uses multiplicities, not just unique rows.",
+      "The source fitted root also depends on the declared node feature draw. Inspecting another feature does not rewrite the supplied tree."
+    ],
+    "sourceKind": "worked fixed replacement draws and fitted trees",
+    "missingCounterparts": [
+      "available-row bank",
+      "replacement draw strip",
+      "repeat-count emphasis",
+      "out-of-bag tray",
+      "sample-weighted root trials",
+      "node feature-draw provenance"
+    ],
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "draw": "0"
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "draw": "1"
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-bootstrap-roots",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 47,
+      "cases": 3,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "standard-sample-draw-bootstrap-roots",
+  "depth": "balanced"
+}
