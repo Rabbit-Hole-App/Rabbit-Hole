@@ -405,3 +405,12 @@ test('briefIdentifiers: backticks, snake_case, calls, flags, camelCase and file 
   assert.deepEqual(briefIdentifiers('It rewrites `train.py` and --flags before training.', 'how do my --flags end up changing train.py?'), []);
   assert.deepEqual(briefIdentifiers('Plain words, e.g. like this.', 'q'), []);
 });
+
+// v1.1: a DETAILED without a trace is invalid, so the model's tool schema REQUIRES it (with `trace` optional the model dropped it on 8 of 13 calibration rows, run 2).
+test('the model-facing output schema requires the detailed trace; brief and standard carry none; the stored card still accepts it optionally', async () => {
+  const { CODE_EXPLAIN_OUTPUT_SCHEMA } = await import('../src/learn-code-explain.js');
+  const depths = CODE_EXPLAIN_OUTPUT_SCHEMA.properties.depths.properties;
+  assert.deepEqual(depths.detailed.required, ['prose', 'anchors', 'trace']);
+  assert.ok(!depths.brief.properties.trace && !depths.standard.properties.trace);
+  assert.deepEqual(depths.brief.required, ['prose', 'anchors']);
+});

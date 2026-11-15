@@ -421,7 +421,7 @@
               "$ref": "#/$defs/depthBody"
             },
             "detailed": {
-              "$ref": "#/$defs/detailedBody"
+              "$ref": "#/$defs/detailedBodyWithTrace"
             }
           }
         },
@@ -589,6 +589,50 @@
           "type": "string",
           "minLength": 1,
           "description": "Why there is no card (validation failed twice, or below the confidence threshold). Required when route is code-explain and codeExplain is null: no silent failure."
+        }
+      }
+    },
+    "detailedBodyWithTrace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prose",
+        "anchors",
+        "trace"
+      ],
+      "properties": {
+        "prose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/anchor"
+          }
+        },
+        "trace": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "One concrete input traced through, or the control flow of one call when there is no arithmetic. REQUIRED in the model output (v1.1: a DETAILED without a trace is invalid); optional in a stored card.",
+          "required": [
+            "input",
+            "steps"
+          ],
+          "properties": {
+            "input": {
+              "type": "string",
+              "minLength": 1
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       }
     }
