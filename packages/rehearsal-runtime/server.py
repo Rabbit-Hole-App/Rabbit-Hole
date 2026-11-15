@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import unquote
 
 REQUIRED_ENV = ('ANTHROPIC_API_KEY', 'MODAL_TOKEN_ID', 'MODAL_TOKEN_SECRET', 'REHEARSAL_WORKER_TOKEN')
 PORT = int(os.environ.get('REHEARSAL_PORT', '8891'))
@@ -15,7 +16,7 @@ JOBS: dict = {}
 LOCK = threading.Lock()
 SLOT = threading.BoundedSemaphore(1)
 KEY_PATH = re.compile(r'/rehearsals/([a-f0-9]{64})(/asset)?')
-SESSION_PATH = re.compile(r'/sessions(?:/([a-f0-9]{32})(?:/(run|stop)|/runs/([a-f0-9]{16})(/log)?)?)?')  # Run card sessions (RUN_CARD.md)
+SESSION_PATH = re.compile(r'/sessions(?:/([a-f0-9]{32})(?:/(run|stop)|/runs/([a-f0-9]{16})(/log|/files/[^?#]+)?)?)?')  # Run card sessions (RUN_CARD.md); /files/<path>: a produced file
 SESSION_BODY_MAX = 2_000_000  # a session request carries the whole record
 CATALOGUES: dict = {}  # catalogue jobs: no sandbox, no clone, their own light slot (never the rehearsal's one-job semaphore)
 CAT_SLOT = threading.BoundedSemaphore(1)
@@ -110,6 +111,18 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_file(self, data: bytes, content_type: str):
+        """A produced file, never as a download and never as something a browser may run: the type the card asked for, nosniff, sandbox."""
+        self.send_response(200)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Content-Disposition', 'inline')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('Content-Security-Policy', 'sandbox')
+        self.end_headers()
+        self.wfile.write(data)
+
     def read_json(self, contract: str = '', limit: int = SESSION_BODY_MAX):
         """The request body as JSON (validated against schemas/<contract>.json when given); None after answering 400."""
         import contracts
@@ -146,11 +159,14 @@ class Handler(BaseHTTPRequestHandler):
                 sessions.get(sid)  # 404 before the body is read
                 body = self.read_json('run-request')
                 if body is not None:
-                    self.send_json({'runId': sessions.start_run(sid, body['cellId'], body.get('flags') or {})}, 202)
+                    self.send_json({'runId': sessions.start_run(sid, body)}, 202)
             elif verb == 'stop' and method == 'POST':
                 self.send_json(sessions.stop(sid))
             elif run_id and method == 'GET':
-                if log:
+                if log and log.startswith('/files/'):
+                    data, ctype = sessions.run_file(sid, run_id, unquote(log[len('/files/'):]))
+                    self.send_file(data, ctype)
+                elif log:
                     self.send_text(sessions.run_log(sid, run_id))
                 else:
                     self.send_json(sessions.run_status(sid, run_id))
