@@ -153,3 +153,10 @@ test('the Focus pane leaves room for the toolbar on the left and an open chat pa
   const closed = workspaceFrame({ ...area, right: Math.min(area.right, surface.w), bottom: 900 });
   assert.ok(closed.width > pane.width, 'closing the panel gives the content its room back');
 });
+
+// Pinned Study for a codebase canvas (pinned-study-codebase-spec.md 2c): the Run card and the Document card (the Runbook) take Focus in place.
+test('Run card and Document card are focusable through the index, with the labels the spec names', async () => {
+  const { adapterFor } = await import('./focus-controller.js');
+  assert.equal(adapterFor({ id: 'r', type: 'run' })?.label, 'Focus run card');
+  assert.equal(adapterFor({ id: 'd', type: 'doc' })?.label, 'Focus document');
+});
