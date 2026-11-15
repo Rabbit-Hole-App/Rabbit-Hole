@@ -14,7 +14,7 @@ import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
 import { canEditCourse, learnPreview, reviewTools } from './flags.js';
 import { AskPanel, NextStepsCard } from './ask.jsx';
-import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
+import { Button, IconBtn, ConfirmDialog, Tabs, TabsList, TabsTrigger, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
@@ -91,6 +91,7 @@ import { canvasContextNow } from './chat-canvas-context.js';
 import { MessageCircle, RotateCw } from 'lucide-react';
 import { boardSizeWarning, BOARD_LIMIT, docCardId } from './canvas-doc.js';
 import { StudyPane, useStudy } from './StudyPane.jsx';
+import { studyPill } from './study-work.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { badgeText, useCanvasComments } from './comments/useCanvasComments.js';
@@ -209,7 +210,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // reference clicked in an answer (small:open-files; repository-browser.md "Code references") opens Files on it, and
   // small:open-graph opens Graph, the right side too when it was hidden. openViewer (an old ?tab=code or ?tab=graph link) opens
   // that view once on arrival. Files and Graph mount on their first show and stay mounted (the graph code loads only then).
-  const { companion } = panels;
+  const studyNow = useRef(null); // the page's Study (useStudy below), for callbacks that outlive a render
+  // Study (pinned-study-codebase-spec.md 2b): Files and Graph show in the reference pane's tabs, so showing either (a code reference, small:open-files,
+  // small:open-graph) picks that tab, and while studying the right panel stays closed. The file and line are the repository's own Files state, which
+  // Study keeps as filesPlace. Outside Study the panel opens as before, the tab being what Study then opens on.
+  const companion = { ...panels.companion, show: view => {
+    const study = studyNow.current;
+    if (study?.repository && (view === 'files' || view === 'graph')) { study.setReferenceTab(view); if (study.open) return; }
+    panels.companion.show(view);
+  } };
   const companionViews = COMPANION_VIEWS.filter(entry => (entry.id === 'files' ? files : entry.id === 'graph' ? graph : true));
   const companionView = companionViews.some(entry => entry.id === companion.view) ? companion.view : 'context';
   const shown = useRef(new Set());
@@ -582,6 +591,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return job;
     },
     removeCard: id => canvasApi.current?.removeBlock(id),
+    // The plan message's Study these (rehearsal-flow.js, spec 2g): Files at the route's first source file, the Run card as the work, Study open.
+    studyThese: place => {
+      const files = heldRepository.current?.files;
+      if (place?.path && files) { files.setOpen(place.path); if (place.line) files.setJump({ path: place.path, start: place.line, end: place.line, at: Date.now() }); }
+      studyNow.current?.studyThese(place);
+    },
     // The rehearsal flow's cards (rehearsal-cards.js openRehearsalCard): a new generated card beside its sibling, and the Runbook's regeneration in place.
     insertGenerated: (block, options) => canvasApi.current?.insertGenerated(block, options),
     updateCard: (id, change) => canvasApi.current?.updateBlock(id, change),
@@ -1536,7 +1551,27 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // server's answer, never assumed), shown while one has the focus, and the board's size against the server's 1.9 MB. A 409 (this canvas
   // changed elsewhere) goes through the one conflict path (Load, withPendingWork): both versions of a card are kept, never dropped.
   // Pinned Study (UI-27, StudyPane.jsx): this canvas's Canvas / Study layout and its pinned reference, this browser only.
-  const study = useStudy(canvasKey, board, canvasApi);
+  const study = useStudy(canvasKey, board, canvasApi, { repository: !!(files || graph) });
+  studyNow.current = study;
+  // A repository canvas in Study (spec 2b): the right panel closes (its Files and Graph are the reference pane's, Chat is the centred bar) and is put back,
+  // open or not, when Study ends. panelWas is kept with the arrangement, so a reload in Study still returns it.
+  const wasStudying = useRef(study.open);
+  useEffect(() => {
+    if (!study.repository) return;
+    const was = study.state.panelWas;
+    if (study.open) {
+      if (panelOpen) { study.holdPanel(true); setPanelOpen(false); } else if (was == null) study.holdPanel(false);
+    } else if (wasStudying.current && was != null) { if (was) setPanelOpen(true); study.holdPanel(null); }
+    wasStudying.current = study.open;
+  }, [study.open]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Files reopens where it was (spec 2a filesPlace): the file and line the repository's Files view shows while studying are kept, and a reload in Study
+  // opens that file again once the snapshot is there.
+  const studyFiles = repository?.files, studyPlace = study.state.filesPlace;
+  useEffect(() => {
+    if (!study.repository || !studyFiles) return;
+    if (studyFiles.open) study.filesAt({ path: studyFiles.open, line: studyFiles.jump?.path === studyFiles.open ? studyFiles.jump.start : undefined });
+    else if (study.open && studyPlace && repository.snapshot) { studyFiles.setOpen(studyPlace.path); if (studyPlace.line) studyFiles.setJump({ path: studyPlace.path, start: studyPlace.line, end: studyPlace.line, at: Date.now() }); }
+  }, [study.open, studyFiles?.open, studyFiles?.jump, !!repository?.snapshot]); // eslint-disable-line react-hooks/exhaustive-deps
   const [saveState, setSaveState] = useState(null);
   useEffect(() => {
     if (saveState?.state !== 'saved') return;
@@ -2475,6 +2510,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           {finder && <SearchBar key={`${finder.source}:${finder.query}`} app={app.name} initialSource={finder.source} initialQuery={finder.query} onClose={closeFinder}
             onPick={(source, item) => { const blockId = pickResult(source, item, finder.origin?.into ?? null); finder.done({ added: !!blockId, blockId }); return blockId; }} />}
           <div className="flex items-center gap-0.5">
+            {/* Study | Canvas (pinned-study-codebase-spec.md 2f): only when this canvas has a generated Run card or Runbook, or a pinned card. Drives the same
+                mode View > Canvas / Study set. */}
+            {studyPill(canvasApi.current?.blocks?.() || [], study.state.pin) && <Tabs value={study.mode === 'study' ? 'study' : 'canvas'} onValueChange={study.setMode}>
+              <TabsList pill data-study-toggle aria-label="Study or Canvas" className="mr-1.5 h-8">
+                <TabsTrigger pill value="study" data-study-toggle-option="study">Study</TabsTrigger>
+                <TabsTrigger pill value="canvas" data-study-toggle-option="canvas">Canvas</TabsTrigger>
+              </TabsList>
+            </Tabs>}
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><Play size={15} strokeWidth={1.8} /></button>
@@ -2518,7 +2561,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {reviewTools && board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
         {/* Study's reference pane: a sibling placed beside the frame (the frame only gets a margin), so the canvas and its notebook
             iframe never move to another parent. */}
-        {study.open && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} />}
+        {study.open && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} files={files} graph={graph} />}
         <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} study={study} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere && !roadmap.active} coaching={hooksCoaching} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} liveTitle={dive.tree?.path?.at(-1)?.title ?? app.title ?? null} recordPending={/^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree} access={askScope} title={app.title || ''} graded={graded} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <ExplainBackService.Provider value={explainBack}><AnimationBoard.Provider value={animationBoard}><CardFeedbackScope.Provider value={feedbackScope}><AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} /> : null}
           composer={panelOpen ? null : <div ref={setStripHost} data-canvas-chat-strip />} chatWindow={panelOpen ? null : <div ref={setWindowHost} data-canvas-chat-window className="empty:hidden" />} hooks={steps && !panelOpen ? <NextStepsCard steps={steps} minimized={curiousMin} onMinimizedChange={setCuriousMin} onPick={(step, hook) => nextStepSend.current?.(step, hook.hook)} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setAddLink} onPinForStudy={study.pinCard} study={study} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onSkeletonsDropped={dropSkeletons} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} roadmap={roadmapCanvas} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></CardFeedbackScope.Provider></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{dive.emptyHint}{dive.confirmDialog}{addLink && <AddLinkChooser onClose={() => setAddLink(null)} returnFocus={() => (addLink.blockId ? document.querySelector(`[data-block-id="${CSS.escape(addLink.blockId)}"]`) : null)}
   onChoose={kind => { const arg = addLink; setAddLink(null); if (kind === 'canvas') setRefPick(arg); else setTocPick(arg); }} />}

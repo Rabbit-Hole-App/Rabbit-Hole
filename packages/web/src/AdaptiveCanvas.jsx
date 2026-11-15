@@ -2041,15 +2041,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Study (focus-study.md): there both maps are hidden unless the learner chose one in Study. minimap and holeMap below are what
   // is shown (render, footprint, onState checkmarks); the Canvas preferences above are never written by Study.
   const widgetMode = study?.mode === 'study' ? 'study' : 'canvas';
-  const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps });
+  // study.repository: a repository canvas, where Study hides the toolbar and both maps outright (widget-visibility.js studyHides).
+  const studyRepository = !!study?.repository;
+  const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps, repository: studyRepository });
   // Focus (docs/features/focus-study.md): one card alone in the working pane, through focus-controller.js. Presentation only:
   // no board write, no undo entry (snapshot is never called for it), no model call. The adapter restyles the card's own host.
   const [focus, dispatchFocus] = useReducer(focusReducer, null);
   // The toolbar drawn: View > Toolbar, except over a pinned Study's notebook in Focus (widget-visibility.js toolbarDrawn); `toolbar`
   // stays the saved choice (View menu checkmark, onState).
-  const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind });
+  const toolbarShown = toolbarDrawn(toolbar, { studying: widgetMode === 'study', pinned: !!study?.state?.pin, focusKind: focus?.kind, repository: studyRepository });
   const showWidget = (name, on) => {
-    const route = widgetToggle({ mode: widgetMode, name, on });
+    const route = widgetToggle({ mode: widgetMode, name, on, repository: studyRepository });
     if (!route) return;
     if (route.store === 'study') { study?.setMap(name, on); return; }
     ({ minimap: setMinimapPref, holeMap: setHoleMapPref, curious: setCurious, toolbar: setToolbar })[name](on);

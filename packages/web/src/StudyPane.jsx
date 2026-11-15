@@ -1,5 +1,6 @@
 // Pinned Study (UI-27 Release 1, contract C:/s/spec/pinned-study/contract.md): a reference pinned beside the canvas's own
-// notebook and canvas. The pane is a sibling of LearnPage's canvas frame, never its parent: the frame only gets a margin, so the
+// notebook and canvas. On a repository canvas (pinned-study-codebase-spec.md) the reference pane also has Graph and Files tabs (the
+// same views the right panel holds) and the work pane's Run, Runbook and Notebook are each Focus on the existing card. The pane is a sibling of LearnPage's canvas frame, never its parent: the frame only gets a margin, so the
 // notebook card's iframe never moves to another parent (a moved iframe reloads and restarts its Python). "Notebook" is Focus on
 // the notebook card (focus-adapter-notebook.js restyles its host in place); "Canvas" leaves Focus, which puts back the camera
 // and selection the learner left.
@@ -8,7 +9,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LocateFixed, MessageSquarePlus, MoreHorizontal, Pin, PinOff, Replace } from 'lucide-react';
 import SourceReader from './SourceReader.jsx';
 import { LearningBlockBody } from './LearningBlocks.jsx';
-import { Menu, MenuItem, useMenuButton } from './ui.jsx';
+import { Menu, MenuItem, Tabs, TabsList, TabsTrigger, useMenuButton } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { pdfRef } from './pdf-source.js';
 import { objectName } from './selection-ref.js';
@@ -17,7 +18,8 @@ import { endStudyFocus } from './study-focus.js';
 import { attachStillCurrent, authorizePinnedSource, createPinnedAttacher } from './study-attach.js';
 import { wsHeaders } from './api.js';
 import { SWITCH_ROW, pinRef, pinnedAttachSnapshot, sourceOrigin, studyOffsets, versionLine } from './study-ref.js';
-import { eligible, readStudy, readerPinTarget, setStudyReaderPin, studyKey, studyLayout, studyReducer, studyScope, studyStatusText, writeStudy } from './study-state.js';
+import { WORK_ID, eligible, ownedId, readStudy, readerPinTarget, setStudyReaderPin, studyKey, studyLayout, studyReducer, studyScope, studyStatusText, writeStudy } from './study-state.js';
+import { defaultWork, studyTheseActions, workCards, workOptions, workTarget } from './study-work.js';
 
 const TYPE_LABELS = { pdf: 'PDF', text: 'Note', explanation: 'Explanation' };
 const STEP = 0.05;
@@ -30,11 +32,11 @@ function eligibleCards(api) {
   const all = [...(api.blocks?.() || []), ...(api.boardNow?.().items || [])];
   return all.filter(object => eligible(object) && pinRef(object)).map(object => ({ id: object.id, kind: eligible(object), name: objectName(object) }));
 }
-const notebooksOf = api => (api?.blocks?.() || []).filter(block => block.type === 'notebook');
 
 // The page's one Study state for this canvas (LearnPage calls it once). The reader's place is kept out of React state, so
 // scrolling a reference never re-renders the page; it is written a moment later, to the canvas it was made for.
-export function useStudy(canvasKey, board, canvasApi) {
+// repository: the canvas has a repository (Graph and Files), which is what makes Study hide the toolbar and the maps (widget-visibility.js).
+export function useStudy(canvasKey, board, canvasApi, { repository = false } = {}) {
   const scope = studyScope(canvasKey, board);
   // A value read back from a store that outlives the page is saved; one read from the blocked browser's in-memory stand-in is not.
   const read = at => {
@@ -79,7 +81,7 @@ export function useStudy(canvasKey, board, canvasApi) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const state = current.value;
   const study = {
-    state, mode: state.mode, open: state.mode === 'study', status: current.status, scope,
+    state, mode: state.mode, open: state.mode === 'study', status: current.status, scope, repository: !!repository,
     reader: () => live.current.value.reader,
     readerAt,
     // Leaving Study (View > Canvas) ends the Focus Study > Notebook started; the remembered work brings it back on return.
@@ -95,14 +97,17 @@ export function useStudy(canvasKey, board, canvasApi) {
       apply([{ type: 'pin', cardId: id, kind: eligible(object), ref }]);
       return true;
     },
-    // Notebook: Focus on the existing notebook card (never a second notebook), the same expanded view as the card's Focus
-    // button; the Focus controller holds the camera and selection to put back. The camera is also kept with the arrangement.
-    showNotebook: id => {
+    // Notebook, Run or Runbook: Focus on the existing card (never a second one; Run and Runbook restyle their host in place like the notebook's),
+    // the same expanded view as the card's Focus button; the Focus controller holds the camera and selection to put back. The camera is also
+    // kept with the arrangement. Switching between them keeps the first saved navigation, and the card stays mounted, so a Run card's session lives.
+    showWork: (work, id) => {
       const canvas = api();
-      if (!canvas || !canvas.block?.(id)) return;
-      apply([...(canvas.focusState?.() ? [] : [{ type: 'saveCamera', view: canvas.getView?.() || null }]), { type: 'setWork', work: 'notebook', notebookId: id }]);
+      if (!WORK_ID[work] || !canvas?.block?.(id)) return false;
+      const saved = canvas.focusState?.() ? [] : [{ type: 'saveCamera', view: canvas.getView?.() || null }];
       unslide();
-      canvas.enterFocus(id);
+      if (canvas.enterFocus(id) === false) return false;
+      apply([...saved, { type: 'setWork', work, cardId: id }]);
+      return true;
     },
     // Canvas: leaving Focus puts back the camera, selection and card scroll the learner left (this visit); with no Focus held
     // (it ended elsewhere, or never began), the camera saved with the arrangement.
@@ -113,9 +118,21 @@ export function useStudy(canvasKey, board, canvasApi) {
       apply([{ type: 'setWork', work: 'canvas' }]);
     },
     // Focus ended by Back to canvas, Escape or another card's Focus: the switch says Canvas, the navigation is already back.
-    focusEnded: () => { if (live.current.value.work === 'notebook') apply([{ type: 'setWork', work: 'canvas' }]); },
-    // Entering Study with the notebook as the work: Focus on it from where the learner is now.
+    focusEnded: () => { if (ownedId(live.current.value)) apply([{ type: 'setWork', work: 'canvas' }]); },
+    // Entering Study with a card as the work: Focus on it from where the learner is now.
     reframe: id => { const canvas = api(); if (!canvas?.block?.(id)) return false; unslide(); return canvas.enterFocus(id) !== false; },
+    setReferenceTab: tab => apply([{ type: 'setReferenceTab', tab }]),
+    // Files reopens where it was: the file and line the repository's Files view shows while studying (LearnPage), kept with the arrangement.
+    filesAt: place => { const at = live.current.value.filesPlace; if (place?.path && (at?.path !== place.path || at?.line !== place.line)) apply([{ type: 'filesAt', path: place.path, line: place.line }]); },
+    // The right panel Study closed, held until Study ends (spec 2b).
+    holdPanel: open => apply([{ type: 'panelWas', open }]),
+    // Study these (spec 2g): the three existing actions at once, then the Focus on the Run card when Study was already open.
+    studyThese: place => {
+      const was = live.current.value.mode === 'study', actions = studyTheseActions({ blocks: api()?.blocks?.() || [], place });
+      apply(actions);
+      const work = actions.find(action => action.type === 'setWork');
+      if (was && work) study.showWork(work.work, work.cardId);
+    },
     locate: () => {
       const canvas = api(), id = live.current.value.pin?.cardId;
       if (!canvas || !id) return;
@@ -130,16 +147,22 @@ export function useStudy(canvasKey, board, canvasApi) {
 }
 
 // The reference pane and the working-view switch, absolutely placed in the canvas frame's parent; the frame gets the margin.
-export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready }) {
+export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready, files = null, graph = null }) {
   const box = useRef(null);
   const [geo, setGeo] = useState(null);
   const [drag, setDrag] = useState(null);
   const [choosing, setChoosing] = useState(false);
   const [refused, setRefused] = useState(null);
-  const [pickNotebook, setPickNotebook] = useState(false);
+  const [picking, setPicking] = useState(null); // the work (run, runbook, notebook) whose several cards are being chosen from
   const options = useMenuButton();
   const chat = useChatWorkspace();
   const { state } = study, pin = state.pin, api = canvasApi.current;
+  const blocks = api?.blocks?.() || [], cards = workCards(blocks);
+  // The reference pane's tabs (spec 2b): Graph and Files where the canvas has a repository, Pinned only while a card is pinned. A canvas with no
+  // repository keeps Release 1's pane: the pinned reference alone.
+  const tabs = [graph && ['graph', 'Graph'], files && ['files', 'Files'], files || graph ? pin && ['pin', 'Pinned'] : null].filter(Boolean);
+  const refTab = !tabs.length ? 'pin' : tabs.some(([id]) => id === state.referenceTab) ? state.referenceTab : tabs[0][0];
+  const onPin = refTab === 'pin';
   void canvasState; // the canvas's cards changed: read the pin and the lists again (this render)
 
   // The space beside the right panels: the host's own size (a ResizeObserver, never the window's width), the frame's top, and
@@ -173,22 +196,33 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
     if (!frame || !place) return;
     frame.style.marginLeft = place.marginLeft ? `${place.marginLeft}px` : '';
     frame.style.marginTop = `${place.marginTop}px`;
-  }, [place?.marginLeft, place?.marginTop]); // eslint-disable-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => () => { const frame = canvasFrame.current; if (frame) { frame.style.marginLeft = ''; frame.style.marginTop = ''; } }, [canvasFrame]);
+    // The chat strip centred across both panes (spec 2e, index.css [data-study-band]): the frame starts after the reference pane, so the strip moves back
+    // by half of it. Only beside each other (stacked, the frame is already the full width).
+    if (study.repository && place.marginLeft) { frame.setAttribute('data-study-band', ''); frame.style.setProperty('--study-shift', `${place.marginLeft / 2}px`); }
+    else { frame.removeAttribute('data-study-band'); frame.style.removeProperty('--study-shift'); }
+  }, [place?.marginLeft, place?.marginTop, study.repository]); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => () => { const frame = canvasFrame.current; if (frame) { frame.style.marginLeft = ''; frame.style.marginTop = ''; frame.removeAttribute('data-study-band'); frame.style.removeProperty('--study-shift'); } }, [canvasFrame]);
 
-  // Study opened with the notebook as the work: frame it once the canvas has its cards. Only for the work the pane opened
-  // with, so a Notebook press inside Study never captures the camera a second time.
-  const framed = useRef(state.work !== 'notebook' || !state.notebookId);
+  // Study opened with a card as the work (the notebook, Run or Runbook): frame it once the canvas has its cards. Only for the work the pane opened
+  // with, so a press inside Study never captures the camera a second time.
+  const framed = useRef(!ownedId(state));
   useEffect(() => {
     if (framed.current || !ready) return;
-    if (study.reframe(state.notebookId)) framed.current = true;
+    if (study.reframe(ownedId(state))) framed.current = true;
   }, [ready, canvasState]); // eslint-disable-line react-hooks/exhaustive-deps
-  // The notebook's Focus ended outside this switch (Back to canvas, Escape, another card's Focus): the switch follows it.
+  // A Study never given a work opens on Run (else the Runbook) once the canvas has the card (spec 2a).
+  const defaulted = useRef(false);
+  useEffect(() => {
+    if (defaulted.current || !ready) return;
+    const first = defaultWork(state, blocks);
+    if (first && study.showWork(first.work, first.cardId)) defaulted.current = true;
+  }, [ready, canvasState]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The work card's Focus ended outside this switch (Back to canvas, Escape, another card's Focus): the switch follows it.
   const focusId = canvasState?.focus?.id ?? null, lastFocus = useRef(focusId);
   useEffect(() => {
     const was = lastFocus.current;
     lastFocus.current = focusId;
-    if (was && was !== focusId && was === state.notebookId) study.focusEnded();
+    if (was && was !== focusId && was === ownedId(state)) study.focusEnded();
   }, [focusId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setRefused(null); setChoosing(false); }, [pin?.cardId]);
 
@@ -235,12 +269,12 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
     setAttach(result.status === 'attached' ? null : result.status === 'refused' ? { cardId: at.cardId, refused: true, reason: result.reason } : { abandoned: true, reason: result.reason });
   };
   const attachRefused = attach?.refused && attach.cardId === pin?.cardId;
-  const notebooks = notebooksOf(api);
-  const target = notebooks.find(block => block.id === state.notebookId) || (notebooks.length === 1 ? notebooks[0] : null);
+  const choices = workOptions(blocks);
   const pickWork = work => {
     if (work === 'canvas') { if (state.work !== 'canvas') study.showCanvas(); return; }
-    if (target) study.showNotebook(target.id);
-    else if (notebooks.length > 1) setPickNotebook(open => !open);
+    const card = workTarget(state, blocks, work);
+    if (card) study.showWork(work, card.id);
+    else if (cards[work]?.length > 1) setPicking(open => (open === work ? null : work));
   };
 
   const share = drag ?? state.split;
@@ -279,8 +313,16 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
   </div>;
 
   return <>
-    <aside ref={box} aria-label="Pinned reference" data-study-pane data-layout={layout.stacked ? 'stacked' : 'wide'} data-pin={pin?.cardId || ''}
+    <aside ref={box} aria-label={tabs.length ? 'Reference' : 'Pinned reference'} data-study-pane data-reference-tab={refTab} data-layout={layout.stacked ? 'stacked' : 'wide'} data-pin={pin?.cardId || ''}
       className={`absolute z-20 flex flex-col bg-white ${layout.stacked ? 'border-b' : 'border-r'} border-line`} style={paneStyle}>
+      {/* A repository canvas: the reference tabs (Tabs kit, as the Run card's). Graph and Files show the views the right panel holds. */}
+      {tabs.length > 0 && <Tabs value={refTab} onValueChange={study.setReferenceTab}>
+        <TabsList data-study-ref-tabs aria-label="Reference" className="h-[42px] shrink-0 gap-4 px-3 pointer-coarse:h-12">
+          {tabs.map(([id, label]) => <TabsTrigger key={id} value={id} data-study-ref-tab={id}>{label}</TabsTrigger>)}
+        </TabsList>
+      </Tabs>}
+      {!onPin && <div data-study-ref-body={refTab} className="flex min-h-0 flex-1 flex-col px-4 pt-2 pb-4">{refTab === 'files' ? files : graph}</div>}
+      {onPin && <>
       {/* One 42 px row (WP6, owner brief 2026-10-24): pin, the name, Add to chat and Reference options. The pane keeps its
           "Pinned reference" name; the type, version and source sit in the options' details. Below 360 px Add to chat is its icon. */}
       <div data-study-header className="@container flex h-[42px] shrink-0 items-center gap-1.5 border-b border-line px-3 pointer-coarse:h-12">
@@ -321,6 +363,7 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
           ? <ExplanationReader block={card} position={study.reader()} onPosition={study.readerAt} />
           : <SourceReader presentation="study" sourceRef={sourceRef} position={study.reader()} onPosition={study.readerAt} onUnavailable={() => setRefused(pin.cardId)} onSelection={draft => { if (draft) selected.current = draft; }} />}
       </div>}
+      </>}
       <p data-study-status data-state={study.status || 'none'} role="status" className={`shrink-0 border-t border-line px-3 py-1 text-[11px] ${study.status === 'error' ? 'text-red-700' : 'text-ink-3'}`}>
         {studyStatusText(study.status)}</p>
       <div role="separator" tabIndex={0} aria-label="Resize pinned reference" aria-orientation={layout.stacked ? 'horizontal' : 'vertical'}
@@ -331,11 +374,11 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
         className={`absolute z-10 touch-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/40 focus-visible:outline-none ${layout.stacked ? '-bottom-1 left-0 h-2 w-full cursor-row-resize' : 'top-0 -right-1 h-full w-2 cursor-col-resize'}`} />
     </aside>
     <div role="group" aria-label="Working view" data-study-work={state.work} className={`absolute z-20 flex items-center justify-end gap-0.5 border-b border-line bg-white px-2 ${layout.stacked ? '' : 'border-l'}`} style={switchStyle}>
-      {[['notebook', 'Notebook'], ['canvas', 'Canvas']].map(([work, label]) => <button key={work} type="button" data-study-work-option={work} aria-pressed={state.work === work}
-        disabled={work === 'notebook' && !notebooks.length} onClick={() => pickWork(work)}
+      {choices.map(({ work, label, disabled }) => <button key={work} type="button" data-study-work-option={work} aria-pressed={state.work === work}
+        disabled={disabled} onClick={() => pickWork(work)}
         className={`h-6 rounded-md px-2 text-xs disabled:opacity-40 ${state.work === work ? 'bg-hover font-medium text-ink' : 'text-ink-2 hover:text-ink'}`}>{label}</button>)}
-      {pickNotebook && notebooks.length > 1 && <div role="menu" aria-label="Notebooks" className="absolute top-full right-2 z-30 w-56 rounded-lg border border-line bg-white p-1 shadow-md">
-        {notebooks.map(block => <button key={block.id} type="button" role="menuitem" data-study-notebook={block.id} onClick={() => { setPickNotebook(false); study.showNotebook(block.id); }}
+      {picking && cards[picking]?.length > 1 && <div role="menu" aria-label={`${picking === 'run' ? 'Run cards' : picking === 'runbook' ? 'Runbooks' : 'Notebooks'}`} className="absolute top-full right-2 z-30 w-56 rounded-lg border border-line bg-white p-1 shadow-md">
+        {cards[picking].map(block => <button key={block.id} type="button" role="menuitem" data-study-notebook={block.id} onClick={() => { const work = picking; setPicking(null); study.showWork(work, block.id); }}
           className="block w-full truncate rounded-md px-2 py-1.5 text-left text-sm hover:bg-hover">{objectName(block)}</button>)}
       </div>}
     </div>

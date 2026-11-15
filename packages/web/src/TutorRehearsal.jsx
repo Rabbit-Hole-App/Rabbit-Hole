@@ -8,6 +8,7 @@ import { SOMETHING_ELSE, goalOf, useOf } from './learn-codebase-goals.js';
 import { INTAKE_TEXT_EVENT, SOON, routeIntakeText } from './codebase-use-route.js';
 import { REHEARSAL_POLL_MS } from './learn-rehearsal-view.js';
 import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
+import { firstSourceFile } from './study-work.js';
 import { flowMessages, goalForm, intakeOpen, onlyRoute } from './rehearsal-flow.js';
 import { catalogueMessage } from './tutor-rehearsal-text.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
@@ -172,6 +173,8 @@ export default function TutorRehearsalFlow({ chat }) {
       const record = st.current.run?.record;
       if (record && !openRehearsalCard(chat.canvasOps, id === 'show:run' ? 'run' : 'runbook', record, { app: canvas, board, repositoryApp: repoRef.current?.app, routeTitle: st.current.routeTitle })) toast('This canvas cannot take a new card here.');
     }
+    // Study these (pinned-study-codebase-spec.md 2g): Files at the route's first source file, the Run card as the work, Study open; the page does the three actions.
+    else if (id === 'study:these') chat.canvasOps?.studyThese?.(firstSourceFile(st.current.run?.record));
   };
 
   // The cards are made when the record is ready, once for each (repo, commit, routeId), with no button press.

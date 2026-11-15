@@ -7,6 +7,7 @@
 // (radio / check, a check row stays open), a choice (the Page guides selector) and a divider. Disabled rows stay, greyed, never explained.
 import { AlignHorizontalDistributeCenter, AlignHorizontalJustifyCenter, Clipboard, Copy, CopyPlus, Eye, FilePen, Focus, Globe, Grid2X2, Group, Heading1, Keyboard, Layers, Link, LockKeyhole, LockKeyholeOpen, Maximize2, Minus, NotebookPen, Paintbrush, Pipette, Redo2, Scan, Scissors, Search, Sigma, SquareSlash, StickyNote, Trash2, Type, Undo2, Ungroup, Upload, Wand, ZoomIn, ZoomOut, Frame, GraduationCap, Ruler, Heading2, Heading3 } from 'lucide-react';
 import { ariaFor, hintFor, isMac } from './shortcuts.js';
+import { HIDDEN_IN_STUDY, widgetLocked } from './widget-visibility.js';
 
 // Section, sub-sections, text box, sticky note, divider and equation: inserted on this canvas only, no request, no model call.
 export const localInsertItems = canvas => [
@@ -49,7 +50,9 @@ const arrangeRows = (canvas, rows, least, state) => rows.map(([label, how]) => (
 export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdit = false, comments = {}, panel = null, drawing = true, study = null, onSlashCommands = null, onShortcuts = null, mac = isMac() }) => {
   const locked = canvasState.selectionLocked;
   const k = id => ({ hint: hintFor(id, mac), keys: ariaFor(id, mac) });
-  const checkRow = (label, on, set) => ({ label, check: !!on, onToggle: set });
+  // On a repository canvas in Study the toolbar and both maps are hidden outright: their rows stay, greyed, and say why (widget-visibility.js).
+  const lockedRow = { Toolbar: 'toolbar', Minimap: 'minimap', 'Rabbit Hole Map': 'holeMap' };
+  const checkRow = (label, on, set) => ({ label, check: !!on, onToggle: set, ...(widgetLocked({ mode: study?.mode, repository: study?.repository, name: lockedRow[label] }) ? { disabled: true, title: HIDDEN_IN_STUDY } : {}) });
   const widget = name => on => canvas()?.showWidget(name, on);
   return [
     {

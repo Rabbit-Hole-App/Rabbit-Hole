@@ -247,3 +247,12 @@ test('View: Canvas, Study and Page guides each lead with an icon (owner 2026-11-
   const section = find(localInsertItems(canvas), 'Section');
   assert.deepEqual(section.items.map(item => item.icon), [Heading1, Heading2, Heading3], 'Insert > Section: H1, H2 and H3');
 });
+
+// Pinned Study for a codebase canvas (pinned-study-codebase-spec.md 2d): on a repository canvas in Study the toolbar and both map rows stay, greyed, with the tooltip.
+test('View > Show / hide: Toolbar, Minimap and Rabbit Hole Map are disabled with "Hidden in Study" on a repository canvas while studying, and only then', () => {
+  const rowsOf = (mode, repository) => find(owner({ toolbar: true }, { study: { mode, repository, setMode() {} } })[2].items, 'Show / hide').items;
+  const state = (mode, repository) => Object.fromEntries(['Toolbar', 'Minimap', 'Rabbit Hole Map', 'Learning suggestions', 'Right panel'].map(label => { const row = find(rowsOf(mode, repository), label); return [label, [!!row.disabled, row.title || null]]; }));
+  assert.deepEqual(state('study', true), { Toolbar: [true, 'Hidden in Study'], Minimap: [true, 'Hidden in Study'], 'Rabbit Hole Map': [true, 'Hidden in Study'], 'Learning suggestions': [false, null], 'Right panel': [false, null] });
+  for (const [mode, repository] of [['canvas', true], ['study', false], ['study', undefined]])
+    assert.ok(Object.values(state(mode, repository)).every(([disabled, title]) => !disabled && title === null), `${mode} ${repository}: unchanged`);
+});
