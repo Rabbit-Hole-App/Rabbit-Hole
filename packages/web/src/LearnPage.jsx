@@ -2455,7 +2455,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
               canvas has a generated Run card or Runbook, or a pinned card. Drives the same mode View > Canvas / Study set. */}
           {studyPill(canvasApi.current?.blocks?.() || [], study.state.pin) && <Tabs value={study.mode === 'study' ? 'study' : 'canvas'} onValueChange={study.setMode}>
             <TabsList square data-study-toggle aria-label="Study or Canvas" className="absolute top-4 right-3 h-6 max-md:top-3 max-md:right-2">
-              <TabsTrigger square value="study" data-study-toggle-option="study" className="h-5 px-2.5 text-xs">Study</TabsTrigger>
+              <TabsTrigger square value="study" data-study-toggle-option="study" className="h-5 px-2.5 text-xs">Run</TabsTrigger>
               <TabsTrigger square value="canvas" data-study-toggle-option="canvas" className="h-5 px-2.5 text-xs">Canvas</TabsTrigger>
             </TabsList>
           </Tabs>}
