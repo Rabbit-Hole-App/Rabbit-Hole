@@ -1,0 +1,14 @@
+[
+  { "id": "m01", "prompt": "how does backpropagation work?", "expect": "fit" },
+  { "id": "m02", "prompt": "how does attention work in a transformer?", "expect": "fit" },
+  { "id": "m03", "prompt": "how does tokenization work?", "expect": "fit" },
+  { "id": "m04", "prompt": "how does RAG work?", "expect": "fit" },
+  { "id": "m05", "prompt": "how does RLHF work?", "expect": "fit" },
+  { "id": "m06", "prompt": "how does a diffusion model generate an image?", "expect": "fit" },
+  { "id": "m07", "prompt": "how does KV caching speed up inference?", "expect": "fit" },
+  { "id": "m08", "prompt": "how does beam search work?", "expect": "fit" },
+  { "id": "m09", "prompt": "how does dropout work?", "expect": "fit" },
+  { "id": "m10", "prompt": "what is batch normalization?", "expect": "fit" },
+  { "id": "m11", "prompt": "how does a decision tree make a prediction?", "expect": "fit" },
+  { "id": "m12", "prompt": "how does data flow through an ML pipeline?", "expect": "fit" }
+]
