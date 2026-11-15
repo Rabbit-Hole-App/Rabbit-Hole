@@ -67,47 +67,71 @@ def evaluate_checks(checks: list, rc: int, output: str, stat_fn) -> list:
     return res
 
 
+_WARNING = re.compile(r'(?i)\b(warning|deprecat\w*)\b\s*[:\]]|\b\w+Warning\b')  # a real warning line, not generated text that happens to contain "warn"
+
+
 def warnings_in(output: str) -> list:
     seen = []
     for line in output.splitlines():
         s = line.strip()[:300]
-        if s and re.search('warn', s, re.I) and s not in seen:
+        if s and _WARNING.search(s) and s not in seen:
             seen.append(s)
     return seen[:limits.MAX_WARNINGS_PER_STEP]
 
 
 # ---------------------------------------------------------------- knobs and traps (knob-type rule)
 
+KNOB_VERIFY_MAX_STEP_SEC = 60  # knobs and traps run only for steps whose measured time is at most this (a slow step's knobs are listed in route.knobs, not run)
+
+
 def knob_value(k: dict) -> str:
     return k.get('safeValue') or {'float': '0.5', 'int': '1', 'string': 'hello'}.get(k['type'], '')
 
 
-def _extra_ints(knobs: list, skip: str = '', small: bool = False) -> list:
-    out = []
-    for k in knobs:
-        if k['type'] == 'int' and k['flag'] != skip:
-            v = '5' if small and re.search(r'token|len|size', k['flag']) else ('1' if small else knob_value(k))
-            out.append(f"{k['flag']}={v}")
-    return out
+def set_flag(cmd: str, flag: str, value: str) -> str:
+    """Set `--flag=value` by REPLACING the flag's existing occurrence in cmd (later duplicates are dropped); append only when it is absent."""
+    tok = shlex.quote(f'{flag}={value}')
+    seen = []
+
+    def sub(m):
+        seen.append(1)
+        return tok if len(seen) == 1 else ''
+    out = re.sub(r'(?<!\S)' + re.escape(flag) + r'(?:=\S*)?(?=\s|$)', sub, cmd)
+    if not seen:
+        return cmd + ' ' + tok
+    return re.sub(r' {2,}', ' ', out).strip() if len(seen) > 1 else out
 
 
-def trap_plan(route: dict) -> list:
-    """[(id, cmd)]: per float knob an int value; per string knob a value containing '='; one misspelled flag. Safe int extras are added only for knobs the route lists."""
+def _extra_ints(knobs: list, skip: str = '') -> list:
+    """Safe small values for the route's int knobs (1, or 5 for token/length/size flags), so a trap run stays cheap."""
+    return [(k['flag'], '5' if re.search(r'token|len|size', k['flag']) else '1') for k in knobs if k['type'] == 'int' and k['flag'] != skip]
+
+
+def trap_plan(route: dict, only: set = None) -> list:
+    """[(id, cmd)] for steps in `only` (all when None): per float knob an int value; per string knob a value containing '='; one misspelled flag. Ids are unique."""
     out = []
     for sid in dict.fromkeys(k['step'] for k in route['knobs']):
+        if only is not None and sid not in only:
+            continue
         step = next(s for s in route['steps'] if s['id'] == sid)
         ks = [k for k in route['knobs'] if k['step'] == sid]
 
-        def mk(flag_tok, skip):
-            return ' '.join([step['cmd'], shlex.quote(flag_tok)] + [shlex.quote(e) for e in _extra_ints(ks, skip, small=True)])
+        def mk(flag, value, skip):
+            cmd = set_flag(step['cmd'], flag, value)
+            for f, v in _extra_ints(ks, skip):
+                cmd = set_flag(cmd, f, v)
+            return cmd
+        found = []
         for k in (k for k in ks if k['type'] == 'float'):
-            out.append((k['flag'].lstrip('-') + '_int_not_float', mk(k['flag'] + '=1', k['flag'])))
+            found.append((k['flag'].lstrip('-') + '_int_not_float', mk(k['flag'], '1', k['flag'])))
         for k in (k for k in ks if k['type'] == 'string'):
-            out.append((k['flag'].lstrip('-') + '_with_equals_sign', mk(k['flag'] + '=A=B', k['flag'])))
+            found.append((k['flag'].lstrip('-') + '_with_equals_sign', mk(k['flag'], 'A=B', k['flag'])))
         k = next((k for k in ks if k['type'] == 'float'), ks[0])
         name = k['flag'].lstrip('-')
-        wrong = '--' + name[:min(4, len(name) - 1)] + name[min(4, len(name) - 1) + 1:]
-        out.append(('unknown_key', mk(f'{wrong}={knob_value(k)}', k['flag'])))
+        i = min(4, len(name) - 1)
+        found.append(('unknown_key', mk('--' + name[:i] + name[i + 1:], knob_value(k), k['flag'])))
+        for tid, cmd in found:
+            out.append((tid if tid not in {t for t, _ in out} else f'{tid}_{sid}', cmd))
     return out
 
 
@@ -293,22 +317,44 @@ class Runner:
                 return False
         return True
 
+    def cheap_steps(self) -> set:
+        return {st['id'] for st in self.steps if st['sec'] <= KNOB_VERIFY_MAX_STEP_SEC}
+
+    def _knob_run(self, cmd: str, strs: list, logname: str) -> dict:
+        res = self.sh(cmd, 300)
+        self._attempt_log_extra(logname, cmd, res)
+        prompt = knob_value(strs[0]) if strs else None
+        return {'cmd': cmd, 'rc': res.rc, 'sec': res.sec,
+                'startsWithPrompt': bool(prompt) and res.rc == 0 and re.search('^' + re.escape(prompt), res.stdout, re.M) is not None,
+                'separators': len(re.findall(r'^\s*[-=]{3,}\s*$', res.stdout, re.M))}
+
     def verify_knobs(self) -> list:
+        """One combined command per cheap step: the step's FINAL cmd with every knob set (replaced, never appended) to its safe value, run once.
+        If it fails, retry once with the string knobs only (numeric safe values can violate a cross-flag constraint); the retry is entry [0], the failed combined run follows it."""
         out = []
+        cheap = self.cheap_steps()
         for sid in dict.fromkeys(k['step'] for k in self.route['knobs']):
             step = next(s for s in self.route['steps'] if s['id'] == sid)
             ks = [k for k in self.route['knobs'] if k['step'] == sid and k['type'] != 'bool']  # ponytail: bool knobs are not exercised
-            cmd = ' '.join([step['cmd']] + [shlex.quote(f"{k['flag']}={knob_value(k)}") for k in ks])
-            res = self.sh(cmd, min(limits.step_timeout(step['timeoutSec']), 600))
-            prompt = next((knob_value(k) for k in ks if k['type'] == 'string'), None)
-            out.append({'cmd': cmd, 'rc': res.rc, 'sec': res.sec, 'startsWithPrompt': bool(prompt) and res.rc == 0 and re.search('^' + re.escape(prompt), res.stdout, re.M) is not None,
-                        'separators': len(re.findall(r'^-{10,}\s*$', res.stdout, re.M))})
-            self._attempt_log_extra('knob-' + sid, cmd, res)
+            if sid not in cheap or not ks:
+                continue
+            strs = [k for k in ks if k['type'] == 'string']
+
+            def build(kk):
+                cmd = step['cmd']
+                for k in kk:
+                    cmd = set_flag(cmd, k['flag'], knob_value(k))
+                return cmd
+            first = self._knob_run(build(ks), strs, 'knob-' + sid)
+            if first['rc'] != 0 and len(strs) != len(ks):
+                out += [self._knob_run(build(strs), strs, 'knob-' + sid + '-retry-strings-only'), first]
+            else:
+                out.append(first)
         return out
 
     def run_traps(self) -> list:
         out = []
-        for tid, cmd in trap_plan(self.route):
+        for tid, cmd in trap_plan(self.route, self.cheap_steps()):
             res = self.sh(cmd, 300)
             path = f'logs/trap-{tid}.log'
             self.logs[path] = (res.stdout + (('\n--- stderr ---\n' + res.stderr) if res.stderr else '')).encode('utf-8', 'replace')[-limits.MAX_ARTIFACT_LOG_BYTES:]
@@ -339,8 +385,10 @@ def environment(provider) -> dict:
         pk = {p['name']: p['version'] for p in json.loads(sh('pip list --format=json'))}
     except ValueError:
         pk = {}
-    mem = re.search(r'MemTotal:\s+(\d+)', sh('grep MemTotal /proc/meminfo'))
-    return {'python': sh('python -V').replace('Python ', ''), 'cpu': int(sh('nproc') or 0) or 1, 'memGiB': round(int(mem.group(1)) / 1048576, 2) if mem else 0, 'packagesAfter': pk}
+    # the sandbox limit, not the host's /proc/meminfo: cgroup v2 memory.max or v1 limit_in_bytes when it is a plausible number, else what we requested
+    raw = sh('cat /sys/fs/cgroup/memory.max 2>/dev/null || cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null')
+    gib = int(raw) / 2 ** 30 if raw.isdigit() and 0 < int(raw) <= 64 * 2 ** 30 else limits.SANDBOX_MEMORY_MIB / 1024
+    return {'python': sh('python -V').replace('Python ', ''), 'cpu': int(sh('nproc') or 0) or 1, 'memGiB': round(gib, 2), 'packagesAfter': pk}
 
 
 def collect_files(provider, steps: list) -> tuple:
