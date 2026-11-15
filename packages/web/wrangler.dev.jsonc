@@ -187,6 +187,7 @@
     // /interact fast design and template build (release 131, owner 2026-11-14): DEV ONLY, so the owner's local stack (8878) and clones run the fast path: a pick names the family, one Flash Lite call fills a plan brief that code expands, the card is built from the plan with no model call, headless, and a shadow judge scores it afterwards. A fill that fails twice goes to one Opus brief, never to the old full design. The production config sets none of these: unset, every one of them keeps today's behaviour.
     "INTERACT_SCENE_PLAN_ENABLED": "true",
     "INTERACT_SEEK": "on",
+    "INTERACT_INPUTS_V2": "on",
     "INTERACT_DESIGN_KIND": "fast",
     "INTERACT_BUILD_KIND": "template",
     "INTERACT_RUN": "headless",
