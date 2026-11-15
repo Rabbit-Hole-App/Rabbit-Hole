@@ -141,15 +141,16 @@ def knob_value(k: dict) -> str:
     return chosen
 
 
-def set_flag(cmd: str, flag: str, value: str) -> str:
-    """Set `--flag=value` by REPLACING the flag's existing occurrence in cmd (later duplicates are dropped); append only when it is absent."""
+def set_flag(cmd: str, flag: str, value: str, spaced: bool = False) -> str:
+    """Set `--flag=value` by REPLACING the flag's existing occurrence in cmd (later duplicates are dropped); append only when it is absent. `spaced`: a value-taking flag written `--flag value` (click, argparse) is replaced with its value token."""
     tok = shlex.quote(f'{flag}={value}')
     seen = []
 
     def sub(m):
         seen.append(1)
         return tok if len(seen) == 1 else ''
-    out = re.sub(r'(?<!\S)' + re.escape(flag) + r'(?:=\S*)?(?=\s|$)', sub, cmd)
+    value_form = r'(?:=\S*|\s+(?!-)(?:"[^"]*"|\'[^\']*\'|\S+))?' if spaced else r'(?:=\S*)?'
+    out = re.sub(r'(?<!\S)' + re.escape(flag) + value_form + r'(?=\s|$)', sub, cmd)
     if not seen:
         return cmd + ' ' + tok
     return re.sub(r' {2,}', ' ', out).strip() if len(seen) > 1 else out
@@ -170,9 +171,9 @@ def trap_plan(route: dict, only: set = None) -> list:
         ks = [k for k in route['knobs'] if k['step'] == sid]
 
         def mk(flag, value, skip):
-            cmd = set_flag(step['cmd'], flag, value)
+            cmd = set_flag(step['cmd'], flag, value, True)
             for f, v in _extra_ints(ks, skip):
-                cmd = set_flag(cmd, f, v)
+                cmd = set_flag(cmd, f, v, True)
             return cmd
         found = []
         for k in (k for k in ks if k['type'] == 'float'):
@@ -190,7 +191,7 @@ def trap_plan(route: dict, only: set = None) -> list:
 
 # ---------------------------------------------------------------- one plain line for a failed step
 
-_ERR_LINE = re.compile(r"(?i)\b(error|exception|failed|failure|fatal|no such|not found|cannot|can't|refused|denied|invalid|unrecognized|no module|unable)\b")
+_ERR_LINE = re.compile(r"(?i)(error|exception|failed|failure|fatal|no such|not found|cannot|can't|refused|denied|invalid|unrecognized|no module|unable)")
 _SCRUB = [(re.compile(r'\b(?:sb|im|ap|vo|fu)-[A-Za-z0-9]{8,}\b'), ''), (re.compile(r'\$\s?\d[\d,.]*'), ''), (re.compile(r'(?i)\bmodal\b'), 'the machine')]
 _CHECK_WORDS = {'exit_zero': 'the command did not finish cleanly', 'stdout_matches': 'the output did not show the expected line', 'metric_decreased': 'the printed metric did not improve',
                 'metric_below': 'the printed metric did not get low enough', 'tests_passed': 'the test run did not end with all tests passing'}
@@ -353,7 +354,8 @@ class Runner:
         timeout = limits.step_timeout(step['timeoutSec'])
         t0 = time.time()
         log = f'/tmp/rehearsal-{name}.log'
-        launch = self.sh(f'setsid nohup bash -c {shlex.quote(cmd)} > {log} 2>&1 < /dev/null & echo $!', 60)
+        # the braces keep `&` on the server alone (the provider prefixes `cd <repo> &&`): $! is then the pid of the server's own session, so `kill -- -<pid>` takes its whole group
+        launch = self.sh('{ setsid nohup bash -c ' + shlex.quote(cmd) + f' > {log} 2>&1 < /dev/null & echo $!; }}', 60)
         pid = (launch.stdout.strip().splitlines() or [''])[-1]
         if not pid.isdigit():
             return ExecResult(launch.rc or 1, '', launch.stderr or 'could not start the process', round(time.time() - t0, 2)), [{'type': c['type'], 'passed': False} for c in checks], None
@@ -512,7 +514,7 @@ class Runner:
         cmd, checks = step['cmd'], [dict(c) for c in step['checks']]
         for k in ks:
             v = knob_value(k)
-            cmd = set_flag(cmd, k['flag'], v)
+            cmd = set_flag(cmd, k['flag'], v, True)
             if k['type'] == 'int' and 'port' in k['flag'].lower() and str(k.get('default', '')).isdigit() and v.isdigit():
                 checks = [{**c, 'port': int(v)} if c.get('port') == int(k['default']) else c for c in checks]
         res, done, started = self._start_long(step, cmd, checks, keep=False, name='knob-' + step['id'])
@@ -545,7 +547,7 @@ class Runner:
             def build(kk):
                 cmd = step['cmd']
                 for k in kk:
-                    cmd = set_flag(cmd, k['flag'], knob_value(k))
+                    cmd = set_flag(cmd, k['flag'], knob_value(k), k['type'] != 'bool')
                 return cmd
             first = self._knob_run(build(ks), strs, 'knob-' + sid)
             if first['rc'] != 0 and len(strs) != len(ks):

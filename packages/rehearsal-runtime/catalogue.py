@@ -12,7 +12,7 @@ from pathlib import PurePosixPath
 import contracts
 import limits
 import pricing
-from discover import _extract_json
+from discover import _extract_json, extract_knobs
 from model import DEFAULT_MODEL, BudgetStop, ModelCaller, ModelRefused
 
 DOCKER_REASON = "Docker isn't available in the sandbox yet"  # route-catalogue-spec 6: Docker-in-sandbox is Alpha and unverified, so Docker routes are labelled, not run
@@ -250,9 +250,12 @@ def _str_flags(call) -> list:
     return [a for a in call.args if isinstance(a, ast.Constant) and isinstance(a.value, str) and a.value.startswith('-') and not a.value.startswith('---')]
 
 
+_CONFIGURATOR = re.compile(r"(?m)^exec\(open\(.configurator")
+
+
 def python_candidates(path: str, text: str, prefixes: dict) -> list:
     """Runnable scripts and click/typer commands with their flags (flag source = the line of the flag's string)."""
-    if not re.search(r'__main__|argparse|click|typer|fire|uvicorn', text):
+    if not re.search(r'__main__|argparse|click|typer|fire|uvicorn', text) and not _CONFIGURATOR.search(text):
         return []
     try:
         tree = ast.parse(text)
@@ -294,6 +297,10 @@ def python_candidates(path: str, text: str, prefixes: dict) -> list:
             prefixes[(mod, fn.name)] = prefix
             continue  # a group is not itself a route; its commands are
         out.append({'kind': 'command', 'source': f'{path}:{fn.decorator_list[0].lineno}-{fn.lineno}', 'cmd': f'{prefix} {name}', 'flags': fl[:MAX_FLAGS], 'words': _near(lines, fn.lineno - 1, 2)})
+    if _CONFIGURATOR.search(text):  # nanoGPT style: literal defaults above `exec(open('configurator.py').read())` are the command-line overrides
+        known = {f['flag'] for f in flags}
+        flags += [{'flag': k['flag'], 'source': k['source']} for k in extract_knobs(path, text) if k['flag'] not in known]
+        frameworks.add('configurator')
     if guard or frameworks:
         out.append({'kind': 'script', 'source': f'{path}:{guard or (flags[0]["source"].split(":")[1] if flags else 1)}', 'cmd': f'python {path}', 'framework': sorted(frameworks) or ['__main__'],
                     'flags': flags[:MAX_FLAGS], 'words': _near(lines, (guard or 1) - 1, 6)})
@@ -509,7 +516,7 @@ def build_prompt(job: dict, rp: dict) -> tuple:
 # ---------------------------------------------------------------- validation (2c) and the deterministic corrections
 
 _LINE = re.compile(r'[A-Za-z0-9_./-]+\.[A-Za-z0-9]+:\d+')
-_PATH = re.compile(r'(?:^|\s)(?:\.{1,2}/|~/|/)[\w.-]+|\b[\w.-]+/[\w.-]+\.[A-Za-z0-9]{1,5}\b|\b[\w-]+\.(?:py|js|ts|tsx|jsx|md|rst|toml|json|ya?ml|sh|txt|cfg|ini|db|csv|ipynb|go|rs)\b|\b[\w.-]+/[\w.-]+/[\w./-]*')
+_PATH = re.compile(r'(?:^|\s)(?:\.{1,2}/|~/|/)[\w.-]+|\b[\w.-]+/[\w.-]+\.[A-Za-z0-9]{1,5}\b|\b[\w-]+\.(?:py|js|ts|tsx|jsx|md|rst|toml|json|ya?ml|sh|txt|cfg|ini|db|csv|ipynb|go|rs)\b|\b[\w.-]+/[\w.-]+/[\w./-]*|\b(?:data|src|config|configs|tests?|docs?|examples?|scripts?|lib|bin|cmd|pkg|app|models?|notebooks?|assets|static|templates)/[\w.-]+')
 _CMD = re.compile(r'`|(?:^|\s)--[A-Za-z]|\b(?:pip3?|npm|npx|yarn|pnpm|cargo|make|docker|uv|uvx|pytest|brew|git|conda|poetry)\s+[\w-]+|\bpython3?\s+(?:-m\b|[\w./-]+\.\w+)|\$\s')
 
 

@@ -420,8 +420,6 @@ def chosen_problems(route: dict, prereqs: list, fileset: set) -> list:
             errs.append(f"prerequisite route {r['routeId']} is not inlined: no install or step cites " + ', '.join(missing[:3]))
     errs += [f"step {s['id']} cites {s['source']}: that file is not in the repository" for s in route['steps']
              if re.fullmatch(r'[^\s:]+:[\d-]+', s['source']) and _file_of(s['source']) not in fileset][:4]
-    if 'alternatives' in route:
-        errs.append('remove `alternatives`: the catalogue replaces it')
     return errs
 
 
@@ -439,7 +437,9 @@ def finish_route(route: dict, files: list, reader, chosen: dict = None, prereqs:
     for k in route['knobs']:
         for p in step_script_paths(by_step[k['step']]['cmd']) + [_file_of(k['source'])]:  # the script the step runs, then the file the knob cites (a click CLI)
             src = reader(p) if p in fileset and p.endswith('.py') else None
-            truth = next((t for t in extract_knobs(p, src) if t['flag'] == k['flag']), None) if src else None
+            same = [t for t in extract_knobs(p, src) if t['flag'] == k['flag']] if src else []
+            cited = int(m.group(1)) if (m := re.search(r':(\d+)', k['source'])) and _file_of(k['source']) == p else 0
+            truth = min(same, key=lambda t: abs(int(t['source'].rsplit(':', 1)[1]) - cited)) if same and cited else (same[0] if same else None)  # a CLI with several commands declares --port more than once: the one nearest the cited line
             if truth:
                 k.update(type=truth['type'], default=truth['default'], source=truth['source'])
                 break
