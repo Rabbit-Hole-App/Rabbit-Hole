@@ -20,6 +20,8 @@ export function inspect(html,comp){
   assert.doesNotMatch(svg,/<(?:use|image|foreignObject)\b/);const count=[...svg.matchAll(/<(?:rect|circle|ellipse|line|polyline|polygon|path|text)\b/g)].length;max=Math.max(max,count);
   const ids=[...svg.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(ids.length,new Set(ids).size);
   for(const m of svg.matchAll(/<rect\b([^>]+)>/g)){const a=Object.fromEntries([...m[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(x=>[x[1],x[2]]));assert.ok(+a.x>=0&&+a.y>=0&&+a.x+(+a.width)<=640.01&&+a.y+(+a.height)<=comp.layout.height+.01,JSON.stringify(a));}
+  const marks=[...svg.matchAll(/<(text|rect)\b([^>]+)>/g)].map(m=>({kind:m[1],a:Object.fromEntries([...m[2].matchAll(/([\w-]+)="([^"]*)"/g)].map(a=>[a[1],a[2]]))}));
+  for(let i=0;i<marks.length;i++)if(marks[i].kind==='text'){const a=marks[i].a;for(const later of marks.slice(i+1).filter(m=>m.kind==='rect')){const b=later.a;if(b.fill==='none'||Number(b.width)===0)continue;assert.ok(!(Number(a.x)>Number(b.x)&&Number(a.x)<Number(b.x)+Number(b.width)&&Number(a.y)>Number(b.y)+2&&Number(a.y)<Number(b.y)+Number(b.height)),`${comp.id}: later rectangle ${b.id} hides text ${a.id}`)}}
   signatures.add(JSON.stringify(ui.card.evidence));
  }
  assert.ok(max<=130,`${comp.id} has ${max} objects`);assert.ok(signatures.size>1,'controls change evidence');

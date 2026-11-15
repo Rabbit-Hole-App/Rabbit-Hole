@@ -3,7 +3,7 @@
   "canonical": "point-to-prediction",
   "layout": {
     "width": 640,
-    "height": 360
+    "height": 390
   },
   "story": "The same point appears on the feature plane and in the tree tests. Follow the highlighted branches to see which leaf supplies the prediction.",
   "aha": {

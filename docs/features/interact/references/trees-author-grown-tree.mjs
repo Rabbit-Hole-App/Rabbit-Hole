@@ -1,6 +1,6 @@
 import {toy} from './trees-author.mjs';
 export function make(depth){const deep=depth==='deep',simple=depth==='overview';return{
- family:'graph-active-path',canonical:'point-to-prediction',layout:{height:deep?400:360},
+ family:'graph-active-path',canonical:'point-to-prediction',layout:{height:deep?400:simple?360:390},
  story:simple?'A tree answers one test at a time. Change the probe point: the highlighted route ends at the leaf that supplies its prediction.':'The same point appears on the feature plane and in the tree tests. Follow the highlighted branches to see which leaf supplies the prediction.',
  aha:{inputs:simple?{point:'J'}:{x:6,y:1,...(deep?{trace:2}:{})},observation:'J goes right at the x test, then left at the y test. The leaf predicts class 0, although J’s true class is 1.'},
  parts:[{id:'tree',kind:'predicate-tree',bind:'data.tree; computed.path'},{id:'probe',kind:simple?'point-card':'feature-plane',bind:'inputs; data.rows'},{id:'route',kind:'active-path',bind:'computed.path; inputs.trace'},{id:'prediction',kind:'leaf-readout',bind:'computed.leaf.prediction'},...(deep?[{id:'tests',kind:'predicate-ledger',bind:'computed.path; data.tree.counts'}]:[])],
@@ -16,6 +16,6 @@ export function paint(S,u,m,K){const{C,T,R,L,D,P,wrap,note,metric,axes}=K,simple
  for(const p of flat.filter(p=>p.id!=='root')){const parent=p.id.slice(0,-1),[x,y]=coords[p.id],[px,py]=coords[parent],on=active.has(p.id);s+=L(px,py+bh/2,x,y-bh/2,on?C.blue:C.border,on?3:1.5)+T((px+x)/2+(p.id.endsWith('l')?-12:12),(py+y)/2,p.id.endsWith('l')?'Yes':'No',12,on?C.blue:C.muted,'middle')}
  for(const p of flat){const[x,y]=coords[p.id],on=active.has(p.id),n=p.node;s+=R(x-bw/2,y-bh/2,bw,bh,on?C.soft:C.panel,on?C.blue:C.border);s+=T(x,y+(deep?-6:5),n.split?`${n.split.feature} ≤ ${n.split.threshold}?`:`Class ${n.prediction}`,simple?16:14,on?C.blue:C.muted,'middle');if(deep)s+=T(x,y+16,`${n.counts[0]} zeros · ${n.counts[1]} ones`,11,C.muted,'middle')}
  if(deep){const known=S.data.rows.find(r=>r.x===m.point.x&&r.y===m.point.y);if(known)s+=T(332,310,`${known.id}: true class ${known.label} · tree ${m.leaf.prediction}`,13,C.muted);const p=m.route[m.cursor],n=p.node;const text=n.split?`${m.point[n.split.feature]} ≤ ${n.split.threshold} is ${m.point[n.split.feature]<=n.split.threshold?'true: take Yes':'false: take No'}.`:`Reached ${p.id.replace('root','root ')}: ${n.counts[0]} class-0 and ${n.counts[1]} class-1 training rows; predict ${n.prediction}.`;s+=note(339,text);}
- else s+=note(302,`The highlighted route reaches a leaf: predict class ${m.leaf.prediction}. A different point can reach a different leaf.`);
+ else s+=note(simple?302:338,`The highlighted route reaches a leaf: predict class ${m.leaf.prediction}. A different point can reach a different leaf.`);
  return s;
 }

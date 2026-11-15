@@ -149,7 +149,7 @@ main{max-width:724px;padding:24px}.card h1{font-size:28px}.card-copy{font-size:1
  for(const p of flat.filter(p=>p.id!=='root')){const parent=p.id.slice(0,-1),[x,y]=coords[p.id],[px,py]=coords[parent],on=active.has(p.id);s+=L(px,py+bh/2,x,y-bh/2,on?C.blue:C.border,on?3:1.5)+T((px+x)/2+(p.id.endsWith('l')?-12:12),(py+y)/2,p.id.endsWith('l')?'Yes':'No',12,on?C.blue:C.muted,'middle')}
  for(const p of flat){const[x,y]=coords[p.id],on=active.has(p.id),n=p.node;s+=R(x-bw/2,y-bh/2,bw,bh,on?C.soft:C.panel,on?C.blue:C.border);s+=T(x,y+(deep?-6:5),n.split?`${n.split.feature} ≤ ${n.split.threshold}?`:`Class ${n.prediction}`,simple?16:14,on?C.blue:C.muted,'middle');if(deep)s+=T(x,y+16,`${n.counts[0]} zeros · ${n.counts[1]} ones`,11,C.muted,'middle')}
  if(deep){const known=S.data.rows.find(r=>r.x===m.point.x&&r.y===m.point.y);if(known)s+=T(332,310,`${known.id}: true class ${known.label} · tree ${m.leaf.prediction}`,13,C.muted);const p=m.route[m.cursor],n=p.node;const text=n.split?`${m.point[n.split.feature]} ≤ ${n.split.threshold} is ${m.point[n.split.feature]<=n.split.threshold?'true: take Yes':'false: take No'}.`:`Reached ${p.id.replace('root','root ')}: ${n.counts[0]} class-0 and ${n.counts[1]} class-1 training rows; predict ${n.prediction}.`;s+=note(339,text);}
- else s+=note(302,`The highlighted route reaches a leaf: predict class ${m.leaf.prediction}. A different point can reach a different leaf.`);
+ else s+=note(simple?302:338,`The highlighted route reaches a leaf: predict class ${m.leaf.prediction}. A different point can reach a different leaf.`);
  return s;
 },function kit(){
  let n=0;const E=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
