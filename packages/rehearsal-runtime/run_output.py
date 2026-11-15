@@ -37,7 +37,12 @@ def collapse_cr(text: str) -> str:
     return '\n'.join(line.rstrip('\r').rsplit('\r', 1)[-1] for line in text.replace('\r\n', '\n').split('\n'))
 
 
+_LOG_LINE = re.compile(r'^\s*\[?(?:\d{4}-\d{2}-\d{2}|\d{2}:\d{2}:\d{2}|(?:INFO|WARNING|WARN|ERROR|DEBUG|CRITICAL)\b|[Uu]vicorn)')  # a timestamp, a log level or a server's own line
+
+
 def _shape(line: str):
+    if _LOG_LINE.match(line):
+        return None  # a log line is text, however it is spaced (`INFO:     Started server process [1]` has two "columns")
     if line.count('|') >= 2:
         return ('pipe', line.count('|'))
     cells = re.split(r'\s{2,}', line.strip())
@@ -45,7 +50,7 @@ def _shape(line: str):
 
 
 def stdout_kind(text: str) -> str:
-    """json when the whole stdout parses as a JSON object or array; table when 3 or more consecutive lines share a pipe or column shape (best effort); else text."""
+    """json when the whole stdout parses as a JSON object or array; table when 3 or more consecutive lines share a pipe or column shape and none of them starts with a timestamp or log level (best effort); else text."""
     t = text.strip()
     if t[:1] in ('{', '['):
         try:
