@@ -2,15 +2,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://rabbit-hole.local/rehearsal/route.json",
   "title": "Rehearsal route: the shortest documented route to a visible result",
-  "description": "Produced by discovery (one model call, structured output). Commands are verbatim from the repository; a flag is added only if the README itself adds it for this hardware. A step without a `source` is rejected. CHECK RULES (apply to every check): `stdout_matches`, `metric_decreased` and `metric_below` patterns are Python regular expressions applied with re.MULTILINE, so `^` and `$` match at every line, to the step's whole stdout+stderr. `metric_decreased` takes the FIRST and LAST match in order of appearance (capture group 1, compared as floats) and passes when last < first. `metric_below` compares the LAST match to `value` (passes when last < value). `files_exist` paths are relative to the repository root in the sandbox. `exit_zero` passes when the step's rc is 0.",
+  "description": "Produced by per-route discovery (one model call, structured output) from the catalogue route chosen by the person (route-catalogue-spec.md section 5): discovery no longer chooses a route and `alternatives` is deprecated (the catalogue replaces it; old records still carry it). A step with longRunning true is started in the background (nohup, pid captured), its checks are probed, its log captured, and it is stopped at the end of the route; the record stores startedSec (time to the first successful probe) instead of sec. Check types added for services, APIs and test suites: port_listens {port} passes when the port accepts a connection within 60 s; http_200 {port, path} passes when curl -fsS http://127.0.0.1:<port><path> exits 0 within the step timeout (the body's first 200 chars are recorded); tests_passed {pattern?} passes when exit is 0 and stdout matches the runner's summary line (pytest: \\d+ passed; jest: Tests:.*passed; go test: ^ok\\b; cargo test: test result: ok) or the pattern. Commands are verbatim from the repository; a flag is added only if the README itself adds it for this hardware. A step without a `source` is rejected. CHECK RULES (apply to every check): `stdout_matches`, `metric_decreased` and `metric_below` patterns are Python regular expressions applied with re.MULTILINE, so `^` and `$` match at every line, to the step's whole stdout+stderr. `metric_decreased` takes the FIRST and LAST match in order of appearance (capture group 1, compared as floats) and passes when last < first. `metric_below` compares the LAST match to `value` (passes when last < value). `files_exist` paths are relative to the repository root in the sandbox. `exit_zero` passes when the step's rc is 0.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["routeId", "title", "whyChosen", "alternatives", "install", "steps", "knobs"],
+  "required": ["routeId", "title", "whyChosen", "install", "steps", "knobs"],
   "properties": {
     "routeId": { "type": "string", "pattern": "^[a-z0-9_]+$" },
     "title": { "type": "string", "minLength": 1 },
     "whyChosen": { "type": "string", "minLength": 1 },
+    "prerequisites": { "type": "array", "items": { "type": "string", "pattern": "^[a-z0-9_]+$" }, "description": "routeIds this route depends on (from the catalogue); their steps are inlined as this route's first steps, sourced from the prerequisite route" },
     "alternatives": {
+      "deprecated": true,
       "type": "array",
       "items": {
         "type": "object", "additionalProperties": false, "required": ["routeId", "rejected"],
@@ -34,6 +36,7 @@
           "cmd": { "type": "string", "minLength": 1 },
           "source": { "type": "string", "minLength": 1, "description": "where in the repository the command came from, e.g. README.md:85" },
           "timeoutSec": { "type": "integer", "minimum": 1, "maximum": 1500 },
+          "longRunning": { "type": "boolean" },
           "checks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/check" } }
         }
       }
@@ -61,6 +64,9 @@
         { "type": "object", "additionalProperties": false, "required": ["type", "paths"], "properties": { "type": { "const": "files_exist" }, "paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } } } },
         { "type": "object", "additionalProperties": false, "required": ["type", "pattern"], "properties": { "type": { "const": "stdout_matches" }, "pattern": { "type": "string", "minLength": 1 } } },
         { "type": "object", "additionalProperties": false, "required": ["type", "pattern"], "properties": { "type": { "const": "metric_decreased" }, "pattern": { "type": "string", "minLength": 1 } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "port"], "properties": { "type": { "const": "port_listens" }, "port": { "type": "integer", "minimum": 1, "maximum": 65535 } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "port", "path"], "properties": { "type": { "const": "http_200" }, "port": { "type": "integer", "minimum": 1, "maximum": 65535 }, "path": { "type": "string", "pattern": "^/" } } },
+        { "type": "object", "additionalProperties": false, "required": ["type"], "properties": { "type": { "const": "tests_passed" }, "pattern": { "type": "string", "minLength": 1 } } },
         { "type": "object", "additionalProperties": false, "required": ["type", "pattern", "value"], "properties": { "type": { "const": "metric_below" }, "pattern": { "type": "string", "minLength": 1 }, "value": { "type": "number" } } }
       ]
     }

@@ -14,6 +14,8 @@
     "timeBudgetMin": { "type": "integer", "minimum": 1, "maximum": 240 },
     "readme": { "type": "string", "maxLength": 400000 },
     "files": { "type": "array", "maxItems": 20000, "items": { "type": "string", "minLength": 1, "maxLength": 512 } },
+    "routeId": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "the catalogue route to rehearse; absent only for the old single-route flow" },
+    "catalogueRoute": { "$ref": "catalogue.json#/$defs/route", "description": "the chosen route (stepsSketch and knobsHint are discovery's input); discovery no longer chooses" },
     "version": { "const": "rehearsal-1" }
   }
 }
