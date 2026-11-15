@@ -300,5 +300,13 @@ Runbook, Notebook, Canvas, from what the canvas has. This extends Release 1; its
   saved choices (`studyHides`); View > Show / hide greys those rows with the tooltip "Hidden in Study" (`widgetLocked`). Nothing is written to Canvas
   preferences. A Release 1 canvas keeps the rules in section 1.
 - The right panel closes while studying and is put back on leaving; a code reference (`small:open-code`, a citation) shows Files in the reference pane
-  at that line; the chat strip is centred across both panes (`[data-study-band]` in `index.css`); the header pill `[data-study-toggle]` shows only with
-  a generated Run card or Runbook, or a card pin; the Tutor's plan message has Study these.
+  at that line; the chat strip is the canvas's own, unchanged (owner 2026-11-15; the earlier centring across both panes is removed); the header pill
+  `[data-study-toggle]` is small and sits at the far right end of the header row, and shows only with a generated Run card or Runbook, or a card pin; the
+  Tutor's plan message has Study these.
+- Owner 2026-11-15 (Study UI fixes): Run or Runbook as the work shows the card alone (`studyCardOnly` in `widget-visibility.js`; `[data-study-card]` in
+  `index.css` hides the surface and the other cards by visibility, never unmounting; no zoom control, lower-left button or Focus header strip, so the
+  work tabs are the way back; the frame has no header row, `workspaceFrame(area, { bar: false })`). The notebook keeps its Focus header. The work-tabs row is
+  42 px (`SWITCH_ROW`) so its line meets the reference tabs' line, the pane's right border is the only divider, and Files fills the pane edge to edge.
+  Show suggestions works in Study (`focusWidgets` keepCurious: a repository canvas in Study keeps Curious as chosen in Focus). A Runbook citation or Run
+  source line (`small:open-code` with `sameRepo`) opens Files for the same repository whatever commit or app the card carries (`answersOpenCode`); the
+  Files reader and the Graph node details offer Add in chat and Open in files.

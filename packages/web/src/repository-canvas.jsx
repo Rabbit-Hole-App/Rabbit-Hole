@@ -6,6 +6,7 @@ import { lazyFeature } from './lazy-feature.jsx';
 import { useRepository } from './use-repository.js';
 import { contextOf, fileObject, objectOf } from './inspector.js';
 import { learnAction } from './agent/learn-hook.js';
+import { answersOpenCode } from './learn-runbook.js';
 import { askDraft, askQuestion, wireContext } from './agent/scope.js';
 
 // The graph view's code loads when Explore codebase first shows it (brief section 13), never with the canvas.
@@ -26,8 +27,9 @@ export function useRepositoryCanvas(project, { codeCards = false } = {}) {
   // at its lines; any other card is left to the card (GitHub at its commit), never shown against a different revision.
   useEffect(() => {
     const open = event => {
-      const { app: name, commit, path, start, end } = event.detail || {};
-      if (!repository || name !== app?.name || commit !== snapshot?.commit || !path) return;
+      const { path, start, end } = event.detail || {};
+      if (!repository || !snapshot || !answersOpenCode(event.detail, { appName: app?.name, repo: app?.repo, commit: snapshot.commit })) return;
+      if (event.detail.sameRepo && !snapshot.files?.some(file => file.path === path)) return; // a file the snapshot lacks: left to GitHub at the card's commit
       event.preventDefault();
       repository.files.setOpen(path);
       if (start) repository.files.setJump({ path, start, end: end || start, at: Date.now() });
