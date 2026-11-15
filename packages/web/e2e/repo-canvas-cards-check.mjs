@@ -800,6 +800,7 @@ await check('16b more than 250 connections: the graph says "Showing 250 of N con
     const first = want;
     // Search: 30 matching nodes (870 connections) is another scope; 11 matching nodes (110 connections) is under the cap.
     const search = panel.getByLabel('Search repository');
+    if (!(await search.isVisible())) await panel.locator('[data-graph-search-open]').click(); // the search sits behind the icon in the graph's controls
     await search.fill('bulk_');
     await waitFor(async () => (await panel.locator('[data-graph-node]').count()) === 30, 8000, 'search shows 30 nodes');
     now = await read(); want = await expected();

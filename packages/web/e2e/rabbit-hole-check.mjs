@@ -1276,6 +1276,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   };
   // A node is picked on its dot, not its group's centre (the label sits under the dot); it rides as a temporary code chip.
   const pickNode = async (page, label = 'CausalSelfAttention') => {
+    { const box = graph6(page).getByRole('textbox', { name: 'Search repository' }); if (!(await box.isVisible())) await graph6(page).locator('[data-graph-search-open]').click(); } // the search sits behind the icon in the graph's controls
     await graph6(page).getByRole('textbox', { name: 'Search repository' }).fill(label);
     await page.waitForTimeout(800);
     await graph6(page).locator(`[data-graph-node][aria-label="${label}"] :is(circle, rect)`).first().click({ timeout: 10000 });
@@ -1615,6 +1616,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const shown = () => graph6(page).locator('[data-graph-node]').evaluateAll((all) => all.map((n) => n.dataset.graphNode).join());
     await graph6(page).locator(`[data-graph-node="${node.id}"]`).waitFor({ timeout: 10000 });
     must(await shown() === node.id, `the graph shows ${await shown()}, not the answer's ${node.id}`);
+    { const box = graph6(page).getByRole('textbox', { name: 'Search repository' }); if (!(await box.isVisible())) await graph6(page).locator('[data-graph-search-open]').click(); } // the search sits behind the icon in the graph's controls
     await graph6(page).getByRole('textbox', { name: 'Search repository' }).fill('train');
     await page.waitForTimeout(500);
     must(await shown() !== node.id, 'the search did not move the graph on');
@@ -1805,6 +1807,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await noAsks(fx);
     await graphAt(fx, true);
     await pickNode(fx, 'LayerNorm');
+    { const box = graph6(fx).getByRole('textbox', { name: 'Search repository' }); if (!(await box.isVisible())) await graph6(fx).locator('[data-graph-search-open]').click(); } // the search sits behind the icon in the graph's controls
     await graph6(fx).getByRole('textbox', { name: 'Search repository' }).fill(''); // pickNode's search would filter the decision out
     await openLayers(fx);
     await layer(fx, 'Decisions').click();

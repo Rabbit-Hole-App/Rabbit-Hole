@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Info, Minus, Plus, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Info, Minus, Plus, RotateCcw, Search } from 'lucide-react';
 import { forceSimulation, forceLink, forceManyBody, forceCollide, forceX, forceY } from 'd3-force';
-import { Button, IconBtn, Menu } from './ui.jsx';
+import { Button, IconBtn, Input, Menu } from './ui.jsx';
 import { limitEdges } from './graph-card.js';
 
 // Overview is bounded; focusing a symbol expands its actual one-hop relationships.
@@ -28,7 +28,7 @@ const MEMORY=new Set(['decision','question','session']),MEMORY_COLOR={decision:'
 // PAD is in CSS pixels (times k in graph units), so no node is clamped under the zoom controls (top right, 42px tall) or the
 // connections note (bottom left) in a narrow panel, where they would take its clicks (rh-local wp6-kg-entity, gate 39765600792).
 const PAD = { x: 40, top: 56, bottom: 36 }, MIN_W = 520;
-export default function RepositoryGraph({ graph: sourceGraph, selected, selectedIds = null, onSelect, query, answerView, external = true, camera = null, onCamera = null, focusRequest = null, onNodeMenu = null, cap = null, onShown = null, fit = false }) {
+export default function RepositoryGraph({ graph: sourceGraph, selected, selectedIds = null, onSelect, query, answerView, external = true, camera = null, onCamera = null, focusRequest = null, onNodeMenu = null, cap = null, onShown = null, fit = false, heading = null, onQuery = null }) {
   const svg=useRef(null),[box,setBox]=useState(null);
   useLayoutEffect(()=>{
     const el=svg.current;if(!el)return undefined;
@@ -43,7 +43,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, selected
   const [focus,setFocus]=useState(camera?.focus??null),[view,setView]=useState(camera?.view||{x:0,y:0,z:1});const drag=useRef(null), simulation=useRef(null), layer=useRef(null), saved=useRef(new Map(camera?.positions||[])), suppressClick=useRef(false), restore=useRef(!!camera?.positions?.length), mounted=useRef(false);
   const latest=useRef(null);latest.current={view,focus};
   useEffect(()=>()=>onCamera?.({...latest.current,positions:[...saved.current]}),[]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [history,setHistory]=useState([]),[positions,setPositions]=useState(new Map()),[hovered,setHovered]=useState(null),[infoOpen,setInfoOpen]=useState(false);
+  const [history,setHistory]=useState([]),[positions,setPositions]=useState(new Map()),[hovered,setHovered]=useState(null),[infoOpen,setInfoOpen]=useState(false),[searchOpen,setSearchOpen]=useState(false);
   const palette=['#2383e2','#8b6bb1','#439b88','#c28a42','#bc718d','#638baf'];
   const colors=useMemo(()=>new Map([...new Set(graph.nodes.map(n=>n.path).filter(Boolean))].sort().map((path,i)=>[path,palette[i%palette.length]])),[graph]);
   const color=n=>MEMORY_COLOR[n.kind]||colors.get(n.path)||'#a1a7ae';
@@ -133,12 +133,14 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, selected
   if(active)scene.edges.forEach(e=>{if(e.source===active||e.target===active){connected.add(e.source);connected.add(e.target);}});
   const keys=e=>{
     if(e.key!=='Escape')return;
-    if(infoOpen)setInfoOpen(false);else if(chosen.size)onSelect(null,{toggle:false});else return;
+    if(searchOpen)setSearchOpen(false);else if(infoOpen)setInfoOpen(false);else if(chosen.size)onSelect(null,{toggle:false});else return;
     e.preventDefault();e.stopPropagation();
   };
   return <div data-repository-graph onKeyDown={keys} onPointerDown={e=>e.stopPropagation()} onWheel={e=>e.stopPropagation()} className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-[#fafbfc] [--graph-bg:#fafbfc] [--graph-dot:#d8dee5] dark:bg-side dark:[--graph-bg:var(--color-side)] dark:[--graph-dot:#3a3a3a]">
-    {!!history.length&&<div className="absolute top-3 left-3 z-10"><Button size="sm" onClick={back}><ArrowLeft size={13}/>Back</Button></div>}
+    {(!!history.length||heading)&&<div className="absolute top-3 left-3 z-10 flex max-w-[calc(100%-9rem)] items-center gap-2">{!!history.length&&<Button size="sm" onClick={back}><ArrowLeft size={13}/>Back</Button>}{heading}</div>}
     <div className="absolute top-3 right-3 z-10 flex rounded border border-line bg-white">
+      {onQuery&&<span className="relative"><IconBtn aria-label="Search" title="Search files or symbols" data-graph-search-open aria-expanded={searchOpen} className={query?"text-accent":""} onClick={()=>setSearchOpen(!searchOpen)}><Search size={15}/></IconBtn>
+        <Menu open={searchOpen} onClose={()=>setSearchOpen(false)} className="top-9 right-0 w-64"><div className="p-2"><Input autoFocus aria-label="Search repository" placeholder="Search files or symbols" value={query} onChange={event=>onQuery(event.target.value)} /></div></Menu></span>}
       <IconBtn title="Zoom in" onClick={()=>setView(v=>({...v,z:Math.min(3,v.z*1.3)}))}><Plus size={15}/></IconBtn>
       <IconBtn title="Zoom out" onClick={()=>setView(v=>({...v,z:Math.max(.2,v.z/1.3)}))}><Minus size={15}/></IconBtn>
       <IconBtn title="Reset graph" onClick={()=>{setView({x:0,y:0,z:1});setFocus(null);setHistory([]);setAnswer(null);}}><RotateCcw size={14}/></IconBtn>

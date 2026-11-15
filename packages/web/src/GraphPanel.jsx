@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Package, Search, SquareCode, SquarePlus, Waypoints, X } from 'lucide-react';
+import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Package, SquareCode, SquarePlus, Waypoints, X } from 'lucide-react';
 import RepositoryGraph from './RepositoryGraph.jsx';
-import { Button, IconBtn, Input, Menu, MenuItem } from './ui.jsx';
+import { Button, IconBtn, Menu, MenuItem } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { objectOf, relationshipGroups, typeOf } from './inspector.js';
 import { askDraft, askQuestion, whyQuestion } from './agent/scope.js';
@@ -81,8 +81,7 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
     <header className="flex shrink-0 items-center gap-2 text-xs text-ink-2">
       <span data-graph-status={status} className="flex min-w-0 flex-1 items-center gap-1.5">
         {status === 'unavailable' ? <span>Repository content unavailable</span> : <>
-          <span className="min-w-0 truncate font-medium text-ink" title={app?.repo}>{app?.repo || 'Repository'}</span>
-          {snapshot && <span className="shrink-0 font-mono" title={`Indexed commit ${snapshot.commit}`}>{short(snapshot.commit)}</span>}
+          {!snapshot && <span className="min-w-0 truncate font-medium text-ink" title={app?.repo}>{app?.repo || 'Repository'}</span>}
           {['queued', 'indexing'].includes(status) && <span className="flex shrink-0 items-center gap-1"><Loader2 size={12} className="animate-spin" aria-hidden />{snapshot ? 'Indexing a newer commit' : status === 'queued' ? 'Waiting for the indexer' : 'Indexing'}</span>}
           {snapshot && repository.commit && repository.commit !== snapshot.commit && <span className="shrink-0 text-ink-3">· loading {short(repository.commit)}</span>}
         </>}
@@ -96,13 +95,9 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
     </header>
     <Body repository={repository} />
     {snapshot && <>
-      <label className="relative shrink-0">
-        <Search size={14} aria-hidden className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-ink-3" />
-        <Input aria-label="Search repository" placeholder="Search files or symbols" value={query} onChange={event => setQuery(event.target.value)} className="w-full pl-7" />
-      </label>
       {layersOpen && memory && <aside id="graph-layers" aria-label="Layers" className="shrink-0 rounded-lg border border-line p-2"><LayersRow memory={memory} layers={layers} onToggle={key => setLayers(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; })} /></aside>}
       {shown.nodes.length ? <div className="flex min-h-64 flex-1 flex-col">
-        <RepositoryGraph key={snapshot.commit} fit graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu} onShown={ids => { onScreen.current = ids; }}
+        <RepositoryGraph key={snapshot.commit} fit heading={<span data-graph-repo className="flex min-w-0 items-center gap-1.5 text-xs"><span className="min-w-0 truncate font-medium text-ink" title={app?.repo}>{app?.repo || 'Repository'}</span><span className="shrink-0 font-mono text-ink-2" title={`Indexed commit ${snapshot.commit}`}>{short(snapshot.commit)}</span></span>} onQuery={setQuery} graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu} onShown={ids => { onScreen.current = ids; }}
           camera={camera} onCamera={value => repository.graph.setCamera({ ...value, commit: snapshot.commit })} />
       </div> : <p data-graph-empty className="text-sm text-ink-2">This repository has no code graph. You can still ask about its code in Chat.</p>}
       <p className="shrink-0 text-xs text-ink-3">{snapshot.files?.length ?? 0} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships{snapshot.skipped?.length ? ` · ${snapshot.skipped.length} excluded` : ''}</p>
