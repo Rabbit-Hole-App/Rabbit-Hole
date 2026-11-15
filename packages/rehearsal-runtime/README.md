@@ -23,7 +23,7 @@ Where the fixture and the spec prose disagree the fixture wins (three traps, not
 - `timeout` and `idle_timeout` are set on every `Sandbox.create` (the default 5 min lifetime would kill the train step).
 - Every sandbox is tagged `job`, `repo`, `commit`, `hardware`; the "none left" check is `Sandbox.list(app_id=..., tags={"job": key})`.
 - `stop()` is `terminate(wait=True)`; the sandbox id is stored in the job state at creation so a restarted controller can terminate an orphan.
-- Billing is `max(request, actual)`: `cpu=2, memory=4096` is the billed floor. Network is open this sprint. No GPU sandbox of any kind.
+- Billing is `max(request, actual)`: `cpu=2, memory=4096` is the billed floor. Network is a TLS-only domain allowlist (`limits.OUTBOUND_DOMAIN_ALLOWLIST`, spec v1.3 §8a); `allow_domain` is a fix kind, at most 2 per job. No GPU sandbox of any kind.
 
 ## Modal budget (owner, 2026-11-14)
 
