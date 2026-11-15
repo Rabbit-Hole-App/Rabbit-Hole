@@ -16,6 +16,7 @@ import contracts
 import limits
 import pricing
 from discover import _extract_json, extract_knobs
+from scan import scan_route, shows_something
 from model import DEFAULT_MODEL, BudgetStop, ModelCaller, ModelRefused
 
 DOCKER_REASON = "Docker isn't available in the sandbox yet"  # route-catalogue-spec 6: Docker-in-sandbox is Alpha and unverified, so Docker routes are labelled, not run
@@ -587,13 +588,18 @@ def _host(h: str) -> str:
     return (m.group(1) if m else re.sub(r'[:/].*$', '', h.strip())).lower()
 
 
-def merged_requirements(route: dict) -> dict:
+def merged_requirements(route: dict, scan: dict = None) -> dict:
     """The model's requirements plus what the route's own commands say (a Docker, GPU or cloud command, a download URL): the rules do not rely on the model having noticed."""
     req = copy.deepcopy(route.get('requirements') or {})
     hosts = [h for h in (_host(h) for h in req.get('downloadHosts', []) if isinstance(h, str)) if h]
+    from_source = bool(scan and scan['scanned'])  # a step runs a script the snapshot holds: gpu, hosts and size are then facts of that source, the model's claims about them are ignored (scan.py)
+    if from_source:
+        backed = any(isinstance(e, dict) and 'download' in str(e.get('kind', '')).lower() for e in req.get('evidence', []))
+        req['gpu'], hosts = False, list(scan['hosts'])
+        req['downloadGB'] = max(scan['gb'], (req.get('downloadGB') or 0) if backed else 0)  # the model's number counts only as a tie-break: when it cites a download source
     for step in route.get('stepsSketch') or []:
         cmd = step.get('cmd', '')
-        hosts += [h.lower() for h in _URL_HOST.findall(cmd)]
+        hosts += [] if from_source else [h.lower() for h in _URL_HOST.findall(cmd)]
         tool = _TOOLCHAIN.search(cmd)
         if tool and not any(t in _FOREIGN for t in re.split(r'[^a-z0-9+#.]+', str(req.get('language', '')).lower())):
             req['language'] = _TOOLCHAIN_LANG[tool.group(1)]  # a step run by npm, cargo, go... needs that toolchain, whatever language the model named
@@ -606,8 +612,12 @@ def merged_requirements(route: dict) -> dict:
             if hint.get('platform') and not req.get('platform'):
                 req['platform'] = hint['platform']
             hosts += hint.get('downloadHosts', [])
+    if from_source and scan['gpu']:
+        req['gpu'] = True
     if hosts:
         req['downloadHosts'] = sorted(set(hosts))
+    elif from_source:
+        req.pop('downloadHosts', None)
     return req
 
 
@@ -675,17 +685,37 @@ def rule_routes(cands: list, routes: list) -> list:
     return out
 
 
-def finalize(doc: dict, cands: list) -> None:
+def merge_variants(routes: list, scans: dict, cpu_steps: dict) -> list:
+    """Routes that run the same scripts, configs and mode values are one route told twice (the README's GPU command and its CPU command): keep the one the README wrote for CPU, then the shorter, then by title."""
+    groups = {}
+    for r in routes:
+        k = scans[r['routeId']]['key'] if r['routeId'] in scans and scans[r['routeId']]['scanned'] else None
+        groups.setdefault(k if k else ('own', r['routeId']), []).append(r)
+    keep = [min(g, key=lambda r: (-cpu_steps.get(r['routeId'], 0), len(r['stepsSketch']), r['title'].casefold(), r['routeId'])) for g in groups.values()]
+    ids = {r['routeId'] for r in keep}
+    for r in keep:
+        r['prerequisites'] = [q for q in r.get('prerequisites', []) if q in ids]
+    return [r for r in routes if r in keep]
+
+
+def finalize(doc: dict, cands: list, files: dict = None) -> None:
     """Everything the controller owns, in place: practical, effort and reason for every route (any the model sent is overwritten), the rule-found impractical routes, dependants of a route that cannot run,
     the order (practical first, then fewest steps, then title, then routeId), the one recommended route, and the cap of MAX_PRACTICAL practical routes (the rest go to `more`)."""
     routes = doc['routes']
+    scans, cpu_steps = {}, {}
     for r in routes:
-        r['requirements'] = merged_requirements(r)
+        if files:  # the steps' scripts are read: commands normalised to the CPU flavour, gpu/hosts/size from source
+            cpu_steps[r['routeId']] = sum('--device=cpu' in s.get('cmd', '') for s in r['stepsSketch'])
+            scans[r['routeId']] = scan_route(r, files)
+            for step, cmd in zip(r['stepsSketch'], scans[r['routeId']]['cmds']):
+                step['cmd'] = cmd
+        r['requirements'] = merged_requirements(r, scans.get(r['routeId']))
         r['practical'], r['effort'], reason = derive(r)
         r.pop('recommended', None)
         r.pop('reason', None)
         if reason:
             r['reason'] = reason
+    routes[:] = merge_variants(routes, scans, cpu_steps)
     routes += rule_routes(cands, routes)
     by_id = {r['routeId']: r for r in routes}
     changed = True
@@ -699,8 +729,8 @@ def finalize(doc: dict, cands: list) -> None:
     routes.sort(key=lambda r: (not r['practical'], len(r['stepsSketch']), r['title'].casefold(), r['routeId']))
     doc.pop('more', None)
     practical = [r for r in routes if r['practical']]
-    if practical:  # the simplest practical route that shows something; a test suite only when nothing else is practical
-        rec = next((r for r in practical if r.get('resultKind') != 'tests'), practical[0])
+    if practical:  # the simplest practical route whose steps produce something to look at (train, sample, serve, run...); else one that opens a page or port; else the simplest that is not a test suite; else the first
+        rec = (next((r for r in practical if r.get('resultKind') != 'tests' and shows_something(r)), None) or next((r for r in practical if r.get('resultKind') in ('http', 'port')), None) or next((r for r in practical if r.get('resultKind') != 'tests'), None) or practical[0])
         rec['recommended'] = True
         over = {r['routeId'] for r in [x for x in practical if x is not rec][MAX_PRACTICAL - 1:]}
         if over:
@@ -801,7 +831,7 @@ def run_catalogue(job: dict, model_impl, status=lambda *a, **k: None) -> tuple:
                 raise ValueError('the reply has no routes list')
             doc, dropped = clean(doc, cands, rp, job)
             bare = [r['routeId'] for r in doc['routes'] if not r.get('requirements')]  # the rules need the facts; a route without any is sent back
-            finalize(doc, rp['candidates'])
+            finalize(doc, rp['candidates'], {p: t for p, t in job['files'].items() if isinstance(t, str)})
             last = ([f"routes without requirements: {', '.join(bare[:6])}; fill in language, docker, gpu, services, downloadGB, downloadHosts and accounts"] if bare else []) + catalogue_problems(doc, cands, rp['groups'])
             if dropped and not doc['routes']:
                 last = [f"every route cited a source that is not in the candidate list (dropped: {', '.join(dropped[:6])}); cite only candidate sources"] + last
