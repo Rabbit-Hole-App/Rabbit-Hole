@@ -1,0 +1,7 @@
+{
+  "fixture": "datasette-e9d45fe",
+  "files": { "fixtures.db": { "exists": true, "bytesMin": 50000, "note": "written by write_fixture_database (tests/fixtures.py:458); size unknown until the run — record it and tighten the bound afterwards, as meta.pkl was for nanoGPT" } },
+  "fixturesStdout": { "contains": ["Test tables written to fixtures.db"], "source": "tests/fixtures.py:460" },
+  "serve": { "httpBodyContains": { "/-/versions.json": ["\"datasette\"", "\"1.0a42\""] }, "source": "datasette/version.py:1; app.py:2805" },
+  "environment": { "pythonMin": "3.11 (pyproject.toml:10); sandbox image is 3.12 — passes" }
+}
