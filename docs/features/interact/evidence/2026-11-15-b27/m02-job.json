@@ -1,0 +1,118 @@
+{
+  "job": {
+    "id": "ej_ae48a5ac0aea4763bdb9a8429b5a8eb5",
+    "version": 1,
+    "boardId": "555d5783-d1d6-4df1-9712-c9052b4bdf23",
+    "cardId": "110548e9-9236-4103-93e3-83073ec0f5d7",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 87,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 140,
+      "approvalWaitMs": 0,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 140,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794792698118,
+    "updatedAt": 1794792698345,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "what is gradient descent?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 0,
+      "fallback": "gap",
+      "firstProblem": null,
+      "costUsd": 0,
+      "pick": {
+        "family": null,
+        "confidence": 0.77,
+        "probabilities": {
+          "vertical-throw": 0.01,
+          "curve-sliders": 0.05,
+          "stepper-states": 0.83,
+          "none": 0.11
+        },
+        "ms": 138,
+        "reason": "below_threshold"
+      }
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794792698118,
+        "firstFeedback": 1794792698205
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794792698205,
+          "endedAt": 1794792698345,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}

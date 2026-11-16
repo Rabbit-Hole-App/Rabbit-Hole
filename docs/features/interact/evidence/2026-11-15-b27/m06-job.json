@@ -1,0 +1,118 @@
+{
+  "job": {
+    "id": "ej_051e4f3d6ff444a18ae4bc6f95c01424",
+    "version": 1,
+    "boardId": "555d5783-d1d6-4df1-9712-c9052b4bdf23",
+    "cardId": "71bb90cd-c98d-4268-b1eb-8ea1d53f8001",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 92,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 49,
+      "approvalWaitMs": 0,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 49,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794792701879,
+    "updatedAt": 1794792702020,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "how does tokenization work?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 0,
+      "fallback": "gap",
+      "firstProblem": null,
+      "costUsd": 0,
+      "pick": {
+        "family": null,
+        "confidence": 0.81,
+        "probabilities": {
+          "vertical-throw": 0,
+          "curve-sliders": 0,
+          "stepper-states": 0.86,
+          "none": 0.14
+        },
+        "ms": 47,
+        "reason": "below_threshold"
+      }
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794792701879,
+        "firstFeedback": 1794792701971
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794792701971,
+          "endedAt": 1794792702020,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}
