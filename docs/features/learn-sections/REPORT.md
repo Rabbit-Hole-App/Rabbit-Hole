@@ -113,7 +113,7 @@ PASS = met; FAIL = run and not met; UNRUN = not run tonight. Unit cases are list
 ## Follow-up on the Reviewer's 10:50 rulings (2026-11-16, 10:40-11:00 PT)
 Commits:
 - 2bf5e00cd: the rulings.
-- 8d1c3e0b0 and later on this branch: the brief schema states the backtick rule, and each refusal names the token it found.
+- c7c382eef: the brief schema states the backtick rule, and each refusal names the token it found.
 
 8878 is rebuilt with them (`owner/local` 6cdd6f127, `/library` 200). Rulings 1 to 8 are listed in BLOCKERS.md under "Resolved by the Reviewer, 10:50".
 
