@@ -1,0 +1,7 @@
+✖ no motion.* element in AnimatedScene.jsx owns the same visual property through both style and animate (116.7734ms)
+✖ mutation proof: reintroducing the prior heat-keyed style/animate split fails the invariant (0.2857ms)
+ℹ pass 0
+ℹ fail 2
+✖ failing tests:
+✖ no motion.* element in AnimatedScene.jsx owns the same visual property through both style and animate (116.7734ms)
+✖ mutation proof: reintroducing the prior heat-keyed style/animate split fails the invariant (0.2857ms)

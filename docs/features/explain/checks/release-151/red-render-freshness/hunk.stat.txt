@@ -1,0 +1,21 @@
+ .../gradient-alignment/cases/01-dot-product-alignment/generated/latest/static-00.png      | Bin 54591 -> 54679 bytes
+ .../cases/01-dot-product-alignment/generated/latest/static-00.png.fingerprint.json        |   2 +-
+ .../cases/01-self-attention-computation-flow/generated/latest/static-00.png               | Bin 164631 -> 164649 bytes
+ .../01-self-attention-computation-flow/generated/latest/static-00.png.fingerprint.json    |   2 +-
+ .../illustrated-transformer/cases/02-qkv-projection/generated/latest/static-00.png        | Bin 71000 -> 71233 bytes
+ .../cases/02-qkv-projection/generated/latest/static-00.png.fingerprint.json               |   2 +-
+ .../cases/03-attention-score-matrix/generated/latest/static-00.png                        | Bin 89425 -> 88853 bytes
+ .../cases/03-attention-score-matrix/generated/latest/static-00.png.fingerprint.json       |   2 +-
+ .../cases/04-softmax-attention-weights/generated/latest/static-00.png                     | Bin 76218 -> 75934 bytes
+ .../cases/04-softmax-attention-weights/generated/latest/static-00.png.fingerprint.json    |   2 +-
+ .../illustrated-transformer/cases/06-matrix-self-attention/generated/latest/static-00.png | Bin 149788 -> 150067 bytes
+ .../cases/06-matrix-self-attention/generated/latest/static-00.png.fingerprint.json        |   2 +-
+ .../illustrated-transformer/cases/07-multi-head-attention/generated/latest/static-00.png  | Bin 77102 -> 77532 bytes
+ .../cases/07-multi-head-attention/generated/latest/static-00.png.fingerprint.json         |   2 +-
+ .../illustrated-transformer/cases/08-transformer-block/generated/latest/static-00.png     | Bin 97389 -> 97250 bytes
+ .../cases/08-transformer-block/generated/latest/static-00.png.fingerprint.json            |   2 +-
+ .../cases/09-encoder-decoder-attention/generated/latest/static-00.png                     | Bin 92748 -> 92882 bytes
+ .../cases/09-encoder-decoder-attention/generated/latest/static-00.png.fingerprint.json    |   2 +-
+ .../illustrated-transformer/cases/10-positional-encoding/generated/latest/static-00.png   | Bin 138426 -> 138940 bytes
+ .../cases/10-positional-encoding/generated/latest/static-00.png.fingerprint.json          |   2 +-
+ 20 files changed, 10 insertions(+), 10 deletions(-)

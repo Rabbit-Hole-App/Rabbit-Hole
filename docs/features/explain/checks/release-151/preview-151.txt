@@ -1,0 +1,347 @@
+MVP MODE: broad CI and release gate BYPASSED by owner policy
+✓ recovery: recovery/visual-sprint-151 (7f35b750) contains 2b91f167
+Found 4 warnings while optimizing generated CSS:
+
+Issue #1:
+[2m│   display: none;[22m
+[2m│ }[22m
+[2m│[22m ::highlight(inline-target) {
+[2m┆[22m             [33m[2m^--[22m 'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?[39m
+[2m┆[22m
+[2m│   background-color: color-mix(in srgb, #ec4899 42%, transparent);[22m
+[2m│   @supports (color: color-mix(in lab, red, red)) {[22m
+
+Issue #2:
+[2m│   }[22m
+[2m│ }[22m
+[2m│[22m ::highlight(wiki-highlight) {
+[2m┆[22m             [33m[2m^--[22m 'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?[39m
+[2m┆[22m
+[2m│   background-color: #fde047;[22m
+[2m│   color: #1f1f1f;[22m
+
+Issue #3:
+[2m│   color: transparent;[22m
+[2m│ }[22m
+[2m│[22m .textLayer ::highlight(wiki-highlight) {
+[2m┆[22m                        [33m[2m^--[22m 'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?[39m
+[2m┆[22m
+[2m│   background-color: rgb(250 204 21 / 0.45);[22m
+[2m│   color: transparent;[22m
+
+Issue #4:
+[2m│   color: transparent;[22m
+[2m│ }[22m
+[2m│[22m [data-file-doc-text] ::highlight(wiki-highlight) {
+[2m┆[22m                                  [33m[2m^--[22m 'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?[39m
+[2m┆[22m
+[2m│   background-color: rgb(253 224 71 / 0.4);[22m
+[2m│   color: inherit;[22m
+
+[33m[33m[PLUGIN_TIMINGS] [0mPlugin hooks ran for 5.3s of this 7.8s build (68%).
+The slowest hooks, timed inside each callback (the wait before a callback starts is excluded, the time it awaits is included):
+  - vite:asset-import-meta-url transform (68%, 5.3s, 1 call)
+See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+[39m
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+Found 4 warnings while optimizing generated CSS:
+
+Issue #1:
+[2m│   display: none;[22m
+[2m│ }[22m
+[2m│[22m ::highlight(inline-target) {
+[2m┆[22m             [33m[2m^--[22m 'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?[39m
+[2m┆[22m
+[2m│   background-color: color-mix(in srgb, #ec4899 42%, transparent);[22m
+[2m│   @supports (color: color-mix(in lab, red, red)) {[22m
+
+Issue #2:
+[2m│   }[22m
+[2m│ }[22m
+[2m│[22m ::highlight(wiki-highlight) {
+[2m┆[22m             [33m[2m^--[22m 'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?[39m
+[2m┆[22m
+[2m│   background-color: #fde047;[22m
+[2m│   color: #1f1f1f;[22m
+
+Issue #3:
+[2m│   color: transparent;[22m
+[2m│ }[22m
+[2m│[22m .textLayer ::highlight(wiki-highlight) {
+[2m┆[22m                        [33m[2m^--[22m 'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?[39m
+[2m┆[22m
+[2m│   background-color: rgb(250 204 21 / 0.45);[22m
+[2m│   color: transparent;[22m
+
+Issue #4:
+[2m│   color: transparent;[22m
+[2m│ }[22m
+[2m│[22m [data-file-doc-text] ::highlight(wiki-highlight) {
+[2m┆[22m                                  [33m[2m^--[22m 'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?[39m
+[2m┆[22m
+[2m│   background-color: rgb(253 224 71 / 0.4);[22m
+[2m│   color: inherit;[22m
+
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+✔ no motion.* element in AnimatedScene.jsx owns the same visual property through both style and animate (356.4294ms)
+✔ mutation proof: reintroducing the prior heat-keyed style/animate split fails the invariant (35.32ms)
+✔ block-stack schema bounds labels, metadata, repeats and compact children (17.4594ms)
+✔ block-stack semantic checks reject invalid targets, crossing repeats and malformed tensor payloads (4.4909ms)
+✔ block-stack text and description preserve authored annotations and the meaning of residuals (1.4855ms)
+✔ explicit block and inset roles change paint without moving the geometry (41.2674ms)
+✔ residuals leave before their source block, route outside it and rejoin after their inclusive target (38.1315ms)
+✔ callouts occupy available margins and keep a highlighted value, with numbered rows at 320 (13.6442ms)
+✔ a simple block-stack can fit in each half of a 408-pixel comparison (4.9776ms)
+✔ horizontal token blocks keep reading order and native cell size at every width; rows wrap at block boundaries (15.3389ms)
+✔ horizontal block stacks reject vertical topology and retain an oversized native width (6.9952ms)
+✔ a compact tensor is drawn inside its block without shrinking cells (2.7851ms)
+✔ two projections branch from the shared state and are the only operands of the standalone merge (7.7768ms)
+✔ cell shows four numbered anchors and matching readable callouts (16.5935ms)
+✔ cross-section uses named positions and wraps literal callout text at card width (8.0508ms)
+✔ free-body arrows face the named directions and preserve relative magnitude (3.9326ms)
+✔ small forces retain visible arrows and disclose their minimum size (2.5722ms)
+✔ five line series use distinct strokes and right-edge labels keep clear of each other (41.0368ms)
+✔ bars and a plain plot are drawn by the themed layout, not the legacy one (12.5068ms)
+✔ annotations and labelled samples share the same exact linear mapping (14.7667ms)
+✔ a line of seven samples marks every sample and retains the full (smooth) curve (9.2727ms)
+✔ linear and logarithmic plot axes have three to five readable ticks at each width (18.6159ms)
+✔ log axes put geometric means at visual midpoints and identify the scale (3.7196ms)
+✔ very narrow positive log domains retain finite, distinct endpoints (9.3979ms)
+✔ log domains, stems, non-finite inputs and out-of-bounds annotations are rejected (2.4528ms)
+✔ semantic structural fields reject SVG, CSS, arbitrary positions and malformed regions (2.2786ms)
+✔ step curves hold the previous value until the next x, with exact vertical jumps (8.1285ms)
+✔ uncertainty envelopes use low/high values and reject incomplete or inverted ranges (3.4989ms)
+✔ stem series use one shared y=0 baseline and preserve signed observations (4.6959ms)
+✔ sample identities are unique within each series while corresponding series may share them (0.5931ms)
+✔ grouped series share a zero baseline and retain category/series identity (2.6497ms)
+✔ signed stacks accumulate positive and negative values independently (1.8138ms)
+✔ stacked baselines stop before the value notes between categories (1.6142ms)
+✔ bar variants reject mismatched values, duplicate labels and mixed legacy fields (0.706ms)
+✔ all-zero multi-series bars emit finite zero marks (2.7529ms)
+✔ annotations of every shape and long legends stay within finite narrow frames (7.8494ms)
+✔ reference scenes validate, render at narrow/wide widths and cover the Phase 02 plot families (268.6294ms)
+✔ the descent reference samples and smoothly closes 16 points per contour (2.8533ms)
+✔ the descent starts within the outer contour and follows a continuous decreasing-loss path to the origin (0.2053ms)
+✔ compact circle samples require a closed line and at least three samples (0.4983ms)
+✔ nearest-centroid reference computes each center from its displayed samples and puts the boundary at equal distance (0.2103ms)
+✔ the log-scale suffix is added once: an axis label that already says it is not extended again (2.2541ms)
+✔ point labels that only restate the point get no note, and the marks stay (1.6526ms)
+✔ more than six annotation notes keep six callouts, the first in order, and every mark (5.0422ms)
+✔ showValues prints the y of each point, so those labels get no note either (4.9543ms)
+✔ PLT-2B-n2: line and band labels are one line; one that does not fit goes above the plot, stacked, and a plain plot is not lifted (5.002ms)
+✔ the tensor schema rejects extra rendering fields and validates its visible grid (11.3148ms)
+✔ the local strip fits all value labels and uses renderer-owned colors (17.1698ms)
+✔ Q/K/V keeps four natural-width strips and wraps at the group boundary (the input, then the three outputs) when the row would pass the budget, one row at 960 (53.0943ms)
+✔ tensor transformations keep mixed text items and respect explicit mapping indices (10.0852ms)
+ℹ tests 50
+ℹ suites 0
+ℹ pass 50
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1020.3499
+✔ ml-mle-bernoulli-likelihood ranks first for its learner prompt and paraphrase at each depth (295.8235ms)
+✔ ml-kfold-validation ranks first for its learner prompt and paraphrase at each depth (176.7417ms)
+✔ profiles: fireworks-* chains Gemini only, cerebras-* chains Fireworks then Gemini; plan-default stays the default (40.7983ms)
+{"event":"explanation_visuals_source","winner":"required","kinds":["flow"],"heuristics":"on"}
+✔ credentials: a chain with no step credential is refused before anything is sent; a missing step credential is skipped (242.7668ms)
+{"event":"learn_model","task":"artifact","provider":"anthropic","requested":"accounts/fireworks/models/gpt-oss-120b","source":"request","fallback":"none","prompt":"hnbYrgFGixMh","served":"accounts/fireworks/models/gpt-oss-120b","fellBack":false,"status":200,"stopReason":"tool_use","outcome":"completed","error":null,"durationMs":21}
+{"event":"explanation_author_raw","attempt":0,"plan":null,"references":[],"visuals":null,"kinds":[]}
+{"event":"learn_artifact_invalid","primitive":"explanation","attempt":0,"error":"required_visual_invalid: the learner asked for a flow diagram (v1) and the card's diagram is a cycle; use the flow kind."}
+{"event":"explanation_step","provider":"fireworks","model":"accounts/fireworks/models/gpt-oss-120b","outcome":"validation_error"}
+{"event":"learn_model","task":"artifact","provider":"anthropic","requested":"accounts/fireworks/models/gpt-oss-120b","source":"request","fallback":"none","prompt":"hnbYrgFGixMh","served":"gemini-3.5-flash-lite","fellBack":false,"status":200,"stopReason":"tool_use","outcome":"completed","error":null,"durationMs":19}
+{"event":"explanation_author_raw","attempt":0,"plan":null,"references":[],"visuals":null,"kinds":[]}
+{"event":"learn_artifact_invalid","primitive":"explanation","attempt":0,"error":"required_visual_invalid: the learner asked for a flow diagram (v1) and the card's diagram is a cycle; use the flow kind."}
+{"event":"explanation_step","provider":"google","model":"gemini-3.5-flash-lite","outcome":"validation_error"}
+{"event":"explanation_visuals_source","winner":"rules","kinds":[],"heuristics":"on"}
+{"event":"learn_model","task":"artifact","provider":"anthropic","requested":"gpt-oss-120b","source":"request","fallback":"none","prompt":"hnbYrgFGixMh","served":"gpt-oss-120b","fellBack":false,"status":200,"stopReason":"tool_use","outcome":"completed","error":null,"durationMs":12}
+{"event":"explanation_author_raw","attempt":0,"plan":null,"references":[],"visuals":null,"kinds":[]}
+{"event":"explanation_step","provider":"cerebras","model":"gpt-oss-120b","outcome":"artifact"}
+✔ the request: provider endpoint and key, model, reasoning_effort, strict json_schema of the make_explanation input, and the same guidance, request, Depth and required visuals (288.3436ms)
+✔ the system prompt as sent: LaTeX spelled out, no control character but newline, no tool paragraph on the fast chain, the tool paragraph kept on the tool route (63.3972ms)
+✔ an exclusive oneOf is sent as anyOf; a non-exclusive one is refused, not weakened; text documents are inlined, images and PDFs refused (2.2642ms)
+✔ the Gemini step request: array and numeric bounds dropped from its schema only (pinned against the request Gemini refused on 2026-11-08); Fireworks keeps them (253.2724ms)
+✔ the fallback path end to end: Fireworks fails, the Gemini step request passes the stand-in, and its card is delivered, priced and settled (238.2879ms)
+✔ Gemini retains compact samples for the regression demo and fits a mixed explicit schema without them (170.8825ms)
+✔ end to end on the real ledger: the card records who wrote it, and the call is reserved and settled at that provider's price (241.5622ms)
+✔ the one repair runs on the same step with the validator's exact problem and the previous answer (176.5925ms)
+✔ fallback transitions: 429, 5xx, an answer still invalid after its repair, each moves to the next step; the busy step is settled at zero (540.2968ms)
+✔ fallback transitions: a timeout moves on to Gemini; on a cerebras-* profile both gpt-oss steps failing reach Gemini, which writes the card (428.5557ms)
+✔ every step failing is a failure with its reason and steps, never Opus; an image stops the chain before anything is sent (397.3772ms)
+✔ EXPLANATION_FALLBACK=off: only the profile's own provider, and its failure is reported as one with its reason (300.2751ms)
+{"event":"explanation_diagram_dropped_element","kind":"illustration","label":"","reason":"beyond the visual count or the asked mix"}
+{"event":"explanation_diagram_dropped_element","kind":"diagram","label":"","reason":"invalid"}
+✔ ml-transformer-qkv-projections: original and paraphrase select the intended example for the author (414.2197ms)
+✔ ml-self-attention-token-links: original and paraphrase select the intended example for the author (377.6509ms)
+✔ ml-transformer-encoder-stack: original and paraphrase select the intended example for the author (250.6396ms)
+✔ ml-llama-decoder-block: original and paraphrase select the intended example for the author (248.3736ms)
+✔ ml-dense-vs-moe-architecture: original and paraphrase select the intended example for the author (199.0135ms)
+✔ ml-gemma-decoder-stack: original and paraphrase select the intended example for the author (186.2986ms)
+✔ ml-moe-top-two-experts: original and paraphrase select the intended example for the author (193.8975ms)
+✔ walkthrough learner prompts select the intended example at every depth (1994.2201ms)
+✔ new author schema branches and payloads are included only where steered (19.3137ms)
+✔ the Gemini fallback keeps a scoped weighted-token diagram (27.2982ms)
+✔ Detailed Gemma supplies two separate specs and the final card checks detail indices (48.3693ms)
+✔ a dropped visual preserves the remaining detail target in reading order (16.9609ms)
+✔ positional encoding questions select the token-embeddings reference first (its Detailed variant adds the position signals) (254.0496ms)
+✔ an invalid detail marker is stripped and the card delivers (transformer-block, content run 3) (3.3589ms)
+✔ FLAG-1: with EXPLANATION_FORMULA_SAMPLER on, a bundle whose plot series items are { anyOf: [points, formula] } is built, not thrown on; only the points form drops its compact samples (8.4726ms)
+✔ the restored audit retains all 401 pairs of short learner topics (1.9575ms)
+✔ the audited learner topics pick the intended reference first (15616.5429ms)
+{"event":"explanation_plan_kind_from_reference","plannerKind":"flow","reference":"ml-logistic-regression-softmax","referenceKind":"bar-chart","steerSource":"reference","score":40}
+✔ demo 03: planner kind tree, reference ml-trees-gini-split (matrix): the plan takes the reference's kind, says so, and the author reads one kind (156.5254ms)
+✔ demo 13: planner kind comparison, reference ml-trees-feature-importance (bar-chart): the plan takes the reference's kind, says so, and the author reads one kind (180.4596ms)
+✔ the raw plan the author call records carries kindSource and the planner's kind (generateArtifact, the author is a double) (287.6899ms)
+✔ only a shape-* example selected (no topical reference): the planner's kind stands, no event (84.5878ms)
+✔ a topical score below 12 is selected as before but does not change the plan (56.9925ms)
+✔ a learner-named diagram kind is never overridden (1.35ms)
+✔ a picture-only plan stays a picture; a picture plus one diagram keeps its picture and changes only the diagram kind (47.4158ms)
+✔ no plan, a rules plan or two diagrams: unchanged (0.7437ms)
+✔ the reference already agrees with the planner: no override, no event (36.7051ms)
+✔ selectWithSteer: a qualifying topical reference is kept whole and first whatever the planned kind, and returns its kind as the steer; a required kind, a shape-only pick and a weak score return none (162.8126ms)
+✔ demo 11: the planner (flow) and the reference (ml-trees-majority-vote, flow) agree: the steer fires and is a no-op (no override, no event) (91.2549ms)
+✔ a steered request sends its steered reference alone (plus the shape example); a request without a steer still sends two references (246.3994ms)
+✔ the author prompt is sectioned with the owner's headings, once each, in the cached-prefix order (static sections first, then the per-card ones, the references, the output format) (238.2152ms)
+✔ a planned card has its visuals stated as fact and no type / kind / count rules; no plan, or planner "rules", puts the rules block under the same heading (280.8284ms)
+✔ # Depth: the shared line, this Depth's paragraph and the precision hint, the 450 budget, and neither of the other two paragraphs; the old objective sentences are gone (289.4128ms)
+✔ the arm-E Depth-precedence sentence is gone from the guidance and from the rules block (0.7279ms)
+✔ # Numbers and maths holds the one number rule (with its computed-from-a-formula clause) and the maths lines, once, and nothing duplicates them in the system head (134.524ms)
+✔ one source of truth for the visuals: the learner's named kinds override the plan, else the plan, else the rules (61.3ms)
+✔ one log line per card says which source decided the visuals (439.1013ms)
+✔ the 6a / 6b word heuristics run only without a plan: repeat words keep a planned flow a flow, and an implied picture is not required of a planned card (382.1376ms)
+✔ the last-resort simplified diagram takes the planned kind (flow, cycle or sequence; any other kind a flow), the words only without a plan (496.2554ms)
+✔ reference selection filters to the planned kinds before any keyword scoring (170.4456ms)
+✔ owner 2026-11-08 decisions: "Be factual: leave out exact numbers..." is gone, its never-invent half is its own line under "# Numbers and maths", and the per-card part starts with the transition line (48.2137ms)
+✔ ml-ordinal-encoding: ordinary questions supply the worked example to the real author request (189.8979ms)
+✔ ml-value-binning: ordinary questions supply the worked example to the real author request (84.2026ms)
+✔ ml-feature-interaction: ordinary questions supply the worked example to the real author request (119.2976ms)
+✔ ml-raw-log-distributions: ordinary questions supply the worked example to the real author request (82.7739ms)
+✔ ml-confusion-denominators: ordinary questions supply the worked example to the real author request (64.8814ms)
+✔ ml-regression-error-metrics: ordinary questions supply the worked example to the real author request (72.0701ms)
+✔ new evaluation references do not hijack unrelated structural questions through source keywords (85.3766ms)
+✔ an explicit histogram request receives the two real histogram panels, preserving the strict kind requirement (45.7166ms)
+✔ a required matrix can use both existing sides of an identity-preserving transformation (5.794ms)
+✔ ml-repeated-sample-fits: natural questions include the worked spec in the author request (270.982ms)
+✔ ml-soft-vote-probabilities: natural questions include the worked spec in the author request (86.2383ms)
+✔ ml-adaboost-weight-update: natural questions include the worked spec in the author request (121.0229ms)
+✔ ml-stacking-oof-predictions: natural questions include the worked spec in the author request (133.7646ms)
+✔ ml-bayesian-acquisition-choice: natural questions include the worked spec in the author request (97.8159ms)
+✔ ml-successive-halving-rounds: natural questions include the worked spec in the author request (99.6716ms)
+✔ ml-minority-accuracy-trap: ordinary requests include the worked reference spec (131.018ms)
+✔ ml-majority-undersampling: ordinary requests include the worked reference spec (65.9624ms)
+✔ ml-recursive-feature-elimination: ordinary requests include the worked reference spec (69.7415ms)
+✔ ml-psi-bin-contributions: ordinary requests include the worked reference spec (64.0727ms)
+✔ undersampling alone selects the example that removes majority rows (37.9758ms)
+✔ backprop: the pinned prompt and an independent paraphrase steer to the intended kind (307.4564ms)
+✔ attention: the pinned prompt and an independent paraphrase steer to the intended kind (197.4037ms)
+✔ gpu-matmul: the pinned prompt and an independent paraphrase steer to the intended kind (311.425ms)
+✔ cnn: the pinned prompt and an independent paraphrase steer to the intended kind (201.9028ms)
+✔ rag: the pinned prompt and an independent paraphrase steer to the intended kind (159.8309ms)
+✔ beam-search: the pinned prompt and an independent paraphrase steer to the intended kind (200.1246ms)
+✔ rlhf: the pinned prompt and an independent paraphrase steer to the intended kind (148.9544ms)
+✔ cpu-vs-gpu: the pinned prompt and an independent paraphrase steer to the intended kind (121.6654ms)
+✔ dropout: the pinned prompt and an independent paraphrase steer to the intended kind (117.2625ms)
+✔ diffusion: the pinned prompt and an independent paraphrase steer to the intended kind (91.1327ms)
+✔ kv-cache: the pinned prompt and an independent paraphrase steer to the intended kind (108.0822ms)
+✔ nn-look: the pinned prompt and an independent paraphrase steer to the intended kind (94.0083ms)
+✔ robot-arm: the pinned prompt and an independent paraphrase steer to the intended kind (97.0329ms)
+✔ comp-graph: the pinned prompt and an independent paraphrase steer to the intended kind (73.1882ms)
+✔ AI/ML learner keywords leave the named collision controls clear (216.0986ms)
+✔ ml-time-series-additive-residuals: ordinary requests include the worked reference spec (112.2458ms)
+✔ ml-acf-vs-pacf: ordinary requests include the worked reference spec (143.3163ms)
+✔ ml-rolling-mean-feature: ordinary requests include the worked reference spec (107.7093ms)
+✔ ml-recursive-vs-direct-forecast: ordinary requests include the worked reference spec (100.8169ms)
+✔ PACF alone selects the example with actual partial autocorrelations (39.7361ms)
+✔ ml-zscore-distribution-tails: learner wording and a paraphrase reach the prepared author request (189.3282ms)
+✔ ml-local-outlier-factor: learner wording and a paraphrase reach the prepared author request (131.5193ms)
+✔ ml-collective-anomaly-run: learner wording and a paraphrase reach the prepared author request (145.2666ms)
+✔ ml-ranked-anomaly-scores: learner wording and a paraphrase reach the prepared author request (118.746ms)
+✔ existing z-score, contextual, isolation, IQR and DBSCAN examples keep their own prompts (131.7439ms)
+✔ ml-churn-goal-prediction-decision: original and paraphrase reach the prepared Explanation author (278.3656ms)
+✔ ml-batch-vs-online-inference: original and paraphrase reach the prepared Explanation author (314.2825ms)
+✔ ml-serving-latency-cost: original and paraphrase reach the prepared Explanation author (191.1182ms)
+✔ ml-shadow-canary-ab-rollout: original and paraphrase reach the prepared Explanation author (275.447ms)
+✔ ml-batch-score-fallback: original and paraphrase reach the prepared Explanation author (150.5493ms)
+✔ ml-classification-vs-regression: learner wording and paraphrase reach the prepared author request (139.0569ms)
+✔ ml-logistic-decision-boundary: learner wording and paraphrase reach the prepared author request (102.4035ms)
+{"event":"explanation_visuals_source","winner":"rules","kinds":[],"heuristics":"on"}
+✔ explicit requests for newly supported plots reach authoring instead of unsupported refusal (7.0934ms)
+✔ a binary-tree operation puts real tree JSON references in the actual author request (68.8612ms)
+✔ folder and family-tree requests do not receive binary-tree examples (45.3837ms)
+✔ required kinds and actual learner words take precedence over broad source context (52.0606ms)
+✔ reference context is bounded and does not change unrelated commands (17.0675ms)
+{"event":"learn_artifact_invalid","primitive":"explanation","attempt":0,"error":"explanation.body: requires at least 1 non-whitespace characters"}
+✔ a repair retains the same reference context and saves the validated diagram JSON (106.2813ms)
+✔ required tree kind alone cannot select unrelated binary operations (5.5978ms)
+✔ schema bundles: core by default, extras only when steered, the same bytes for the same bundle, the whole schema off the fast chain (94.0998ms)
+✔ N1: the assembled request holds exactly one number rule on the plan route and on the fast chain (35.4053ms)
+✔ M2: the fast-chain system message is the system prompt, the tool guidance, the references, then the answer format (44.1854ms)
+✔ M4: a panel bundle allows at most two panels (7.6566ms)
+✔ each known required kind can use its compact shape when the topic is unmatched (88.4599ms)
+✔ matching worked topics and the kind-word examples keep their picks; the gallery shape is only the fallback when nothing scores (82.0569ms)
+✔ the fallback is off when a plan supplies the kind (shapeFallback: false) (11.8248ms)
+✔ the author receives the fallback through the normal flowchart request path, only when the planner was asked and gave no plan (9.237ms)
+✔ the guidance states the token-links contract once (1.5284ms)
+ℹ tests 124
+ℹ suites 0
+ℹ pass 124
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16890.2374
+ok: the server path seals the valid program (ac41d24de00f)
+ok: the server path refuses a global-only evaluate with invalid_program and the export format (["invalid_program: the module must export evaluate: export function evaluate({ inputs, time, seed, state }) { ... } returning { frame, quantities }"])
+ok: the render entry loads and offers __renderProgram
+ok: a server-sealed program renders: ok with the declared frame size ({"ok":true,"frame":{"width":960,"height":540},"fonts":{"missing":[]},"theme":"light","bundleHash":"ac41d24de00f87ee6fd292945b83818e6acf6bf84b0113c43da5ebdf7da2c718","drawn":{"objects":3,"elements":16,"readouts":1},"trace":{"inputs":{"rate":2},"time":0,"quantities":{"level":0},"metrics":{"ms":42.7}}})
+ok: the captured hash is the sealed bundle hash
+ok: the page marks the drawn card with the sealed bundle hash
+ok: a non-empty frame was drawn (objects, SVG elements, a readout) ({"objects":3,"elements":16,"readouts":1})
+ok: the readout text comes from the program's own quantity
+ok: the polyline primitive drew a path
+ok: no font was missing ({"missing":[]})
+ok: another input and time render the same sealed bundle
+ok: the quantities are the program's own calculation (5 x 4 = 20)
+ok: the dark theme was applied
+ok: the two captures are real, different images (7725 vs 8879 bytes)
+ok: re-rendering the first state reproduces the first image
+ok: a changed artifact is refused before anything runs (invalid_program) ({"ok":false,"programError":{"code":"invalid_program","diagnostic":"stored hashes do not match the artifact","phase":"evaluate"}})
+ok: an artifact pinned to another engine is version_unavailable ({"ok":false,"programError":{"code":"version_unavailable","diagnostic":"artifact needs quickjs-release-sync@0.33.0 (schema 1)","phase":"evaluate"}})
+ok: a global-only evaluate that bypassed the server check is invalid_program at the real runtime ({"ok":false,"programError":{"code":"invalid_program","diagnostic":"the program must export function evaluate({ inputs, time, seed, state })","phase":"load","ms":2.3}})
+ok: a throwing program is runtime_error with a bounded diagnostic ({"ok":false,"programError":{"code":"runtime_error","diagnostic":"Error: boom","phase":"evaluate","ms":3.5}})
+ok: an endless loop is stopped as runtime_limit within seconds (124 ms {"ok":false,"programError":{"code":"runtime_limit","diagnostic":"time limit","phase":"evaluate","ms":52.7}})
+ok: the next valid program still renders after the failures
+ok: the page made no request outside this origin
+ok: the engine WASM was fetched from this origin under /static/ ([{"url":"http://127.0.0.1:55366/static/emscripten-module-uFzwHH0Y.wasm","type":"application/wasm","status":200}])
+ok: the WASM was served as application/wasm with status 200 ([{"url":"http://127.0.0.1:55366/static/emscripten-module-uFzwHH0Y.wasm","type":"application/wasm","status":200}])
+ok: no CSP violation was recorded
+ok: a scene capture on the same page still works (legacy path unchanged) ({"ok":true,"frame":{"width":300,"height":200},"fonts":{"missing":[]},"theme":"light"})
+ok: a stateful program replays its events in the review page: declared size, the events and the resulting state reported ({"ok":true,"frame":{"width":720,"height":360},"fonts":{"missing":[]},"theme":"light","bundleHash":"5fa6100429236bc207ef76fcc4ebad61808528a9961630036c127f9d2a933ca8","drawn":{"objects":8,"elements":30,"readouts":1},"trace":{"inputs":{},"time":0,"quantities":{"swaps":1,"position":2},"metrics":{"ms":6.)
+ok: an undeclared event fails in the reduce phase with its stable code ({"ok":false,"programError":{"code":"invalid_program","diagnostic":"This explanation could not run. Your saved version is kept. (at state 1 of 1: after event 1)","phase":"reduce"}})
+ok: a sequence the learner could not play through fails review at its first undrawable state ({"ok":false,"programError":{"code":"invalid_output","diagnostic":"frame.objects.0.kind: Invalid discriminator value. Expected 'axis' | 'plot' | 'diagram' | 'box' | 'circle' | 'text' | 'line' | 'arrow' | 'image' | 'raster' | 'polyline' | 'heat_grid' (at state 2 of 4: after event 2)","phase":"evaluate"}})
+ok: a sampled drag replays in the review page and draws its resulting state ({"ok":true,"frame":{"width":720,"height":360},"fonts":{"missing":[]},"theme":"light","bundleHash":"84682837bf6e028a00fd87e3c0b382efff7609855fe651efec27d39c282aa3b1","drawn":{"objects":4,"elements":20,"readouts":2},"trace":{"inputs":{},"time":0,"quantities":{"position":540,"drops":1,"moves":1},"metri)
+ok: a moved number input reaches the press after it in the review page, and the trace reports the moved value ({"ok":true,"frame":{"width":960,"height":300},"fonts":{"missing":[]},"theme":"light","bundleHash":"ae147854f0ef4b519230c88f2422d96a78f5fdc363a688bde16de61b84e0e4a4","drawn":{"objects":5,"elements":25,"readouts":2},"trace":{"inputs":{"stiffness":9},"time":0,"quantities":{"position":0.9508997010044961)
+ok: Reset from a changed state replays as the card Reset does: the initial state at the default inputs ({"ok":true,"frame":{"width":960,"height":300},"fonts":{"missing":[]},"theme":"light","bundleHash":"ae147854f0ef4b519230c88f2422d96a78f5fdc363a688bde16de61b84e0e4a4","drawn":{"objects":5,"elements":25,"readouts":2},"trace":{"inputs":{"stiffness":4},"time":0,"quantities":{"position":1,"speed":0,"elaps)
+ok: the program renderer left no Worker or request behind
+ok: every program failure returned a stable code, never a stack
+ok: the sealed artifact the check used passes the contract's own hash verification
+ok: a spinning page thread stops answering (what the engine interrupt cannot reach)
+ok: closing the browser session ends the blocked page within 30 s (77 ms)
+ok: a fresh session renders the next valid sealed program after the blocked one ({"ok":true,"frame":{"width":960,"height":540},"fonts":{"missing":[]},"theme":"light","bundleHash":"ac41d24de00f87ee6fd292945b83818e6acf6bf84b0113c43da5ebdf7da2c718","drawn":{"objects":3,"elements":16,)
+38/38 checks passed
+✓ build: vite build --outDir dist, dist-dev
+✓ affected-tests: node --test src/motion-ownership.test.mjs src/tutor-diagrams/block-stack.test.mjs src/tutor-diagrams/figure-layout.test.mjs src/tutor-diagrams/ml-plot.test.mjs src/tutor-diagrams/tensor.test.mjs (packages/web); node --test test/explanation-estimation-evaluation.test.js test/explanation-fast-chain.test.js test/explanation-illustration-references.test.js test/explanation-learner-keywords.test.js test/explanation-plan-kind-from-reference.test.js test/explanation-prompt-cleanup.test.js test/explanation-reference-batch2a.test.js test/explanation-reference-batch2b.test.js test/explanation-reference-batch2c.test.js test/explanation-reference-batch3.test.js test/explanation-reference-batch3a.test.js test/explanation-reference-batch3b.test.js test/explanation-reference-batch3c.test.js test/explanation-reference-batch4a.test.js test/explanation-references.test.js test/explanation-shape-gallery.test.js test/explanation-token-links-contract.test.js (packages/control-plane) [22 test file(s)] (no test imports: packages/web/src/tutor-diagrams/svg-snapshots.json)
+✓ smoke: node packages/web/e2e/explain-program-render-check.mjs
+✓ preview: wrangler deploy --name rabbit-hole-web-dev-r151-int; GET /library serves /static/app-Bm0kRSuK.js
+✓ MVP preview of 2b91f167 at https://rabbit-hole-web-dev-r151-int.tryrabbithole.workers.dev (build a278dadcfce3, record dc0471cb92ca4ea7); broad CI and the release gate are recorded as bypassed
+  To let a push to main release this exact commit: git push rabbit-hole refs/notes/dev-deploys (fetch and merge the remote notes first if it is refused)
+exit 0

@@ -1,0 +1,110 @@
+diff --git a/viz-benchmarks/gradient-alignment/cases/01-dot-product-alignment/generated/latest/static-00.png.fingerprint.json b/viz-benchmarks/gradient-alignment/cases/01-dot-product-alignment/generated/latest/static-00.png.fingerprint.json
+index 99dd16da6..bb108b681 100644
+--- a/viz-benchmarks/gradient-alignment/cases/01-dot-product-alignment/generated/latest/static-00.png.fingerprint.json
++++ b/viz-benchmarks/gradient-alignment/cases/01-dot-product-alignment/generated/latest/static-00.png.fingerprint.json
+@@ -1,4 +1,4 @@
+ {
+   "sceneSpecHash": "6b3b6f0500d3e4fa3a3dca8d7db92111620b39303b17cdc9a54f45d6a1c4a72e",
+-  "rendererHash": "9b0d92590d2603c08eb151910db1a33fb37ab454e950cde60d7c2c5f3f633f78"
++  "rendererHash": "f49885572b7823aed7e585fbc9f23aa163dd3c504502937875fbf5f62beeb2ef"
+ }
+\ No newline at end of file
+diff --git a/viz-benchmarks/illustrated-transformer/cases/01-self-attention-computation-flow/generated/latest/static-00.png.fingerprint.json b/viz-benchmarks/illustrated-transformer/cases/01-self-attention-computation-flow/generated/latest/static-00.png.fingerprint.json
+index b56b9bf44..18e886254 100644
+--- a/viz-benchmarks/illustrated-transformer/cases/01-self-attention-computation-flow/generated/latest/static-00.png.fingerprint.json
++++ b/viz-benchmarks/illustrated-transformer/cases/01-self-attention-computation-flow/generated/latest/static-00.png.fingerprint.json
+@@ -1,4 +1,4 @@
+ {
+   "sceneSpecHash": "4138c235ce56b163050aa511dc2faa6ef60d0110959a08508d162a334db67c46",
+-  "rendererHash": "9b0d92590d2603c08eb151910db1a33fb37ab454e950cde60d7c2c5f3f633f78"
++  "rendererHash": "f49885572b7823aed7e585fbc9f23aa163dd3c504502937875fbf5f62beeb2ef"
+ }
+\ No newline at end of file
+diff --git a/viz-benchmarks/illustrated-transformer/cases/02-qkv-projection/generated/latest/static-00.png.fingerprint.json b/viz-benchmarks/illustrated-transformer/cases/02-qkv-projection/generated/latest/static-00.png.fingerprint.json
+index dc459feed..66cb5ac7d 100644
+--- a/viz-benchmarks/illustrated-transformer/cases/02-qkv-projection/generated/latest/static-00.png.fingerprint.json
++++ b/viz-benchmarks/illustrated-transformer/cases/02-qkv-projection/generated/latest/static-00.png.fingerprint.json
+@@ -1,4 +1,4 @@
+ {
+   "sceneSpecHash": "900b79ed2d4848caf151ac2fdd7a32382f63b17bbeabdd58b6d913795c11dadb",
+-  "rendererHash": "9b0d92590d2603c08eb151910db1a33fb37ab454e950cde60d7c2c5f3f633f78"
++  "rendererHash": "f49885572b7823aed7e585fbc9f23aa163dd3c504502937875fbf5f62beeb2ef"
+ }
+\ No newline at end of file
+diff --git a/viz-benchmarks/illustrated-transformer/cases/03-attention-score-matrix/generated/latest/static-00.png.fingerprint.json b/viz-benchmarks/illustrated-transformer/cases/03-attention-score-matrix/generated/latest/static-00.png.fingerprint.json
+index 348c91724..540e5845b 100644
+--- a/viz-benchmarks/illustrated-transformer/cases/03-attention-score-matrix/generated/latest/static-00.png.fingerprint.json
++++ b/viz-benchmarks/illustrated-transformer/cases/03-attention-score-matrix/generated/latest/static-00.png.fingerprint.json
+@@ -1,4 +1,4 @@
+ {
+   "sceneSpecHash": "93db495a8c393bb4e5614ef768efab36519d1af543c869bc0ae132d8642ee66d",
+-  "rendererHash": "9b0d92590d2603c08eb151910db1a33fb37ab454e950cde60d7c2c5f3f633f78"
++  "rendererHash": "f49885572b7823aed7e585fbc9f23aa163dd3c504502937875fbf5f62beeb2ef"
+ }
+\ No newline at end of file
+diff --git a/viz-benchmarks/illustrated-transformer/cases/04-softmax-attention-weights/generated/latest/static-00.png.fingerprint.json b/viz-benchmarks/illustrated-transformer/cases/04-softmax-attention-weights/generated/latest/static-00.png.fingerprint.json
+index 7bf0942d0..28e9a69a5 100644
+--- a/viz-benchmarks/illustrated-transformer/cases/04-softmax-attention-weights/generated/latest/static-00.png.fingerprint.json
++++ b/viz-benchmarks/illustrated-transformer/cases/04-softmax-attention-weights/generated/latest/static-00.png.fingerprint.json
+@@ -1,4 +1,4 @@
+ {
+   "sceneSpecHash": "6566e79e6d6c5a111a1a5b09af50e5170ef4022e7a4f0d9eb64155e72e98af61",
+-  "rendererHash": "9b0d92590d2603c08eb151910db1a33fb37ab454e950cde60d7c2c5f3f633f78"
++  "rendererHash": "f49885572b7823aed7e585fbc9f23aa163dd3c504502937875fbf5f62beeb2ef"
+ }
+\ No newline at end of file
+diff --git a/viz-benchmarks/illustrated-transformer/cases/06-matrix-self-attention/generated/latest/static-00.png.fingerprint.json b/viz-benchmarks/illustrated-transformer/cases/06-matrix-self-attention/generated/latest/static-00.png.fingerprint.json
+index fbe029565..cae32cbdb 100644
+--- a/viz-benchmarks/illustrated-transformer/cases/06-matrix-self-attention/generated/latest/static-00.png.fingerprint.json
++++ b/viz-benchmarks/illustrated-transformer/cases/06-matrix-self-attention/generated/latest/static-00.png.fingerprint.json
+@@ -1,4 +1,4 @@
+ {
+   "sceneSpecHash": "0f1c14a475f8b6f83a37c5900675c3aae46b3df265a312972f1ce5b2e332ebca",
+-  "rendererHash": "9b0d92590d2603c08eb151910db1a33fb37ab454e950cde60d7c2c5f3f633f78"
++  "rendererHash": "f49885572b7823aed7e585fbc9f23aa163dd3c504502937875fbf5f62beeb2ef"
+ }
+\ No newline at end of file
+diff --git a/viz-benchmarks/illustrated-transformer/cases/07-multi-head-attention/generated/latest/static-00.png.fingerprint.json b/viz-benchmarks/illustrated-transformer/cases/07-multi-head-attention/generated/latest/static-00.png.fingerprint.json
+index cc6971793..f09d0a5e4 100644
+--- a/viz-benchmarks/illustrated-transformer/cases/07-multi-head-attention/generated/latest/static-00.png.fingerprint.json
++++ b/viz-benchmarks/illustrated-transformer/cases/07-multi-head-attention/generated/latest/static-00.png.fingerprint.json
+@@ -1,4 +1,4 @@
+ {
+   "sceneSpecHash": "711def198e13e51d9a47ad19e6efa8d1ad232cdacf37e49d1cb95aebcc8877dc",
+-  "rendererHash": "9b0d92590d2603c08eb151910db1a33fb37ab454e950cde60d7c2c5f3f633f78"
++  "rendererHash": "f49885572b7823aed7e585fbc9f23aa163dd3c504502937875fbf5f62beeb2ef"
+ }
+\ No newline at end of file
+diff --git a/viz-benchmarks/illustrated-transformer/cases/08-transformer-block/generated/latest/static-00.png.fingerprint.json b/viz-benchmarks/illustrated-transformer/cases/08-transformer-block/generated/latest/static-00.png.fingerprint.json
+index b64066da6..fb15c8b8f 100644
+--- a/viz-benchmarks/illustrated-transformer/cases/08-transformer-block/generated/latest/static-00.png.fingerprint.json
++++ b/viz-benchmarks/illustrated-transformer/cases/08-transformer-block/generated/latest/static-00.png.fingerprint.json
+@@ -1,4 +1,4 @@
+ {
+   "sceneSpecHash": "4a749d4c0f3bd75d138ef46f628a17a09edafd08f4959e3ac2deffbc64f81fcb",
+-  "rendererHash": "9b0d92590d2603c08eb151910db1a33fb37ab454e950cde60d7c2c5f3f633f78"
++  "rendererHash": "f49885572b7823aed7e585fbc9f23aa163dd3c504502937875fbf5f62beeb2ef"
+ }
+\ No newline at end of file
+diff --git a/viz-benchmarks/illustrated-transformer/cases/09-encoder-decoder-attention/generated/latest/static-00.png.fingerprint.json b/viz-benchmarks/illustrated-transformer/cases/09-encoder-decoder-attention/generated/latest/static-00.png.fingerprint.json
+index 850fa3f08..71f628e4a 100644
+--- a/viz-benchmarks/illustrated-transformer/cases/09-encoder-decoder-attention/generated/latest/static-00.png.fingerprint.json
++++ b/viz-benchmarks/illustrated-transformer/cases/09-encoder-decoder-attention/generated/latest/static-00.png.fingerprint.json
+@@ -1,4 +1,4 @@
+ {
+   "sceneSpecHash": "0a7a0b9067f8845071040591ff8da75bf44887859dba76bb87e2b53869958fa2",
+-  "rendererHash": "9b0d92590d2603c08eb151910db1a33fb37ab454e950cde60d7c2c5f3f633f78"
++  "rendererHash": "f49885572b7823aed7e585fbc9f23aa163dd3c504502937875fbf5f62beeb2ef"
+ }
+\ No newline at end of file
+diff --git a/viz-benchmarks/illustrated-transformer/cases/10-positional-encoding/generated/latest/static-00.png.fingerprint.json b/viz-benchmarks/illustrated-transformer/cases/10-positional-encoding/generated/latest/static-00.png.fingerprint.json
+index dc71d153c..68aa0bd0e 100644
+--- a/viz-benchmarks/illustrated-transformer/cases/10-positional-encoding/generated/latest/static-00.png.fingerprint.json
++++ b/viz-benchmarks/illustrated-transformer/cases/10-positional-encoding/generated/latest/static-00.png.fingerprint.json
+@@ -1,4 +1,4 @@
+ {
+   "sceneSpecHash": "c9fe3c1d5356b51d46d025bc5d8a0cd637eae318a5fde6fd79432c69ddde5886",
+-  "rendererHash": "9b0d92590d2603c08eb151910db1a33fb37ab454e950cde60d7c2c5f3f633f78"
++  "rendererHash": "f49885572b7823aed7e585fbc9f23aa163dd3c504502937875fbf5f62beeb2ef"
+ }
+\ No newline at end of file

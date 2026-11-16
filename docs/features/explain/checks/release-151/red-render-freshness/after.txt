@@ -1,0 +1,4 @@
+✔ every committed static render (generated/latest/static-00.png) carries a fingerprint matching its current scene-spec.json and the current renderer (1384.6193ms)
+✔ fingerprints ignore line endings, so every checkout of one commit agrees (127.194ms)
+ℹ pass 2
+ℹ fail 0

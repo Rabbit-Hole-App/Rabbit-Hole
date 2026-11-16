@@ -1,0 +1,7 @@
+✔ no motion.* element in AnimatedScene.jsx owns the same visual property through both style and animate (98.5077ms)
+✖ mutation proof: reintroducing the prior heat-keyed style/animate split fails the invariant (0.5306ms)
+ℹ pass 1
+ℹ fail 1
+✖ failing tests:
+✖ mutation proof: reintroducing the prior heat-keyed style/animate split fails the invariant (0.5306ms)
+  AssertionError [ERR_ASSERTION]: the mutation target text was not found - update it to match the current source

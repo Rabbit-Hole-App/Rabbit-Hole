@@ -1,0 +1,8 @@
+✔ cell shows four numbered anchors and matching readable callouts (23.462ms)
+✔ cross-section uses named positions and wraps literal callout text at card width (9.9324ms)
+✔ free-body arrows face the named directions and preserve relative magnitude (4.9291ms)
+✖ small forces retain visible arrows and disclose their minimum size (5.024ms)
+ℹ pass 3
+ℹ fail 1
+✖ failing tests:
+✖ small forces retain visible arrows and disclose their minimum size (5.024ms)
