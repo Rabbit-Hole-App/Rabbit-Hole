@@ -7,7 +7,8 @@ export function createShapes({ z, titled, text, id, numeric, node, axes, tensorN
   const endpoint = { from: id, to: id };
   return [
     z.strictObject({
-      ...titled, kind: z.literal('tree'), layout: z.enum(['binary', 'hierarchy', 'dendrogram']).optional(),
+      // title is optional for a tree only so a tree inside panels can leave it to the panel label; spec.js requires it everywhere else.
+      ...titled, title: titled.title.optional(), kind: z.literal('tree'), layout: z.enum(['binary', 'hierarchy', 'dendrogram']).optional(),
       nodes: z.array(z.strictObject({
         ...node, label: text(60).optional(), parent: id.optional(), side: z.enum(['left', 'right']).optional(),
         role: z.enum(['internal', 'leaf']).optional(), fill: z.enum(TREE_FILLS).optional(),
@@ -150,6 +151,7 @@ export function describe(d) {
 
 export function visibleText(d) {
   const own = [d.title, d.caption].filter(Boolean);
+  if (isDotTree(d)) return [...own, ...d.nodes.map(n => n.label).filter(Boolean)];
   if (d.kind === 'tree' && extendedTree(d)) return [
     ...own, ...d.nodes.flatMap(n => [n.label, n.edgeLabel, ...nodeMetadata(n),
       ...(d.layout === 'dendrogram' ? [`height = ${heightText(n, d)}`] : [])].filter(Boolean)),
