@@ -261,9 +261,9 @@ export function connector(points, { arrow = true, dashed = false, path = false }
   const length = Math.hypot(x - prevX, y - prevY);
   if (!length) return wire;
   const dx = (x - prevX) / length, dy = (y - prevY) / length;
-  const tip = Math.min(10, length);
+  const tip = Math.min(8, length);
   const baseX = x - dx * tip, baseY = y - dy * tip;
-  const head = [[x, y], [baseX - dy * 4.5, baseY + dx * 4.5], [baseX + dy * 4.5, baseY - dx * 4.5]];
+  const head = [[x, y], [baseX - dy * 6, baseY + dx * 6], [baseX + dy * 6, baseY - dx * 6]];
   return h('g', null, wire, h('polygon', {
     points: head.map(point => point.join(',')).join(' '), fill: path ? PATH : INK, 'data-tutor-arrowhead': '',
   }));

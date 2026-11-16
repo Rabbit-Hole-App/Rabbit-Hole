@@ -4,9 +4,9 @@ import { TEACHING as T, TEACHING_DEPTH_FILLS, TEACHING_FILL } from './teaching-t
 
 // A binary tree drawn as a picture: round internal nodes, square leaves, straight arrows, one colour per level. Node size and level spacing are
 // fixed, so every tree drawn this way (and every panel of two of them) is at one scale.
-const CIRCLE = 24, SQUARE = 20, GAP = 6, LEVEL = 56, PAD = 8, STROKE = 1.5, HEAD = 10, HEAD_HALF = 4;
+const CIRCLE = 24, SQUARE = 20, GAP = 6, LEVEL = 56, PAD = 8, STROKE = 1.5, HEAD = 8, HEAD_HALF = 6;
 
-// A straight line to the child with a 10 px filled head (the primitives' 7 px marker is too small at this scale); the tip is at (x2, y2).
+// A straight line to the child with a filled head 12 wide and 8 long; the tip is at (x2, y2).
 const wire = (x1, y1, x2, y2) => {
   const length = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / length, uy = (y2 - y1) / length;
   const bx = x2 - ux * HEAD, by = y2 - uy * HEAD;

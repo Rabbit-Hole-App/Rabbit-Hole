@@ -21,3 +21,10 @@ Renders (SVG + 2x PNG + spec): accuracy-by-trees plot, gini-vs-entropy (existing
 ## Tests (not touched): 61 failing of 1299 in the tutor-diagrams and figures-render suites
 kind-gallery.test.mjs 25, ml-plot.test.mjs 10, flow.test.mjs 3, tensor.test.mjs 2, plot-lines.test.mjs 2, ml-statistical.test.mjs 2, ml-batch2c-imbalance.test.mjs 2, diagram-math.test.mjs 2, token-links.test.mjs 1, ml-panels.test.mjs 1, ml-data.test.mjs 1, ml-batch4a-logistic.test.mjs 1, ml-batch3b-anomaly-density.test.mjs 1, ml-batch3b-anomaly-decisions.test.mjs 1, ml-batch3a-series.test.mjs 1, lesson-decision-trees-illustrative-plots.test.mjs 1, illustration-embedded-layouts.test.mjs 1, figures-render.test.mjs 1, figure-layout.test.mjs 1, block-stack.test.mjs 1, TutorDiagram.test.mjs 1
 The SVG snapshot file was regenerated (that test passes). The rest of the web suite and the control-plane suite were not run.
+
+## Flow amendment (flow.js, owner crop of the target)
+- A decision with two branches: both leave from the diamond's bottom centre, share the first drop, run apart at one height, and turn down into each target's top port; the side-vertex exit (RD-2) is switched off (`SIDE_EXIT`).
+- Branch labels sit on the horizontal run, centred, 13 px / 500, with the wire cut by a ground-coloured gap (6 px each side of the text, no box).
+- Every elbow is a quadratic corner of radius 8; wires are 2 px ink (3 px and the path colour on the highlighted route); the head is a filled isosceles triangle 12 wide and 8 long whose tip stops 2 px short of the target's edge. The same head (12 x 8) is now used by `connector` in primitives.js, the tree edges and the panel link arrows (3 px).
+- Node sizes: one-line height 56, two-line 72 (`40 + 16 x lines`), minimum width 180, 24 px padding each side, pills with rx = height / 2, the decision wide enough for its label on one line with 20 px of slack each side, row gap 44 with a 12 px lane. The edge-label size constant is 13.
+- Still refused: the Repeat back-edge (VC-2).

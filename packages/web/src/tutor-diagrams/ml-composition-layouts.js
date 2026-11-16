@@ -192,12 +192,12 @@ function panelsKind(diagram, width, renderChild) {
 
 // panels of round-and-square trees (the Wondering look): no panel border, each panel exactly its tree's width (every tree is at the one fixed node size and level
 // spacing, so a smaller tree is drawn smaller), the panel label printed once as the only title, and a thick dark arrow with its operation above it.
-const TREE_LABEL = 16, TREE_ARROW = 3, TREE_HEAD = 12, TREE_OPERATION = 20, TREE_LINK_GAP = 72;
-// The operation arrow between two panels: a 3 px outline line and a 12 px filled head, pointing right.
+const TREE_LABEL = 16, TREE_ARROW = 3, TREE_HEAD = 8, TREE_OPERATION = 20, TREE_LINK_GAP = 72;
+// The operation arrow between two panels: a 3 px outline line and a filled head 12 wide and 8 long, pointing right.
 function linkArrow(start, y, end) {
   return h('g', { 'data-tutor-panel-link': '' },
     h('line', { x1: start, y1: y, x2: end - TREE_HEAD, y2: y, stroke: T.outline, strokeWidth: TREE_ARROW }),
-    h('polygon', { points: `${end},${y} ${end - TREE_HEAD},${y - TREE_HEAD / 2 - 1} ${end - TREE_HEAD},${y + TREE_HEAD / 2 + 1}`, fill: T.outline }));
+    h('polygon', { points: `${end},${y} ${end - TREE_HEAD},${y - 6} ${end - TREE_HEAD},${y + 6}`, fill: T.outline }));
 }
 function treePanels(diagram, renderChild) {
   const { panels, links = [] } = diagram;
