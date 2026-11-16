@@ -19,5 +19,5 @@ Renders (SVG + 2x PNG + spec): accuracy-by-trees plot, gini-vs-entropy (existing
 - The back-edge part -> eval ("Repeat") is still refused (VC-2); not in this sprint.
 
 ## Tests (not touched): 61 failing of 1299 in the tutor-diagrams and figures-render suites
-
+kind-gallery.test.mjs 25, ml-plot.test.mjs 10, flow.test.mjs 3, tensor.test.mjs 2, plot-lines.test.mjs 2, ml-statistical.test.mjs 2, ml-batch2c-imbalance.test.mjs 2, diagram-math.test.mjs 2, token-links.test.mjs 1, ml-panels.test.mjs 1, ml-data.test.mjs 1, ml-batch4a-logistic.test.mjs 1, ml-batch3b-anomaly-density.test.mjs 1, ml-batch3b-anomaly-decisions.test.mjs 1, ml-batch3a-series.test.mjs 1, lesson-decision-trees-illustrative-plots.test.mjs 1, illustration-embedded-layouts.test.mjs 1, figures-render.test.mjs 1, figure-layout.test.mjs 1, block-stack.test.mjs 1, TutorDiagram.test.mjs 1
 The SVG snapshot file was regenerated (that test passes). The rest of the web suite and the control-plane suite were not run.
