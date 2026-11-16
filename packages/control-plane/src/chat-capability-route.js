@@ -15,7 +15,7 @@ import { CHAT_ROUTE_PROTOCOL_VERSION, CODE_CAPABILITIES, ROUTE_THRESHOLDS, ROUTE
 import { SLASH, commandLabel, typedOf, unavailableCommand } from '../../web/src/agent/slash.js';
 import { imageAllowed } from './image-settings.js';
 import { paidOf } from '../../web/src/inline-ai-decide.js';
-import { USE_SCOPE, codebaseUseRequest, readCodebaseUse, useDecision } from '../../web/src/codebase-use-route.js';
+import { LEARN_SCOPE, USE_ROUTES, USE_SCOPE, readScoped, scopedRequest, useDecision, validLearnRoutes } from '../../web/src/codebase-use-route.js';
 
 const TOKEN_TTL_S = 300, TEXT_MAX = 20000;
 const REQUEST_ID = /^[A-Za-z0-9-]{8,80}$/;
@@ -109,25 +109,30 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   return pick(read.choice, 'jev', text.trim(), scored);
 }
 
-// The scoped call for the Tutor's intake question (web/src/codebase-use-route.js: why it does not breach the 2026-10-21 rule): the same JEV transport, timeout and
-// thresholds, over the 14 codebase uses instead of the chat capabilities. No token, no capability, nothing runs here: it only says which use the typed words ask for
-// (use: null when it is not sure, so the chips stay; a failure or a missing key is the same: nothing is guessed). route: { use, confidence } when a use was chosen, else null (docs tutor-prompts-and-routing.md 1a).
-export async function decideCodebaseUse(env, { requestId, text }, { ask = askJev, timeoutMs = ROUTE_TIMEOUT_MS, thresholds = ROUTE_THRESHOLDS } = {}) {
-  const none = (via, extra = {}) => ({ use: null, via, confidence: null, probability: null, route: null, ...extra });
+// The scoped call for the Tutor's intake questions (web/src/codebase-use-route.js: why it does not breach the 2026-10-21 rule): the same JEV transport, timeout and
+// thresholds, over a scope's routes instead of the chat capabilities. scope codebase_use: the 14 uses. scope learn_option: the `routes` the browser sent (the repository's own
+// learn options and what it cannot teach; already validated by validLearnRoutes). No token, no capability, nothing runs here: it only says which route the typed words ask for
+// (use: null when it is not sure, so the chips stay; a failure or a missing key is the same: nothing is guessed). Returns { use, via, confidence, probability, route, ranked }:
+// route is { use, confidence } for codebase_use (docs tutor-prompts-and-routing.md 1a) and { scope, choice, confidence } for learn_option, null when nothing was chosen;
+// ranked: the top two route ids by score (never the several / none meta), for a "did you mean" when nothing was sure enough.
+export async function decideScoped(env, { requestId, text, scope, routes }, { ask = askJev, timeoutMs = ROUTE_TIMEOUT_MS, thresholds = ROUTE_THRESHOLDS } = {}) {
+  const none = (via, extra = {}) => ({ use: null, via, confidence: null, probability: null, route: null, ranked: [], ...extra });
   const transport = jevTransport(env);
-  if (!transport) { log({ request_id: requestId, outcome: 'unavailable', scope: USE_SCOPE, reason: 'no_transport' }); return none('fallback', { retryable: true, code: 'unavailable' }); }
+  if (!transport) { log({ request_id: requestId, outcome: 'unavailable', scope, reason: 'no_transport' }); return none('fallback', { retryable: true, code: 'unavailable' }); }
   const started = Date.now();
   try {
-    const out = await ask(env, codebaseUseRequest({ text }, JEV_TRANSPORTS[transport].model), { transport, timeoutMs });
-    const read = readCodebaseUse(out.body);
-    log({ request_id: requestId, outcome: 'routed', scope: USE_SCOPE, choice: read.choice, confidence: read.confidence, probability: read.probability, ms: out.ms ?? Date.now() - started });
+    const out = await ask(env, scopedRequest({ text, scope, routes }, JEV_TRANSPORTS[transport].model), { transport, timeoutMs });
+    const read = readScoped(out.body, routes);
+    log({ request_id: requestId, outcome: 'routed', scope, choice: read.choice, confidence: read.confidence, probability: read.probability, ms: out.ms ?? Date.now() - started });
     const decision = useDecision(read, { thresholds });
-    return { ...decision, route: decision.use ? { use: decision.use, confidence: decision.confidence } : null }; // section 1a: the record the saved goal and the message meta carry
+    const route = !decision.use ? null : scope === USE_SCOPE ? { use: decision.use, confidence: decision.confidence } : { scope, choice: decision.use, confidence: decision.confidence };
+    return { ...decision, route, ranked: read.ranked.slice(0, 2) };
   } catch (error) {
-    log({ request_id: requestId, outcome: error instanceof JevError ? error.code : 'malformed', scope: USE_SCOPE, ms: Date.now() - started });
+    log({ request_id: requestId, outcome: error instanceof JevError ? error.code : 'malformed', scope, ms: Date.now() - started });
     return none('fallback', { retryable: true, code: error instanceof JevError && error.code === 'timeout' ? 'timeout' : 'unavailable' });
   }
 }
+export const decideCodebaseUse = (env, { requestId, text }, deps) => decideScoped(env, { requestId, text, scope: USE_SCOPE, routes: USE_ROUTES }, deps);
 
 // The route a chat turn's route_token names, when it verifies for this learner and these exact turn fields: { cap, flow },
 // else null. body is the /api/learn/ask body.
@@ -159,6 +164,11 @@ export async function chatRouteFetch(req, env, { authorize = authorizedBoardApp,
   const refused = subscriptionOwnerRefusal(env, allowed);
   if (refused) return refused;
   if (body.scope === USE_SCOPE) return json(await decideCodebaseUse(env, { requestId: body.request_id, text: body.text }, deps)); // the Tutor's intake question: which of the 14 uses, nothing else
+  if (body.scope === LEARN_SCOPE) { // the Tutor's learn question: which of the repository's own learn options (or what it cannot teach), nothing else
+    const routes = validLearnRoutes(body.routes);
+    if (!routes) return json({ error: 'Invalid learn routes' }, 400);
+    return json(await decideScoped(env, { requestId: body.request_id, text: body.text, scope: LEARN_SCOPE, routes }, deps));
+  }
   const fields = { app: body.app, text: body.text, mode: body.mode, selection: body.selection, source_refs: body.source_refs, motion: body.motion, history: body.history };
   return json(await decideChat(env, { email: allowed.email, app: body.app, requestId: body.request_id, fields, capability: body.capability ?? null, enabled: body.enabled ?? null }, deps));
 }

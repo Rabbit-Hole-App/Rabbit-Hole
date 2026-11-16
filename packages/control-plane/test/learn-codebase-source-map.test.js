@@ -13,6 +13,7 @@ import { CODEBASE_GOALS, EVIDENCE_LABEL, NOT_RUN_NOTE, QUESTION_LABEL, citationR
 import { repositoryTool } from '../src/repository-context.js';
 import { acceptAttempt } from '../src/learn-attempt-store.js';
 import { readCoachingState } from '../src/learn-coaching-store.js';
+import { TUTOR_PROMPT_FILES } from '../src/tutor-prompts.generated.js';
 import { canvasApp } from '../src/canvases.js';
 import { sha256Hex } from '../src/learn-grade-jev.js';
 
@@ -28,9 +29,9 @@ const FOCUS = {
 // A learner's project canvas on a repository import, its snapshots in the store, and the route with an injected authorize.
 function setup(t, first = taskboard('v1')) {
   const { LEARN_DB, sqlite } = learnDb(t);
-  const stored = new Map(), batches = [], fetches = [];
+  const stored = new Map(), batches = [], fetches = [], deps = {};
   const env = {
-    SMALL_ENV: 'test',
+    SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test-only',
     LEARN_DB: { prepare: sql => LEARN_DB.prepare(sql), batch: async list => { batches.push(list.length); return LEARN_DB.batch(list); } },
     REPOSITORY_SNAPSHOTS: { get: async key => (stored.has(key) ? { json: async () => structuredClone(stored.get(key)) } : null) },
   };
@@ -48,7 +49,7 @@ function setup(t, first = taskboard('v1')) {
   const access = name => ({ ...canvasApp(sqlite.prepare('SELECT * FROM canvases WHERE name = ?').get(name), user), user_id: 'u-ana' });
   const route = (method, body) => codebaseRoute('/api/learn/codebase', method === 'GET'
     ? new Request(`https://dev.test/api/learn/codebase?app=${body.app}&board=${body.board || 'main'}`)
-    : new Request('https://dev.test/api/learn/codebase', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ board: 'main', ...body }) }), env, { authorize: async () => access(body.app) });
+    : new Request('https://dev.test/api/learn/codebase', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ board: 'main', ...body }) }), env, { authorize: async () => access(body.app), ...deps });
   let seq = 0;
   const start = async (goal, question, extra = {}) => {
     const { revision } = await readCoachingState(env, ACTOR);
@@ -61,7 +62,7 @@ function setup(t, first = taskboard('v1')) {
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (...args) => { fetches.push(String(args[0])); throw new Error('no network in this test'); };
   t.after(() => { globalThis.fetch = realFetch; });
-  return { env, sqlite, route, start, drift, publish, rows, batches, fetches };
+  return { env, sqlite, route, start, drift, publish, rows, batches, fetches, deps };
 }
 const activityOf = (state, id = state.activeActivityId) => state.activities.find(a => a.activityId === id);
 const roles = activity => activity.sourceRefs.map(ref => ref.locator.role);
@@ -376,4 +377,83 @@ test('a symbol is cited whole: minGPT CausalSelfAttention covers the masked_fill
   // Brace languages: the closing brace at the symbol's indent is part of it; a one-line symbol keeps the old window.
   assert.equal(symbolEnd(['export function f(a) {', '  return a;', '}', 'const g = 1;'], 1), 3);
   assert.equal(symbolEnd(['const g = 1;', 'const h = 2;'], 1), 1);
+});
+
+// Intake v2 (Learn from it): a chosen learn option starts the goal with no question, and its opening paragraph is one read-only model call.
+const LEARN = { id: 'derived-state', label: 'Derived state', what: 'a value computed from other state instead of stored', anchors: ['src/progress.js', 'src/TaskList.jsx', 'src/missing.js'], kind: 'concept' };
+const fakeModel = text => { const call = async (env, body, model, org) => { call.calls.push({ body, model, org }); return Response.json({ content: text == null ? [] : [{ type: 'text', text }] }); }; call.calls = []; return call; };
+const introRoute = (f, over = {}) => f.route('POST', { app: CANVAS, action: 'learn_intro', learn: LEARN, ...over });
+
+test('learn start: a chosen option needs no question, labels the goal from the option, cites its anchors and records learn { id, kind }', async t => {
+  const f = setup(t);
+  const done = await f.start('learn_concept', undefined, { learn: LEARN });
+  assert.equal(done.status, 200);
+  assert.equal(done.body.route, 'started');
+  const goal = done.body.state.goals[0], activity = activityOf(done.body.state);
+  assert.deepEqual([goal.label, goal.outcome], [LEARN.label, LEARN.what]);
+  assert.deepEqual(activity.checkpoint.learn, { id: 'derived-state', kind: 'concept' });
+  assert.ok(paths(activity).includes('src/progress.js') && paths(activity).includes('src/TaskList.jsx'), 'the anchors are the sources');
+  assert.ok(!paths(activity).includes('src/missing.js'), 'an anchor that is not in the snapshot is dropped');
+  assert.ok(done.body.map.citations.every(c => c.start === 1), 'whole-file citations start at the first line');
+  assert.equal(done.body.map.citations.length, done.body.map.nodes.length, 'the citations come back as today');
+  // The same goal without learn still asks for its question.
+  const plain = await f.start('learn_concept', '');
+  assert.deepEqual([plain.status, plain.body.error], [400, 'question_required']);
+});
+
+test('learn start: a malformed option, or a learn option on another goal, is a 400 that saves nothing; no usable anchor is not_found', async t => {
+  const f = setup(t);
+  for (const bad of [{ ...LEARN, label: 'x'.repeat(201) }, { ...LEARN, anchors: Array(7).fill('src/api.js') }, { ...LEARN, anchors: 'src/api.js' }, { ...LEARN, id: 'Bad Id' }, { ...LEARN, what: '' }, 'text', []]) {
+    assert.equal((await f.start('learn_concept', undefined, { learn: bad })).status, 400, JSON.stringify(bad).slice(0, 60));
+  }
+  assert.equal((await f.start('understand_feature', 'the completion indicator', { learn: LEARN })).status, 400);
+  const none = await f.start('learn_concept', undefined, { learn: { ...LEARN, anchors: ['nope.js', 'config/secrets.json'] } });
+  assert.equal(none.body.route, 'not_found');
+  assert.equal((await readCoachingState(f.env, ACTOR)).goals.length, 0);
+});
+
+test('learn_intro: one call composed from base + learn-intro + learn_concept, with the option and the anchors first lines, and nothing written', async t => {
+  const f = setup(t);
+  f.deps.callModel = fakeModel('  Derived state is the percentage in src/progress.js. How much do you know about it?  ');
+  const logs = [], log = console.log;
+  console.log = line => { logs.push(String(line)); };
+  let before, res;
+  try {
+    before = f.rows();
+    res = await introRoute(f);
+  } finally { console.log = log; }
+  assert.deepEqual([res.status, await res.json()], [200, { text: 'Derived state is the percentage in src/progress.js. How much do you know about it?' }]);
+  assert.deepEqual(f.rows(), before, 'no coaching row is written');
+  assert.equal(f.deps.callModel.calls.length, 1);
+  const { body, model } = f.deps.callModel.calls[0];
+  assert.equal(model, 'claude-sonnet-5-5');
+  assert.ok(body.system.includes(TUTOR_PROMPT_FILES['tasks/learn-intro.md'].text.trim()), 'the learn-intro sentence');
+  assert.ok(body.system.includes(TUTOR_PROMPT_FILES['uses/learn_concept.md'].text.trim().split('\n')[0]), 'the learn_concept overlay');
+  const user = body.messages[0].content;
+  assert.match(user, /Derived state/);
+  assert.match(user, /a value computed from other state/);
+  assert.match(user, /src\/progress\.js:1-\d+ \(of \d+ lines\)/, 'the lines are cited path:range');
+  assert.doesNotMatch(user, /missing\.js/);
+  const record = logs.map(line => { try { return JSON.parse(line); } catch { return null; } }).find(line => line?.event === 'tutor_call');
+  assert.deepEqual([record.task, record.use, record.model, record.route], ['learn-intro', 'learn_concept', 'claude-sonnet-5-5', null]);
+  assert.deepEqual(record.layers, { base: TUTOR_PROMPT_FILES['base.md'].sha256, task: TUTOR_PROMPT_FILES['tasks/learn-intro.md'].sha256, use: TUTOR_PROMPT_FILES['uses/learn_concept.md'].sha256 });
+  assert.deepEqual(f.fetches, [], 'no network of its own');
+});
+
+test('learn_intro: an empty answer or a failed call is a 502 the browser can retry; a bad option is a 400; no usable anchor is a 404; no key is a 503', async t => {
+  const f = setup(t);
+  for (const empty of [fakeModel(''), fakeModel('   '), fakeModel(null)]) {
+    f.deps.callModel = empty;
+    const res = await introRoute(f);
+    assert.deepEqual([res.status, (await res.json()).error], [502, 'learn_intro_empty']);
+  }
+  f.deps.callModel = async () => new Response('down', { status: 500 });
+  assert.equal((await introRoute(f)).status, 502);
+  f.deps.callModel = fakeModel('fine');
+  assert.equal((await introRoute(f, { learn: { ...LEARN, anchors: Array(7).fill('src/api.js') } })).status, 400);
+  assert.equal((await introRoute(f, { learn: undefined })).status, 400);
+  assert.equal((await introRoute(f, { learn: { ...LEARN, anchors: ['nope.js'] } })).status, 404);
+  assert.equal(f.deps.callModel.calls.length, 0, 'a bad request never reaches the model');
+  delete f.env.ANTHROPIC_API_KEY;
+  assert.equal((await introRoute(f)).status, 503);
 });
