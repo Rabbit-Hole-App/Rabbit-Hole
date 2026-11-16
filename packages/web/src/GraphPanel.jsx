@@ -122,7 +122,7 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
       <p className="shrink-0 text-xs text-ink-3">{snapshot.files?.length ?? 0} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships{snapshot.skipped?.length ? ` · ${snapshot.skipped.length} excluded` : ''}</p>
       {selected.length > 0 && <div data-graph-selection className="flex shrink-0 items-center gap-2 border-t border-line pt-2 text-sm">
         <span className="min-w-0 flex-1 text-ink-2">{selected.length} selected</span>
-        <ActionBar actions={[
+        <ActionBar side="top" actions={[
           { id: 'chat', disabled: !chat || !graphRefs(repository).length, onClick: addToChat, title: 'Add to chat: keep the selected code with this chat', data: { 'data-graph-add-to-chat': '' } },
           { id: 'graph', disabled: !ops || !indexed(selected).length, onClick: () => addGraph(indexed(selected)), data: { 'data-graph-add-selection': '' } },
           { id: 'canvas', disabled: !canCode, onClick: () => addCode(codeNodes(selected)), title: insertCodeCard ? 'Add to canvas: the selected code as code cards' : 'Code cards are not available yet', data: { 'data-graph-add-code': '' } },
