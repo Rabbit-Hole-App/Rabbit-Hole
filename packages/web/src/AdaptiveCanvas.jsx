@@ -4,7 +4,7 @@ import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, dow
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
-import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
+import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, Map as MapIcon, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { CapturingLabel, beginAreaCapture, endAreaCapture } from './AreaCapturing.jsx';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock, fitFrame, freshFitStep, cornerSlot } from './card-layout.js';
@@ -4649,6 +4649,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return { x: cx - (cx - v.x) * f, y: cy - (cy - v.y) * f, z };
   });
   // One click moves roughly one screenful, so the canvas reads like a page.
+  const [minimapFolded, setMinimapFolded] = useState(() => { try { return localStorage.getItem('rh-minimap-folded') === '1'; } catch { return false; } });
+  const foldMinimap = next => { setMinimapFolded(next); try { localStorage.setItem('rh-minimap-folded', next ? '1' : '0'); } catch { /* storage off: it still folds for this visit */ } };
   const scrollBy = direction => setView(v => ({ ...v, y: v.y - direction * (surface.current.clientHeight * 0.7) }));
   const zoomCenter = factor => { const element = surface.current; zoomAt(element.clientWidth / 2, element.clientHeight / 2, factor); };
   const local = event => {
@@ -6346,7 +6348,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }), [canAsk, canNote, canQuick]);
   const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
   // An Explanation card has Minimize in the toolbar where other cards have Focus (its Focus is in its context menu); a minimized one has neither.
-  const soleFocus = soleObject && !minimizable(soleObject) ? adapterFor(soleObject, { view, readOnly }) : null;
+  const soleFocus = null; // the card toolbar draws no Focus icon (owner 2026-11-15); Focus stays in the right-click menu and the keyboard
   const soleMinimize = soleObject && minimizable(soleObject) && !soleObject.minimized && !readOnly && !localCopy && !lockedRef.current.has(soleObject.id) ? () => minimizeCard(soleObject.id) : null;
   // On a shared page (view-only or a local copy), a card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
   // take the floating bar, which stays inside the view (usesHost).
@@ -6363,7 +6365,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, docLive: docCardWords, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} data-study-card={cardOnly ? '' : undefined} className="@container relative flex h-full min-h-0 flex-col"
       // A link in a card's Markdown (Md.jsx data-web-link) asks first, the same popup a pasted link gets: Open in new tab or Add webpage card.
       // Ctrl, Cmd, Shift, Alt and middle clicks, and a canvas that cannot add cards, keep the browser's own new tab (owner 2026-11-14).
@@ -6862,22 +6864,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid ${chromeOff ? 'md:grid-cols-[minmax(0,1fr)_minmax(200px,780px)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(264px,1fr)_minmax(200px,780px)_minmax(264px,1fr)]'} md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
         <div className="flex items-end gap-2 md:col-start-1">
         {/* The page's own lower-left control (Learn: the feedback button). */}
-        {!chromeOff && bottomLeft}
-        {/* One positioned group (owner brief 2026-10-16 item 8, aligned-minimap mockup): the minimap directly above the zoom
-            row, 8px apart, both one outer width - the column is as wide as its widest child (the minimap's fixed frame) and
-            the zoom row stretches to it, its slack going to the percentage, so both edges line up at any zoom label. */}
+        {/* Owner 2026-11-15: ONE pill, its parts separated by dividers: the page's lower-left control (feedback), the map, then zoom out, the percentage and zoom in. No scroll arrows.
+            The minimap panel opens above the pill when shown; the map button is its switch. */}
         {!chromeOff && <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
-        {drawnWidgets.minimap && <div data-canvas-minimap>
-          <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
+        {drawnWidgets.minimap && !minimapFolded && <div data-canvas-minimap>
+          <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit} onFold={foldMinimap}
             surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
             onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
         </div>}
         <div data-zoom aria-label="Zoom controls" className="z-20 flex items-center rounded-lg border border-line bg-white shadow-sm @max-[1024px]:static @max-[1024px]:mb-2">
-          <IconBtn title="Scroll up" onClick={() => scrollBy(-1)}><ChevronUp size={14} /></IconBtn>
-          <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
-          <span className="mx-0.5 h-5 w-px bg-line" />
+          {bottomLeft && <><span data-zoom-lower-left className="flex items-center [&_button]:rounded-md [&_button]:border-0 [&_button]:shadow-none">{bottomLeft}</span><span className="mx-0.5 h-5 w-px bg-line" /></>}
+          {drawnWidgets.minimap && <><IconBtn data-minimap-toggle title={minimapFolded ? 'Show minimap' : 'Hide minimap'} aria-pressed={!minimapFolded} onClick={() => foldMinimap(!minimapFolded)}><MapIcon size={14} /></IconBtn><span className="mx-0.5 h-5 w-px bg-line" /></>}
           <IconBtn title="Zoom out" onClick={() => zoomCenter(1 / 1.25)}><Minus size={14} /></IconBtn>
+          <span className="mx-0.5 h-5 w-px bg-line" />
           <button type="button" title="Reset zoom" onClick={() => setView(homeView(controlArea(), COLUMN))} className="min-w-11 flex-1 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
+          <span className="mx-0.5 h-5 w-px bg-line" />
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
         </div>
         </div>}

@@ -59,7 +59,9 @@ export default function RunCustom({ cells, added, draft, setDraft, ready, active
     <div data-run-custom className="flex flex-col gap-4 px-4 py-3">
       <section aria-label={COPY.custom.settings} className="flex flex-col gap-3">
         {ordered.map(cell => {
-          const id = stepIdOf(cell), fields = knobFields(cell, { overrides: draft.values[id], added, cells });
+          const id = stepIdOf(cell), own = knobFields(cell, { overrides: draft.values[id], added, cells });
+          // A card saved before every step listed all its settings keeps them on its old settings cell (the last step's): until a session brings the new cells, show those.
+          const old = cells.find(c => c.kind === 'knobs'), fields = !own.length && old && cell === steps.at(-1) ? knobFields(old, { overrides: draft.values[id], added, cells }) : own;
           return fields.length ? <KnobFields key={id} label={cell.title} fields={fields} disabled={readOnly || busy} onChange={(flag, value) => type(id, flag, value)} onReset={() => reset(id)} onOpen={onOpen} /> : null;
         })}
       </section>
@@ -68,8 +70,8 @@ export default function RunCustom({ cells, added, draft, setDraft, ready, active
         <div className="flex flex-wrap gap-1.5">
           {steps.map(cell => {
             const id = stepIdOf(cell), on = draft.steps.includes(id);
-            return <button key={id} type="button" data-run-step={id} aria-pressed={on} disabled={readOnly || busy} onClick={() => toggle(id)}
-              className={`h-7 cursor-pointer rounded-full border px-3 text-xs font-medium transition-colors disabled:cursor-default disabled:opacity-50 ${on ? 'border-accent/40 bg-accent/10 text-accent' : 'border-line text-ink-3 line-through hover:bg-hover'}`}>{cell.title}</button>;
+            // The app's own toggle button (as the History filters): filled when the step runs, plain when it is skipped. No pill shape.
+            return <Button key={id} type="button" size="sm" variant={on ? 'secondary' : 'ghost'} data-run-step={id} aria-pressed={on} disabled={readOnly || busy} onClick={() => toggle(id)}>{cell.title}</Button>;
           })}
         </div>
       </section>

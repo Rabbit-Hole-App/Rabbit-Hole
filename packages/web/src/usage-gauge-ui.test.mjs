@@ -69,12 +69,12 @@ test('the popover: the Usage limit with two meters, AI first, each with remainin
   assert.ok(html.indexOf('data-usage-meter="ai"') < html.indexOf('data-usage-meter="compute"'), 'AI first');
   assert.match(html, />AI usage</);
   assert.match(html, />Compute usage</);
-  assert.match(html, /data-usage-remaining="ai" class="[^"]*text-ink">3,260 AI units <span[^>]*>remaining<\/span>/);
-  assert.match(html, /data-usage-remaining="compute"[^>]*>982 Compute units <span/);
-  assert.match(html, /data-usage-of="ai"[^>]*>1,740 of 5,000 AI units</);
-  assert.match(html, /data-usage-of="compute"[^>]*>18 of 1,000 Compute units</);
-  assert.match(html, /data-usage-counts="ai"[^>]*>Every AI answer, explanation and plan\.</);
-  assert.match(html, /data-usage-counts="compute"[^>]*>Every minute a machine runs your rehearsal or your Run card session\.</);
+  assert.match(html, /data-usage-remaining="ai"[^>]*>3,260 AI units left</);
+  assert.match(html, /data-usage-remaining="compute"[^>]*>982 Compute units left</);
+  // What counts and used-of-total are the meter's tooltip, not more lines of text.
+  assert.match(html, /data-usage-meter="ai" title="Every AI answer, explanation and plan\. 1,740 AI units of 5,000 AI units used\."/);
+  assert.match(html, /data-usage-meter="compute" title="Every minute a machine runs your rehearsal or your Run card session\. 18 Compute units of 1,000 Compute units used\."/);
+  assert.doesNotMatch(html, /data-usage-of|data-usage-counts|every month/, 'no used-of-total or what-counts lines in the popover');
   assert.match(html, /data-usage-reset[^>]*>Renews on October 31, 5:00 PM PDT</, 'the instant in the viewer own zone, zone named');
   assert.match(html, /role="meter" aria-label="AI units used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="34" aria-valuetext="1,740 AI units of 5,000 AI units used"/);
   assert.doesNotMatch(html, /\$/, 'units only, never dollars');
@@ -94,13 +94,13 @@ test('the popover: a server before the meter says Compute is not metered yet; a 
 
 test('the popover: reserved shown apart, exhausted in words, enforced hides the note, allowance from the server', () => {
   const reserved = details(ready({ reserved: 500_000, remaining: 32_100_000 }));
-  assert.match(reserved, /data-usage-of="ai"[^>]*>1,740 of 5,000 AI units · 50 AI units reserved</);
+  assert.match(reserved, /title="[^"]*1,740 AI units of 5,000 AI units used, 50 AI units reserved\."/);
   assert.match(reserved, /data-usage-bar-reserved/);
   assert.match(reserved, /aria-valuetext="1,740 AI units of 5,000 AI units used, 50 AI units temporarily reserved"/);
   const empty = details(ready({ used: 50_000_000, remaining: 0 }));
-  assert.match(empty, /text-fail">0 AI units <span/);
+  assert.match(empty, /text-fail">0 AI units left</);
   assert.doesNotMatch(details(ready({ enforced: true })), /data-usage-note/);
-  assert.match(details(ready({ allowance: 80_000_000, remaining: 62_600_000 })), /of 8,000 AI units</);
+  assert.match(details(ready({ allowance: 80_000_000, remaining: 62_600_000 })), /of 8,000 AI units used/);
 });
 
 test('requests that ended without a confirmed cost: one quiet line in the popover and Settings, a count and never $0, absent at 0 or missing', async () => {

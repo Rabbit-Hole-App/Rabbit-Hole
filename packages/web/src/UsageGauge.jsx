@@ -45,16 +45,16 @@ export function UsageBar({ usage, label = USAGE_COPY.ai.units, format = formatCr
 
 const Note = ({ children }) => <p data-usage-note className="rounded-md bg-hover px-2 py-1.5 text-xs text-ink-2">{children}</p>;
 
-// One meter of the popover: its title, how many units remain, the bar, "N of M units" and what counts. kind: 'ai' | 'compute'.
-function Meter({ kind, meter, format, tone, resetsAt, extra = null }) {
+// One meter of the popover, kept to a line and a bar (owner 2026-11-15: too many texts): the meter's name, what is left, the bar. What counts and the used-of-total figures are the tooltip.
+function Meter({ kind, meter, format, tone, extra = null }) {
   const copy = USAGE_COPY[kind];
   return (
-    <section data-usage-meter={kind} className="flex flex-col gap-0.5">
-      <p className="text-sm font-semibold text-ink">{copy.title}</p>
-      <p data-usage-remaining={kind} className={`mt-1 text-xl font-semibold tabular-nums ${tone === 'empty' ? 'text-fail' : 'text-ink'}`}>{format(meter.remaining)} <span className="text-sm font-normal text-ink-2">remaining</span></p>
-      <div className="mt-1"><UsageBar usage={meter} label={copy.units} format={format} /></div>
-      <p data-usage-of={kind} className="text-xs text-ink-2 tabular-nums">{creditCount(meter.used)} of {creditCount(meter.allowance)} {copy.units}{meter.reserved > 0 ? ` · ${format(meter.reserved)} reserved` : ''}</p>
-      <p data-usage-counts={kind} className="text-xs text-ink-3">{copy.counts}</p>
+    <section data-usage-meter={kind} title={`${copy.counts} ${format(meter.used)} of ${format(meter.allowance)} used${meter.reserved > 0 ? `, ${format(meter.reserved)} reserved` : ''}.`} className="flex flex-col gap-1">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-semibold text-ink">{copy.title}</p>
+        <p data-usage-remaining={kind} className={`text-sm tabular-nums ${tone === 'empty' ? 'text-fail' : 'text-ink-2'}`}>{format(meter.remaining)} left</p>
+      </div>
+      <UsageBar usage={meter} label={copy.units} format={format} />
       {extra}
     </section>
   );
@@ -67,7 +67,7 @@ export function UsageDetails({ state, onViewUsage, onBuyCredits }) {
     <>
       <p className="text-xs font-medium text-ink-2">{USAGE_COPY.menu}</p>
       {usage ? (
-        <div className="mt-2 flex flex-col gap-3">
+        <div className="mt-2 flex flex-col gap-2.5">
           <Meter kind="ai" meter={usage} format={formatCredits} tone={usage.remaining === 0 ? 'empty' : 'ok'}
             extra={<>{unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}</>} />
           {c && !c.unavailable
