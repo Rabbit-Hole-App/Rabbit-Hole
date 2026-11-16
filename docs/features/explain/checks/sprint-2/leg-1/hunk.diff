@@ -1,0 +1,17 @@
+5df434a81 plot: a plot of one series draws no legend pill (its title and axes name it)
+
+
+diff --git a/packages/web/src/tutor-diagrams/ml-plot-layouts.js b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+index 614e843fa..1ebbabcf8 100644
+--- a/packages/web/src/tutor-diagrams/ml-plot-layouts.js
++++ b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+@@ -335,7 +335,8 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
+         foreground.push(cloneElement(label(String(p.y), onAxis ? cx + MARKER + 5 + half : Math.min(width - PAD - half, cx), onAxis ? cy : cy - MARKER - 11, { size: 15, weight: 700 }), { 'data-tutor-plot-value': `${p.x},${p.y}` }));
+       }
+     });
+-    legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
++    // A plot of one series has no legend: its title and axes name it (a legend pill is for telling two or more series apart).
++    if (d.series.length > 1) legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
+   }
+   if (legend.length) {
+     const drawn = legendPills(legend, width, legendY);

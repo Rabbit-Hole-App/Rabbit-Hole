@@ -1,0 +1,28 @@
+diff --git a/packages/web/src/tutor-diagrams/ml-plot-layouts.js b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+index 4ce3c5b5f..08c9bf7fa 100644
+--- a/packages/web/src/tutor-diagrams/ml-plot-layouts.js
++++ b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+@@ -447,7 +447,9 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
+       const marked = series.kind === 'line' && !series.closed
+         ? n <= PLOT_MARKER_ALL_MAX_SAMPLES || showPlotMarker(series, j) || Boolean(p.id) : showPlotMarker(series, j);
+       const covered = series.kind === 'line' && scatterAt.some(([sx, sy]) => Math.hypot(sx - cx, sy - cy) <= 0.5);
+-      if (marked && !covered) (series.kind === 'scatter' ? scatterMarks : marks).push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`, MARKER));
++      // A line series beside a scatter series is the fit through the points: it draws no markers unless the author says markers: true.
++      const bare = series.kind === 'line' && series.markers !== true && scatterAt.length > 0;
++      if (marked && !covered && !bare) (series.kind === 'scatter' ? scatterMarks : marks).push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`, MARKER));
+       // A single short series prints each value above its marker.
+       if (d.series.length === 1 && series.points.length <= PLOT_VALUE_LABEL_MAX_SAMPLES) {
+         // Kept clear of the y axis and inside the card, so a sample on the axis does not print over the tick labels.
+diff --git a/packages/web/src/tutor-diagrams/ml-plot-spec.js b/packages/web/src/tutor-diagrams/ml-plot-spec.js
+index 33027aa72..c757785be 100644
+--- a/packages/web/src/tutor-diagrams/ml-plot-spec.js
++++ b/packages/web/src/tutor-diagrams/ml-plot-spec.js
+@@ -29,7 +29,7 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
+   const circleSamples = z.strictObject({ radius: numeric.positive(), count: z.number().int().min(3).max(25) });
+   return [
+     z.strictObject({ ...titled, kind: z.literal('coordinate-plot'), x: axis, y: axis,
+-      series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(),
++      series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(), markers: z.boolean().optional(),
+         endLabel: z.boolean().optional(), closed: z.boolean().optional(),
+         points: z.array(z.strictObject({ x: numeric, y: numeric, id: id.optional(), label: text(60).optional(),
+           low: numeric.optional(), high: numeric.optional() })).min(1).max(24).optional(),
