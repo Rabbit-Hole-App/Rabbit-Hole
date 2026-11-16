@@ -6,6 +6,7 @@ import { dotTree } from './dot-tree-layout.js';
 import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
 const PAD = 12, TEXT = 15, SMALL = 13, GAP = 18;
+const TREE_NODE_FLOOR = 120; // the narrowest node width cap of a top-down tree that has to fit the width budget (100 would fit learning-families in 714 px, with three labels one font step smaller)
 const childrenFor = nodes => new Map(nodes.map(n => [n.id, nodes.filter(child => child.parent === n.id)]));
 const pathEdge = (d, from, to) => d.highlightPath?.some((id, i) => id === from && d.highlightPath[i + 1] === to);
 const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
@@ -58,9 +59,14 @@ function card(node, pos, { active = false, pruned = false, align = 'middle' } = 
 // This is the approved binary-tree arrangement extended with measured metadata.
 // Unextended trees still call the original implementation byte-for-byte.
 function topDown(d, preferredWidth) {
-  const children = childrenFor(d.nodes), positions = new Map(), rows = [];
+  const children = childrenFor(d.nodes);
   const pruned = pruning(d.nodes), onPath = new Set(d.highlightPath ?? []);
-  const wrapAt = Math.min(150, Math.floor((preferredWidth - 2 * PAD - GAP) / 2));
+  const natural = Math.min(150, Math.floor((preferredWidth - 2 * PAD - GAP) / 2));
+  // The shape of the tree is fixed; only its node width cap moves (TREE-W): when the tree would pass the width budget (the request, at least 720, at most 960) the cap, hence every label's
+  // wrap width, goes down in steps of 5, as little as it can, to TREE_NODE_FLOOR (a word is never split, so a node never gets narrower than its longest word).
+  const budget = Math.min(960, Math.max(720, preferredWidth));
+  function place(wrapAt) {
+  const positions = new Map(), rows = [];
   function arrange(node, depth) {
     const width = nodeWidth(node, wrapAt);
     const edgeWidth = node.edgeLabel ? Math.max(width, widestFormula(node.edgeLabel, SMALL) + 12) : width;
@@ -92,6 +98,11 @@ function topDown(d, preferredWidth) {
     return subtree;
   }
   const { min, max } = arrange(d.nodes.find(n => n.parent === undefined), 0);
+  return { positions, rows, min, max };
+  }
+  let placed = place(natural);
+  for (let cap = natural - 5; cap >= TREE_NODE_FLOOR && placed.max - placed.min + 2 * PAD > budget; cap -= 5) placed = place(cap);
+  const { positions, rows, min, max } = placed;
   const width = Math.max(preferredWidth, Math.ceil(max - min + 2 * PAD));
   const shift = (width - max + min) / 2 - min;
   let y = PAD;
