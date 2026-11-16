@@ -345,12 +345,15 @@ function barChart(d, requested) {
   const elements = [];
   let top = PAD + 26;
   const chartTop = top;
+  const baseline = (y1, y2) => h('line', { x1: zero, x2: zero, y1, y2, stroke: TEACHING_ZERO, strokeWidth: GRID, 'data-tutor-bar-baseline': '' });
   elements.push(label(format(min), left, top - 14, { anchor: 'start', size: SMALL }));
   elements.push(label(format(max), right, top - 14, { anchor: 'end', size: SMALL }));
   for (const group of groups) {
     const name = wrap(group.category, left - PAD - 14);
     const height = d.variant === 'grouped' ? Math.max(group.segments.length * 28, name.length * lineHeight()) : Math.max(30, name.length * lineHeight());
     elements.push(label(name, PAD, top + height / 2, { anchor: 'start' }));
+    // A stacked chart's baseline stops at each group's bar row (its value notes sit between the groups); grouped bars share one continuous baseline.
+    if (d.variant === 'stacked') elements.push(baseline(top, top + height));
     for (const segment of group.segments) {
       const cy = d.variant === 'grouped' ? top + (segment.index + 0.5) * height / group.segments.length : top + height / 2;
       const attrs = { [`data-tutor-${d.variant}-bar`]: segment.value, 'data-tutor-bar-category': group.category, 'data-tutor-bar-series': segment.label,
@@ -372,7 +375,7 @@ function barChart(d, requested) {
   // No axis lines: the baseline at zero is one solid muted guide the bars sit on; the ends of the scale get dashed guides. All run behind the bars.
   const chartBottom = top - 10;
   const guides = [min, max].filter(value => value !== 0).map(value => h('line', { x1: x(value), x2: x(value), y1: chartTop - 4, y2: chartBottom, stroke: TEACHING_GRID, strokeWidth: GRID, strokeDasharray: '4 4', 'data-tutor-plot-grid': '' }));
-  elements.unshift(...guides, h('line', { x1: zero, x2: zero, y1: chartTop - 4, y2: chartBottom, stroke: TEACHING_ZERO, strokeWidth: GRID, 'data-tutor-bar-baseline': '' }));
+  elements.unshift(...guides, ...(d.variant === 'stacked' ? [] : [baseline(chartTop - 4, chartBottom)]));
   // The legend sits under the bars, 16 px below the last one.
   const drawn = legendPills(d.series.map((series, i) => ({ i, text: series.label })), width, top + 6);
   elements.push(...drawn.elements);
