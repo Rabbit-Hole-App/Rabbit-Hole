@@ -58,5 +58,11 @@ Pairing (`item.after`): the browser draws a connector from the `after` item's ca
 ## Artifact request (TOOLS reads, BROWSER sends)
 `/api/learn/artifact` body gains optional `madeBy: 'learn-section'` and `context` (already a field). `learn-artifact.js` passes `madeBy` to the primitive checks (O). A client-sent `madeBy` unlocks only the larger code sample; it changes nothing else.
 
+## Research tools inside a turn (CORE, `packages/control-plane/src/learn-section-research.js`)
+CORE owns this module: `researchToolDefs(names)` (native tool definitions) and `researchTool(name, input, ctx) -> { content, turn }` that calls the EXISTING functions (`repository-context.js repositoryTool` for the repository tools, `arxiv.js` for `read_arxiv_paper` / `search_arxiv`, `learn-wiki.js` for `read_wikipedia` / `search_wikipedia`, `learn-youtube.js` for `find_video_moments`, `learn-search.js discoverSources` for `search_web`, `searchCanvasSource` for the brief's `search_material`) and records what was read into `ctx.turn`. TOOLS changes the internals of those existing modules (S: `read_arxiv_paper` page text per page; the YouTube window bound) but not this wrapper; a TOOLS validator reads `ctx.turn` only. Exa and model spend go through the existing admission and `exaCost`.
+
+## Notebook runtime list (BROWSER, `packages/web/src/notebook-runtime.js`)
+`export const RUNTIME_PACKAGES` (a frozen array of importable top-level module names in today's Pyodide, standard library included) and `export function unavailableImports(code) -> [packageName]`. TOOLS' `notebook.js` imports it from `../../web/src/notebook-runtime.js`, as `chat-tools.js` imports web modules.
+
 ## Section-flow tool set (CORE, `chat-tools.js`)
 `directTools(env, email, { sectionFlow: true })` returns the ordinary set minus `explain`, plus `explanation`, `notebook`, `document` and `browser`. With no options it returns exactly what it returns today.
