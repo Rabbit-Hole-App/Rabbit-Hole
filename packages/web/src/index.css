@@ -131,6 +131,7 @@ html {
   --viz-code-text: var(--color-ink-2);
   --viz-identity-2-text: #867033;
   --viz-surface: #FFFCF0;
+  --viz-fill-slate: #A8BBD0;
   /* A solid-filled role carries its own readable ink, because the fill is the
      background at that point and which ink reads on it flips with the theme:
      observed is near-black in light and near-white in dark. */
@@ -477,6 +478,7 @@ html {
   --viz-identity-2-text: var(--viz-identity-2);
   --viz-identity-3-text: #9c6aff;
   --viz-surface: #1f1f1f;
+  --viz-fill-slate: #A8BBD0;
   --viz-on-observed: #1f1f1f;
   --viz-on-success: #1f1f1f;
   /* Heat diverging scale, dark - each clears 3:1 against --viz-surface:
@@ -1103,7 +1105,7 @@ html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation
 [data-explain-table] table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4; color: var(--color-ink); }
 [data-explain-table] th,
 [data-explain-table] td { min-width: 5.5rem; padding: 8px 12px; text-align: left; vertical-align: top; overflow-wrap: break-word; border-bottom: 1px solid var(--color-line); }
-[data-explain-table] th { font-weight: 600; background: color-mix(in srgb, #a8bbd0 24%, var(--viz-surface)); }
+[data-explain-table] th { font-weight: 600; background: color-mix(in srgb, var(--viz-fill-slate) 24%, var(--viz-surface)); }
 [data-explain-table] tbody tr:last-child td { border-bottom: 0; }
 /* The minimized Explanation tile (LearningBlocks ExplanationTile): its one visual is drawn at its full size, as in the card (explanation-card-width.js sets the tile's width from it); only the picture's own margin is dropped. */
 [data-explanation-tile] [data-illustration] { margin: 0 auto; }

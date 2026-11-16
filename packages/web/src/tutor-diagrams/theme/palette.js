@@ -77,6 +77,7 @@ export const VIZ_LIGHT = Object.freeze({
   "viz-code-text": "var(--color-ink-2)",
   "viz-identity-2-text": "#867033",
   "viz-surface": GROUND,
+  "viz-fill-slate": FILLS.slate, // the slate fill, for the table header of [data-explain-table] (a CSS rule cannot import it)
   "viz-on-observed": "#ffffff",
   "viz-on-success": "#ffffff",
   "viz-heat-negative": "#1a56c4",
@@ -113,6 +114,7 @@ export const VIZ_DARK = Object.freeze({
   "viz-learner-text": "var(--viz-learner)",
   "viz-identity-2-text": "var(--viz-identity-2)",
   "viz-surface": "#1f1f1f",
+  "viz-fill-slate": FILLS.slate,
   "viz-on-observed": "#1f1f1f",
   "viz-on-success": "#1f1f1f",
   "viz-heat-negative": "#6fb1ff",

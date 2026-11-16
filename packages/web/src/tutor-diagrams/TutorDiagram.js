@@ -1,4 +1,5 @@
 import { TEACHING, TEACHING_FONT, TEACHING_STYLE } from './teaching-theme.js';
+import { LINES } from './theme/palette.js';
 import { isDotTree } from './ml-topology-spec.js';
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react';
 import { layouts } from './layouts.js';
@@ -38,7 +39,7 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
   },
   h('title', null, diagram.title),
   h('rect', { x: 0.5, y: 0.5, width: width - 1, height: height - 1, rx: 12,
-    fill: SURFACE, stroke: 'var(--color-line, #dedad4)' }),
+    fill: SURFACE, stroke: `var(--color-line, ${LINES.frame})` }),
   label(title, width / 2, titleHeight / 2 + 3, { size: 17, weight: 700 }),
   h('g', { transform: `translate(0 ${titleHeight})` }, ...layout.elements),
   caption.height ? caption.draw(width / 2, titleHeight + layout.height + captionHeight / 2 - 2) : null);
