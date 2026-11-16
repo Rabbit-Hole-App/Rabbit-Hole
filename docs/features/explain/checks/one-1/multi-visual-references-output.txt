@@ -1,0 +1,130 @@
+registered references: 469
+2+ visuals as offered at Brief (overview): 55 | Balanced (standard): 64 | Detailed (deep): 114 | at any depth: 114
+3 visuals at some depth: 17
+by base spec form (2+ at any depth): {
+  'comparison/panels': 25,
+  'transformation/visual': 8,
+  'single-diagram spec': 74,
+  panels: 7
+}
+base spec itself composes 2+ child diagrams (panels / comparison-panels / transformation-visual): 40
+carry a top-level detailSpec: 25 | a detailSpec inside depths.deep: 87 | depths.overview: 8 | depths.standard: 6
+single-diagram (-single) variants registered: 43 | composed refs that have one: 36 of 40
+
+IDS, base spec composes 2+ child diagrams (40):
+ml-fit-quality-comparison [comparison/panels]
+ml-feature-scaling-transformation [transformation/visual]
+ml-clustering-comparison [comparison/panels]
+ml-concept-drift-comparison [comparison/panels]
+ml-one-hot-encoding-transformation [transformation/visual]
+ml-imputation-transformation [transformation/visual]
+ml-boosting-correction-transformation [transformation/visual]
+ml-differencing-transformation [transformation/visual]
+ml-ordinal-encoding [comparison/panels]
+ml-value-binning [comparison/panels]
+ml-feature-interaction [transformation/visual]
+ml-raw-log-distributions [comparison/panels]
+ml-confusion-denominators [comparison/panels]
+ml-regression-error-metrics [comparison/panels]
+ml-repeated-sample-fits [comparison/panels]
+ml-soft-vote-probabilities [comparison/panels]
+ml-adaboost-weight-update [transformation/visual]
+ml-stacking-oof-predictions [comparison/panels]
+ml-minority-accuracy-trap [comparison/panels]
+ml-psi-bin-contributions [comparison/panels]
+ml-time-series-additive-residuals [comparison/panels]
+ml-acf-vs-pacf [comparison/panels]
+ml-recursive-vs-direct-forecast [comparison/panels]
+ml-dropout-network [transformation/visual]
+ml-dense-vs-moe-architecture [comparison/panels]
+ml-transformer-parallel-attention-heads [comparison/panels]
+d2l-convolution-filter-maps [comparison/panels]
+raschka-context-cap-same-experts [comparison/panels]
+raschka-indexed-attention-only-diff [comparison/panels]
+ml-linear-regression-linear-unit [panels]
+ml-logistic-regression-softmax [panels]
+ml-neural-networks-hidden-layer [panels]
+ml-regularization-regularized-objective [panels]
+ml-regularization-dropout-mask [panels]
+ml-attention-scaled-score-normalization [panels]
+ml-model-evaluation-training-diagnostics [comparison/panels]
+ml-model-evaluation-schedule-run-diagnostics [comparison/panels]
+ml-time-series-recursive-rollout [comparison/panels]
+ml-distribution-shift-input-distribution-shift [comparison/panels]
+ml-distribution-shift-concept-shift [panels]
+
+IDS, 2+ only through detailSpec (74) [brief/balanced/detailed visuals]:
+ml-gemma-decoder-stack [1/1/2]
+ml-transformer-token-embeddings [1/1/2]
+ml-transformer-weighted-values [2/2/2] top-level
+ml-transformer-causal-mask [2/2/2] top-level
+ml-transformer-vocabulary-softmax [1/2/2] top-level
+big-o-growth-rates [1/1/2]
+ml-bert-fine-tuning [1/1/2]
+ml-bert-cls-readout [1/1/2]
+ml-bert-encoder-depth [1/1/2]
+ml-bert-contextual-vectors [1/1/2]
+ml-bert-elmo-layer-mix [1/1/2]
+ml-bert-masked-token [1/1/2]
+ml-bert-frozen-features [1/1/2]
+ml-gpt2-continue-prefix [1/1/2]
+ml-gpt2-parameter-counts [1/1/2]
+ml-gpt2-context-architecture [1/1/2]
+ml-gpt2-tied-output-weights [1/1/2]
+ml-gpt2-fused-qkv-slices [1/1/2]
+ml-gpt2-task-separators [1/1/2]
+ml-gpt2-music-event-tokens [1/1/2]
+d2l-shared-patch-detector [1/1/2]
+d2l-convolution-window-arithmetic [1/1/2]
+d2l-convolution-window-reuse [1/2/2] top-level
+d2l-convolution-axis-strides [1/2/2] top-level
+d2l-convolution-input-channel-sum [1/1/2]
+d2l-pointwise-channel-mixing [1/1/2]
+d2l-max-pooling-windows [1/2/2] top-level
+d2l-cnn-loss-and-accuracy [1/2/2] top-level
+d2l-recurrent-state-handoff [1/1/2]
+d2l-lag-regression-training-examples [1/2/2] top-level
+d2l-forecast-one-step-refresh [1/1/2]
+d2l-forecast-feedback-error [1/1/2]
+d2l-recurrent-next-character-targets [1/1/2]
+d2l-recurrent-weight-gradient-sum [1/1/2]
+d2l-attention-pooling-local-prediction [1/1/2]
+d2l-attention-pooling-neighbor-weight-grid [1/2/2] top-level
+d2l-attention-bandwidth-weight-spread [2/2/2] top-level
+d2l-attention-valid-length-padding [1/1/2]
+d2l-attention-additive-score-projection [1/2/2] top-level
+d2l-bahdanau-changing-decoder-context [1/1/2]
+d2l-transformer-position-signal-frequency [2/2/2] top-level
+d2l-transformer-encoder-head-weight-grids [2/2/2] top-level
+figure-gpt2-learned-position-decoder [1/1/2]
+figure-decoder-depth-and-width-knobs [1/1/2]
+figure-vocabulary-interface-width [1/1/2]
+figure-routed-expert-parameter-split [1/1/2]
+figure-shared-decoder-checkpoint-specialization [1/1/2]
+figure-learned-and-identity-shortcut [1/1/2]
+figure-gallery-convolution-before-recurrent-state [2/2/2] top-level
+figure-gallery-hybrid-state-and-cache-growth [2/2/2] top-level
+figure-gallery-layer-specific-token-lookup [2/2/2] top-level
+figure-gallery-fine-and-coarse-history-compression [2/2/2] top-level
+figure-gallery-window-layer-schedule [1/1/2]
+figure-gallery-convolution-layer-schedule [1/1/2]
+figure-gallery-convolution-relative-bias [1/1/2]
+figure-gallery-multistream-residual [1/1/2]
+raschka-residual-gain-and-soft-logit-cap [2/2/2] top-level
+figure-attention-output-gate [1/1/2]
+figure-latent-expert-output-normalization [1/1/2]
+ml-what-is-machine-learning-output-types [1/1/2]
+ml-what-is-machine-learning-workflow [1/1/2]
+ml-what-is-machine-learning-dataset-split [2/2/2] top-level
+ml-what-is-machine-learning-fit-quality [1/1/2]
+ml-what-is-machine-learning-model-choice [2/2/2] top-level
+ml-what-is-machine-learning-class-centroids [2/2/2] top-level
+ml-what-is-machine-learning-nearest-centroid-predict [2/2/2] top-level
+ml-linear-regression-line-meaning [1/1/2]
+ml-linear-regression-residual-cost [2/2/2] top-level
+ml-linear-regression-first-gradient-step [1/1/2]
+ml-linear-regression-rate-comparison [1/1/2]
+ml-linear-regression-feature-scaling-overlay [2/2/2] top-level
+ml-linear-regression-polynomial-overfit [1/1/2]
+ml-linear-regression-r-squared [1/1/2]
+ml-logistic-regression-linear-separator [1/1/2]

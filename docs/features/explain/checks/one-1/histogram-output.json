@@ -1,0 +1,111 @@
+{
+ "hist": {
+  "balanced": {
+   "0": 0,
+   "1": 5,
+   "2": 0,
+   "3": 0,
+   "4+": 0
+  },
+  "ALL": {
+   "0": 0,
+   "1": 5,
+   "2": 0,
+   "3": 0,
+   "4+": 0
+  }
+ },
+ "planHist": {
+  "balanced": {
+   "0": 0,
+   "1": 5,
+   "2": 0,
+   "3": 0,
+   "4+": 0
+  },
+  "ALL": {
+   "0": 0,
+   "1": 5,
+   "2": 0,
+   "3": 0,
+   "4+": 0
+  }
+ },
+ "rows": [
+  {
+   "id": "24f3953f",
+   "at": "2026-11-15T23:25:08.006Z",
+   "depth": "balanced",
+   "planned": 1,
+   "planner": "jev",
+   "planKinds": "token-links",
+   "carried": 1,
+   "diagrams": 1,
+   "pictures": 0,
+   "askedByLearner": 0,
+   "planned_secondVisual": false,
+   "physical": false,
+   "args": "How does self-attention weigh every token against all others at once?"
+  },
+  {
+   "id": "636a1548",
+   "at": "2026-11-16T01:11:19.615Z",
+   "depth": "balanced",
+   "planned": 1,
+   "planner": "jev",
+   "planKinds": "bar-chart",
+   "carried": 1,
+   "diagrams": 1,
+   "pictures": 0,
+   "askedByLearner": 0,
+   "planned_secondVisual": false,
+   "physical": false,
+   "args": "explain softmax"
+  },
+  {
+   "id": "0e54c0a7",
+   "at": "2026-11-16T01:11:31.088Z",
+   "depth": "balanced",
+   "planned": 1,
+   "planner": "jev",
+   "planKinds": "bar-chart",
+   "carried": 1,
+   "diagrams": 1,
+   "pictures": 0,
+   "askedByLearner": 0,
+   "planned_secondVisual": false,
+   "physical": false,
+   "args": "What happens if all logits are equal?"
+  },
+  {
+   "id": "a7cabdef",
+   "at": "2026-11-16T05:42:15.394Z",
+   "depth": "balanced",
+   "planned": 1,
+   "planner": "jev",
+   "planKinds": "coordinate-plot",
+   "carried": 1,
+   "diagrams": 1,
+   "pictures": 0,
+   "askedByLearner": 0,
+   "planned_secondVisual": false,
+   "physical": false,
+   "args": "explain overfitting in model training"
+  },
+  {
+   "id": "6e08af66",
+   "at": "2026-11-16T09:48:22.405Z",
+   "depth": "balanced",
+   "planned": 1,
+   "planner": "jev",
+   "planKinds": "choose:flow,transformation",
+   "carried": 1,
+   "diagrams": 1,
+   "pictures": 0,
+   "askedByLearner": 0,
+   "planned_secondVisual": false,
+   "physical": false,
+   "args": "Why does character-level tokenization, where each character becomes an"
+  }
+ ]
+}

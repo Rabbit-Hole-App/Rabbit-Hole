@@ -1,0 +1,26 @@
+records 46 outcomes {"artifact":6,"failed":40} release values [ null ] span 2026-11-15T23:25:08.006Z 2026-11-16T09:48:26.477Z
+CARRIED visuals per card, by depth (cards with 0/1/2/3/4+):
+┌──────────┬───┬───┬───┬───┬────┐
+│ (index)  │ 0 │ 1 │ 2 │ 3 │ 4+ │
+├──────────┼───┼───┼───┼───┼────┤
+│ balanced │ 0 │ 5 │ 0 │ 0 │ 0  │
+│ ALL      │ 0 │ 5 │ 0 │ 0 │ 0  │
+└──────────┴───┴───┴───┴───┴────┘
+PLANNED visuals per card (plan.visuals.length), by depth:
+┌──────────┬───┬───┬───┬───┬────┐
+│ (index)  │ 0 │ 1 │ 2 │ 3 │ 4+ │
+├──────────┼───┼───┼───┼───┼────┤
+│ balanced │ 0 │ 5 │ 0 │ 0 │ 0  │
+│ ALL      │ 0 │ 5 │ 0 │ 0 │ 0  │
+└──────────┴───┴───┴───┴───┴────┘
+cards with no plan field (plan null): 1
+┌─────────┬────────────┬────────────┬─────────┬──────────────────────────────┬─────────┬──────────┬──────────┬────────────────┬──────────────────────────────────────────────────────────────────────────┐
+│ (index) │ id         │ depth      │ planned │ planKinds                    │ carried │ diagrams │ pictures │ askedByLearner │ args                                                                     │
+├─────────┼────────────┼────────────┼─────────┼──────────────────────────────┼─────────┼──────────┼──────────┼────────────────┼──────────────────────────────────────────────────────────────────────────┤
+│ 0       │ '24f3953f' │ 'balanced' │ 1       │ 'token-links'                │ 1       │ 1        │ 0        │ 0              │ 'How does self-attention weigh every token against all others at once?'  │
+│ 1       │ '636a1548' │ 'balanced' │ 1       │ 'bar-chart'                  │ 1       │ 1        │ 0        │ 0              │ 'explain softmax'                                                        │
+│ 2       │ '0e54c0a7' │ 'balanced' │ 1       │ 'bar-chart'                  │ 1       │ 1        │ 0        │ 0              │ 'What happens if all logits are equal?'                                  │
+│ 3       │ 'a7cabdef' │ 'balanced' │ 1       │ 'coordinate-plot'            │ 1       │ 1        │ 0        │ 0              │ 'explain overfitting in model training'                                  │
+│ 4       │ '6e08af66' │ 'balanced' │ 1       │ 'choose:flow,transformation' │ 1       │ 1        │ 0        │ 0              │ 'Why does character-level tokenization, where each character becomes an' │
+└─────────┴────────────┴────────────┴─────────┴──────────────────────────────┴─────────┴──────────┴──────────┴────────────────┴──────────────────────────────────────────────────────────────────────────┘
+cards where carried != planned: 0 []
