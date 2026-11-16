@@ -49,6 +49,8 @@ function curve(points, colorIndex, attributes = {}, path) {
 function stepPoints(points) {
   return points.flatMap((p, i) => i ? [[p[0], points[i - 1][1]], p] : [p]);
 }
+// A short stable id for a clip path (two plots on one page share an id only when their clip shapes are the same).
+const hashOf = text => [...text].reduce((sum, ch) => (Math.imul(sum, 31) + ch.charCodeAt(0)) >>> 0, 7).toString(36);
 function bodyWidth(d, requested) {
   const text = [d.x?.label, d.y?.label, ...(d.series ?? []).map(s => s.label),
     ...(d.annotations ?? []).map(a => a.label), ...(d.categories ?? [])];
@@ -145,6 +147,20 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
   const x = scale(d.x, left, right), y = scale(d.y, bottom, top);
   const xy = p => [x(p.x), y(p.y)];
   const curves = d.series.map(series => series.points.map(xy));
+  // The d of a series' path (undefined: the series is drawn as a straight polyline).
+  const drawnPath = (series, values) => {
+    const smooth = series.smooth !== false;
+    if (series.closed) return closedLinePath(values, smooth);
+    if (series.kind === 'line' && smooth) return monotoneLinePath(values, series.points[0].low !== undefined ? series.points.map(p => [y(p.high), y(p.low)]) : undefined);
+    return undefined;
+  };
+  // A plot of exactly one line series and an x-band: the band is the area under the curve (clip = the series path closed to the baseline); several series keep a full-height band.
+  const sole = d.series.length === 1 && d.series[0].kind === 'line' && !d.series[0].closed ? d.series[0] : null;
+  const underPath = sole && (() => {
+    const values = curves[0], base = y(Math.min(d.y.max, Math.max(d.y.min, 0)));
+    return `${drawnPath(sole, values) ?? `M${values.join('L')}`}L${values.at(-1)[0]},${base}L${values[0][0]},${base}Z`;
+  })();
+  const clipId = underPath ? `plot-under-${hashOf(underPath)}` : null;
   // The colour a point's ring takes: the x-band that holds it (the narrowest), else the nearest one; no band: the ground.
   const xBands = (d.annotations ?? []).flatMap((a, k) => a.kind === 'band' && a.axis === 'x' ? [{ from: a.from, to: a.to, fill: SOFT[k % 3] }] : []);
   const bandFill = value => {
@@ -256,8 +272,11 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
       const yMin = a.kind === 'rectangle' ? a.yMin : a.axis === 'y' ? a.from : d.y.min;
       const yMax = a.kind === 'rectangle' ? a.yMax : a.axis === 'y' ? a.to : d.y.max;
       anchor = [(x(xMin) + x(xMax)) / 2, (y(yMin) + y(yMax)) / 2];
+      // A band is a pale wash: its colour at 0.18 over the ground (the legend pills' tint), no outline, so the curve, the stems and the points on it read through it.
+      const under = a.kind === 'band' && a.axis === 'x' && clipId;
+      if (under && !geometry.some(item => item.props?.id === clipId)) geometry.push(h('clipPath', { id: clipId }, h('path', { d: underPath })));
       geometry.push(h('rect', { x: x(xMin), y: y(yMax), width: x(xMax) - x(xMin), height: y(yMin) - y(yMax),
-        ...props, [`data-tutor-plot-${a.kind}`]: a.label }));
+        ...(a.kind === 'band' ? { fill: mixHex(fill, T.ground, 0.18), stroke: 'none' } : props), ...(under ? { clipPath: `url(#${clipId})` } : {}), [`data-tutor-plot-${a.kind}`]: a.label }));
     } else if (a.kind === 'polygon') {
       const vertices = a.points.map(xy);
       anchor = vertices.reduce((sum, p) => [sum[0] + p[0] / vertices.length, sum[1] + p[1] / vertices.length], [0, 0]);
@@ -278,11 +297,9 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
   const marks = [], legend = [];
   for (const [i, series] of d.series.entries()) {
     const hasUncertainty = series.points[0].low !== undefined;
-    let band;
     if (hasUncertainty && ['line', 'step'].includes(series.kind)) {
       const high = series.points.map(p => [x(p.x), y(p.high)]);
       const low = series.points.map(p => [x(p.x), y(p.low)]);
-      if (series.kind === 'line') band = high.map((point, j) => [point[1], low[j][1]]);
       const project = values => series.kind === 'step' ? stepPoints(values) : values;
       geometry.push(h('polygon', { points: pointString([...project(high), ...project(low).reverse()]), fill: SOFT[i], fillOpacity: 0.4, stroke: COLORS[i], strokeWidth: 0.8,
         'data-tutor-plot-uncertainty': series.label }));
@@ -290,10 +307,7 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
     const values = series.points.map(xy);
     if (series.kind === 'line' || series.kind === 'step') {
       // A line is the smooth curve through its samples (monotone cubic; a closed contour a smooth closed curve) unless the author says smooth: false: then straight segments.
-      const smooth = series.smooth !== false;
-      let path;
-      if (series.closed) path = closedLinePath(values, smooth);
-      else if (series.kind === 'line' && smooth) path = monotoneLinePath(values, band);
+      const path = drawnPath(series, values);
       geometry.push(curve(series.kind === 'step' ? stepPoints(values) : values, i, { 'data-tutor-plot-series': series.label }, path));
     }
     series.points.forEach((p, j) => {
