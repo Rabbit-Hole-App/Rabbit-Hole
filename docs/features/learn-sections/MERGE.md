@@ -1,81 +1,93 @@
 # Merge of rehearsal/sections into main: pre-merge checks
 
-Prepared on 2026-11-16 (PT) for the owner and the Reviewer. **Nothing has been pushed to main**, and no production database was touched.
-The Reviewer reads this first; the owner gives the push and the `!` commands.
+Prepared on 2026-11-16 (PT) for the owner and the Reviewer, after the Reviewer's 11:55 and 12:10 rulings. **Nothing has been pushed to main**, and no production database was touched. The Reviewer reads this first; the owner gives the push and the `!` commands.
 
 ## 1. The local merge
 
-- Local `main` was reset to `rabbit-hole/main` 74c4f68ae.
-  - The previous local main, with merges 022bc04d2, 788ed2594 and 73600eabb, is kept as the branch `backup/main-before-sections-merge`. Every non-merge commit it had is in `rehearsal/sections`.
-- One `--no-ff` merge commit of the final `rehearsal/sections` tip is on local `main` in the worktree `C:/s/main-merge`. Its SHA is given with this report; a merge commit cannot name itself in its own tree.
-- `git diff main rehearsal/sections` is empty: `rabbit-hole/main` is an ancestor of `rehearsal/sections`, so the merge tree is the sections tree.
+- Remote main moved to **5f29c23a6** (the /explain lane's 150-explain release, 11:49 PT). `rabbit-hole/main` was merged into `rehearsal/sections` first (544645194, clean), so the sections tip contains it.
+- Local `main` in `C:/s/main-merge` is `rabbit-hole/main` 5f29c23a6 plus one `--no-ff` merge commit of the sections tip. `git diff main rehearsal/sections` is empty. The SHAs are in section 8.
+- The earlier local main (with 022bc04d2, 788ed2594 and 73600eabb) is kept as the branch `backup/main-before-sections-merge`. Every non-merge commit it had is in `rehearsal/sections`.
 
-## 2. Tests that fail on current main (pre-existing)
+## 2. What changed for the 11:55 and 12:10 rulings
 
-All of these were run on `rabbit-hole/main` 74c4f68ae, in a clean worktree (`C:/s/main-check`).
+- **The rehearsal feature ships ON (12:10).** `scripts/prod-release.mjs BUILD_ENV` sets `VITE_REHEARSAL_TRIGGER: '1'`.
+  - Production builds the codebase chip, the Tutor flow, the Run card, the section rows and the Start-from-GitHub canvas destination (`start-run.js`, which follows the flag).
+  - `REHEARSAL_PIN_COMMIT` is added to `NEVER_ON_PRODUCTION`.
+- **Section row:** renamed for users from "Make section" to "Build this section" (`tutor-rehearsal-text.js`). "Next section" is unchanged.
+- **code-explain** has its own server switch, `CODE_EXPLAIN_ENABLED` (12:10).
+  - `chat-capability-route.js availability()` returns true for it only when the switch is `'true'`. With the switch off, the route is not offered to the router, and a pick or a named capability becomes an ordinary answer.
+  - The production config pins it `"false"`. `wrangler.dev.jsonc` and the local/CI stack (`scripts/ci/config/integ-local.jsonc`) set it `"true"`.
+  - The 11:55 browser-flag gate is removed. Test: `tutor-prompt.test.js` "code-explain ships dark".
+- **Production bundle check** (`e2e/production-bundle-check.mjs`), for a build with the flag:
+  - The `RunCard` and `TutorRehearsal` chunks are required.
+  - "Use the codebase", "Next section", "Build this section" and "Planning this section" must ship.
+  - The code-explain card's chunks ship but stay dark, since its route is off.
+  - "Make section" and `REHEARSAL_PIN_COMMIT` are new dev markers. The earlier `code-explain` marker is gone, per 11:55 (a).
+- **Production config pins (11:55, 3):** `packages/web/wrangler.rabbit-hole-prod.jsonc` sets these explicitly:
+  - `AI_MONTHLY_ALLOWANCE_USD` "25";
+  - `COMPUTE_MONTHLY_ALLOWANCE_USD` "10";
+  - `COMPUTE_RATE_CPU_CORE_SEC_MICROS` "39.42";
+  - `COMPUTE_RATE_MEM_GIB_SEC_MICROS` "6.67";
+  - `CODE_EXPLAIN_ENABLED` "false".
+- **Brief overlay (11:55, 5):** the first two sentences of paragraph 2 of `tasks/learn-section-brief.md` are replaced exactly as ruled.
+  - The datasette 1.2 re-run was refused again. The brief, as returned, is in `brief/data-1.2.json` under `log[0].submitted`. The validator's errors:
+    - b1 `shows` backticks whole expressions (`Setting("default_page_size", 100, ...)`);
+    - b2 `shows` names `default_page_size`, which is not in b2's own anchored lines;
+    - b5 is a background beat that says "This brief did not read that body" and names `app.py`;
+    - b5 and b6 ideas have three sentences.
 
-**The three explain-suite tests (control plane)** fail on main too:
-- `explain-heat-grid.test.js:62`: the SDK fingerprint differs.
-- `explain-program-budget.test.js:69`: fixed request 44007 bytes, against a limit of 44000.
-- `explanation-gemini-illustration-bundles.test.js:49`: property count and length for "how does the water cycle work?".
+## 3. Tests that fail on current main (pre-existing)
 
-**The two animation runtime tests** do not fail on main and do not fail on the merge when run alone:
-- `interact-checks.test.js`: 28/28 pass on both.
-- `interact-e2e.test.js`: 37/37 pass on both. This file holds "Standard toss-and-drop: the runtime traces…" and "prompt -> design -> Review scene plan -> …".
+Run on `rabbit-hole/main` 5f29c23a6 in a clean worktree. The numbers are in section 4.
+- The two animation runtime tests (`interact-checks.test.js` 28/28, `interact-e2e.test.js` 37/37) pass alone on main and on the merge. They failed earlier only when the web and control-plane suites ran at the same time. This time the suites ran one after the other.
 
-They failed only in a run where the web and control-plane suites ran at the same time on one machine. That points to load or timeouts, not code.
+## 4. Full suites on the merge commit
 
-**The web unit suite on main fails 11 tests**, all also failing on the merge:
-- explain-program SDK fingerprints: `cyclic-runtime`, `medium-runtime`, `raster-runtime`, `sdk-figures`, and `stamps` ×3;
-- `motion-ownership` mutation proof;
-- `render-freshness`;
-- tutor-diagrams `figure-layout` and `svg-snapshots`.
+The suites ran one after the other on one machine: the merge commit (tree d84f0df2e) first, then `rabbit-hole/main` 5f29c23a6.
 
-None of these was fixed here: they are main's.
-
-## 3. Full suites on the merge commit
-
-| Suite | Tests | Pass | Fail | Notes |
+| Suite | Tests | Pass | Fail | Failures |
 |---|---|---|---|---|
-| Web unit (`packages/web`, `npm run test:unit`) | 7184 | 7144 | 12 | 11 are main's own (section 2). The 12th was ours: `inline-ai-annotation.test.mjs`, where the board-links reader scan matched the prose "links," in `learn-section-make/browser.js`. It is fixed in a4f51d707 and passes (4/4). |
-| Control plane (`packages/control-plane`, `npm test`), run alone | 4776 | 4770 | 5 | 3 are main's explain tests. M3 (`explain-m3.test.js`) is a load flake: 25/25 alone. `no-ellipsis.test.js` was ours: a `'...'` gap line in `learn-section-record.js`. It is fixed in a4f51d707 and passes. |
-| Main for comparison, control plane | 4632 | 4628 | 3 | the three explain tests |
-| Main for comparison, web unit | 7064 | 7025 | 11 | as listed in section 2 |
+| Web unit, merge | 7189 | 7158 | 3 | the same 3 as main |
+| Web unit, main 5f29c23a6 | 7069 | 7038 | 3 | `render-freshness` (committed static renders' fingerprints); `motion-ownership` mutation proof; tutor-diagrams `figure-layout` (small forces) |
+| Control plane, merge | 4777 | 4774 | 2 | `explain-program-budget` (also on main); M3 (`explain-m3.test.js`), a load flake that passes alone 3 of 3 times (25/25 each) |
+| Control plane, main 5f29c23a6 | 4632 | 4630 | 1 | `explain-program-budget.test.js:69` |
 
-- The run of both suites at the same time showed 10 control-plane failures. Five of them do not reproduce when the suite runs alone: the two interact tests, the review-correction call, the attention matrix values, and the reference-row script. They are load flakes.
-- After the two fixes, the final merge differs from the tested merge only by those two fixes and this file. Section 8 lists the tests re-run on the final merge.
+- **Nothing fails on the merge that does not fail on main**, apart from the M3 load flake.
+- Of the Reviewer's three explain tests, `explain-heat-grid` and `explanation-gemini-illustration-bundles` now pass on main 5f29c23a6 and on the merge; the 150-explain release fixed them. `explain-program-budget` still fails on both, so it is pre-existing.
+- The two animation runtime tests pass in both full runs.
+- The earlier merge-only failures (the board-links annotation scan and the no-ellipsis check) were fixed in a4f51d707.
 
-## 4. Production bundle
+## 5. Production bundle (built with the flag) and workers
 
-Built with `scripts/prod-release.mjs`'s own `BUILD_ENV`: the dev-only variables stripped, with no `VITE_REHEARSAL_TRIGGER`. The build used no `VITE_TLDRAW_LICENSE_KEY`; its value lives in the `.env` file, which I do not read. That key only affects tldraw's licence notice. Both `dist` and `dist-dev` were built.
+The build used `scripts/prod-release.mjs`'s own `BUILD_ENV`: `VITE_REHEARSAL_TRIGGER=1`, the dev-only variables stripped, both `dist` and `dist-dev`. It had no `VITE_TLDRAW_LICENSE_KEY`; its value is in the `.env` file, which I do not read, and it only affects tldraw's licence notice.
 
-- **No dev chip, no dev rows.** None of these strings appears in any shipped chunk: `TutorRehearsal`, `Make section`, `learn_section_make`, `learn_section_brief`, `RECORDED RUN`, `Loading the run card`, `/api/learn/run`. No `RunCard`, `TutorRehearsal` or `CodeExplainCard` chunk exists.
-  - "Next section - skips this section" does ship. It is main's own contents string (`ask.jsx sectionNote`, present on main), not a dev row.
-- **`e2e/production-bundle-check.mjs`: FAIL.** The check, in the version on this branch, lists `code-explain` as a dev-only marker. The string is shipped in `app-*.js` and `inline-ai-route-*.js` through two places, both from the rehearsal runtime work, not the sections work:
-  - `inline-ai-route.js:192 CODE_CAPABILITIES`, the router's capability table, which the server and the client share;
-  - `generation-proposal-chat.js:223`.
+- **`EXPECT_ANALYTICS=1 node e2e/production-bundle-check.mjs`: PASS.** The output was "ok: the production build ships the Learn app and no dev-only tools; usage analytics configured".
+  - Chunks shipped: `RunCard`, `TutorRehearsal`, `CodeExplainCard` and `code-explain-insert` (the last two dark).
+  - None of these appears in any shipped file: "Make section", `REHEARSAL_PIN_COMMIT`, `__voiceFake`, "Review fixtures are on", and any `fixture` or `window.__` seam in the TutorRehearsal and RunCard chunks.
+  - There is no spacing toggle yet.
+- **Workers:** `wrangler deploy --dry-run --config wrangler.rabbit-hole-prod.jsonc` passed for both.
+  - `rabbit-hole-app`: 10059.18 KiB, gzip 2547.73 KiB. The bound vars show `CODE_EXPLAIN_ENABLED "false"`, `COMPUTE_MONTHLY_ALLOWANCE_USD "10"`, `COMPUTE_RATE_CPU_CORE_SEC_MICROS "39.42"` and `COMPUTE_RATE_MEM_GIB_SEC_MICROS "6.67"`.
+  - The app bundle exports `AnimationJobs`, `CadJobs`, `ExplainJobs`, `FileJobs`, `ImageJobs`, `LearnScenes`, `LearnVideos`, `RepositoryImports`, `RepositoryRehearsals`, `RoadmapJobs` and `WhiteboardJobs`.
+  - `rabbit-hole-cp`: 5112.14 KiB, gzip 1216.61 KiB. No pdf.js is in either bundle.
 
-  Neither is on main, and main's check does not have the marker, so a release from main passes today and a release from this merge would not. **Decision needed (not changed here):**
-  - (a) Narrow the marker to the card's DOM marker (`data-code-explain-card`, still checked) and the chunk names. The capability name is a shared route constant, not dev UI.
-  - (b) Keep the marker, and keep the `code-explain` capability out of the client build behind `REHEARSAL`. This touches a module the server imports.
+### Decision needed before the push: the feature ships ON, but production has no rehearsal backend
 
-  Recommendation: (a). The card itself already stays out of the build, through `DEV_CHUNKS`.
-- **Production workers build.** `wrangler deploy --dry-run --config wrangler.rabbit-hole-prod.jsonc` passed for both workers:
-  - `rabbit-hole-app`: 10049.50 KiB, gzip 2544.75 KiB. The bundle's export block has all ten bound Durable Object classes: `AnimationJobs`, `CadJobs`, `ExplainJobs`, `FileJobs`, `ImageJobs`, `LearnScenes`, `LearnVideos`, `RepositoryImports`, `RoadmapJobs` and `WhiteboardJobs`. It also exports `RepositoryRehearsals`, which production does not bind, so the rehearsal does not run in production.
-  - `rabbit-hole-cp`: 5108.03 KiB, gzip 1215.49 KiB.
-  - Neither bundle contains pdf.js.
+The production app config binds no `REPOSITORY_REHEARSALS` Durable Object (`RepositoryRehearsals` is exported but not bound, and there is no migration entry for its class). No `REHEARSAL_WORKER_URL` or `REHEARSAL_WORKER_TOKEN` secret is set either.
 
-## 5. Migrations (Learn D1, `rabbit-hole-learn-prod`)
+`dev-worker.js` answers the rehearsal and Run routes with 404 where the class is unbound, and `startCatalogue` returns nothing when the controller is not configured. So in production:
+- the Run card and the route catalogue cannot run;
+- the Tutor's codebase intake has no catalogue.
 
-The release preflight requires the production Learn schema to equal `repository-schema.sql` plus every learn migration (`docs/features/prod-release.md`). This merge adds two tables to `repository-schema.sql`, so **0045 and 0046 must be applied before the release preflight will pass.** That needs the owner's GO; migrations are never applied by the release job.
+This was not changed here, because it is infrastructure: a new Durable Object binding, its class migration, and production secrets for the Modal controller. The choices:
+- (a) add the binding, the class migration and the two secrets before the release;
+- (b) ship as is and accept that the Run card is not available in production;
+- (c) keep `VITE_REHEARSAL_TRIGGER` off until (a) is done.
 
-| Order | Migration | What it adds | Notes |
-|---|---|---|---|
-| (Document card) | none | | The Document card is a canvas block (canvas JSON). This merge adds no table or migration for it; the only schema changes in the diff are the two below. |
-| 1 | `learn-migrations/0045-compute-usage.sql` | `compute_entries` and index `compute_entries_user_period` | Compute usage metering |
-| 2 | `learn-migrations/0046-learn-sections.sql` | `learn_sections` | Learn sections. `purgeTutorRows` deletes its rows only where the table exists. |
+The Learn section actions (brief, compose, make) do not need the rehearsal backend. They need migration 0046 and the existing model keys. The recorded-run lines are empty without a stored record.
 
-Commands, from the repository root, run by the owner in order:
+## 6. Migrations (Learn D1, `rabbit-hole-learn-prod`): the owner applies
+
+The release preflight requires the production Learn schema to equal `repository-schema.sql` plus every learn migration (`docs/features/prod-release.md`). This merge adds two tables, so **0045 and then 0046 must be applied before the release.** The bookmark comes first:
 
 ```
 cd packages/control-plane && npx wrangler d1 time-travel info rabbit-hole-learn-prod --config wrangler.rabbit-hole-prod.jsonc
@@ -83,51 +95,42 @@ cd packages/control-plane && npx wrangler d1 execute rabbit-hole-learn-prod --re
 cd packages/control-plane && npx wrangler d1 execute rabbit-hole-learn-prod --remote --config wrangler.rabbit-hole-prod.jsonc --file learn-migrations/0046-learn-sections.sql -y
 ```
 
-Record the bookmark the first command prints; it is the data restore point. Production was last read as identical through 0035 (5 November); 0036 to 0044 are assumed applied because releases from main since then passed the identity preflight. The release preflight confirms this.
+| Order | Migration | Adds |
+|---|---|---|
+| (Document card) | none | The Document card is a canvas block (canvas JSON); no table. |
+| 1 | `0045-compute-usage.sql` | `compute_entries`, index `compute_entries_user_period` |
+| 2 | `0046-learn-sections.sql` | `learn_sections` (`purgeTutorRows` deletes its rows only where the table exists) |
 
-## 6. Rollback
+Production was last read as identical through 0035 (5 November). 0036 to 0044 are assumed applied, because releases from main since then passed the identity preflight. The release preflight confirms this.
 
-- **`rollback/pre-rehearsal-merge` is stale.** On `rabbit-hole` it points at 18cf9fce8, which is **25 commits behind** current main (74c4f68ae). Rolling main back to it would also drop those 25 commits. Before the push, move it to current main:
+## 7. Rollback
+
+- **Move the rollback branch to current main before the push** (the owner's command). It is now at 18cf9fce8, behind main:
 
   ```
-  git push rabbit-hole 74c4f68aeba1384336418c5230528138ef8ec113:refs/heads/rollback/pre-rehearsal-merge --force
+  git push rabbit-hole 5f29c23a6a3c5cc40b8bc813a53d517d854c3e79:refs/heads/rollback/pre-rehearsal-merge --force
   ```
-
-  This is a forced update of that one branch only; it is the owner's command.
-- **Code:** reset main to `rollback/pre-rehearsal-merge`, or revert the merge commit with `git revert -m 1 <merge sha>`. Then release as usual.
-- **Workers:** run `npx wrangler rollback <version from the receipt's previous pair> --config wrangler.rabbit-hole-prod.jsonc` from each Worker's package, the app first, then the control plane (`prod-release.md`).
-- **D1:** roll back each migration in reverse order. The data in that table is lost.
+- **Code:** reset main to `rollback/pre-rehearsal-merge`, or `git revert -m 1 <merge sha>`, then release.
+- **Workers:** from each package, `npx wrangler rollback <version from the receipt's previous pair> --config wrangler.rabbit-hole-prod.jsonc`, the app first, then the control plane.
+- **D1:** roll back in reverse order. The data in those tables is lost.
 
   ```
   cd packages/control-plane && npx wrangler d1 execute rabbit-hole-learn-prod --remote --config wrangler.rabbit-hole-prod.jsonc --command "DROP TABLE IF EXISTS learn_sections" -y
   cd packages/control-plane && npx wrangler d1 execute rabbit-hole-learn-prod --remote --config wrangler.rabbit-hole-prod.jsonc --command "DROP INDEX IF EXISTS compute_entries_user_period; DROP TABLE IF EXISTS compute_entries" -y
   ```
 
-  Or restore the whole database to the bookmark recorded before 0045 (destructive, an owner GO every time):
+  Or the whole database, back to the bookmark from section 6 (destructive, an owner GO every time):
 
   ```
   cd packages/control-plane && npx wrangler d1 time-travel restore rabbit-hole-learn-prod --bookmark <bookmark> --config wrangler.rabbit-hole-prod.jsonc
   ```
 
-  After a code rollback, the two tables must be dropped too. Otherwise the identity preflight refuses the next release from the old code.
+  After a code rollback, drop the two tables too. Otherwise the identity preflight refuses the next release from the old code.
 
-## 7. Production flags (nothing new shows by default)
+## 8. SHAs
 
-| Flag | Where | Value now | Needed | Effect |
-|---|---|---|---|---|
-| `VITE_REHEARSAL_TRIGGER` | the build environment (`prod-release.mjs BUILD_ENV`) | not set | not set (off) | No Tutor rehearsal flow, Run card, code-explain card or section dev rows are built in. Checked in section 4. |
-| `AI_MONTHLY_ALLOWANCE_USD` | `packages/web/wrangler.rabbit-hole-prod.jsonc:181` | `"25"` | 25 | Already set. |
-| `COMPUTE_RATE_CPU_CORE_SEC_MICROS`, `COMPUTE_RATE_MEM_GIB_SEC_MICROS`, `COMPUTE_MONTHLY_ALLOWANCE_USD` | not in either prod config | absent | present (see Decision) | `learn-compute.js` falls back to the code defaults 39.42 and 6.67 micro-USD per core-second and GiB-second, and US$10 a month, never to unlimited. |
-| `REHEARSAL_WORKER_URL`, `REHEARSAL_WORKER_TOKEN` | prod secrets | not set | not set | The rehearsal controller stays unconfigured in production, and `RepositoryRehearsals` is not bound. |
-
-**Decision:** the compute rates are "present" only as code defaults. To pin them in the production config, add the three `COMPUTE_*` variables to `packages/web/wrangler.rabbit-hole-prod.jsonc` before the release; this was not done here.
-
-## 8. Final tip and checks on it
-
-- The final `rehearsal/sections` tip is the commit that adds this file. Under it is a4f51d707, the two fixes from section 3; this commit adds only documentation.
-- On the final merge commit, these were re-run alone:
-  - `packages/web`: `src/inline-ai-annotation.test.mjs`;
-  - `packages/control-plane`: `test/no-ellipsis.test.js`, `test/learn-section-*.test.js`, `test/explain-m3.test.js`.
-
-  The results are given with this report.
-- 8878 (`owner/local`) is rebuilt with the same tip for the owner's click-through, which is the gate (Reviewer 10:50).
+- Main: `rabbit-hole/main` 5f29c23a6 (5f29c23a6a3c5cc40b8bc813a53d517d854c3e79).
+- `rehearsal/sections` tip: the commit that adds this version of the file. Its parent is d84f0df2e, the tested code. This commit adds only documentation.
+- Local `main` merge commit: one `--no-ff` merge of that tip onto 5f29c23a6. Its SHA is given with this report, because a merge commit cannot name itself.
+- Suites and the bundle check ran on merge 3794eeced, whose tree is d84f0df2e: the same code.
+- Nothing is pushed to main. The owner gives the push and the `!` commands.
