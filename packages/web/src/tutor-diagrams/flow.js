@@ -317,11 +317,16 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     }
   }
 
-  // Fork: the two branches of a decision share one lane, so both drop from the diamond's bottom centre to one height and run apart there.
+  // Fork: the two branches of a decision share one lane, so both drop from the diamond's bottom centre to one height and run apart there. A row gap takes the shared fork only when exactly one
+  // decision forks into it: with two or more, their merged lanes cross, so every branch in that gap keeps its own nested lane.
   const forks = new Set();
-  for (const node of placements.values()) {
+  const forking = [...placements.values()].filter(node => {
     const branches = outgoing.get(node.id);
-    if (node.role !== 'decision' || node.tensor || branches.length !== 2 || branches.some(edge => skipOrder.has(edge) || sideEdges.has(edge))) continue;
+    return node.role === 'decision' && !node.tensor && branches.length === 2 && !branches.some(edge => skipOrder.has(edge) || sideEdges.has(edge));
+  });
+  for (const node of forking) {
+    if (forking.some(other => other !== node && ranks.get(other.id) === ranks.get(node.id))) continue;
+    const branches = outgoing.get(node.id);
     const [lead, other] = branches.map(edge => routeByEdge.get(edge));
     lead.depart.height = Math.max(lead.depart.height, other.depart.height);
     const lane = gaps[ranks.get(node.id)];
