@@ -164,6 +164,40 @@ function labelBounds(route, others, width, placed = []) {
   return null;
 }
 
+// The labels of a node whose runs have no room stand beside their drops (the last vertical leg of each wire), left of the line at mid-drop; where a place touches a wire or another label, the
+// side, or the height (the same step for every branch of the node, so the labels stay at one height), changes. With no clear place they stay left at mid-drop.
+function besideDrops(routes, others, placed, width) {
+  const inside = box => box.x >= 4 && box.x + box.width <= width - 4;
+  const sizes = routes.map(route => ({ w: Math.ceil(Math.max(...route.words.map(word => textWidth(word, EDGE_TEXT))) + 12), h: route.words.length * lineHeight(EDGE_TEXT) + 4 }));
+  const legs = routes.map(route => route.points.slice(-2));
+  const room = Math.min(...legs.map(([[, y1], [, y2]], i) => Math.max(0, (Math.abs(y2 - y1) - sizes[i].h) / 2)));
+  const attempt = lift => {
+    const standing = [...placed], boxes = [];
+    for (const [i, route] of routes.entries()) {
+      const [[, y1], [dropX, y2]] = legs[i], { w, h } = sizes[i], y = (y1 + y2) / 2 + lift - h / 2;
+      const bounds = [dropX - 4 - w, dropX + 4].map(x => ({ x, y, width: w, height: h }))
+        .find(box => inside(box) && others.every(other => other === route || !crosses(other.points, box)) && standing.every(placedBox => apart(placedBox, box)));
+      if (!bounds) return null;
+      standing.push(bounds);
+      boxes.push(bounds);
+    }
+    return boxes;
+  };
+  const found = [0, 12, -12, 24, -24].filter(lift => Math.abs(lift) <= room).map(attempt).find(Boolean);
+  if (found) return found;
+  // No common height clears every wire: each label takes its own nearest clear place along its drop (left of the line first), or stays left at mid-drop.
+  const standing = [...placed];
+  return routes.map((route, i) => {
+    const [[, y1], [dropX, y2]] = legs[i], { w, h } = sizes[i], reach = Math.max(0, (Math.abs(y2 - y1) - h) / 2);
+    const lifts = [0]; for (let step = 4; step <= reach; step += 4) lifts.push(step, -step);
+    const bounds = lifts.flatMap(lift => [dropX - 4 - w, dropX + 4].map(x => ({ x, y: (y1 + y2) / 2 + lift - h / 2, width: w, height: h })))
+      .find(box => inside(box) && others.every(other => other === route || !crosses(other.points, box)) && standing.every(placedBox => apart(placedBox, box)))
+      ?? { x: dropX - 4 - w, y: (y1 + y2) / 2 - h / 2, width: w, height: h };
+    standing.push(bounds);
+    return bounds;
+  });
+}
+
 // RD-4a: a node whose shared label lane finds no room (a label would touch a wire that passes through the lane) is laid out again with its branches on their own lanes, as before.
 export function layoutFlow(diagram, requestedWidth, paintNode) {
   const unshared = new Set();
@@ -350,15 +384,14 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     order.forEach((lane, index) => { gap[index] = lane; });
   });
 
-  // Fork: the two branches of a decision share one lane, so both drop from the diamond's bottom centre to one height and run apart there. A row gap takes the shared fork only when exactly one
-  // decision forks into it: with two or more, their merged lanes cross, so every branch in that gap keeps its own nested lane.
+  // Fork: the two branches of a decision share one lane, so both drop from the diamond's bottom centre to one height and run apart there. Every such decision forks; the lane order above keeps
+  // a run from crossing the stem of another decision of its row.
   const forks = new Set();
   const forking = [...placements.values()].filter(node => {
     const branches = outgoing.get(node.id);
     return node.role === 'decision' && !node.tensor && branches.length === 2 && !branches.some(edge => skipOrder.has(edge) || sideEdges.has(edge));
   });
   for (const node of forking) {
-    if (forking.some(other => other !== node && ranks.get(other.id) === ranks.get(node.id))) continue;
     const branches = outgoing.get(node.id);
     const [lead, other] = branches.map(edge => routeByEdge.get(edge));
     lead.depart.height = Math.max(lead.depart.height, other.depart.height);
@@ -474,9 +507,17 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     else failed.push(id);
   }
   if (failed.length) return { failed };
+  // When any branch label of a node has no room on its run, all of that node's labels stand beside their drops, so they stay at one height (rule a).
+  const besideNodes = new Set(routed.filter(route => route.words.length && !route.labelLane && !labelBounds(route, routed, width)).map(route => route.edge.from));
+  const beside = new Map();
+  for (const id of besideNodes) {
+    const group = routed.filter(route => route.edge.from === id && route.words.length && !route.labelLane);
+    const boxes = besideDrops(group, routed, [], width);
+    group.forEach((route, i) => beside.set(route.edge, boxes[i]));
+  }
   for (const route of routed.filter(route => route.words.length)) {
     const { edge, words } = route;
-    const bounds = route.labelLane ? shared.get(edge) : labelBounds(route, routed, width);
+    const bounds = route.labelLane ? shared.get(edge) : beside.has(edge) ? beside.get(edge) : labelBounds(route, routed, width);
     if (bounds) {
       labelBoxes.set(edge, bounds);
       annotations.push(h('g', null,
