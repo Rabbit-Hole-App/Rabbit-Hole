@@ -99,7 +99,8 @@ test('clicks: a generation action prepares command, subject and refs only; noteb
   notebook.onClick();
   assert.deepEqual(insertNotebook.calls, [[['from functools import lru_cache', 'print(1)'], 'python']]);
   assert.equal(prepare.calls.length, 2, 'the notebook action never prepares');
-  click('data-answer-followup')[1].onClick();
+  const list = find(tree, p => Array.isArray(p.items) && p.heading === 'Explore next' && typeof p.onPick === 'function')[0]; // the shared ChoiceList: its rows carry data-answer-followup, a pick prepares the question
+  list.onPick(list.items[1]);
   assert.deepEqual(prepare.calls[2], [{ text: 'What would LFU change here?' }]);
 });
 

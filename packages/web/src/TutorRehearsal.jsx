@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { api } from './api.js';
 import { ChatMessage } from './ChatMessages.jsx';
 import { CHOICE, startGoal } from './TutorCodebase.jsx';
 import { coachingCanvas } from './learn-coaching-client.js';
-import { SOMETHING_ELSE, goalOf, useOf } from './learn-codebase-goals.js';
-import { CODEBASE_OPTIONS_EVENT, INTAKE_TEXT_EVENT, SOON, routeIntakeText } from './codebase-use-route.js';
+import { goalOf, useOf } from './learn-codebase-goals.js';
+import { CODEBASE_OPTIONS_EVENT, INTAKE_TEXT_EVENT, routeIntakeText } from './codebase-use-route.js';
 import { REHEARSAL_POLL_MS } from './learn-rehearsal-view.js';
 import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
 import { flowMessages, goalForm, intakeOpen, onlyRoute } from './rehearsal-flow.js';
 import { catalogueMessage } from './tutor-rehearsal-text.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
-import { Menu, MenuItem, toast, useMenuButton } from './ui.jsx';
+import ChoiceList from './ChoiceList.jsx';
+import { toast } from './ui.jsx';
 
 // The initial pipeline as the Tutor's own conversation in the Chat transcript (initial-pipeline-spec.md section 1; owner: everything lives inside the AI tutor's chat as Tutor
 // messages, no card above it). Dev builds only (VITE_REHEARSAL_TRIGGER=1, ask.jsx mounts it). The messages are built by rehearsal-flow.js from this component's state; they are
@@ -32,25 +33,6 @@ function Pending({ text }) {
 function Chips({ chips, onPick }) {
   return <div data-rehearsal-chips className="flex flex-wrap gap-1.5 pt-1 pb-1.5">
     {chips.map(chip => <button key={chip.id} type="button" data-rehearsal-chip={chip.id} disabled={!!chip.disabled} onClick={() => onPick(chip.id)} className={CHOICE}>{chip.label}</button>)}
-  </div>;
-}
-
-// The intake: ONE dropdown, the uses under their category headings (owner 2026-11-15; no chips, no "soon" entries). It is asked once per canvas (rememberIntake), and the Tutor can offer it again when asked in chat.
-function Intake({ groups, onPick }) {
-  const menu = useMenuButton();
-  return <div data-rehearsal-intake className="flex flex-col gap-1.5 pb-1.5">
-    <div>
-      <button type="button" data-rehearsal-intake-menu className={CHOICE} {...menu.buttonProps}>Choose what to do<ChevronDown size={12} aria-hidden="true" className="ml-1 inline" /></button>
-      <Menu portal anchor={menu.button.current} open={menu.open} onClose={menu.onClose} style={menu.style} className="max-h-96 w-72 overflow-y-auto">
-        <div data-menu-button-open role="menu">
-          {groups.map(group => <div key={group.group} role="group" aria-label={group.group}>
-            <p className="px-2 pt-2 pb-1 text-xs text-ink-3">{group.group}</p>
-            {group.uses.map(use => <MenuItem key={use.id} role="menuitem" data-codebase-use={use.id} disabled={!use.enabled} onClick={() => { menu.close(false); onPick(`use:${use.id}`); }}>{use.label}</MenuItem>)}
-          </div>)}
-          <MenuItem role="menuitem" data-codebase-other onClick={() => { menu.close(false); onPick('else'); }}>{SOMETHING_ELSE}</MenuItem>
-        </div>
-      </Menu>
-    </div>
   </div>;
 }
 
@@ -180,7 +162,7 @@ export default function TutorRehearsalFlow({ chat }) {
     return () => window.removeEventListener(CODEBASE_OPTIONS_EVENT, again);
   }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = id => {
-    if (id.startsWith('use:') || id === 'else') rememberIntake(canvas); // asked once
+    if (/^(use|route|goal):/.test(id) || id === 'else') rememberIntake(canvas); // asked once: a way is the answer
     if (id.startsWith('use:')) chooseUse(id.slice(4));
     else if (id.startsWith('goal:')) chooseGoal(id.slice(5));
     else if (id.startsWith('route:')) { patch({ use: 'use_codebase' }); startRoute(id.slice(6), routeTitleOf(id.slice(6))); }
@@ -242,8 +224,8 @@ export default function TutorRehearsalFlow({ chat }) {
       return <div key={m.key} data-rehearsal-message={m.key}>
         {m.text !== undefined && <ChatMessage m={said} i={0} msgs={[said]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />}
         {m.pending && <Pending text={m.pending} />}
-        {m.groups && <Intake groups={m.groups} onPick={pick} />}
         {m.form && <GoalForm goalId={m.form.goalId} busy={busy} onSubmit={submitGoal} />}
+        {m.choices?.length > 0 && <ChoiceList items={m.choices} onPick={item => pick(item.id)} label={m.text ? undefined : 'Choices'} className="pt-0.5 pb-1.5" />}
         {m.chips?.length > 0 && <Chips chips={m.chips} onPick={pick} />}
         {m.actions?.length > 0 && <Chips chips={m.actions} onPick={pick} />}
       </div>;

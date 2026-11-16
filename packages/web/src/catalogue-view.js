@@ -11,15 +11,13 @@
 // The text it renders:
 //   **name**: what you can do here
 //
-//   1. ⭐ **Title** · Quick
-//   2. **Title** · Quick
+//   (the numbered ways are clickable rows, ChoiceList.jsx, drawn after this heading)
 //
 //   **Not on this canvas**
 //   - Title: needs a GPU
-const STAR = '⭐';
 const first = (text, max = 90) => { const s = String(text || '').trim(); return s.length > max ? `${s.slice(0, max - 1).trimEnd()}` : s; };
 // 'Quick — just Python' -> 'Quick'
-const effortWord = effort => String(effort || '').split(/\s+[—-]\s+/)[0].trim();
+export const effortWord = effort => String(effort || '').split(/\s+[—-]\s+/)[0].trim();
 const noStop = text => String(text || '').trim().replace(/[.\s]+$/, '');
 const lowerFirst = text => (text ? text[0].toLowerCase() + text.slice(1) : text);
 
@@ -30,21 +28,22 @@ export function catalogueView(doc, name) {
   return { name, hardware: doc?.hardware === 'cpu' || !doc?.hardware ? 'CPU' : String(doc.hardware).toUpperCase(), can, cannot };
 }
 
-const canLine = item => `${item.n}. ${item.recommended ? `${STAR} ` : ''}**${item.title}**${item.effort ? ` · ${item.effort}` : ''}`;
 const cannotLine = item => `- ${item.title}${item.reason ? `: ${item.reason}` : ''}`;
 
 // The not-here block, shared by the can and zero messages; empty when nothing is out of reach.
 export const cannotBlock = (view, heading = 'Not on this canvas') => (view.cannot.length ? [`**${heading}**`, ...view.cannot.map(cannotLine)].join('\n') : '');
 
-// Several practical ways: the numbered list, then what is out of reach.
+// The ways as clickable rows (ChoiceList.jsx; owner 2026-11-15: options are clicks, not text): [{ id, routeId, label, hint, star }]. The Tutor's text carries the heading and what is out of reach.
+export const waysOf = view => view.can.map(item => ({ id: `route:${item.routeId}`, routeId: item.routeId, label: item.title, hint: item.effort, star: item.recommended, recommended: item.recommended }));
+
+// Several practical ways: the heading (the ways are rows under it, then what is out of reach as `rest`).
 export function chooseText(view) {
-  return [`**${view.name}**: what you can do here`, view.can.map(canLine).join('\n'), cannotBlock(view)].filter(Boolean).join('\n\n');
+  return `**${view.name}**: what you can do here`;
 }
 
-// Exactly one practical way: say it, then what is out of reach.
+// Exactly one practical way: the heading; the way is one row.
 export function oneText(view) {
-  const only = view.can[0];
-  return [`**${view.name}**: one way to use it on a ${view.hardware}`, canLine({ ...only, n: 1 }), 'Setting that up now.', cannotBlock(view)].filter(Boolean).join('\n\n');
+  return `**${view.name}**: one way to use it on a ${view.hardware}`;
 }
 
 // Nothing practical: what running it needs, as a list.

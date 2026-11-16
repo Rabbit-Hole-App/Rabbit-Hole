@@ -105,13 +105,7 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
         { label: 'Fit canvas', icon: Maximize2, ...k('fit-canvas'), onSelect: () => canvas()?.zoomFit() },
         { label: 'Fit selection', icon: Focus, ...k('fit-selection'), disabled: !canvasState.selected, onSelect: () => canvas()?.zoomToSelection() },
         { divider: true },
-        // The workspace layout (Pinned Study): Canvas shows the full canvas, Study the pinned reference beside the work. Neither
-        // moves a card, saves the board or asks a model; this browser remembers the choice for this canvas.
-        ...(study ? [
-          { label: 'Canvas', icon: Frame, radio: study.mode !== 'study', onSelect: () => study.setMode('canvas') },
-          { label: 'Run', icon: GraduationCap, radio: study.mode === 'study', onSelect: () => study.setMode('study') },
-          { divider: true },
-        ] : []),
+        // The workspace layout (Pinned Study, Run | Canvas) is the pill at the top right of the header, not a View row (owner 2026-11-15).
         // Each row drives the state that already shows or hides the thing; the choice is this person's, on this device
         // (ui-prefs.js), never the shared canvas or another viewer's.
         { label: 'Show / hide', icon: Eye, items: [
