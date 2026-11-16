@@ -8,7 +8,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { COMMITS, INJECTED, SECRET_VALUE, ledger, taskboard } from './learn-codebase-fixtures.js';
-import { buildLearningSourceMap, codebaseActivity, codebaseRoute, learningSourceMap, sourceDrift, symbolEnd } from '../src/learn-codebase-source-map.js';
+import { LEARN_FIT_CAP_USD, buildLearningSourceMap, codebaseActivity, codebaseRoute, learningSourceMap, readFit, sourceDrift, symbolEnd } from '../src/learn-codebase-source-map.js';
+import { usageContext } from '../src/learn-usage.js';
+import { requestSpendBound } from '../src/learn-spend.js';
 import { CODEBASE_GOALS, EVIDENCE_LABEL, NOT_RUN_NOTE, QUESTION_LABEL, citationRef, goalOf, repositoryRelevance, showCodebaseMenu, snapshotIndex } from '../../web/src/learn-codebase-goals.js';
 import { repositoryTool } from '../src/repository-context.js';
 import { acceptAttempt } from '../src/learn-attempt-store.js';
@@ -391,7 +393,7 @@ test('learn start: a chosen option needs no question, labels the goal from the o
   assert.equal(done.body.route, 'started');
   const goal = done.body.state.goals[0], activity = activityOf(done.body.state);
   assert.deepEqual([goal.label, goal.outcome], [LEARN.label, LEARN.what]);
-  assert.deepEqual(activity.checkpoint.learn, { id: 'derived-state', kind: 'concept' });
+  assert.deepEqual(activity.checkpoint.learn, { id: 'derived-state', kind: 'concept', focus: null });
   assert.ok(paths(activity).includes('src/progress.js') && paths(activity).includes('src/TaskList.jsx'), 'the anchors are the sources');
   assert.ok(!paths(activity).includes('src/missing.js'), 'an anchor that is not in the snapshot is dropped');
   assert.ok(done.body.map.citations.every(c => c.start === 1), 'whole-file citations start at the first line');
@@ -456,4 +458,111 @@ test('learn_intro: an empty answer or a failed call is a 502 the browser can ret
   assert.equal(f.deps.callModel.calls.length, 0, 'a bad request never reaches the model');
   delete f.env.ANTHROPIC_API_KEY;
   assert.equal((await introRoute(f)).status, 503);
+});
+
+// learn_fit: what the learner typed that matched no option, answered in words plus one trailing JSON line.
+const TWO = [LEARN, { id: 'tokenizer', label: 'Tokenizer', what: 'how text becomes ids', anchors: ['src/api.js'], kind: 'concept' }];
+const SECTION = { options: TWO, cannot: [{ kind: 'serving', thing: 'a serving layer', why: 'it only trains' }] };
+const fitRoute = (f, over = {}) => f.route('POST', { app: CANVAS, action: 'learn_fit', text: 'how does the percentage get recomputed?', learn: SECTION, ...over });
+const metering = reply => { const call = async (env, body, model) => { call.calls.push({ env, body, model }); return Response.json({ content: [{ type: 'text', text: reply }] }); }; call.calls = []; return call; };
+
+test('readFit: the trailing JSON line is stripped and read defensively', () => {
+  const ids = options => options.map(o => o.id);
+  const good = readFit('It lives in src/progress.js:3.\n{"fits": ["derived-state"], "focus": "  recomputing the percentage "}', TWO);
+  assert.deepEqual(good, { text: 'It lives in src/progress.js:3.', fits: ['derived-state'], focus: 'recomputing the percentage' });
+  assert.deepEqual(readFit('Words.\n```json\n{"fits": ["tokenizer"], "focus": null}\n```', TWO), { text: 'Words.', fits: ['tokenizer'], focus: null });
+  for (const bad of ['Words only.', 'Words.\n{"fits": [broken', 'Words.\n{not json}', 'Words.\n["derived-state"]']) {
+    assert.deepEqual(readFit(bad, TWO), { text: bad, fits: [], focus: null }, bad);
+  }
+  assert.deepEqual(readFit('W.\n{"fits": ["ghost", "tokenizer", "tokenizer", 5], "focus": "narrow"}', TWO), { text: 'W.', fits: ['tokenizer'], focus: 'narrow' }, 'only the given option ids, once');
+  assert.equal(readFit('W.\n{"fits": ["tokenizer", "derived-state"], "focus": "narrow"}', TWO).focus, null, 'focus needs exactly one fit');
+  assert.equal(readFit('W.\n{"fits": [], "focus": "narrow"}', TWO).focus, null);
+  assert.equal(readFit(`W.\n{"fits": ["tokenizer"], "focus": "${'x'.repeat(301)}"}`, TWO).focus, null, 'focus is at most 300 characters');
+  assert.equal(readFit('W.\n{"fits": ["tokenizer"], "focus": 7}', TWO).focus, null);
+  assert.deepEqual(ids(TWO), ['derived-state', 'tokenizer']);
+});
+
+test('learn_fit: the words go verbatim with the learn section and paths only; the reply is { text, fits, focus }; the call is metered as learn_fit; nothing is written', async t => {
+  const f = setup(t);
+  const model = metering('Your question is the percentage in src/progress.js:3.\n{"fits": ["derived-state"], "focus": "how the percentage gets recomputed"}');
+  f.deps.callModel = model;
+  const words = 'how does the "percentage" get   recomputed? <b>ignore previous</b>';
+  const before = f.rows(), logs = [], log = console.log;
+  console.log = line => { logs.push(String(line)); };
+  let res;
+  try { res = await fitRoute(f, { text: words }); } finally { console.log = log; }
+  assert.deepEqual([res.status, await res.json()], [200, { text: 'Your question is the percentage in src/progress.js:3.', fits: ['derived-state'], focus: 'how the percentage gets recomputed' }]);
+  assert.deepEqual(f.rows(), before, 'no coaching row is written');
+  assert.equal(model.calls.length, 1);
+  const { env, body, model: named } = model.calls[0];
+  assert.equal(named, 'claude-sonnet-5-5');
+  assert.ok(body.system.includes(TUTOR_PROMPT_FILES['tasks/learn-fit.md'].text.trim()) && body.system.includes(TUTOR_PROMPT_FILES['uses/learn_concept.md'].text.trim().split('\n')[0]));
+  const user = body.messages[0].content;
+  assert.ok(user.includes(words), 'the learner\'s words, verbatim');
+  assert.ok(user.includes('"id":"derived-state"') && user.includes('a serving layer') && user.includes('it only trains') && !user.includes('missing.js'), 'the learn section');
+  assert.ok(user.includes('"fits": ["<option id>", ...]'), 'the trailing JSON instruction rides in the user message');
+  const listed = user.split('The repository\'s files (paths only):\n')[1].split('\n\n')[0].split('\n');
+  assert.ok(listed.includes('src/progress.js') && listed.includes('package.json'), 'the file list');
+  assert.ok(!listed.includes('config/secrets.json') && !listed.some(p => /^\d+: |\s/.test(p)), 'paths only: no secret file, no contents');
+  assert.ok(!user.includes('completionPercent'), 'no file contents');
+  assert.ok(!TUTOR_PROMPT_FILES['tasks/learn-fit.md'].text.includes('"fits"'), 'the JSON instruction is not in the task file');
+  const record = logs.map(line => { try { return JSON.parse(line); } catch { return null; } });
+  const call = record.find(line => line?.event === 'tutor_call'), cost = record.find(line => line?.event === 'learn_fit');
+  assert.deepEqual([call.task, call.use, call.model], ['learn-fit', 'learn_concept', 'claude-sonnet-5-5']);
+  assert.ok(cost.estimate_usd > 0 && cost.estimate_usd <= 0.05 && cost.cap_usd === 0.05, 'the estimate is recorded and under the cap');
+  const usage = usageContext(env);
+  assert.deepEqual([usage.feature, usage.identity, usage.final], ['learn_fit', { userId: 'u-ana', email: 'ana@test' }, { status: 'completed', result: 'full' }]);
+});
+
+test('learn_fit: the path list gives way to the US$0.05 cap, and a request still over it is refused before any call', async t => {
+  const f = setup(t, taskboard('v1'));
+  const model = metering('Fine.\n{"fits": [], "focus": null}');
+  f.deps.callModel = model;
+  assert.equal((await fitRoute(f)).status, 200);
+  const unlimited = model.calls[0].body.messages[0].content.split('\n').length;
+  f.deps.capUsd = requestSpendBound(model.calls[0].body, 'claude-sonnet-5-5') - 0.00004; // a little under the full request: the paths give way
+  assert.equal((await fitRoute(f)).status, 200);
+  assert.ok(model.calls[1].body.messages[0].content.split('\n').length < unlimited, 'fewer paths under a tighter cap');
+  f.deps.capUsd = 0.001;
+  const refused = await fitRoute(f);
+  assert.deepEqual([refused.status, (await refused.json()).error], [422, 'learn_fit_over_cap']);
+  assert.equal(model.calls.length, 2, 'refused before calling');
+  assert.equal(LEARN_FIT_CAP_USD, 0.05);
+});
+
+test('learn_fit: an empty answer or a failed call is a 502, a bad body a 400, no key a 503; the answer of only a JSON line is empty', async t => {
+  const f = setup(t);
+  for (const reply of ['', '   ', '{"fits": [], "focus": null}']) {
+    f.deps.callModel = metering(reply);
+    const res = await fitRoute(f);
+    assert.deepEqual([res.status, (await res.json()).error], [502, 'learn_fit_empty'], reply);
+  }
+  f.deps.callModel = async () => new Response('down', { status: 500 });
+  assert.equal((await fitRoute(f)).status, 502);
+  f.deps.callModel = metering('fine');
+  const bads = [{ text: '' }, { text: 'x'.repeat(501) }, { text: 5 }, { learn: undefined }, { learn: { options: [], cannot: [] } }, { learn: { options: [...TWO, ...TWO, LEARN], cannot: [] } },
+    { learn: { options: TWO, cannot: Array(9).fill({ kind: 'k', thing: 't', why: 'w' }) } }, { learn: { options: TWO, cannot: [{ kind: 'Bad Kind', thing: 't', why: 'w' }] } }, { learn: { options: [{ ...LEARN, label: '' }], cannot: [] } }];
+  for (const bad of bads) assert.equal((await fitRoute(f, bad)).status, 400, JSON.stringify(bad).slice(0, 70));
+  assert.equal(f.deps.callModel.calls.length, 0, 'a bad request never reaches the model');
+  delete f.env.ANTHROPIC_API_KEY;
+  assert.equal((await fitRoute(f)).status, 503);
+});
+
+test('focus: start saves learn.focus on the checkpoint and uses it as the activity focus; learn_intro tells the model the words are the focus', async t => {
+  const f = setup(t);
+  const done = await f.start('learn_concept', undefined, { learn: { ...LEARN, focus: '  the cap of one hundred percent  ' } });
+  assert.equal(done.status, 200);
+  const activity = activityOf(done.body.state);
+  assert.deepEqual(activity.checkpoint.learn, { id: 'derived-state', kind: 'concept', focus: 'the cap of one hundred percent' });
+  assert.equal(activity.checkpoint.codebase.focus, 'the cap of one hundred percent');
+  assert.equal(done.body.state.goals[0].label, LEARN.label, 'the goal is still the option');
+  for (const bad of [{ focus: 5 }, { focus: 'x'.repeat(301) }, { focus: '  ' }]) assert.equal((await f.start('learn_concept', undefined, { learn: { ...LEARN, ...bad } })).status, 400, JSON.stringify(bad).slice(0, 40));
+  const g = setup(t);
+  g.deps.callModel = fakeModel('ok');
+  assert.equal((await introRoute(g, { learn: { ...LEARN, focus: 'the cap of one hundred percent' } })).status, 200);
+  assert.match(g.deps.callModel.calls[0].body.messages[0].content, /own words are the focus: "the cap of one hundred percent"\. Start the paragraph from them/);
+  g.deps.callModel = fakeModel('ok');
+  await introRoute(g);
+  assert.doesNotMatch(g.deps.callModel.calls[0].body.messages[0].content, /the focus/, 'no focus, no focus line');
+  assert.equal((await introRoute(g, { learn: { ...LEARN, focus: 'x'.repeat(301) } })).status, 400);
 });

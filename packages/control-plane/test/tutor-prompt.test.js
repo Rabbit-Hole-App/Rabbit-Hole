@@ -33,8 +33,8 @@ test('composition is base, then task, then the use-case overlay, with the three 
   assert.ok(composed.text.startsWith(bare.text), 'the overlay comes last');
 });
 
-test('the five tasks and all fourteen overlays load, and a stub says it is not built', () => {
-  for (const task of ['chat', 'code-explain', 'plan', 'runbook', 'learn-intro']) assert.ok(composeTutorPrompt({ task }).text.startsWith(body(read('base.md'))), task);
+test('the six tasks and all fourteen overlays load, and a stub says it is not built', () => {
+  for (const task of ['chat', 'code-explain', 'plan', 'runbook', 'learn-intro', 'learn-fit']) assert.ok(composeTutorPrompt({ task }).text.startsWith(body(read('base.md'))), task);
   assert.equal(CODEBASE_USES.length, 14);
   for (const use of CODEBASE_USES) {
     assert.equal(use.promptFile, `uses/${use.id}.md`, `${use.id} names its overlay file`);
