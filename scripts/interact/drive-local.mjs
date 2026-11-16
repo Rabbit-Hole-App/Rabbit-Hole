@@ -22,7 +22,7 @@ if (flag('help')) { console.log(USAGE); process.exit(0); }
 const check = flag('check') || flag('check-browser'), promptsFile = opt('prompts'), depth = opt('depth', 'brief');
 const BASE = opt('base', 'http://127.0.0.1:8878').replace(/\/$/, ''), EMAIL = opt('email', 'owner-interact-ml@example.com');
 const OUT = opt('out', join(REPO, 'docs/features/interact/evidence/2026-11-15-b27')), CANVAS_FILE = opt('canvas-file', `${SPEC_DIR}/ml-canvas.json`);
-const stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
+const WAIT_MS = Number(opt('wait-ms', 300000)), stopUsd = opt('stop-usd') === undefined ? Infinity : Number(opt('stop-usd'));
 if (!DEPTHS.includes(depth)) fail(`--depth takes ${DEPTHS.join(', ')}. ${USAGE}`, 2);
 if (!check && !promptsFile) fail(`--prompts <list.json> is required (or --check). ${USAGE}`, 2);
 if (!(stopUsd > 0)) fail(`--stop-usd is a positive number. ${USAGE}`, 2);
@@ -56,6 +56,9 @@ const api = async (method, path, body) => {
   return { status: r.status, data: await r.json().catch(() => null) };
 };
 
+// A new account is gated on choosing a public @handle (HandleGate); the test identity picks one over the API so the page shows the canvas.
+const me = await api('GET', '/api/profile');
+if (me.data && !me.data.handle) { const set = await api('PUT', '/api/profile', { handle: 'interact_ml_test' }); if (set.status >= 400) fail(`could not set a handle for the test identity (HTTP ${set.status} ${JSON.stringify(set.data)})`); }
 const made = await api('POST', '/api/canvases', { title: `ML stepper ${Date.now().toString(36)}` });
 const app = made.data?.name; if (!app) fail(`could not create a canvas (HTTP ${made.status}).`);
 const saved = await api('PUT', `/api/learn/boards/${app}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] } });
@@ -88,10 +91,17 @@ async function openBrowser() {
 
 const { browser, page } = await openBrowser();
 page.on('pageerror', e => log('pageerror', String(e).slice(0, 200)));
+page.on('console', m => { if (m.type() === 'error') log('console.error', m.text().slice(0, 240)); });
+const net = [];
+page.on('response', async r => { if (/\/api\//.test(r.url()) && !/\/(profile|presence|telemetry|analytics)/.test(r.url()) && r.request().method() !== 'OPTIONS') net.push({ method: r.request().method(), url: r.url().replace(BASE, ''), status: r.status(), body: (await r.text().catch(() => '')).slice(0, 200) }); if (net.length > 40) net.shift(); });
 let approveFailed = null;
 page.on('response', async r => { if (/\/explain\/jobs\/[^/]+\/approve/.test(r.url()) && r.status() >= 400) approveFailed = `approve ${r.status()}: ${(await r.text().catch(() => '')).slice(0, 200)}`; });
 await page.goto(url);
-await page.locator('[data-chat-pane] [data-chat-composer]').first().waitFor({ timeout: 90000 });
+await page.locator('[data-chat-pane] [data-chat-composer]').first().waitFor({ timeout: 90000 }).catch(async error => {
+  await page.screenshot({ path: `${OUT}/no-composer.png` }).catch(() => {});
+  const seen = await page.evaluate(() => ({ url: location.href, panes: document.querySelectorAll('[data-chat-pane]').length, composers: document.querySelectorAll('[data-chat-composer]').length, text: document.body.innerText.slice(0, 400) })).catch(() => null);
+  fail(`no Chat composer on ${url}: ${firstLine(error.message)}; page saw ${JSON.stringify(seen)}; screenshot ${OUT}/no-composer.png`);
+});
 await page.waitForTimeout(2000);
 const depthButton = page.locator('[data-depth-menu] [data-depth]').first();
 if (await depthButton.getAttribute('data-depth').catch(() => null) !== depth) {
@@ -109,9 +119,9 @@ for (const { id, prompt, expect } of PROMPTS) {
   const tSent = Date.now(); await box.press('Enter'); log(tag, 'sent');
   const r = { id: tag, prompt, expect: expect ?? 'fit', depth, jobId: null, stage: null, stopReason: null, pick: null, fill: null, build: null, promptToCardMs: null, usd: null, files: {} };
   let job = null, shown = false;
-  const planWait = page.waitForFunction(count => document.querySelectorAll('[data-generation-proposal] [data-proposal-generate]').length > count, plans0, { timeout: 300000, polling: 'raf' }).then(() => { shown = true; }, () => {});
+  const planWait = page.waitForFunction(count => document.querySelectorAll('[data-generation-proposal] [data-proposal-generate]').length > count, plans0, { timeout: WAIT_MS, polling: 'raf' }).then(() => { shown = true; }, () => {});
   // a fast pass builds straight through (ready with no proposal); a job that ends first (failed, cancelled) ends the wait too
-  const jobEnd = (async () => { while (!shown && Date.now() - tSent < 300000) { job ??= (await jobsOf()).find(j => !known.has(j.id)); const s = job && (await api('GET', `/api/learn/explain/jobs/${job.id}?board=${boardId}`)).data?.job; if (s && ['failed', 'cancelled', 'ready'].includes(s.stage)) return s; await sleep(400); } return null; })();
+  const jobEnd = (async () => { while (!shown && Date.now() - tSent < WAIT_MS) { job ??= (await jobsOf()).find(j => !known.has(j.id)); const s = job && (await api('GET', `/api/learn/explain/jobs/${job.id}?board=${boardId}`)).data?.job; if (s && ['failed', 'cancelled', 'ready'].includes(s.stage)) return s; await sleep(400); } return null; })();
   const early = await Promise.race([planWait.then(() => null), jobEnd]);
   let end = early;
   if (early) { r.jobId = early.id ?? job?.id; if (early.stage === 'ready') r.promptToCardMs = Date.now() - tSent; }
@@ -124,7 +134,7 @@ for (const { id, prompt, expect } of PROMPTS) {
     if (end?.stage === 'ready') r.promptToCardMs = Date.now() - tSent;
   }
   if (!r.jobId) { r.jobId = job?.id ?? null; }
-  Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed ?? (end ? null : 'no job ended within 300 s') });
+  Object.assign(r, { stage: end?.stage ?? null, stopReason: end?.stopReason ?? null, failure: end?.failure?.message ?? approveFailed ?? (end ? null : 'no job ended within 300 s'), network: end ? undefined : net.splice(0) });
   if (end?.stage === 'ready') {
     const card = page.locator('[data-program-card]').last();
     try { await card.waitFor({ timeout: 30000 }); await card.scrollIntoViewIfNeeded(); await card.screenshot({ path: `${OUT}/${tag}-card.png` }); r.files.screenshot = `${tag}-card.png`; } catch (e) { r.files.screenshot = `not taken: ${firstLine(e.message)}`; }
