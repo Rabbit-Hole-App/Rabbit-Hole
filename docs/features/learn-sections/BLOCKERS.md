@@ -98,3 +98,6 @@ The entries below keep their overnight text; these rulings close them.
 - `test/explain-heat-grid.test.js:62`, "a saved spectrogram can switch windows and reload with the same dB scale and axes": the `programSdkSource` sha256 is `d401a602…`, while the artifact's `fingerprints.sdk` is `db982cd2…`.
 - `test/explain-program-budget.test.js:69`, "the author request with the program route": `assert.ok(fixed < 44000)` fails at 44007 bytes.
 - `test/explanation-gemini-illustration-bundles.test.js:49`, "the unsteered bundle is unchanged by the three illustration kinds": `props(s) === 134` or the length `9832` fails for "how does the water cycle work?".
+
+## Known gaps (not release blockers)
+- **Settings-heavy sections: the brief model violates the sentence and naming rules; overlay v1.4 is insufficient** (owner 14:05). datasette 1.2 ("Settings, databases and shared state") was refused on every overlay from v1.1 to v1.4: three-sentence ideas, setting names or whole expressions outside the anchored lines in `shows`, and a background beat that says it did not read the lines. The last brief as returned is in `brief/data-1.2.json` (`log[0].submitted`). Re-runs stopped. The Reviewer owns the next attempt, after the release.
