@@ -1,0 +1,53 @@
+diff --git a/packages/web/src/tutor-diagrams/TutorDiagram.js b/packages/web/src/tutor-diagrams/TutorDiagram.js
+index 294b419cf..8dac095d2 100644
+--- a/packages/web/src/tutor-diagrams/TutorDiagram.js
++++ b/packages/web/src/tutor-diagrams/TutorDiagram.js
+@@ -4,7 +4,7 @@ import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
+ import { layouts } from './layouts.js';
+ import { isExtendedPlot } from './ml-plot-spec.js';
+ import { fitCaption, label, layoutCaption, lineHeight, SURFACE, wrap } from './primitives.js';
+-import { describeTutorDiagram, parseTutorDiagram } from './spec.js';
++import { describeTutorDiagram, dropGenericUnits, parseTutorDiagram } from './spec.js';
+ import { usesIllustrations } from './illustration-kinds.js';
+ 
+ const DEFAULT_WIDTH = 408;
+@@ -14,7 +14,7 @@ const CAPTION_SIZE = 13;
+ const CAPTION_GUTTER = 32;
+ 
+ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
+-  const document = parseTutorDiagram(spec);
++  const document = dropGenericUnits(parseTutorDiagram(spec));
+   const { diagram } = document;
+   const requested = Number.isFinite(availableWidth) ? Math.round(availableWidth) : DEFAULT_WIDTH;
+   const illustration = usesIllustrations(diagram);
+diff --git a/packages/web/src/tutor-diagrams/spec.js b/packages/web/src/tutor-diagrams/spec.js
+index adbe23224..ed45d1080 100644
+--- a/packages/web/src/tutor-diagrams/spec.js
++++ b/packages/web/src/tutor-diagrams/spec.js
+@@ -394,6 +394,26 @@ export function parseTutorDiagram(value) {
+   return tutorDiagramSchema.parse(value);
+ }
+ 
++// BAR-U: a unit that is only a generic word (value, number, amount, score: a score has no scale here) says nothing, so it is dropped before the diagram is drawn or described: the labels read
++// "1" and "0.33", not "1 value". A real unit (%, ms, kg, ...) stays. Returns the same object when no unit is generic.
++const GENERIC_UNIT = /^(?:values?|numbers?|amounts?|scores?)$/iu;
++export function dropGenericUnits(value) {
++  if (Array.isArray(value)) {
++    const entries = value.map(dropGenericUnits);
++    return entries.some((entry, index) => entry !== value[index]) ? entries : value;
++  }
++  if (!value || typeof value !== 'object') return value;
++  let changed = false;
++  const next = {};
++  for (const [key, entry] of Object.entries(value)) {
++    if (key === 'unit' && typeof entry === 'string' && GENERIC_UNIT.test(entry.trim())) { changed = true; continue; }
++    const inner = dropGenericUnits(entry);
++    if (inner !== entry) changed = true;
++    next[key] = inner;
++  }
++  return changed ? next : value;
++}
++
+ const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
+ const itemText = item => typeof item === 'string' ? [item] : [item.label, ...tensorText(item.tensor)].filter(Boolean);
+ const describeTensors = nodes => nodes.flatMap(node => node.tensor ? [tensorText(node.tensor).join(', ')] : []);

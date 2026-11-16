@@ -1,0 +1,10 @@
+formula after 408 -> 408x452 curve-labels=0 legend-pills=3
+formula after 720 -> 720x414 curve-labels=3 legend-pills=0
+hand after 408 -> 408x474 curve-labels=0 legend-pills=3
+hand after 720 -> 720x452 curve-labels=0 legend-pills=3
+two after 408 -> 408x452 curve-labels=0 legend-pills=2
+two after 720 -> 720x414 curve-labels=2 legend-pills=0
+four after 408 -> 408x452 curve-labels=0 legend-pills=4
+four after 720 -> 720x452 curve-labels=0 legend-pills=4
+one after 408 -> 408x414 curve-labels=1 legend-pills=0
+one after 720 -> 720x414 curve-labels=1 legend-pills=0

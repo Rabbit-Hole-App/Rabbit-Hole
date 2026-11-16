@@ -1,0 +1,94 @@
+diff --git a/packages/web/src/tutor-diagrams/ml-plot-layouts.js b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+index 4aa0b7bef..f975ce10b 100644
+--- a/packages/web/src/tutor-diagrams/ml-plot-layouts.js
++++ b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+@@ -1,5 +1,5 @@
+ import { cloneElement, createElement as h } from 'react';
+-import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
++import { label, lineHeight, textWidth, widestFormula, wire, wrap } from './primitives.js';
+ import { closedLinePath, monotoneLinePath, showPlotMarker } from './plot-lines.js';
+ import { plotTicks } from './plot-ticks.js';
+ import { TEACHING as T, TEACHING_GRID, TEACHING_SERIES, TEACHING_SERIES_INK, TEACHING_ZERO, mixHex, teachingConnector } from './teaching-theme.js';
+@@ -106,6 +106,67 @@ function legendPills(items, width, top) {
+   return { elements, height: y - top };
+ }
+ 
++// PLT-3(A): a plot of one to three line series names its curves on the figure instead of in a legend. Each name stands in its series ink (700), 18 px off its curve at the sample
++// farthest from every other series (ties: the rightmost; when its name does not fit there, the next farthest that fits), on the side away from them, with a 1.5 px leader in the series colour whose arrowhead lands on the curve. A name that would
++// overlap a curve, a badge or another name, or leave the plot area, sends the whole plot back to its legend pills; four or more series (or any other kind of series) keep the legend.
++const CURVE_LABEL_SIZE = 15, CURVE_LABEL_OFFSET = 18, CURVE_LABEL_MAX_SERIES = 3;
++function nearestOnPolyline(p, line) {
++  let best = { distance: Infinity, at: null };
++  for (let i = 1; i < line.length; i++) {
++    const [ax, ay] = line[i - 1], [bx, by] = line[i], dx = bx - ax, dy = by - ay, run = dx * dx + dy * dy;
++    const t = run ? Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / run)) : 0, at = [ax + dx * t, ay + dy * t];
++    const distance = Math.hypot(p[0] - at[0], p[1] - at[1]);
++    if (distance < best.distance) best = { distance, at };
++  }
++  return best;
++}
++function segmentHitsBox([ax, ay], [bx, by], box) {
++  let t0 = 0, t1 = 1;
++  for (const [p, q] of [[-(bx - ax), ax - box.x], [bx - ax, box.x + box.width - ax], [-(by - ay), ay - box.y], [by - ay, box.y + box.height - ay]]) {
++    if (p === 0) { if (q < 0) return false; continue; }
++    const t = q / p;
++    if (p < 0) { if (t > t1) return false; t0 = Math.max(t0, t); } else { if (t < t0) return false; t1 = Math.min(t1, t); }
++  }
++  return true;
++}
++function curveLabels(series, lines, bounds, occupied) {
++  if (series.length > CURVE_LABEL_MAX_SERIES || !series.every(s => s.kind === 'line' && !s.closed && !s.endLabel && s.points[0].low === undefined)) return null;
++  const boxes = [], labels = [];
++  for (const [i, s] of series.entries()) {
++    // Candidate samples, the one farthest from every other curve first (ties: the rightmost); the first whose name fits is used.
++    const candidates = lines[i].map((p, j) => {
++      const others = lines.flatMap((line, k) => k === i ? [] : [nearestOnPolyline(p, line)]).sort((x, y) => x.distance - y.distance);
++      return { j, p, distance: others.length ? others[0].distance : Infinity, from: others[0]?.at };
++    }).sort((x, y) => (Math.abs(x.distance - y.distance) <= 0.5 ? 0 : y.distance - x.distance) || y.p[0] - x.p[0]);
++    const text = s.label, w = Math.ceil(Math.max(textWidth(text, CURVE_LABEL_SIZE), widestFormula(text, CURVE_LABEL_SIZE))), hgt = lineHeight(CURVE_LABEL_SIZE);
++    let placed = null;
++    for (const { p: [px, py], from } of candidates) {
++      // Outward is away from the nearest other curve (straight up when there is none).
++      let ox = 0, oy = -1;
++      if (from) { const run = Math.hypot(px - from[0], py - from[1]); if (run > 1) { ox = (px - from[0]) / run; oy = (py - from[1]) / run; } }
++      const vertical = Math.abs(oy) >= Math.abs(ox);
++      const free = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
++      // The name is 18 px off the curve along the outward axis and slides along the edge of the plot area when it would stick out, the leader staying on the sample.
++      const box = vertical
++        ? { x: free(px - w / 2, bounds.left + 2, bounds.right - 2 - w), y: py + oy * (CURVE_LABEL_OFFSET + hgt / 2) - hgt / 2, width: w, height: hgt }
++        : { x: px + ox * (CURVE_LABEL_OFFSET + w / 2) - w / 2, y: free(py - hgt / 2, bounds.top + 2, bounds.bottom - 2 - hgt), width: w, height: hgt };
++      const center = [box.x + w / 2, box.y + hgt / 2];
++      const padded = { x: box.x - 3, y: box.y - 3, width: w + 6, height: hgt + 6 };
++      const inside = box.x >= bounds.left + 2 && box.x + w <= bounds.right - 2 && box.y >= bounds.top + 2 && box.y + hgt <= bounds.bottom - 2;
++      if (!inside) continue;
++      if (lines.some(line => line.some((q, k) => k && segmentHitsBox(line[k - 1], q, padded)))) continue;
++      if ([...boxes, ...occupied].some(o => padded.x < o.x + o.width && o.x < padded.x + padded.width && padded.y < o.y + o.height && o.y < padded.y + padded.height)) continue;
++      const start = vertical ? [free(px, box.x + 6, box.x + w - 6), oy < 0 ? box.y + hgt : box.y] : [ox < 0 ? box.x + w : box.x, free(py, box.y + 4, box.y + hgt - 4)];
++      placed = { padded, label: { i, text, center, start, end: [px, py] } };
++      break;
++    }
++    if (!placed) return null;
++    boxes.push(placed.padded);
++    labels.push(placed.label);
++  }
++  return labels;
++}
++
+ // An axis title on the figure: the label and unit. axisName (ml-plot-spec.js) also adds "log scale" for the written description; the sampled ticks already say it here.
+ const titleOf = axis => `${axis.label}${axis.unit ? ` (${axis.unit})` : ''}`;
+ 
+@@ -303,6 +364,14 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
+     });
+     legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
+   }
++  const callouts = curveLabels(d.series, d.series.map(series => series.points.map(xy)), bounds, occupied);
++  if (callouts) {
++    legend.length = 0;
++    for (const { i, text, center, start, end } of callouts) {
++      foreground.push(wire([start, end], { color: COLORS[i], width: GRID }));
++      foreground.push(cloneElement(label(text, center[0], center[1], { size: CURVE_LABEL_SIZE, weight: 700, fill: INKS[i] }), { 'data-tutor-plot-curve-label': text }));
++    }
++  }
+   if (legend.length) {
+     const drawn = legendPills(legend, width, legendY);
+     elements.push(...drawn.elements);

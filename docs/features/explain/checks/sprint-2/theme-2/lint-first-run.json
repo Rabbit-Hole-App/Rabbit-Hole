@@ -1,0 +1,296 @@
+[
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 6,
+  "hex": "#8DBFEF",
+  "group": "in-palette",
+  "text": "process: '#8DBFEF',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 7,
+  "hex": "#E5AA46",
+  "group": "in-palette",
+  "text": "decision: '#E5AA46',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 8,
+  "hex": "#67B9A0",
+  "group": "in-palette",
+  "text": "outcome: '#67B9A0',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 9,
+  "hex": "#95A448",
+  "group": "in-palette",
+  "text": "olive: '#95A448',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 10,
+  "hex": "#F58371",
+  "group": "in-palette",
+  "text": "coral: '#F58371',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 11,
+  "hex": "#B9A4E8",
+  "group": "in-palette",
+  "text": "lavender: '#B9A4E8',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 12,
+  "hex": "#E8A3B7",
+  "group": "in-palette",
+  "text": "rose: '#E8A3B7',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 13,
+  "hex": "#A8BBD0",
+  "group": "in-palette",
+  "text": "slate: '#A8BBD0',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 16,
+  "hex": "#2F80D8",
+  "group": "in-palette",
+  "text": "export const PATH = '#2F80D8';"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 17,
+  "hex": "#FFFCF0",
+  "group": "in-palette",
+  "text": "export const SURFACE = 'var(--viz-surface, #FFFCF0)';"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 18,
+  "hex": "#32211c",
+  "group": "in-palette",
+  "text": "export const INK = 'var(--color-ink, #32211c)';"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 19,
+  "hex": "#665951",
+  "group": "in-palette",
+  "text": "export const MUTED = 'var(--color-ink-2, #665951)';"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/primitives.js",
+  "line": 20,
+  "hex": "#32211c",
+  "group": "in-palette",
+  "text": "export const FILLED_INK = '#32211c';"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 9,
+  "hex": "#FFFCF0",
+  "group": "in-palette",
+  "text": "surface: '#FFFCF0', inset: '#f6f8f4', line: '#e3e7e0', wire: '#b9c3b9',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 9,
+  "hex": "#f6f8f4",
+  "group": "in-palette",
+  "text": "surface: '#FFFCF0', inset: '#f6f8f4', line: '#e3e7e0', wire: '#b9c3b9',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 9,
+  "hex": "#e3e7e0",
+  "group": "in-palette",
+  "text": "surface: '#FFFCF0', inset: '#f6f8f4', line: '#e3e7e0', wire: '#b9c3b9',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 9,
+  "hex": "#b9c3b9",
+  "group": "in-palette",
+  "text": "surface: '#FFFCF0', inset: '#f6f8f4', line: '#e3e7e0', wire: '#b9c3b9',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 10,
+  "hex": "#32211C",
+  "group": "in-palette",
+  "text": "ink: '#32211C', muted: '#665951', blue: '#426db2', blueSoft: '#eaf1fb',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 10,
+  "hex": "#665951",
+  "group": "in-palette",
+  "text": "ink: '#32211C', muted: '#665951', blue: '#426db2', blueSoft: '#eaf1fb',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 10,
+  "hex": "#426db2",
+  "group": "in-palette",
+  "text": "ink: '#32211C', muted: '#665951', blue: '#426db2', blueSoft: '#eaf1fb',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 10,
+  "hex": "#eaf1fb",
+  "group": "in-palette",
+  "text": "ink: '#32211C', muted: '#665951', blue: '#426db2', blueSoft: '#eaf1fb',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 11,
+  "hex": "#b86232",
+  "group": "in-palette",
+  "text": "warm: '#b86232', warmSoft: '#f8ece3', green: '#267657', greenSoft: '#e7f3ed',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 11,
+  "hex": "#f8ece3",
+  "group": "in-palette",
+  "text": "warm: '#b86232', warmSoft: '#f8ece3', green: '#267657', greenSoft: '#e7f3ed',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 11,
+  "hex": "#267657",
+  "group": "in-palette",
+  "text": "warm: '#b86232', warmSoft: '#f8ece3', green: '#267657', greenSoft: '#e7f3ed',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 11,
+  "hex": "#e7f3ed",
+  "group": "in-palette",
+  "text": "warm: '#b86232', warmSoft: '#f8ece3', green: '#267657', greenSoft: '#e7f3ed',"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 15,
+  "hex": "#FFFCF0",
+  "group": "in-palette",
+  "text": "ground: '#FFFCF0', outline: FILLED_INK.toUpperCase(),"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 16,
+  "hex": "#F89830",
+  "group": "in-palette",
+  "text": "orange: '#F89830', // measured from Wondering's illustrations, approximate"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 26,
+  "hex": "#375d92",
+  "group": "in-palette",
+  "text": "export const TEACHING_ACCENT = Object.freeze({ blueInk: '#375d92', blueBorder: '#adc4e5' });"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 26,
+  "hex": "#adc4e5",
+  "group": "in-palette",
+  "text": "export const TEACHING_ACCENT = Object.freeze({ blueInk: '#375d92', blueBorder: '#adc4e5' });"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 38,
+  "hex": "#375D92",
+  "group": "in-palette",
+  "text": "export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 38,
+  "hex": "#BB503E",
+  "group": "in-palette",
+  "text": "export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 38,
+  "hex": "#3A7E69",
+  "group": "in-palette",
+  "text": "export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 38,
+  "hex": "#6D7835",
+  "group": "in-palette",
+  "text": "export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 38,
+  "hex": "#7F5EC9",
+  "group": "in-palette",
+  "text": "export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 38,
+  "hex": "#936A25",
+  "group": "in-palette",
+  "text": "export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 38,
+  "hex": "#B82E56",
+  "group": "in-palette",
+  "text": "export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 38,
+  "hex": "#507195",
+  "group": "in-palette",
+  "text": "export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 45,
+  "hex": "#D9D3C3",
+  "group": "in-palette",
+  "text": "export const TEACHING_GRID = '#D9D3C3';"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/teaching-theme.js",
+  "line": 49,
+  "hex": "#786860",
+  "group": "in-palette",
+  "text": "export const TEACHING_ZERO = '#786860';"
+ },
+ {
+  "file": "packages/web/src/tutor-diagrams/TutorDiagram.js",
+  "line": 41,
+  "hex": "#dedad4",
+  "group": "in-palette",
+  "text": "fill: SURFACE, stroke: 'var(--color-line, #dedad4)' }),"
+ },
+ {
+  "file": "packages/web/src/explain-program/raster-fixtures.js",
+  "line": 36,
+  "hex": "#E5AA46",
+  "group": "in-palette",
+  "text": "sdk.mask('mask',{x:312,y:44,w:240,h:240,rows,cols,values,color:'#E5AA46',opacity:0.7}),"
+ },
+ {
+  "file": "packages/web/src/explain-program/sdk-raster.js",
+  "line": 28,
+  "hex": "#E5AA46",
+  "group": "in-palette",
+  "text": "const object = layout(id, options), { values, color='#E5AA46', opacity=1 } = options;"
+ }
+]

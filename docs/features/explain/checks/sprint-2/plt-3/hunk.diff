@@ -1,0 +1,52 @@
+6d84661a6 plot: two or three plain line series carry no legend: each name beside its curve, in its series colour, bold, at the sample farthest from the other curves, 18 px outward with a leader whose head lands on the curve; when a label would touch something or leave the plot, the legend stays
+
+
+diff --git a/packages/web/src/tutor-diagrams/ml-plot-layouts.js b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+index 04b8a28a9..7a1ee53fa 100644
+--- a/packages/web/src/tutor-diagrams/ml-plot-layouts.js
++++ b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+@@ -343,6 +343,44 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
+     });
+     legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
+   }
++  // Two or three plain line series carry no legend: each name stands beside its curve, in the series colour (the darker ink of it, for legibility), bold, at the sample where the curve is
++  // farthest from every other (ties: the rightmost), 18 px outward (away from the other curves), with a leader in the series colour whose head lands on the curve. When any label would
++  // touch a curve, another label or mark, or leave the plot, none is drawn and the legend stays (4 or more series, a marked or interval series, an end label: always the legend).
++  const curveLabels = (() => {
++    if (d.series.length < 2 || d.series.length > 3 || !d.series.every(s => s.kind === 'line' && !s.closed && !s.endLabel && s.points[0].low === undefined && s.points.length >= 2)) return null;
++    const yAt = (values, px) => {
++      const k = values.findIndex(([vx], j) => j && vx >= px && values[j - 1][0] <= px);
++      if (k < 1) return null;
++      const [x1, y1] = values[k - 1], [x2, y2] = values[k];
++      return x2 === x1 ? y2 : y1 + (y2 - y1) * (px - x1) / (x2 - x1);
++    };
++    const placed = [], shapes = [];
++    for (const [i, series] of d.series.entries()) {
++      const values = curves[i];
++      let best = null;
++      values.forEach(([px, py], j) => {
++        const others = curves.flatMap((other, k) => k === i ? [] : [yAt(other, px)]).filter(value => value !== null);
++        if (!others.length) return;
++        const far = Math.min(...others.map(value => Math.abs(py - value))), nearest = others.reduce((a, b) => Math.abs(py - b) < Math.abs(py - a) ? b : a);
++        if (!best || far > best.far - 0.01) best = { far, j, px, py, above: nearest > py }; // above: the nearest other curve lies below, so outward is up
++      });
++      if (!best) return null;
++      const [ax, ay] = values[Math.max(0, best.j - 1)], [bx, by] = values[Math.min(values.length - 1, best.j + 1)];
++      const run = Math.hypot(bx - ax, by - ay) || 1, up = [(by - ay) / run, -(bx - ax) / run];
++      const n = (up[1] < 0) === best.above ? up : [-up[0], -up[1]];
++      const text = series.label, w = Math.ceil(Math.max(textWidth(text, 14), widestFormula(text, 14))) + 4, tall = 18;
++      const tip = [best.px + n[0] * 18, best.py + n[1] * 18], reach = Math.min(w / 2 / Math.max(Math.abs(n[0]), 1e-6), tall / 2 / Math.max(Math.abs(n[1]), 1e-6)); // the box's edge, not its corner, meets the tip
++      const centre = [tip[0] + n[0] * reach, tip[1] + n[1] * reach];
++      const box = { x: centre[0] - w / 2, y: centre[1] - tall / 2, width: w, height: tall };
++      if (box.x < left + 2 || box.x + w > right - 2 || box.y < top + 2 || box.y + tall > bottom - 2 || onCurve(box, 2) ||
++          [...occupied, ...placed].some(other => !apart(box, other))) return null;
++      placed.push(box);
++      shapes.push(wire([tip, [best.px, best.py]], { width: 1.5, color: COLORS[i] }),
++        cloneElement(label(text, centre[0], centre[1], { size: 14, weight: 700, fill: INKS[i] }), { 'data-tutor-plot-curve-label': text }));
++    }
++    return shapes;
++  })();
++  if (curveLabels) { legend.length = 0; foreground.push(...curveLabels); }
+   if (legend.length) {
+     const drawn = legendPills(legend, width, legendY);
+     elements.push(...drawn.elements);
