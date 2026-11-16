@@ -16,7 +16,7 @@
   "parts": [
     {
       "id": "curves",
-      "kind": "coverage-omission-plot",
+      "kind": "coverage-plot",
       "bind": "computed.curves; computed.limit"
     },
     {

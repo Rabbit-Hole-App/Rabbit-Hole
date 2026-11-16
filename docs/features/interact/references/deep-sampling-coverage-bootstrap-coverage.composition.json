@@ -27,7 +27,7 @@
     },
     {
       "id": "shares",
-      "kind": "complementary-share-bar",
+      "kind": "complementary-probability-readouts",
       "bind": "computed.coverage; computed.omission"
     },
     {
