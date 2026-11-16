@@ -24,6 +24,10 @@
       }
     },
     "routes": { "type": "array", "items": { "$ref": "#/$defs/route" } },
+    "papers": {
+      "type": "array", "maxItems": 20, "description": "The source's own arXiv papers, found by rule at index time (catalogue.papers_of: READMEs, CITATION files, Python docstrings and comments; Learn sections DECISIONS U).",
+      "items": { "type": "object", "additionalProperties": false, "required": ["id", "title", "source"], "properties": { "id": { "type": "string" }, "title": { "type": "string" }, "source": { "type": "string", "description": "path:line where it is cited" } } }
+    },
     "learn": {
       "type": "object", "additionalProperties": false, "required": ["options", "cannot"],
       "description": "What a learner can study here (intake-run-or-learn-spec section 2). Written by catalogue.add_learn: ONE model call after the routes, or alone on a stored document that has none (the routes are kept; no version bump). Enforced by catalogue.learn_clean: 1-4 options, every anchor exists in the snapshot, no path or file name in a label, kinds unique, an option whose anchors are all under docs/ dropped; nothing surviving gives one default structure option. `cannot` names what the repository does not have, for the scoped router. Optional: a document made before it has none.",

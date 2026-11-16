@@ -534,7 +534,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     canEdit: () => canEditRef.current,
     // Tutor Task 07 (learn-coaching-materials.js applyTutorAction): the live canvas, and the one seam that makes Tutor material -
     // its own material tools on the existing Learn command path (internal; /api/learn/artifact), never a second generator.
-    tutorCanvas: () => canvasApi.current && { ...canvasApi.current, startExplain: explainLatest },
+    // addVideo, addPaper, addWiki (DECISIONS R): the page's own inserts of a video, paper and article card (they register the source and make it the next question's context).
+    tutorCanvas: () => canvasApi.current && { ...canvasApi.current, startExplain: explainLatest, addVideo: video => addVideo(video), addPaper: paper => addPaper(paper), addWiki: wiki => addWiki(wiki) },
     makeTutorMaterial: explainMaterial(runLearnCommand, { app: app.name, openSearch: () => {}, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }) }),
     canvasContext, selection: () => canvasApi.current?.selection?.() || [],
     // A card from the companion (repo graph R2, C:/s/spec/repo-graph-r2-plan.md): an equivalent card already here (`same`) is
@@ -1064,13 +1065,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // turn (ask.jsx recordCommand): { onCard }, the sink each card this command inserts is reported to, so the Chat keeps it
     // under the command's saved message (chat-output-refs.js withCardSink).
     // handoff (Ctrl+K's line, LearnSlash exec): its own selection is the target, never the composer's armed card.
-    run: (text, _target, turn = null, handoff = null) => {
+    // section: a Learn section item's line (LearnSlash exec): about no selected card, with its own depth, context and madeBy (learn-slash.js runLearnCommand).
+    run: (text, _target, turn = null, handoff = null, section = null) => {
       const sink = turn?.onCard || null;
       // /deeper, /simplify, /ask and /teach no longer reach the Tutor as a turn's slash (owner, 2026-10-20): they are removed
       // commands, and runLearnCommand says so; the same words without the slash are an ordinary Tutor turn.
       return runLearnCommand(text, {
         app: app.name,
-        target: handoff ? heldPassageTarget(handoff.target, text, passageRef) : askTarget,
+        target: section ? null : handoff ? heldPassageTarget(handoff.target, text, passageRef) : askTarget,
+        section,
         // The composer's attached image (its uploaded media id), as a question carries it (ask.jsx image_context); never a handoff's.
         attachedImage: !handoff && imageAttached && imageContext?.id ? imageContext.id : null,
         // withSlotSink: the Chat's line shows its waiting row while this canvas holds the command's skeleton (ask.jsx recordCommand onSlot).

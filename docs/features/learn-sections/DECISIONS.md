@@ -29,6 +29,16 @@ Where a spec and this file disagree, this file wins. Specs: `learn-section-brief
 - K. Fetched web page text is data in the Make prompt: add the same sentence the base prompt has for repository text. The browser card ships last.
 - L. The `learn_sections` migration is applied locally (8878) only. Nothing runs against prod D1 without the owner's go.
 
+## Reviewer second round (01:00)
+- M (final). The anchors ride as text in `context`: per anchor one header line `<path>:<start>-<end> @ <commit>`, then the numbered lines. Cap: 8000 characters, the artifact route's own limit (CODE-CHECKS.md); the spec's 300 lines is replaced. Pairings put the quoted passage plus the earlier card's id and kind in `context` the same way. Anchors reach the card as text, not verified evidence; the brief already checked them at the commit.
+- `explain` (visual `/interactive`) remains a compose choice only where `EXPLAIN_V2_ENABLED` is on, and is not in the section flow's default set.
+- H (final). `SECTION_TOOLS` table in `chat-tools.js`.
+- U (until papers[] exists). The source's papers are found with `search_arxiv` on the README's title words.
+- tool_choice: copy `learn-code-explain.js:323`: auto, exactly one tool call. No forced turn.
+
+## Owner overnight message (00:52)
+- Three agents. Make runs tonight use the draft `tasks/learn-section-make.md`, marked "pre-review". Acceptance runs: nanoGPT 1.1 and 2.1, the datasette canvas's first two sections; brief, compose and every tool as it lands. Morning report in one pushed file: SHA range; built per spec section; the eight briefs and compositions and every made item as returned; costs; BLOCKERS.md; each §acceptance PASS / FAIL / UNRUN.
+
 ## Engineering decisions (accepted)
 - Research loop with `tool_choice: auto`, then a final forced `submit_*` turn. Test forced `tool_choice` on Sonnet 5.5 once, first, before building the loops. If it returns 400, use auto plus one re-ask, as `learn_plan` does.
 - The notebook package list comes from the notebook site if it publishes one; otherwise the Pyodide list as data.

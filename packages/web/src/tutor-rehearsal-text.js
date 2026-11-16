@@ -150,6 +150,14 @@ export const SENTENCES = {
   planDrafting: 'Drafting a plan',
   planNotSaved: "I couldn't save the plan, so it may be gone after a reload.",
   learnIntroFailed: "I couldn't open that topic just now. Try again; nothing was lost.",
+  // Learn sections (learn-section-brief-spec.md section 5; dev build only): no repository word.
+  sectionBriefFailed: "I couldn't plan this section cleanly. Try again, or skip to the next section.",
+  sectionTryAgain: 'Try again',
+  sectionSkip: 'Skip this section',
+  sectionPlanning: 'Planning this section',
+  sectionMaking: 'Making this section',
+  sectionNext: 'Next section',
+  sectionMake: 'Make section',
 };
 
 // Indexing failed: too big when the plain reason says so (a number of files or the limit), else the connect-time line.

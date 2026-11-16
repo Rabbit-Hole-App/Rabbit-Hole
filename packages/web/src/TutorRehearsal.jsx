@@ -17,6 +17,8 @@ import { depthOf } from './learn-settings.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
 import { toast } from './ui.jsx';
+import { performItem } from './learn-section-perform.js';
+import { LEARN_HIGHLIGHT_EVENT } from './learn-wiki-highlights.js';
 
 // The initial pipeline as the Tutor's own conversation in the Chat transcript (initial-pipeline-spec.md section 1; owner: everything lives inside the AI tutor's chat as Tutor
 // messages, no card above it). Dev builds only (VITE_REHEARSAL_TRIGGER=1, ask.jsx mounts it). The messages are built by rehearsal-flow.js from this component's state; they are
@@ -27,7 +29,7 @@ import { toast } from './ui.jsx';
 const FAILS = 3; // consecutive failed reads of the state before the Tutor says so
 let counter = 0;
 const line = (role, text) => ({ key: `line-${++counter}`, role, text });
-const INITIAL = { intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
+const INITIAL = { intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], section: null, focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
 
 function Pending({ text }) {
   return <span role="status" data-rehearsal-pending className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{text}</span></span>;
@@ -54,7 +56,20 @@ function GoalForm({ goalId, busy, onSubmit }) {
   </form>;
 }
 
-export default function TutorRehearsalFlow({ chat }) {
+// Learn sections (docs/features/learn-sections, dev build): the current section's beats and items for the owner's read, under a disclosure (the Source details pattern, TutorCodebase.jsx).
+function SectionDetails({ section }) {
+  const beats = section.brief?.beats || [], items = section.composition?.items || [];
+  if (!beats.length && !items.length) return null;
+  return <details data-learn-section-dev={section.id} className="min-w-0 pb-1.5 text-xs text-ink-2">
+    <summary className="cursor-pointer font-medium text-ink">Section {section.id}: {beats.length} beats, {items.length} items</summary>
+    <ol className="mt-1.5 flex flex-col gap-1 break-words">{beats.map(beat => <li key={beat.id}><span className="font-mono">{beat.id}</span> {beat.idea} · {beat.shows}{beat.background ? ' · background' : ''}{beat.anchors?.length ? ` · ${beat.anchors.join(', ')}` : ''}{beat.material ? ` · ${beat.material.kind}: ${beat.material.query}` : ''}</li>)}</ol>
+    <ol className="mt-1.5 flex flex-col gap-1 break-words">{items.map(item => <li key={item.id}><span className="font-mono">{item.id} /{item.command}</span> {item.beatId} · {item.request}{item.source ? ` · ${item.source}` : ''}{item.content ? ` · ${item.content}` : ''}{item.after ? ` · after ${item.after}` : ''}</li>)}</ol>
+  </details>;
+}
+// The first section of an accepted plan: sections are numbered n.m in the plan's order (BLOCKERS.md, decision taken alone); later ones come back from learn_section_next.
+export const FIRST_SECTION = '1.1';
+
+export default function TutorRehearsalFlow({ chat, slash = null }) {
   const board = chat.board || 'main', canvas = chat.canvas;
   const [info, setInfo] = useState(null), [s, setS] = useState(INITIAL), [busy, setBusy] = useState(false);
   const live = useRef(true), timer = useRef(null), fails = useRef(0), cards = useRef(new Set()), kicked = useRef(false), choose = useRef(null);
@@ -233,7 +248,8 @@ export default function TutorRehearsalFlow({ chat }) {
   const accepted = plan => {
     planSeq.current += 1; // nothing in flight may replace it
     patch({ plan: { status: 'accepted', count: plan.count, ops: plan.ops } });
-    savePlan({ ops: plan.ops, revision: plan.base, acceptedAt: new Date().toISOString(), text: plan.text }).catch(() => patch({ planLog: [...st.current.planLog, line('assistant', SENTENCES.planNotSaved)] }));
+    // The brief reads the accepted plan on the server, so section 1.1 starts once the save has landed.
+    savePlan({ ops: plan.ops, revision: plan.base, acceptedAt: new Date().toISOString(), text: plan.text }).then(() => live.current && loadSection(FIRST_SECTION), () => patch({ planLog: [...st.current.planLog, line('assistant', SENTENCES.planNotSaved)] }));
     chat.canvasOps?.planAccepted?.(); // the contents go read-only and 1.1 is the current section
   };
   const acceptPlan = () => {
@@ -251,6 +267,83 @@ export default function TutorRehearsalFlow({ chat }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const learnOption = id => learnOf(st.current.doc).options.find(option => option.id === id);
 
+  // Learn sections (CONTRACT.md server actions): brief then compose for the current section, Next section, and the Make loop. Errors come back as { error, words } or as a refused request.
+  const sectionPost = async body => { try { return await codebasePost(chatRef.current, board, body); } catch (error) { return error?.data || {}; } };
+  const sectionPatch = change => patch(old => ({ section: { ...old.section, ...change } }));
+  const failSection = (failed, out) => sectionPatch({ stage: 'failed', failed, words: out?.words && !internal(out.words) ? out.words : null });
+  const loadSection = async (sectionId, from = 'brief') => {
+    patch(old => ({ section: { ...(old.section?.id === sectionId ? old.section : { cards: {} }), id: sectionId, stage: from, failed: null, words: null } }));
+    if (from === 'brief') {
+      const out = await sectionPost({ action: 'learn_section_brief', sectionId });
+      if (!live.current || st.current.section?.id !== sectionId) return;
+      if (!out?.brief) { failSection('brief', out); return; }
+      sectionPatch({ brief: out.brief, stage: 'compose' });
+    }
+    const out = await sectionPost({ action: 'learn_section_compose', sectionId });
+    if (!live.current || st.current.section?.id !== sectionId) return;
+    if (!out?.composition) { failSection('compose', out); return; }
+    sectionPatch({ composition: out.composition, stage: 'ready', next: null });
+  };
+  // The dev row Next section, and Skip this section: the server moves the current section on; then its brief and composition.
+  const nextSection = async () => {
+    const id = st.current.section?.id;
+    if (!id) return;
+    sectionPatch({ stage: 'brief', failed: null, words: null });
+    const out = await sectionPost({ action: 'learn_section_next', sectionId: id });
+    if (!live.current) return;
+    if (typeof out?.currentSectionId !== 'string') { failSection('next', out); return; }
+    loadSection(out.currentSectionId);
+  };
+  // The dev row Make section: one item at a time in composition order (next item, perform, learn_section_made) until next is null. A failure keeps the item for Try again.
+  const makeSection = async () => {
+    const sec = st.current.section;
+    if (!sec?.id || sec.stage === 'making') return;
+    const sectionId = sec.id, alive = () => live.current && st.current.section?.id === sectionId;
+    sectionPatch({ stage: 'making', failed: null, words: null });
+    let composition = sec.composition;
+    if (!composition) { // after a reload: the stored composition (the server answers it without a model call)
+      const out = await sectionPost({ action: 'learn_section_compose', sectionId });
+      if (!alive()) return;
+      composition = out?.composition || null;
+      if (composition) sectionPatch({ composition });
+    }
+    // ponytail: a Make press after a reload starts again at the first item (the browser does not read made[] back); the server's next order is kept from there.
+    let itemId = sec.next || composition?.items?.[0]?.id || null;
+    if (!itemId) { failSection('make', null); return; }
+    while (itemId) {
+      sectionPatch({ next: itemId });
+      const out = await sectionPost({ action: 'learn_section_make', sectionId, itemId });
+      if (!alive()) return;
+      if (out?.skipped) { itemId = out.next ?? null; continue; }
+      if (!out?.perform) { failSection('make', out); return; }
+      const composed = (composition?.items || []).find(entry => entry.id === itemId) || {}, cards = st.current.section.cards || {};
+      let done;
+      try {
+        done = await performItem({ canvasApi: chatRef.current.canvasOps?.tutorCanvas?.() || null, slash, perform: out.perform, item: out.item,
+          ctx: { sectionId, itemId, board, depth: depthOf(chatRef.current.settings?.depth) || null, ops: chatRef.current.canvasOps, after: composed.after ? cards[composed.after] || null : null, previous: st.current.section.last || null, repository: repoRef.current } });
+      } catch { if (alive()) failSection('make', null); return; }
+      if (!alive()) return;
+      sectionPatch({ cards: { ...cards, ...(done.cardId ? { [itemId]: done.cardId } : {}) }, last: done.last || done.cardId || st.current.section.last || null });
+      await sectionPost({ action: 'learn_section_made', sectionId, itemId, ...(done.cardId ? { cardId: done.cardId } : {}), ...(done.jobId ? { jobId: done.jobId } : {}), ...(done.highlight ? { highlight: done.highlight } : {}) });
+      if (!alive()) return;
+      itemId = out.next ?? null;
+    }
+    sectionPatch({ stage: 'ready', next: null });
+  };
+  // A quote of a made card that was not on its page or article when the learner opened it (LearnPaper, LearnWiki, WebpageCard): recorded on the item (DECISIONS S).
+  useEffect(() => {
+    const onMissed = event => { const { sectionId, itemId, cardId, highlight } = event.detail || {}; if (sectionId && itemId && highlight) sectionPost({ action: 'learn_section_made', sectionId, itemId, ...(cardId ? { cardId } : {}), highlight }); };
+    window.addEventListener(LEARN_HIGHLIGHT_EVENT, onMissed);
+    return () => window.removeEventListener(LEARN_HIGHLIGHT_EVENT, onMissed);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const retrySection = () => {
+    const sec = st.current.section;
+    if (!sec?.id) return;
+    if (sec.failed === 'make') makeSection();
+    else if (sec.failed === 'next') nextSection();
+    else loadSection(sec.id, sec.failed === 'compose' ? 'compose' : 'brief');
+  };
+
   choose.current = chooseUse;
   // The typed-line listener lives across renders: it reaches the latest requestPlan and chat through these (a first render can precede LearnPage's canvasOps).
   const planRef = useRef(null), chatRef = useRef(chat);
@@ -265,6 +358,9 @@ export default function TutorRehearsalFlow({ chat }) {
     if (/^(use|route|goal|learn):/.test(id) || id === 'mode:run' || id === 'else') rememberIntake(canvas); // asked once: a way is the answer
     if (id.startsWith('depth:')) { const l = st.current.learn; if (l && st.current.depthAsk) beginLearn(l, id.slice(6)); }
     else if (id === 'plan:accept') acceptPlan();
+    else if (id === 'section:retry') retrySection();
+    else if (id === 'section:skip' || id === 'section:next') nextSection();
+    else if (id === 'section:make') makeSection();
     else if (id === 'plan:change') { if (st.current.planLog.at(-1)?.text !== SENTENCES.planEditPlaceholder) patch({ planLog: [...st.current.planLog, line('assistant', SENTENCES.planEditPlaceholder)] }); chat.composer?.focus?.(); }
     else if (id === 'plan:keep') { const previous = st.current.plan?.previous; if (previous) { patch({ plan: { ...previous, previous: null, busy: false } }); chat.canvasOps?.proposeOutline?.({ ops: previous.ops, base: previous.base, source: 'learn-plan' }); savePlan({ ops: previous.ops, revision: previous.base, acceptedAt: null, text: previous.text }); } }
     else if (id === 'plan:plain') { planSeq.current += 1; patch({ plan: { status: 'plain' } }); chat.canvasOps?.proposeOutline?.(null); }
@@ -370,6 +466,7 @@ export default function TutorRehearsalFlow({ chat }) {
     restored.current = true;
     const picked = { ...option, ...(stored.focus ? { focus: stored.focus } : {}), ...(stored.depth ? { depth: stored.depth } : {}) }, plan = stored.plan;
     patch({ mode: 'learn', learn: picked, learnIntro: { status: 'skipped' }, goalChosen: true, intakeDone: true,
+      section: plan?.acceptedAt ? { id: stored.currentSectionId || FIRST_SECTION, stage: 'ready', cards: {} } : null, // a reload runs nothing: the dev rows act on the stored section
       plan: plan ? { status: plan.acceptedAt ? 'accepted' : 'draft', text: plan.text || '', ops: plan.ops, base: plan.revision, count: chapterCount(plan.ops), rows: planRows(['accept', 'change'], { ops: plan.ops, learn: { options: learnOf(s.doc).options } }), option: picked, previous: null } : null });
     if (!plan) requestPlan(picked);
     else if (!plan.acceptedAt) chat.canvasOps?.proposeOutline?.({ ops: plan.ops, base: plan.revision, source: 'learn-plan' });
@@ -382,6 +479,7 @@ export default function TutorRehearsalFlow({ chat }) {
       return <div key={m.key} data-rehearsal-message={m.key}>
         {m.text !== undefined && <ChatMessage m={said} i={0} msgs={[said]} learnChat busy={false} setMsgs={() => {}} setFilePeek={() => {}} setRunPeek={() => {}} />}
         {m.pending && <Pending text={m.pending} />}
+        {m.section && <SectionDetails section={m.section} />}
         {m.form && <GoalForm goalId={m.form.goalId} busy={busy} onSubmit={submitGoal} />}
         {m.choices?.length > 0 && <ChoiceList items={m.choices} onPick={item => pick(item.id)} label={m.text ? undefined : 'Choices'} className="pt-0.5 pb-1.5" />}
         {m.chips?.length > 0 && <Chips chips={m.chips} onPick={pick} />}
