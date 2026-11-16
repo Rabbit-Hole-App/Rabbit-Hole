@@ -1,0 +1,13 @@
+diff --git a/packages/web/src/tutor-diagrams/ml-topology-layouts.js b/packages/web/src/tutor-diagrams/ml-topology-layouts.js
+index 7c2815e63..cfba310c9 100644
+--- a/packages/web/src/tutor-diagrams/ml-topology-layouts.js
++++ b/packages/web/src/tutor-diagrams/ml-topology-layouts.js
+@@ -6,7 +6,7 @@ import { dotTree } from './dot-tree-layout.js';
+ import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
+ 
+ const PAD = 12, TEXT = 15, SMALL = 13, GAP = 18;
+-const TREE_NODE_FLOOR = 120; // the narrowest node width cap of a top-down tree that has to fit the width budget (100 would fit learning-families in 714 px, with three labels one font step smaller)
++const TREE_NODE_FLOOR = 100; // the narrowest node width cap of a top-down tree that has to fit the width budget (at 100 learning-families fits in 714 px, three labels one font step smaller, nothing clipped)
+ const childrenFor = nodes => new Map(nodes.map(n => [n.id, nodes.filter(child => child.parent === n.id)]));
+ const pathEdge = (d, from, to) => d.highlightPath?.some((id, i) => id === from && d.highlightPath[i + 1] === to);
+ const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;

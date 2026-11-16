@@ -1,0 +1,36 @@
+diff --git a/packages/web/src/tutor-diagrams/flow.js b/packages/web/src/tutor-diagrams/flow.js
+index ae7fbbbf4..df33e3dd5 100644
+--- a/packages/web/src/tutor-diagrams/flow.js
++++ b/packages/web/src/tutor-diagrams/flow.js
+@@ -306,7 +306,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode,
+       const cx = Math.max(PAD + w / 2, Math.min(PAD + inner - w / 2, ideal));
+       if (node.tensor) return { ...node, width: w, cx, ...measureTensorNode(node, w) };
+       const isDecision = node.role === 'decision';
+-      const wrapWidth = isDecision ? (w >= oneLineDecision(node.label ?? '') ? w : Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].twoLine ? twoLineWidth(node.label ?? '', metrics[rank][index].word) : metrics[rank][index].word))) : w - 48;
++      const wrapWidth = isDecision ? (w >= oneLineDecision(node.label ?? '') ? w : Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].twoLine ? twoLineWidth(node.label ?? '', metrics[rank][index].word) : metrics[rank][index].word))) : paths.length === 2 ? Math.max(w - 48, Math.min(metrics[rank][index].word, w - 16)) : w - 48; // under the highlight cap a node gets narrower, never its type: a long word takes the room of the padding
+       const lines = wrap(node.label, wrapWidth);
+       const { height, offset } = isDecision ? measureDecision(lines, w)
+         : { height: 40 + 16 * Math.max(1, lines.length), offset: 0 }; // 56 for one line, 72 for two
+@@ -400,6 +400,22 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode,
+       const [left, right] = runX(run);
+       for (const other of lanes) if (other.edge.from !== run.edge.from && other.depart !== run.depart && stemX(other) > left + 1 && stemX(other) < right - 1) before.get(run.depart).add(other.depart);
+     }
++    // FLOW-T2: into a tier wrapped onto two rows, the lanes are ordered so no other wire crosses a highlighted one: where another wire's stem or drop falls in the span of a highlighted run
++    // (or a highlighted stem or drop in the span of another run), the lanes are ordered so the two do not meet.
++    if (splits.has(rank + 1)) {
++      const dropX = route => { const to = placements.get(route.edge.to); return to.cx + portOffset(to, incoming.get(route.edge.to), route.edge); };
++      const inside = (x, [from, to]) => x > from + 1 && x < to - 1;
++      for (const high of lanes.filter(route => pathEdge(route.edge))) {
++        const span = runX(high);
++        for (const other of lanes) {
++          if (other.depart === high.depart) continue;
++          if (inside(dropX(other), span)) before.get(other.depart).add(high.depart); // the other's drop crosses the highlighted run unless the other goes below it
++          if (inside(stemX(other), span)) before.get(high.depart).add(other.depart); // the other's stem crosses the highlighted run unless the run goes below it
++          if (inside(stemX(high), runX(other))) before.get(other.depart).add(high.depart); // the highlighted stem crosses the other run unless the other goes below
++          if (inside(dropX(high), runX(other))) before.get(high.depart).add(other.depart); // the highlighted drop crosses the other run unless the other goes above
++        }
++      }
++    }
+     const sourceOf = new Map(lanes.map(route => [route.depart, route.edge.from]));
+     const order = [], left = new Set(gap);
+     while (left.size) {
