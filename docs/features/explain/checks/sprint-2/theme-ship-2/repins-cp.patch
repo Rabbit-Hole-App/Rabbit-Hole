@@ -1,0 +1,84 @@
+diff --git a/packages/control-plane/test/explanation-fast-card.test.js b/packages/control-plane/test/explanation-fast-card.test.js
+index 59eea2a67..acbeebd0a 100644
+--- a/packages/control-plane/test/explanation-fast-card.test.js
++++ b/packages/control-plane/test/explanation-fast-card.test.js
+@@ -8,7 +8,7 @@ import { deriveVisualRequirements, requiredMix, requiredVisualProblem } from '..
+ import { generateArtifact } from '../src/learn-artifact.js';
+ import { CHAIN_ENDPOINTS, STREAM_SETTING, visualScanner } from '../src/explanation-fast-chain.js';
+ import { EXPLANATION_PROFILE_SETTING } from '../src/explanation-models.js';
+-import { FIGURE_MODEL } from '../src/explanation-figures.js';
++import { FIGURE_MODEL, figurePrompt } from '../src/explanation-figures.js';
+ import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
+ import { withUsage, noteUsageIdentity } from '../src/learn-usage.js';
+ import { cycleSpec, diagramFence, illustrationFence } from './explanation-layout-fixture.js';
+@@ -236,7 +236,7 @@ test('fix 3: a streamed answer starts its picture before the body has arrived; t
+   const asked = sent[0].at, bodyEnd = asked + 2500;
+   assert.equal(sent[0].body.stream, true);
+   assert.deepEqual([out.result, out.repaired, image.calls.length], ['artifact', false, 1]);
+-  assert.equal(image.calls[0].prompt, withNoTextSuffix(PICTURE.p));
++  assert.equal(image.calls[0].prompt, figurePrompt(withNoTextSuffix(PICTURE.p)));
+   assert.ok(image.calls[0].at - asked <= 400, `the picture started ${image.calls[0].at - asked} ms after the request, when its visual arrived`);
+   assert.ok(image.calls[0].at < bodyEnd, 'before the body ended');
+   assert.ok(doneAt - asked < 2500 + 2000, `the card took ${doneAt - asked} ms: text and picture overlapped (one after the other is 4,500 ms)`);
+@@ -272,7 +272,7 @@ test('fix 3: after a repair, a picture whose prompt is unchanged is reused; a ch
+   const changed = answer([{ ...PICTURE, p: 'A block of ice in a lake, seen from the shore' }]);
+   fireworks(t, { content: bad }, { content: changed });
+   const out = await generateArtifact(moved.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: fresh } });
+-  assert.deepEqual([out.result, fresh.calls.map(c => c.prompt)], ['artifact', [withNoTextSuffix(PICTURE.p), withNoTextSuffix('A block of ice in a lake, seen from the shore')]]);
++  assert.deepEqual([out.result, fresh.calls.map(c => c.prompt)], ['artifact', [figurePrompt(withNoTextSuffix(PICTURE.p)), figurePrompt(withNoTextSuffix('A block of ice in a lake, seen from the shore'))]]);
+   assert.deepEqual(Object.keys(out.block.figures), ['pic-1']);
+   assert.equal(moved.rows("SELECT * FROM usage_attempts WHERE provider = 'recraft' AND status = 'settled'").length, 2, 'both pictures are on the ledger');
+ });
+@@ -288,7 +288,7 @@ test('fix 3 with three visuals: a picture at visuals[2] starts early as pic-3; a
+   const b = fastEnv(t), two = recraft();
+   fireworks(t, { content: answer([pic(1), pic(2), pic(3)], body) });
+   const kept = await generateArtifact(b.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: two } });
+-  assert.deepEqual([kept.result, two.calls.map(c => c.prompt), Object.keys(kept.block.figures)], ['artifact', [withNoTextSuffix(pic(1).p), withNoTextSuffix(pic(2).p)], ['pic-1', 'pic-2']], 'the third picture is dropped, never made or charged');
++  assert.deepEqual([kept.result, two.calls.map(c => c.prompt), Object.keys(kept.block.figures)], ['artifact', [figurePrompt(withNoTextSuffix(pic(1).p)), figurePrompt(withNoTextSuffix(pic(2).p))], ['pic-1', 'pic-2']], 'the third picture is dropped, never made or charged');
+ });
+ 
+ test('fix 3: the stream scanner hands over each visuals[i] once, as soon as it closes, and is not fooled by braces in strings', () => {
+diff --git a/packages/control-plane/test/explanation-layout.test.js b/packages/control-plane/test/explanation-layout.test.js
+index 6fb43b334..cf9262ba0 100644
+--- a/packages/control-plane/test/explanation-layout.test.js
++++ b/packages/control-plane/test/explanation-layout.test.js
+@@ -9,7 +9,7 @@ import { fieldText } from '../src/explanation-interactions.js';
+ import { requiredVisualProblem } from '../src/explanation-visuals.js';
+ import { generateArtifact } from '../src/learn-artifact.js';
+ import { generateRoadmapCard, quoteRoadmapCard } from '../src/roadmap/roadmap-generate.js';
+-import { FIGURE_ATTEMPTS, FIGURES_MAX, FIGURE_MODEL } from '../src/explanation-figures.js';
++import { FIGURE_ATTEMPTS, FIGURES_MAX, FIGURE_MODEL, figurePrompt } from '../src/explanation-figures.js';
+ import { fileRefSources } from '../src/file-refs.js';
+ import { withUsage, noteUsageIdentity } from '../src/learn-usage.js';
+ import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
+@@ -139,7 +139,7 @@ test('an rh-illustration is generated before the card returns, stored as a file
+   const { out } = await direct(withPic, { figures: { store: STORE, adapter } }, env);
+   assert.equal(out.result, 'artifact');
+   assert.equal(adapter.calls.length, 1);
+-  assert.deepEqual([adapter.calls[0].model, adapter.calls[0].prompt, adapter.calls[0].settings], [FIGURE_MODEL, 'An ice cube floating in a glass of water, side view', { model: FIGURE_MODEL, aspect_ratio: '1:1', resolution: '1K' }]);
++  assert.deepEqual([adapter.calls[0].model, adapter.calls[0].prompt, adapter.calls[0].settings], [FIGURE_MODEL, figurePrompt('An ice cube floating in a glass of water, side view'), { model: FIGURE_MODEL, aspect_ratio: '1:1', resolution: '1K' }]);
+   const fig = out.block.figures.ice;
+   assert.deepEqual(Object.keys(out.block.figures), ['ice']);
+   assert.deepEqual({ ...fig, fileRef: { ...fig.fileRef, source: { ...fig.fileRef.source, id: 'ID', rev: 'REV' } } },
+diff --git a/packages/control-plane/test/image-providers.test.js b/packages/control-plane/test/image-providers.test.js
+index 90f7ecba1..f60d79099 100644
+--- a/packages/control-plane/test/image-providers.test.js
++++ b/packages/control-plane/test/image-providers.test.js
+@@ -1,7 +1,7 @@
+ // IMG-01 provider adapters and quote (image-providers.js). Fixture transports only: no request leaves this process.
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+-import { IMAGE_MODELS, imageSettings, imageQuote, measuredCostUsd, usageCost, imageCost, openaiImageAdapter, geminiImageAdapter, imageAdapter, providerConfigured } from '../src/image-providers.js';
++import { IMAGE_MODELS, imageSettings, imageQuote, measuredCostUsd, usageCost, imageCost, openaiImageAdapter, geminiImageAdapter, imageAdapter, providerConfigured, RECRAFT_CONTROLS } from '../src/image-providers.js';
+ 
+ const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+ const KEY = 'fixture-key-not-real';
+@@ -260,7 +260,7 @@ test('Recraft: one generation request (1024x1024, url output), then one download
+   assert.equal(calls.length, 2, 'the request and the download');
+   assert.equal(calls[0].url, 'https://external.api.recraft.ai/v1/images/generations');
+   assert.equal(calls[0].init.headers.Authorization, `Bearer ${KEY}`);
+-  assert.deepEqual(JSON.parse(calls[0].init.body), { prompt: 'A lighthouse at dusk.', model: 'recraftv4_1_flash', size: '1024x1024', n: 1, response_format: 'url' });
++  assert.deepEqual(JSON.parse(calls[0].init.body), { prompt: 'A lighthouse at dusk.', model: 'recraftv4_1_flash', size: '1024x1024', n: 1, response_format: 'url', controls: RECRAFT_CONTROLS });
+   assert.equal(calls[1].url, 'https://img.recraft.ai/abc/image.webp');
+   assert.equal(calls[1].init.headers, undefined, 'the key never goes to the picture host');
+   assert.equal(out.mimeType, 'image/webp');

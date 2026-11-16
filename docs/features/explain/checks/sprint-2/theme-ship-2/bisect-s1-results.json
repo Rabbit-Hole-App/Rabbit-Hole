@@ -1,0 +1,27 @@
+{
+ "motion-ownership: mutation proof": {
+  "firstBad": "3e564b028",
+  "subject": "scene renderer, composed theme: one role-fill table at 100%, operator role, 32 x 28 strip cells, warm weight ramp, round",
+  "lastGood": "44feb891d"
+ },
+ "render-freshness: static renders": {
+  "firstBad": "44feb891d",
+  "subject": "no white: the ground is cream everywhere, unfilled shapes are transparent with a 1.5 px outline; theme-r9 re-rendered",
+  "lastGood": "dc2b55165"
+ },
+ "figure-layout: small forces": {
+  "firstBad": "69c3e8dab",
+  "subject": "theme: the sprint look as the default for every teaching kind",
+  "lastGood": "7fcc07d0d"
+ },
+ "svg-snapshots: fingerprints": {
+  "firstBad": "a86573aa9",
+  "subject": "plot: x tick labels never touch: extents follow the anchor, a decade label that touches a sampled one is dropped, the pl",
+  "lastGood": "4f4e99b56"
+ },
+ "gemini bundle: 134 properties": {
+  "firstBad": "86fdee5a2",
+  "subject": "tree and panels: round-and-square binary trees, straight arrows, cap 31, equal-scale tree panels, thick link arrow",
+  "lastGood": "c41aeb8d5"
+ }
+}

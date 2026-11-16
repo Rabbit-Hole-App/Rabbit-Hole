@@ -1,0 +1,23 @@
+diff --git a/packages/web/src/tutor-diagrams/ml-plot-layouts.js b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+index 08c9bf7fa..f068bef16 100644
+--- a/packages/web/src/tutor-diagrams/ml-plot-layouts.js
++++ b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+@@ -314,8 +314,16 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
+     calloutCount++;
+     const lines = wrap(text, 200, SMALL);
+     const size = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))) + 20, tall = Math.max(22, lines.length * lineHeight(SMALL) + 8);
+-    const box = freeCell(anchor, size, tall, 14, true);
+-    if (!box) return;
++    // A callout is never dropped: with no free cell left inside the plot it takes the margin above the plot area at its point's x (shifted sideways past other callouts there); its leader runs to the ring.
++    const marginCell = () => {
++      const y0 = top - tall - 4;
++      for (let k = 0; k < 8; k++) {
++        const candidate = { x: Math.max(2, Math.min(width - size - 2, anchor[0] - size / 2 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (size + 6))), y: y0, width: size, height: tall };
++        if (occupied.every(other => apart(candidate, other))) return candidate;
++      }
++      return { x: Math.max(2, Math.min(width - size - 2, anchor[0] - size / 2)), y: y0, width: size, height: tall };
++    };
++    const box = freeCell(anchor, size, tall, 14, true) ?? marginCell();
+     occupied.push(box);
+     const corner = [Math.max(box.x, Math.min(box.x + size, anchor[0])), Math.max(box.y, Math.min(box.y + tall, anchor[1]))];
+     const away = Math.hypot(anchor[0] - corner[0], anchor[1] - corner[1]) || 1;

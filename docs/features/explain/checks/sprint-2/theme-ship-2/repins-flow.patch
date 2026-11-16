@@ -1,0 +1,329 @@
+diff --git a/packages/web/src/explanation-card-width.test.mjs b/packages/web/src/explanation-card-width.test.mjs
+index 751ec1a4a..ca1bed8cb 100644
+--- a/packages/web/src/explanation-card-width.test.mjs
++++ b/packages/web/src/explanation-card-width.test.mjs
+@@ -11,7 +11,7 @@ import examples from './tutor-diagrams/examples.json' with { type: 'json' };
+ const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
+ const fence = spec => `\`\`\`rh-diagram\n${JSON.stringify(spec)}\n\`\`\``;
+ const PROSE = 'A short paragraph of prose.\n\nAnother short paragraph.';
+-const WIDE = dataRefs.find(r => r.id === 'bayes-class-token-counts').spec; // a teaching matrix: 747 px wide at the card's usual room
++const WIDE = dataRefs.find(r => r.id === 'bayes-class-token-counts').spec; // a teaching matrix: 697 px wide at the card's usual room
+ const ordinary = examples.find(e => (e.spec || e).diagram?.kind === 'flow');
+ const card = (body, extra = {}) => ({ id: 'c1', type: 'explanation', title: 'T', body, ...extra });
+ const picture = { id: 'p1', status: 'ready' };
+@@ -19,7 +19,7 @@ const PICTURE_FENCE = '```rh-illustration\n{"version":1,"id":"p1","prompt":"a vo
+ 
+ test('a diagram reports its natural width; an ordinary one is 408, a dense one is wider; an invalid spec asks for no room', () => {
+   assert.equal(diagramWidth(JSON.stringify(ordinary.spec || ordinary)), 408);
+-  assert.equal(diagramWidth(WIDE), 747);
++  assert.equal(diagramWidth(WIDE), 697);
+   assert.equal(diagramWidth('{"not":"a diagram"}'), 0);
+   assert.equal(diagramWidth('not json'), 0);
+ });
+@@ -28,7 +28,7 @@ test('width rule: prose-only stays at the card\'s 440 (408 of room), a 700 px di
+   assert.equal(explanationCardWidth(card(PROSE)), CARD_FLOOR, 'prose only');
+   assert.equal(explanationCardWidth(card(`${PROSE}\n\n${fence(ordinary.spec || ordinary)}\n\nMore.`)), CARD_FLOOR, 'an ordinary diagram fits the usual room');
+   const wide = explanationCardWidth(card(`${PROSE}\n\n${fence(WIDE)}\n\nMore.`));
+-  assert.equal(wide, 747 + CARD_CHROME);
++  assert.equal(wide, 697 + CARD_CHROME);
+   assert.ok(wide - CARD_CHROME >= diagramWidth(WIDE), 'the room inside the card holds the whole diagram: no horizontal scroll');
+   assert.equal(widthFor(700), 700 + CARD_CHROME);
+   const huge = widthFor(1200);
+@@ -61,17 +61,17 @@ test('a picture is displayed at 512 px: the card and its tile widen to fit it (5
+   assert.equal(explanationCardWidth(withPicture), PICTURE_DISPLAY_WIDTH + CARD_CHROME, 'room for the picture at 512 plus the card\'s chrome');
+   assert.equal(explanationCardWidth(card(`${PROSE}\n\n${PICTURE_FENCE}`, { figures: { p1: { id: 'p1', status: 'failed' } } })), CARD_FLOOR, 'a picture that failed draws nothing and asks for nothing');
+   const both = card(`${PICTURE_FENCE}\n\n${fence(WIDE)}`, { figures: { p1: picture } });
+-  assert.equal(explanationCardWidth(both), 747 + CARD_CHROME, 'a picture and a wider diagram: the wider');
++  assert.equal(explanationCardWidth(both), 697 + CARD_CHROME, 'a picture and a wider diagram: the wider');
+   assert.equal(tileWidthFor({ kind: 'picture' }), PICTURE_DISPLAY_WIDTH + CARD_CHROME, 'its tile is the same width, the picture at 512');
+   const src = read('./IllustrationFigure.jsx');
+   assert.match(src, /style=\{\{ maxWidth: PICTURE_DISPLAY_WIDTH \}\} className=\{`mx-auto /, 'square at 512 and centred in any wider card');
+ });
+ 
+-test('the tile uses the same rule on its one visual and never scales it: a 747 px diagram is a 781 px tile, a picture tile is as wide as the picture card, Open restores the card at the same width', () => {
++test('the tile uses the same rule on its one visual and never scales it: a 697 px diagram is a 731 px tile, a picture tile is as wide as the picture card, Open restores the card at the same width', () => {
+   const diagramCard = card(`${PROSE}\n\n${fence(WIDE)}\n\nMore.`, { w: 300, h: 500 });
+   const tile = { ...diagramCard, minimized: true };
+   assert.equal(isMinimized(tile), true);
+-  assert.equal(tileWidth(tile), 747 + CARD_CHROME, 'the diagram at its natural width inside the tile');
++  assert.equal(tileWidth(tile), 697 + CARD_CHROME, 'the diagram at its natural width inside the tile');
+   assert.equal(tileWidth(tile), explanationCardWidth(diagramCard), 'the same function as the card');
+   const pictureCard = card(`${PROSE}\n\n${PICTURE_FENCE}`, { figures: { p1: picture } });
+   assert.equal(tileWidth({ ...pictureCard, minimized: true }), explanationCardWidth(pictureCard));
+@@ -91,7 +91,7 @@ test('the canvas takes the derived width: wider than its 560 column the card is
+   assert.match(canvas, /const displayWidth = full \? [^;]*size\.w \|\| width;/, 'a saved (dragged) width wins over the derived one');
+   assert.match(canvas, /<div ref=\{column\}[^>]*className=\{`absolute top-0 left-0 flex flex-col gap-5/, 'cards are stacked in one column: a wider card never lies over the cards above or below it');
+   // The centred extents of a stack of cards at the derived widths never overlap horizontally with a neighbour's vertical band: stacked cards are separated by the 20 px gap in y.
+-  const COLUMN = 560, widths = [CARD_FLOOR, 747 + CARD_CHROME, PICTURE_DISPLAY_WIDTH + CARD_CHROME], heights = [300, 420, 380];
++  const COLUMN = 560, widths = [CARD_FLOOR, 697 + CARD_CHROME, PICTURE_DISPLAY_WIDTH + CARD_CHROME], heights = [300, 420, 380];
+   let y = 0; const boxes = widths.map((w, i) => { const box = { x: (COLUMN - w) / 2, y, w, h: heights[i] }; y += heights[i] + 20; return box; });
+   for (let i = 1; i < boxes.length; i++) assert.ok(boxes[i].y >= boxes[i - 1].y + boxes[i - 1].h, `card ${i} starts below card ${i - 1}`);
+ });
+diff --git a/packages/web/src/tutor-diagrams/block-stack.test.mjs b/packages/web/src/tutor-diagrams/block-stack.test.mjs
+index a31984e12..e79a8877d 100644
+--- a/packages/web/src/tutor-diagrams/block-stack.test.mjs
++++ b/packages/web/src/tutor-diagrams/block-stack.test.mjs
+@@ -209,19 +209,22 @@ test('a simple block-stack can fit in each half of a 408-pixel comparison', () =
+   assert.ok(blockStackNaturalWidth(architecture) > 320 && blockStackNaturalWidth(architecture) <= 960);
+ });
+ 
+-test('horizontal token blocks keep reading order and native cell size at every width', () => {
++test('horizontal token blocks keep reading order and native cell size at every width; rows wrap at block boundaries', () => {
+   const natural = blockStackNaturalWidth(shape.parse(tokenRow));
+   assert.ok(natural > 408 && natural <= 960);
+-  for (const requested of [320, 408, natural, 960]) {
++  // TOK-W: the row budget is the request (at least 720, at most 960); six blocks of 176 px wrap after 3 (564 px) at 720 and after 5 at 960.
++  for (const [requested, perRow] of [[320, [3, 3]], [408, [3, 3]], [natural, [3, 3]], [960, [5, 1]]]) {
+     const scene = draw(tokenRow, requested);
+     assert.equal(scene.width, Math.max(requested, natural));
+     const blocks = findAll(scene.elements, 'data-block-stack-node');
+     assert.deepEqual(blocks.map(block => block.props['data-block-stack-node']), tokenRow.blocks.map(block => block.id));
+     const rects = blocks.map(block => block.props.children[0].props);
++    assert.deepEqual([...new Set(rects.map(rect => rect.y))].map(y => rects.filter(rect => rect.y === y).length), perRow, `rows at ${requested}`);
+     for (const [index, rect] of rects.entries()) {
+-      assert.equal(rect.y, rects[0].y);
+       assert.ok(rect.x >= 0 && rect.x + rect.width <= scene.width);
+-      if (index) assert.ok(rect.x > rects[index - 1].x + rects[index - 1].width);
++      const previous = rects[index - 1];
++      if (index && rect.y === previous.y) assert.ok(rect.x > previous.x + previous.width, 'within a row, left to right');
++      if (index && rect.y !== previous.y) assert.ok(rect.y > previous.y && rect.x < previous.x, 'the next row starts below and back at the left');
+     }
+     const cells = findAll(scene.elements, 'data-tutor-tensor-cell');
+     assert.equal(cells.length, 24);
+@@ -231,9 +234,12 @@ test('horizontal token blocks keep reading order and native cell size at every w
+   assert.equal(describeBlockStack(tokenRow)[0], 'the · cat · sat · on · the · mat');
+   const weighted = { ...tokenRow, blocks: tokenRow.blocks.map((block, index) => index === 2
+     ? { ...block, label: 'sat at weight 0.17' } : block) };
+-  const children = findAll(draw(weighted, 320).elements, 'data-block-stack-child');
++  const scene = draw(weighted, 320);
++  const children = findAll(scene.elements, 'data-block-stack-child');
+   const starts = children.map(child => child.props.transform.match(/[\d.]+/g).map(Number)[1]);
+-  assert.ok(starts.every(y => y === starts[0]), 'wrapped labels share a heading height above the tensor strips');
++  const rowOf = findAll(scene.elements, 'data-block-stack-node').map(block => block.props.children[0].props.y);
++  // The strips of one row start at one height (the wrapped label sets it); the next row starts lower.
++  assert.ok(starts.every((y, index) => y - rowOf[index] === starts[0] - rowOf[0]), 'wrapped labels share a heading height above the tensor strips, in every row');
+ });
+ 
+ test('horizontal block stacks reject vertical topology and retain an oversized native width', () => {
+@@ -251,8 +257,9 @@ test('horizontal block stacks reject vertical topology and retain an oversized n
+     const result = shape.safeParse({ ...tokenRow, ...diagram });
+     assert.ok(result.error?.issues.some(issue => JSON.stringify(issue.path) === JSON.stringify(path)), JSON.stringify(path));
+   }
++  // Rows wrap at block boundaries, so only a single block wider than 960 is oversized (eight 22-character values).
+   const oversized = { ...tokenRow, blocks: blocks.map(block => ({ ...block, diagram: { kind: 'tensor',
+-    tensor: { rows: 1, columns: 8, dimensions: '512', values: Array(8).fill(123456.789) },
++    tensor: { rows: 1, columns: 8, dimensions: '512', values: Array(8).fill(-1.2345678901234567e21) },
+   } })) };
+   const natural = blockStackNaturalWidth(oversized);
+   assert.ok(natural > 960);
+diff --git a/packages/web/src/tutor-diagrams/flow.test.mjs b/packages/web/src/tutor-diagrams/flow.test.mjs
+index d99bc6961..868d637cf 100644
+--- a/packages/web/src/tutor-diagrams/flow.test.mjs
++++ b/packages/web/src/tutor-diagrams/flow.test.mjs
+@@ -390,8 +390,10 @@ test('RD-2: the gap below a two-way decision row holds one lane shared by its tw
+ 
+ test('RD-2: a three-branch decision keeps its lanes; the digests are the markup under the sprint theme', () => {
+   assert.deepEqual([408, 720].map(width => digest(layoutFlow(triage, width))), ['4ba500adae549484', '4b724c68cf64896f']);
+-  // The same-side decision below has two branches, so it takes the shared fork; its card is as wide at 408 as at 720 (the 180 px node minimum).
+-  assert.deepEqual([408, 720].map(width => digest(layoutFlow(sameSide, width))), ['5c87270433a1ca7a', '5c87270433a1ca7a']);
++  // The same-side decision below has two branches, so it takes the shared fork. Its label wraps to two lines (FLOW-W) so the card is 639 wide at 408 and the 720 asked for at 720 (one line made it 726 at both);
++  // the Yes and No labels stand beside their drops at one height (FLOW-X option B), so the two digests differ.
++  assert.deepEqual([408, 720].map(width => layoutFlow(sameSide, width).width), [639, 720]);
++  assert.deepEqual([408, 720].map(width => digest(layoutFlow(sameSide, width))), ['380e9a4f0d44e776', 'd5bc27cfa411fac1']);
+ });
+ 
+ test('RD-2b: at the card widths each branch drops onto its target from the shared run and its label is centred on its run', () => {
+diff --git a/packages/web/src/tutor-diagrams/illustration-embedded-layouts.test.mjs b/packages/web/src/tutor-diagrams/illustration-embedded-layouts.test.mjs
+index edc6154ca..5d92a1071 100644
+--- a/packages/web/src/tutor-diagrams/illustration-embedded-layouts.test.mjs
++++ b/packages/web/src/tutor-diagrams/illustration-embedded-layouts.test.mjs
+@@ -110,13 +110,18 @@ test('a nine-box parallel tier fits within 960 pixels without dropping labels',
+     { id: 'merge', label: 'Blend', role: 'merge' }, { id: 'end', label: 'Return', role: 'outcome' }];
+   const edges = [...tier.map(n => edge('rank', n.id)), ...tier.slice(3, 6).map(n => edge(n.id, 'merge')), edge('merge', 'end')];
+   const highlightPath = [3, 5].map(i => ['rank', tier[i].id, 'merge', 'end']);
+-  const scene = layouts.flow({ nodes, edges, highlightPath }, 408);
+-  assert.ok(scene.width <= 960, `tier needs ${scene.width}px`);
+-  for (const n of tier) assert.equal(text([nodeFor(scene, n.id)]), n.label);
+-  const boxes = tier.map(n => nodeFor(scene, n.id).props.children[0].props);
+-  for (const [index, box] of boxes.entries()) {
+-    const previous = boxes[index - 1];
+-    assert.ok(box.x >= 0 && box.x + box.width <= scene.width);
+-    if (previous) assert.ok(box.x > previous.x + previous.width);
++  // FLOW-T: a tier of four or more nodes that cannot fit the width budget at its node minimums wraps onto two rows (the first ceil(n / 2), then the rest); at 960 it is one row.
++  for (const [width, perRow] of [[408, [5, 4]], [960, [9]]]) {
++    const scene = layouts.flow({ nodes, edges, highlightPath }, width);
++    assert.ok(scene.width <= 960, `tier needs ${scene.width}px`);
++    for (const n of tier) assert.equal(text([nodeFor(scene, n.id)]), n.label);
++    const boxes = tier.map(n => nodeFor(scene, n.id).props.children[0].props);
++    assert.deepEqual([...new Set(boxes.map(box => box.y))].map(y => boxes.filter(box => box.y === y).length), perRow, `rows at ${width}`);
++    for (const [index, box] of boxes.entries()) {
++      const previous = boxes[index - 1];
++      assert.ok(box.x >= 0 && box.x + box.width <= scene.width);
++      if (previous && previous.y === box.y) assert.ok(box.x > previous.x + previous.width);
++      if (previous && previous.y !== box.y) assert.ok(box.y > previous.y, 'the second row is below the first');
++    }
+   }
+ });
+diff --git a/packages/web/src/tutor-diagrams/illustration-integration.test.mjs b/packages/web/src/tutor-diagrams/illustration-integration.test.mjs
+index 8df11570a..ea9c45ad8 100644
+--- a/packages/web/src/tutor-diagrams/illustration-integration.test.mjs
++++ b/packages/web/src/tutor-diagrams/illustration-integration.test.mjs
+@@ -93,7 +93,14 @@ test('embedding strips use one consistent value treatment at every depth', () =>
+   }
+ });
+ 
+-test('the walkthrough token, value and vocabulary sequences use one row at every depth', () => {
++// TOK-W: the cells keep their natural width, so a row of six blocks that passes the budget (the request, at least 720, at most 960) wraps at a block boundary: blocks per row at a 320 and at a 960 request.
++const blockRows = { 'ml-transformer-token-embeddings': ['3+3', '5+1'], 'ml-transformer-weighted-values': ['4+2', '6'], 'ml-transformer-vocabulary-softmax': ['6', '6'] };
++const rowsOf = (spec, width) => {
++  const counts = new Map();
++  for (const [, y] of renderToStaticMarkup(renderTutorDiagram(spec, width).element).matchAll(/data-block-stack-node="[^"]+"[^>]*><rect[^>]*? y="([\d.]+)"/g)) counts.set(y, (counts.get(y) ?? 0) + 1);
++  return [...counts.values()].join('+');
++};
++test('the walkthrough token, value and vocabulary sequences keep native cells and wrap at block boundaries at every depth', () => {
+   const ids = ['ml-transformer-token-embeddings', 'ml-transformer-weighted-values', 'ml-transformer-vocabulary-softmax'];
+   for (const id of ids) {
+     const ref = transformerWalkthroughReferences.find(reference => reference.id === id);
+@@ -102,8 +109,13 @@ test('the walkthrough token, value and vocabulary sequences use one row at every
+       assert.ok(spec, id);
+       const { diagram } = spec;
+       assert.equal(diagram.blocks.length, 6, id);
+-      const { width, height } = renderTutorDiagram(spec, 320);
+-      assert.ok(width > 320 && width <= 960 && height < 280, id);
++      const { width } = renderTutorDiagram(spec, 320);
++      assert.ok(width > 320 && width <= 960, id);
++      const [narrow, wide] = blockRows[id];
++      // The vocabulary overview is the one figure that still fits one row at 320; its balanced and deep depths take five and one.
++      const expectedNarrow = id === 'ml-transformer-vocabulary-softmax' && variant !== ref.depths.overview ? '5+1' : narrow;
++      assert.equal(rowsOf(spec, 320), expectedNarrow, `${id} rows at 320`);
++      assert.equal(rowsOf(spec, 960), wide, `${id} rows at 960`);
+       if (id !== 'ml-transformer-vocabulary-softmax') continue;
+       assert.deepEqual(diagram.blocks.map(block => block.label), vocabulary);
+       assert.deepEqual(diagram.blocks.map(block => block.diagram.tensor.values[0]), vocabularyWeights);
+diff --git a/packages/web/src/tutor-diagrams/illustration-token-budgets.json b/packages/web/src/tutor-diagrams/illustration-token-budgets.json
+index 3fc6939eb..9708ac905 100644
+--- a/packages/web/src/tutor-diagrams/illustration-token-budgets.json
++++ b/packages/web/src/tutor-diagrams/illustration-token-budgets.json
+@@ -395,6 +395,20 @@
+         "tokens": 299,
+         "sha256": "d92f013b4c95f4cd2354e768725663fd1d8ee8135f7e97a6aebb4d960b35032e"
+       }
++    },
++    "ml-mle-steps": {
++      "brief": {
++        "tokens": 122,
++        "sha256": "60dc3b0c0ceb6743253c6c1e4f7d56657fbd88d146ecebc0f7bca9756a34f088"
++      },
++      "balanced": {
++        "tokens": 126,
++        "sha256": "dddbc56d58a26a371bcdac7ee027a51d68f42395d53513aa0936959fdfad1638"
++      },
++      "detailed": {
++        "tokens": 128,
++        "sha256": "c61f54b53405624c97d45351d1299b685e2b5015b4802e1d9bfaf978d0526a6c"
++      }
+     }
+   }
+ }
+diff --git a/packages/web/src/tutor-diagrams/tensor.test.mjs b/packages/web/src/tutor-diagrams/tensor.test.mjs
+index 4fbdb5501..7c67fbc4d 100644
+--- a/packages/web/src/tutor-diagrams/tensor.test.mjs
++++ b/packages/web/src/tutor-diagrams/tensor.test.mjs
+@@ -58,7 +58,7 @@ function itemPosition(item) {
+   return [Number(x), Number(y)];
+ }
+ 
+-test('Q/K/V uses four natural-width strips on a single row with three mapped arrows', () => {
++test('Q/K/V keeps four natural-width strips and wraps at the group boundary (the input, then the three outputs) when the row would pass the budget, one row at 960', () => {
+   const [{ id, spec }] = tensorReferences;
+   assert.equal(id, 'ml-transformer-qkv-projections');
+   assert.deepEqual(lintDiagramContent(spec), []);
+@@ -74,13 +74,16 @@ test('Q/K/V uses four natural-width strips on a single row with three mapped arr
+   }
+   const natural = layoutTensorTransformation(diagram, 0);
+   assert.ok(natural.width > 408);
+-  for (const width of [408, natural.width, 960]) {
++  // TOK-W: the row budget is the request (at least 720, at most 960); the four strips need more than 720, so below 960 the outputs wrap onto a second row.
++  for (const [width, rowCount] of [[408, 2], [natural.width, 2], [960, 1]]) {
+     const scene = layoutTensorTransformation(diagram, width);
+     assert.equal(scene.width, Math.max(natural.width, width));
+     const items = scene.elements.filter(element => element.props['data-tutor-transformation-item']);
+     assert.deepEqual(items.map(item => item.props['data-tutor-transformation-item']), ['before:0', 'after:0', 'after:1', 'after:2']);
+     const positions = items.map(itemPosition);
+-    assert.ok(positions.every(([, y]) => y === positions[0][1]));
++    assert.equal(new Set(positions.map(([, y]) => y)).size, rowCount, `rows at ${width}`);
++    assert.ok(positions.slice(1).every(([, y]) => y === positions[1][1]), 'the three outputs share a row');
++    if (rowCount === 2) assert.ok(positions[1][1] > positions[0][1], 'the outputs wrap below the input');
+     const gridTops = [];
+     items.forEach((item, i) => {
+       const [x, y] = positions[i];
+@@ -91,22 +94,28 @@ test('Q/K/V uses four natural-width strips on a single row with three mapped arr
+         assert.ok(x + cell.props.x > 0 && x + cell.props.x + cell.props.width < scene.width);
+         assert.ok(y + cell.props.y > 0 && y + cell.props.y + cell.props.height < scene.height);
+       }
+-      if (i > 0) assert.ok(positions[i - 1][0] + tensorMinimumWidth(payloads[i - 1]) < x);
++      if (i > 0 && positions[i - 1][1] === y) assert.ok(positions[i - 1][0] + tensorMinimumWidth(payloads[i - 1]) < x);
+     });
+-    assert.equal(new Set(gridTops).size, 1, 'all four grids align on the same row');
++    assert.equal(new Set(gridTops).size, rowCount, 'the grids of one row align');
+     const markup = svg(scene);
+-    assert.equal([...markup.matchAll(/data-tutor-arrowhead/g)].length, 3);
++    // One row keeps the three mapped arrows; a wrapped transformation draws the one arrow from the end of the first row to the start of the second.
++    assert.equal([...markup.matchAll(/data-tutor-arrowhead/g)].length, rowCount === 1 ? 3 : 1);
+     assert.match(markup, /Multiply by the learned weight matrices/);
+     assert.doesNotMatch(markup, /NaN|Infinity|undefined|katex-error/);
+   }
+ });
+ 
+ test('tensor transformations keep mixed text items and respect explicit mapping indices', () => {
+-  const scene = layoutTensorTransformation({
++  const mixed = {
+     before: { label: 'Before', items: ['Plain input', { label: 'Selected tensor', tensor }] },
+     after: { label: 'After', items: [{ tensor }, 'Mapped output'] },
+     operation: 'Map the items', links: [{ from: 1, to: 1, label: 'Use this pair' }],
+-  }, 408);
++  };
++  // TOK-W: the four items need more than the 720 px row budget, so at 408 the groups wrap onto two rows joined by one arrow, and the explicit mapping is drawn on one row (960).
++  const wrapped = svg(layoutTensorTransformation(mixed, 408));
++  for (const value of ['Plain input', 'Selected tensor', 'Mapped output']) assert.ok(value.split(' ').every(word => wrapped.includes(word)), value);
++  assert.equal([...wrapped.matchAll(/data-tutor-arrowhead/g)].length, 1);
++  const scene = layoutTensorTransformation(mixed, 960);
+   const markup = svg(scene);
+   // a label may wrap onto lines at the 15 px body size, so each word must be drawn
+   for (const value of ['Plain input', 'Selected tensor', 'Mapped output', 'Use this pair']) assert.ok(value.split(' ').every(word => markup.includes(word)), value);
+diff --git a/packages/web/src/tutor-diagrams/token-links.test.mjs b/packages/web/src/tutor-diagrams/token-links.test.mjs
+index df96b1002..adfed8acf 100644
+--- a/packages/web/src/tutor-diagrams/token-links.test.mjs
++++ b/packages/web/src/tutor-diagrams/token-links.test.mjs
+@@ -120,13 +120,14 @@ test('the attention reference keeps exact positions, an exact unit sum and the c
+   assert.match(accessible, /cat.*target position 2.*0\.45/);
+ });
+ 
+-test('natural token widths keep the full rows and bound long labels at 960 px', () => {
++test('natural token widths keep the full rows; chip rows wrap at chip boundaries, so long labels stay within 960 px', () => {
+   const [{ spec: { diagram } }] = tokenLinksReferences;
+   const long = { ...repeated, source: Array(8).fill('W'.repeat(24)), target: Array(8).fill('W'.repeat(24)),
+     queries: [{ index: 7, weights: [0.2, 0, 0.3, 0, 0.4, 0, 0.1, 0] }] };
+   const natural = tokenLinksNaturalWidth(diagram);
+   assert.ok(natural > 408 && natural < 960);
+-  assert.equal(tokenLinksNaturalWidth(long), 960);
++  // TOK-W3: the row budget is the request (at least 720, at most 960); a 355 px chip pair does not fit 720, so the natural width is one chip column (471), two columns from 960.
++  assert.equal(tokenLinksNaturalWidth(long), 471);
+   for (const specimen of [diagram, long]) for (const width of [408, tokenLinksNaturalWidth(specimen), 960]) {
+     const svg = render(specimen, width);
+     assert.equal(svg, render(specimen, width));
+@@ -139,8 +140,12 @@ test('natural token widths keep the full rows and bound long labels at 960 px',
+   const target = tokens.filter(element => element?.props['data-tutor-token'].startsWith('target:'));
+   assert.equal(target.length, 8);
+   const boxes = target.map(element => element.props.children[0].props);
+-  assert.ok(boxes.every((box, index) => box.x >= 0 && box.x + box.width <= 960 &&
+-    (index === 0 || boxes[index - 1].x + boxes[index - 1].width < box.x)));
++  assert.deepEqual([...new Set(boxes.map(box => box.y))].map(y => boxes.filter(box => box.y === y).length), [2, 2, 2, 2], 'rows of two chips');
++  assert.ok(boxes.every((box, index) => box.x >= 0 && box.x + box.width <= 960 && (index === 0 ? true : box.y === boxes[index - 1].y
++    ? boxes[index - 1].x + boxes[index - 1].width < box.x : box.y > boxes[index - 1].y && box.x < boxes[index - 1].x)));
++  // At the 408 request the same chips stand one to a row (the 720 budget holds one 355 px chip).
++  const narrow = layoutTokenLinks(long, 408).elements[0].props.children.filter(element => element?.props['data-tutor-token']?.startsWith('target:'));
++  assert.equal(new Set(narrow.map(element => element.props.children[0].props.y)).size, 8);
+ });
+ 
+ function sixTokenComparison() {

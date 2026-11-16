@@ -1,0 +1,153 @@
+diff --git a/packages/web/src/explain-program/sdk-cyclic.js b/packages/web/src/explain-program/sdk-cyclic.js
+index e4e7fb511..2c0a9900f 100644
+--- a/packages/web/src/explain-program/sdk-cyclic.js
++++ b/packages/web/src/explain-program/sdk-cyclic.js
+@@ -1,4 +1,4 @@
+-import { ROLES } from '../scene-vocab.js';
++import { SDK_ROLES } from '../scene-vocab.js';
+ 
+ // A bounded directed network, including feedback, reciprocal edges and self-loops.
+ // Positions are explicit local pixel centers so a teaching layout is deterministic.
+@@ -6,7 +6,7 @@ import { ROLES } from '../scene-vocab.js';
+ // Optional via and labelAt are also local coordinates. Selection never changes geometry.
+ export const CYCLIC_GRAPH_SOURCE = String.raw`
+ (function () {
+-  const ROLES = ${JSON.stringify(ROLES)};
++  const ROLES = ${JSON.stringify(SDK_ROLES)};
+   const fail = message => { throw new RangeError('sdk.cyclicGraph: ' + message); };
+   const safeId = /^[A-Za-z0-9_-]{1,16}$/;
+   const labelOK = (s, max) => typeof s === 'string' && s.trim().length > 0 && s.length <= max
+diff --git a/packages/web/src/explain-program/sdk-figures.js b/packages/web/src/explain-program/sdk-figures.js
+index f255ce40d..d498fc484 100644
+--- a/packages/web/src/explain-program/sdk-figures.js
++++ b/packages/web/src/explain-program/sdk-figures.js
+@@ -1,4 +1,4 @@
+-import { ROLES } from '../scene-vocab.js';
++import { SDK_ROLES } from '../scene-vocab.js';
+ 
+ // Semantic figures (sdk-8, capability figures): axis, plot and diagram frame objects. Unlike the helpers that expand into a handful of lines and texts, each of these returns ONE frame
+ // object (the contract's axis, plot or diagram kind, contract.js) and the trusted renderer draws it the way the written card draws the same figure: ticks, titles, gridlines, series
+@@ -16,7 +16,7 @@ import { ROLES } from '../scene-vocab.js';
+ // an axis at most 12 given ticks and a callout at most 4 lines. The strict contract caps (contract.js FIGURE_LIMITS) still refuse a hand-written frame object.
+ export const FIGURES_SOURCE = String.raw`
+ (function () {
+-  var roles = ${JSON.stringify(ROLES)};
++  var roles = ${JSON.stringify(SDK_ROLES)};
+   var withRole = function (kind, id, fields, opts) {
+     var out = { kind: kind, id: id };
+     for (var key in fields) if (fields[key] !== undefined) out[key] = fields[key];
+diff --git a/packages/web/src/explain-program/sdk-geometry.js b/packages/web/src/explain-program/sdk-geometry.js
+index eba95c9b1..0fa285e5a 100644
+--- a/packages/web/src/explain-program/sdk-geometry.js
++++ b/packages/web/src/explain-program/sdk-geometry.js
+@@ -1,10 +1,10 @@
+-import { ROLES } from '../scene-vocab.js';
++import { SDK_ROLES } from '../scene-vocab.js';
+ import { CONTRACT_LIMITS } from './contract.js';
+ 
+ // Trusted guest code. Coordinates are data values; positive y goes up.
+ export const GEOMETRY_SOURCE = String.raw`
+ (function () {
+-  var roles = ${JSON.stringify(ROLES)};
++  var roles = ${JSON.stringify(SDK_ROLES)};
+   var idPattern = /^[A-Za-z0-9_.-]{1,24}$/;
+   var kinds = { points: 'point', segments: 'segment', vectors: 'vector', paths: 'path' };
+ 
+diff --git a/packages/web/src/explain-program/sdk-graph.js b/packages/web/src/explain-program/sdk-graph.js
+index 5fe4d606c..733a0fd27 100644
+--- a/packages/web/src/explain-program/sdk-graph.js
++++ b/packages/web/src/explain-program/sdk-graph.js
+@@ -1,10 +1,10 @@
+-import { ROLES } from '../scene-vocab.js';
++import { SDK_ROLES } from '../scene-vocab.js';
+ 
+ // A small layered DAG for sandbox scenes. The caller supplies the topology;
+ // this helper only places it and highlights the selected path.
+ export const GRAPH_SOURCE = String.raw`
+ (function () {
+-  const ROLES = ${JSON.stringify(ROLES)};
++  const ROLES = ${JSON.stringify(SDK_ROLES)};
+   const NODE_HEIGHT = 42, PAD = 12, COLUMN_GAP = 18, LANE_GAP = 22;
+   const fail = message => { throw new RangeError('sdk.graph: ' + message); };
+   const nodeId = /^[A-Za-z0-9_-]{1,16}$/;
+diff --git a/packages/web/src/explain-program/sdk-grid.js b/packages/web/src/explain-program/sdk-grid.js
+index ede2364f1..f774788b5 100644
+--- a/packages/web/src/explain-program/sdk-grid.js
++++ b/packages/web/src/explain-program/sdk-grid.js
+@@ -1,9 +1,9 @@
+-import { ROLES } from '../scene-vocab.js';
++import { SDK_ROLES } from '../scene-vocab.js';
+ 
+ // Trusted guest source. Grids and readouts emit the same boxed labels the scene gate already accepts.
+ export const GRID_SOURCE = String.raw`
+ (function () {
+-  const roles = ${JSON.stringify(ROLES)};
++  const roles = ${JSON.stringify(SDK_ROLES)};
+   const gap = 6;
+ 
+   function checkBox(id, options, helper) {
+diff --git a/packages/web/src/explain-program/sdk-plot.js b/packages/web/src/explain-program/sdk-plot.js
+index b41f8ec5b..5c74e970d 100644
+--- a/packages/web/src/explain-program/sdk-plot.js
++++ b/packages/web/src/explain-program/sdk-plot.js
+@@ -1,11 +1,11 @@
+-import { ROLES } from '../scene-vocab.js';
++import { SDK_ROLES } from '../scene-vocab.js';
+ import { CONTRACT_LIMITS } from './contract.js';
+ 
+ // Guest code appended to the SDK before an authored module is evaluated.
+ // Plot data stays in ordinary frame objects, using the same trusted renderer as other geometry.
+ export const PLOT_SOURCE = String.raw`
+ sdk.plot = (function () {
+-  const roles = ${JSON.stringify(ROLES)};
++  const roles = ${JSON.stringify(SDK_ROLES)};
+   const limit = ${CONTRACT_LIMITS.coordinate};
+   const maxSize = ${CONTRACT_LIMITS.size};
+   const maxObjects = Math.min(${CONTRACT_LIMITS.objects} - 5, 55);
+diff --git a/packages/web/src/explain-program/sdk-timeline.js b/packages/web/src/explain-program/sdk-timeline.js
+index d592b5921..0437e0d57 100644
+--- a/packages/web/src/explain-program/sdk-timeline.js
++++ b/packages/web/src/explain-program/sdk-timeline.js
+@@ -1,10 +1,10 @@
+-import { ROLES } from '../scene-vocab.js';
++import { SDK_ROLES } from '../scene-vocab.js';
+ import { CONTRACT_LIMITS } from './contract.js';
+ 
+ // Trusted guest code for discrete events. The caller supplies the cursor on each frame.
+ export const TIMELINE_SOURCE = String.raw`
+ (function () {
+-  var roles = ${JSON.stringify(ROLES)};
++  var roles = ${JSON.stringify(SDK_ROLES)};
+   var prefixPattern = /^[A-Za-z0-9_.-]{1,24}$/;
+   var idPattern = /^[A-Za-z0-9_.-]{1,16}$/;
+ 
+diff --git a/packages/web/src/explain-program/sdk-trace.js b/packages/web/src/explain-program/sdk-trace.js
+index ec2b85194..7b7b265ab 100644
+--- a/packages/web/src/explain-program/sdk-trace.js
++++ b/packages/web/src/explain-program/sdk-trace.js
+@@ -1,9 +1,9 @@
+-import { ROLES } from '../scene-vocab.js';
++import { SDK_ROLES } from '../scene-vocab.js';
+ 
+ // Interval traces use ordinary scene objects. The caller owns selection, playback and trace data.
+ export const TRACE_SOURCE = String.raw`
+ (function () {
+-  const roles = ${JSON.stringify(ROLES)};
++  const roles = ${JSON.stringify(SDK_ROLES)};
+   const safeId = /^[A-Za-z0-9_.-]{1,16}$/;
+   const fail = message => { throw new RangeError('sdk.trace: ' + message); };
+   const isId = id => typeof id === 'string' && safeId.test(id);
+diff --git a/packages/web/src/scene-vocab.js b/packages/web/src/scene-vocab.js
+index 5cd46db0a..67d0ddf86 100644
+--- a/packages/web/src/scene-vocab.js
++++ b/packages/web/src/scene-vocab.js
+@@ -8,6 +8,9 @@ export const ROLES = Object.freeze([
+   'neutral', 'input', 'output', 'prediction', 'operator', 'observed',
+   'learner', 'tutor', 'code', 'warning', 'success',
+ ]);
++// The roles a saved SDK program may name. The SDK sources embed this list, and the saved-SDK fingerprints in explain-program/stamps.js hash those bytes, so it stays the list the SDK had
++// before the composed theme added the operator role: add to ROLES for scenes, never to this list (a new list is a new SDK version).
++export const SDK_ROLES = Object.freeze(ROLES.filter(role => role !== 'operator'));
+ 
+ // What is HAPPENING to an object. Orthogonal to role: a state never changes
+ // which role's colour is shown, only weight, fill strength and ring.

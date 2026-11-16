@@ -1,0 +1,6 @@
+# fix 4: the saved SDK bytes (a regression that release 149 already carries)
+
+Failing at released main 74c4f68ae and on the tip: stamps.test.mjs (3), raster-runtime, cyclic-runtime, medium-runtime and sdk-figures tests, "saved SDK bytes remain unchanged" (the preview's affected-tests step selects raster-runtime.test.mjs because THEME-2 touches sdk-raster.js, and refuses the record). At 18cf9fce8 (main before release 149) all pass.
+Cause: the eight explain-program/sdk-*.js sources embed `JSON.stringify(ROLES)` from scene-vocab.js, and the composed-theme work of sprint 1 added 'operator' to ROLES (patch SCN, commit in release 149). That changed the bytes of every saved SDK version: sdk-2 hashes to 8c7c01bc8cd9 where stamps.js pins a57c6921127c. Anything that compares a saved program's SDK fingerprint with the stamp sees a mismatch.
+Fix (hunk: sdk-roles.diff): scene-vocab.js exports SDK_ROLES = ROLES without 'operator'; the eight sdk files embed SDK_ROLES. ROLES (scenes, contract, theme) still has operator.
+Before: sdk-2 computed 8c7c01bc8cd9, pinned a57c6921127c; 7 tests red. After: computed a57c6921127c = pinned; explain-program/*.test.mjs, scene-vocab, scene-style, scene-identity: 514 of 514 pass.
