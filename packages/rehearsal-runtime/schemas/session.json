@@ -25,7 +25,10 @@
         "cells": { "$ref": "cells.json" },
         "startedUtc": { "type": "string" },
         "deadlineUtc": { "type": "string", "description": "hard deadline (start + limits.SESSION_HARD_TIMEOUT_SEC)" },
-        "error": { "type": "string" }
+        "error": { "type": "string" },
+        "cpu": { "type": "number", "minimum": 0, "description": "physical cores the machine holds (limits.SANDBOX_CPU): the machine's size for the usage meter" },
+        "memoryGiB": { "type": "number", "minimum": 0, "description": "memory the machine holds in GiB (limits.SANDBOX_MEMORY_MIB / 1024)" },
+        "endedUtc": { "type": "string", "description": "ISO time the machine stopped being held (stopped or expired); absent while it is held" }
       }
     }
   },

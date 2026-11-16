@@ -6,7 +6,7 @@
 export const RUN_CARD_COPY = Object.freeze({
   subtitle: 'Run card',
   tabs: { run: 'Run', custom: 'Custom run', history: 'History' },
-  header: { hint: 'Runs on a cloud machine', ready: 'Ready to run', starting: 'Starting', live: 'Live', ended: 'Ended · outputs kept', failed: "Couldn't start", start: 'Start', stop: 'Stop', startAgain: 'Start again', tryAgain: 'Try again' },
+  header: { hint: 'Runs on a cloud machine', autoStop: 'Stops after 10 minutes without a run, or after 60 minutes.', ready: 'Ready to run', starting: 'Starting', live: 'Live', ended: 'Ended · outputs kept', failed: "Couldn't start", start: 'Start', stop: 'Stop', startAgain: 'Start again', tryAgain: 'Try again' },
   step: {
     notRun: 'Not run yet', running: 'Running', done: 'Done', didnt: "Didn't finish", stopped: 'Stopped', rehearsalDidnt: "Didn't finish in the rehearsal", validator: 'Not run',
     run: 'Run', runAll: 'Run all', showCommand: 'Show command', hideCommand: 'Hide command', details: 'Details', showAll: 'Show all', showLess: 'Show less',
@@ -27,6 +27,10 @@ export const RUN_CARD_COPY = Object.freeze({
     generic: "This step didn't finish.",
     passedInRehearsal: ' — it passed in the rehearsal; a changed setting or a skipped earlier step is the usual reason.',
     stoppedByYou: 'You stopped this step.',
+    // Compute usage (usage-limits-spec.md section 3): nothing starts without allowance, and a session that runs out is stopped, never silently ended.
+    computeOut: (units, renews) => `You've used this month's compute allowance (${units} units). It renews on ${renews}. Your outputs and runbook stay; runs resume then.`,
+    computeRanOut: 'Your compute allowance for this month ran out, so this session was stopped. Your outputs are kept.',
+    computeUnavailable: "Compute usage can't be checked right now, so nothing was started. Try again in a moment.",
   },
 });
 

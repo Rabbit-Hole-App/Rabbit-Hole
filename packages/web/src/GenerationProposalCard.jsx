@@ -40,15 +40,15 @@ import { MdInline } from './Md.jsx';
 
 const ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: ImageIcon, media: Film, web: Globe, progress: ChartColumnIncreasing, canvas: Shapes, file: FileText, excerpt: FileText, graph: ChartColumnIncreasing };
 const fmt = n => Number(n).toLocaleString('en-US');
-// Server-provided credits only (owner messages 30-33: never dollars). The estimate line is "Estimated cost: 12 AI credits" (owner, 2026-10-23).
+// Server-provided credits only (owner messages 30-33: never dollars). The estimate line is "Estimated cost: 12 AI units" (owner, 2026-10-23).
 // An image also states its other two numbers, apart (owner 2026-10-26, docs/features/image-jobs.md 6f): the most it can cost, and the temporary hold that is
 // released unused. They exist only where the server sent a maximum (schema requires_max), so the estimate is never alone there. -> '' without the number.
 export function usageLine(usage) {
   const e = usage?.estimate_credits;
-  return e != null ? `Estimated cost: ${fmt(e)} AI credits` : '';
+  return e != null ? `Estimated cost: ${fmt(e)} AI units` : '';
 }
-export const maxLine = usage => (usage?.max_credits != null ? `Most it can cost: ${fmt(usage.max_credits)} AI credits. You are never charged more.` : '');
-export const holdLine = usage => (usage?.max_credits != null && usage.reserve_credits != null ? `${fmt(usage.reserve_credits)} AI credits are held while it runs; whatever is not used is released.` : '');
+export const maxLine = usage => (usage?.max_credits != null ? `Most it can cost: ${fmt(usage.max_credits)} AI units. You are never charged more.` : '');
+export const holdLine = usage => (usage?.max_credits != null && usage.reserve_credits != null ? `${fmt(usage.reserve_credits)} AI units are held while it runs; whatever is not used is released.` : '');
 // A price the server cannot quote is said, never shown as zero (the command blocks Generate until it can).
 export const UNKNOWN_PRICE = 'Price not available yet';
 // A select field's choices from the schema, plus the proposal's own value when it is not one of them (a proposal made before the
@@ -294,7 +294,7 @@ function JobStatus({ status, startedAt }) {
 export function StopConfirm({ noun, onKeep, onStop }) {
   return (
     <div data-proposal-stop-confirm role="group" aria-label={`Stop this ${noun}`} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); onKeep(); } }} className="flex w-full flex-wrap items-center gap-2 text-xs text-ink-2">
-      <span>Stop this {noun}? Credits already used won&apos;t be refunded.</span>
+      <span>Stop this {noun}? AI units already used won&apos;t be refunded.</span>
       <Button type="button" variant="secondary" size="sm" data-proposal-stop-cancel autoFocus onClick={onKeep}>Cancel</Button>
       <Button type="button" variant="danger" size="sm" data-proposal-stop-confirmed onClick={onStop}>Stop</Button>
     </div>

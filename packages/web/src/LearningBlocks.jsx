@@ -1978,7 +1978,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
                   {label.stoppable && placement && askStop && (
                     <div data-stop-confirm role="group" aria-label="Stop this video" className="flex flex-wrap items-center justify-center gap-2 text-xs text-ink-2"
                       onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); keepGoing(); } }}>
-                      <span>Stop this video? Credits already used won't be refunded.</span>
+                      <span>Stop this video? AI units already used won't be refunded.</span>
                       <Button type="button" variant="secondary" size="sm" data-stop-cancel autoFocus onClick={keepGoing}>Cancel</Button>
                       <Button type="button" variant="danger" size="sm" data-stop-confirmed onClick={() => { setAskStop(false); stop(); }}>Stop</Button>
                     </div>

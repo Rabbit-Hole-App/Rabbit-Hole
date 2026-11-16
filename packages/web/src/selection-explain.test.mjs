@@ -63,7 +63,7 @@ test('Stop asks first: Cancel keeps the job (Escape too), only Stop calls onStop
   const calls = [];
   const tree = B.StopConfirm({ noun: 'explanation', onKeep: () => calls.push('keep'), onStop: () => calls.push('stop') });
   const out = B.renderToStaticMarkup(B.createElement(B.StopConfirm, { noun: 'explanation', onKeep() {}, onStop() {} }));
-  assert.match(out, /Stop this explanation\? Credits already used won(&#x27;|&#39;|')t be refunded\./);
+  assert.match(out, /Stop this explanation\? AI units already used won(&#x27;|&#39;|')t be refunded\./);
   assert.match(out, /data-proposal-stop-cancel[^>]*>Cancel</);
   assert.match(out, /bg-danger-fill text-white[^>]*data-proposal-stop-confirmed|data-proposal-stop-confirmed[^>]*bg-danger-fill/);
   tree.props.onKeyDown({ key: 'Escape', stopPropagation() {} });

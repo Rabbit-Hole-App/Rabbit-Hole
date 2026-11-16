@@ -19,6 +19,7 @@ import { canvasRepository } from './learn-codebase-source-map.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { repositorySnapshot } from './repositories.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
+import { admitCompute, beginCompute, computeUsage, endCompute, endedAtOf, entryFromSession } from './learn-compute.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -287,8 +288,14 @@ async function legacyRehearsal(req, env, access) {
   return json(state.status === 'ready' ? (await storedRecord(env, repo)) || { status: 'failed', elapsedSec: state.elapsedSec, error: 'The rehearsal record is missing.' } : state);
 }
 
+// The person a machine is metered to: the signed-in account (never the repository's other members).
+const meterUser = access => String(access.user_id);
+const computeRefusal = (refusal, status = 402) => json({ error: refusal.reason, ...(refusal.resetsAt ? { resetsAt: refusal.resetsAt } : {}), ...(refusal.allowanceUnits ? { allowanceUnits: refusal.allowanceUnits } : {}) }, status);
+// Is a machine for this entry already running (a start repeated every poll must not be refused by its own reservation)?
+const meterRunning = async (env, entryId) => !!(await env.LEARN_DB.prepare("SELECT 1 AS found FROM compute_entries WHERE entry_id = ? AND status = 'running'").bind(entryId).first());
+
 // {action:'start', routeId}: rehearse one practical route of the catalogue (its prerequisite routes inlined by the controller), or answer from its record.
-async function startRoute(env, repo, routeId) {
+async function startRoute(env, repo, routeId, access) {
   const doc = await storedCatalogue(env, repo);
   if (!doc) return json({ error: 'catalogue_not_ready' }, 409);
   const route = doc.routes.find(r => r.routeId === routeId);
@@ -299,8 +306,18 @@ async function startRoute(env, repo, routeId) {
   if (stored) return json(stored);
   if (!configured(env)) return json({ status: 'failed', elapsedSec: 0, error: 'The rehearsal controller is not configured on this server.' });
   const key = await rehearsalKey(repo.id, repo.commit, routeId), actor = env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key));
+  // The gate: a rehearsal holds a machine, so the person's Compute allowance must cover it before it starts. Joining a job already running is not a new start.
+  if (env.LEARN_DB && !(await meterRunning(env, key))) {
+    const admit = await admitCompute(env.LEARN_DB, env, meterUser(access), { kind: 'rehearsal' });
+    if (!admit.ok) return computeRefusal(admit);
+  }
   const response = await actor.fetch('https://rehearsal/start', { method: 'POST', body: JSON.stringify({ key, appId: repo.id, repo: repo.repo, commit: repo.commit, routeId, catalogueRoute: route, prerequisiteRoutes: needs }) });
   const state = await response.json();
+  if (env.LEARN_DB) {
+    const now = Math.floor(Date.now() / 1000);
+    if (state.status === 'ready' || state.status === 'failed') await endCompute(env.LEARN_DB, env, key, { seconds: state.elapsedSec });
+    else await beginCompute(env.LEARN_DB, env, { entryId: key, userId: meterUser(access), kind: 'rehearsal', appId: repo.id, repo: repo.repo, commit: repo.commit, routeId, routeTitle: route.title ?? null, startedAt: now, deadlineAt: now + 35 * 60 });
+  }
   return json(state.status === 'ready' ? (await storedRecord(env, repo, routeId, doc)) || { status: 'failed', elapsedSec: state.elapsedSec, error: 'The rehearsal record is missing.' } : state);
 }
 
@@ -328,7 +345,7 @@ export async function rehearsalRoute(path, req, env, deps = {}) {
     if (!row) return json({ error: 'no_repository' }, 409);
     const indexed = row.status === 'ready' && row.commit, repo = indexed ? { id: row.id, repo: row.repo, commit: row.commit } : null;
     const indexing = ['queued', 'indexing', 'failed'].includes(row.status) ? row.status : indexed ? 'ready' : 'indexing';
-    if (action === 'start') return repo ? await startRoute(env, repo, routeId) : json({ error: 'not_indexed' }, 409);
+    if (action === 'start') return repo ? await startRoute(env, repo, routeId, access) : json({ error: 'not_indexed' }, 409);
     if (!repo) return json({ indexing, catalogue: indexing === 'failed' ? { status: 'failed', error: 'The repository could not be indexed.' } : { status: 'queued' } }); // the catalogue waits for the snapshot
     // GET and {action:'catalogue'}: the catalogue state; a ready repository with no catalogue job (an import older than the trigger) starts one here; only the owner's action retries a failed one
     const { state, doc } = await catalogueState(env, repo, { start: true, retry: action === 'catalogue' });
@@ -410,6 +427,11 @@ export async function runRoute(path, req, env, deps = {}) {
     if (action === 'start') {
       const stored = await storedRecord(env, repo, routeId, routeId ? await storedCatalogue(env, repo) : null); // a routeId reads that route's record; none, the record made before the catalogue
       if (!stored) return json({ error: 'no_record' }, 409);
+      // The gate (usage-limits-spec.md section 3): a session holds a machine; refused, nothing starts. A start repeated while the session boots is the same machine, not a new one.
+      if (env.LEARN_DB && !(await env.LEARN_DB.prepare("SELECT 1 AS found FROM compute_entries WHERE user_id = ? AND app_id = ? AND kind = 'session' AND status = 'running'").bind(meterUser(access), body.app).first())) {
+        const admit = await admitCompute(env.LEARN_DB, env, meterUser(access), { kind: 'session' });
+        if (!admit.ok) return computeRefusal(admit);
+      }
       response = await rehearsalRequest(env, '/sessions', { repo: repo.repo, commit: repo.commit, canvas: body.app, user: await runUser(access), record: stored.record });
     } else if (action === 'run') response = await rehearsalRequest(env, `/sessions/${sessionId}/run`, { ...(custom !== undefined ? { custom } : { cellId }), ...(flags && Object.keys(flags).length ? { flags } : {}), ...(addedKnobs?.length ? { addedKnobs } : {}) });
     else if (action === 'stop') response = await rehearsalRequest(env, `/sessions/${sessionId}/stop`, {});
@@ -417,11 +439,28 @@ export async function runRoute(path, req, env, deps = {}) {
     else response = await rehearsalRequest(env, `/sessions/${sessionId}/runs/${runId}${action === 'log' ? '/log' : ''}`);
     if (!response.ok) {
       const detail = await response.json().catch(() => null);
+      if (env.LEARN_DB && [404, 410].includes(response.status) && ['poll', 'run', 'log', 'stop'].includes(action)) await endCompute(env.LEARN_DB, env, sessionId).catch(() => null);
       if (PASS.includes(response.status) || (action === 'file' && response.status === 403 && typeof detail?.error === 'string')) { // a file's 403 is the controller's own "binary, never served", not a credential problem
         return json({ error: typeof detail?.error === 'string' ? detail.error : `The run controller refused the request (${response.status})` }, response.status);
       }
       if ([401, 403].includes(response.status)) return json({ error: rejected(response.status) }, 502);
       return json({ error: 'rehearsal_unavailable' }, 503);
+    }
+    // A machine's meter: an ended session settles its entry; one still running that has used up the allowance is stopped here (the hard stop, never a silent provider termination).
+    if (env.LEARN_DB && ['start', 'stop', 'poll'].includes(action)) {
+      const user = meterUser(access);
+      if (action === 'poll') {
+        const mine = await env.LEARN_DB.prepare("SELECT 1 AS found FROM compute_entries WHERE entry_id = ? AND user_id = ? AND status = 'running'").bind(sessionId, user).first();
+        if (mine && (await computeUsage(env.LEARN_DB, env, user, { limit: 0 })).remainingMicros <= 0) {
+          await rehearsalRequest(env, `/sessions/${sessionId}/stop`, {}).catch(() => null);
+          await endCompute(env.LEARN_DB, env, sessionId);
+          return json({ error: 'compute_out' }, 410);
+        }
+      } else {
+        const state = await response.clone().json().catch(() => null);
+        if (state?.sessionId && action === 'start') await beginCompute(env.LEARN_DB, env, entryFromSession(state, { userId: user, appId: body.app, repo: repo.repo, commit: repo.commit, routeId: routeId ?? null }));
+        if (action === 'stop') await endCompute(env.LEARN_DB, env, sessionId, { endedAt: endedAtOf(state) ?? undefined });
+      }
     }
     // shortcut: the log is cut to its last MAX_LOG characters here; the controller already bounds it, page it if a run ever needs more.
     if (action === 'log') return json({ log: (await response.text()).slice(-MAX_LOG) });

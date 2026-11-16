@@ -150,6 +150,7 @@ class Session:
         self.started = time.time()
         self.deadline = self.started + limits.SESSION_HARD_TIMEOUT_SEC
         self.touched = self.started
+        self.ended = None  # when the machine stopped being held (stop, hard timeout, idle): usage metering reads it
         self.provider = None
         self.runs: dict = {}
         self.stop_requested = False
@@ -166,6 +167,10 @@ class Session:
             out['sandboxId'] = self.sandbox_id
         if self.error:
             out['error'] = self.error
+        out['cpu'] = limits.SANDBOX_CPU  # physical cores held, the machine's size for the usage meter
+        out['memoryGiB'] = limits.SANDBOX_MEMORY_MIB / 1024
+        if self.ended:
+            out['endedUtc'] = _iso(self.ended)
         return out
 
 
@@ -516,6 +521,7 @@ def stop(session_id: str) -> dict:
         s.stop_requested = True
         if was_live:
             s.status = 'stopped'
+            s.ended = time.time()
         prov = s.provider
         running = s.active_run()
     if was_live and running is not None and running.runner is not None:
@@ -561,6 +567,7 @@ def reap_once() -> None:
         with LOCK:
             if live:
                 s.status = 'expired'
+                s.ended = time.time()
                 for r in s.runs.values():
                     if r.status in ('queued', 'running'):
                         r.status, r.ended = 'stopped', r.ended or time.time()

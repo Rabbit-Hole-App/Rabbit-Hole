@@ -54,13 +54,13 @@ export const ANIMATION_REVIEW_HEADING = 'Review your scene';
 // figure (proposal.usage.max_credits, from animationReservation(); never typed here, so a change to the call limits moves it). No figure from the server, no Generate sentence.
 export const animationCostNote = p => {
   const planCredits = p?.input?.scene?.planCredits, max = p?.usage?.max_credits;
-  return [planCredits ? `Edit plan uses up to ${planCredits} AI credits to rewrite the plan.` : null,
+  return [planCredits ? `Edit plan uses up to ${planCredits} AI units to rewrite the plan.` : null,
     Number.isFinite(max) ? `Generate: up to ${max.toLocaleString('en-US')} credits; most animations use 50–100; a failed one is refunded.` : null].filter(Boolean).join(' ') || null;
 };
 // /whiteboard's review card (roadmap 1.3): its heading, and the cost line "up to <N> credits" with the SERVER's worst case for this plan
 // (proposal.usage.max_credits, whiteboardReservation; W-D2). No figure from the server, no cost line.
 export const WHITEBOARD_REVIEW_HEADING = 'Review your whiteboard';
-export const whiteboardCostNote = p => (Number.isFinite(p?.usage?.max_credits) ? `up to ${p.usage.max_credits.toLocaleString('en-US')} credits` : null);
+export const whiteboardCostNote = p => (Number.isFinite(p?.usage?.max_credits) ? `up to ${p.usage.max_credits.toLocaleString('en-US')} AI units` : null);
 // A length change on the whiteboard card re-plans (W-D7): after its saved revision, the job's refine with the note `duration: <n>`. -> the note,
 // or null when the length did not change.
 export const durationRefinement = (before, after) => (after?.command === 'whiteboard-video' && Number.isInteger(after.settings?.duration_seconds)
