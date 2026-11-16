@@ -4,7 +4,7 @@ import { box, connector, label, lineHeight, textWidth, widestFormula, words, wra
 
 const PAD = 12;
 const GAP = 8;
-const TEXT = 14;
+const TEXT = 15;
 const SMALL = 13;
 const TEXT_PAD = 10;
 

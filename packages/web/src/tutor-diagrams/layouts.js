@@ -15,7 +15,7 @@ import { layoutTokenLinks } from './token-links-layout.js';
 import { layoutBlockStack } from './block-stack-layout.js';
 
 const PAD = 12;
-const TEXT = 14;
+const TEXT = 15;
 const SMALL = 13;
 const HEADER_ROLES = ['process', 'olive', 'coral', 'outcome'];
 

@@ -28,12 +28,15 @@ export const TEACHING_FONT = 'Inter, Liberation Sans, Arial, sans-serif';
 // The written card's text classes (tutor-diagrams/TutorDiagram.js and primitives.js: a 17 px / 700 title, 14 px labels, 13 px captions). A composed /interactive
 // card takes these sizes and floors (interact-style.js); the legacy scene floors (scene-layout.js LEGIBILITY_FLOORS) are not touched.
 export const TEACHING_TEXT = Object.freeze({
-  display: Object.freeze({ size: 17, weight: 700 }), heading: Object.freeze({ size: 14, weight: 600 }), body: Object.freeze({ size: 14, weight: 400 }),
+  display: Object.freeze({ size: 17, weight: 700 }), heading: Object.freeze({ size: 16, weight: 600 }), body: Object.freeze({ size: 15, weight: 500 }),
   caption: Object.freeze({ size: 13, weight: 400 }), annotation: Object.freeze({ size: 13, weight: 400 }), code: Object.freeze({ size: 13, weight: 400 }),
   equation: Object.freeze({ size: 14, weight: 400 }),
 });
 export const TEACHING_SERIES = Object.freeze([
   TEACHING.blueFill, TEACHING.coral, TEACHING.tealFill, TEACHING.olive, TEACHING.lavender, TEACHING.mustardFill, TEACHING.rose, TEACHING.slate]);
+// The darker weight of each series colour (about 4.6:1 or more on the ground, blue from the approved card): a line is drawn in its ink, its markers in the fill. Same order as TEACHING_SERIES.
+export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936A25', '#B82E56', '#507195']);
+export const TEACHING_GRID = '#D9D3C3';
 export const TEACHING_STYLE = Object.freeze({
   '--color-ink': TEACHING.ink, '--color-ink-2': TEACHING.muted,
   '--color-line': TEACHING.line, '--viz-surface': TEACHING.surface,

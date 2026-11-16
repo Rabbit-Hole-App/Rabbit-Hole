@@ -12,7 +12,7 @@ const SERIES = [...TEACHING_SERIES, T.ink, T.muted];
 const PAD = 12;
 const GAP = 20;
 const MIN_CHILD_WIDTH = 320;
-const TEXT = 14;
+const TEXT = 15;
 const SMALL = 13;
 
 export function panelsNaturalWidth(widths) {
@@ -182,7 +182,7 @@ function panelsKind(diagram, width, renderChild) {
   for (const link of links) {
     const [, from] = edges[link.from], [to] = edges[link.to];
     const lines = wrap(link.operation, to - from - 8, SMALL);
-    elements.push(connector([[from + 6, y], [to - 6, y]], { arrow: true }));
+    elements.push(linkArrow(from + 6, y, to - 6));
     elements.push(label(lines, (from + to) / 2, y - 8 - lines.length * lineHeight(SMALL) / 2, { size: SMALL, weight: 700 }));
   }
   // The panels keep the 680 budget; a wider request (the 720 maximum) centres them rather than stretching them.
@@ -192,7 +192,13 @@ function panelsKind(diagram, width, renderChild) {
 
 // panels of round-and-square trees (the Wondering look): no panel border, each panel exactly its tree's width (every tree is at the one fixed node size and level
 // spacing, so a smaller tree is drawn smaller), the panel label printed once as the only title, and a thick dark arrow with its operation above it.
-const TREE_LABEL = 16, TREE_ARROW = 4, TREE_HEAD = 12, TREE_OPERATION = 20, TREE_LINK_GAP = 72;
+const TREE_LABEL = 16, TREE_ARROW = 3, TREE_HEAD = 12, TREE_OPERATION = 20, TREE_LINK_GAP = 72;
+// The operation arrow between two panels: a 3 px outline line and a 12 px filled head, pointing right.
+function linkArrow(start, y, end) {
+  return h('g', { 'data-tutor-panel-link': '' },
+    h('line', { x1: start, y1: y, x2: end - TREE_HEAD, y2: y, stroke: T.outline, strokeWidth: TREE_ARROW }),
+    h('polygon', { points: `${end},${y} ${end - TREE_HEAD},${y - TREE_HEAD / 2 - 1} ${end - TREE_HEAD},${y + TREE_HEAD / 2 + 1}`, fill: T.outline }));
+}
 function treePanels(diagram, renderChild) {
   const { panels, links = [] } = diagram;
   const scenes = panels.map(panel => renderChild(panel.diagram, 0, { natural: true }));
@@ -214,9 +220,7 @@ function treePanels(diagram, renderChild) {
   const y = bodyTop + body / 2;
   for (const link of links) {
     const start = edges[link.from][1] + 14, end = edges[link.to][0] - 14;
-    elements.push(h('g', { 'data-tutor-panel-link': '' },
-      h('line', { x1: start, y1: y, x2: end - TREE_HEAD, y2: y, stroke: T.outline, strokeWidth: TREE_ARROW }),
-      h('polygon', { points: `${end},${y} ${end - TREE_HEAD},${y - TREE_HEAD / 2 - 1} ${end - TREE_HEAD},${y + TREE_HEAD / 2 + 1}`, fill: T.outline })));
+    elements.push(linkArrow(start, y, end));
     elements.push(label(link.operation, (start + end) / 2, y - 12 - lineHeight(TREE_OPERATION) / 2, { size: TREE_OPERATION, weight: 700 }));
   }
   return { width: x - lastGap + PAD, height: bodyTop + body + PAD, elements };

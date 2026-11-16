@@ -19,7 +19,7 @@ export const INK = 'var(--color-ink, #32211c)';
 export const MUTED = 'var(--color-ink-2, #665951)';
 export const FILLED_INK = '#32211c';
 
-export const lineHeight = (size = 14) => Math.ceil(size * 1.25);
+export const lineHeight = (size = 15) => Math.ceil(size * 1.25);
 
 function plainWidth(text, size) {
   let width = 0;
@@ -38,7 +38,7 @@ const runWidth = ({ raw, set }, size) => set ? set.width * size * mathScale(set,
 const measure = ({ source, math }, size) => source.split(SLOT)
   .reduce((width, part, index) => width + (index % 2 ? runWidth(math[part], size) : plainWidth(part, size)), 0);
 
-export function textWidth(text, size = 14) {
+export function textWidth(text, size = 15) {
   return measure(mathLabel(text), size);
 }
 
@@ -78,7 +78,7 @@ function fitLines(parsed, width, size) {
   return lines;
 }
 
-export function wrap(text, width, size = 14) {
+export function wrap(text, width, size = 15) {
   return fitLines(mathLabel(text), width, size);
 }
 
@@ -142,8 +142,10 @@ function svgLabel(values, x, y, { size, weight, anchor, fill }) {
   return h('text', { x, y, fill, fontSize: size, fontWeight: weight, textAnchor: anchor }, ...plain);
 }
 
-export function label(lines, x, y, { size: requested = 14, weight = 400, anchor = 'middle', tone = 'ink',
+// Body text is 15 px weight 500; text on a fill (tone onFill) 15 px weight 600 in the outline ink. A caller that passes a size or weight keeps it.
+export function label(lines, x, y, { size: requested = 15, weight: asked, anchor = 'middle', tone = 'ink',
   fill = tone === 'onFill' ? FILLED_INK : tone === 'muted' ? MUTED : INK, xhtml = false, fallback = true } = {}) {
+  const weight = asked ?? (tone === 'onFill' ? 600 : 500);
   const size = lines?.fontSize ?? requested; // wrap() sets fontSize when a word needed the font one step smaller
   const values = Array.isArray(lines) ? lines : [lines];
   const step = lineHeight(size);

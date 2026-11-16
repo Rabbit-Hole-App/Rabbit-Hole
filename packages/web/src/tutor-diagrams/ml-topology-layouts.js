@@ -5,7 +5,7 @@ import { extendedFlow, extendedTree, isDotTree, nodeMetadata } from './ml-topolo
 import { dotTree } from './dot-tree-layout.js';
 import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
-const PAD = 12, TEXT = 14, SMALL = 13, GAP = 18;
+const PAD = 12, TEXT = 15, SMALL = 13, GAP = 18;
 const childrenFor = nodes => new Map(nodes.map(n => [n.id, nodes.filter(child => child.parent === n.id)]));
 const pathEdge = (d, from, to) => d.highlightPath?.some((id, i) => id === from && d.highlightPath[i + 1] === to);
 const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;

@@ -6,7 +6,7 @@ const PAD = 12;
 const STRIP_PAD = 6;
 const CELL_HEIGHT = 26;
 const ITEM_GAP = 16;
-const TEXT = 14;
+const TEXT = 15;
 const SMALL = 12;
 const VALUE = 13;
 

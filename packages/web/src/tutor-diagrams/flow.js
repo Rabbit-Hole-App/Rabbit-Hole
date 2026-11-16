@@ -8,7 +8,7 @@ const PAD = 14;
 const NODE_GAP = 18;
 const NODE_MIN = 106;
 const NODE_MAX = 186;
-const EDGE_TEXT = 14;
+const EDGE_TEXT = 15;
 const EDGE_WRAP = 158;
 const PARALLEL_WIDTH = 960;
 const TENSOR_PAD = 10;
@@ -48,7 +48,7 @@ function port(node, edges, edge, bottom, move = 0) {
 
 // RD-4c: the corner radius of an outcome capsule: half the shorter side (a pill) when every line of its text lies inside the rounded ends, else the largest smaller radius that keeps them inside.
 function capsuleRadius({ width, height, lines }) {
-  const size = lines.fontSize ?? 14, step = lineHeight(size), pill = Math.min(width, height) / 2;
+  const size = lines.fontSize ?? 15, step = lineHeight(size), pill = Math.min(width, height) / 2;
   const fits = radius => lines.every((line, index) => {
     const dx = textWidth(line, size) / 2 - (width / 2 - radius);
     const dy = Math.abs(index - (lines.length - 1) / 2) * step + size / 2 - (height / 2 - radius);
@@ -456,7 +456,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
 function flowGeometry(width, height, placements, routed, labelBoxes) {
   const nodes = Array.from(placements.values(), node => {
     const { id, cx, y, width: w, height: h2, role, lines, offset, strip, labelHeight, contentHeight } = node;
-    const size = lines?.fontSize ?? 14, step = lineHeight(size);
+    const size = lines?.fontSize ?? 15, step = lineHeight(size);
     const centerY = strip ? y + (h2 - contentHeight) / 2 + (labelHeight ?? 0) / 2 : y + h2 / 2 + offset;
     const text = (strip && !labelHeight ? [] : lines ?? []).map((line, index, all) => {
       const textW = textWidth(line, size), middle = centerY + (index - (all.length - 1) / 2) * step;
