@@ -96,6 +96,7 @@ const READERS = {
   'control-plane/src/canvases.js': 'the empty board',
   'control-plane/src/dives.js': 'its "links" are canvas_dives rows (the Dive tree and map), not board links',
   'web/src/map-memory.js': 'a helper named links over code references, not board links',
+  'web/src/code-explain-insert.js': 'writes the numbered connectors of a code-explain card to its satellite code cards (new links only); reads no existing link',
   'web/src/RepositoryGraph.jsx': 'graph edges of a repository scene, not board links',
   'web/src/SourcesDisclosure.jsx': 'a comment about web links',
   'web/src/agent/AgentBar.jsx': 'agent result links, not board links',

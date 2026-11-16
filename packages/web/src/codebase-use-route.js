@@ -122,3 +122,11 @@ export async function routeLearnText({ post, app, text, learn }) {
   }
   return { kind: 'none' };
 }
+
+// The codebase use the canvas's active goal is (one of the 14 use ids; a goal's id is its use's id), sent as `use` on a repository chat ask so the server composes that use's prompt
+// overlay (control plane tutor-prompt; code-explain-card-spec.md, owner 2026-11-15). state: the coaching state (use-learn-coaching.jsx). null when no goal is active or the activity is not a
+// codebase one; the server ignores any value that is not a use id.
+export function canvasUseId(state) {
+  const activity = state?.activities?.find(a => a.activityId === state.activeActivityId && a.goalId === state.activeGoalId) || null;
+  return useOf(activity?.checkpoint?.codebase?.goal)?.id ?? null;
+}

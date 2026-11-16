@@ -3,8 +3,8 @@ import { DESCRIPTION_MAX, descriptionLength } from './canvas-description.js';
 import { FILE_SOURCE, validFileRange } from '../../web/src/file-chat-ref.js';
 import { progressScope } from '../../web/src/learn-progress-question.js';
 import { CANVAS_SOURCE } from '../../web/src/canvas-mention-ref.js';
-import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
-import { REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } from './repository-context.js';
+import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, readableVersion, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
+import { REPOSITORY_TOOLS, parseCodeRef, repositoryTool, SELECTED_NOTE } from './repository-context.js';
 import { repositoryChatPrompt } from './tutor-prompt.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
 import { purgeCanvasAttachments } from './comment-attachments.js';
@@ -563,7 +563,7 @@ export async function projectRepository(env, app, use = null) {
     const snapshot = await repositorySnapshot(env, row), tutor = repositoryChatPrompt(use);
     return {
       context: `SCOPE: canvas ${JSON.stringify(app.title)} in the project ${row.repo} - a learning canvas whose content lives in the learner's browser, about this repository: ${JSON.stringify({ repo: row.repo, commit: row.commit_sha })}`,
-      system: tutor.text, tutor, tools: REPOSITORY_TOOLS, runTool: (name, input) => repositoryTool(snapshot, name, input),
+      system: tutor.text, tutor, tools: REPOSITORY_TOOLS, runTool: (name, input) => repositoryTool(snapshot, name, input), snapshot, // snapshot: the code-explain handler reads the cited code and the graph from it
       // The learner's code refs (graph and Files selections), read from this snapshot only (repository-context.js).
       // A code card pinned to another commit of a repository the learner owns is read at that commit (cardCodeRefs).
       selected: async refs => ({ selectedEntities: await cardCodeRefs(env, { org: app.org, email: app.email }, refs, snapshot), selectedNote: SELECTED_NOTE }),
@@ -584,6 +584,11 @@ export function canvasAskSeam(env, app) {
     // Code cards and selections on a canvas outside a project (or whose project the asker cannot read): each read at its own
     // commit under the repository rule (repositories.js readableVersion), so a fork or a copy can ask about them too.
     selected: async refs => ({ selectedEntities: await cardCodeRefs(env, { org: app.org, email: app.email }, refs), selectedNote: SELECTED_NOTE }),
+    // The snapshot of the first code ref's repository at its commit, under the same read rule: for a code-explain turn on a canvas with no project of its own.
+    snapshot: async refs => {
+      const at = parseCodeRef((refs || []).find(ref => ref.kind === 'code')), row = at && env.LEARN_DB ? await readableVersion(env, { org: app.org, email: app.email }, at.repo, at.commit) : null;
+      return row ? repositorySnapshot(env, row, at.commit).catch(() => null) : null;
+    },
     findThread: id => db.prepare("SELECT id, 'learn' AS scope, scope_ref FROM threads WHERE id=? AND org=? AND user=?").bind(id, app.org, app.email).first(),
     newThread: async title => {
       const id = `canvaschat-${crypto.randomUUID()}`;

@@ -609,6 +609,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     },
     // The rehearsal flow's cards (rehearsal-cards.js openRehearsalCard): a new generated card beside its sibling, and the Runbook's regeneration in place.
     insertGenerated: (block, options) => canvasApi.current?.insertGenerated(block, options),
+    // A code-explain answer's Add as card (code-explain-insert.js addCodeExplain): the primary, its satellites and connectors in one undo step; and the open repository's own app, commit and file line counts,
+    // which the answer's payload is checked against when it is at that same commit (null when no repository is open here).
+    insertCodeExplain: input => canvasApi.current?.insertCodeExplain(input) ?? null,
+    repositoryContext: () => { const held = heldRepository.current, snap = held?.snapshot; return snap && held.app ? { app: held.app.name, repo: held.app.repo, commit: snap.commit, lines: path => snap.files?.find(file => file.path === path)?.lines } : null; },
     updateCard: (id, change) => canvasApi.current?.updateBlock(id, change),
     // The canvas card a reviewed plan is the skeleton of (explain-client.js skeletonJobOf), or null.
     skeletonCardId: jobId => canvasApi.current?.blocks?.().find(block => skeletonJobOf(block)?.id === jobId)?.id ?? null,

@@ -10,6 +10,7 @@ import { headsOf } from './learn-style-panel.js';
 import { describeNotebook } from './learn-notebook.js';
 import { docText } from './doc-text.js';
 import { runText } from './rehearsal-cards.js';
+import { codeExplainText } from './code-explain-text.js';
 
 export const SEMANTIC_BUDGET = Object.freeze({ objects: 80, chars: 8000 });
 const LINEAR = new Set(['line', 'arrow', 'curve', 'elbow']);
@@ -24,6 +25,7 @@ export function cardText(block) {
   if (block.type === 'cad') return cadContext(block).text;
   if (block.type === 'run') return runText(block); // a Run card (RunCard.jsx): its commands and last outputs as plain text
   if (block.type === 'doc') return docText(block.blocks); // a document card (DocCard.jsx): its words as plain text
+  if (block.type === 'codeExplain') return codeExplainText(block); // a code-explain card (CodeExplainCard.jsx): the question, the prose at its depth and the files
   if (block.type === 'notebook') { try { return describeNotebook(block).text; } catch { return String(block.title || ''); } }
   const parts = VISIBLE.filter(key => typeof block[key] === 'string' && block[key].trim()).map(key => block[key]);
   const own = typeof block.draft === 'string' ? block.draft : block.starter;

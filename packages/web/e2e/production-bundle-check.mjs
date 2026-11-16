@@ -9,7 +9,8 @@ const dir = new URL(`../${process.env.DIST || 'dist-dev'}/static/`, import.meta.
 const names = readdirSync(dir);
 // Animation3DCard: the /animation card (owner production GO 2026-11-02); /animation has no build flag, so every build ships it.
 const REQUIRED_CHUNKS = ['CanvasPage', 'RepositoryPage', 'Home', 'AgentBar', 'Animation3DCard'];
-const DEV_CHUNKS = /^(review-fixtures-data|map-memory-data)-/;
+// CodeExplainCard and code-explain-insert: the code-explain card (CodeExplainCard.jsx, ChatMessages.jsx) loads only behind VITE_REHEARSAL_TRIGGER=1, like the Run card, so a production build drops both chunks.
+const DEV_CHUNKS = /^(review-fixtures-data|map-memory-data|CodeExplainCard|code-explain-insert)-/;
 // Lesson-block workbench, coaching dev panel, dev-only palette items, review fixtures, review boards, and the
 // dev notebook origins a build falls back to without VITE_NOTEBOOK_ORIGIN / VITE_LESSON_NOTEBOOK_ORIGIN, and the
 // NanoGPT course's review wording, quiz answer key and editor controls (LessonPlanPreview.jsx, owner editor view of the
@@ -18,7 +19,8 @@ const DEV_CHUNKS = /^(review-fixtures-data|map-memory-data)-/;
 const DEV_MARKERS = ['Insert a sample lesson block', 'Agent workspace', 'Maths animation (paid)', 'Review fixtures are on',
   'No review board is registered', 'small-learn-notebook-dev', 'small-learn-canvas-notebook-dev',
   'Material plan ready for review', 'Draft material plan', 'Quiz answer key', 'Edit this section in chat', 'Edit and approve curriculum',
-  'Finish up in Curriculum', '__voiceFake', 'failStt'];
+  'Finish up in Curriculum', '__voiceFake', 'failStt',
+  'data-code-explain-card', 'code-explain']; // the code-explain card's DOM marker and its capability string (control plane route / contract $id): in the lazy chunks only
 // The retired CLI/BYOC Library empty state (App.jsx, behind !learnPreview): a Rabbit Hole build folds it away, so these strings must not
 // ship at all. A build without VITE_RABBIT_HOLE / VITE_COACHING_DEV (DIST=<that build>) must FAIL on them: it proves they are real.
 // ponytail: the Sidebar Developer tab / New app dialog and run.jsx copy stay in the bundle behind a runtime flag; e2e/legacy-copy-check.mjs
