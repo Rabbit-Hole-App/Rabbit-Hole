@@ -1,5 +1,7 @@
 # C02 — distribution-shift tranche
 
+Latest rebase: [release148 theme, frozen content, fresh checks and vector contact sheet](release-148.md).
+
 Latest release133 correctness fix: [ten linked author variants, strict equality, green suites and replay](fix-133/REPORT.md). This supersedes the open assertions in the earlier rebase receipt.
 
 Current rebase: `explain/composition-c02-r1` on release 133; [fresh checks and open assertions](rebase-133.md). Counts and previews below are the original pinned-1944 receipts.
