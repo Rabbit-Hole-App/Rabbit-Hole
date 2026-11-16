@@ -457,7 +457,8 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
         foreground.push(cloneElement(label(String(p.y), onAxis ? cx + MARKER + 5 + half : Math.min(width - PAD - half, cx), onAxis ? cy : cy - MARKER - 11, { size: 15, weight: 700 }), { 'data-tutor-plot-value': `${p.x},${p.y}` }));
       }
     });
-    legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
+    // A plot of one series has no legend: its title and axes name it (a legend pill is for telling two or more series apart).
+    if (d.series.length > 1) legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
   }
   const callouts = curveLabels(d.series, d.series.map(series => series.points.map(xy)), bounds, occupied);
   if (callouts) {
