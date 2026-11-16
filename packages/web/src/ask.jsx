@@ -859,7 +859,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
           const offer = { canvas: chat.canvas, handled: false }; // the Tutor's flow, where it is mounted, answers by setting handled
           window.dispatchEvent(new CustomEvent(CODEBASE_OPTIONS_EVENT, { detail: offer }));
           if (offer.handled) { setMsgs(m => m.slice(0, -2)); return; }
-          Object.assign(outcome, { send: true, token: null, answerOnly: true, direct: null });
+          Object.assign(outcome, { send: true, token: null, answerOnly: false, direct: null }); // an ordinary turn with its tools: answer-only would strip the repository and paper tools from a plain question
         }
         if (!outcome.send && outcome.direct?.command === 'course' && chat?.canvasOps?.startCourse) { const done = chat.canvasOps.startCourse(outcome.direct.args); setMsgs(m => m.slice(0, -2)); say(done?.notice?.text || 'Making the plan. It appears in Chat for you to review.'); return; }
         if (!outcome.send && outcome.direct?.command === 'generate-image' && chatThread && imageGenerationOn()) { await imagePlan(outcome.direct.args || message); return; }

@@ -219,5 +219,7 @@ export function routeOutcome(decision, { plain = false } = {}) {
   if (decision.route === 'unsupported') return { show: { kind: 'unsupported', message: decision.message || 'That isn\'t available here.' } };
   const capability = decision.capability || String(decision.route).replace(/^capability:/, '');
   if (decision.flow === 'proposal') return decision.token ? { send: true, token: decision.token } : { show: { kind: 'error', message: ROUTE_FAILED } };
+  // code-explain is a route the chat turn itself answers (control plane learn-code-explain.js), not a command with a handler here: the turn goes on with its token (where the server has no such route it is an ordinary answer, never an error notice).
+  if (capability === 'code-explain') return { send: true, token: decision.token || null };
   return { direct: { command: capability, args: String(decision.args ?? '') } };
 }
