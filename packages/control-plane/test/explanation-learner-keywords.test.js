@@ -2,10 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { diagramReferences } from '../../web/src/tutor-diagrams/reference-library.js';
 import learnerKeywords from '../../web/src/tutor-diagrams/reference-learner-keywords.json' with { type: 'json' };
+import auditedLearnerKeywords from './fixtures/explanation-learner-audit-baseline.json' with { type: 'json' };
 import { selectDiagramReferences } from '../src/explanation-references.js';
 
-test('the restored audit retains all 401 pairs of short learner topics', () => {
-  assert.equal(Object.keys(learnerKeywords).length, 401);
+test('the restored audit retains all 391 pairs of short learner topics', () => {
+  assert.equal(Object.keys(auditedLearnerKeywords).length, 391);
+  for (const [id, phrases] of Object.entries(auditedLearnerKeywords)) {
+    assert.deepEqual(learnerKeywords[id], phrases, id + ' retains its original audited pair');
+  }
   for (const phrases of Object.values(learnerKeywords)) assert.equal(phrases.length, 2);
 });
 

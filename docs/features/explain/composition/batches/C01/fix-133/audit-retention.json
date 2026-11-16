@@ -1,0 +1,14 @@
+{
+  "originalAuditBase": "a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36",
+  "originalPairs": 391,
+  "currentPairs": 395,
+  "allOriginalPairsExact": true,
+  "fixtureSha256": "98a0e3eb4fcb1857631e08b600f1d2c4ddb16de1310d619c3329d4e21e3db0bf",
+  "tests": 1309,
+  "priorCases": 2865,
+  "moved": 0,
+  "snapshotsAdded": 0,
+  "snapshotsChanged": 3,
+  "snapshotsRemoved": 0,
+  "followupVisualDataChanges": 0
+}
