@@ -40,14 +40,14 @@ test('a fit: the chosen family with confidence at or above the threshold', async
   assert.deepEqual(out.probabilities, { 'vertical-throw': 0.97, none: 0.03 }); assert.equal(typeof out.ms, 'number');
 });
 
-test('the threshold boundary: one family uses 0.7, two or more use 0.95, and the threshold is an option', async () => {
+test('the threshold boundary: one family uses 0.7, two or more use 0.5, and the threshold is an option', async () => {
   assert.equal(PICK_THRESHOLD, 0.7);
   assert.equal((await pickFamily(ENV, INPUT, { families: [verticalThrow], fetchImpl: answer('vertical-throw', 0.7) })).family, 'vertical-throw');
-  assert.equal((await pickFamily(ENV, INPUT, { fetchImpl: answer('curve-sliders', 0.95) })).family, 'curve-sliders');
-  assert.equal((await pickFamily(ENV, INPUT, { fetchImpl: answer('curve-sliders', 0.94) })).reason, 'below_threshold');
-  const below = await pickFamily(ENV, INPUT, { fetchImpl: answer('vertical-throw', 0.69) });
-  assert.deepEqual([below.family, below.reason, below.confidence], [null, 'below_threshold', 0.69]);
-  assert.equal((await pickFamily(ENV, INPUT, { threshold: 0.5, fetchImpl: answer('vertical-throw', 0.69) })).family, 'vertical-throw');
+  assert.equal((await pickFamily(ENV, INPUT, { fetchImpl: answer('curve-sliders', 0.5) })).family, 'curve-sliders');
+  assert.equal((await pickFamily(ENV, INPUT, { fetchImpl: answer('curve-sliders', 0.49) })).reason, 'below_threshold');
+  const below = await pickFamily(ENV, INPUT, { fetchImpl: answer('vertical-throw', 0.49) });
+  assert.deepEqual([below.family, below.reason, below.confidence], [null, 'below_threshold', 0.49]);
+  assert.equal((await pickFamily(ENV, INPUT, { threshold: 0.4, fetchImpl: answer('vertical-throw', 0.49) })).family, 'vertical-throw');
 });
 
 test('none is a gap, however confident', async () => {

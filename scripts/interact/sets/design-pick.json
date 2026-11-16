@@ -93,6 +93,7 @@
   "id": 16,
   "prompt": "How does gravity's force on a ball change with its mass during a toss?",
   "label": "vertical-throw",
+  "accept": ["curve-sliders"],
   "note": "owner 2026-11-14 00:40: stays vertical-throw, but only the Deep (detailed) card has mass"
  },
  {
@@ -224,7 +225,7 @@
  {
   "id": 38,
   "prompt": "What is gradient descent?",
-  "label": "none",
+  "label": "stepper-states",
   "note": ""
  },
  {
@@ -266,7 +267,7 @@
  {
   "id": 45,
   "prompt": "How does TCP's three-way handshake work?",
-  "label": "none",
+  "label": "stepper-states",
   "note": ""
  },
  {

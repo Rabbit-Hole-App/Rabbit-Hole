@@ -97,19 +97,20 @@ export function reportMarkdown(rows, set, opts = {}) {
 // ---- the three-family run (brief 27 task 2): the registered families, four prompt groups ----
 export const THREE_THRESHOLDS = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95];
 // (a) the coverage rows both votes call stepper-states, (b) the toss and curve prompts of design-pick.json (label as is; `either` is left out), (c) the coverage rows both votes call none; (d) is the
-// design-pick `none` prompts, an extra negative set reported beside the brief's three groups, not part of its rule.
+// design-pick `none` prompts (an `accept` list on a prompt names further families that are a right fit), an extra negative set reported beside the brief's three groups, not part of its rule.
 export function threePrompts(coverageRows, designSet) {
   const both = want => coverageRows.filter(r => r.jevTop === want && r.sonnetChoice === want);
   return [
     ...both('stepper-states').map(r => ({ id: `st:${r.set}/${r.id}`, prompt: r.prompt, label: 'stepper-states', group: 'a' })),
-    ...designSet.filter(p => p.label === 'vertical-throw' || p.label === 'curve-sliders').map(p => ({ id: `dp:${p.id}`, prompt: p.prompt, label: p.label, group: 'b' })),
+    ...designSet.filter(p => p.label === 'vertical-throw' || p.label === 'curve-sliders').map(p => ({ id: `dp:${p.id}`, prompt: p.prompt, label: p.label, accept: p.accept ?? [], group: 'b' })),
+    ...designSet.filter(p => p.label === 'stepper-states').map(p => ({ id: `dp:${p.id}`, prompt: p.prompt, label: p.label, group: 'a' })), // owner 2026-11-15: dp:38 and dp:45 are stepper prompts
     ...both('none').map(r => ({ id: `no:${r.set}/${r.id}`, prompt: r.prompt, label: 'none', group: 'c' })),
     ...designSet.filter(p => p.label === 'none').map(p => ({ id: `dp:${p.id}`, prompt: p.prompt, label: 'none', group: 'd' })),
   ];
 }
 // One prompt's calls at one threshold: W a wrong fit (any call), m a missed fit (most calls gap), ok a right fit, - a none prompt left at gap.
-export function outcome(calls, label, t) {
-  if (calls.some(r => { const got = decide(r, t); return got && got !== label; })) return 'W';
+export function outcome(calls, label, t, accept = []) {
+  if (calls.some(r => { const got = decide(r, t); return got && got !== label && !accept.includes(got); })) return 'W';
   if (label === 'none') return '-';
   return calls.filter(r => !decide(r, t)).length * 2 > calls.length ? 'm' : 'ok';
 }
@@ -117,22 +118,24 @@ export function threeReportMarkdown(rows, prompts, { thresholds = THREE_THRESHOL
   const byId = id => rows.filter(r => String(r.id) === id);
   const scan = groups => {
     const ps = prompts.filter(p => groups.includes(p.group)), res = {};
-    for (const t of thresholds) res[t] = { wrong: ps.filter(p => outcome(byId(p.id), p.label, t) === 'W').length, missed: ps.filter(p => outcome(byId(p.id), p.label, t) === 'm').length };
+    for (const t of thresholds) res[t] = { wrong: ps.filter(p => outcome(byId(p.id), p.label, t, p.accept) === 'W').length, missed: ps.filter(p => outcome(byId(p.id), p.label, t, p.accept) === 'm').length };
     return res;
   };
   const main = scan(['a', 'b', 'c']), extra = scan(['a', 'b', 'c', 'd']);
-  const chosen = [...thresholds].reverse().find(t => main[t].wrong === 0) ?? null, n = g => prompts.filter(p => p.group === g).length;
+  // brief 28 task 2: 0 wrong fits on groups a, b, c by the corrected labels, then the fewest missed fits (a tie takes the higher threshold); group d stays an extra negative set beside the rule
+  const clean = thresholds.filter(t => main[t].wrong === 0), chosen = clean.reduce((best, t) => (best === null || main[t].missed < main[best].missed || (main[t].missed === main[best].missed && t > best) ? t : best), null);
+  const n = g => prompts.filter(p => p.group === g).length, stepperOk = chosen === null ? 0 : prompts.filter(p => p.group === 'a' && outcome(byId(p.id), p.label, chosen, p.accept) === 'ok').length;
   const lines = ['# bench-pick, three registered families (2026-11-15, brief 27 task 2)', '',
     `${rows.length} JEV calls (pickFamily, threshold 0, probabilities stored; thresholds applied offline), families vertical-throw, curve-sliders, stepper-states, depth balanced, ${Math.round(rows.length / (prompts.length || 1))} calls per prompt. Groups: (a) stepper prompts, both coverage votes stepper-states: ${n('a')}; (b) toss and curve prompts of design-pick.json: ${n('b')}; (c) both-vote none rows of bench-coverage.jsonl: ${n('c')}; (d) the design-pick none prompts, an extra negative set: ${n('d')}.`, '',
-    'A wrong fit is a prompt where ANY call fits a family other than its label; a missed fit is a prompt with a family label where more than half of its calls come back gap. Threshold rule (brief 13): the HIGHEST value with 0 wrong fits.', '',
-    `Chosen threshold on groups a, b, c: **${chosen ?? 'none has 0 wrong fits'}**.`, '',
-    '| Threshold | Wrong (a+b+c) | Missed (a+b+c) | Wrong (a+b+c+d) | Missed (a+b+c+d) |', '|---|---|---|---|---|',
+    'A wrong fit is a prompt where ANY call fits a family other than its label; a missed fit is a prompt with a family label where more than half of its calls come back gap. Threshold rule (brief 28): 0 wrong fits on groups a, b, c, then the fewest missed fits (group d is reported beside the rule); a label may list further right fits (`accept`).', '',
+    `Chosen threshold: **${chosen ?? 'none has 0 wrong fits'}**; stepper prompts passing at it: **${stepperOk} of ${n('a')}**.`, '',
+    '| Threshold | Wrong (a+b+c) | Missed (a+b+c) | Wrong (all four groups) | Missed (all four groups) |', '|---|---|---|---|---|',
     ...thresholds.map(t => `| ${t} | ${main[t].wrong} | ${main[t].missed} | ${extra[t].wrong} | ${extra[t].missed} |`), '',
     'Per prompt: top family of each call (`none` included) with its probability, then W wrong fit, m missed fit, ok right fit, - none prompt left at gap, at each threshold.', '',
     `| Id | Group | Label | Prompt | Calls: top family (confidence) | ${thresholds.join(' | ')} |`, `|---|---|---|---|---|${thresholds.map(() => '---').join('|')}|`];
   for (const p of prompts) {
     const calls = byId(p.id), tops = calls.map(r => { const [k, v] = topOf(r); return k ? `${k} ${round(v)}` : 'no answer'; }).join('; ');
-    lines.push(`| ${p.id} | ${p.group} | ${p.label} | ${p.prompt.replace(/\|/g, '/').slice(0, 90)} | ${tops} | ${thresholds.map(t => outcome(calls, p.label, t)).join(' | ')} |`);
+    lines.push(`| ${p.id} | ${p.group} | ${p.label} | ${p.prompt.replace(/\|/g, '/').slice(0, 90)} | ${tops} | ${thresholds.map(t => outcome(calls, p.label, t, p.accept)).join(' | ')} |`);
   }
   return lines.join('\n') + '\n';
 }
@@ -188,11 +191,20 @@ async function runThree(values) {
   console.log(md.split('\n').slice(0, 26).join('\n'));
 }
 
+// brief 28 task 2: the stored rows of a --three run, thresholds applied again with the labels of the set as it now stands (no JEV call)
+async function recountThree(values) {
+  const dir = join(BENCH_DIR, 'bench-pick', values.date), read = file => readFileSync(file, 'utf8').replace(/^﻿/, '').split(/\r?\n/).filter(Boolean).map(l => JSON.parse(l));
+  const prompts = threePrompts(read(join(BENCH_DIR, 'bench-coverage.jsonl')), JSON.parse(readFileSync(SET_FILE, 'utf8').replace(/^﻿/, ''))), rows = read(join(dir, 'rows.jsonl'));
+  const md = threeReportMarkdown(rows, prompts).replace('brief 27 task 2)', 'brief 27 task 2, recounted with the corrected labels: brief 28 task 2)');
+  writeFileSync(join(dir, `bench-pick-${values.date}-recount.md`), md); console.log(md.split('\n').slice(0, 20).join('\n'));
+}
+
 async function main() {
   const { values } = parseArgs({ options: { concurrency: { type: 'string', default: '4' }, repeats: { type: 'string', default: '3' }, depths: { type: 'string', default: DEPTHS.join(',') }, 'limit-prompts': { type: 'string' }, lists: { type: 'string', default: 'vt,vt+curve' },
     dry: { type: 'boolean', default: false }, report: { type: 'boolean', default: false }, 'no-write': { type: 'boolean', default: false }, set: { type: 'string', default: SET_FILE },
-    three: { type: 'boolean', default: false }, date: { type: 'string', default: '2026-11-15' } } });
+    three: { type: 'boolean', default: false }, recount: { type: 'boolean', default: false }, date: { type: 'string', default: '2026-11-15' } } });
   if (values.three) { await runThree(values); return; }
+  if (values.recount) { await recountThree(values); return; }
   const set = JSON.parse(readFileSync(values.set, 'utf8').replace(/^﻿/, ''));
   const prompts = set.slice(0, values['limit-prompts'] ? Number(values['limit-prompts']) : set.length);
   if (values.report) {

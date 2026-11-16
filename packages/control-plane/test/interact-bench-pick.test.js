@@ -61,22 +61,23 @@ test('the family lists: the registry, and the registry plus the inline curve-sli
   assert.equal((await stubPick({}, { request: 'How does DNS resolve a name?' }, { families: lists.vt })).family, null);
 });
 
-test('three-family run: the groups are the both-vote rows and the design-pick labels; outcome and the report pick the highest threshold with 0 wrong fits', async () => {
+test('three-family run: the groups are the both-vote rows and the design-pick labels; outcome and the report pick the threshold with 0 wrong fits on groups a, b, c and the fewest missed fits', async () => {
   const { threePrompts, outcome, threeReportMarkdown } = await import('../../../scripts/interact/bench-pick.mjs');
   const cov = [
     { set: 's', id: 'a', prompt: 'merge sort', jevTop: 'stepper-states', sonnetChoice: 'stepper-states' },
     { set: 's', id: 'b', prompt: 'split vote', jevTop: 'stepper-states', sonnetChoice: 'none' },
     { set: 's', id: 'c', prompt: 'poetry', jevTop: 'none', sonnetChoice: 'none' },
   ];
-  const design = [{ id: 1, prompt: 'toss', label: 'vertical-throw' }, { id: 11, prompt: 'either', label: 'either' }, { id: 3, prompt: 'neg', label: 'none' }];
+  const design = [{ id: 1, prompt: 'toss', label: 'vertical-throw' }, { id: 11, prompt: 'either', label: 'either' }, { id: 3, prompt: 'neg', label: 'none' }, { id: 4, prompt: 'handshake', label: 'stepper-states' }, { id: 5, prompt: 'gravity', label: 'vertical-throw', accept: ['curve-sliders'] }];
   const prompts = threePrompts(cov, design);
-  assert.deepEqual(prompts.map(p => `${p.group}:${p.label}`), ['a:stepper-states', 'b:vertical-throw', 'c:none', 'd:none']);
+  assert.deepEqual(prompts.map(p => `${p.group}:${p.label}`), ['a:stepper-states', 'b:vertical-throw', 'b:vertical-throw', 'a:stepper-states', 'c:none', 'd:none']);
   const call = (id, p) => ({ list: 'three', id, depth: 'balanced', rep: 0, probabilities: p });
   const rows = [
     call('st:s/a', { 'stepper-states': 0.8, none: 0.2 }), call('dp:1', { 'vertical-throw': 0.99, none: 0.01 }),
-    call('no:s/c', { 'stepper-states': 0.6, none: 0.4 }), call('dp:3', { none: 1 }),
+    call('no:s/c', { 'stepper-states': 0.6, none: 0.4 }), call('dp:3', { none: 1 }), call('dp:4', { 'stepper-states': 0.8, none: 0.2 }),
   ];
   assert.deepEqual([0.5, 0.7, 0.9].map(t => outcome([rows[0]], 'stepper-states', t)), ['ok', 'ok', 'm']);
   assert.deepEqual([0.5, 0.7].map(t => outcome([rows[2]], 'none', t)), ['W', '-']);
-  assert.match(threeReportMarkdown(rows, prompts, { thresholds: [0.5, 0.7, 0.9] }), /Chosen threshold on groups a, b, c: \*\*0\.9\*\*/); // the highest threshold with 0 wrong fits, however many fits it misses
+  assert.equal(outcome([call('dp:5', { 'curve-sliders': 0.9, none: 0.1 })], 'vertical-throw', 0.5, ['curve-sliders']), 'ok'); // an accepted family is a right fit, not a wrong one
+  assert.match(threeReportMarkdown(rows, prompts, { thresholds: [0.5, 0.7, 0.9] }), /Chosen threshold: \*\*0\.7\*\*; stepper prompts passing at it: \*\*2 of 2\*\*/); // 0.5 has a wrong fit (group c), 0.9 misses the stepper fit
 });
