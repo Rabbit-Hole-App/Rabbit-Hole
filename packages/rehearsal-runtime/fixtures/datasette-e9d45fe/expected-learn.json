@@ -1,0 +1,17 @@
+{
+  "fixture": "datasette-e9d45fe",
+  "repo": "simonw/datasette",
+  "commit": "e9d45fe400608d516d7b2b676f678ee4461579e1",
+  "for": "the `learn` section of the catalogue document (intake-run-or-learn-spec 2); matched on `kind`, never on id, label or wording",
+  "rules": {
+    "kinds": "the three runs on this commit give the same set of kinds (labels may differ)",
+    "labels": "at most 6 words, no path or file name",
+    "options": "1 to 4; every anchor is a path (or directory) in the snapshot; no option anchored only under docs/",
+    "cannot": "matched on kind; thing and why are the model's own words"
+  },
+  "optionsMustIncludeKinds": ["structure", "testing", "data"],
+  "optionsMustNotIncludeKinds": ["science"],
+  "cannotMustIncludeKinds": ["science"],
+  "anchorsMustIncludeAnyOf": { "structure": ["datasette/app.py"], "testing": ["tests/conftest.py", "tests/fixtures.py"], "data": ["datasette/database.py"] },
+  "note": "a data-publishing tool with a pytest suite: no scientific algorithm. `deploy` (Dockerfile, publish workflow, datasette/publish/) is offered too but is not required"
+}
