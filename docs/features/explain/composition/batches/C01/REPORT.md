@@ -1,5 +1,7 @@
 # C01 — regularization tranche
 
+Current release133 fix: [four linked author variants, strict coverage, refreshed snapshots and green suites](fix-133/REPORT.md). Original approval receipts below remain the pinned-1944 record.
+
 Branch: `explain/composition-c01`. Schema base: **1944b48cf**; queue approved at **9288dca9d**. The content-first commit is **2409cff028b1f96ecd57603e769b13e1e2e788d8**. This batch is one data release, with each reference's subject and lesson metadata preserved.
 
 | Reference id | Overview | Standard | Deep / extra | Learner keywords |

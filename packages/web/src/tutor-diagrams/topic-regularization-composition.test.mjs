@@ -6,6 +6,7 @@ import { references as hiddenReferences } from './composition-neural-networks-re
 import { references as regularizationReferences } from './composition-regularization-references.js';
 import { tutorDiagramSchema } from './spec.js';
 import { lintDiagramContent } from './content-contract.js';
+import { singleDiagramReferences } from './reference-single-variants.js';
 
 test('C01 linear predictions, residual squares and penalty are recomputed from the toy rows', () => {
   const d = derived();
@@ -80,4 +81,24 @@ test('C01 displayed quantities come from the shared computation, not caption lit
   assert.deepStrictEqual(dropout[1].diagram.series[0].samples.y, d.dropout.selected.masked);
   assert.deepStrictEqual(dropout[2].diagram.series[0].samples.y, d.dropout.selected.scaled);
   assert.deepStrictEqual(dropout[0].diagram.y, dropout[2].diagram.y, 'Scaling is drawn against the same magnitude axis');
+});
+
+
+test('C01 dropout author example exposes the mask and keep probability behind its training output', () => {
+  const single = singleDiagramReferences.find(row => row.panelReferenceId === 'ml-regularization-dropout-mask');
+  const caption = single.spec.diagram.caption ?? '';
+  const vector = name => {
+    const match = caption.match(new RegExp(`\\$${name}=\\(([^)]+)\\)\\$`));
+    assert.ok(match, `${name} must be visible in the author example`);
+    return match[1].split(',').map(Number);
+  };
+  const h = vector('h'), mask = vector('m');
+  const probability = caption.match(/\$q=([^$]+)\$/);
+  assert.ok(probability, 'keep probability must be visible');
+  const q = Number(probability[1]), d = derived();
+  assert.deepStrictEqual(h, d.hidden.selected.activations);
+  assert.deepStrictEqual(mask, d.dropout.selected.mask);
+  assert.strictEqual(q, d.parameters.dropout.keepProbability);
+  assert.deepStrictEqual(single.spec.diagram.series[0].samples.y, h.map((value, i) => value * mask[i] / q));
+  assert.match(caption, /inference.*\$h\$/i);
 });

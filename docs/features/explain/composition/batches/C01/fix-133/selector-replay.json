@@ -1,0 +1,513 @@
+{
+  "passed": true,
+  "rows": [
+    {
+      "id": "c01-1",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "brief",
+      "firstHit": "ml-linear-regression-linear-unit-single",
+      "referenceId": "ml-linear-regression-linear-unit-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "useWhen": "Show input features feeding one affine weighted-sum unit with weights and bias; not a fitted-line residual plot or a nonlinear hidden layer.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Linear unit",
+              "kind": "block-stack",
+              "blocks": [
+                {
+                  "id": "x",
+                  "label": "Input features"
+                },
+                {
+                  "id": "y",
+                  "label": "Weighted sum",
+                  "inputs": [
+                    {
+                      "label": "$w,b$"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-1",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "balanced",
+      "firstHit": "ml-linear-regression-linear-unit-single",
+      "referenceId": "ml-linear-regression-linear-unit-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "useWhen": "Show input features feeding one affine weighted-sum unit with weights and bias; not a fitted-line residual plot or a nonlinear hidden layer.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Linear unit",
+              "kind": "block-stack",
+              "blocks": [
+                {
+                  "id": "x",
+                  "label": "Input features"
+                },
+                {
+                  "id": "y",
+                  "label": "Weighted sum",
+                  "inputs": [
+                    {
+                      "label": "$w,b$"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-1",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "detailed",
+      "firstHit": "ml-linear-regression-linear-unit-single",
+      "referenceId": "ml-linear-regression-linear-unit-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "useWhen": "Show input features feeding one affine weighted-sum unit with weights and bias; not a fitted-line residual plot or a nonlinear hidden layer.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Linear unit",
+              "kind": "block-stack",
+              "blocks": [
+                {
+                  "id": "x",
+                  "label": "Input features"
+                },
+                {
+                  "id": "y",
+                  "label": "Weighted sum",
+                  "inputs": [
+                    {
+                      "label": "$w,b$"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-2",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "brief",
+      "firstHit": "ml-neural-networks-hidden-layer-single",
+      "referenceId": "ml-neural-networks-hidden-layer-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "useWhen": "Show the nonlinear hidden features after ReLU and before the readout; not the final prediction alone, an activation-function curve, or an optimizer loop.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "After ReLU",
+              "kind": "bar-chart",
+              "bars": [
+                {
+                  "label": "Hidden A",
+                  "value": 3
+                },
+                {
+                  "label": "Hidden B",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-2",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "balanced",
+      "firstHit": "ml-neural-networks-hidden-layer-single",
+      "referenceId": "ml-neural-networks-hidden-layer-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "useWhen": "Show the nonlinear hidden features after ReLU and before the readout; not the final prediction alone, an activation-function curve, or an optimizer loop.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "After ReLU",
+              "kind": "bar-chart",
+              "bars": [
+                {
+                  "label": "Hidden A",
+                  "value": 3
+                },
+                {
+                  "label": "Hidden B",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-2",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "detailed",
+      "firstHit": "ml-neural-networks-hidden-layer-single",
+      "referenceId": "ml-neural-networks-hidden-layer-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "useWhen": "Show the nonlinear hidden features after ReLU and before the readout; not the final prediction alone, an activation-function curve, or an optimizer loop.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "After ReLU",
+              "kind": "bar-chart",
+              "bars": [
+                {
+                  "label": "Hidden A",
+                  "value": 3
+                },
+                {
+                  "label": "Hidden B",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-3",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "brief",
+      "firstHit": "ml-regularization-regularized-objective-single",
+      "referenceId": "ml-regularization-regularized-objective-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "useWhen": "Show data fit and the weight penalty stacked into the total regularized objective for fixed predictions; not an optimizer update or an overfitting curve.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Objective parts",
+              "kind": "bar-chart",
+              "unit": "Objective",
+              "bars": [
+                {
+                  "label": "Data fit",
+                  "value": 2.5
+                },
+                {
+                  "label": "Penalty",
+                  "value": 1
+                }
+              ],
+              "variant": "stacked"
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-3",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "balanced",
+      "firstHit": "ml-regularization-regularized-objective-single",
+      "referenceId": "ml-regularization-regularized-objective-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "useWhen": "Show data fit and the weight penalty stacked into the total regularized objective for fixed predictions; not an optimizer update or an overfitting curve.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Objective parts",
+              "kind": "bar-chart",
+              "unit": "Objective",
+              "bars": [
+                {
+                  "label": "Data fit",
+                  "value": 2.5
+                },
+                {
+                  "label": "Penalty",
+                  "value": 1
+                }
+              ],
+              "variant": "stacked"
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-3",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "detailed",
+      "firstHit": "ml-regularization-regularized-objective-single",
+      "referenceId": "ml-regularization-regularized-objective-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "useWhen": "Show data fit and the weight penalty stacked into the total regularized objective for fixed predictions; not an optimizer update or an overfitting curve.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Objective parts",
+              "kind": "bar-chart",
+              "unit": "Objective",
+              "bars": [
+                {
+                  "label": "Data fit",
+                  "value": 2.5
+                },
+                {
+                  "label": "Penalty",
+                  "value": 1
+                }
+              ],
+              "variant": "stacked"
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-4",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "brief",
+      "firstHit": "ml-regularization-dropout-mask-single",
+      "referenceId": "ml-regularization-dropout-mask-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "useWhen": "Show hidden activations after a temporary training mask and keep-probability rescaling; not unscaled masked activations, permanent neuron pruning, or inference output.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Training output",
+              "caption": "Toy $h=(3,1)$, $m=(1,0)$, $q=0.5$. Training uses $m\\odot h/q$; inference keeps $h$.",
+              "kind": "coordinate-plot",
+              "x": {
+                "label": "Hidden unit",
+                "min": 0,
+                "max": 3
+              },
+              "y": {
+                "label": "Activation",
+                "min": 0,
+                "max": 6
+              },
+              "series": [
+                {
+                  "label": "A then B",
+                  "kind": "stem",
+                  "samples": {
+                    "x": [
+                      1,
+                      2
+                    ],
+                    "y": [
+                      6,
+                      0
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-4",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "balanced",
+      "firstHit": "ml-regularization-dropout-mask-single",
+      "referenceId": "ml-regularization-dropout-mask-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "useWhen": "Show hidden activations after a temporary training mask and keep-probability rescaling; not unscaled masked activations, permanent neuron pruning, or inference output.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Training output",
+              "caption": "Toy $h=(3,1)$, $m=(1,0)$, $q=0.5$. Training uses $m\\odot h/q$; inference keeps $h$.",
+              "kind": "coordinate-plot",
+              "x": {
+                "label": "Hidden unit",
+                "min": 0,
+                "max": 3
+              },
+              "y": {
+                "label": "Activation",
+                "min": 0,
+                "max": 6
+              },
+              "series": [
+                {
+                  "label": "A then B",
+                  "kind": "stem",
+                  "samples": {
+                    "x": [
+                      1,
+                      2
+                    ],
+                    "y": [
+                      6,
+                      0
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    },
+    {
+      "id": "c01-4",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "detailed",
+      "firstHit": "ml-regularization-dropout-mask-single",
+      "referenceId": "ml-regularization-dropout-mask-single",
+      "firstPick": true,
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "useWhen": "Show hidden activations after a temporary training mask and keep-probability rescaling; not unscaled masked activations, permanent neuron pruning, or inference output.",
+          "spec": {
+            "version": 1,
+            "diagram": {
+              "title": "Training output",
+              "caption": "Toy $h=(3,1)$, $m=(1,0)$, $q=0.5$. Training uses $m\\odot h/q$; inference keeps $h$.",
+              "kind": "coordinate-plot",
+              "x": {
+                "label": "Hidden unit",
+                "min": 0,
+                "max": 3
+              },
+              "y": {
+                "label": "Activation",
+                "min": 0,
+                "max": 6
+              },
+              "series": [
+                {
+                  "label": "A then B",
+                  "kind": "stem",
+                  "samples": {
+                    "x": [
+                      1,
+                      2
+                    ],
+                    "y": [
+                      6,
+                      0
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "collision": false
+    }
+  ],
+  "collisions": [],
+  "changedPriorPicks": [],
+  "priorCases": 2865,
+  "parity": "Offline prior-pick parity with deterministic source-kind JEV plans"
+}

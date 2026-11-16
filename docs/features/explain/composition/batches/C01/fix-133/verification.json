@@ -1,0 +1,56 @@
+{
+  "base": "a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36",
+  "priorRemote": "11adf988ac02aa3dfed7f265caf6f3909de6b8bd",
+  "tests": {
+    "command": "node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-reference*.test.js packages/control-plane/test/explanation-plan-kind-from-reference.test.js packages/control-plane/test/explanation-composition-author-variants.test.js",
+    "passed": 1307,
+    "failed": 0,
+    "skipped": 0
+  },
+  "authorRequestRegression": {
+    "redFailed": 4,
+    "greenPassed": 4
+  },
+  "singleVariants": {
+    "parents": 37,
+    "linkedSingles": 37,
+    "added": 4,
+    "tokenCounts": {
+      "ml-linear-regression-linear-unit-single": 51,
+      "ml-neural-networks-hidden-layer-single": 40,
+      "ml-regularization-regularized-objective-single": 50,
+      "ml-regularization-dropout-mask-single": 120
+    },
+    "parentSetEquality": "strict, retained"
+  },
+  "snapshotRefresh": {
+    "base": "a8ef11d64",
+    "changed": [
+      "ml-regularization-regularized-objective/320",
+      "ml-regularization-regularized-objective/408",
+      "ml-regularization-regularized-objective/720"
+    ],
+    "removed": [],
+    "added": [],
+    "scope": "Only C01 keys updated; all other snapshots untouched"
+  },
+  "priorReplay": {
+    "cases": 2865,
+    "changed": 0,
+    "newSourceChecks": 12,
+    "newSourceHits": 12,
+    "newSourceRepresentation": "linked -single author variants"
+  },
+  "historicalUnrelatedLoads": "Documented on C02; not included in these affected suites",
+  "rendererSchemaOrToolChanges": false,
+  "actualAuthorSchemas": {
+    "cases": 72,
+    "passed": 72,
+    "failed": 0
+  },
+  "reviewFixes": {
+    "dropoutVisibleContext": "h, mask and q are computed from same data; training rescale and inference context visible",
+    "authorOptionalTotal": "omitted from outgoing stacked single; parts and rendered whole unchanged",
+    "regressions": "Both observed RED before correction and GREEN after correction"
+  }
+}
