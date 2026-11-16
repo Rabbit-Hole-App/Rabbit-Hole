@@ -54,7 +54,7 @@ async function prepare(key) {
   if (!project) throw Error(`${R.env}: that canvas has no repository`);
   const probe = await canvasIn(project, `Plan drafts ${key} ${run}`);
   await waitFor(async () => { const g = await api(`/api/learn/rehearsal?app=${probe}&board=main`); if (g.indexing === 'failed') throw Error(`${key}: indexing failed`); return g.indexing === 'ready'; }, `${key}: the repository is indexed`);
-  const doc = await waitFor(async () => { const out = await api('/api/learn/rehearsal', { method: 'POST', body: JSON.stringify({ app: probe, board: 'main', action: 'catalogue' }) }); if (out.catalogue?.status === 'failed') throw Error(`${key}: the catalogue failed`); return out.catalogue?.status === 'ready' && out.catalogue.catalogueDoc?.learn ? out.catalogue.catalogueDoc : null; }, `${key}: the catalogue document with its learn section`);
+  const doc = await waitFor(async () => { const out = await api('/api/learn/rehearsal', { method: 'POST', body: JSON.stringify({ app: probe, board: 'main', action: 'catalogue' }) }); if (out.catalogue?.status === 'failed') throw Error(`${key}: the catalogue failed`); return out.catalogue?.status === "ready" && out.catalogueDoc?.learn ? out.catalogueDoc : null; }, `${key}: the catalogue document with its learn section`);
   return (prepared[key] = { project, doc });
 }
 
