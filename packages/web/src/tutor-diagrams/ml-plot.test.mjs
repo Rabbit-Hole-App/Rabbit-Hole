@@ -53,16 +53,15 @@ test('five line series use distinct strokes and right-edge labels keep clear of 
   assert.notEqual(errors(d), '');
 });
 
-// Sprint default: every coordinate-plot, plain or extended, and every bar-chart (BAR-1: vertical bars with an ink L-axis) is drawn by the themed layout, not the legacy one.
-test('bars and a plain plot are drawn by the themed layout, not the legacy one', () => {
+// Sprint default: every coordinate-plot, plain or extended, is drawn by the themed layout; only a plain bar-chart still delegates to the legacy layout.
+test('unchanged bars delegate to the legacy layout exactly, and a plain plot is drawn by the themed layout', () => {
   for (const d of [plot(), { kind: 'bar-chart', title: 'Bars', bars: [{ label: 'A', value: -1 }, { label: 'B', value: 2 }] }]) {
     const old = quantitativeLayouts[d.kind](d, 320);
-    assert.notDeepEqual(layouts[d.kind](d, 320), old);
-    const { svg } = render(d, 320);
-    if (d.kind === 'bar-chart') {
-      assert.equal(marks(svg, 'data-tutor-bar-axis').length, 1, 'bars draw the ink L-axis');
-      assert.equal(marks(svg, 'data-tutor-bar').length, 2, 'one vertical bar per category');
-    } else assert.equal(marks(svg, 'data-tutor-plot-area').length, 1);
+    if (d.kind === 'bar-chart') assert.deepEqual(layouts[d.kind](d, 320), old);
+    else {
+      assert.notDeepEqual(layouts[d.kind](d, 320), old);
+      assert.equal(marks(render(d, 320).svg, 'data-tutor-plot-area').length, 1);
+    }
     assert.equal(describe(d), null);
     assert.equal(visibleText(d), null);
   }
@@ -270,11 +269,10 @@ test('grouped series share a zero baseline and retain category/series identity',
   const { svg } = render(bars('grouped'));
   const values = marks(svg, 'data-tutor-grouped-bar');
   assert.equal(values.length, 6);
-  // BAR-1: vertical bars share one horizontal zero baseline; a positive bar stands on it, a negative one hangs from it.
-  const zero = number(marks(svg, 'data-tutor-bar-baseline')[0].tag, 'y1');
+  const zero = number(marks(svg, 'data-tutor-bar-baseline')[0].tag, 'x1');
   for (const { tag, value } of values) {
-    if (Number(value) > 0) close(number(tag, 'y') + number(tag, 'height'), zero);
-    else close(number(tag, 'y'), zero);
+    if (Number(value) > 0) close(number(tag, 'x'), zero);
+    else close(number(tag, 'x') + number(tag, 'width'), zero);
   }
   assert.match(svg, /data-tutor-bar-category="First"/);
   assert.match(svg, /data-tutor-bar-series="B"/);
@@ -318,8 +316,7 @@ test('all-zero multi-series bars emit finite zero marks', () => {
     const d = bars(variant); d.series.forEach(s => { s.values = [0, 0]; });
     const { svg } = render(d);
     assert.doesNotMatch(svg, /NaN|Infinity/);
-    // A zero value is a zero-height mark on the baseline: a circle in a stacked chart, a flat line (BAR-1) in a grouped one.
-    assert.equal(marks(svg, `data-tutor-${variant}-bar`).filter(m => m.tag.startsWith(variant === 'grouped' ? '<line' : '<circle')).length, 6);
+    assert.equal(marks(svg, `data-tutor-${variant}-bar`).filter(m => m.tag.startsWith('<circle')).length, 6);
   }
 });
 
@@ -447,18 +444,18 @@ test('point labels that only restate the point get no note, and the marks stay',
   assert.equal(badges(svg), 0, 'a labelled sample draws no badge');
   assert.equal(marks(svg, 'data-tutor-coordinate-point').length, 6, 'every data mark stays');
 });
-// Sprint default (PLT-2): no numbered badge is drawn; PLOT_NOTES_MAX (6) caps the callouts, which belong to annotations; a labelled sample never draws one.
-test('more than six annotation notes keep six callouts, the first in order, and every mark', () => {
+// Sprint default: PLOT_NOTES_MAX (6) caps the badges, which now belong to annotations; a labelled sample never draws one.
+test('more than six annotation notes keep six badges, the first in order, and every mark', () => {
   const names = ['Start', 'Dip', 'Rise', 'Peak', 'Drop', 'Floor', 'Late', 'Final'];
   const d = labelled(names.map(() => undefined));
   d.annotations = names.map((label, i) => ({ kind: 'point', x: i + 1, y: 2 * i + 0.5, label }));
   const { svg } = render(d);
   assert.equal(PLOT_NOTES_MAX, 6);
-  assert.equal(badges(svg), 0, 'no numbered badge is drawn');
+  assert.equal(badges(svg), PLOT_NOTES_MAX);
   assert.equal(marks(svg, 'data-tutor-coordinate-point').length, 8);
-  const noted = marks(svg, 'data-tutor-plot-callout').map(m => m.value);
-  assert.deepEqual(noted, names.slice(0, PLOT_NOTES_MAX), 'the first six annotations in order each draw a callout');
-  assert.ok(!svg.includes('Late') && !svg.includes('Final'), 'the seventh and eighth names have no callout');
+  const noted = marks(svg, 'data-tutor-plot-badge').map(m => m.value);
+  assert.deepEqual(noted, ['1', '2', '3', '4', '5', '6']);
+  assert.ok(!svg.includes('Late: (7') && !svg.includes('Final: (8'), 'the seventh and eighth names have no badge');
   assert.equal(badges(render(labelled(names)).svg), 0, 'labelled samples draw no badge at all');
 });
 test('showValues prints the y of each point, so those labels get no note either', () => {

@@ -8,7 +8,7 @@ import { deriveVisualRequirements, requiredMix, requiredVisualProblem } from '..
 import { generateArtifact } from '../src/learn-artifact.js';
 import { CHAIN_ENDPOINTS, STREAM_SETTING, visualScanner } from '../src/explanation-fast-chain.js';
 import { EXPLANATION_PROFILE_SETTING } from '../src/explanation-models.js';
-import { FIGURE_MODEL, figurePrompt } from '../src/explanation-figures.js';
+import { FIGURE_MODEL } from '../src/explanation-figures.js';
 import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
 import { withUsage, noteUsageIdentity } from '../src/learn-usage.js';
 import { cycleSpec, diagramFence, illustrationFence } from './explanation-layout-fixture.js';
@@ -236,7 +236,7 @@ test('fix 3: a streamed answer starts its picture before the body has arrived; t
   const asked = sent[0].at, bodyEnd = asked + 2500;
   assert.equal(sent[0].body.stream, true);
   assert.deepEqual([out.result, out.repaired, image.calls.length], ['artifact', false, 1]);
-  assert.equal(image.calls[0].prompt, figurePrompt(withNoTextSuffix(PICTURE.p)));
+  assert.equal(image.calls[0].prompt, withNoTextSuffix(PICTURE.p));
   assert.ok(image.calls[0].at - asked <= 400, `the picture started ${image.calls[0].at - asked} ms after the request, when its visual arrived`);
   assert.ok(image.calls[0].at < bodyEnd, 'before the body ended');
   assert.ok(doneAt - asked < 2500 + 2000, `the card took ${doneAt - asked} ms: text and picture overlapped (one after the other is 4,500 ms)`);
@@ -272,7 +272,7 @@ test('fix 3: after a repair, a picture whose prompt is unchanged is reused; a ch
   const changed = answer([{ ...PICTURE, p: 'A block of ice in a lake, seen from the shore' }]);
   fireworks(t, { content: bad }, { content: changed });
   const out = await generateArtifact(moved.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: fresh } });
-  assert.deepEqual([out.result, fresh.calls.map(c => c.prompt)], ['artifact', [figurePrompt(withNoTextSuffix(PICTURE.p)), figurePrompt(withNoTextSuffix('A block of ice in a lake, seen from the shore'))]]);
+  assert.deepEqual([out.result, fresh.calls.map(c => c.prompt)], ['artifact', [withNoTextSuffix(PICTURE.p), withNoTextSuffix('A block of ice in a lake, seen from the shore')]]);
   assert.deepEqual(Object.keys(out.block.figures), ['pic-1']);
   assert.equal(moved.rows("SELECT * FROM usage_attempts WHERE provider = 'recraft' AND status = 'settled'").length, 2, 'both pictures are on the ledger');
 });
@@ -288,7 +288,7 @@ test('fix 3 with three visuals: a picture at visuals[2] starts early as pic-3; a
   const b = fastEnv(t), two = recraft();
   fireworks(t, { content: answer([pic(1), pic(2), pic(3)], body) });
   const kept = await generateArtifact(b.env, { command: 'explanation', args: 'Why does ice float?' }, { figures: { store: STORE, adapter: two } });
-  assert.deepEqual([kept.result, two.calls.map(c => c.prompt), Object.keys(kept.block.figures)], ['artifact', [figurePrompt(withNoTextSuffix(pic(1).p)), figurePrompt(withNoTextSuffix(pic(2).p))], ['pic-1', 'pic-2']], 'the third picture is dropped, never made or charged');
+  assert.deepEqual([kept.result, two.calls.map(c => c.prompt), Object.keys(kept.block.figures)], ['artifact', [withNoTextSuffix(pic(1).p), withNoTextSuffix(pic(2).p)], ['pic-1', 'pic-2']], 'the third picture is dropped, never made or charged');
 });
 
 test('fix 3: the stream scanner hands over each visuals[i] once, as soon as it closes, and is not fooled by braces in strings', () => {

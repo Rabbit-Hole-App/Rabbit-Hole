@@ -20,10 +20,6 @@ export const FIGURES_MAX = 2; // at most two pictures a card, of up to three vis
 // Recraft measured 1.1-1.5 s per API call and 1.6-1.9 s to a visible picture, 5.0 s cold (C:/s/spec/latency-lab/recraft/run1.log): 20 s per attempt is generous.
 export const FIGURE_TIMEOUT_MS = 20000;
 const SETTINGS = Object.freeze({ model: FIGURE_MODEL, aspect_ratio: '1:1', resolution: '1K' });
-// ILL-0 v2: the style every picture's prompt starts with (the ground and the colours travel as Recraft controls, image-providers.js RECRAFT_CONTROLS).
-export const FIGURE_STYLE_ID = 'ill0-v2';
-export const FIGURE_STYLE = 'Flat vector line illustration: one even dark outline, flat solid fills, no gradient, no shadow, no texture, bold rounded labels, few elements, generous spacing.';
-export const figurePrompt = prompt => `${FIGURE_STYLE}\n\nSubject: ${prompt}`;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const sha = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', typeof value === 'string' ? new TextEncoder().encode(value) : value))].map(n => n.toString(16).padStart(2, '0')).join('');
 
@@ -60,7 +56,7 @@ async function attempt(env, spec, call, o) {
     await settleAttempt(callEnv, attemptId, { status, costMicros: toMicros(chargedUsd), model: FIGURE_MODEL });
   };
   let result;
-  try { result = await (o.adapter || imageAdapter(callEnv, FIGURE_MODEL)).generate({ model: FIGURE_MODEL, prompt: figurePrompt(spec.prompt), settings: SETTINGS, references: [], signal: AbortSignal.timeout(FIGURE_TIMEOUT_MS) }); }
+  try { result = await (o.adapter || imageAdapter(callEnv, FIGURE_MODEL)).generate({ model: FIGURE_MODEL, prompt: spec.prompt, settings: SETTINGS, references: [], signal: AbortSignal.timeout(FIGURE_TIMEOUT_MS) }); }
   catch (error) {
     // The same readings as an image job (image-jobs.js submit): nothing left the worker is a release; a 429 is a known zero; any other answer or no answer keeps the cost unknown.
     if (!error?.providerRequestStarted) { await settle({ status: 'cancelled', calls: 0, costUsd: 0, error: error?.code || 'provider_not_started' }); return { reason: error?.code || 'provider_not_started', retry: !['not_configured', 'invalid_input'].includes(error?.code) }; }

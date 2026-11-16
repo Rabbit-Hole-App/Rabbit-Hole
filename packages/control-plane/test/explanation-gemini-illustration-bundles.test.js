@@ -45,6 +45,6 @@ test('the planner-steered bundle carries its kind, and the unsteered bundle carr
   for (const kind of ['tensor', 'token-links', 'block-stack']) assert.ok(!plain.includes(`"const":"${kind}"`), `unsteered bundle must not carry ${kind}`);
 });
 
-test('the unsteered bundle is unchanged by the three illustration kinds: 136 properties, 9,977 characters (134 and 9,832 before 7fcc07d0d made a tree title optional inside tree panels; 9,833 before the kinds were added)', () => {
-  for (const args of ['how does the water cycle work?', 'how does the TCP handshake work?', 'stack vs queue']) { const s = geminiSchema(args); assert.equal(props(s), 136, args); assert.equal(JSON.stringify(s).length, 9977, args); }
+test('the unsteered bundle is unchanged by the three illustration kinds: 134 properties, 9,832 characters (9,833 before the kinds were added; one character shorter since the title cap went from 120 to 60: maxLength 60)', () => {
+  for (const args of ['how does the water cycle work?', 'how does the TCP handshake work?', 'stack vs queue']) { const s = geminiSchema(args); assert.equal(props(s), 134, args); assert.equal(JSON.stringify(s).length, 9832, args); }
 });

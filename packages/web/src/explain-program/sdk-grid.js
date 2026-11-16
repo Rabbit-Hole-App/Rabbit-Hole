@@ -1,9 +1,9 @@
-import { SDK_ROLES } from '../scene-vocab.js';
+import { ROLES } from '../scene-vocab.js';
 
 // Trusted guest source. Grids and readouts emit the same boxed labels the scene gate already accepts.
 export const GRID_SOURCE = String.raw`
 (function () {
-  const roles = ${JSON.stringify(SDK_ROLES)};
+  const roles = ${JSON.stringify(ROLES)};
   const gap = 6;
 
   function checkBox(id, options, helper) {

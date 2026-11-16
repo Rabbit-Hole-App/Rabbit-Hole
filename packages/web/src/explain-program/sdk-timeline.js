@@ -1,10 +1,10 @@
-import { SDK_ROLES } from '../scene-vocab.js';
+import { ROLES } from '../scene-vocab.js';
 import { CONTRACT_LIMITS } from './contract.js';
 
 // Trusted guest code for discrete events. The caller supplies the cursor on each frame.
 export const TIMELINE_SOURCE = String.raw`
 (function () {
-  var roles = ${JSON.stringify(SDK_ROLES)};
+  var roles = ${JSON.stringify(ROLES)};
   var prefixPattern = /^[A-Za-z0-9_.-]{1,24}$/;
   var idPattern = /^[A-Za-z0-9_.-]{1,16}$/;
 

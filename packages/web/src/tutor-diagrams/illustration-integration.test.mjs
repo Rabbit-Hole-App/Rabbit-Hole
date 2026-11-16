@@ -93,14 +93,7 @@ test('embedding strips use one consistent value treatment at every depth', () =>
   }
 });
 
-// TOK-W: the cells keep their natural width, so a row of six blocks that passes the budget (the request, at least 720, at most 960) wraps at a block boundary: blocks per row at a 320 and at a 960 request.
-const blockRows = { 'ml-transformer-token-embeddings': ['3+3', '5+1'], 'ml-transformer-weighted-values': ['4+2', '6'], 'ml-transformer-vocabulary-softmax': ['6', '6'] };
-const rowsOf = (spec, width) => {
-  const counts = new Map();
-  for (const [, y] of renderToStaticMarkup(renderTutorDiagram(spec, width).element).matchAll(/data-block-stack-node="[^"]+"[^>]*><rect[^>]*? y="([\d.]+)"/g)) counts.set(y, (counts.get(y) ?? 0) + 1);
-  return [...counts.values()].join('+');
-};
-test('the walkthrough token, value and vocabulary sequences keep native cells and wrap at block boundaries at every depth', () => {
+test('the walkthrough token, value and vocabulary sequences use one row at every depth', () => {
   const ids = ['ml-transformer-token-embeddings', 'ml-transformer-weighted-values', 'ml-transformer-vocabulary-softmax'];
   for (const id of ids) {
     const ref = transformerWalkthroughReferences.find(reference => reference.id === id);
@@ -109,13 +102,8 @@ test('the walkthrough token, value and vocabulary sequences keep native cells an
       assert.ok(spec, id);
       const { diagram } = spec;
       assert.equal(diagram.blocks.length, 6, id);
-      const { width } = renderTutorDiagram(spec, 320);
-      assert.ok(width > 320 && width <= 960, id);
-      const [narrow, wide] = blockRows[id];
-      // The vocabulary overview is the one figure that still fits one row at 320; its balanced and deep depths take five and one.
-      const expectedNarrow = id === 'ml-transformer-vocabulary-softmax' && variant !== ref.depths.overview ? '5+1' : narrow;
-      assert.equal(rowsOf(spec, 320), expectedNarrow, `${id} rows at 320`);
-      assert.equal(rowsOf(spec, 960), wide, `${id} rows at 960`);
+      const { width, height } = renderTutorDiagram(spec, 320);
+      assert.ok(width > 320 && width <= 960 && height < 280, id);
       if (id !== 'ml-transformer-vocabulary-softmax') continue;
       assert.deepEqual(diagram.blocks.map(block => block.label), vocabulary);
       assert.deepEqual(diagram.blocks.map(block => block.diagram.tensor.values[0]), vocabularyWeights);

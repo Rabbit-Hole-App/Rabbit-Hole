@@ -29,7 +29,7 @@ export function createShapes({ z, titled, text, id, numeric, unit, axes }) {
   const circleSamples = z.strictObject({ radius: numeric.positive(), count: z.number().int().min(3).max(25) });
   return [
     z.strictObject({ ...titled, kind: z.literal('coordinate-plot'), x: axis, y: axis,
-      series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(), markers: z.boolean().optional(),
+      series: z.array(z.strictObject({ label: text(42), kind: z.enum(['line', 'scatter', 'step', 'stem']), smooth: z.boolean().optional(),
         endLabel: z.boolean().optional(), closed: z.boolean().optional(),
         points: z.array(z.strictObject({ x: numeric, y: numeric, id: id.optional(), label: text(60).optional(),
           low: numeric.optional(), high: numeric.optional() })).min(1).max(24).optional(),

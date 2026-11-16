@@ -1,4 +1,4 @@
-import { SDK_ROLES } from '../scene-vocab.js';
+import { ROLES } from '../scene-vocab.js';
 
 // Semantic figures (sdk-8, capability figures): axis, plot and diagram frame objects. Unlike the helpers that expand into a handful of lines and texts, each of these returns ONE frame
 // object (the contract's axis, plot or diagram kind, contract.js) and the trusted renderer draws it the way the written card draws the same figure: ticks, titles, gridlines, series
@@ -16,7 +16,7 @@ import { SDK_ROLES } from '../scene-vocab.js';
 // an axis at most 12 given ticks and a callout at most 4 lines. The strict contract caps (contract.js FIGURE_LIMITS) still refuse a hand-written frame object.
 export const FIGURES_SOURCE = String.raw`
 (function () {
-  var roles = ${JSON.stringify(SDK_ROLES)};
+  var roles = ${JSON.stringify(ROLES)};
   var withRole = function (kind, id, fields, opts) {
     var out = { kind: kind, id: id };
     for (var key in fields) if (fields[key] !== undefined) out[key] = fields[key];

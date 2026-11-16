@@ -1,11 +1,11 @@
-import { SDK_ROLES } from '../scene-vocab.js';
+import { ROLES } from '../scene-vocab.js';
 import { CONTRACT_LIMITS } from './contract.js';
 
 // Guest code appended to the SDK before an authored module is evaluated.
 // Plot data stays in ordinary frame objects, using the same trusted renderer as other geometry.
 export const PLOT_SOURCE = String.raw`
 sdk.plot = (function () {
-  const roles = ${JSON.stringify(SDK_ROLES)};
+  const roles = ${JSON.stringify(ROLES)};
   const limit = ${CONTRACT_LIMITS.coordinate};
   const maxSize = ${CONTRACT_LIMITS.size};
   const maxObjects = Math.min(${CONTRACT_LIMITS.objects} - 5, 55);

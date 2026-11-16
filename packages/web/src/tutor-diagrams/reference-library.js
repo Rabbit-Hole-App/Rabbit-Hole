@@ -49,7 +49,6 @@ import { references as compositionTimeSeries } from './composition-time-series-r
 import { references as compositionDistributionShift } from './composition-distribution-shift-references.js';
 import { mleBernoulliReference } from './ml-mle-bernoulli-reference.js';
 import { kfoldValidationReference } from './ml-kfold-validation-reference.js';
-import { mleStepsReference } from './ml-mle-steps-reference.js';
 
 export { transformerFigureReferences } from './transformer-figure-references.js';
 
@@ -63,7 +62,7 @@ export const illustrationReferences = Object.freeze([
 ]);
 
 export const batch1FollowupReferences = Object.freeze(batch1Followups);
-export const estimationEvaluationReferences = Object.freeze([mleBernoulliReference, mleStepsReference, kfoldValidationReference]);
+export const estimationEvaluationReferences = Object.freeze([mleBernoulliReference, kfoldValidationReference]);
 
 // Shared by the author, deterministic tests and the generated SVG catalogue.
 // No renderer/React import: the worker can load this data without browser code.

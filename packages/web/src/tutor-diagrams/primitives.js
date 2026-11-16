@@ -1,16 +1,23 @@
 import { createElement as h } from 'react';
 import { mathLabel, SLOT } from './math.js';
 import { tokenizeMath } from '../math-tokens.js';
-import { FILLS, GROUND, INK as PALETTE_INK, LINES, MUTED as PALETTE_MUTED, ROLE_NAMES } from './theme/palette.js';
 
-// Palette A: the role names a flow node may take, each the fill theme/palette.js names (ROLE_NAMES).
-export const PALETTE = Object.freeze(Object.fromEntries(Object.entries(ROLE_NAMES).map(([role, name]) => [role, FILLS[name]])));
+export const PALETTE = Object.freeze({
+  process: '#8DBFEF',
+  decision: '#E5AA46',
+  outcome: '#67B9A0',
+  olive: '#95A448',
+  coral: '#F58371',
+  lavender: '#B9A4E8',
+  rose: '#E8A3B7',
+  slate: '#A8BBD0',
+});
 // E3: the one fixed style of a highlighted worked route (a diagram author picks no colour): a blue wire and a blue ring, the approved card 07 look.
-export const PATH = LINES.path;
-export const SURFACE = `var(--viz-surface, ${GROUND})`;
-export const INK = `var(--color-ink, ${PALETTE_INK.toLowerCase()})`;
-export const MUTED = `var(--color-ink-2, ${PALETTE_MUTED})`;
-export const FILLED_INK = PALETTE_INK.toLowerCase();
+export const PATH = '#2F80D8';
+export const SURFACE = 'var(--viz-surface, #FFFCF0)';
+export const INK = 'var(--color-ink, #32211c)';
+export const MUTED = 'var(--color-ink-2, #665951)';
+export const FILLED_INK = '#32211c';
 
 export const lineHeight = (size = 15) => Math.ceil(size * 1.25);
 

@@ -276,13 +276,6 @@ export function geminiImageAdapter({ apiKey, transport = fetch } = {}) {
   return { provider: 'google', capabilities: { generate: true, edit: true, retrieve: false, idempotency: false }, generate: input => run(input, false), edit: input => run(input, true) };
 }
 
-// ILL-0 v2: the cream ground and the written diagrams' palette, as Recraft controls (docs: controls.colors and controls.background_color are colour objects { rgb: [r, g, b] }, at most 10 colours):
-// the seven fills, then the outline ink. Ground #FFFCF0.
-export const RECRAFT_CONTROLS = Object.freeze({
-  background_color: { rgb: [255, 252, 240] },
-  colors: ['#8DBFEF', '#F58371', '#E5AA46', '#67B9A0', '#95A448', '#B9A4E8', '#F89830', '#32211C'].map(hex => ({ rgb: [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)) })),
-});
-
 // Recraft images/generations (POST https://external.api.recraft.ai/v1/images/generations, Bearer key): one 1024x1024 raster as a URL (the documented default,
 // kept about 24 hours), downloaded once from an https address and checked by its file signature like every other provider's output. `credits` in the answer is the
 // charge in API units. The download is a second request: once the provider has answered, a failure to fetch the picture is a definite invalid_output (the image
@@ -294,7 +287,7 @@ export function recraftImageAdapter({ apiKey, transport = fetch } = {}) {
       if (!configured(apiKey)) throw failure('not_configured');
       if (input.references?.length || input.settings?.aspect_ratio !== '1:1' || input.settings?.resolution !== '1K') throw failure('invalid_input');
       const body = await post(transport, 'https://external.api.recraft.ai/v1/images/generations', { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: input.prompt, model: input.model, size: '1024x1024', n: 1, response_format: 'url', controls: RECRAFT_CONTROLS }) }, input);
+        body: JSON.stringify({ prompt: input.prompt, model: input.model, size: '1024x1024', n: 1, response_format: 'url' }) }, input);
       const url = Array.isArray(body?.data) && body.data.length === 1 ? body.data[0]?.url : null;
       let target; try { target = new URL(url); } catch { target = null; }
       if (!target || target.protocol !== 'https:' || target.username || target.password) throw failure('invalid_output', { started: true, definite: true });

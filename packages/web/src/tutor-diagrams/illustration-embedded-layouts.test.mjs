@@ -110,18 +110,13 @@ test('a nine-box parallel tier fits within 960 pixels without dropping labels', 
     { id: 'merge', label: 'Blend', role: 'merge' }, { id: 'end', label: 'Return', role: 'outcome' }];
   const edges = [...tier.map(n => edge('rank', n.id)), ...tier.slice(3, 6).map(n => edge(n.id, 'merge')), edge('merge', 'end')];
   const highlightPath = [3, 5].map(i => ['rank', tier[i].id, 'merge', 'end']);
-  // FLOW-T: a tier of four or more nodes that cannot fit the width budget at its node minimums wraps onto two rows (the first ceil(n / 2), then the rest); at 960 it is one row.
-  for (const [width, perRow] of [[408, [5, 4]], [960, [9]]]) {
-    const scene = layouts.flow({ nodes, edges, highlightPath }, width);
-    assert.ok(scene.width <= 960, `tier needs ${scene.width}px`);
-    for (const n of tier) assert.equal(text([nodeFor(scene, n.id)]), n.label);
-    const boxes = tier.map(n => nodeFor(scene, n.id).props.children[0].props);
-    assert.deepEqual([...new Set(boxes.map(box => box.y))].map(y => boxes.filter(box => box.y === y).length), perRow, `rows at ${width}`);
-    for (const [index, box] of boxes.entries()) {
-      const previous = boxes[index - 1];
-      assert.ok(box.x >= 0 && box.x + box.width <= scene.width);
-      if (previous && previous.y === box.y) assert.ok(box.x > previous.x + previous.width);
-      if (previous && previous.y !== box.y) assert.ok(box.y > previous.y, 'the second row is below the first');
-    }
+  const scene = layouts.flow({ nodes, edges, highlightPath }, 408);
+  assert.ok(scene.width <= 960, `tier needs ${scene.width}px`);
+  for (const n of tier) assert.equal(text([nodeFor(scene, n.id)]), n.label);
+  const boxes = tier.map(n => nodeFor(scene, n.id).props.children[0].props);
+  for (const [index, box] of boxes.entries()) {
+    const previous = boxes[index - 1];
+    assert.ok(box.x >= 0 && box.x + box.width <= scene.width);
+    if (previous) assert.ok(box.x > previous.x + previous.width);
   }
 });

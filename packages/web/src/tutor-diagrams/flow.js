@@ -7,21 +7,12 @@ import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 const PAD = 14;
 const NODE_GAP = 18;
 const NODE_MIN = 180;
-const SPLIT_GAP = 24; // between the nodes of a tier wrapped onto two rows (a wire runs down it)
-const SPLIT_VGAP = 22; // between its two rows
-const NODE_MIN_ROW = 120; // the node minimum of a row of four or more nodes that would pass the width budget
 const NODE_MAX = 220;
 const EDGE_TEXT = 13;
 const EDGE_WRAP = 158;
 const PARALLEL_WIDTH = 960;
 const TENSOR_PAD = 10;
 const DECISION_BAND = 2 / 3;
-
-// The narrowest wrap width at which a label takes two lines (from its longest word up).
-const twoLineWidth = (text, from) => { let width = Math.ceil(from); while (wrap(text, width).length > 2 && width < 600) width += 2; return width; };
-
-// A decision on two lines is wide enough that its diamond is no taller than about on three (the widest line plus 40 px stays within 74% of the width).
-const twoLineMinimum = (text, word) => Math.ceil((Math.max(...wrap(text, twoLineWidth(text, word)).map(line => textWidth(line))) + 40) / 0.74);
 
 const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
 
@@ -167,44 +158,6 @@ function labelBounds(route, others, width, placed = []) {
   return null;
 }
 
-// The labels of a node whose runs have no room stand beside their drops (the last vertical leg of each wire), left of the line at mid-drop; where a place touches a wire or another label, the
-// side, or the height (the same step for every branch of the node, so the labels stay at one height), changes. A label with no clear place (every place touches a wire, another label or
-// the canvas edge) gets null: it goes to the key under the graph, the last resort.
-function besideDrops(routes, others, placed, width) {
-  const inside = box => box.x >= 4 && box.x + box.width <= width - 4;
-  const sizes = routes.map(route => ({ w: Math.ceil(Math.max(...route.words.map(word => textWidth(word, EDGE_TEXT))) + 12), h: route.words.length * lineHeight(EDGE_TEXT) + 4 }));
-  const legs = routes.map(route => route.points.slice(-2));
-  const room = Math.min(...legs.map(([[, y1], [, y2]], i) => Math.max(0, (Math.abs(y2 - y1) - sizes[i].h) / 2)));
-  // One height for every label of the node (rule a): the middle of the shortest drop, the most constrained one.
-  const shortest = legs.reduce((best, leg) => Math.abs(leg[1][1] - leg[0][1]) < Math.abs(best[1][1] - best[0][1]) ? leg : best);
-  const centre = (shortest[0][1] + shortest[1][1]) / 2;
-  const attempt = lift => {
-    const standing = [...placed], boxes = [];
-    for (const [i, route] of routes.entries()) {
-      const [, [dropX]] = legs[i], { h, w } = sizes[i], y = centre + lift - h / 2;
-      const bounds = [dropX - 4 - w, dropX + 4].map(x => ({ x, y, width: w, height: h }))
-        .find(box => inside(box) && others.every(other => other === route || !crosses(other.points, box)) && standing.every(placedBox => apart(placedBox, box)));
-      if (!bounds) return null;
-      standing.push(bounds);
-      boxes.push(bounds);
-    }
-    return boxes;
-  };
-  const found = [0, 12, -12, 24, -24].filter(lift => Math.abs(lift) <= room).map(attempt).find(Boolean);
-  if (found) return found;
-  // No common height clears every wire: each label takes its own nearest clear place along its drop (left of the line first), or none.
-  const standing = [...placed];
-  return routes.map((route, i) => {
-    const [[, y1], [dropX, y2]] = legs[i], { w, h } = sizes[i], reach = Math.max(0, (Math.abs(y2 - y1) - h) / 2);
-    const lifts = [0]; for (let step = 4; step <= reach; step += 4) lifts.push(step, -step);
-    const bounds = lifts.flatMap(lift => [dropX - 4 - w, dropX + 4].map(x => ({ x, y: (y1 + y2) / 2 + lift - h / 2, width: w, height: h })))
-      .find(box => inside(box) && others.every(other => other === route || !crosses(other.points, box)) && standing.every(placedBox => apart(placedBox, box)))
-      ?? null;
-    if (bounds) standing.push(bounds);
-    return bounds;
-  });
-}
-
 // RD-4a: a node whose shared label lane finds no room (a label would touch a wire that passes through the lane) is laid out again with its branches on their own lanes, as before.
 export function layoutFlow(diagram, requestedWidth, paintNode) {
   const unshared = new Set();
@@ -230,50 +183,27 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     .sort((a, b) => ranks.get(b.from) - ranks.get(a.from));
   const skipOrder = new Map(skips.map((edge, index) => [edge, index]));
   const outer = skips.length ? 16 + skips.length * 9 : 0;
-  // The width the figure is held to: the width asked for, at least 720 and at most 960.
-  const budget = Math.min(PARALLEL_WIDTH, Math.max(720, requestedWidth));
   const metrics = rows.map(row => {
     const space = PARALLEL_WIDTH - 2 * PAD - outer - (row.length - 1) * NODE_GAP;
     const wordLimit = paths.length === 2 ? Math.min(NODE_MAX, Math.floor(space / row.length)) : NODE_MAX;
-    // FLOW-N: a row of four or more nodes lowers its node minimum, as little as it can, to fit the budget before the figure widens (never below 120; a label never takes more than three lines).
-    const build = base => row.map(node => {
-      const floor = Math.min(base, wordLimit);
+    const floor = Math.min(NODE_MIN, wordLimit);
+    return row.map(node => {
       const text = node.label ?? '';
       const word = longestWordWidth(text);
       const decision = node.role === 'decision';
       const pad = decision ? 32 : 48;
       const required = Math.ceil(word + pad);
       // A long word wraps by characters. Unbreakable formulas and tensors can widen their node.
-      let min = Math.max(floor, required <= wordLimit ? required : Math.ceil(widestFormula(text) + pad));
-      if (base < NODE_MIN && !decision && !node.tensor) while (wrap(text, min - pad).length > 3 && min < NODE_MAX) min += 2;
+      const min = Math.max(floor, required <= wordLimit ? required : Math.ceil(widestFormula(text) + pad));
       // A decision is wide enough for its label on one line (the diamond narrows away from its middle), when that stays within 360 px.
       const oneLine = decision && !node.tensor ? oneLineDecision(text) : 0;
-      if (!node.tensor) return { word, min: oneLine && oneLine <= 360 ? Math.max(min, oneLine) : min, plain: min, text };
+      if (!node.tensor) return { word, min: oneLine && oneLine <= 360 ? Math.max(min, oneLine) : min };
       const contentWidth = Math.max(tensorMinimumWidth(node.tensor), widestFormula(text));
       const tensorWidth = Math.ceil((contentWidth + 2 * TENSOR_PAD) / (decision ? DECISION_BAND : 1));
       return { word, min: Math.max(min, tensorWidth) };
     });
-    const total = nodes => nodes.reduce((sum, node) => sum + node.min, 0) + (row.length - 1) * NODE_GAP;
-    if (row.length < 4) return build(NODE_MIN);
-    for (let base = NODE_MIN; base > NODE_MIN_ROW; base -= 5) {
-      const fitted = build(base);
-      if (2 * PAD + outer + total(fitted) <= budget) return fitted;
-    }
-    return build(NODE_MIN_ROW);
   });
-  // A decision label wraps to two lines when its one-line diamond would push the figure past the card (the budget above).
-  const rowWidth = row => row.reduce((sum, node) => sum + node.min, 0) + (row.length - 1) * NODE_GAP;
-  for (const row of metrics) if (2 * PAD + outer + rowWidth(row) > budget) for (const node of row) if (node.plain) Object.assign(node, { min: Math.min(node.min, Math.max(node.plain, twoLineMinimum(node.text, node.word))), twoLine: true }); // never wider than the one-line minimum it replaces
-  const rowMinimums = metrics.map(rowWidth);
-  // FLOW-T: a tier of four or more nodes that cannot fit the budget even at its node minimums wraps onto two rows (the first ceil(n / 2) nodes, then the rest), the second row staggered
-  // under the gaps of the first, so a wire to the second row, or from the first one past it, runs down a gap and crosses no node.
-  const splits = new Map();
-  rows.forEach((row, rank) => {
-    if (row.length < 4 || 2 * PAD + outer + rowMinimums[rank] <= budget) return;
-    const a = Math.ceil(row.length / 2), unit = Math.max(...metrics[rank].map(node => node.min)), even = row.length % 2 === 0;
-    splits.set(rank, { a, unit, even });
-    rowMinimums[rank] = a * unit + (a - 1) * SPLIT_GAP + (even ? (unit + SPLIT_GAP) / 2 : 0);
-  });
+  const rowMinimums = metrics.map(row => row.reduce((sum, node) => sum + node.min, 0) + (row.length - 1) * NODE_GAP);
   const width = Math.max(requestedWidth, 2 * PAD + Math.max(...rowMinimums) + outer);
   const inner = width - 2 * PAD - outer;
   const placements = new Map();
@@ -292,30 +222,25 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   for (const edge of skips) gaps[ranks.get(edge.to) - 1].push(routeByEdge.get(edge).arrive);
 
   const placedRows = rows.map((row, rank) => {
-    const split = splits.get(rank);
-    const splitWidth = split && Math.min(NODE_MAX, Math.max(split.unit, Math.floor(split.even ? (inner - (split.a - 0.5) * SPLIT_GAP) / (split.a + 0.5) : (inner - (split.a - 1) * SPLIT_GAP) / split.a)));
-    const splitStart = split && PAD + (inner - (split.a * splitWidth + (split.a - 1) * SPLIT_GAP + (split.even ? (splitWidth + SPLIT_GAP) / 2 : 0))) / 2;
-    const splitCx = index => splitStart + splitWidth / 2 + (index % split.a) * (splitWidth + SPLIT_GAP) + (index >= split.a ? (splitWidth + SPLIT_GAP) / 2 : 0);
     const share = (inner - rowMinimums[rank]) / row.length;
     const widths = metrics[rank].map(({ min }) => Math.min(Math.max(NODE_MAX, min), min + share));
     const extra = (inner - widths.reduce((sum, w) => sum + w, 0) - (row.length - 1) * NODE_GAP) / row.length;
     let x = PAD + extra / 2;
     const rowNodes = row.map((node, index) => {
-      const w = split ? splitWidth : widths[index];
+      const w = widths[index];
       const previous = incoming.get(node.id);
       const parent = previous.length === 1 ? placements.get(previous[0].from) : null;
-      const ideal = split ? splitCx(index) : row.length === 1 && parent ? parent.cx : x + w / 2;
+      const ideal = row.length === 1 && parent ? parent.cx : x + w / 2;
       x += w + NODE_GAP + extra;
       const cx = Math.max(PAD + w / 2, Math.min(PAD + inner - w / 2, ideal));
       if (node.tensor) return { ...node, width: w, cx, ...measureTensorNode(node, w) };
       const isDecision = node.role === 'decision';
-      const wrapWidth = isDecision ? (w >= oneLineDecision(node.label ?? '') ? w : Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].twoLine ? twoLineWidth(node.label ?? '', metrics[rank][index].word) : metrics[rank][index].word))) : paths.length === 2 ? Math.max(w - 48, Math.min(metrics[rank][index].word, w - 16)) : w - 48; // under the highlight cap a node gets narrower, never its type: a long word takes the room of the padding
+      const wrapWidth = isDecision ? (w >= oneLineDecision(node.label ?? '') ? w : Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].word))) : w - 48;
       const lines = wrap(node.label, wrapWidth);
       const { height, offset } = isDecision ? measureDecision(lines, w)
         : { height: 40 + 16 * Math.max(1, lines.length), offset: 0 }; // 56 for one line, 72 for two
       return { ...node, width: w, height, cx, lines, offset, start: previous.length === 0 };
     });
-    if (split) rowNodes.forEach((node, index) => { node.sub = index >= split.a ? 1 : 0; });
     for (const node of rowNodes) placements.set(node.id, node);
     return rowNodes;
   });
@@ -392,53 +317,15 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     }
   }
 
-  // FLOW-X: a run passes below the stem of every other node whose stem it spans (a stem is the vertical from a node down to its own lowest lane), so a run never crosses a stem. The lanes of a gap
-  // keep their order unless a run would cross a stem; then the run goes after (below) that node's lanes (a stable topological order: a cycle keeps the old order).
-  gaps.forEach((gap, rank) => {
-    const lanes = routes.filter(route => !route.arrive && !sideEdges.has(route.edge) && gap.includes(route.depart));
-    const stemX = route => placements.get(route.edge.from).cx + portOffset(placements.get(route.edge.from), outgoing.get(route.edge.from), route.edge);
-    const runX = route => { const to = placements.get(route.edge.to); const x = to.cx + portOffset(to, incoming.get(route.edge.to), route.edge); return [Math.min(stemX(route), x), Math.max(stemX(route), x)]; };
-    const before = new Map(gap.map(lane => [lane, new Set()]));
-    for (const run of lanes) {
-      const [left, right] = runX(run);
-      for (const other of lanes) if (other.edge.from !== run.edge.from && other.depart !== run.depart && stemX(other) > left + 1 && stemX(other) < right - 1) before.get(run.depart).add(other.depart);
-    }
-    // FLOW-T2: into a tier wrapped onto two rows, the lanes are ordered so no other wire crosses a highlighted one: where another wire's stem or drop falls in the span of a highlighted run
-    // (or a highlighted stem or drop in the span of another run), the lanes are ordered so the two do not meet.
-    if (splits.has(rank + 1)) {
-      const dropX = route => { const to = placements.get(route.edge.to); return to.cx + portOffset(to, incoming.get(route.edge.to), route.edge); };
-      const inside = (x, [from, to]) => x > from + 1 && x < to - 1;
-      for (const high of lanes.filter(route => pathEdge(route.edge))) {
-        const span = runX(high);
-        for (const other of lanes) {
-          if (other.depart === high.depart) continue;
-          if (inside(dropX(other), span)) before.get(other.depart).add(high.depart); // the other's drop crosses the highlighted run unless the other goes below it
-          if (inside(stemX(other), span)) before.get(high.depart).add(other.depart); // the other's stem crosses the highlighted run unless the run goes below it
-          if (inside(stemX(high), runX(other))) before.get(other.depart).add(high.depart); // the highlighted stem crosses the other run unless the other goes below
-          if (inside(dropX(high), runX(other))) before.get(high.depart).add(other.depart); // the highlighted drop crosses the other run unless the other goes above
-        }
-      }
-    }
-    const sourceOf = new Map(lanes.map(route => [route.depart, route.edge.from]));
-    const order = [], left = new Set(gap);
-    while (left.size) {
-      const ready = gap.filter(lane => left.has(lane) && [...before.get(lane)].every(other => !left.has(other)));
-      // The lanes of one node stay together when they can, so its branches can share a height (RD-4a).
-      const next = ready.find(lane => order.length && sourceOf.get(lane) !== undefined && sourceOf.get(lane) === sourceOf.get(order.at(-1))) ?? ready[0] ?? gap.find(lane => left.has(lane));
-      order.push(next);
-      left.delete(next);
-    }
-    order.forEach((lane, index) => { gap[index] = lane; });
-  });
-
-  // Fork: the two branches of a decision share one lane, so both drop from the diamond's bottom centre to one height and run apart there. Every such decision forks; the lane order above keeps
-  // a run from crossing the stem of another decision of its row.
+  // Fork: the two branches of a decision share one lane, so both drop from the diamond's bottom centre to one height and run apart there. A row gap takes the shared fork only when exactly one
+  // decision forks into it: with two or more, their merged lanes cross, so every branch in that gap keeps its own nested lane.
   const forks = new Set();
   const forking = [...placements.values()].filter(node => {
     const branches = outgoing.get(node.id);
     return node.role === 'decision' && !node.tensor && branches.length === 2 && !branches.some(edge => skipOrder.has(edge) || sideEdges.has(edge));
   });
   for (const node of forking) {
+    if (forking.some(other => other !== node && ranks.get(other.id) === ranks.get(node.id))) continue;
     const branches = outgoing.get(node.id);
     const [lead, other] = branches.map(edge => routeByEdge.get(edge));
     lead.depart.height = Math.max(lead.depart.height, other.depart.height);
@@ -493,12 +380,9 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
 
   let y = PAD;
   placedRows.forEach((row, rank) => {
-    const upper = splits.has(rank) ? row.filter(node => !node.sub) : row, lower = splits.has(rank) ? row.filter(node => node.sub) : [];
-    const heightOf = nodes => Math.max(0, ...nodes.map(node => node.height));
-    const height = heightOf(upper);
-    for (const node of upper) node.y = y + (height - node.height) / 2;
-    for (const node of lower) node.y = y + height + SPLIT_VGAP + (heightOf(lower) - node.height) / 2;
-    y += height + (lower.length ? SPLIT_VGAP + heightOf(lower) : 0);
+    const height = Math.max(...row.map(node => node.height));
+    for (const node of row) node.y = y + (height - node.height) / 2;
+    y += height;
     if (rank === placedRows.length - 1) return;
     y += 6;
     for (const lane of gaps[rank]) {
@@ -557,17 +441,9 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     else failed.push(id);
   }
   if (failed.length) return { failed };
-  // When any branch label of a node has no room on its run, all of that node's labels stand beside their drops (one height, rule a); one with no room there goes to the key.
-  const besideNodes = new Set(routed.filter(route => route.words.length && !route.labelLane && !labelBounds(route, routed, width)).map(route => route.edge.from));
-  const beside = new Map();
-  for (const id of besideNodes) {
-    const group = routed.filter(route => route.edge.from === id && route.words.length && !route.labelLane);
-    const boxes = besideDrops(group, routed, [], width);
-    group.forEach((route, i) => beside.set(route.edge, boxes[i]));
-  }
   for (const route of routed.filter(route => route.words.length)) {
     const { edge, words } = route;
-    const bounds = route.labelLane ? shared.get(edge) : beside.has(edge) ? beside.get(edge) : labelBounds(route, routed, width);
+    const bounds = route.labelLane ? shared.get(edge) : labelBounds(route, routed, width);
     if (bounds) {
       labelBoxes.set(edge, bounds);
       annotations.push(h('g', null,
@@ -575,7 +451,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
         label(words, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, { size: EDGE_TEXT })));
       continue;
     }
-    // In a dense tier there may be no room on the edge or beside its drop. Keep the
+    // In a dense tier there may be no room on the edge itself. Keep the
     // directed relationship readable below the graph without masking any wire.
     const key = `${nodeName(placements.get(edge.from))} → ${nodeName(placements.get(edge.to))}: ${edge.label}`;
     const lines = wrap(key, width - 2 * PAD - 20, EDGE_TEXT);

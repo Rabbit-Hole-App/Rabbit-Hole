@@ -390,10 +390,8 @@ test('RD-2: the gap below a two-way decision row holds one lane shared by its tw
 
 test('RD-2: a three-branch decision keeps its lanes; the digests are the markup under the sprint theme', () => {
   assert.deepEqual([408, 720].map(width => digest(layoutFlow(triage, width))), ['4ba500adae549484', '4b724c68cf64896f']);
-  // The same-side decision below has two branches, so it takes the shared fork. Its label wraps to two lines (FLOW-W) so the card is 639 wide at 408 and the 720 asked for at 720 (one line made it 726 at both);
-  // the Yes and No labels stand beside their drops at one height (FLOW-X option B), so the two digests differ.
-  assert.deepEqual([408, 720].map(width => layoutFlow(sameSide, width).width), [639, 720]);
-  assert.deepEqual([408, 720].map(width => digest(layoutFlow(sameSide, width))), ['380e9a4f0d44e776', 'd5bc27cfa411fac1']);
+  // The same-side decision below has two branches, so it takes the shared fork; its card is as wide at 408 as at 720 (the 180 px node minimum).
+  assert.deepEqual([408, 720].map(width => digest(layoutFlow(sameSide, width))), ['5c87270433a1ca7a', '5c87270433a1ca7a']);
 });
 
 test('RD-2b: at the card widths each branch drops onto its target from the shared run and its label is centred on its run', () => {

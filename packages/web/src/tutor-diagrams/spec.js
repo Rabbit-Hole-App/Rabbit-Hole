@@ -394,26 +394,6 @@ export function parseTutorDiagram(value) {
   return tutorDiagramSchema.parse(value);
 }
 
-// BAR-U: a unit that is only a generic word (value, number, amount, score: a score has no scale here) says nothing, so it is dropped before the diagram is drawn or described: the labels read
-// "1" and "0.33", not "1 value". A real unit (%, ms, kg, ...) stays. Returns the same object when no unit is generic.
-const GENERIC_UNIT = /^(?:values?|numbers?|amounts?|scores?)$/iu;
-export function dropGenericUnits(value) {
-  if (Array.isArray(value)) {
-    const entries = value.map(dropGenericUnits);
-    return entries.some((entry, index) => entry !== value[index]) ? entries : value;
-  }
-  if (!value || typeof value !== 'object') return value;
-  let changed = false;
-  const next = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (key === 'unit' && typeof entry === 'string' && GENERIC_UNIT.test(entry.trim())) { changed = true; continue; }
-    const inner = dropGenericUnits(entry);
-    if (inner !== entry) changed = true;
-    next[key] = inner;
-  }
-  return changed ? next : value;
-}
-
 const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
 const itemText = item => typeof item === 'string' ? [item] : [item.label, ...tensorText(item.tensor)].filter(Boolean);
 const describeTensors = nodes => nodes.flatMap(node => node.tensor ? [tensorText(node.tensor).join(', ')] : []);

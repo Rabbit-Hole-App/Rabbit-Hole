@@ -9,7 +9,7 @@ import { fieldText } from '../src/explanation-interactions.js';
 import { requiredVisualProblem } from '../src/explanation-visuals.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { generateRoadmapCard, quoteRoadmapCard } from '../src/roadmap/roadmap-generate.js';
-import { FIGURE_ATTEMPTS, FIGURES_MAX, FIGURE_MODEL, figurePrompt } from '../src/explanation-figures.js';
+import { FIGURE_ATTEMPTS, FIGURES_MAX, FIGURE_MODEL } from '../src/explanation-figures.js';
 import { fileRefSources } from '../src/file-refs.js';
 import { withUsage, noteUsageIdentity } from '../src/learn-usage.js';
 import { EXPLANATION_BUDGET } from '../src/chat-depth.js';
@@ -139,7 +139,7 @@ test('an rh-illustration is generated before the card returns, stored as a file 
   const { out } = await direct(withPic, { figures: { store: STORE, adapter } }, env);
   assert.equal(out.result, 'artifact');
   assert.equal(adapter.calls.length, 1);
-  assert.deepEqual([adapter.calls[0].model, adapter.calls[0].prompt, adapter.calls[0].settings], [FIGURE_MODEL, figurePrompt('An ice cube floating in a glass of water, side view'), { model: FIGURE_MODEL, aspect_ratio: '1:1', resolution: '1K' }]);
+  assert.deepEqual([adapter.calls[0].model, adapter.calls[0].prompt, adapter.calls[0].settings], [FIGURE_MODEL, 'An ice cube floating in a glass of water, side view', { model: FIGURE_MODEL, aspect_ratio: '1:1', resolution: '1K' }]);
   const fig = out.block.figures.ice;
   assert.deepEqual(Object.keys(out.block.figures), ['ice']);
   assert.deepEqual({ ...fig, fileRef: { ...fig.fileRef, source: { ...fig.fileRef.source, id: 'ID', rev: 'REV' } } },
