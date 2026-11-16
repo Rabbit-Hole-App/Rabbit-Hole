@@ -588,7 +588,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
   const send = async (raw, scopeOverride, { command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null, onAdmitted = null } = {}) => {
-    if (stripMode) { setWindowSeen(true); setWinState(state => (state === 'min' ? 'normal' : state)); } // sent from the canvas strip: the window above it shows the conversation; the panel stays closed
+    // A slash command makes its card on the canvas: it does not open the chat window above the strip (owner 2026-11-15); only a chat question does.
+    if (stripMode && !commandName && !command) { setWindowSeen(true); setWinState(state => (state === 'min' ? 'normal' : state)); } // sent from the canvas strip: the window above it shows the conversation; the panel stays closed
     // The area picture is still uploading: Send is held (ChatComposer hold), and a line that reaches here another way waits too, so the question never goes without its image.
     if (uploadHeld(canvasTarget) && !keepDraft && !about) return;
     // R2: the Depth selected at the moment of Send; a later change in the menu never alters this turn.
