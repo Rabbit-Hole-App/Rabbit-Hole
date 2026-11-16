@@ -1,7 +1,7 @@
 import { shapeStyle, textStyle } from './scene-style.js';
 import { FILLED_INK, INK, PALETTE, PATH, SURFACE } from './tutor-diagrams/primitives.js';
 import { LEGIBILITY_FLOORS } from './scene-layout.js';
-import { TEACHING_FONT, TEACHING_ROLE_FILL, TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
+import { TEACHING, TEACHING_FONT, TEACHING_ROLE_FILL, TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
 
 // Every colour comes from the written card's own exports (tutor-diagrams/primitives.js): no literal colour lives here (the drift test pins that).
 const COLORS = PALETTE;
@@ -12,6 +12,8 @@ export const INTERACT_FONT = TEACHING_FONT;
 export const INTERACT_BOX_RADIUS = 7;
 
 // An identity body keeps its identity hue; otherwise the role's fill from the one table (teaching-theme.js TEACHING_ROLE_FILL); neutral has none (transparent, outlined).
+// Text on a success fill is the cream ground (4.68:1 on the dark teal); on every other filled role it is the outline ink.
+const onFillOf = role => (role === 'success' ? TEACHING.ground : FILLED_INK);
 const hueFor = (role, identity) => (IDENTITIES[identity] ? COLORS[IDENTITIES[identity]] : TEACHING_ROLE_FILL[role]);
 const mix = (hue, percent, base) => `color-mix(in srgb, ${hue} ${percent}%, ${base})`;
 
@@ -48,7 +50,7 @@ export function interactShapeStyle(role, state = {}, tier, identity = null) {
   if (state.blocked || state.disabled) {
     return { fill: mix(hue, 10, SURFACE), stroke: interactMarkColor(role, identity), onFill: INK, strokeWidth };
   }
-  return { fill: hue, stroke: FILLED_INK, onFill: FILLED_INK, strokeWidth };
+  return { fill: hue, stroke: FILLED_INK, onFill: onFillOf(role), strokeWidth };
 }
 
 // A grid cell, chip or bar still signals its own state. Heat values keep their
@@ -62,7 +64,7 @@ export function interactDataStyle(role, state = {}, tier, identity = null) {
     // The role's fill at 100%, no tint (a blocked cell keeps its quiet 10%); the cell's own ink is the outline ink.
     fill: quiet ? mix(hue, 10, SURFACE) : hue,
     stroke: interactMarkColor(role, identity),
-    onFill: quiet ? INK : FILLED_INK,
+    onFill: quiet ? INK : onFillOf(role),
     strokeWidth,
   };
 }
