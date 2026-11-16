@@ -55,7 +55,7 @@ export function planRows(ids, { ops = [], learn = { options: [] } } = {}) {
 export function storedLearn(coachingState) {
   const activity = coachingState?.activities?.find(a => a.activityId === coachingState.activeActivityId) || null;
   const learn = activity?.checkpoint?.learn;
-  return learn && typeof learn.id === 'string' ? { id: learn.id, kind: learn.kind ?? null, focus: learn.focus ?? null, plan: learn.plan && Array.isArray(learn.plan.ops) ? learn.plan : null } : null;
+  return learn && typeof learn.id === 'string' ? { id: learn.id, kind: learn.kind ?? null, focus: learn.focus ?? null, depth: learn.depth ?? null, plan: learn.plan && Array.isArray(learn.plan.ops) ? learn.plan : null } : null;
 }
 // The accepted plan of the canvas, if any (the contents go read-only and lose their composer): { current } or null.
 export const acceptedPlan = coachingState => { const plan = storedLearn(coachingState)?.plan; return plan?.acceptedAt ? plan : null; };

@@ -124,3 +124,21 @@ test('Learn from it before the document has its learn section: the Tutor says it
   out = flowMessages({ ...base, mode: 'learn' }, { repo: 'acme/widgets' });
   assert.equal(out.find(m => m.key === 'learn-options').text, SENTENCES.learnOptions);
 });
+
+// Reviewer 2026-11-15 23:32: after a Learn topic is confirmed, how deep comes next (Brief / Standard / Detailed), before the goal, the opening paragraph and the plan.
+test('the depth question: three rows after the topic, nothing else waits on screen until it is answered; Standard is the balanced depth', () => {
+  const option = doc.learn.options[0];
+  const out = flow({ mode: 'learn', learn: option, depthAsk: true });
+  const ask = out.at(-1);
+  assert.equal(ask.key, 'learn-depth');
+  assert.equal(ask.text, 'How deep do you want to go?');
+  assert.deepEqual(ask.choices.map(c => [c.id, c.label]), [['depth:brief', 'Brief'], ['depth:balanced', 'Standard'], ['depth:detailed', 'Detailed']]);
+  assert.equal(out.some(m => m.key === 'learn-intro' || m.key === 'learn-plan'), false, 'the opening paragraph and the plan come after the answer');
+  const after = flow({ mode: 'learn', learn: { ...option, depth: 'brief' }, depthAsk: false, learnIntro: { status: 'loading' } });
+  assert.ok(after.at(-1).pending && after.every(m => m.key !== 'learn-depth'));
+  const ui = read('TutorRehearsal.jsx');
+  assert.match(ui, /chat\.settings\?\.set\?\.\(\{ depth \}\)/, 'saved for the board through the Chat\'s own Depth setting, which the composer menu and every tool read');
+  assert.match(ui, /startGoal\(\{ chat, board, repository: repoRef\.current, goalId: 'learn_concept', text: '', learn: option \}\)/, 'and copied into the goal (learn.depth)');
+  assert.match(ui, /action: 'learn_plan', depth: option\.depth/, 'the plan is drafted for that depth');
+  assert.match(ui, /beginLearn\(st\.current\.learn, depthOf\(chatRef\.current\.settings\?\.depth\) \|\| 'balanced'\)/, 'a question left alone uses the board\'s current depth');
+});

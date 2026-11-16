@@ -13,6 +13,7 @@ import { flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute } from './rehe
 import { fitReply, learnOf, learnReply } from './learn-intake.js';
 import { chapterCount, cleanOps, planRows, storedLearn } from './learn-plan.js';
 import { SENTENCES, catalogueMessage, internal } from './tutor-rehearsal-text.js';
+import { depthOf } from './learn-settings.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
 import { toast } from './ui.jsx';
@@ -26,7 +27,7 @@ import { toast } from './ui.jsx';
 const FAILS = 3; // consecutive failed reads of the state before the Tutor says so
 let counter = 0;
 const line = (role, text) => ({ key: `line-${++counter}`, role, text });
-const INITIAL = { intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
+const INITIAL = { intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
 
 function Pending({ text }) {
   return <span role="status" data-rehearsal-pending className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{text}</span></span>;
@@ -171,10 +172,16 @@ export default function TutorRehearsalFlow({ chat }) {
   };
 
   // Learn from it, a topic chosen (Intake v2): the goal is saved through the existing goal path with the option itself (no clarifying form), then the Tutor opens the topic in one paragraph.
-  const chooseLearn = async picked => {
+  const chooseLearn = picked => {
     const kept = st.current.focus, option = kept && kept.id === picked.id ? { ...picked, focus: kept.text } : picked; // a line narrower than the option keeps the learner's words as the focus
     restored.current = true; // a fresh pick is not a reload: the restore effect must not draft a second plan
-    patch({ learn: option, learnIntro: { status: 'loading' }, focus: null });
+    patch({ learn: option, depthAsk: true, learnIntro: null, focus: null }); // the depth is asked before anything is saved or drafted
+  };
+  // The depth answered (or the question left alone: the board's current depth): saved for this board through the Chat's own setting, copied into the goal, then the goal, the opening paragraph and the plan.
+  const beginLearn = async (picked, depth) => {
+    const option = { ...picked, depth };
+    try { chat.settings?.set?.({ depth }); } catch { /* the goal still carries it */ }
+    patch({ learn: option, depthAsk: false, learnIntro: { status: 'loading' } });
     const out = await startGoal({ chat, board, repository: repoRef.current, goalId: 'learn_concept', text: '', learn: option });
     if (!live.current) return;
     if (out.note) { patch({ learn: null, learnIntro: null }); append(line('assistant', out.note)); return; }
@@ -200,7 +207,7 @@ export default function TutorRehearsalFlow({ chat }) {
     const keepDraft = () => patch({ plan: { ...before, busy: false }, planLog: [...st.current.planLog, line('assistant', SENTENCES.planInvalid)] }); // a failed edit leaves the draft as it was
     patch({ plan: editing ? { ...before, busy: true } : { status: 'loading', previous } });
     let out;
-    try { out = await codebasePost(chat, board, { action: 'learn_plan', learn: { ...option, options: planOptions() }, outline: current.outline, outlineRevision: current.revision, draft, edit: edit ? edit.slice(0, 500) : null }); }
+    try { out = await codebasePost(chat, board, { action: 'learn_plan', depth: option.depth, learn: { ...option, options: planOptions() }, outline: current.outline, outlineRevision: current.revision, draft, edit: edit ? edit.slice(0, 500) : null }); }
     catch { if (stale()) return; if (editing) keepDraft(); else patch({ plan: { status: 'invalid', rows: planRows(['try_again', 'start_plain']), previous, retry: { option, edit, draft } } }); return; }
     if (stale()) return;
     const learn = { options: planOptions() };
@@ -250,13 +257,14 @@ export default function TutorRehearsalFlow({ chat }) {
   planRef.current = requestPlan; chatRef.current = chat;
   // The router decided the learner asked what they can do here (ask.jsx): the intake is offered again, whatever was chosen before.
   useEffect(() => {
-    const again = event => { if (event.detail?.canvas !== canvas) return; event.detail.handled = true; planSeq.current += 1; forgetIntake(canvas); patch({ intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, form: null }); };
+    const again = event => { if (event.detail?.canvas !== canvas) return; event.detail.handled = true; planSeq.current += 1; forgetIntake(canvas); patch({ intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, depthAsk: false, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, form: null }); };
     window.addEventListener(CODEBASE_OPTIONS_EVENT, again);
     return () => window.removeEventListener(CODEBASE_OPTIONS_EVENT, again);
   }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = id => {
     if (/^(use|route|goal|learn):/.test(id) || id === 'mode:run' || id === 'else') rememberIntake(canvas); // asked once: a way is the answer
-    if (id === 'plan:accept') acceptPlan();
+    if (id.startsWith('depth:')) { const l = st.current.learn; if (l && st.current.depthAsk) beginLearn(l, id.slice(6)); }
+    else if (id === 'plan:accept') acceptPlan();
     else if (id === 'plan:change') { if (st.current.planLog.at(-1)?.text !== SENTENCES.planEditPlaceholder) patch({ planLog: [...st.current.planLog, line('assistant', SENTENCES.planEditPlaceholder)] }); chat.composer?.focus?.(); }
     else if (id === 'plan:keep') { const previous = st.current.plan?.previous; if (previous) { patch({ plan: { ...previous, previous: null, busy: false } }); chat.canvasOps?.proposeOutline?.({ ops: previous.ops, base: previous.base, source: 'learn-plan' }); savePlan({ ops: previous.ops, revision: previous.base, acceptedAt: null, text: previous.text }); } }
     else if (id === 'plan:plain') { planSeq.current += 1; patch({ plan: { status: 'plain' } }); chat.canvasOps?.proposeOutline?.(null); }
@@ -266,7 +274,7 @@ export default function TutorRehearsalFlow({ chat }) {
     else if (id === 'mode:learn') patch({ mode: 'learn' });
     else if (id.startsWith('learn:')) {
       const option = learnOption(id.slice(6)), swap = st.current.plan?.status === 'draft' && st.current.learn?.id !== id.slice(6); // another topic offered beside a draft that cannot teach what was asked
-      if (option && swap) { planSeq.current += 1; patch({ learn: null, plan: null, planLog: [], learnIntro: null }); chooseLearn(option); }
+      if (option && swap) { planSeq.current += 1; patch({ learn: null, plan: null, planLog: [], learnIntro: null, depthAsk: false }); chooseLearn(option); }
       else if (option && learnOpen(st.current)) chooseLearn(option);
     }
     else if (id === 'retry:learn') { if (st.current.learn) { openLearnIntro(st.current.learn); if (!st.current.plan) requestPlan(st.current.learn); } }
@@ -301,6 +309,8 @@ export default function TutorRehearsalFlow({ chat }) {
       const { canvas: where, text } = event.detail || {};
       const cm = st.current.doc ? catalogueMessage(st.current.doc) : null;
       if (where !== canvas) return;
+      // The depth question left alone: the board's current depth is used and the line goes on to Chat as it would.
+      if (st.current.depthAsk && st.current.learn) { beginLearn(st.current.learn, depthOf(chatRef.current.settings?.depth) || 'balanced'); return; }
       // While a plan draft waits for Accept the line is a reply to the Tutor's open question (no router): a whole new draft comes back (learn-plan-toc-spec.md section 1.5).
       if (st.current.plan?.status === 'draft' && !st.current.plan.busy) {
         event.preventDefault();
@@ -358,7 +368,7 @@ export default function TutorRehearsalFlow({ chat }) {
     const option = learnOf(s.doc).options.find(o => o.id === stored.id);
     if (!option) { patch({ intakeDone: false }); return; } // the catalogue was made again and no longer has that topic: the intake is offered
     restored.current = true;
-    const picked = stored.focus ? { ...option, focus: stored.focus } : option, plan = stored.plan;
+    const picked = { ...option, ...(stored.focus ? { focus: stored.focus } : {}), ...(stored.depth ? { depth: stored.depth } : {}) }, plan = stored.plan;
     patch({ mode: 'learn', learn: picked, learnIntro: { status: 'skipped' }, goalChosen: true, intakeDone: true,
       plan: plan ? { status: plan.acceptedAt ? 'accepted' : 'draft', text: plan.text || '', ops: plan.ops, base: plan.revision, count: chapterCount(plan.ops), rows: planRows(['accept', 'change'], { ops: plan.ops, learn: { options: learnOf(s.doc).options } }), option: picked, previous: null } : null });
     if (!plan) requestPlan(picked);

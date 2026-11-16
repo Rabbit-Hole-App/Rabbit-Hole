@@ -142,6 +142,11 @@ export const SENTENCES = {
   planAccepted: n => `Plan accepted · ${n} ${n === 1 ? 'chapter' : 'chapters'}`,
   planEditPlaceholder: 'Tell me what to change',
   planInvalid: "I couldn't make a clean plan for this. Try again, or start without one.",
+  // The depth question after a Learn topic is confirmed (Reviewer 2026-11-15 23:32): Standard is the `balanced` depth the Chat composer already knows.
+  depthQuestion: 'How deep do you want to go?',
+  depthBrief: 'Brief',
+  depthStandard: 'Standard',
+  depthDetailed: 'Detailed',
   planDrafting: 'Drafting a plan',
   planNotSaved: "I couldn't save the plan, so it may be gone after a reload.",
   learnIntroFailed: "I couldn't open that topic just now. Try again; nothing was lost.",
