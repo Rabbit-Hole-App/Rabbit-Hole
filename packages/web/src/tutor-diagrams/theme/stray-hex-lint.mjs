@@ -1,4 +1,6 @@
-// THEME-2: no hex colour literal outside theme/palette.js in tutor-diagrams/, explain-program/, interact-style.js and learn-scene-author.js (comments and test files are skipped).
+// THEME-2: no hex colour literal outside theme/palette.js in tutor-diagrams/, explain-program/, interact-style.js, IllustrationFigure.jsx and learn-scene-author.js (comments and test files are skipped),
+// and none in the [data-explain-table] rules of index.css (the table header's color-mix names the slate fill: it reads a generated custom property, not a hex). The rest of index.css is out of scope:
+// only its --viz-* block is generated (generate-css.mjs).
 // node stray-hex-lint.mjs [--json]   lists the violations by file; exit 1 when there is any.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
@@ -7,7 +9,8 @@ import { allowedColors } from './palette.js';
 
 const WEB_SRC = fileURLToPath(new URL('../../', import.meta.url));
 const CONTROL_SRC = fileURLToPath(new URL('../../../../control-plane/src/', import.meta.url));
-export const ROOTS = [join(WEB_SRC, 'tutor-diagrams'), join(WEB_SRC, 'explain-program'), join(WEB_SRC, 'interact-style.js'), join(CONTROL_SRC, 'agents', 'learn-scene-author.js')];
+export const ROOTS = [join(WEB_SRC, 'tutor-diagrams'), join(WEB_SRC, 'explain-program'), join(WEB_SRC, 'interact-style.js'), join(WEB_SRC, 'IllustrationFigure.jsx'), join(CONTROL_SRC, 'agents', 'learn-scene-author.js')];
+const CSS_FILE = join(WEB_SRC, 'index.css');
 const PALETTE_FILE = join(WEB_SRC, 'tutor-diagrams', 'theme', 'palette.js');
 const HEX = /#[0-9A-Fa-f]{8}\b|#[0-9A-Fa-f]{6}\b|#[0-9A-Fa-f]{3}\b/g;
 
@@ -29,14 +32,17 @@ export function group(hex) {
   if (value.length === 7 && palette.some(color => Math.hypot(...rgb(value).map((v, i) => v - rgb(color)[i])) <= 24)) return 'near-palette';
   return 'non-palette';
 }
+const entry = (path, index, hex, line) => ({ file: relative(join(WEB_SRC, '..', '..', '..'), path).split(sep).join('/'), line: index + 1, hex, group: group(hex), text: line.trim().slice(0, 110) });
+// The [data-explain-table] lines of index.css (a one-line rule each).
+const cssTableHex = () => readFileSync(CSS_FILE, 'utf8').split(/\r?\n/).flatMap((line, index) => (line.includes('[data-explain-table]') ? [...line.matchAll(HEX)].map(match => entry(CSS_FILE, index, match[0], line)) : []));
 export function findStrayHex(roots = ROOTS) {
   const found = [];
   for (const path of roots.flatMap(files).filter(scanned)) {
     code(readFileSync(path, 'utf8')).forEach((line, index) => {
-      for (const match of line.matchAll(HEX)) found.push({ file: relative(join(WEB_SRC, '..', '..', '..'), path).split(sep).join('/'), line: index + 1, hex: match[0], group: group(match[0]), text: line.trim().slice(0, 110) });
+      for (const match of line.matchAll(HEX)) found.push(entry(path, index, match[0], line));
     });
   }
-  return found;
+  return roots === ROOTS ? [...found, ...cssTableHex()] : found;
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const found = findStrayHex();
