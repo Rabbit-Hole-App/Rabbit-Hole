@@ -103,6 +103,7 @@
     "packages/control-plane/src/learn-section-make/notebook.js": ["packages/control-plane/test/learn-section-make-notebook.test.js"],
     "packages/control-plane/src/learn-section-make/arxiv.js": ["packages/control-plane/test/learn-section-make-arxiv.test.js"],
     "packages/control-plane/src/learn-section-make/youtube.js": ["packages/control-plane/test/learn-section-make-youtube.test.js"],
+    "packages/control-plane/src/learn-section-make/wikipedia.js": ["packages/control-plane/test/learn-section-make-wikipedia.test.js"],
     "packages/control-plane/scripts/code-explain-calibration.mjs": ["packages/control-plane/test/code-explain-calibration.test.js"],
     "packages/web/src/tutor-diagrams/block-stack-spec.js": ["packages/web/src/tutor-diagrams/block-stack.test.mjs"],
     "packages/web/src/tutor-diagrams/flow-paths.js": ["packages/web/src/tutor-diagrams/flow-paths.test.mjs"],
