@@ -1,0 +1,109 @@
+[
+  {
+    "id": "a",
+    "size": "1024x1024",
+    "groundMedian": "252,249,241",
+    "groundMaxChannelDiff": 3,
+    "groundPass": true,
+    "whitePct": 0.003,
+    "inPalettePct": 92.9,
+    "offPalettePct": 7.1,
+    "byColour": {
+      "ground": 89.9,
+      "ink": 0.9,
+      "mustard": 0,
+      "lavender": 1.5,
+      "coral": 0.5
+    }
+  },
+  {
+    "id": "b",
+    "size": "1024x1024",
+    "groundMedian": "253,249,240",
+    "groundMaxChannelDiff": 3,
+    "groundPass": true,
+    "whitePct": 0.002,
+    "inPalettePct": 93.9,
+    "offPalettePct": 6.1,
+    "byColour": {
+      "ground": 91.9,
+      "ink": 0.2,
+      "olive": 0,
+      "orange": 1.6,
+      "mustard": 0.3,
+      "lavender": 0
+    }
+  },
+  {
+    "id": "c",
+    "size": "1024x1024",
+    "groundMedian": "253,250,243",
+    "groundMaxChannelDiff": 3,
+    "groundPass": true,
+    "whitePct": 0.016,
+    "inPalettePct": 90.6,
+    "offPalettePct": 9.4,
+    "byColour": {
+      "ground": 89.6,
+      "ink": 1,
+      "mustard": 0,
+      "lavender": 0,
+      "teal": 0,
+      "coral": 0,
+      "blue": 0,
+      "orange": 0
+    }
+  },
+  {
+    "id": "d",
+    "size": "1024x1024",
+    "groundMedian": "253,251,247",
+    "groundMaxChannelDiff": 7,
+    "groundPass": false,
+    "whitePct": 33.989,
+    "inPalettePct": 87.8,
+    "offPalettePct": 12.2,
+    "byColour": {
+      "ground": 87.1,
+      "coral": 0.6,
+      "mustard": 0,
+      "orange": 0,
+      "lavender": 0
+    }
+  },
+  {
+    "id": "e",
+    "size": "1024x1024",
+    "groundMedian": "253,251,249",
+    "groundMaxChannelDiff": 9,
+    "groundPass": false,
+    "whitePct": 57.528,
+    "inPalettePct": 72.7,
+    "offPalettePct": 27.3,
+    "byColour": {
+      "ground": 69.9,
+      "ink": 1.8,
+      "orange": 1,
+      "mustard": 0
+    }
+  },
+  {
+    "id": "f",
+    "size": "1024x1024",
+    "groundMedian": "253,251,248",
+    "groundMaxChannelDiff": 8,
+    "groundPass": false,
+    "whitePct": 71.684,
+    "inPalettePct": 97.4,
+    "offPalettePct": 2.6,
+    "byColour": {
+      "ground": 96.2,
+      "ink": 0.8,
+      "coral": 0.2,
+      "orange": 0.2,
+      "teal": 0,
+      "mustard": 0,
+      "lavender": 0
+    }
+  }
+]

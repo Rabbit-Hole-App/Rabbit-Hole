@@ -1,0 +1,83 @@
+{
+  "method": "POST",
+  "url": "https://external.api.recraft.ai/v1/images/generations",
+  "headers": {
+    "Authorization": "Bearer <redacted>",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "prompt": "Flat vector line illustration: one even dark outline, flat solid fills, no gradient, no shadow, no texture, bold rounded labels, few elements, generous spacing.\n\nSubject: A normal distribution curve with the mean marked and the ±1 standard deviation band shaded, labelled \"Mean\" and \"Standard deviation\".",
+    "model": "recraftv4_1_flash",
+    "size": "1024x1024",
+    "n": 1,
+    "response_format": "url",
+    "controls": {
+      "background_color": {
+        "rgb": [
+          255,
+          252,
+          240
+        ]
+      },
+      "colors": [
+        {
+          "rgb": [
+            141,
+            191,
+            239
+          ]
+        },
+        {
+          "rgb": [
+            245,
+            131,
+            113
+          ]
+        },
+        {
+          "rgb": [
+            229,
+            170,
+            70
+          ]
+        },
+        {
+          "rgb": [
+            103,
+            185,
+            160
+          ]
+        },
+        {
+          "rgb": [
+            149,
+            164,
+            72
+          ]
+        },
+        {
+          "rgb": [
+            185,
+            164,
+            232
+          ]
+        },
+        {
+          "rgb": [
+            248,
+            152,
+            48
+          ]
+        },
+        {
+          "rgb": [
+            50,
+            33,
+            28
+          ]
+        }
+      ]
+    },
+    "random_seed": 1001
+  }
+}

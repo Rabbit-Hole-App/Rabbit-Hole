@@ -1,0 +1,55 @@
+{
+  "style": "ill0-v2",
+  "model": "recraftv4_1_flash",
+  "totalCredits": 42,
+  "images": [
+    {
+      "id": "a",
+      "seed": 1001,
+      "ms": 1963,
+      "mimeType": "image/webp",
+      "bytes": 684548,
+      "credits": 7
+    },
+    {
+      "id": "b",
+      "seed": 1002,
+      "ms": 1300,
+      "mimeType": "image/webp",
+      "bytes": 476462,
+      "credits": 7
+    },
+    {
+      "id": "c",
+      "seed": 1003,
+      "ms": 1670,
+      "mimeType": "image/webp",
+      "bytes": 603102,
+      "credits": 7
+    },
+    {
+      "id": "d",
+      "seed": 1004,
+      "ms": 1436,
+      "mimeType": "image/webp",
+      "bytes": 566834,
+      "credits": 7
+    },
+    {
+      "id": "e",
+      "seed": 1005,
+      "ms": 1327,
+      "mimeType": "image/webp",
+      "bytes": 660304,
+      "credits": 7
+    },
+    {
+      "id": "f",
+      "seed": 1006,
+      "ms": 1860,
+      "mimeType": "image/webp",
+      "bytes": 556858,
+      "credits": 7
+    }
+  ]
+}
