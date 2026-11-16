@@ -97,6 +97,7 @@
     "packages/web/src/tutor-diagrams/dot-tree-layout.js": ["packages/web/src/tutor-diagrams/layouts.test.mjs"],
     "packages/web/src/tutor-diagrams/test-wire-points.mjs": ["packages/web/src/tutor-diagrams/layouts.test.mjs"],
     "packages/control-plane/src/learn-code-explain.js": ["packages/control-plane/test/learn-code-explain.test.js"],
+    "packages/control-plane/src/learn-section-make/browser.js": ["packages/control-plane/test/learn-section-make-browser.test.js"],
     "packages/control-plane/src/learn-section-make/code.js": ["packages/control-plane/test/learn-section-make-code.test.js"],
     "packages/control-plane/src/learn-section-make/diagram.js": ["packages/control-plane/test/learn-section-make-diagram.test.js"],
     "packages/control-plane/src/learn-section-make/graph.js": ["packages/control-plane/test/learn-section-make-graph.test.js"],
