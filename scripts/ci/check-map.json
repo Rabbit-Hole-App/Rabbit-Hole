@@ -100,6 +100,7 @@
     "packages/control-plane/src/learn-section-make/code.js": ["packages/control-plane/test/learn-section-make-code.test.js"],
     "packages/control-plane/src/learn-section-make/diagram.js": ["packages/control-plane/test/learn-section-make-diagram.test.js"],
     "packages/control-plane/src/learn-section-make/graph.js": ["packages/control-plane/test/learn-section-make-graph.test.js"],
+    "packages/control-plane/src/learn-section-make/notebook.js": ["packages/control-plane/test/learn-section-make-notebook.test.js"],
     "packages/control-plane/scripts/code-explain-calibration.mjs": ["packages/control-plane/test/code-explain-calibration.test.js"],
     "packages/web/src/tutor-diagrams/block-stack-spec.js": ["packages/web/src/tutor-diagrams/block-stack.test.mjs"],
     "packages/web/src/tutor-diagrams/flow-paths.js": ["packages/web/src/tutor-diagrams/flow-paths.test.mjs"],
