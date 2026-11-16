@@ -130,3 +130,18 @@ Commits:
   - C §1d.2 still PASS.
   - The datasette 1.2 brief stays FAIL, now on the one-sentence rule only.
   - Compose of datasette 1.2 was not run (no brief).
+
+## Follow-up on the Reviewer's 11:00 rulings (2026-11-16, about 11:30 PT)
+Commit 042b46853. 8878 is rebuilt (`owner/local` 6d84696a5, `/library` 200).
+
+| Re-run | Result | Spend, US$ |
+|---|---|---|
+| datasette 1.2 brief, try 1 (`brief/data-1.2-1100-try1.json`) | FAIL: bare setting names in `shows` (`default_page_size`, `hash_urls`, `config_dir`); three ideas over 2 sentences or 220 characters | 0.090 |
+| datasette 1.2 brief, try 2 (`brief/data-1.2.json`) | FAIL: the same kinds of errors: `default_page_size` in b1 `shows`, `config_dir` in b5, three ideas over the limit | 0.083 |
+| datasette 1.2 compose | not run: there is no brief | 0 |
+| nanoGPT 2.1 i1 (`make/nano-2.1-i1.json`) | PASS: `/explain` slash made. Its numbers are 1,115,394 and 90%, both from the lines and the brief. | 0.021 |
+
+- **The record path is not shown end to end.** The nanoGPT evidence canvas's repository (`repo-9591be45-nanogpt`, id 36) has no rehearsal record in R2. Records are keyed per repository id, and this one was never rehearsed. So the i1 run had no RECORDED RUN lines, and this PASS does not test the 11:00 number rule.
+- **What the record path does have:** unit tests (`test/learn-section-record.test.js`, plus a number from the record accepted in `test/learn-section-make.test.js`), and an offline render of a real nanoGPT record and its artifacts zip from local R2 (repository id 13). That render gives `vocab size: 65`, `train has 1,003,854 tokens`, the losses at step 2000 and the step times.
+- **The datasette 1.2 brief keeps failing on model output** after the loosened rule. The model writes setting names without backticks, though the schema and the re-ask both state the rule, and it writes ideas longer than two sentences.
+- Spend for this follow-up: about US$0.19. Running total: about US$1.76 of US$5.00.

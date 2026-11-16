@@ -2,7 +2,7 @@
   "case": "data",
   "section": "1.2",
   "sectionId": "1.2",
-  "ms": 10249,
+  "ms": 11758,
   "out": {
     "error": "sectionBriefFailed",
     "words": "I couldn't plan this section cleanly. Try again, or skip to the next section."
@@ -12,12 +12,17 @@
       "event": "learn_section_brief",
       "section": "1.2",
       "calls": 4,
-      "usd": 0.083216,
+      "usd": 0.082588,
       "cap_usd": 0.15,
       "searches": 0,
       "outcome": "invalid",
       "errors": [
-        "beat b5: idea is one sentence of at most 200 characters"
+        "beat b1: shows must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found \"default_page_size\")",
+        "beat b3: idea is one idea in one or two short sentences, at most 220 characters",
+        "beat b4: idea is one idea in one or two short sentences, at most 220 characters",
+        "beat b5: idea is one idea in one or two short sentences, at most 220 characters",
+        "beat b5: idea must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found \"config_dir\")",
+        "beat b5: shows must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found \"config_dir\")"
       ]
     }
   ]
