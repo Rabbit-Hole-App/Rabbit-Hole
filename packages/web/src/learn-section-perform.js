@@ -8,6 +8,7 @@
 // slice can rearrange them. Until that slice, each lands beside the previous card (besideSpot, through the canvas's insertCodeExplain placement), so nothing overlaps.
 import { DOC_CARD_SIZE, newDocBlock } from './canvas-doc.js';
 import { placeCodeExplain } from './code-explain-insert.js';
+import { insertCodeCards, repoCodeCard } from './code-card.js';
 
 const LINK_COLOR = '#2383e2'; // the code-explain satellites' connector colour (code-explain-insert.js)
 const frame = () => new Promise(resolve => (globalThis.requestAnimationFrame ? requestAnimationFrame(() => resolve()) : setTimeout(resolve, 16)));
@@ -51,6 +52,17 @@ async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
     const out = await new Promise(resolve => slash.current.intercept(perform.line, { depth: perform.depth || ctx.depth || null, board: ctx.board || 'main', context: perform.context ?? null, madeBy: perform.madeBy || 'learn-section', onCard: id => cards.push(id), onDone: resolve }));
     if (!cards.length || out?.notice?.tone === 'error') throw new Error(out?.notice?.text || 'no_card');
     return { cardId: cards[0] };
+  }
+  // Repository code (C section 2a, DECISIONS P): the Files reader's code card per anchor at the pinned commit, its beat's lines as the existing `ranges`; several cards as one group
+  // (code-card.js insertCodeCards: an equal card already here is revealed, not doubled), joined in order by connectors as the code-explain satellites are.
+  if (op === 'codeCards') {
+    const repo = ctx.repository, commit = perform.commit || repo?.commit;
+    if (!repo?.repo || !commit || !Array.isArray(perform.cards) || !perform.cards.length) throw new Error('no_repository');
+    const blocks = perform.cards.map(card => ({ ...repoCodeCard({ app: repo.app, repo: repo.repo, commit, path: card.path, start: card.start || null, end: card.end || null, nodeId: card.nodeId || null, label: card.label || null, ranges: Array.isArray(card.ranges) ? card.ranges.map(({ id, start, end }) => ({ id, start, end })) : null }), learn: learnTag(ctx, 'card') }));
+    const ids = [insertCodeCards(ctx.ops, blocks)].flat().map(out => (typeof out === 'string' ? out : out?.id)).filter(Boolean);
+    if (!ids.length) throw new Error('no_card');
+    for (let k = 1; k < ids.length; k += 1) await linkCards(canvasApi, ids[k - 1], ids[k]);
+    return { cardId: ids[0], last: ids.at(-1) };
   }
   if (op === 'doc') return { cardId: await placeDoc(canvasApi, perform.markdown, ctx, 'card', beside) }; // a pure text beat has no card: only its lead
   throw new Error(`unknown_op:${op}`);
