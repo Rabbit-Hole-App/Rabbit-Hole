@@ -22,3 +22,6 @@ fused-qkv-slices: 884 -> 718 at a 408 request; at 720 it is 720 and at 960 it is
 learned-position-lookup is 700 at 408 before and after: already within 720.
 The 1.5 px is the least that reaches 720 for fused-qkv: text + 4 gave 756, + 2 gave 724 (4 px over), + 1.5 gives 718. The text is tight against the cell outline in the 4-cell strips (see gpt2-fused-qkv-slices-408-after.png).
 Not run: the test suite (this round). Pins that will move at the ship round: TutorDiagram.test.mjs and illustration-integration.test.mjs (the 320-room Gemma 418 -> 368), the token-row tests (budget 720 instead of 960 at a narrow request, e.g. ml-transformer-token-embeddings).
+
+## GEM-1 reverted (owner 21:48 read)
+The 130 nested-flow node minimum is removed (commit "GEM-1 revert"): NODE_MIN is 180 everywhere again, and the `nested` flag block-stack-layout.js put on its child flow is gone. Gemma widths are back to the released ones: deep at 320 = 418, at 408 = 598, at 440 = 598 (files gemma-*-revert.png / .html, revert-sizes.txt). The TOK-W budget text of this README is superseded by tok-w2/.

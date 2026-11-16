@@ -1,0 +1,12 @@
+const root = process.argv[2];
+const lib = await import(`${root}/packages/web/src/tutor-diagrams/reference-library.js`);
+const all = [...lib.diagramReferences, ...lib.illustrationReferences, ...lib.transformerWalkthroughReferences];
+const show = (id, path) => { const r = all.find(r => r.id === id); const [a, b] = path.split('.'); const s = b ? r[a]?.[b] ?? r.depths?.[a]?.[b] : r[a]; const d = s.diagram; 
+  const tens = []; (function walk(o, p) { if (o && typeof o === 'object') { if (o.tensor) tens.push(p + ' ' + o.tensor.columns + 'x' + o.tensor.rows + ' ' + o.tensor.name); for (const [k, v] of Object.entries(o)) walk(v, p + '.' + k); } })(d, '');
+  console.log(id, path, d.kind, d.orientation ?? '', 'strips:', tens.length); console.log('   ', tens.slice(0, 14).join(' | ')); };
+show('ml-transformer-residual-arithmetic', 'spec');
+show('ml-transformer-token-embeddings', 'overview.spec');
+show('ml-transformer-weighted-values', 'spec');
+show('ml-transformer-parallel-attention-heads', 'detailSpec');
+show('ml-transformer-vocabulary-softmax', 'detailSpec');
+show('ml-transformer-qkv-projections', 'spec');

@@ -1,0 +1,4 @@
+sameside-408 before 726x339
+sameside-720 before 726x339
+sameside-408 after 639x404
+sameside-720 after 720x402

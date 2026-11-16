@@ -1,0 +1,12 @@
+fused-qkv-slices-408-before 884x264
+fused-qkv-slices-720-before 884x264
+token-embeddings-408-before 942x208
+token-embeddings-720-before 942x208
+residual-arithmetic-408-before 1164x264
+residual-arithmetic-720-before 1164x264
+weighted-values-408-before 874x177
+weighted-values-720-before 874x177
+parallel-attention-heads-408-before 848x264
+parallel-attention-heads-720-before 848x264
+vocabulary-softmax-408-before 762x208
+vocabulary-softmax-720-before 762x208

@@ -1,0 +1,311 @@
+diff --git a/packages/web/src/tutor-diagrams/block-stack-layout.js b/packages/web/src/tutor-diagrams/block-stack-layout.js
+index b0782839d..1dcd2e110 100644
+--- a/packages/web/src/tutor-diagrams/block-stack-layout.js
++++ b/packages/web/src/tutor-diagrams/block-stack-layout.js
+@@ -4,7 +4,7 @@ import { layoutFlow } from './flow.js';
+ import { connector, label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
+ import { skipLanePoints, skipLaneX } from './skip-lanes.js';
+ import { TEACHING, teachingBox as box } from './teaching-theme.js';
+-import { tensorCellCap, tensorMinimumWidth, tensorRowBudget, withTensorCellCap } from './tensor-layout.js';
++import { tensorMinimumWidth, tensorRowBudget } from './tensor-layout.js';
+ 
+ const PAD = 12;
+ const INSET = 10;
+@@ -76,13 +76,22 @@ function minimumBlockWidth(block, child) {
+ 
+ function rowMetrics(blocks) {
+   const children = blocks.map(fullChild);
+-  const widths = blocks.map((block, index) => Math.max(MIN_ROW_BLOCK_WIDTH, minimumBlockWidth(block, children[index])));
++  // A block's heading stands on one line.
++  const widths = blocks.map((block, index) => Math.max(MIN_ROW_BLOCK_WIDTH, minimumBlockWidth(block, children[index]), Math.ceil(textWidth(block.label) * 1.06) + 2 * INSET));
+   const width = widths.reduce((sum, tileWidth) => sum + tileWidth, 2 * PAD + (blocks.length - 1) * ROW_GAP);
+   return { children, widths, width };
+ }
+ 
+-// A horizontal row of blocks is held to the tensor row budget (720 at a narrow request, at most 960): when it would be wider, its tensor cells shrink only as far as needed.
+-const rowCap = (blocks, preferredWidth) => tensorCellCap(tensorRowBudget(preferredWidth), cell => withTensorCellCap(cell, () => rowMetrics(blocks).width));
++// A row of blocks past the tensor row budget (720 at a narrow request, at most 960) wraps at block boundaries onto further rows: { indices, width } per row.
++function wrapRows(widths, budget) {
++  const rows = [];
++  for (const [index, tile] of widths.entries()) {
++    const row = rows.at(-1);
++    if (row && row.width + ROW_GAP + tile <= budget) { row.indices.push(index); row.width += ROW_GAP + tile; } else rows.push({ indices: [index], width: 2 * PAD + tile });
++  }
++  return rows;
++}
++
+ 
+ function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
+   const order = new Map(blocks.map(({ id }, index) => [id, index]));
+@@ -106,7 +115,7 @@ function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
+ }
+ 
+ export function blockStackNaturalWidth(diagram) {
+-  if (diagram.orientation === 'horizontal') return withTensorCellCap(rowCap(diagram.blocks, 0), () => rowMetrics(diagram.blocks).width);
++  if (diagram.orientation === 'horizontal') return Math.max(...wrapRows(rowMetrics(diagram.blocks).widths, tensorRowBudget(0)).map(row => row.width));
+   const { minBlockWidth, leftBand, rightBand, noteMinWidth, ledgerMinWidth } = horizontalMetrics(diagram);
+   const noteBand = diagram.callouts?.length ? Math.max(156, noteMinWidth) + NOTE_GAP : 0;
+   return Math.min(960, Math.max(ledgerMinWidth, 2 * PAD + Math.max(PREFERRED_BLOCK_WIDTH, minBlockWidth) + leftBand + rightBand + noteBand));
+@@ -235,10 +244,10 @@ function drawJoin(operation, x, y) {
+     label(operation === 'multiply' ? '⊗' : '⊕', x, y, { size: 22, weight: 700 }));
+ }
+ 
+-const layoutBlockRow = (blocks, preferredWidth, renderChild) => withTensorCellCap(rowCap(blocks, preferredWidth), () => layoutBlockRowAt(blocks, preferredWidth, renderChild));
+-function layoutBlockRowAt(blocks, preferredWidth, renderChild) {
+-  const { children, widths, width: rowWidth } = rowMetrics(blocks);
+-  const width = Math.max(preferredWidth, rowWidth);
++function layoutBlockRow(blocks, preferredWidth, renderChild) {
++  const { children, widths } = rowMetrics(blocks);
++  const rows = wrapRows(widths, tensorRowBudget(preferredWidth));
++  const width = Math.max(preferredWidth, ...rows.map(row => row.width));
+   const measured = blocks.map((block, index) => {
+     const child = children[index];
+     return blockContent(block, widths[index], child ? renderChild(child, widths[index] - 2 * INSET) : null);
+@@ -250,14 +259,21 @@ function layoutBlockRowAt(blocks, preferredWidth, renderChild) {
+     title: { ...content.title, height: titleHeight },
+     height: content.height + titleHeight - content.title.height,
+   }));
+-  const height = Math.max(40, ...contents.map(content => content.height));
+-  let x = (width - rowWidth) / 2 + PAD;
+-  const elements = blocks.map((block, index) => {
+-    const element = drawBlock(block, contents[index], x, PAD, widths[index], height, []);
+-    x += widths[index] + ROW_GAP;
+-    return element;
++  // Rows start at one left edge (the widest row centred) and read left to right, top to bottom; the blocks of a row share its height, so their strips are top-aligned.
++  const widest = Math.max(...rows.map(row => row.width));
++  let y = PAD;
++  const elements = rows.flatMap(row => {
++    const height = Math.max(40, ...row.indices.map(index => contents[index].height));
++    let x = (width - widest) / 2 + PAD;
++    const drawn = row.indices.map(index => {
++      const element = drawBlock(blocks[index], contents[index], x, y, widths[index], height, []);
++      x += widths[index] + ROW_GAP;
++      return element;
++    });
++    y += height + 2 * ROW_GAP;
++    return drawn;
+   });
+-  return { width, height: height + 2 * PAD, elements };
++  return { width, height: y - 2 * ROW_GAP + PAD, elements };
+ }
+ 
+ export function layoutBlockStack(diagram, preferredWidth, renderChild) {
+diff --git a/packages/web/src/tutor-diagrams/tensor-layout.js b/packages/web/src/tutor-diagrams/tensor-layout.js
+index f6252ad70..828f68ade 100644
+--- a/packages/web/src/tutor-diagrams/tensor-layout.js
++++ b/packages/web/src/tutor-diagrams/tensor-layout.js
+@@ -1,5 +1,5 @@
+ import { createElement as h } from 'react';
+-import { label, lineHeight, longestWordWidth, textWidth, wrap } from './primitives.js';
++import { label, lineHeight, longestWordWidth, textWidth, wire, wrap } from './primitives.js';
+ import { TEACHING, teachingBox, teachingConnector } from './teaching-theme.js';
+ 
+ const PAD = 12;
+@@ -16,28 +16,13 @@ const roleColors = {
+   output: [TEACHING.tealFill, TEACHING.outline],
+ };
+ 
+-// A row of strips that would pass its width budget (block-stack-layout.js rowCap) asks for a cap on the cell width while it is laid out: cells shrink, below 36 px if they must,
+-// as far as needed and never below their own text.
+-let cellCap = Infinity;
+-export function withTensorCellCap(cap, run) {
+-  const before = cellCap;
+-  cellCap = cap;
+-  try { return run(); } finally { cellCap = before; }
+-}
+-
+-// The width a row of strips is held to: the card's 720 when it is asked for less (a narrow request), the request when it asks for more, never above 960. A row wider than that shrinks its
+-// cells as far as needed (tensorCellCap), never below their text.
++// The width a row of tensor figures is held to: the card's 720 when it is asked for less (a narrow request), the request when it asks for more, never above 960. A row of groups wider than
++// that wraps at group boundaries onto the next row; the cells keep their natural width (36 px, or the width of their text plus 12).
+ export const tensorRowBudget = preferredWidth => Math.min(960, Math.max(720, preferredWidth));
+-export function tensorCellCap(budget, widthAt) {
+-  if (widthAt(Infinity) <= budget) return Infinity;
+-  for (let cap = 64; cap > 12; cap--) if (widthAt(cap) <= budget) return cap;
+-  return 12;
+-}
+ 
+ function stripMetrics({ columns, dimensions, name, values }) {
+   const numbers = (values ?? []).map(String);
+-  const text = Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))));
+-  const cellWidth = Math.max(text + 1.5, Math.min(Math.max(36, text + 12), cellCap));
++  const cellWidth = Math.max(36, Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))) + 12));
+   const gridWidth = columns * cellWidth;
+   const nameWidth = name ? longestWordWidth(name, TEXT) : 0;
+   const width = Math.ceil(Math.max(gridWidth, nameWidth, textWidth(dimensions, SMALL))) + 2 * STRIP_PAD;
+@@ -48,17 +33,20 @@ export function tensorMinimumWidth(payload) {
+   return stripMetrics(payload).width;
+ }
+ 
+-export function layoutTensorStrip(payload, preferredWidth = 0) {
++// `reserve`: the least height the name block above the cells takes, so strips of one row whose names wrap differently still start their cells at one height (the name stands at the top of it).
++export function layoutTensorStrip(payload, preferredWidth = 0, reserve = 0) {
+   const { rows, columns, name, dimensions, role } = payload;
+   const { width: minimumWidth, cellWidth, gridWidth, numbers } = stripMetrics(payload);
+   const width = Math.max(preferredWidth, minimumWidth);
+   const elements = [];
+   let top = STRIP_PAD;
+-  if (name) {
+-    const lines = wrap(name, width - 2 * STRIP_PAD, TEXT);
++  let head = 0;
++  if (name || reserve > 0) {
++    const lines = name ? wrap(name, width - 2 * STRIP_PAD, TEXT) : [];
+     const height = lines.length * lineHeight(TEXT);
+-    elements.push(label(lines, width / 2, top + height / 2, { weight: 600 }));
+-    top += height + 5;
++    if (name) elements.push(label(lines, width / 2, top + height / 2, { weight: 600 }));
++    head = Math.max(height, reserve) + 5;
++    top += head;
+   }
+   const [fill, stroke] = roleColors[role] ?? [TEACHING.blueFill, TEACHING.outline];
+   const left = (width - gridWidth) / 2;
+@@ -72,42 +60,46 @@ export function layoutTensorStrip(payload, preferredWidth = 0) {
+   const dimensionsTop = top + rows * CELL_HEIGHT + 5;
+   const height = dimensionsTop + lineHeight(SMALL) + STRIP_PAD;
+   elements.push(label(dimensions, width / 2, dimensionsTop + lineHeight(SMALL) / 2, { size: SMALL, tone: 'muted' }));
+-  return { width, height, elements };
++  return { width, height, elements, head, cells: top };
+ }
+ 
+ export function layoutTensor(diagram, width) {
+   return layoutTensorStrip(diagram.tensor, width);
+ }
+ 
+-function itemScene(item, role) {
++// `rowHead`: the height every item of the row gives above its cells (the item's own label, the strip's name), so the cells of a row are top-aligned; 0 measures the item as it is (`head`).
++function itemScene(item, role, rowHead = 0) {
+   if (typeof item === 'string') {
+     const width = Math.ceil(Math.max(72, Math.min(152, textWidth(item) + 2 * PAD), longestWordWidth(item) + 2 * PAD));
+     const lines = wrap(item, width - 2 * PAD);
+     const height = Math.max(38, lines.length * lineHeight() + 14);
+-    return { width, height, elements: [teachingBox(0, 0, width, height, { role }), label(lines, width / 2, height / 2)] };
++    return { width, height, head: 0, cells: 0, elements: [teachingBox(0, 0, width, height, { role }), label(lines, width / 2, height / 2)] };
+   }
+   const preferred = item.label ? Math.ceil(longestWordWidth(item.label)) + 2 * STRIP_PAD : 0;
+-  const scene = layoutTensorStrip(item.tensor, preferred);
+-  if (!item.label) return scene;
+-  const lines = wrap(item.label, scene.width - 2 * STRIP_PAD);
+-  const height = lines.length * lineHeight();
+-  return { width: scene.width, height: height + scene.height, elements: [
+-    label(lines, scene.width / 2, height / 2),
+-    h('g', { transform: `translate(0 ${height})` }, ...scene.elements),
++  const first = layoutTensorStrip(item.tensor, preferred);
++  const lines = item.label ? wrap(item.label, first.width - 2 * STRIP_PAD) : [];
++  const labelHeight = lines.length * lineHeight();
++  const natural = labelHeight + first.head;
++  const scene = rowHead > natural ? layoutTensorStrip(item.tensor, preferred, rowHead - labelHeight - 5) : first;
++  if (!item.label) return { ...scene, head: natural };
++  return { width: scene.width, height: labelHeight + scene.height, head: natural, cells: labelHeight + scene.cells, elements: [
++    label(lines, scene.width / 2, labelHeight / 2),
++    h('g', { transform: `translate(0 ${labelHeight})` }, ...scene.elements),
+   ] };
+ }
+ 
+-function section({ label: heading, items }, role) {
+-  const scenes = items.map(item => itemScene(item, role));
++// A group of items: one heading on one line, the items side by side and top-aligned.
++function section({ label: heading, items }, role, rowHead = 0) {
++  const scenes = items.map(item => itemScene(item, role, rowHead));
+   const rowWidth = scenes.reduce((sum, scene) => sum + scene.width, (scenes.length - 1) * ITEM_GAP);
+-  const width = Math.max(rowWidth, Math.ceil(longestWordWidth(heading)) + 2 * STRIP_PAD);
++  const width = Math.max(rowWidth, Math.ceil(textWidth(heading) * 1.06) + 2 * STRIP_PAD);
+   let x = (width - rowWidth) / 2;
+   const positions = scenes.map(scene => {
+     const position = { ...scene, x };
+     x += scene.width + ITEM_GAP;
+     return position;
+   });
+-  return { width, lines: wrap(heading, width - 2 * STRIP_PAD), positions };
++  return { width, lines: wrap(heading, width - 2 * STRIP_PAD), positions, head: Math.max(0, ...scenes.map(scene => scene.head)), height: Math.max(...scenes.map(scene => scene.height)) };
+ }
+ 
+ function linkGroups(links) {
+@@ -129,22 +121,26 @@ function linkGroups(links) {
+   return groups;
+ }
+ 
+-export function layoutTensorTransformation(diagram, preferredWidth = 0) {
+-  const cap = tensorCellCap(tensorRowBudget(preferredWidth), cell => withTensorCellCap(cell, () => transformationAt(diagram, 0).width));
+-  return withTensorCellCap(cap, () => transformationAt(diagram, preferredWidth));
+-}
++const WRAP_GUTTER = 18;
+ 
+-function transformationAt(diagram, preferredWidth) {
++export function layoutTensorTransformation(diagram, preferredWidth = 0) {
+   const { operation, links = [] } = diagram;
+-  const before = section(diagram.before, 'process');
+-  const after = section(diagram.after, 'outcome');
++  const headOf = (group, role) => Math.max(0, ...group.items.map(item => itemScene(item, role).head));
++  const rowHead = Math.max(headOf(diagram.before, 'process'), headOf(diagram.after, 'outcome'));
++  let before = section(diagram.before, 'process', rowHead);
++  let after = section(diagram.after, 'outcome', rowHead);
+   const gap = Math.ceil(Math.max(36, ...links.map(({ label }) => label
+     ? Math.max(longestWordWidth(label, SMALL), Math.min(132, textWidth(label, SMALL))) + 16 : 0)));
+   const rowWidth = before.width + gap + after.width;
++  // Past the row budget the second group wraps onto its own row; its cells are then top-aligned only within its own row.
++  const wrapped = rowWidth + 2 * PAD > tensorRowBudget(preferredWidth);
++  if (wrapped) {
++    before = section(diagram.before, 'process', headOf(diagram.before, 'process'));
++    after = section(diagram.after, 'outcome', headOf(diagram.after, 'outcome'));
++  }
+   const operationMinimum = Math.ceil(longestWordWidth(operation)) + 4 * PAD;
+-  const width = Math.max(preferredWidth, rowWidth + 2 * PAD, operationMinimum);
+-  const beforeX = (width - rowWidth) / 2;
+-  const afterX = beforeX + before.width + gap;
++  const width = wrapped ? Math.max(preferredWidth, Math.max(before.width, after.width) + 2 * (PAD + WRAP_GUTTER), operationMinimum)
++    : Math.max(preferredWidth, rowWidth + 2 * PAD, operationMinimum);
+ 
+   const operationWidth = Math.min(width - 2 * PAD, Math.ceil(textWidth(operation)) + 2 * PAD);
+   const operationLines = wrap(operation, operationWidth - 2 * PAD);
+@@ -154,10 +150,34 @@ function transformationAt(diagram, preferredWidth) {
+   const elements = [
+     teachingBox((width - operationWidth) / 2, PAD, operationWidth, operationHeight, { role: 'decision' }),
+     label(operationLines, width / 2, PAD + operationHeight / 2, { weight: 700 }),
+-    label(before.lines, beforeX + before.width / 2, headingTop + headingHeight / 2, { weight: 700 }),
+-    label(after.lines, afterX + after.width / 2, headingTop + headingHeight / 2, { weight: 700 }),
+   ];
++  const place = (group, side, offset, top) => group.positions.forEach((scene, index) => elements.push(h('g', {
++    transform: `translate(${offset + scene.x} ${top})`, 'data-tutor-transformation-item': `${side}:${index}`,
++  }, ...scene.elements)));
++
++  if (wrapped) {
++    const beforeX = (width - before.width) / 2, afterX = (width - after.width) / 2;
++    const stripsTop1 = headingTop + headingHeight + 10;
++    elements.push(label(before.lines, beforeX + before.width / 2, headingTop + headingHeight / 2, { weight: 700 }));
++    place(before, 'before', beforeX, stripsTop1);
++    const rowBottom = stripsTop1 + before.height;
++    const gapY = rowBottom + 20;
++    const headingTop2 = rowBottom + 40;
++    const stripsTop2 = headingTop2 + headingHeight + 10;
++    elements.push(label(after.lines, afterX + after.width / 2, headingTop2 + headingHeight / 2, { weight: 700 }));
++    place(after, 'after', afterX, stripsTop2);
++    // One arrow leaves the end of the first row and enters the start of the second: right, down, left past the second group, down, right into it.
++    const out = Math.min(width - PAD, Math.max(beforeX + before.width, afterX + after.width) + WRAP_GUTTER);
++    const back = Math.max(PAD, Math.min(beforeX, afterX) - WRAP_GUTTER);
++    const mid1 = stripsTop1 + before.head + CELL_HEIGHT / 2, mid2 = stripsTop2 + after.head + CELL_HEIGHT / 2;
++    elements.push(wire([[beforeX + before.width + 4, mid1], [out, mid1], [out, gapY], [back, gapY], [back, mid2], [afterX - 4, mid2]], { active: true }));
++    return { width, height: stripsTop2 + after.height + PAD, elements };
++  }
+ 
++  const beforeX = (width - rowWidth) / 2;
++  const afterX = beforeX + before.width + gap;
++  elements.push(label(before.lines, beforeX + before.width / 2, headingTop + headingHeight / 2, { weight: 700 }),
++    label(after.lines, afterX + after.width / 2, headingTop + headingHeight / 2, { weight: 700 }));
+   const center = (positions, index, offset) => offset + positions[index].x + positions[index].width / 2;
+   let top = headingTop + headingHeight + 10;
+   const rails = linkGroups(links).map(group => {
+@@ -186,11 +206,7 @@ function transformationAt(diagram, preferredWidth) {
+     elements.push(teachingConnector([[beforeX + before.width + 4, y], [afterX - 4, y]], { active: true, arrow: true }));
+   }
+ 
+-  for (const [side, offset, group] of [['before', beforeX, before], ['after', afterX, after]]) {
+-    group.positions.forEach((scene, index) => elements.push(h('g', {
+-      transform: `translate(${offset + scene.x} ${top})`, 'data-tutor-transformation-item': `${side}:${index}`,
+-    }, ...scene.elements)));
+-  }
+-  const height = top + Math.max(...[...before.positions, ...after.positions].map(scene => scene.height)) + PAD;
+-  return { width, height, elements };
++  place(before, 'before', beforeX, top);
++  place(after, 'after', afterX, top);
++  return { width, height: top + Math.max(before.height, after.height) + PAD, elements };
+ }

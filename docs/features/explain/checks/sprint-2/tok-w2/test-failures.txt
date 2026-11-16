@@ -1,0 +1,16 @@
+✖ failing tests:
+test at src\tutor-diagrams\block-stack.test.mjs:212:1
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+test at src\tutor-diagrams\block-stack.test.mjs:239:1
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+✖ failing tests:
+test at src\tutor-diagrams\tensor.test.mjs:61:1
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+test at src\tutor-diagrams\tensor.test.mjs:104:1
+  AssertionError [ERR_ASSERTION]: Use this pair
+✖ failing tests:
+test at src\tutor-diagrams\illustration-integration.test.mjs:96:1
+  AssertionError [ERR_ASSERTION]: ml-transformer-token-embeddings
+✖ failing tests:
+test at src\tutor-diagrams\illustration-embedded-layouts.test.mjs:106:1
+  AssertionError [ERR_ASSERTION]: tier needs 1125px

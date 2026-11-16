@@ -1,0 +1,12 @@
+fused-qkv-slices-408-after 676x427
+fused-qkv-slices-720-after 720x427
+token-embeddings-408-after 564x351
+token-embeddings-720-after 720x351
+residual-arithmetic-408-after 612x444
+residual-arithmetic-720-after 720x444
+weighted-values-408-after 562x303
+weighted-values-720-after 720x303
+parallel-attention-heads-408-after 572x444
+parallel-attention-heads-720-after 720x444
+vocabulary-softmax-408-after 638x334
+vocabulary-softmax-720-after 720x334
