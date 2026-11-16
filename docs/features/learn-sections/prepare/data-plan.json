@@ -1,0 +1,248 @@
+{
+  "option": {
+    "id": "datasette-architecture",
+    "label": "Core app, views and plugins",
+    "kind": "structure"
+  },
+  "draft": {
+    "text": "**Following a Request Through Datasette: The App, Its Views, Plugins and Permissions**\n\nThe plan follows one request: the app is built, plugins register themselves, permissions get defined, and then a request is routed to a view and answered. It runs to about 17 sittings, and I left out templates, facets, publishing and the command line to keep to the request path. I could only see the opening lines of four files, so each section points at whole files and not specific lines.",
+    "proposal": {
+      "ops": [
+        {
+          "op": "add",
+          "text": "1. The App Object at the Centre",
+          "level": 1,
+          "after": null,
+          "key": "c1",
+          "description": "What the single app object is, what it holds and why everything else reaches back to it."
+        },
+        {
+          "op": "add",
+          "text": "What the app is made of",
+          "level": 2,
+          "after": null,
+          "key": "c1a",
+          "parent": "c1",
+          "description": "The imports at the top show the pieces the app pulls together: async work, templates, signing, threads. [files: datasette/app.py]"
+        },
+        {
+          "op": "add",
+          "text": "Settings, databases and shared state",
+          "level": 2,
+          "after": null,
+          "key": "c1b",
+          "parent": "c1",
+          "description": "How the app is created and what it keeps for the life of the server. [files: datasette/app.py]"
+        },
+        {
+          "op": "add",
+          "text": "Why views and plugins are handed the app",
+          "level": 2,
+          "after": null,
+          "key": "c1c",
+          "parent": "c1",
+          "description": "The app is passed around as the one shared handle. [files: datasette/app.py, datasette/hookspecs.py]"
+        },
+        {
+          "op": "add",
+          "text": "2. Plugins and the Points They Plug Into",
+          "level": 1,
+          "after": "c1c",
+          "key": "c2",
+          "description": "How extension points are declared and how plugins attach to them."
+        },
+        {
+          "op": "add",
+          "text": "Declaring the extension points",
+          "level": 2,
+          "after": null,
+          "key": "c2a",
+          "parent": "c2",
+          "description": "Each hook is a named function with a signature and a one-line purpose, from startup to page styling. [files: datasette/hookspecs.py]"
+        },
+        {
+          "op": "add",
+          "text": "The plugin manager and the built-in plugins",
+          "level": 2,
+          "after": null,
+          "key": "c2b",
+          "parent": "c2",
+          "description": "The manager is created, the hook list is registered, and the default plugin list is loaded. [files: datasette/plugins.py]"
+        },
+        {
+          "op": "add",
+          "text": "How the app calls hooks",
+          "level": 2,
+          "after": null,
+          "key": "c2c",
+          "parent": "c2",
+          "description": "Where the app asks the manager for every plugin's answer and uses the results. [files: datasette/app.py, datasette/plugins.py]"
+        },
+        {
+          "op": "add",
+          "text": "3. Deciding Who May Do What",
+          "level": 1,
+          "after": "c2c",
+          "key": "c3",
+          "description": "The permission model that views will consult before answering."
+        },
+        {
+          "op": "add",
+          "text": "Actions and resources",
+          "level": 2,
+          "after": null,
+          "key": "c3a",
+          "parent": "c3",
+          "description": "What is being asked about (an action) and what it is asked of (a database, table or row). [files: datasette/permissions.py, datasette/resources.py, datasette/default_actions.py]"
+        },
+        {
+          "op": "add",
+          "text": "Permission rules supplied by plugins",
+          "level": 2,
+          "after": null,
+          "key": "c3b",
+          "parent": "c3",
+          "description": "The default permission plugins contribute allow and deny rules through hooks. [files: datasette/default_permissions/__init__.py, datasette/default_permissions/defaults.py, datasette/default_permissions/config.py]"
+        },
+        {
+          "op": "add",
+          "text": "Who is asking: actors, tokens and cookies",
+          "level": 2,
+          "after": null,
+          "key": "c3c",
+          "parent": "c3",
+          "description": "How a request is tied to an actor. [files: datasette/actor_auth_cookie.py, datasette/tokens.py, datasette/default_permissions/tokens.py]"
+        },
+        {
+          "op": "add",
+          "text": "4. A Request Arrives",
+          "level": 1,
+          "after": "c3c",
+          "key": "c4",
+          "description": "The path from the incoming request to the right view."
+        },
+        {
+          "op": "add",
+          "text": "Request and response objects",
+          "level": 2,
+          "after": null,
+          "key": "c4a",
+          "parent": "c4",
+          "description": "The wrappers every view receives and returns. [files: datasette/utils/asgi.py]"
+        },
+        {
+          "op": "add",
+          "text": "Matching a path to a view",
+          "level": 2,
+          "after": null,
+          "key": "c4b",
+          "parent": "c4",
+          "description": "The app's route table and how it picks a view. [files: datasette/app.py, datasette/utils/asgi.py]"
+        },
+        {
+          "op": "add",
+          "text": "Wrappers around the whole app",
+          "level": 2,
+          "after": null,
+          "key": "c4c",
+          "parent": "c4",
+          "description": "Where plugins can wrap the app, and where cross-site protection sits. [files: datasette/app.py, datasette/csrf.py, datasette/hookspecs.py]"
+        },
+        {
+          "op": "add",
+          "text": "5. Views Build the Answer",
+          "level": 1,
+          "after": "c4c",
+          "key": "c5",
+          "description": "What a view does between receiving a request and returning a response."
+        },
+        {
+          "op": "add",
+          "text": "The shared base for views",
+          "level": 2,
+          "after": null,
+          "key": "c5a",
+          "parent": "c5",
+          "description": "The common behaviour views inherit, including the error type they raise. [files: datasette/views/base.py]"
+        },
+        {
+          "op": "add",
+          "text": "Checking permission before acting",
+          "level": 2,
+          "after": null,
+          "key": "c5b",
+          "parent": "c5",
+          "description": "How a view asks the app whether the actor is allowed. [files: datasette/views/base.py, datasette/views/index.py, datasette/app.py]"
+        },
+        {
+          "op": "add",
+          "text": "Home, database, table and row pages",
+          "level": 2,
+          "after": null,
+          "key": "c5c",
+          "parent": "c5",
+          "description": "How each view fetches data and chooses its output format. [files: datasette/views/index.py, datasette/views/database.py, datasette/views/table.py, datasette/views/row.py]"
+        },
+        {
+          "op": "add",
+          "text": "6. When Things Go Wrong",
+          "level": 1,
+          "after": "c5c",
+          "key": "c6",
+          "description": "How failures and refusals travel back out to the visitor."
+        },
+        {
+          "op": "add",
+          "text": "Errors raised by views",
+          "level": 2,
+          "after": null,
+          "key": "c6a",
+          "parent": "c6",
+          "description": "How a raised error becomes an error page or JSON. [files: datasette/views/base.py, datasette/handle_exception.py]"
+        },
+        {
+          "op": "add",
+          "text": "Refusals and plugin overrides",
+          "level": 2,
+          "after": null,
+          "key": "c6b",
+          "parent": "c6",
+          "description": "What happens on a denied request, and how a plugin can change it. [files: datasette/forbidden.py, datasette/hookspecs.py]"
+        }
+      ],
+      "base": "r0",
+      "source": "learn-plan"
+    },
+    "rows": [
+      {
+        "id": "accept"
+      },
+      {
+        "id": "change"
+      },
+      {
+        "id": "learn:datasette-architecture"
+      },
+      {
+        "id": "start_plain"
+      }
+    ],
+    "off_plan": false,
+    "path": "auto"
+  },
+  "log": [
+    {
+      "event": "learn_plan",
+      "path": "auto",
+      "calls": 2,
+      "estimate_usd": [
+        0.097434,
+        0.09731
+      ],
+      "cap_usd": 0.1,
+      "ms": 20979,
+      "outcome": "ok",
+      "ops": 23
+    }
+  ]
+}
