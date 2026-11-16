@@ -1,0 +1,12 @@
+gpu-matmul-408 before 702x672
+gpu-matmul-720 before 720x672
+grouped-query-heads-408 before 702x450
+grouped-query-heads-720 before 720x450
+moe-top-two-experts-408 before 955x559
+moe-top-two-experts-720 before 955x559
+gpu-matmul-408 after 702x672
+gpu-matmul-720 after 720x672
+grouped-query-heads-408 after 702x450
+grouped-query-heads-720 after 720x450
+moe-top-two-experts-408 after 559x653
+moe-top-two-experts-720 after 720x637

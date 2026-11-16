@@ -1,0 +1,16 @@
+retro-chunk-attention-408 before 960x424
+retro-chunk-attention-720 before 960x424
+depth-attention-408 before 721x647
+depth-attention-720 before 721x647
+self-attention-token-links-408 before 514x363
+self-attention-token-links-720 before 720x374
+cross-attention-408 before 514x363
+cross-attention-720 before 720x374
+retro-chunk-attention-408 after 616x463
+retro-chunk-attention-720 after 720x474
+depth-attention-408 after 534x825
+depth-attention-720 after 720x847
+self-attention-token-links-408 after 514x363
+self-attention-token-links-720 after 720x374
+cross-attention-408 after 514x363
+cross-attention-720 after 720x374
