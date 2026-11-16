@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { Braces, Check, ChevronRight, Copy, FileCode, Folder, MessageSquare, MessageSquarePlus, SquareCode, X } from 'lucide-react';
+import { Braces, Check, ChevronRight, FileCode, Folder } from 'lucide-react';
 import { Button } from './ui.jsx';
+import ActionBar from './ActionIcons.jsx';
 import RepositorySource, { SourceSelectionContext } from './RepositorySource.jsx';
 import { fileTree, searchRepository } from './code-reader.js';
 import { symbolsIn } from './inspector.js';
@@ -32,10 +33,10 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
   const resizeTree = next => { const h = Math.round(Math.min(600, Math.max(64, next))); setTreeH(h); try { localStorage.setItem('rh.filesTreeHeight', String(h)); } catch { /* the height holds until a reload */ } };
   const dragTree = event => { event.preventDefault(); const y0 = event.clientY, h0 = treeH; const move = e => resizeTree(h0 + e.clientY - y0), up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); }; window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); };
   const closeAll = () => { treeNav.current?.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open')); onCloseAll?.(); };
-  // Code cards (repo-graph Release 2): beside a canvas, Add code card puts the open file, a symbol or the selected lines on it
+  // Code cards (repo-graph Release 2): beside a canvas, Add to canvas puts the open file, a symbol or the selected lines on it
   // at this snapshot's commit, and a file or symbol row drags onto the canvas as one (code-card.js; the same creation path).
   const chat = useChatWorkspace(), ops = chat?.canvasOps, cards = panel && !!ops?.insertCard;
-  // Add in chat: the open file, or the selected lines, as a context chip in the chat composer (chat.addToChat, the Graph's Add to chat and a code card's); it asks nothing and sends nothing.
+  // Add to chat: the open file, or the selected lines, as a context chip in the chat composer (chat.addToChat, the Graph's Add to chat and a code card's); it asks nothing and sends nothing.
   const inChat = panel && !!chat?.addToChat;
   const addInChat = (path, range) => chat.addToChat(codeRef({ repo: app.repo, commit: snapshot.commit, path, ...range }));
   const source = (path, extra = {}) => ({ app: app.name, repo: app.repo, commit: snapshot.commit, path, ...extra });
@@ -86,21 +87,23 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
     <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-2" onPointerDown={(e) => { if (!e.target.closest('[data-range-actions]')) setPending(null); }}>
       {open
         ? <SourceSelectionContext.Provider value={{ value: pending, set: setPending }}>
-          <RepositorySource appName={app.name} path={open} commit={snapshot.commit} repo={app.repo} title={crumb} lead={(cards || inChat) ? <>
-              {cards && <Button size="sm" variant="inverse" data-file-add-card title="Put this file on the canvas as a code card" onClick={() => addCard(open)}><SquareCode size={13} />Add to canvas</Button>}
-              {inChat && <Button size="sm" data-file-add-chat title="Keep this file with the chat" onClick={() => addInChat(open)}><MessageSquarePlus size={13} />Add in chat</Button>}
-            </> : null}
-            tail={panel && onCloseAll ? <Button size="sm" data-file-close-all title="Close the open file and fold every folder" onClick={closeAll}><X size={13} />Close all</Button> : null} pick={pick?.path === open ? pick : null}
+          <RepositorySource appName={app.name} path={open} commit={snapshot.commit} repo={app.repo} title={crumb} lead={(cards || inChat) ? [
+              cards && { id: 'canvas', onClick: () => addCard(open), title: 'Add to canvas: this file as a code card', data: { 'data-file-add-card': '' } },
+              inChat && { id: 'chat', onClick: () => addInChat(open), title: 'Add to chat: keep this file with the chat', data: { 'data-file-add-chat': '' } },
+            ] : null}
+            tail={panel && onCloseAll ? [{ id: 'close', onClick: closeAll, title: 'Close the open file and fold every folder', data: { 'data-file-close-all': '' } }] : null} pick={pick?.path === open ? pick : null}
             line={here && here.kind !== 'file' ? here.line : null} lineEnd={here?.end}
             actions={(r) => <div data-range-actions role="toolbar" aria-label={`Selected ${rangeTitle(r)}`} onPointerDown={(e) => e.preventDefault()}
               className="absolute top-full left-12 z-10 mt-1 flex items-center gap-0.5 rounded-md bg-white p-1 font-sans whitespace-nowrap shadow-pop select-none">
               <span className="px-1.5 font-mono text-[11px] text-ink-2">{rangeTitle(r)}</span>
               {panel ? <>
                 <CiteActions range={{ repo: app.repo, commit: r.commit, path: r.path, start: r.start, end: r.end }} text={r.text} />
-                <Button size="sm" data-range-ask onClick={() => act('ask', r)}><MessageSquare size={13} />Ask in chat</Button>
-                {inChat && <Button size="sm" data-range-add-chat title="Keep these lines with the chat" onClick={() => { setPending(null); window.getSelection()?.removeAllRanges(); addInChat(r.path, { start: r.start, end: r.end }); }}><MessageSquarePlus size={13} />Add in chat</Button>}
-                {cards && <Button size="sm" variant="inverse" data-range-card onClick={() => { setPending(null); addCard(r.path, { start: r.start, end: r.end }); }}><SquareCode size={13} />Add to canvas</Button>}
-                <Button size="sm" data-range-copy onClick={() => copy(r)}>{copied === `${r.path}:${r.start}-${r.end}` ? <><Check size={13} />Copied</> : <><Copy size={13} />Copy</>}</Button>
+                <ActionBar actions={[
+                  { id: 'ask', onClick: () => act('ask', r), data: { 'data-range-ask': '' } },
+                  inChat && { id: 'chat', title: 'Add to chat: keep these lines with the chat', onClick: () => { setPending(null); window.getSelection()?.removeAllRanges(); addInChat(r.path, { start: r.start, end: r.end }); }, data: { 'data-range-add-chat': '' } },
+                  cards && { id: 'canvas', title: 'Add to canvas: these lines as a code card', onClick: () => { setPending(null); addCard(r.path, { start: r.start, end: r.end }); }, data: { 'data-range-card': '' } },
+                  { id: 'copy', ...(copied === `${r.path}:${r.start}-${r.end}` ? { label: 'Copied', Icon: Check } : {}), onClick: () => copy(r), data: { 'data-range-copy': '' } },
+                ]} />
               </> : <>
                 <Button size="sm" onClick={() => act('ask', r)}>Ask</Button>
                 <Button size="sm" onClick={() => act('learn', r)}>Learn</Button>
