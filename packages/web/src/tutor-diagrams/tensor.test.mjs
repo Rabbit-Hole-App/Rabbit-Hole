@@ -98,8 +98,9 @@ test('Q/K/V keeps four natural-width strips and wraps at the group boundary (the
     });
     assert.equal(new Set(gridTops).size, rowCount, 'the grids of one row align');
     const markup = svg(scene);
-    // One row keeps the three mapped arrows; a wrapped transformation draws the one arrow from the end of the first row to the start of the second.
-    assert.equal([...markup.matchAll(/data-tutor-arrowhead/g)].length, rowCount === 1 ? 3 : 1);
+    // TOK-W4: one row or two, every mapped link keeps its arrow (the wrapped form routes each from the input's bottom edge, down the gap between the rows, into the output's top edge).
+    assert.equal([...markup.matchAll(/data-tutor-arrowhead/g)].length, 3);
+    assert.deepEqual([...markup.matchAll(/data-tutor-tensor-link="([^"]+)"/g)].map(match => match[1]), ['0:0', '0:1', '0:2']);
     assert.match(markup, /Multiply by the learned weight matrices/);
     assert.doesNotMatch(markup, /NaN|Infinity|undefined|katex-error/);
   }
@@ -111,9 +112,10 @@ test('tensor transformations keep mixed text items and respect explicit mapping 
     after: { label: 'After', items: [{ tensor }, 'Mapped output'] },
     operation: 'Map the items', links: [{ from: 1, to: 1, label: 'Use this pair' }],
   };
-  // TOK-W: the four items need more than the 720 px row budget, so at 408 the groups wrap onto two rows joined by one arrow, and the explicit mapping is drawn on one row (960).
+  // TOK-W4: the four items need more than the 720 px row budget, so at 408 the groups wrap onto two rows; the explicit mapping and its label are still drawn, routed from row to row.
   const wrapped = svg(layoutTensorTransformation(mixed, 408));
-  for (const value of ['Plain input', 'Selected tensor', 'Mapped output']) assert.ok(value.split(' ').every(word => wrapped.includes(word)), value);
+  for (const value of ['Plain input', 'Selected tensor', 'Mapped output', 'Use this pair']) assert.ok(value.split(' ').every(word => wrapped.includes(word)), value);
+  assert.match(wrapped, /data-tutor-tensor-link="1:1"/);
   assert.equal([...wrapped.matchAll(/data-tutor-arrowhead/g)].length, 1);
   const scene = layoutTensorTransformation(mixed, 960);
   const markup = svg(scene);
