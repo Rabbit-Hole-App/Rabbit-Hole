@@ -16,7 +16,7 @@ test('runLines: each step with its command, exit code, seconds, files and the nu
   ].join('\n'));
   const long = Array.from({ length: 30 }, (_, i) => `iter ${i}: loss ${i}`).join('\n');
   const lines = runLines(record, { 'logs/prepare_data-1.log': long }).split('\n');
-  assert.deepEqual([lines[2], lines.includes('  ...'), lines.at(-1)], ['  iter 0: loss 0', true, '  iter 29: loss 29'], 'head and tail of a long log');
+  assert.deepEqual([lines[2], lines.includes('  (18 lines between)'), lines.at(-1)], ['  iter 0: loss 0', true, '  iter 29: loss 29'], 'head and tail of a long log');
 });
 
 test('recordedRun: reads every rehearsal record of the version; nothing for an unrehearsed version or without a bucket', async () => {

@@ -1,4 +1,4 @@
-// Learn sections C §10: a webpage item. A page the source links, or one this turn's web search returned and read; quoted passages
+// Learn sections C §10: a webpage item. A page the source links to, or one this turn's web search returned and read; quoted passages
 // (at most 80 words each) that the browser anchors and highlights once its capture is ready. A recency beat dates the page in the lead.
 // ponytail: C §10f.4 (a failed capture drops the item and re-runs compose) is the browser's and compose's path, not this validator's.
 import { flat } from './arxiv.js';
@@ -30,7 +30,7 @@ export async function validate(input, ctx) {
   // The source's own link needs no search (C §10b); otherwise the page is one this turn's search returned.
   const linked = Object.values(ctx.snapshot?.files ?? {}).some(text => text.includes(url.href) || text.includes(String(input.url)));
   const found = (ctx.turn?.web ?? []).find(page => page?.url && same(page.url, url.href));
-  if (!linked && !found) return { error: 'Use a page the source links, or one your web search returned this turn' };
+  if (!linked && !found) return { error: 'Use a page the source links to, or one your web search returned this turn' };
   const quotes = (input.quotes ?? []).map(q => String(q).trim()).filter(Boolean);
   if (!quotes.length) return { error: 'Quote the sentences to read, verbatim' };
   const long = quotes.find(q => q.split(/\s+/).length > MAX_QUOTE_WORDS);

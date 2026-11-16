@@ -14,7 +14,7 @@ const cache = new Map(); // key -> text, per isolate: a record never changes onc
 function logLines(text) {
   const lines = String(text || '').split('--- stderr ---')[0].split('\n').map(l => l.trim()).filter(l => l && l.length <= LINE_CHARS && /\d/.test(l) && !l.startsWith('#') && !/^\w+ *= /.test(l)); // an assignment is configuration the command line may override, not a measurement
   const unique = [...new Set(lines)];
-  return unique.length <= LOG_LINES ? unique : [...unique.slice(0, LOG_LINES / 2), '...', ...unique.slice(-LOG_LINES / 2)];
+  return unique.length <= LOG_LINES ? unique : [...unique.slice(0, LOG_LINES / 2), `(${unique.length - LOG_LINES} lines between)`, ...unique.slice(-LOG_LINES / 2)];
 }
 
 export function runLines(record, logs = {}) {

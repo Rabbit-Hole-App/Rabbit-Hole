@@ -145,3 +145,18 @@ Commit 042b46853. 8878 is rebuilt (`owner/local` 6d84696a5, `/library` 200).
 - **What the record path does have:** unit tests (`test/learn-section-record.test.js`, plus a number from the record accepted in `test/learn-section-make.test.js`), and an offline render of a real nanoGPT record and its artifacts zip from local R2 (repository id 13). That render gives `vocab size: 65`, `train has 1,003,854 tokens`, the losses at step 2000 and the step times.
 - **The datasette 1.2 brief keeps failing on model output** after the loosened rule. The model writes setting names without backticks, though the schema and the re-ask both state the rule, and it writes ideas longer than two sentences.
 - Spend for this follow-up: about US$0.19. Running total: about US$1.76 of US$5.00.
+
+## Follow-up on the Reviewer's 11:15 rulings (2026-11-16, 11:20-12:00 PT)
+Commits:
+- 13f79a030: the rulings. `shows` may name what the anchored lines spell, bare or in backticks; ideas are at most 2 sentences and 260 characters; the overlay sentence is added.
+- bc6f51a96: a refused brief logs the brief as returned, in `submitted`.
+
+| Run | Result | Spend, US$ |
+|---|---|---|
+| datasette 1.2 brief, the ruled re-run | FAIL. b1 `shows` names `DEFAULT_SETTINGS["num_sql_threads"]`, which is not in the lines. b2 `idea` has a bare `config_dir`. b3 `idea` names `inspect-data.json`. b3 `shows` names `files=["a.db"]`. b4 and b5 ideas are over the limit. The brief was not returned, because the logging change was not built yet. | 0.092 |
+| datasette 1.2 brief, capture run (`brief/data-1.2.json`, `log[0].submitted`) | FAIL. The b2, b3 and b4 ideas have 3 sentences each. b3 `shows` names `self.` and `SETTINGS`, which its one anchored line (app.py:410) does not spell. The beats as returned are in the file, for the Reviewer's overlay rewrite. b3's `shows` also says "I have not read these lines yet, so check them yourself." | 0.065 |
+| Rehearsal, evidence nanoGPT canvas (`repo-9591be45-nanogpt`, route `shakespeare_char_cpu`) | ready in 187.5 s, 3 steps | 0.089 model. The sandbox cost was not yet in Modal's billing report at 11:14 PT. |
+| nanoGPT 2.1 i1 (`make/nano-2.1-i1.json`) | PASS on the first call. The prompt says "the 65-character vocabulary". 65 is in neither the brief, the composition nor prepare.py 37-40; it is in the recorded run only. | 0.016 |
+
+- The RECORDED RUN lines the request carried are in `make/nano-recorded-run.txt`. They were rendered by the same `recordedRun` from the same R2 objects (repository id 36, commit 3adf61e). The server does not log the message itself.
+- Spend for this follow-up: about US$0.26 (model). Running total: about US$2.02 of US$5.00, plus the rehearsal's sandbox cents.
