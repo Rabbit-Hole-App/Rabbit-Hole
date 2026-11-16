@@ -428,9 +428,18 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
 }
 
 // BAR-1: the bar chart as the written diagrams draw it: vertical bars, an L-axis in ink (2 px, the value axis on the left and the category baseline at zero, no top or right line, no box),
-// dotted gridlines at the value ticks, one fill per category in the palette's series order (a grouped chart: one fill per series, as its legend pills), the value above each bar (not with more than
+// dotted gridlines at the value ticks, one fill per category in TEACHING_SERIES order (a grouped chart: one fill per series, as its legend pills, the same order), the value above each bar (not with more than
 // 12 bars, or on a bar narrower than the label), square 2 px outlined bars with a gap of 40% of the bar width. A single series has no legend. A plain bars chart is one series of one bar per category.
-const BAR_FILLS = [T.blueFill, T.mustardFill, T.tealFill, T.coral, T.olive, T.lavender, T.rose, T.slate];
+// The value axis ends at the round tick above the largest value (the largest value is not itself a tick): the next 1, 2, 2.5, 5 or 10 times a power of ten that leaves at most five steps.
+function roundedUp(value) {
+  if (value <= 0) return value;
+  const magnitude = 10 ** Math.floor(Math.log10(value / 4));
+  for (const multiplier of [1, 2, 2.5, 5, 10]) {
+    const step = multiplier * magnitude;
+    if (Math.ceil(value / step) <= 5) return Number((Math.ceil(value / step) * step).toPrecision(15));
+  }
+  return value;
+}
 function verticalBars(d, requested, options) {
   const grouped = d.variant === 'grouped';
   const categories = grouped ? d.categories : d.bars.map(bar => bar.label);
@@ -440,6 +449,8 @@ function verticalBars(d, requested, options) {
   const values = series.flatMap(entry => entry.values);
   let min = Math.min(0, ...values), max = Math.max(0, ...values);
   if (min === max) { min = -1; max = 1; }
+  max = roundedUp(max);
+  min = -roundedUp(-min);
   const PLOT = 210, top = PAD + 24, bottom = top + PLOT;
   const y = scale({ min, max }, bottom, top);
   const ticks = plotTicks({ min, max }, y, { horizontal: false });
@@ -462,7 +473,7 @@ function verticalBars(d, requested, options) {
     labels.push(label(name, left + slot * (i + 0.5), bottom + 10 + name.length * lineHeight(SMALL + 1) / 2, { size: SMALL + 1 }));
     series.forEach((entry, j) => {
       const value = entry.values[i], x = start + j * (barWidth + inner), cx = x + barWidth / 2, zero = y(0), end = y(value);
-      const fill = grouped ? COLORS[j] : options?.labelColors?.get(category) ?? BAR_FILLS[i % BAR_FILLS.length];
+      const fill = grouped ? COLORS[j] : options?.labelColors?.get(category) ?? TEACHING_SERIES[i % TEACHING_SERIES.length];
       const attrs = grouped ? { 'data-tutor-grouped-bar': value, 'data-tutor-bar-category': category, 'data-tutor-bar-series': entry.label, 'data-tutor-stack-from': 0, 'data-tutor-stack-to': value }
         : { 'data-tutor-bar': value };
       if (value !== 0) bars.push(h('rect', { x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end), fill, stroke: T.outline, strokeWidth: 2, ...attrs }));
