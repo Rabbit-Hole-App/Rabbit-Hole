@@ -1,0 +1,142 @@
+[
+  {
+    "name": "a-preamble",
+    "status": 200,
+    "ms": 2411,
+    "promptChars": 695,
+    "credits": 7,
+    "responseKeys": [
+      "created",
+      "credits",
+      "data"
+    ],
+    "dataKeys": [
+      "image_id",
+      "url"
+    ],
+    "format": "webp",
+    "width": 1024,
+    "height": 1024,
+    "bytes": 505174
+  },
+  {
+    "name": "b-preamble",
+    "status": 200,
+    "ms": 2272,
+    "promptChars": 762,
+    "credits": 7,
+    "responseKeys": [
+      "created",
+      "credits",
+      "data"
+    ],
+    "dataKeys": [
+      "image_id",
+      "url"
+    ],
+    "format": "webp",
+    "width": 1024,
+    "height": 1024,
+    "bytes": 644954
+  },
+  {
+    "name": "c-preamble",
+    "status": 200,
+    "ms": 2327,
+    "promptChars": 635,
+    "credits": 7,
+    "responseKeys": [
+      "created",
+      "credits",
+      "data"
+    ],
+    "dataKeys": [
+      "image_id",
+      "url"
+    ],
+    "format": "webp",
+    "width": 1024,
+    "height": 1024,
+    "bytes": 659076
+  },
+  {
+    "name": "d-preamble",
+    "status": 200,
+    "ms": 1889,
+    "promptChars": 654,
+    "credits": 7,
+    "responseKeys": [
+      "created",
+      "credits",
+      "data"
+    ],
+    "dataKeys": [
+      "image_id",
+      "url"
+    ],
+    "format": "webp",
+    "width": 1024,
+    "height": 1024,
+    "bytes": 651310
+  },
+  {
+    "name": "e-preamble",
+    "status": 200,
+    "ms": 2598,
+    "promptChars": 662,
+    "credits": 7,
+    "responseKeys": [
+      "created",
+      "credits",
+      "data"
+    ],
+    "dataKeys": [
+      "image_id",
+      "url"
+    ],
+    "format": "webp",
+    "width": 1024,
+    "height": 1024,
+    "bytes": 663134
+  },
+  {
+    "name": "f-preamble",
+    "status": 200,
+    "ms": 1545,
+    "promptChars": 636,
+    "credits": 7,
+    "responseKeys": [
+      "created",
+      "credits",
+      "data"
+    ],
+    "dataKeys": [
+      "image_id",
+      "url"
+    ],
+    "format": "webp",
+    "width": 1024,
+    "height": 1024,
+    "bytes": 497286
+  },
+  {
+    "name": "b-bare",
+    "status": 200,
+    "ms": 1985,
+    "promptChars": 200,
+    "credits": 7,
+    "responseKeys": [
+      "created",
+      "credits",
+      "data"
+    ],
+    "dataKeys": [
+      "image_id",
+      "url"
+    ],
+    "format": "webp",
+    "width": 1024,
+    "height": 1024,
+    "bytes": 624160
+  }
+]

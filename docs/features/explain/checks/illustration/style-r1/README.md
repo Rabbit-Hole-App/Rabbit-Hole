@@ -1,0 +1,11 @@
+# ILL-0 style test (run 2026-11-15, owner 18:23), nothing on feat/visual-sprint changed
+
+Seven live Recraft generations with the production request shape (`recraftv4_1_flash`, size 1024x1024, n 1, response_format url, no other field): the six subjects a to f with the FIGURE_STYLE preamble prepended ("<preamble>\n\nSubject: <subject>", text in `preamble.txt`), plus one bare run of subject b (`b-bare.png`).
+
+No `style` arm: the Recraft docs say the Flash model does not support `style`, `substyle`, `style_id` or style references (read live: "Not supported by Flash V2: style, style_id, style_match, style references, negative_prompt, and text_layout"), so there is no preamble-plus-style variant to run. What the Flash model does accept (docs): prompt up to 10,000 characters, model, size, n 1 to 6, response_format (url, b64_json, multipart), image_format (webp or png), random_seed, `controls.colors` (up to 10 rgb colours with optional weight) and `controls.background_color` (rgb). The model id `recraftv4_1_flash` that production sends is not on the docs pages (they name `recraftv4_1_flash_v2`); it worked live.
+
+Files: `a-preamble.png` ... `f-preamble.png`, `b-bare.png` (the API returned WebP 1024x1024; converted to PNG, unmodified otherwise), `request-example.json` (the exact body of call a; the key is redacted, it travels in the Authorization header), `usage.json` (per call: status, prompt characters, `credits`, response keys, format, size, milliseconds).
+
+Usage: every call reports `credits: 7` (API units) and the response has only `data[0].url` and `credits`; at $0.001 per unit that is $0.007 per image, the same for the bare and the long-preamble prompts (the longest prompt here is under 1,000 characters), so the preamble adds no billed cost. Total seven images, 49 credits.
+
+What I see (read against the r9 palette): the preamble gives a plain light ground (it reads as an off-white, not exactly #FFFCF0), dark outlines and flat fills in roughly the named hues, which the bare run does not (bare b is a gradient-coloured pastel picture with icons). The subjects themselves are not followed: b-preamble draws Query, Key and Value as three boxes, not strips, and the wiring does not match the brief; a-preamble is an abstract bell cut into coloured blocks. Palette and line follow the preamble; composition and meaning do not.
