@@ -34,8 +34,12 @@ export async function placeDoc(canvasApi, markdown, ctx, role, beside) {
   const { markdownToDocBlocks } = await import('./CanvasDoc.jsx');
   return placeBlocks(canvasApi, [{ ...newDocBlock(), blocks: markdownToDocBlocks(text), learn: learnTag(ctx, role) }], { beside });
 }
-// A card made by its own insert: tagged afterwards (no undo-worthy change of content).
-export const tagCard = (canvasApi, id, ctx, role = 'card') => id && canvasApi.updateBlock?.(id, block => (block.learn ? block : { ...block, learn: learnTag(ctx, role) }));
+// A change to a card made by its own insert, once the canvas holds it (a card inserted this tick is in the board's blocks only after it renders).
+export async function changeCard(canvasApi, id, change) {
+  if (id && (await drawn(canvasApi, id))) canvasApi.updateBlock?.(id, change);
+}
+// A card made by its own insert: tagged afterwards.
+export const tagCard = (canvasApi, id, ctx, role = 'card') => changeCard(canvasApi, id, block => (block.learn ? block : { ...block, learn: learnTag(ctx, role) }));
 // A connector from one card to another once both are drawn (the code-explain satellites' shape).
 export async function linkCards(canvasApi, from, to, id = `learn-${from}-${to}`) {
   if (!from || !to || from === to || !(await drawn(canvasApi, from)) || !(await drawn(canvasApi, to))) return false;
@@ -83,7 +87,7 @@ async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
   // Found material (C sections 5-7): the page's own inserts (DECISIONS R). A quote rides on the card as a highlight entry carrying `learn`; LearnPaper / LearnWiki resolve it when
   // the learner opens that page or article and report one that is not there (learn-wiki-highlights.js resolveLearnQuotes, DECISIONS S).
   const quoteOf = (exact, where) => (String(exact || '').trim() ? [{ ...where, exact: String(exact).trim(), prefix: '', suffix: '', learn: { sectionId: ctx.sectionId, itemId: ctx.itemId } }] : []);
-  const addQuotes = (id, quotes) => { if (id && quotes.length) canvasApi.updateBlock?.(id, block => ({ ...block, highlights: [...(block.highlights || []), ...quotes] })); };
+  const addQuotes = (id, quotes) => (quotes.length ? changeCard(canvasApi, id, block => ({ ...block, highlights: [...(block.highlights || []), ...quotes] })) : null);
   if (op === 'video') {
     if (!perform.videoId || !canvasApi.addVideo) throw new Error('no_video');
     const id = canvasApi.addVideo({ videoId: perform.videoId, title: perform.title || null, channel: perform.channel || null, start: Number(perform.start) || 0, end: perform.end ?? null });
@@ -99,7 +103,7 @@ async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
     const ids = [];
     for (const [index, entry] of pages.entries()) {
       const quotes = quoteOf(entry.quote, { page: entry.page });
-      if (index === 0) { const id = canvasApi.addPaper({ id: perform.id, title: perform.title, page: entry.page }); addQuotes(id, quotes); if (id) ids.push(id); continue; }
+      if (index === 0) { const id = canvasApi.addPaper({ id: perform.id, title: perform.title, page: entry.page }); await addQuotes(id, quotes); if (id) ids.push(id); continue; }
       const id = await placeBlocks(canvasApi, [{ id: crypto.randomUUID(), type: 'paper', dx: 0, dy: 0, title: perform.title || `arXiv ${perform.id}`, paper: { id: perform.id, page: entry.page }, highlights: quotes, learn: learnTag(ctx, 'card') }], { beside: ids.at(-1) || beside, sizes: [{ w: 620, h: 560 }] });
       if (id) ids.push(id);
     }
@@ -110,7 +114,17 @@ async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
     if (!perform.title || !canvasApi.addWiki) throw new Error('no_article');
     const id = canvasApi.addWiki({ title: perform.title, section: perform.section ?? 0 });
     if (!id) throw new Error('no_card');
-    addQuotes(id, quoteOf(perform.quote, { title: perform.title }));
+    await addQuotes(id, quoteOf(perform.quote, { title: perform.title }));
+    return { cardId: id };
+  }
+  // Webpage (C section 10c, last): the /browser command's own capture (insertWebpage); the quotes ride on the card and WebpageCard anchors, highlights and scrolls to them once
+  // the capture and its text are ready (learnQuotes), reporting one that is not on the page.
+  if (op === 'webpage') {
+    if (typeof perform.url !== 'string' || !canvasApi.insertWebpage) throw new Error('no_page');
+    const id = canvasApi.insertWebpage(perform.url);
+    if (!id) throw new Error('no_card');
+    const quotes = (Array.isArray(perform.quotes) ? perform.quotes : []).map(quote => String(quote ?? '').trim()).filter(Boolean);
+    if (quotes.length) await changeCard(canvasApi, id, block => ({ ...block, learnQuotes: { sectionId: ctx.sectionId, itemId: ctx.itemId, quotes } }));
     return { cardId: id };
   }
   if (op === 'doc') return { cardId: await placeDoc(canvasApi, perform.markdown, ctx, 'card', beside) }; // a pure text beat has no card: only its lead
@@ -121,7 +135,7 @@ export async function performItem({ canvasApi, slash, perform, item, ctx = {} })
   if (!canvasApi?.insertCodeExplain) throw new Error('no_canvas');
   const lead = await placeDoc(canvasApi, item?.lead, ctx, 'lead', ctx.previous || null);
   const made = await makeCard({ canvasApi, slash, perform, ctx, beside: lead || ctx.previous || null });
-  if (made.cardId) tagCard(canvasApi, made.cardId, ctx);
+  if (made.cardId) await tagCard(canvasApi, made.cardId, ctx);
   if (ctx.after && made.cardId) await linkCards(canvasApi, ctx.after, made.cardId); // pairing: this item was made for the text of that earlier item
   const follow = await placeDoc(canvasApi, item?.follow, ctx, 'follow', made.last || made.cardId || lead || ctx.previous || null);
   const { last, ...done } = made;
