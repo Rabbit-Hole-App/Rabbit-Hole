@@ -146,7 +146,7 @@ export async function runBrief(env, { actor, snapshot }, body, { callModel = log
   const anchorsExist = repositoryAnchors(snapshot);
   const earlierBeats = earlier.flatMap(s => s.brief.beats.map(b => ({ sectionId: s.sectionId, idea: b.idea })));
   const out = await sectionTurn(env, {
-    composed, user, submit: SUBMIT_BRIEF_TOOL, research: ['read_source', 'search_code', 'get_relationships', 'search_material'], ctx, capUsd, callModel,
+    composed, user, submit: SUBMIT_BRIEF_TOOL, research: ['read_source', 'search_code', 'get_relationships', 'search_material'], ctx, capUsd, callModel, maxResearchSteps: 2, // the spend bound counts request bytes as tokens, so a third research step leaves no room under the cap for the submit (BLOCKERS.md)
     validate: input => validateBrief(input, { sectionId: section.id, first: index === 0, last: index === plan.sections.length - 1, anchorsExist, earlierBeats }),
   });
   const line = { event: 'learn_section_brief', section: section.id, calls: out.usage.calls, usd: Number(out.usage.usd.toFixed(6)), cap_usd: capUsd, searches: ctx.turn.searches.length, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8) }) };
