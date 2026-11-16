@@ -15,8 +15,9 @@ export const WORDS = Object.freeze([
   Object.freeze(['completed', 16, 'label for the completed-state trace']),
 ]);
 
-export const plainText = max => z.string().min(1).max(max).regex(/\S/, 'must not be blank')
-  .regex(/^[^\u0000-\u0008\u000b\u000c\u000e-\u001f<>]*$/, 'plain text only');
+// One pattern, not two: two .regex() calls make the JSON schema an allOf, which the model adapter's schema checker refuses
+// (the live Brief fill failed on it: unsupported_schema, Schema keyword allOf at $.title).
+export const plainText = max => z.string().min(1).max(max).regex(/^(?=[\s\S]*\S)[^\u0000-\u0008\u000b\u000c\u000e-\u001f<>]*$/, 'must be plain text with at least one visible character');
 const object = fields => z.object(fields).strict();
 const id = z.string().min(1).max(32).regex(/^[A-Za-z][A-Za-z0-9_.-]*$/);
 const ids = (max, min = 0) => z.array(id).min(min).max(max);
