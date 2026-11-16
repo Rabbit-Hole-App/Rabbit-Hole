@@ -30,7 +30,7 @@ export class CoachingConflict extends Error {
 const invalid = message => new CoachingConflict(message, 400);
 const missing = code => new CoachingConflict(code, 404);
 
-const MAX_OPEN_GOALS = 50, MAX_CRITERIA = 20, MAX_SOURCES = 20, MAX_CHECKPOINT = 8000;
+const MAX_OPEN_GOALS = 50, MAX_CRITERIA = 20, MAX_SOURCES = 20, MAX_CHECKPOINT = 16000; // 16000: a saved learn plan (48 outline ops) rides on the checkpoint beside the codebase record
 const KEY = 'org = ? AND owner_user_id = ? AND app = ? AND board = ?';
 const key = a => [a.org, a.userId, a.app, a.board];
 const GUARD = `EXISTS (SELECT 1 FROM learn_coaching_state WHERE ${KEY} AND revision = ?)`;
@@ -290,6 +290,31 @@ const PLANS = {
     return {
       statements: [env.LEARN_DB.prepare(`UPDATE learn_activities SET status = 'paused', updated_at = ? WHERE id = ? AND status = 'in_progress' AND ${GUARD}`).bind(now, row.active_activity_id, ...key(actor), rev)],
       next: { activeActivityId: null },
+    };
+  },
+
+  // A learn goal's table-of-contents draft (learn-plan.js): checkpoint.learn.plan = { ops, revision, acceptedAt } of the ACTIVE activity, nothing else on the
+  // activity changes. The checkpoint is JSON on the activity row, so there is no schema change; a reload reads the plan back with the coaching state.
+  async save_learn_plan(env, actor, row, payload, rev, now) {
+    only(payload, ['activityId', 'plan']);
+    if (payload.activityId !== row.active_activity_id || row.active_activity_id == null) throw new CoachingConflict('not_active_activity');
+    const plan = payload.plan;
+    if (!plan || typeof plan !== 'object' || Array.isArray(plan)) throw invalid('plan must be { ops, revision, acceptedAt }');
+    only(plan, ['ops', 'revision', 'acceptedAt', 'text', 'current', 'done']);
+    if (plan.text != null && (typeof plan.text !== 'string' || plan.text.length > 4000)) throw invalid('plan.text must be at most 4000 characters');
+    if (plan.current != null && (typeof plan.current !== 'string' || plan.current.length > 80)) throw invalid('plan.current must be a section id or null');
+    if (plan.done != null && (!Array.isArray(plan.done) || plan.done.length > 48 || plan.done.some(id => typeof id !== 'string' || id.length > 80))) throw invalid('plan.done must be at most 48 section ids');
+    if (!Array.isArray(plan.ops) || plan.ops.length > 48 || plan.ops.some(op => !op || typeof op !== 'object' || Array.isArray(op))) throw invalid('plan.ops must be at most 48 outline operations');
+    if (!(typeof plan.revision === 'string' && plan.revision.length >= 1 && plan.revision.length <= 80) && !Number.isFinite(plan.revision)) throw invalid('plan.revision must be a string or a number');
+    if (plan.acceptedAt != null && (typeof plan.acceptedAt !== 'string' || plan.acceptedAt.length > 40)) throw invalid('plan.acceptedAt must be a time or null');
+    const activity = await env.LEARN_DB.prepare('SELECT checkpoint_json FROM learn_activities WHERE id = ? AND org = ? AND owner_user_id = ?').bind(row.active_activity_id, actor.org, actor.userId).first();
+    const checkpoint = parse(activity?.checkpoint_json);
+    if (!checkpoint?.learn || typeof checkpoint.learn !== 'object') throw new CoachingConflict('not_learn_activity');
+    const saved = JSON.stringify({ ...checkpoint, learn: { ...checkpoint.learn, plan: { ops: plan.ops, revision: plan.revision, acceptedAt: plan.acceptedAt ?? null, text: plan.text ?? '', ...(plan.current !== undefined ? { current: plan.current } : {}), ...(plan.done !== undefined ? { done: plan.done } : {}) } } });
+    if (saved.length > MAX_CHECKPOINT) throw invalid(`checkpoint must be an object of at most ${MAX_CHECKPOINT} characters`);
+    return {
+      statements: [env.LEARN_DB.prepare(`UPDATE learn_activities SET checkpoint_json = ?, updated_at = ? WHERE id = ? AND ${GUARD}`).bind(saved, now, row.active_activity_id, ...key(actor), rev)],
+      next: {},
     };
   },
 };

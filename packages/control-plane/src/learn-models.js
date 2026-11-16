@@ -139,6 +139,9 @@ async function modelEvent(env, name, line, { result = null, stream, status, outc
 }
 
 const clock = () => globalThis.performance?.now?.() ?? Date.now();
+// One plain (non-streaming) provider request body: the system text, the messages, the output limit, and any extra fields (tools, tool_choice).
+export const modelRequest = (system, messages, limit, extra = {}) => ({ max_tokens: limit, system, messages, ...extra });
+
 export function loggedModel(task, callModel) {
   return async (env, body, model, org) => {
     const begun = clock();
