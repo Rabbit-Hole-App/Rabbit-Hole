@@ -34,7 +34,7 @@ const api = async (path, init = {}) => {
   return d;
 };
 const sleep = ms => new Promise(done => setTimeout(done, ms));
-const waitFor = async (read, what, ms = 120000) => { const end = Date.now() + ms; for (;;) { const value = await read().catch(() => null); if (value) return value; if (Date.now() > end) throw Error(`timed out: ${what}`); await sleep(2000); } };
+const waitFor = async (read, what, ms = 600000) => { const end = Date.now() + ms; for (;;) { const value = await read().catch(() => null); if (value) return value; if (Date.now() > end) throw Error(`timed out: ${what}`); await sleep(2000); } };
 
 const REPOS = {
   nano: { env: 'CANVAS_NANOGPT', url: 'https://github.com/karpathy/nanoGPT', branch: 'master', commit: process.env.COMMIT_NANOGPT || '3adf61e' },
