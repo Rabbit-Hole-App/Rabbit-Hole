@@ -371,10 +371,13 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready, f
         onPointerUp={() => { if (drag != null) study.setSplit(drag); setDrag(null); }} onPointerCancel={() => setDrag(null)}
         className={`absolute z-10 touch-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/40 focus-visible:outline-none ${layout.stacked ? '-bottom-1 left-0 h-2 w-full cursor-row-resize' : 'top-0 -right-1 h-full w-2 cursor-col-resize'}`} />
     </aside>
-    <div role="group" aria-label="Working view" data-study-work={state.work} className="absolute z-20 flex items-center justify-end gap-0.5 border-b border-line bg-white px-2" style={switchStyle}>
-      {choices.map(({ work, label, disabled }) => <button key={work} type="button" data-study-work-option={work} aria-pressed={state.work === work}
-        disabled={disabled} onClick={() => pickWork(work)}
-        className={`h-6 rounded-md px-2 text-xs disabled:opacity-40 ${state.work === work ? 'bg-hover font-medium text-ink' : 'text-ink-2 hover:text-ink'}`}>{label}</button>)}
+    {/* The working view's tabs are the reference tabs' own kit (Graph | Files): underlined tabs, left aligned (owner 2026-11-15). */}
+    <div data-study-work={state.work} className="absolute z-20 flex items-center justify-start bg-white" style={switchStyle}>
+      <Tabs value={state.work} onValueChange={pickWork} className="w-full">
+        <TabsList data-study-work-tabs aria-label="Working view" className="h-[42px] shrink-0 gap-4 px-3 pointer-coarse:h-12">
+          {choices.map(({ work, label, disabled }) => <TabsTrigger key={work} value={work} data-study-work-option={work} disabled={disabled}>{label}</TabsTrigger>)}
+        </TabsList>
+      </Tabs>
       {picking && cards[picking]?.length > 1 && <div role="menu" aria-label={`${picking === 'run' ? 'Run cards' : picking === 'runbook' ? 'Runbooks' : 'Notebooks'}`} className="absolute top-full right-2 z-30 w-56 rounded-lg border border-line bg-white p-1 shadow-md">
         {cards[picking].map(block => <button key={block.id} type="button" role="menuitem" data-study-notebook={block.id} onClick={() => { const work = picking; setPicking(null); study.showWork(work, block.id); }}
           className="block w-full truncate rounded-md px-2 py-1.5 text-left text-sm hover:bg-hover">{objectName(block)}</button>)}
