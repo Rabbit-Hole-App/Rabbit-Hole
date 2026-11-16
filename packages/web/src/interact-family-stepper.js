@@ -105,9 +105,18 @@ export function fillKeyLines(keys) {
   ];
 }
 
+// The composition's closed structure for a depth: the constants every stepper card at that depth carries (status, layout, the bound parts,
+// the native controls). The model copies it, so its writing is limited to the id, canonical, story, aha and data. Taken from the approved
+// reference composition of the same depth; the first live Brief fill (2026-11-15) lost every attempt to constants it had to guess
+// (status, layout.preset, parts[].kind, controls).
+export const closedStructure = depth => {
+  const reference = referenceComposition('merge-sort', depth);
+  return { schemaVersion: reference.schemaVersion, status: reference.status, family: reference.family, depth: reference.depth, layout: reference.layout, parts: reference.parts, controls: reference.controls };
+};
 export function fillTeachingRules(depth) {
   infoOf(depth);
   return [
+    `The composition's closed structure is fixed for this depth: copy these keys and values into composition exactly, with no change, then add only id, canonical, story, aha and data: ${JSON.stringify(closedStructure(depth))}`,
     'Teach one aha that answers the opening question. Name its state and hold it until the learner changes the discrete step index; there is no timeline or elapsed time.',
     'Use tested parts plus canonical composition data plus these rules. Bind every visible region, link, highlight, word and readout to the declared state data.',
     'Name every changing part in the story and use the same names in the picture and selected-state sentence. A control must change the aha evidence, beyond changing a label.',

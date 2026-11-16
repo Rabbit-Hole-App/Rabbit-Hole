@@ -226,3 +226,14 @@ test('the fill schema keeps the step control on the constant variant.states and 
   assert.equal(info.parse(good).ok, true);
   assert.match(family.fillTeachingRules('brief').join('\n'), /exactly "variant\.states".*Never write an input inside a path/s);
 });
+
+test('the fill rules carry the composition\'s closed structure for every depth, so the model copies the constants it cannot guess', async () => {
+  const stepper = await import('./interact-family-stepper.js');
+  const { referenceComposition } = await import('./interact-stepper-data.js');
+  for (const depth of ['brief', 'balanced', 'detailed']) {
+    const closed = stepper.closedStructure(depth), reference = referenceComposition('merge-sort', depth);
+    assert.deepEqual(Object.keys(closed), ['schemaVersion', 'status', 'family', 'depth', 'layout', 'parts', 'controls']);
+    for (const key of Object.keys(closed)) assert.deepEqual(closed[key], reference[key], `${depth} ${key}`);
+    assert.ok(stepper.fillTeachingRules(depth).join('\n').includes(JSON.stringify(closed)), depth);
+  }
+});
