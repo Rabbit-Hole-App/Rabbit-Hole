@@ -24,9 +24,10 @@ test('a violation is one error flag in the linter\'s format with a one-line fix;
 test('against the real renderer: a flow whose sibling labels cannot share a height fails under a new id and passes under a baseline id; a clean flow passes', async () => {
   const check = await geometryChecker(load, root);
   assert.ok(check, 'the worktree has the geometry lint');
-  // Three long labels from one node cannot stand side by side at one height, so the node keeps its own lanes (rule a).
-  const long = ['Resample with replacement from the training rows', 'Resample with replacement from a different seed', 'Resample the rows with replacement once more'];
-  const violating = { version: 1, diagram: { kind: 'flow', title: 'Fork', nodes: [{ id: 'boot', label: 'Draw a bootstrap sample', role: 'process' }, ...long.map((_, index) => ({ id: `m${index}`, label: `Fit model ${index + 1}`, role: 'process' }))], edges: long.map((label, index) => ({ from: 'boot', to: `m${index}`, label })) } };
+  // Labelled branches from one node whose targets also take a labelled arrival from a sibling cannot stand at one height, so the node keeps its own lanes (rule a).
+  // The old fixture (three long labels from one node) now stands side by side: the sprint's flow nodes are 180 px wide at least (natural width 406). This one still breaks rule a at the natural width.
+  const violating = { version: 1, diagram: { kind: 'flow', title: 'Fork', nodes: [{ id: 'split', label: 'Is the sample balanced?', role: 'decision' }, { id: 'draw', label: 'Resample the rows', role: 'process' }, { id: 'fit', label: 'Fit the model', role: 'process' }, { id: 'score', label: 'Score the held-out rows', role: 'outcome' }],
+    edges: [{ from: 'split', to: 'draw', label: 'No, resample' }, { from: 'draw', to: 'fit', label: 'Fit with a new seed' }, { from: 'split', to: 'score', label: 'Yes, score it now' }, { from: 'draw', to: 'score', label: 'Score without refitting' }] } };
   const flagsFor = (id, baseline) => geometryFlags({ ...check, baseline }, { id, depth: 'standard', field: 'spec', spec: violating });
   const fresh = flagsFor('ml-brand-new-reference', {});
   assert.ok(fresh.length > 0 && fresh.every(flag => flag.severity === 'error' && flag.rule.startsWith('geometry-lint:')));

@@ -14,12 +14,12 @@ export const PALETTE = Object.freeze({
 });
 // E3: the one fixed style of a highlighted worked route (a diagram author picks no colour): a blue wire and a blue ring, the approved card 07 look.
 export const PATH = '#2F80D8';
-export const SURFACE = 'var(--viz-surface, #fbfbfa)';
+export const SURFACE = 'var(--viz-surface, #FFFCF0)';
 export const INK = 'var(--color-ink, #32211c)';
 export const MUTED = 'var(--color-ink-2, #665951)';
 export const FILLED_INK = '#32211c';
 
-export const lineHeight = (size = 14) => Math.ceil(size * 1.25);
+export const lineHeight = (size = 15) => Math.ceil(size * 1.25);
 
 function plainWidth(text, size) {
   let width = 0;
@@ -38,7 +38,7 @@ const runWidth = ({ raw, set }, size) => set ? set.width * size * mathScale(set,
 const measure = ({ source, math }, size) => source.split(SLOT)
   .reduce((width, part, index) => width + (index % 2 ? runWidth(math[part], size) : plainWidth(part, size)), 0);
 
-export function textWidth(text, size = 14) {
+export function textWidth(text, size = 15) {
   return measure(mathLabel(text), size);
 }
 
@@ -78,7 +78,7 @@ function fitLines(parsed, width, size) {
   return lines;
 }
 
-export function wrap(text, width, size = 14) {
+export function wrap(text, width, size = 15) {
   return fitLines(mathLabel(text), width, size);
 }
 
@@ -142,8 +142,10 @@ function svgLabel(values, x, y, { size, weight, anchor, fill }) {
   return h('text', { x, y, fill, fontSize: size, fontWeight: weight, textAnchor: anchor }, ...plain);
 }
 
-export function label(lines, x, y, { size: requested = 14, weight = 400, anchor = 'middle', tone = 'ink',
+// Body text is 15 px weight 500; text on a fill (tone onFill) 15 px weight 600 in the outline ink. A caller that passes a size or weight keeps it.
+export function label(lines, x, y, { size: requested = 15, weight: asked, anchor = 'middle', tone = 'ink',
   fill = tone === 'onFill' ? FILLED_INK : tone === 'muted' ? MUTED : INK, xhtml = false, fallback = true } = {}) {
+  const weight = asked ?? (tone === 'onFill' ? 600 : 500);
   const size = lines?.fontSize ?? requested; // wrap() sets fontSize when a word needed the font one step smaller
   const values = Array.isArray(lines) ? lines : [lines];
   const step = lineHeight(size);
@@ -229,7 +231,7 @@ export function layoutCaption(text, width, size = 13) {
 export function box(x, y, width, height, { role = 'plain', radius = 7, active = false } = {}) {
   return h('rect', {
     x, y, width, height, rx: radius,
-    fill: PALETTE[role] ?? SURFACE,
+    fill: PALETTE[role] ?? 'none', // no role fill: transparent, the ground shows through
     stroke: active ? PATH : role === 'plain' ? INK : FILLED_INK, strokeWidth: active ? 3.5 : 1.5,
   });
 }
@@ -244,13 +246,43 @@ export function diamond(x, y, width, height, { active = false } = {}) {
 }
 
 export function dot(x, y, r, role = 'outcome') {
-  return h('circle', { cx: x, cy: y, r, fill: PALETTE[role] ?? SURFACE, stroke: FILLED_INK, strokeWidth: 1.3 });
+  return h('circle', { cx: x, cy: y, r, fill: PALETTE[role] ?? 'none', stroke: FILLED_INK, strokeWidth: 1.3 });
 }
+
+// The wire every kind uses for a route: 2 px ink (3 px and the path colour when active), each elbow a quadratic corner of radius 8, ending in a filled isosceles head
+// 12 wide and 8 long whose tip stops 2 px short of the target's edge. { head: false } draws the line alone.
+const WIRE_CORNER = 8, WIRE_HEAD_LENGTH = 8, WIRE_HEAD_WIDTH = 12, WIRE_STOP_SHORT = 2;
+export function wire(points, { active = false, width, color, corner = WIRE_CORNER, head: withHead = true } = {}) {
+  const pts = points.filter((point, i) => i === 0 || point[0] !== points[i - 1][0] || point[1] !== points[i - 1][1]).map(point => [...point]);
+  if (pts.length < 2) return null;
+  const stroke = color ?? (active ? PATH : INK), strokeWidth = width ?? (active ? 3 : 2);
+  const last = pts.length - 1, [px, py] = pts[last - 1];
+  const run = Math.hypot(pts[last][0] - px, pts[last][1] - py), ux = (pts[last][0] - px) / run, uy = (pts[last][1] - py) / run;
+  const head = withHead ? Math.min(WIRE_HEAD_LENGTH, Math.max(0, run - WIRE_STOP_SHORT)) : 0;
+  const stop = withHead ? WIRE_STOP_SHORT : 0;
+  const tip = [pts[last][0] - ux * stop, pts[last][1] - uy * stop], base = [tip[0] - ux * head, tip[1] - uy * head];
+  pts[last] = base;
+  let d = `M${pts[0]}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x, y] = pts[i], before = pts[i - 1], after = pts[i + 1];
+    const inLen = Math.hypot(x - before[0], y - before[1]), outLen = Math.hypot(after[0] - x, after[1] - y);
+    const r = Math.min(corner, inLen / 2, outLen / 2);
+    d += `L${x - (x - before[0]) / inLen * r},${y - (y - before[1]) / inLen * r}Q${x},${y} ${x + (after[0] - x) / outLen * r},${y + (after[1] - y) / outLen * r}`;
+  }
+  d += `L${pts[last]}`;
+  const half = WIRE_HEAD_WIDTH / 2;
+  return h('g', null,
+    h('path', { d, fill: 'none', stroke, strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round' }),
+    head > 0 ? h('polygon', { points: `${tip[0]},${tip[1]} ${base[0] - uy * half},${base[1] + ux * half} ${base[0] + uy * half},${base[1] - ux * half}`, fill: stroke, 'data-tutor-arrowhead': '' }) : null);
+}
+
+// A route that leaves a node on its right, runs out to laneX, up (or down) the lane and back in on the right of the target: the loop of a cycle, the return edge of a flow.
+export const backEdge = (from, to, laneX, options) => wire([from, [laneX, from[1]], [laneX, to[1]], to], options);
 
 export function connector(points, { arrow = true, dashed = false, path = false } = {}) {
   const wire = h('polyline', {
     points: points.map(point => point.join(',')).join(' '), fill: 'none', stroke: path ? PATH : dashed ? MUTED : INK,
-    strokeWidth: path ? 3 : dashed ? 1 : 1.5, strokeDasharray: dashed ? '4 4' : undefined,
+    strokeWidth: path ? 3 : dashed ? 1 : 2, strokeDasharray: dashed ? '4 4' : undefined,
     strokeLinecap: 'round', strokeLinejoin: 'round',
   });
   if (!arrow) return wire;
@@ -259,9 +291,9 @@ export function connector(points, { arrow = true, dashed = false, path = false }
   const length = Math.hypot(x - prevX, y - prevY);
   if (!length) return wire;
   const dx = (x - prevX) / length, dy = (y - prevY) / length;
-  const tip = Math.min(7, length);
+  const tip = Math.min(8, length);
   const baseX = x - dx * tip, baseY = y - dy * tip;
-  const head = [[x, y], [baseX - dy * 3.4, baseY + dx * 3.4], [baseX + dy * 3.4, baseY - dx * 3.4]];
+  const head = [[x, y], [baseX - dy * 6, baseY + dx * 6], [baseX + dy * 6, baseY - dx * 6]];
   return h('g', null, wire, h('polygon', {
     points: head.map(point => point.join(',')).join(' '), fill: path ? PATH : INK, 'data-tutor-arrowhead': '',
   }));

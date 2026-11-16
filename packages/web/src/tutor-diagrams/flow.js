@@ -1,14 +1,14 @@
 import { createElement as h } from 'react';
 import { flowPaths } from './flow-paths.js';
-import { box, connector, diamond, label, lineHeight, longestWordWidth, SURFACE, textWidth, widestFormula, wrap } from './primitives.js';
+import { box, diamond, label, lineHeight, longestWordWidth, SURFACE, textWidth, wire, widestFormula, wrap } from './primitives.js';
 import { skipLanePoints, skipLaneX } from './skip-lanes.js';
 import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
 const PAD = 14;
 const NODE_GAP = 18;
-const NODE_MIN = 106;
-const NODE_MAX = 186;
-const EDGE_TEXT = 14;
+const NODE_MIN = 180;
+const NODE_MAX = 220;
+const EDGE_TEXT = 13;
 const EDGE_WRAP = 158;
 const PARALLEL_WIDTH = 960;
 const TENSOR_PAD = 10;
@@ -28,16 +28,21 @@ function layersFor(nodes, incoming) {
 }
 
 function portOffset(node, edges, edge) {
+  // The two branches of a decision both leave from its bottom centre, share the first drop and part along one horizontal run.
+  if (node.role === 'decision' && !node.tensor && edges.length === 2 && edges.every(other => other.from === node.id)) return 0;
   const normalSpread = Math.min(20, node.width * 0.18);
   const spread = Math.min(node.width / 2 - 12, Math.max(normalSpread, (edges.length - 1) * 5));
   return edges.length > 1 ? (2 * edges.indexOf(edge) / (edges.length - 1) - 1) * spread : 0;
 }
 
+// A pill (fully rounded capsule): an outcome, and the start of the flow (the first node, which has no incoming edge) unless it is a decision.
+const isCapsule = node => !node.tensor && node.role !== 'decision' && (node.role === 'outcome' || node.start === true);
+
 function port(node, edges, edge, bottom, move = 0) {
   const dx = portOffset(node, edges, edge) + move;
   let inset = 0;
   if (node.role === 'decision') inset = Math.abs(dx) * node.height / node.width;
-  if (node.role === 'outcome' && !node.tensor) {
+  if (isCapsule(node)) {
     // A wide fan-in can reach the curved ends of the outcome capsule.
     const radiusX = capsuleRadius(node);
     const cornerX = Math.max(0, Math.abs(dx) - (node.width / 2 - radiusX));
@@ -48,7 +53,7 @@ function port(node, edges, edge, bottom, move = 0) {
 
 // RD-4c: the corner radius of an outcome capsule: half the shorter side (a pill) when every line of its text lies inside the rounded ends, else the largest smaller radius that keeps them inside.
 function capsuleRadius({ width, height, lines }) {
-  const size = lines.fontSize ?? 14, step = lineHeight(size), pill = Math.min(width, height) / 2;
+  const size = lines.fontSize ?? 15, step = lineHeight(size), pill = Math.min(width, height) / 2;
   const fits = radius => lines.every((line, index) => {
     const dx = textWidth(line, size) / 2 - (width / 2 - radius);
     const dy = Math.abs(index - (lines.length - 1) / 2) * step + size / 2 - (height / 2 - radius);
@@ -58,11 +63,14 @@ function capsuleRadius({ width, height, lines }) {
   return 7;
 }
 
+// The width of a decision that holds its whole label on one line: the diamond keeps about 68% of its width at the label's height.
+const oneLineDecision = text => Math.ceil((textWidth(text) + 40) / 0.72);
+
 function measureDecision(lines, width) {
   // The width available at y falls linearly away from the center of a diamond.
   const bands = lines.map((line, index) => ({
     y: (index - (lines.length - 1) / 2) * lineHeight(),
-    ratio: 1 - (textWidth(line) + 6) / width,
+    ratio: 1 - (textWidth(line) + 40) / width,
   }));
   const heightAt = offset => Math.ceil(Math.max(74, ...bands.map(({ y, ratio }) => 2 * (Math.abs(y + offset) + 10) / ratio)));
   const centered = heightAt(0);
@@ -109,7 +117,8 @@ function closeVerticals(routed) {
   for (let i = 0; i < legs.length; i++) for (let j = i + 1; j < legs.length; j++) for (const [a1, a2, legA] of legs[i]) for (const [b1, b2, legB] of legs[j]) {
     const run = Math.min(Math.max(a1[1], a2[1]), Math.max(b1[1], b2[1])) - Math.max(Math.min(a1[1], a2[1]), Math.min(b1[1], b2[1]));
     const gap = Math.abs(a1[0] - b1[0]);
-    if (run > 1 && gap < MIN_WIRE_GAP) return { a: { route: i, leg: legA, x: a1[0] }, b: { route: j, leg: legB, x: b1[0] }, gap };
+    // Two branches of one node on the very same x are a fork sharing its first drop, not a clash.
+    if (run > 1 && gap < MIN_WIRE_GAP && !(gap === 0 && routed[i].edge.from === routed[j].edge.from)) return { a: { route: i, leg: legA, x: a1[0] }, b: { route: j, leg: legB, x: b1[0] }, gap };
   }
   return null;
 }
@@ -182,11 +191,13 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       const text = node.label ?? '';
       const word = longestWordWidth(text);
       const decision = node.role === 'decision';
-      const pad = decision ? 32 : 20;
+      const pad = decision ? 32 : 48;
       const required = Math.ceil(word + pad);
       // A long word wraps by characters. Unbreakable formulas and tensors can widen their node.
       const min = Math.max(floor, required <= wordLimit ? required : Math.ceil(widestFormula(text) + pad));
-      if (!node.tensor) return { word, min };
+      // A decision is wide enough for its label on one line (the diamond narrows away from its middle), when that stays within 360 px.
+      const oneLine = decision && !node.tensor ? oneLineDecision(text) : 0;
+      if (!node.tensor) return { word, min: oneLine && oneLine <= 360 ? Math.max(min, oneLine) : min };
       const contentWidth = Math.max(tensorMinimumWidth(node.tensor), widestFormula(text));
       const tensorWidth = Math.ceil((contentWidth + 2 * TENSOR_PAD) / (decision ? DECISION_BAND : 1));
       return { word, min: Math.max(min, tensorWidth) };
@@ -224,11 +235,11 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       const cx = Math.max(PAD + w / 2, Math.min(PAD + inner - w / 2, ideal));
       if (node.tensor) return { ...node, width: w, cx, ...measureTensorNode(node, w) };
       const isDecision = node.role === 'decision';
-      const wrapWidth = isDecision ? Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].word)) : w - 20;
+      const wrapWidth = isDecision ? (w >= oneLineDecision(node.label ?? '') ? w : Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].word))) : w - 48;
       const lines = wrap(node.label, wrapWidth);
       const { height, offset } = isDecision ? measureDecision(lines, w)
-        : { height: Math.max(38, lines.length * lineHeight() + 14), offset: 0 };
-      return { ...node, width: w, height, cx, lines, offset };
+        : { height: 40 + 16 * Math.max(1, lines.length), offset: 0 }; // 56 for one line, 72 for two
+      return { ...node, width: w, height, cx, lines, offset, start: previous.length === 0 };
     });
     for (const node of rowNodes) placements.set(node.id, node);
     return rowNodes;
@@ -245,9 +256,11 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   // vertices) the wire drops straight from the vertex onto its target and the label stands outside it. Anything else (three branches, a skip, both targets on one side,
   // another node of the row standing on the run or the drop) keeps the lane routing.
   const sideEdges = new Map();
+  // ponytail: the side-vertex exit (RD-2) is off: a decision whose two targets are below leaves by the shared bottom-centre fork below. It would apply again only to a target level with the decision, which the layering does not produce.
+  const SIDE_EXIT = false;
   for (const node of placements.values()) {
     const branches = outgoing.get(node.id);
-    if (node.role !== 'decision' || node.tensor || branches.length !== 2) continue;
+    if (!SIDE_EXIT || node.role !== 'decision' || node.tensor || branches.length !== 2) continue;
     if (branches.some(edge => skipOrder.has(edge) || ranks.get(edge.to) !== ranks.get(node.id) + 1)) continue;
     if (!(placements.get(branches[0].to).cx < node.cx && node.cx < placements.get(branches[1].to).cx)) continue;
     const plans = branches.map((edge, index) => {
@@ -261,7 +274,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       const clearOf = (a, b) => placedRows[ranks.get(node.id)].every(other => other === node || other.cx + other.width / 2 <= Math.min(a, b) - 2 || other.cx - other.width / 2 >= Math.max(a, b) + 2);
       if (sign * (turnX - vertexX) > 0 && Math.abs(turnX - vertexX) >= labelWidth && clearOf(vertexX, turnX)) return { kind: 'run', dir: sign, labelWidth, labelHeight, vertexX, turnX };
       // The drop lands on the top edge of the target away from its rounded corners, which only a lone arrival may move.
-      const margin = target.role === 'outcome' && !target.tensor ? capsuleRadius(target) : 8;
+      const margin = isCapsule(target) ? capsuleRadius(target) : 8;
       const lands = incoming.get(edge.to).length === 1 && vertexX >= target.cx - target.width / 2 + margin && vertexX <= target.cx + target.width / 2 - margin;
       return lands && clearOf(vertexX, vertexX) ? { kind: 'drop', dir: sign, labelWidth, labelHeight, vertexX } : null;
     });
@@ -304,6 +317,24 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     }
   }
 
+  // Fork: the two branches of a decision share one lane, so both drop from the diamond's bottom centre to one height and run apart there. A row gap takes the shared fork only when exactly one
+  // decision forks into it: with two or more, their merged lanes cross, so every branch in that gap keeps its own nested lane.
+  const forks = new Set();
+  const forking = [...placements.values()].filter(node => {
+    const branches = outgoing.get(node.id);
+    return node.role === 'decision' && !node.tensor && branches.length === 2 && !branches.some(edge => skipOrder.has(edge) || sideEdges.has(edge));
+  });
+  for (const node of forking) {
+    if (forking.some(other => other !== node && ranks.get(other.id) === ranks.get(node.id))) continue;
+    const branches = outgoing.get(node.id);
+    const [lead, other] = branches.map(edge => routeByEdge.get(edge));
+    lead.depart.height = Math.max(lead.depart.height, other.depart.height);
+    const lane = gaps[ranks.get(node.id)];
+    lane.splice(lane.indexOf(other.depart), 1);
+    other.depart = lead.depart;
+    forks.add(node.id);
+  }
+
   // RD-4a: two or more labelled branches that leave a node by lanes stand at one height. (1) When their runs and labels are side by side without touching (opposite directions, or short runs
   // apart), the branches share one lane and each label stands on its run. (2) Otherwise the wires keep their own 12 px lanes and the labels share one more lane below them, each label on its
   // wire's last vertical leg; the labels must fit side by side (the default wrap, else a narrower one), and if they do not, none of the node's branches is labelled inline (the key under the graph).
@@ -312,7 +343,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   const apartX = (a, b, margin) => a[1] + margin <= b[0] || b[1] + margin <= a[0];
   for (const node of placements.values()) {
     const group = outgoing.get(node.id).map(edge => routeByEdge.get(edge)).filter(route => !sideEdges.has(route.edge) && !route.arrive && route.words.length);
-    if (group.length < 2 || unshared.has(node.id)) continue;
+    if (group.length < 2 || unshared.has(node.id) || forks.has(node.id)) continue;
     const anchors = group.map(({ edge }) => placements.get(edge.to).cx + portOffset(placements.get(edge.to), incoming.get(edge.to), edge));
     const starts = group.map(({ edge }) => node.cx + portOffset(node, outgoing.get(node.id), edge));
     const runs = group.map((_, index) => [Math.min(starts[index], anchors[index]), Math.max(starts[index], anchors[index])]);
@@ -353,12 +384,12 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     for (const node of row) node.y = y + (height - node.height) / 2;
     y += height;
     if (rank === placedRows.length - 1) return;
-    y += 10;
+    y += 6;
     for (const lane of gaps[rank]) {
       lane.y = y + lane.height / 2;
       y += lane.height;
     }
-    y += 10;
+    y += 26;
   });
 
   // RD-4b: a port may be moved along its node edge (moves: edge -> { from, to }) when its vertical leg would run closer than MIN_WIRE_GAP to another edge's vertical.
@@ -390,7 +421,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   }
   const wires = routed.map(({ edge, points }) => {
     const active = pathEdge(edge);
-    return { active, element: h('g', { 'data-tutor-edge': `${edge.from}:${edge.to}`, ...(active ? { 'data-tutor-path': '' } : {}) }, connector(points, { path: active })) };
+    return { active, element: h('g', { 'data-tutor-edge': `${edge.from}:${edge.to}`, ...(active ? { 'data-tutor-path': '' } : {}) }, wire(points, { active })) };
   })
     .sort((a, b) => a.active - b.active).map(wire => wire.element); // the route is drawn last, over any wire it crosses
   const annotations = [];
@@ -438,7 +469,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     const active = onPath.has(id);
     const baseShape = role === 'decision'
       ? diamond(x, y, width, height, { active })
-      : box(x, y, width, height, { role, radius: role === 'outcome' && !strip ? capsuleRadius(node) : 7, active });
+      : box(x, y, width, height, { role, radius: isCapsule(node) ? capsuleRadius(node) : 9, active });
     const shape = paintNode ? paintNode(baseShape, node) : baseShape;
     // title: the full label when the server trimmed it to fit (item 47), shown as the node's tooltip.
     const props = { 'data-tutor-node': id, ...(active ? { 'data-tutor-path': '' } : {}) };
@@ -456,13 +487,13 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
 function flowGeometry(width, height, placements, routed, labelBoxes) {
   const nodes = Array.from(placements.values(), node => {
     const { id, cx, y, width: w, height: h2, role, lines, offset, strip, labelHeight, contentHeight } = node;
-    const size = lines?.fontSize ?? 14, step = lineHeight(size);
+    const size = lines?.fontSize ?? 15, step = lineHeight(size);
     const centerY = strip ? y + (h2 - contentHeight) / 2 + (labelHeight ?? 0) / 2 : y + h2 / 2 + offset;
     const text = (strip && !labelHeight ? [] : lines ?? []).map((line, index, all) => {
       const textW = textWidth(line, size), middle = centerY + (index - (all.length - 1) / 2) * step;
       return { x: cx - textW / 2, y: middle - size / 2, width: textW, height: size };
     });
-    return { id, role, shape: role === 'decision' ? 'diamond' : role === 'outcome' && !strip ? 'capsule' : 'box', x: cx - w / 2, y, width: w, height: h2, text, ...(role === 'outcome' && !strip ? { radius: capsuleRadius(node) } : {}) };
+    return { id, role, shape: role === 'decision' ? 'diamond' : isCapsule(node) ? 'capsule' : 'box', x: cx - w / 2, y, width: w, height: h2, text, ...(isCapsule(node) ? { radius: capsuleRadius(node) } : {}) };
   });
   const edges = routed.map(({ edge, points }) => ({ from: edge.from, to: edge.to, points: points.map(point => [...point]), label: labelBoxes.get(edge) ? { ...labelBoxes.get(edge) } : null }));
   return { width, height, nodes, edges };

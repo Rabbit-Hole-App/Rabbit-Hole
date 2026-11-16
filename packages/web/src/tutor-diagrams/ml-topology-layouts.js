@@ -1,10 +1,11 @@
 import { cloneElement, createElement as h } from 'react';
-import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
+import { label, lineHeight, textWidth, widestFormula, wire, wrap } from './primitives.js';
 import { TEACHING, teachingBox, teachingConnector } from './teaching-theme.js';
-import { extendedFlow, extendedTree, nodeMetadata } from './ml-topology-spec.js';
+import { extendedFlow, extendedTree, isDotTree, nodeMetadata } from './ml-topology-spec.js';
+import { dotTree } from './dot-tree-layout.js';
 import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
-const PAD = 12, TEXT = 14, SMALL = 13, GAP = 18;
+const PAD = 12, TEXT = 15, SMALL = 13, GAP = 18;
 const childrenFor = nodes => new Map(nodes.map(n => [n.id, nodes.filter(child => child.parent === n.id)]));
 const pathEdge = (d, from, to) => d.highlightPath?.some((id, i) => id === from && d.highlightPath[i + 1] === to);
 const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
@@ -182,7 +183,7 @@ function dendrogram(d, preferredWidth) {
       { active: pathEdge(d, node.parent, node.id), dashed: pruned.has(node.id) })));
   }
   if (d.cutoff) elements.push(h('line', { x1: axisX, x2: width - PAD, y1: valueY(d.cutoff.value), y2: valueY(d.cutoff.value),
-    stroke: TEACHING.warm, strokeWidth: 1.5, strokeDasharray: '5 4', 'data-tutor-cutoff': d.cutoff.value }));
+    stroke: TEACHING.outline, strokeWidth: 1.5, strokeDasharray: '5 4', 'data-tutor-cutoff': d.cutoff.value }));
   const merges = d.nodes.filter(n => children.get(n.id).length);
   const crowded = new Set(merges.filter(node => {
     const p = positions.get(node.id);
@@ -210,18 +211,18 @@ function dendrogram(d, preferredWidth) {
   }
   for (const node of lane) {
     const point = positions.get(node.id), badge = badges.get(node.id);
-    elements.push(cloneElement(teachingConnector([[point.x, point.y], [badge.x, badge.y]], { dashed: true }),
+    elements.push(cloneElement(teachingConnector([[point.x, point.y], [badge.x, badge.y]], { guide: true }),
       { 'data-tutor-merge-leader': node.id }));
   }
   for (const node of d.nodes) {
     const { x, y } = positions.get(node.id), index = merges.indexOf(node);
     elements.push(h('circle', { cx: x, cy: y, r: index < 0 || crowded.has(node.id) ? 3.5 : 9,
-      fill: TEACHING.surface, stroke: onPath.has(node.id) ? TEACHING.blue : TEACHING.wire, strokeWidth: 1.6,
+      fill: TEACHING.surface, stroke: onPath.has(node.id) ? TEACHING.blue : TEACHING.outline, strokeWidth: 1.5,
       'data-tutor-node': node.id, 'data-tutor-merge-height': node.height }));
     if (index >= 0) {
       const badge = badges.get(node.id);
       if (crowded.has(node.id)) elements.push(h('circle', { cx: badge.x, cy: badge.y, r: 9,
-        fill: TEACHING.surface, stroke: onPath.has(node.id) ? TEACHING.blue : TEACHING.wire, strokeWidth: 1.6 }));
+        fill: TEACHING.surface, stroke: onPath.has(node.id) ? TEACHING.blue : TEACHING.outline, strokeWidth: 1.5 }));
       elements.push(label(String(index + 1), badge.x, badge.y, { size: 12, weight: 700 }));
     }
   }
@@ -250,7 +251,7 @@ function graph(d, preferredWidth, hasTensor) {
   const routes = d.edges.map((e, i) => ({ ...e, index: i, side: order.get(e.from) < order.get(e.to) ? 'right' : 'left' }));
   const laneCounts = { left: 0, right: 0 };
   routes.forEach(r => { r.lane = laneCounts[r.side]++; });
-  const nodeW = Math.max(150, ...d.nodes.map(n => nodeWidth(n, 186)));
+  const nodeW = Math.max(180, ...d.nodes.map(n => nodeWidth(n, 186))); // node boxes are 180 x 56 like flow nodes
   const firstLane = 16, laneSpacing = 24, portGap = 2;
   const gutters = Object.fromEntries(Object.entries(laneCounts).map(([side, count]) => [side, count ? firstLane + (count - 1) * laneSpacing + 18 : 0]));
   const names = new Map(d.nodes.map(node => [node.id, nodeName(node)]));
@@ -261,7 +262,7 @@ function graph(d, preferredWidth, hasTensor) {
   const positions = new Map();
   let y = PAD;
   for (const n of d.nodes) {
-    const content = measure(n, nodeW);
+    const measured = measure(n, nodeW), content = { ...measured, height: Math.max(56, measured.height) };
     positions.set(n.id, { x: nodeX, y, width: nodeW, content });
     y += content.height + 48;
   }
@@ -281,15 +282,15 @@ function graph(d, preferredWidth, hasTensor) {
     const upper = positions.get(order.get(r.from) < order.get(r.to) ? r.from : r.to);
     const badgeY = upper.y + upper.content.height + 24;
     elements.push(h('g', { 'data-tutor-edge': `${r.from}:${r.to}`, 'data-tutor-edge-index': r.index },
-      teachingConnector([from, [laneX, from[1]], [laneX, to[1]], to], { arrow: true }),
-      h('circle', { cx: laneX, cy: badgeY, r: 9, fill: TEACHING.surface, stroke: TEACHING.line }),
-      label(String(r.index + 1), laneX, badgeY, { size: 12, weight: 700 })));
+      wire([from, [laneX, from[1]], [laneX, to[1]], to]),
+      h('circle', { cx: laneX, cy: badgeY, r: 10, fill: TEACHING.surface, stroke: TEACHING.outline, strokeWidth: 1.5 }),
+      label(String(r.index + 1), laneX, badgeY, { size: 13, weight: 600 })));
   }
   for (const node of d.nodes) elements.push(card(node, positions.get(node.id)));
   y -= 30;
   for (const text of legend) {
     const lines = wrap(text, width - 2 * PAD, SMALL), height = lines.length * lineHeight(SMALL);
-    elements.push(label(lines, PAD, y + height / 2, { size: SMALL, anchor: 'start' }));
+    elements.push(label(lines, PAD, y + height / 2, { size: SMALL, anchor: 'start', fill: TEACHING.muted }));
     y += height + 8;
   }
   return { width, height: y + PAD, elements };
@@ -304,18 +305,18 @@ function restyleFlow(element, roles, active = false, role) {
   active ||= p['data-tutor-path'] !== undefined;
   const attrs = nodeId ? { 'data-tutor-role': role } : {};
   if (element.type === 'rect' || (element.type === 'polygon' && role)) Object.assign(attrs, {
-    fill: role === 'decision' ? TEACHING.warmSoft : role === 'outcome' ? TEACHING.greenSoft : TEACHING.surface,
-    stroke: role ? active ? TEACHING.blue : TEACHING.line : undefined, strokeWidth: role ? active ? 2 : 1 : undefined,
+    fill: role === 'decision' ? TEACHING.mustardFill : role === 'outcome' ? TEACHING.tealFill : role ? TEACHING.blueFill : TEACHING.surface,
+    stroke: role ? active ? TEACHING.blue : TEACHING.outline : undefined, strokeWidth: role ? active ? 3 : 1.5 : undefined,
   });
-  if (element.type === 'polyline') Object.assign(attrs, { stroke: active ? TEACHING.blue : TEACHING.wire, strokeWidth: active ? 2.5 : 1.6 });
-  if (element.type === 'polygon' && p['data-tutor-arrowhead'] !== undefined) attrs.fill = active ? TEACHING.blue : TEACHING.wire;
+  if (element.type === 'polyline') Object.assign(attrs, { stroke: active ? TEACHING.blue : TEACHING.outline, strokeWidth: active ? 3 : 2 });
+  if (element.type === 'polygon' && p['data-tutor-arrowhead'] !== undefined) attrs.fill = active ? TEACHING.blue : TEACHING.outline;
   if (element.type === 'text') attrs.fill = TEACHING.ink;
   return cloneElement(element, attrs, ...[p.children].flat().map(child => restyleFlow(child, roles, active, role)));
 }
 
 export function createLayouts({ legacy }) {
   return {
-    tree: (d, width) => !extendedTree(d) ? legacy.tree(d, width) : d.layout === 'dendrogram' ? dendrogram(d, width)
+    tree: (d, width, options) => isDotTree(d) ? dotTree(d, width, options) : !extendedTree(d) ? legacy.tree(d, width) : d.layout === 'dendrogram' ? dendrogram(d, width)
       : d.layout === 'binary' || d.layout === 'hierarchy' ? topDown(d, width) : outline(d, width),
     relationship: (d, width) => {
       const hasTensor = d.nodes.some(n => n.tensor);

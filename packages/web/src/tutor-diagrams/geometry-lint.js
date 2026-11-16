@@ -45,6 +45,8 @@ function parallelWires(geometry, found) {
       const along = point => (point[0] - a1[0]) * unit[0] + (point[1] - a1[1]) * unit[1];
       const run = Math.min(la, Math.max(along(b1), along(b2))) - Math.max(0, Math.min(along(b1), along(b2)));
       if (run <= TOLERANCE.parallelRun || gap >= TOLERANCE.parallelGap - TOLERANCE.epsilon) continue;
+      // The two branches of one decision share their first drop from its bottom centre by design (flow.js fork): coincident wires of the same source are one wire, not two crowded ones.
+      if (edges[i].from === edges[j].from && gap < TOLERANCE.epsilon) continue;
       if (!worst || gap < worst.gap) worst = { gap, run, at: [fix((a1[0] + a2[0]) / 2), fix((a1[1] + a2[1]) / 2)] };
     }
     const key = `${i}:${j}`;

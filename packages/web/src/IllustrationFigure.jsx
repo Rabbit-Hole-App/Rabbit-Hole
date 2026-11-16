@@ -56,7 +56,7 @@ export default function IllustrationFigure({ illustration, className = '' }) {
   if (state === 'failed') return null; // a learner never sees a failed picture (owner 2026-11-08): no frame, no gap, no message
   return (
     <figure data-illustration data-illustration-state={state} style={{ maxWidth: PICTURE_DISPLAY_WIDTH }} className={`mx-auto mt-[13px] mb-[11px] ${className}`}>
-      <div data-illustration-frame style={{ aspectRatio: String(ratio) }} className="relative w-full overflow-hidden rounded-[9px] bg-[var(--viz-surface,#fbfbfa)]">
+      <div data-illustration-frame style={{ aspectRatio: String(ratio) }} className="relative w-full overflow-hidden rounded-[9px] bg-[var(--viz-surface,#FFFCF0)]">
         {state !== 'ready' && <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-hover" />}
         {url && <img src={url} alt={illustration?.alt || ''} draggable={false} ref={el => { if (el && el.complete && el.naturalWidth > 0 && !(done.url === url && done.ok)) setDone({ url, ok: true }); }} onLoad={() => setDone({ url, ok: true })} onError={() => setDone({ url, ok: false })} className={`absolute inset-0 block h-full w-full object-contain transition-opacity ${state === 'ready' ? 'opacity-100' : 'opacity-0'}`} />}
         {callouts.length > 0 && (

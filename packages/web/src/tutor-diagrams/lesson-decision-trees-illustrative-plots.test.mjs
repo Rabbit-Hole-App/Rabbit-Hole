@@ -42,13 +42,14 @@ for (const depth of depths) {
   });
 }
 
-test('the forest-size log axis uses decades and retains all five labeled markers', () => {
+// Sprint default (r5): a log axis of at most 8 samples labels every sampled x (1, 5, 10, 50, 200) and drops a decade label (100) that would touch one of them.
+test('the forest-size log axis labels every sampled x and retains all five labeled markers', () => {
   const diagram = plotAt('forest-size-accuracy', 'standard');
   const svg = renderToStaticMarkup(renderTutorDiagram({ version: 1, diagram }, 408).element);
   const labels = [...svg.matchAll(/<text\b[^>]* y="([^"]+)"[^>]*><tspan\b[^>]*>([^<]+)<\/tspan><\/text>/g)];
   const rightTick = labels.find(([, , label]) => label === '200');
   assert.ok(rightTick, 'the upper axis endpoint is labeled');
-  assert.deepEqual(labels.filter(([, y]) => y === rightTick[1]).map(([, , label]) => label), ['1', '10', '100', '200']);
+  assert.deepEqual(labels.filter(([, y]) => y === rightTick[1]).map(([, , label]) => label), ['1', '5', '10', '50', '200']);
   assert.deepEqual([...svg.matchAll(/data-tutor-coordinate-point="([^"]+)"/g)].map(([, point]) => point),
     ['1,0.78', '5,0.86', '10,0.89', '50,0.92', '200,0.925']);
 });
