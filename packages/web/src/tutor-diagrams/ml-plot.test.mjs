@@ -467,3 +467,19 @@ test('showValues prints the y of each point, so those labels get no note either'
   const explicit = { ...d, series: [{ label: 'Fit', kind: 'step', points: [0, 1, 2, 3, 4].map(i => ({ x: i, y: i + 1, label: String(i + 1) })) }] };
   assert.equal(badges(render(explicit).svg), 0, 'the compact and the explicit form agree');
 });
+test('PLT-2B-n2: line and band labels are one line; one that does not fit goes above the plot, stacked, and a plain plot is not lifted', () => {
+  const d = { ...plot(), x: { label: 'X', min: 0, max: 10 },
+    annotations: [{ kind: 'reference-line', axis: 'x', value: 5, label: 'Mean' }, { kind: 'reference-line', axis: 'x', value: 2, label: 'One standard deviation below the mean' },
+      { kind: 'band', axis: 'x', from: 3, to: 7, label: 'Within one standard deviation of the mean' }, { kind: 'band', axis: 'x', from: 4, to: 6, label: 'Within half a standard deviation' }] };
+  const { svg, plotBounds, width } = render(d, 408);
+  const labels = marks(svg, 'data-tutor-plot-label');
+  assert.deepEqual(labels.map(m => m.value), d.annotations.map(a => a.label));
+  assert.ok(labels.every(m => !/<tspan[^>]*dy=/.test(m.tag)), 'one line each');
+  const above = [...svg.matchAll(/<g[^>]*data-tutor-plot-label="([^"]*)"[^>]*><text x="([\d.]+)" y="([\d.]+)"[^>]*font-size="11"/g)].map(m => ({ name: m[1], y: Number(m[3]) }));
+  assert.deepEqual(above.map(a => a.name), d.annotations.slice(1).map(a => a.label), 'all but the short "Mean" go above the plot');
+  assert.ok(above.every(a => a.y < plotBounds.top), 'above the plot area');
+  assert.equal(new Set(above.map(a => a.y)).size, above.length, 'each stands in its own row');
+  assert.equal(plotBounds.top, 40 + above.length * 14, 'the top margin grows by the rows used');
+  assert.ok(plotBounds.top - 10 - 14 * (above.length - 1) > 0 && width === 408);
+  assert.equal(render(plot(), 408).plotBounds.top, 40, 'a plot without such labels keeps its margin');
+});
