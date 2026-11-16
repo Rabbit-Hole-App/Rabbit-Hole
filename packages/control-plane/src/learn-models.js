@@ -111,6 +111,9 @@ export const LEARN_TASKS = Object.freeze({
   // The code-explain card (learn-code-explain.js, docs tutor-prompts-and-routing.md 5 and code-explain-card-spec.md 5): one Sonnet 5.5 call at low effort, one tool (the structured output) on auto,
   // exactly one call of it (Opus 5.5 400s on a forced tool with thinking off; the repo keeps one pattern). 4,000 output tokens, thinking included; the handler also caps input at 30k tokens and a card at US$0.50.
   code_explain: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 4000 }),
+  // Learn sections (docs/features/learn-sections, specs A-C): the brief, the composition and each made item, one Sonnet 5.5 turn each at code_explain's effort; research tools and the one
+  // submit tool on auto (Reviewer 2026-11-16 01:00: as code_explain, exactly one call of the submit tool, one re-ask). Caps per call site: brief US$0.15, compose US$0.10, item US$0.10 (notebook US$0.15).
+  learn_section: Object.freeze({ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (research tools, exactly one submit call)', maxTokens: 4000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.

@@ -27,25 +27,42 @@ export const FIT = Object.freeze({
   arxiv: { narration: null, interactive: null, limits: 'Finds research papers to read.' },
 });
 
+// The Learn section flow's own tools (docs/features/learn-sections DECISIONS H and N, Reviewer 2026-11-16 01:00): offered only by directTools(env, email,
+// { sectionFlow: true }), never in CHAT_CAPABILITIES or CHAT_ROUTES, so ordinary chat's list stays exactly as it is. The written explanation is read, not played;
+// the visual explain (/interactive) is not in the section set.
+export const SECTION_TOOLS = Object.freeze({
+  explanation: { label: 'Explanation', intent: 'A written explanation card the learner reads and keeps: prose, with tables and diagrams where they help.', fit: { narration: false, interactive: false, limits: 'A written card to read, not played: no controls, no motion, no narration.' } },
+  notebook: { label: 'Notebook', intent: 'A notebook card with runnable cells the learner can edit and run.', about: 'Cells that run as given; the learner presses Run to see the idea and may change a value and rerun.', fit: { narration: false, interactive: true, limits: 'Python cells the learner runs in the browser (Pyodide: numpy and pure Python; no torch, no network).' } },
+  document: { label: 'Document', intent: 'A written document card: prose, headings, equations, lists.', about: 'A document card to read.', fit: { narration: false, interactive: false, limits: 'Text and equations to read; no code runs, no media.' } },
+  browser: { label: 'Browser', intent: 'An existing web page captured onto the canvas, scrolled to a passage, with highlights (found, not made).', fit: { narration: null, interactive: null, limits: 'Finds and captures a public web page; highlights a passage. Never generates.' } },
+});
+
 const SEARCH = new Set(['youtube', 'wikipedia', 'arxiv', 'image']);
 export const toolNameOf = command => `run_${command.replace(/-/g, '_')}`;
 const entryOf = command => SLASH.find(c => c.name === command && c.places.includes('learn'));
+const sectionTool = (command, sectionFlow) => (sectionFlow && Object.hasOwn(SECTION_TOOLS, command) ? SECTION_TOOLS[command] : null);
+const fitOf = (command, sectionFlow) => sectionTool(command, sectionFlow)?.fit || FIT[command];
+const labelFor = (command, sectionFlow) => sectionTool(command, sectionFlow)?.label || commandLabel(command);
 
 // The direct tools this caller may use now: declared, not explicit-only, guarded ones only where the server enables them, and available
-// (the same checks the router applies). -> [{ command, name, label }]
-export function directTools(env, email = null) {
-  return Object.entries(CHAT_CAPABILITIES)
+// (the same checks the router applies). -> [{ command, name, label }]. sectionFlow: the ordinary set minus explain, plus SECTION_TOOLS.
+export function directTools(env, email = null, { sectionFlow = false } = {}) {
+  const tools = Object.entries(CHAT_CAPABILITIES)
     .filter(([command, cap]) => cap.flow === 'direct' && !cap.explicit && FIT[command] && entryOf(command))
     .filter(([command, cap]) => !cap.guarded || (command === 'explain' && env.EXPLAIN_V2_ENABLED === 'true'))
     .filter(([command]) => availability(env, { name: command, needs: entryOf(command).needs || null }, null, email))
     .map(([command]) => ({ command, name: toolNameOf(command), label: commandLabel(command) }));
+  if (!sectionFlow) return tools;
+  return [...tools.filter(t => t.command !== 'explain' && !Object.hasOwn(SECTION_TOOLS, t.command)),
+    ...Object.entries(SECTION_TOOLS).filter(([command]) => availability(env, { name: command, needs: entryOf(command)?.needs || null }, null, email))
+      .map(([command, tool]) => ({ command, name: toolNameOf(command), label: tool.label }))];
 }
 
 // Native tool definitions (Claude input_schema; the OpenAI-compatible mapping reads the same object as parameters).
-export function chatToolDefs(env, email = null) {
-  return directTools(env, email).map(({ command, name, label }) => ({
+export function chatToolDefs(env, email = null, { sectionFlow = false } = {}) {
+  return directTools(env, email, { sectionFlow }).map(({ command, name, label }) => ({
     name,
-    description: `${CHAT_CAPABILITIES[command].intent} ${entryOf(command).about} Limits: ${FIT[command].limits} Calling this only asks the app to open the ${label} command with your request; nothing exists until the learner uses it. Do not call it to answer a question about the tool, for conversation, or when the learner declines this format.`,
+    description: `${sectionTool(command, sectionFlow)?.intent || CHAT_CAPABILITIES[command].intent} ${sectionTool(command, sectionFlow)?.about || entryOf(command).about} Limits: ${fitOf(command, sectionFlow).limits} Calling this only asks the app to open the ${label} command with your request; nothing exists until the learner uses it. Do not call it to answer a question about the tool, for conversation, or when the learner declines this format.`,
     input_schema: {
       type: 'object', additionalProperties: false, required: ['request'],
       properties: {
@@ -61,23 +78,23 @@ export function chatToolDefs(env, email = null) {
 }
 
 // -> null when the command can deliver the stated requirements, else a sentence for the model (and a test).
-export function fitProblem(command, requirements) {
-  const fit = FIT[command];
+export function fitProblem(command, requirements, { sectionFlow = false } = {}) {
+  const fit = fitOf(command, sectionFlow);
   if (!fit || !requirements) return null;
-  if (requirements.narration === true && fit.narration === false) return `${commandLabel(command)} cannot provide narration`;
-  if (requirements.interactive === true && fit.interactive === false) return `${commandLabel(command)} is not interactive`;
+  if (requirements.narration === true && fit.narration === false) return `${labelFor(command, sectionFlow)} cannot provide narration`;
+  if (requirements.interactive === true && fit.interactive === false) return `${labelFor(command, sectionFlow)} is not interactive`;
   return null;
 }
 
 // The qualified alternatives for a requirement set, from the same catalogue (Motion included), so the model can offer one or say none exists.
-export function alternativesFor(env, email, requirements, exclude = null) {
-  const ids = [...directTools(env, email).map(t => t.command), ...(availability(env, { name: 'motion', needs: 'motion_dev' }, null, email) ? ['motion'] : [])];
-  return ids.filter(id => id !== exclude && !SEARCH.has(id) && !fitProblem(id, requirements)).map(id => commandLabel(id)); // a search finds existing material, never a substitute for making it
+export function alternativesFor(env, email, requirements, exclude = null, { sectionFlow = false } = {}) {
+  const ids = [...directTools(env, email, { sectionFlow }).map(t => t.command), ...(!sectionFlow && availability(env, { name: 'motion', needs: 'motion_dev' }, null, email) ? ['motion'] : [])];
+  return ids.filter(id => id !== exclude && !SEARCH.has(id) && id !== 'browser' && !fitProblem(id, requirements, { sectionFlow })).map(id => labelFor(id, sectionFlow)); // a search finds existing material, never a substitute for making it
 }
 
 // One call: validate and either surface it ({ request: {command, args} }) or answer the model with why not ({ error }).
-export function checkToolCall(env, email, call, { taken = false } = {}) {
-  const tool = directTools(env, email).find(t => t.name === call?.name);
+export function checkToolCall(env, email, call, { taken = false, sectionFlow = false } = {}) {
+  const tool = directTools(env, email, { sectionFlow }).find(t => t.name === call?.name);
   if (!tool) return { error: 'That tool is not available in this conversation. Answer in Chat or ask the learner one question.' };
   if (taken) return { error: 'One tool request per answer. Describe the rest in your reply.' };
   const input = call.input;
@@ -88,9 +105,9 @@ export function checkToolCall(env, email, call, { taken = false } = {}) {
   if (!args || args.length > REQUEST_MAX) return { error: `request must be 1 to ${REQUEST_MAX} characters` };
   const req = input.requirements;
   if (req !== undefined && (!req || typeof req !== 'object' || Array.isArray(req) || Object.keys(req).some(k => !['narration', 'interactive'].includes(k) || typeof req[k] !== 'boolean'))) return { error: 'requirements may only set narration and interactive to true or false' };
-  const problem = fitProblem(tool.command, req);
+  const problem = fitProblem(tool.command, req, { sectionFlow });
   if (problem) {
-    const alternatives = alternativesFor(env, email, req, tool.command);
+    const alternatives = alternativesFor(env, email, req, tool.command, { sectionFlow });
     return { error: `${problem}. ${alternatives.length ? `Tools that fit these requirements: ${alternatives.join(', ')}. Offer one with a short reason, or ask the learner one question.` : 'No available tool fits these requirements. Give useful help in Chat and say what the learner can do next.'}` };
   }
   return { request: { command: tool.command, args } };
