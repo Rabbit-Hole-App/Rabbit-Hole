@@ -146,7 +146,7 @@ export async function runMake(env, { actor, snapshot, repo }, body, { callModel 
     },
   });
   const usd = Number(out.usage.usd.toFixed(6));
-  try { console.log(JSON.stringify({ event: 'learn_section_make', section: section.id, item: item.id, command: item.command, calls: out.usage.calls, usd, cap_usd: cap, outcome: out.ok ? 'ok' : out.failed })); } catch { /* never worth a failed answer */ }
+  try { console.log(JSON.stringify({ event: 'learn_section_make', section: section.id, item: item.id, command: item.command, calls: out.usage.calls, usd, cap_usd: cap, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8) }) })); } catch { /* never worth a failed answer */ }
   if (out.failed === 'unavailable') return json({ error: 'learn_section_unavailable' }, 502);
   if (!out.ok) return skip(skipNote(item.command), { reason: out.failed, errors: out.errors.slice(0, 6), usd, calls: out.usage.calls });
   const { lead, follow, leadDefault, perform, record: extra } = out.ok;

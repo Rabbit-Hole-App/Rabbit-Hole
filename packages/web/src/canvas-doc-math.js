@@ -35,7 +35,7 @@ export function splitMath(markdown) {
   return { parts, inline };
 }
 
-// Parsed blocks -> the same blocks with each placeholder put back as inline math ({ type: 'inlineMath', props: { latex } }), inside links, table cells and children too.
+// Parsed blocks -> the same blocks with each placeholder put back as inline math ({ type: 'inlineMath', props: { latex } }), inside a link's text, table cells and children too.
 export function withInlineMath(blocks, inline) {
   const items = content => content.flatMap(item => {
     if (item?.type === 'text' && typeof item.text === 'string' && item.text.includes('RHMATH')) {
