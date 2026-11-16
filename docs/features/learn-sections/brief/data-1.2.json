@@ -2,7 +2,7 @@
   "case": "data",
   "section": "1.2",
   "sectionId": "1.2",
-  "ms": 14900,
+  "ms": 16519,
   "out": {
     "error": "sectionBriefFailed",
     "words": "I couldn't plan this section cleanly. Try again, or skip to the next section."
@@ -12,67 +12,80 @@
       "event": "learn_section_brief",
       "section": "1.2",
       "calls": 4,
-      "usd": 0.065031,
+      "usd": 0.06828,
       "cap_usd": 0.15,
       "searches": 0,
       "outcome": "invalid",
       "errors": [
-        "beat b2: idea is one idea in one or two short sentences, at most 260 characters",
-        "beat b3: idea is one idea in one or two short sentences, at most 260 characters",
-        "beat b3: shows names `self.`, `SETTINGS`, which the anchored lines do not",
-        "beat b4: idea is one idea in one or two short sentences, at most 260 characters"
+        "beat b1: shows names `Setting(\"default_page_size\", 100, ...)`, `Setting(\"sql_time_limit_ms\", 1000, ...)`, which the anchored lines do not",
+        "beat b2: shows names `default_page_size`, which the anchored lines do not",
+        "beat b5: idea is one idea in one or two short sentences, at most 260 characters",
+        "beat b5: idea names `Datasette`, which the anchored lines do not",
+        "beat b5: shows must have no path, file name or flag (found \"app.py\")",
+        "beat b6: idea is one idea in one or two short sentences, at most 260 characters",
+        "beat b6: shows names `SETTINGS`, which the anchored lines do not"
       ],
       "submitted": {
-        "from": "The previous section listed the parts the app pulls in and ended on the SETTINGS table of named tuples; this one shows how that table becomes live configuration and what the app holds for the server's lifetime.",
+        "from": "The previous section showed the module's parts list and ended on the SETTINGS table, the first shared configuration in the file.",
         "beats": [
           {
             "id": "b1",
-            "idea": "A setting is a name, a default and a help string, and nothing more. The table is plain data, so one tuple of them can drive defaults, help output and validation.",
-            "shows": "Read `Setting` and `SETTINGS`. Find `default_page_size` (100), `sql_time_limit_ms` (1000) and `num_sql_threads` (3), and say what each controls.",
+            "idea": "A setting is one named tuple with a name, a default and a help string. `SETTINGS` is a fixed tuple of them, so the defaults are data you can read, not logic scattered through the code.",
+            "shows": "Read `Setting(\"default_page_size\", 100, ...)` and `Setting(\"sql_time_limit_ms\", 1000, ...)`: the name, the default value and the help text are the three fields.",
             "anchors": [
-              "datasette/app.py:210-233"
+              "datasette/app.py:210-217",
+              "datasette/app.py:233"
             ],
             "background": false
           },
           {
             "id": "b2",
-            "idea": "Some settings are limits and some are switches. Numeric limits bound work, such as rows returned or query time. Booleans turn features on or off, such as downloads or signed tokens.",
-            "shows": "Sort about six settings from lines 211-300 into limits and switches. Note that 0 disables some limits, such as `max_csv_mb`, and means 'use the SQLite default' for `cache_size_kb`.",
+            "idea": "The settings fall into groups: row and size limits, time limits, feature switches and output options. Each is a knob that a view reads later, not something the view hard-codes.",
+            "shows": "Compare `max_returned_rows` (1000), `facet_time_limit_ms` (200) and `allow_download` (True). A worked example: a table page returns at most `default_page_size` = 100 rows, and a custom query can return up to 1000.",
             "anchors": [
-              "datasette/app.py:223-299"
+              "datasette/app.py:213-217",
+              "datasette/app.py:237-252"
             ],
             "background": false
           },
           {
             "id": "b3",
-            "idea": "The Datasette class is where these defaults meet the user's choices. Its constructor builds the state the server keeps for its whole life. Defaults come first, user overrides are layered on top, and the result is kept on the object.",
-            "shows": "Open the `__init__` of Datasette at line 410. List the `self.` attributes it assigns, and mark which ones come from `SETTINGS`. I have not read these lines yet, so check them yourself.",
+            "idea": "Some settings size the app's own machinery. `num_sql_threads` sets the thread pool that runs blocking SQLite work, which ties back to the thread imports in the previous section.",
+            "shows": "`num_sql_threads` defaults to 3, with the help text 'Number of threads in the thread pool for executing SQLite queries'.",
             "anchors": [
-              "datasette/app.py:410"
+              "datasette/app.py:228-232"
             ],
             "background": false
           },
           {
             "id": "b4",
-            "idea": "Databases are registered on the app in a dict keyed by name. Each is a `Database` object, and a separate internal database named by `INTERNAL_DB_NAME` holds Datasette's own data. Views later look databases up by name.",
-            "shows": "Find `INTERNAL_DB_NAME` and the `Database` import. Then search the constructor for where databases are added.",
+            "idea": "Some settings are security switches that later permission checks consult. `allow_signed_tokens` and `default_allow_sql` default to open, and `max_signed_tokens_ttl` of 0 is a limit that is off.",
+            "shows": "Find `allow_signed_tokens`, `default_allow_sql` and `max_signed_tokens_ttl` in the table. Note the convention that 0 means 'no limit' in `max_post_body_bytes` and `max_csv_mb`.",
             "anchors": [
-              "datasette/app.py:208",
-              "datasette/app.py:47"
+              "datasette/app.py:253-267",
+              "datasette/app.py:223-227",
+              "datasette/app.py:280-284"
             ],
             "background": false
           },
           {
             "id": "b5",
-            "idea": "Shared state means that every request sees the same app object, so anything stored on it is global to the server. This is why the thread pool, plugin manager and settings live there rather than in a view.",
-            "shows": "Name three things stored on the app that a request could read, and say why each is shared rather than per-request.",
-            "anchors": [
-              "datasette/app.py:410"
-            ],
+            "idea": "The app is a long-lived object. The `Datasette` constructor takes these settings plus the database files, merges the user's overrides over the defaults, and stores the results on the instance. Every request then reads the same shared state, such as its databases, settings and plugin manager.",
+            "shows": "Constructor code to look for: `Datasette.__init__` at app.py line 410. This brief did not read that body, so check how it stores settings and databases there.",
+            "anchors": [],
             "background": true
+          },
+          {
+            "id": "b6",
+            "idea": "The module also defines `INTERNAL_DB_NAME` (\"__INTERNAL__\") and `SQLITE_LIMIT_ATTACHED` (10). The first names a reserved internal database the app keeps for its own state. The second is a cap on attached databases.",
+            "shows": "Point at the two constants just above `SETTINGS`.",
+            "anchors": [
+              "datasette/app.py:205-208"
+            ],
+            "background": false
           }
         ],
-        "to": "Since the app holds all this shared state, the next section asks why views and plugins are handed the app itself."
+        "to": "Now that the app holds settings and databases, the next section asks why every view and plugin is handed the app itself."
       }
     }
   ]
