@@ -340,7 +340,6 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
     const rampFill = value => (value != null && Math.abs(value) === peak ? TEACHING.coral : warmRamp(Math.abs(value ?? 0) / peak));
     // The envelope runs through the bar-top centres and lands on the baseline half a bar past the first and the last of them (the outer edges of the end bars).
     const envelope = ramp && monotonePath([[object.x, baseY], ...values.map((value, index) => [object.x + index * pitch + pitch / 2, baseY - tallOf(value)]), [endX, baseY]]);
-    const envelopeClip = `${stripClip}-env-${object.id}`;
     return (
       <g>
         <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: interact ? FILLED_INK : hue }} strokeWidth="1.5" />
@@ -371,13 +370,8 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
           );
         })}
         {envelope && (
-          <>
-            <clipPath id={envelopeClip}><path d={`${envelope} L ${endX} ${baseY} L ${object.x} ${baseY} Z`} /></clipPath>
-            <g clipPath={`url(#${envelopeClip})`}>
-              {values.map((value, index) => <rect key={index} x={object.x + index * pitch} y={object.y} width={pitch} height={height} style={{ fill: rampFill(value) }} />)}
-            </g>
-            <path d={envelope} fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: FILLED_INK }} />
-          </>
+          // The envelope is an outline only: the stepped bars keep their own ramp fills beneath it.
+          <path d={envelope} fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: FILLED_INK }} />
         )}
         {chosen && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || (values.length * pitch), height }} />}
       </g>
