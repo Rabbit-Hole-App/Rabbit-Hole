@@ -303,7 +303,10 @@ async function startRoute(env, repo, routeId, access) {
   const needs = prerequisiteRoutes(doc, route);
   if (!route.practical || needs.some(r => !r.practical)) return json({ error: 'route_not_practical' }, 409);
   const stored = await storedRecord(env, repo, routeId, doc);
-  if (stored) return json(stored);
+  if (stored) {
+    if (env.LEARN_DB) await endCompute(env.LEARN_DB, env, await rehearsalKey(repo.id, repo.commit, routeId), { seconds: Number(stored.record?.wallSec ?? stored.elapsedSec) || undefined }).catch(() => null);
+    return json(stored);
+  }
   if (!configured(env)) return json({ status: 'failed', elapsedSec: 0, error: 'The rehearsal controller is not configured on this server.' });
   const key = await rehearsalKey(repo.id, repo.commit, routeId), actor = env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key));
   // The gate: a rehearsal holds a machine, so the person's Compute allowance must cover it before it starts. Joining a job already running is not a new start.
@@ -423,9 +426,10 @@ export async function runRoute(path, req, env, deps = {}) {
   try {
     const repo = await canvasRepository(env, access);
     if (!repo) return json({ error: 'no_repository' }, 409);
-    let response;
+    let response, catalogue = null;
     if (action === 'start') {
-      const stored = await storedRecord(env, repo, routeId, routeId ? await storedCatalogue(env, repo) : null); // a routeId reads that route's record; none, the record made before the catalogue
+      catalogue = routeId ? await storedCatalogue(env, repo) : null;
+      const stored = await storedRecord(env, repo, routeId, catalogue); // a routeId reads that route's record; none, the record made before the catalogue
       if (!stored) return json({ error: 'no_record' }, 409);
       // The gate (usage-limits-spec.md section 3): a session holds a machine; refused, nothing starts. A start repeated while the session boots is the same machine, not a new one.
       if (env.LEARN_DB && !(await env.LEARN_DB.prepare("SELECT 1 AS found FROM compute_entries WHERE user_id = ? AND app_id = ? AND kind = 'session' AND status = 'running'").bind(meterUser(access), body.app).first())) {
@@ -458,7 +462,7 @@ export async function runRoute(path, req, env, deps = {}) {
         }
       } else {
         const state = await response.clone().json().catch(() => null);
-        if (state?.sessionId && action === 'start') await beginCompute(env.LEARN_DB, env, entryFromSession(state, { userId: user, appId: body.app, repo: repo.repo, commit: repo.commit, routeId: routeId ?? null }));
+        if (state?.sessionId && action === 'start') await beginCompute(env.LEARN_DB, env, entryFromSession(state, { userId: user, appId: body.app, repo: repo.repo, commit: repo.commit, routeId: routeId ?? null, routeTitle: catalogue?.routes?.find(r => r.routeId === routeId)?.title ?? null }));
         if (action === 'stop') await endCompute(env.LEARN_DB, env, sessionId, { endedAt: endedAtOf(state) ?? undefined });
       }
     }
