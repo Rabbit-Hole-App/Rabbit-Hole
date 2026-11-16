@@ -115,7 +115,7 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
 // Owner, 2026-10-08: "in the canvas above the chat composer you are cutting the canvas too much". The canvas runs to the
 // bottom and the strip floats over it; chrome may float over the canvas but never hides what the learner cannot reach.
 test('the bottom strip floats: the canvas runs to the bottom, the strip lets the pointer through, only its controls take it', () => {
-  assert.match(canvas, /<div data-canvas-bottom ref=\{bottomStrip\} className=\{`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid \$\{chromeOff \? 'md:grid-cols-\[minmax\(0,1fr\)_minmax\(200px,780px\)_minmax\(0,1fr\)\]' : 'md:grid-cols-\[minmax\(264px,1fr\)_minmax\(200px,780px\)_minmax\(264px,1fr\)\]'\} md:items-end md:gap-3 \$\{DOCK_PAD\} \[&>\*>\*\]:pointer-events-auto`\}>/);
+  assert.match(canvas, /<div data-canvas-bottom ref=\{bottomStrip\} className=\{`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid \$\{chromeOff \? 'md:grid-cols-\[minmax\(0,1fr\)_minmax\(200px,780px\)_minmax\(0,1fr\)\]' : 'md:grid-cols-\[minmax\(min-content,1fr\)_minmax\(200px,780px\)_minmax\(min-content,1fr\)\]'\} md:items-end md:gap-3 \$\{DOCK_PAD\} \[&>\*>\*\]:pointer-events-auto`\}>/);
   assert.doesNotMatch(canvas, /data-canvas-bottom[^\n]*shrink-0/, 'no band of its own under the canvas');
   // The side columns' heights reach what must clear them: the Voice caption and the tools' gutter on that side.
   assert.match(canvas, /host\.style\.setProperty\('--chrome-left', `\$\{Math\.max\(0, bottom - strip\.firstElementChild\.getBoundingClientRect\(\)\.top\)\}px`\);/);

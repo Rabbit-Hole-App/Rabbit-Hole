@@ -6904,7 +6904,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           canvas runs to the bottom, the strip is transparent and lets the pointer through, and only its controls (the
           strip's grandchildren) take it. Chrome may float over the canvas but never hides what the learner cannot reach:
           fit, focus and a new card's reveal stop above it (chromeTop), and panning brings anything out from under it. */}
-      {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid ${chromeOff ? 'md:grid-cols-[minmax(0,1fr)_minmax(200px,780px)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(264px,1fr)_minmax(200px,780px)_minmax(264px,1fr)]'} md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
+      {presenting === null && <div data-canvas-bottom ref={bottomStrip} className={`pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2 md:grid ${chromeOff ? 'md:grid-cols-[minmax(0,1fr)_minmax(200px,780px)_minmax(0,1fr)]' : 'md:grid-cols-[minmax(min-content,1fr)_minmax(200px,780px)_minmax(min-content,1fr)]'} md:items-end md:gap-3 ${DOCK_PAD} [&>*>*]:pointer-events-auto`}>
         <div className="flex items-end gap-2 md:col-start-1">
         {/* The page's own lower-left control (Learn: the feedback button). */}
         {/* Owner 2026-11-15: ONE pill, its parts separated by dividers: the page's lower-left control (feedback), the map, then zoom out, the percentage and zoom in. No scroll arrows.
