@@ -123,6 +123,45 @@ function linkGroups(links) {
 
 const WRAP_GUTTER = 18;
 
+// The routes of a wrapped transformation's mapped links, stacked as lanes in the gap under the first row: a link's label sits above its lane at the free x nearest the middle of the run. The second row's heading
+// stands above its row at the free x nearest its group's centre that the drops clear; if the drops leave no gap as wide as the heading, it stands first in the gap under the first row, where only the source stems cross it. Lanes are ordered to cross as few other routes as possible. shortcut: more than 6 lanes keep link order; a heading or label that finds no free x stays centred over its run.
+function routeWrappedLinks(links, sourceX, targetX, sourceBottom, rowBottom, headingHeight, headingSpan, width) {
+  const lanes = linkGroups(links).map(group => {
+    const start = sourceX(group.from), targets = group.targets.map(index => ({ index, x: targetX(index) }));
+    const xs = [start, ...targets.map(target => target.x)];
+    const maxWidth = group.label ? Math.max(longestWordWidth(group.label, SMALL), Math.min(132, textWidth(group.label, SMALL))) : 0;
+    const lines = group.label ? wrap(group.label, maxWidth, SMALL) : [];
+    return { from: group.from, start, targets, lines, height: lines.length * lineHeight(SMALL), labelWidth: Math.max(0, ...lines.map(line => textWidth(line, SMALL))),
+      sourceY: sourceBottom(group.from), low: Math.min(...xs), high: Math.max(...xs) };
+  });
+  // The free x nearest `want` for a span of `size` that no vertical in `blocked` crosses; a free x that touches `touch` ranks first.
+  const place = (size, want, blocked, touch) => {
+    const free = [];
+    for (let c = Math.ceil(PAD + size / 2); c <= width - PAD - size / 2; c++) {
+      if (!blocked.some(x => x > c - size / 2 - 6 && x < c + size / 2 + 6)) free.push(c);
+    }
+    const apart = c => touch ? Math.max(0, touch[0] - (c + size / 2), c - size / 2 - touch[1]) : 0;
+    return free.sort((a, b) => apart(a) - apart(b) || Math.abs(a - want) - Math.abs(b - want))[0];
+  };
+  const inside = (x, lane) => x > lane.low + 1 && x < lane.high - 1;
+  // crossings when `upper` runs above `lower`: the lower one's stem through the upper lane, the upper one's drops through the lower lane
+  const crossings = (upper, lower) => +inside(lower.start, upper) + upper.targets.filter(target => inside(target.x, lower)).length;
+  const order = array => array.length < 2 ? [array] : array.flatMap((item, i) => order([...array.slice(0, i), ...array.slice(i + 1)]).map(rest => [item, ...rest]));
+  const cost = list => list.reduce((sum, upper, i) => sum + list.slice(i + 1).reduce((inner, lower) => inner + crossings(upper, lower), 0), 0);
+  const ordered = lanes.length > 6 ? lanes : order(lanes).reduce((best, list) => cost(list) < cost(best) ? list : best);
+  const headingLow = place(headingSpan, width / 2, lanes.flatMap(lane => lane.targets.map(target => target.x)));
+  let cursor = rowBottom + 10 + (headingLow === undefined ? headingHeight + 6 : 0);
+  for (const lane of ordered) {
+    lane.y = cursor + (lane.height ? lane.height + 5 : 0) + 8;
+    cursor = lane.y + 8;
+  }
+  const stemsAndDrops = (lane, bandTop) => ordered.flatMap(other => (other.y >= lane.y ? [other.start] : []).concat(other.y < bandTop ? other.targets.map(target => target.x) : []));
+  for (const lane of ordered) if (lane.height) lane.labelX = place(lane.labelWidth, (lane.low + lane.high) / 2, stemsAndDrops(lane, lane.y - 5 - lane.height), [lane.low, lane.high]) ?? (lane.low + lane.high) / 2;
+  if (headingLow !== undefined) return { lanes: ordered, headingX: headingLow, headingTop: cursor + 12, stripsTop2: cursor + 12 + headingHeight + 10 };
+  const headingX = place(headingSpan, width / 2, ordered.map(lane => lane.start)) ?? width / 2;
+  return { lanes: ordered, headingX, headingTop: rowBottom + 10, stripsTop2: cursor + 16 };
+}
+
 export function layoutTensorTransformation(diagram, preferredWidth = 0) {
   const { operation, links = [] } = diagram;
   const headOf = (group, role) => Math.max(0, ...group.items.map(item => itemScene(item, role).head));
@@ -161,12 +200,29 @@ export function layoutTensorTransformation(diagram, preferredWidth = 0) {
     elements.push(label(before.lines, beforeX + before.width / 2, headingTop + headingHeight / 2, { weight: 700 }));
     place(before, 'before', beforeX, stripsTop1);
     const rowBottom = stripsTop1 + before.height;
+    if (links.length) {
+      // Every mapped link keeps its arrow: down from the source's bottom edge, along a lane in the gap between the rows, down into the target's top edge.
+      const routes = routeWrappedLinks(links, i => beforeX + before.positions[i].x + before.positions[i].width / 2, i => afterX + after.positions[i].x + after.positions[i].width / 2,
+        i => stripsTop1 + before.positions[i].height, rowBottom, headingHeight,
+        Math.max(...after.lines.map(line => Math.ceil(textWidth(line) * 1.06))), width);
+      const { stripsTop2 } = routes;
+      elements.push(label(after.lines, routes.headingX, routes.headingTop + headingHeight / 2, { weight: 700 }));
+      place(after, 'after', afterX, stripsTop2);
+      for (const lane of routes.lanes) {
+        for (const x of lane.targets) {
+          elements.push(h('g', { 'data-tutor-tensor-link': `${lane.from}:${x.index}` },
+            wire([[lane.start, lane.sourceY], [lane.start, lane.y], [x.x, lane.y], [x.x, stripsTop2]], { active: true, width: 2.5 })));
+        }
+        if (lane.lines.length) elements.push(label(lane.lines, lane.labelX, lane.y - 5 - lane.height / 2, { size: SMALL }));
+      }
+      return { width, height: stripsTop2 + after.height + PAD, elements };
+    }
     const gapY = rowBottom + 20;
     const headingTop2 = rowBottom + 40;
     const stripsTop2 = headingTop2 + headingHeight + 10;
     elements.push(label(after.lines, afterX + after.width / 2, headingTop2 + headingHeight / 2, { weight: 700 }));
     place(after, 'after', afterX, stripsTop2);
-    // One arrow leaves the end of the first row and enters the start of the second: right, down, left past the second group, down, right into it.
+    // No mapping: one arrow leaves the end of the first row and enters the start of the second: right, down, left past the second group, down, right into it.
     const out = Math.min(width - PAD, Math.max(beforeX + before.width, afterX + after.width) + WRAP_GUTTER);
     const back = Math.max(PAD, Math.min(beforeX, afterX) - WRAP_GUTTER);
     const mid1 = stripsTop1 + before.head + CELL_HEIGHT / 2, mid2 = stripsTop2 + after.head + CELL_HEIGHT / 2;
