@@ -12,7 +12,7 @@ const INKS = [...TEACHING_SERIES_INK, T.ink, T.muted]; // the darker weight of a
 // Weights, heavy to light: the series line 4.5 (in the series fill colour), the marker ring 2 (a 14 px marker), guides and outlines 1.5.
 const TICK = 15, MARKER = 7, LINE = 4.5, GRID = 1.5;
 // The caps of a coordinate plot (the author's constraints sheet reads these): value labels only on a plot of ONE series with at most this many samples;
-// a marker on every sample of a line series up to PLOT_MARKER_ALL_MAX_SAMPLES, on every other sample up to PLOT_MARKER_LINE_ONLY_FROM_SAMPLES (the line alone from there; labelled samples keep theirs);
+// a marker on every sample of a line series up to PLOT_MARKER_ALL_MAX_SAMPLES, only the first, the last and the labelled samples of a longer one (PLOT_MARKER_LINE_ONLY_FROM_SAMPLES is no longer read);
 // at most PLOT_NOTES_MAX callouts (an annotation's label in a pill; no number is drawn).
 // A note never restates a sample's own coordinates (PL-1): a labelled sample draws no badge and no list line.
 export const PLOT_VALUE_LABEL_MAX_SAMPLES = 8, PLOT_MARKER_ALL_MAX_SAMPLES = 8, PLOT_MARKER_LINE_ONLY_FROM_SAMPLES = 20, PLOT_NOTES_MAX = 6;
@@ -289,8 +289,8 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
     }
     const values = series.points.map(xy);
     if (series.kind === 'line' || series.kind === 'step') {
-      // Straight segments between samples; the smooth curve only for a dense series (20 samples or more) or when the author asks for it.
-      const smooth = series.smooth ?? series.points.length >= 20;
+      // A line is the smooth curve through its samples (monotone cubic; a closed contour a smooth closed curve) unless the author says smooth: false: then straight segments.
+      const smooth = series.smooth !== false;
       let path;
       if (series.closed) path = closedLinePath(values, smooth);
       else if (series.kind === 'line' && smooth) path = monotoneLinePath(values, band);
@@ -307,7 +307,7 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
       // A curve is thinned so its markers do not read as noise: every sample up to 8, every other one from 9 to 19, the line alone from 20 (labelled samples keep theirs).
       const n = series.points.length;
       const marked = series.kind === 'line' && !series.closed
-        ? n <= PLOT_MARKER_ALL_MAX_SAMPLES || (n < PLOT_MARKER_LINE_ONLY_FROM_SAMPLES && j % 2 === 0) || Boolean(p.label || p.id) : showPlotMarker(series, j);
+        ? n <= PLOT_MARKER_ALL_MAX_SAMPLES || showPlotMarker(series, j) || Boolean(p.id) : showPlotMarker(series, j);
       if (marked) marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`, MARKER));
       // A single short series prints each value above its marker.
       if (d.series.length === 1 && series.points.length <= PLOT_VALUE_LABEL_MAX_SAMPLES) {
