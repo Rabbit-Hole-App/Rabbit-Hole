@@ -3,11 +3,19 @@
   "section": "2.1",
   "sectionId": "2.1",
   "itemId": "i1",
-  "ms": 7518,
+  "ms": 6211,
   "out": {
-    "skipped": {
+    "item": {
       "itemId": "i1",
-      "note": "I skipped the explanation for this part."
+      "command": "explanation",
+      "lead": "You now have encode and decode, so any string can become ids and back. Before that, the script must decide which part of the text the model may learn from.\n\nA model is judged on text it has not studied, because a score on text it already learned would only show memory. So the one long string is cut in two: a large piece to learn from, a small piece held back. Look at the four lines that do it.",
+      "follow": ""
+    },
+    "perform": {
+      "op": "slash",
+      "line": "/explain Why is a language model checked on text it was not trained on, and how do these lines cut one string into a training piece and a held-back piece? Show it on the 1,115,394-character string: the first 90% (up to int(n*0.9)) trains, the rest from that same index validates.\nThe reader already knows: the character vocabulary, encode and decode, the string read from the file.\nDo not cover: why validation text must stay unseen.\nAfterwards the reader should be able to: state the cut and point at its lines.",
+      "depth": "balanced",
+      "context": "data/shakespeare_char/prepare.py:37-40 @ 3adf61e154c3fe3fca428ad6bc3818b27a3b8291\n37: # create the train and test splits\n38: n = len(data)\n39: train_data = data[:int(n*0.9)]\n40: val_data = data[int(n*0.9):]"
     },
     "next": "i2"
   },
@@ -18,12 +26,9 @@
       "item": "i1",
       "command": "explanation",
       "calls": 2,
-      "usd": 0.01451,
+      "usd": 0.021196,
       "cap_usd": 0.1,
-      "outcome": "invalid",
-      "errors": [
-        "prompt uses 65, which the source lines and the brief do not: use only their numbers"
-      ]
+      "outcome": "ok"
     }
   ]
 }
