@@ -70,20 +70,40 @@ The build used `scripts/prod-release.mjs`'s own `BUILD_ENV`: `VITE_REHEARSAL_TRI
   - The app bundle exports `AnimationJobs`, `CadJobs`, `ExplainJobs`, `FileJobs`, `ImageJobs`, `LearnScenes`, `LearnVideos`, `RepositoryImports`, `RepositoryRehearsals`, `RoadmapJobs` and `WhiteboardJobs`.
   - `rabbit-hole-cp`: 5112.14 KiB, gzip 1216.61 KiB. No pdf.js is in either bundle.
 
-### Decision needed before the push: the feature ships ON, but production has no rehearsal backend
+## Backend (owner decision (a), 14:05): the rehearsal backend in production
 
-The production app config binds no `REPOSITORY_REHEARSALS` Durable Object (`RepositoryRehearsals` is exported but not bound, and there is no migration entry for its class). No `REHEARSAL_WORKER_URL` or `REHEARSAL_WORKER_TOKEN` secret is set either.
+**1. Controller (Fly).**
+- App `rabbit-hole-rehearsal-prod` (org `rabbit-hole`, region iad), deployed from `packages/rehearsal-runtime` with the new `Dockerfile` and `fly.prod.toml`.
+  - One shared-cpu machine with 1 GB, auto-stop, and the `/health` check. Python 3.13; requirements as pinned.
+  - URL: https://rabbit-hole-rehearsal-prod.fly.dev. `/health` answers `{"ok": true}`, and an unauthenticated `/sessions/x` answers 401.
+- Secrets on the app: `ANTHROPIC_API_KEY`, `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`, taken by name from the credentials file, never printed. Plus a fresh `REHEARSAL_WORKER_TOKEN`, the production bearer: never printed, kept outside every repository at `C:/s/spec/prod-secrets/rehearsal-token-prod.txt`.
+- No R2 credentials: the worker writes the records itself.
 
-`dev-worker.js` answers the rehearsal and Run routes with 404 where the class is unbound, and `startCatalogue` returns nothing when the controller is not configured. So in production:
-- the Run card and the route catalogue cannot run;
-- the Tutor's codebase intake has no catalogue.
+**2. Worker (`rabbit-hole-app`).**
+- The secrets `REHEARSAL_WORKER_URL` (the Fly URL) and `REHEARSAL_WORKER_TOKEN` were set with `wrangler secret put` on the live production worker.
+  - That makes a new version of the code already serving. After it, the signed-out smoke still answered `/` 200, `/api/me` 401 and `/a/x` 404.
+  - The secrets are unused until the release, because the code serving now has no rehearsal routes.
+- `wrangler.rabbit-hole-prod.jsonc` now binds `REPOSITORY_REHEARSALS` to `RepositoryRehearsals`, with the class migration `repository-rehearsals-1` (`new_sqlite_classes`, additive).
+  - These land with the release deploy. A dry-run lists `env.REPOSITORY_REHEARSALS (RepositoryRehearsals)`.
+  - Records go to `REPOSITORY_SNAPSHOTS` (`rabbit-hole-prod-repositories`) under `learn-repositories-dev/<app>/<commit>/`, the key shape dev uses.
 
-This was not changed here, because it is infrastructure: a new Durable Object binding, its class migration, and production secrets for the Modal controller. The choices:
-- (a) add the binding, the class migration and the two secrets before the release;
-- (b) ship as is and accept that the Run card is not available in production;
-- (c) keep `VITE_REHEARSAL_TRIGGER` off until (a) is done.
-
-The Learn section actions (brief, compose, make) do not need the rehearsal backend. They need migration 0046 and the existing model keys. The recorded-run lines are empty without a stored record.
+**3. Smoke, 2026-11-16 at 14:14 PT** (`backend-smoke.json`).
+- **Where it ran:** the production worker cannot run this before the release, because the binding and the rehearsal code ship with the release deploy. So the smoke ran the same worker code (this branch, on 8878) against the **production controller** with the production bearer, and without `REHEARSAL_PIN_COMMIT`, as in production.
+  - The records went to the owner stack's local R2, not to the production bucket.
+  - After the release, the owner's signed-in check repeats steps b to e from `digrabbithole.com`.
+- **What it did,** on a throwaway canvas:
+  - a. Imported nanoGPT at the branch head (`master`, which resolved to 3adf61e).
+  - b. Catalogue: ready in 25 s, with 2 practical routes (`benchmark_training_step`, `shakespeare_char_cpu`).
+  - c. Rehearsal `shakespeare_char_cpu`: ready in 151 s. `prepare_data` exit 0 (0.8 s), `train_cpu` exit 0 (89.7 s), `sample_text` exit 0 (11.4 s); `allChecksPassed` true. Taken as evidence only.
+  - d. A Run card session started, and step 1 (`prepare_data`) ran: done, exit 0, 0.3 s.
+  - e. Stop: the session ended `stopped`.
+  - f. The canvas was deleted: `DELETE /api/apps/canvas-cbe23b6f` answered 200, and a GET then answered 404. The imported project `repo-1962f08f-nanogpt` remains.
+- **Costs:**
+  - model US$0.088034 (the record's `modelSpendUsd`);
+  - compute: the rehearsal is 2 units (about US$0.02 at 1 unit = US$0.01) and the session 0 units, for 1 minute;
+  - Modal's billing report did not yet show the job;
+  - the Fly machine runs only while it is used.
+- 8878 was switched back to the local controller afterwards.
 
 ## 6. Migrations (Learn D1, `rabbit-hole-learn-prod`): the owner applies
 
@@ -112,6 +132,7 @@ Production was last read as identical through 0035 (5 November). 0036 to 0044 ar
   ```
 - **Code:** reset main to `rollback/pre-rehearsal-merge`, or `git revert -m 1 <merge sha>`, then release.
 - **Workers:** from each package, `npx wrangler rollback <version from the receipt's previous pair> --config wrangler.rabbit-hole-prod.jsonc`, the app first, then the control plane.
+- **Rehearsal backend:** run `cd packages/web && npx wrangler secret delete REHEARSAL_WORKER_URL --config wrangler.rabbit-hole-prod.jsonc` (and the same for `REHEARSAL_WORKER_TOKEN`). Stop the controller with `flyctl scale count 0 -a rabbit-hole-rehearsal-prod`; the app and its secrets stay, for a later retry. The binding and class migration are additive and stay in the config: a Durable Object class migration is not removed.
 - **D1:** roll back in reverse order. The data in those tables is lost.
 
   ```
@@ -130,7 +151,8 @@ Production was last read as identical through 0035 (5 November). 0036 to 0044 ar
 ## 8. SHAs
 
 - Main: `rabbit-hole/main` 5f29c23a6 (5f29c23a6a3c5cc40b8bc813a53d517d854c3e79).
-- `rehearsal/sections` tip: the commit that adds this version of the file. Its parent is d84f0df2e, the tested code. This commit adds only documentation.
-- Local `main` merge commit: one `--no-ff` merge of that tip onto 5f29c23a6. Its SHA is given with this report, because a merge commit cannot name itself.
-- Suites and the bundle check ran on merge 3794eeced, whose tree is d84f0df2e: the same code.
-- Nothing is pushed to main. The owner gives the push and the `!` commands.
+- `rehearsal/sections` tip: the commit that adds this version of the file.
+- Code tested by the suites and the bundle check: d84f0df2e (merge 3794eeced).
+- Since then, 6ff495fa7 adds only the controller's `Dockerfile`, `.dockerignore` and `fly.prod.toml`, the production binding and class migration (checked by the dry-run above), and BLOCKERS; this commit adds only documentation.
+- Local `main` merge commit: one `--no-ff` merge of the tip onto 5f29c23a6. Its SHA is given with this report.
+- Nothing is pushed to main. Order from here: the owner reads this file, then the migrations (section 6), the rollback-branch move (section 7), the push, and the `!` command.
