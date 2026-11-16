@@ -9,6 +9,7 @@
 import { DOC_CARD_SIZE, newDocBlock } from './canvas-doc.js';
 import { placeCodeExplain } from './code-explain-insert.js';
 import { insertCodeCards, repoCodeCard } from './code-card.js';
+import { newNotebookBlock } from './learn-notebook.js';
 
 const LINK_COLOR = '#2383e2'; // the code-explain satellites' connector colour (code-explain-insert.js)
 const frame = () => new Promise(resolve => (globalThis.requestAnimationFrame ? requestAnimationFrame(() => resolve()) : setTimeout(resolve, 16)));
@@ -63,6 +64,21 @@ async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
     if (!ids.length) throw new Error('no_card');
     for (let k = 1; k < ids.length; k += 1) await linkCards(canvasApi, ids[k - 1], ids[k]);
     return { cardId: ids[0], last: ids.at(-1) };
+  }
+  // Notebook (C section 3, DECISIONS Q): the canvas notebook card (learn-notebook.js newNotebookBlock) holding the server's workspace: the active notebook as the card's own copy, every other
+  // file (helper .py files, a second notebook) seeded into the new workspace through the block's seed_files, the shape an imported .py uses (learn-file-import.js; canvas-bridge.js init).
+  // ponytail: perform.runtime is not drawn here; the server already marks those cells and appends the sentence to the markdown cell before each (section 3d).
+  if (op === 'notebook') {
+    const files = (Array.isArray(perform.files) ? perform.files : []).filter(file => typeof file?.path === 'string' && file.path);
+    const active = files.find(file => file.path === perform.activePath) || files.find(file => file.path.endsWith('.ipynb'));
+    if (!active) throw new Error('no_notebook');
+    const text = content => (typeof content === 'string' ? content : JSON.stringify(content ?? ''));
+    const ipynb = typeof active.content === 'string' ? JSON.parse(active.content) : active.content;
+    const seed = Object.fromEntries(files.filter(file => file !== active).map(file => [file.path, text(file.content)]));
+    const block = { ...newNotebookBlock(), active_path: active.path, ipynb_path: active.path, files: files.map(file => file.path), ipynb, ...(Object.keys(seed).length ? { seed_files: seed } : {}), learn: learnTag(ctx, 'card') };
+    const id = canvasApi.insertNotebook?.(block);
+    if (!id) throw new Error('no_card');
+    return { cardId: id };
   }
   if (op === 'doc') return { cardId: await placeDoc(canvasApi, perform.markdown, ctx, 'card', beside) }; // a pure text beat has no card: only its lead
   throw new Error(`unknown_op:${op}`);
