@@ -5,6 +5,7 @@
 // title-less safe wording. Never a stack trace, a sandbox id, a dollar figure or a Modal term, and never "something went wrong".
 // Pure: no React, no network, no storage.
 import { CODEBASE_GOALS } from './learn-codebase-goals.js';
+import { catalogueView, chooseText, oneText, zeroText } from './catalogue-view.js';
 
 export const STAR = '⭐';
 export const SOMETHING_ELSE_CHIP = 'Something else';
@@ -83,14 +84,11 @@ export function catalogueMessage(doc) {
   if (!(doc?.routes || []).length) {
     built = { kind: 'none', text: `I read **${name}**. ${doc.summary} I didn't find a documented way to run it: no quick start, no scripts, no tests. You can read it, trace a feature, or tell me what you expected to run.`, chips: GOAL_CHIPS() };
   } else if (!practical.length) {
-    const needs = impracticalOf(doc).map(route => `${route.title}${route.reason ? ` - ${noStop(route.reason)}` : ''}`).join('; ');
-    built = { kind: 'zero', text: `I read **${name}**. ${doc.summary}\n\nWhat running it needs: ${needs}.\n\nHere you can read the code, trace a feature, or learn a concept through it.`, chips: GOAL_CHIPS() };
+    built = { kind: 'zero', text: zeroText(catalogueView(doc, name), doc.summary), chips: GOAL_CHIPS() };
   } else if (practical.length === 1) {
-    const only = practical[0];
-    built = { kind: 'one', routeId: only.routeId, text: `${opening(doc, name)}\n\nThere's one practical way to use this on a ${hardwareOf(doc)}: ${lower1(noStop(only.description || only.title))}. Setting that up now.`, chips: [] };
-    if (impracticalOf(doc).length) built.text += `\n\n${closingLine(doc)}`;
+    built = { kind: 'one', routeId: practical[0].routeId, text: oneText(catalogueView(doc, name)), chips: [] };
   } else {
-    built = { kind: 'choose', text: [opening(doc, name), "Here's what you can do with it:", ...routeBlocks(doc), closingLine(doc)].filter(Boolean).join('\n\n'), chips: [] };
+    built = { kind: 'choose', text: chooseText(catalogueView(doc, name)), chips: [] };
   }
   const labels = [built.text, ...built.chips.map(chip => chip.label)].join('\n');
   return leaks(labels, { repo: doc?.repo }) ? safeMessage(doc, name) : built;
