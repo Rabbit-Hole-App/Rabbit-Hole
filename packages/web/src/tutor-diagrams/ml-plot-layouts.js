@@ -447,7 +447,9 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
       const marked = series.kind === 'line' && !series.closed
         ? n <= PLOT_MARKER_ALL_MAX_SAMPLES || showPlotMarker(series, j) || Boolean(p.id) : showPlotMarker(series, j);
       const covered = series.kind === 'line' && scatterAt.some(([sx, sy]) => Math.hypot(sx - cx, sy - cy) <= 0.5);
-      if (marked && !covered) (series.kind === 'scatter' ? scatterMarks : marks).push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`, MARKER));
+      // A line series beside a scatter series is the fit through the points: it draws no markers unless the author says markers: true.
+      const bare = series.kind === 'line' && series.markers !== true && scatterAt.length > 0;
+      if (marked && !covered && !bare) (series.kind === 'scatter' ? scatterMarks : marks).push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`, MARKER));
       // A single short series prints each value above its marker.
       if (d.series.length === 1 && series.points.length <= PLOT_VALUE_LABEL_MAX_SAMPLES) {
         // Kept clear of the y axis and inside the card, so a sample on the axis does not print over the tick labels.
