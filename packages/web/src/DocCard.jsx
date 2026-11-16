@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MoreHorizontal } from 'lucide-react';
 import CardHeader from './CardHeader.jsx';
-import { useDismissMenu } from './ui.jsx';
-import { CardActionRows } from './CanvasMenu.jsx';
 import CanvasDoc from './CanvasDoc.jsx';
 import { unknownDocBlock } from './canvas-doc.js';
 import { openRunbookLink } from './learn-runbook.js';
@@ -14,7 +11,7 @@ import { openRunbookLink } from './learn-runbook.js';
 // block.blocks: the native document, read once when the editor is made. onBlocks(blocks): the document after a typing pause, as a quiet patch on the card
 // (not a canvas undo step). onLive(blocks | null): the words typed in the pause, so every save path can read them (AdaptiveCanvas docCardLive).
 export default function DocCard({ block, readOnly, onBlocks, onLive }) {
-  const [menu, setMenu] = useState(false), [epoch, setEpoch] = useState(0);
+  const [epoch, setEpoch] = useState(0);
   const latest = useRef(null), timer = useRef(null), pending = useRef(null);
   latest.current = { onBlocks, onLive };
   // The blocks this editor started from or last reported: a card whose blocks are anything else was changed from outside (a canvas undo or redo).
@@ -43,9 +40,6 @@ export default function DocCard({ block, readOnly, onBlocks, onLive }) {
     clearTimeout(timer.current);
     timer.current = setTimeout(flush, 500);
   };
-  const action = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
-  const stop = event => event.stopPropagation();
-  useDismissMenu(menu, () => setMenu(false), '[data-card-menu], [aria-label="More document actions"]');
   // The Runbook (a generated card, rehearsal-cards.js) cites the repository as links at its commit: ONE delegated click on the editor turns a click on such a link into Files at those
   // lines (small:open-code, as TutorCodebase.jsx openFiles), and GitHub at that commit when nothing answers. Any other link in any document is left to the editor.
   const source = block.generated?.kind === 'rehearsal' ? block.generated : null;
@@ -56,13 +50,6 @@ export default function DocCard({ block, readOnly, onBlocks, onLive }) {
   return (
     <>
       <CardHeader block={block} className="relative px-4 pb-2" meta="Document" trailing={<>
-        {!source && <button type="button" aria-label="More document actions" className={action} onPointerDown={stop} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>}
-        {menu && !source && (
-          // The card's own rows from the canvas action registry, run like the right-click menu's (CanvasMenu.jsx), as the Notebook card's.
-          <div role="menu" aria-label="Document actions" data-card-menu className="absolute top-8 right-3 z-30 w-60 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={stop}>
-            <CardActionRows id={block.id} groups={['primary', 'clipboard', 'lock', 'delete']} onDone={() => setMenu(false)} />
-          </div>
-        )}
       </>} />
       <div data-canvas-doc data-doc-card data-scroll onClickCapture={follow} className="min-h-0 flex-1 overflow-y-auto rounded-b-xl border-t border-line py-2 [&_.bn-editor]:px-3">
         {unknownDocBlock(block.blocks)
