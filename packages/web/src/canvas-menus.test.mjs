@@ -202,12 +202,9 @@ test('View: Canvas and Study radio rows only where the page passes study; a shar
   const modes = [];
   const study = mode => ({ mode, setMode: next => modes.push(next) });
   const view = owner({}, { study: study('canvas') })[2];
-  assert.deepEqual(groups(view.items), [['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas', 'Fit selection'], ['Canvas', 'Run'], ['Show / hide', 'Page guides']]);
-  assert.deepEqual(['Canvas', 'Run'].map(label => find(view.items, label).radio), [true, false]);
-  assert.deepEqual(['Canvas', 'Run'].map(label => find(owner({}, { study: study('study') })[2].items, label).radio), [false, true]);
-  find(view.items, 'Run').onSelect();
-  find(view.items, 'Canvas').onSelect();
-  assert.deepEqual(modes, ['study', 'canvas']);
+  assert.deepEqual(groups(view.items), [['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas', 'Fit selection'], ['Show / hide', 'Page guides']]);
+  for (const label of ['Canvas', 'Run', 'Study']) assert.equal(find(view.items, label), undefined, `View has no ${label} row: the mode is the header pill (owner 2026-11-15)`);
+  assert.deepEqual(modes, []);
   assert.ok(!labels(build({})[2].items).includes('Study'), 'no study given (a shared canvas): no rows');
   assert.doesNotMatch(labels(walk(view.items)).join('|'), /layout|Save|\.\.\.|…/i, 'no Release 2 layout rows');
 });
@@ -238,8 +235,7 @@ test('View: Shortcuts directly below Slash Commands; platform hints and aria key
 test('View: Canvas, Study and Page guides each lead with an icon (owner 2026-11-07), the row renderer draws a choice row icon', async () => {
   const study = { mode: 'canvas', setMode() {} };
   const view = owner({}, { study })[2];
-  for (const label of ['Canvas', 'Run', 'Page guides']) assert.ok(find(view.items, label).icon, label + ' has an icon');
-  assert.notEqual(find(view.items, 'Canvas').icon, find(view.items, 'Run').icon);
+  assert.ok(find(view.items, 'Page guides').icon, 'Page guides has an icon');
   const { readFileSync } = await import('node:fs');
   const bar = readFileSync(new URL('./CanvasMenubar.jsx', import.meta.url), 'utf8');
   assert.ok(bar.split('<Lead icon={item.icon} />').length - 1 >= 2, 'a submenu row and a choice row both draw their icon');
