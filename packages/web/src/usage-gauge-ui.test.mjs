@@ -160,7 +160,7 @@ test('the popover wiring: opens from the button, refreshes on open, Escape and o
   assert.match(source, /if \(event\.key === 'Escape'\) \{ event\.stopPropagation\(\); close\(true\); \}/);
   assert.match(source, /const close = useCallback\(restore => \{ setOpen\(false\); if \(restore\) trigger\.current\?\.focus\(\); \}, \[\]\);/);
   assert.match(source, /role="dialog" aria-label=\{USAGE_COPY\.menu\} tabIndex=\{-1\}/);
-  assert.match(source, /absolute top-full right-0 z-50 mt-2 w-72 max-w-\[calc\(100vw-1\.5rem\)\] rounded-xl border border-line bg-white p-3 shadow-pop/, 'the top bar popover styling, narrow-screen safe');
+  assert.match(source, /absolute top-full right-0 z-50 mt-2 w-96 max-w-\[calc\(100vw-1\.5rem\)\] rounded-xl border border-line bg-white p-3 shadow-pop/, 'the top bar popover styling, narrow-screen safe');
   // Settings refreshes on open, once: not a second request on top of the first load the hook has just started.
   assert.match(source, /useEffect\(\(\) => \{ if \(store\.getSnapshot\(\)\.status !== 'loading'\) store\.refresh\(\); \}, \[store\]\);/);
 });
