@@ -1059,12 +1059,13 @@ def catalogue_with_learn(job: dict, model_impl, status=lambda *a, **k: None) -> 
         if errs or stored.get('repo') != job['repo'] or stored.get('commit') != job['commit']:
             raise CatalogueFailed('no_catalogue', 'the stored catalogue is not this repository version: ' + '; '.join(errs[:2]))
         if 'learn' in stored:
-            return stored, []
-        doc = copy.deepcopy(stored)
+            return stored, []  # ponytail: a stored document that has learn is never sent back (learn-rehearsal.js), so it keeps no papers until re-indexed
+        doc = with_papers(copy.deepcopy(stored), job)
         status('planning')
         calls = add_learn(doc, job, model_impl)
     else:
         doc, calls = run_catalogue(job, model_impl, status)
+        doc = with_papers(doc, job)
         status('planning')
         try:
             calls = calls + add_learn(doc, job, model_impl)
@@ -1076,8 +1077,47 @@ def catalogue_with_learn(job: dict, model_impl, status=lambda *a, **k: None) -> 
     return doc, calls
 
 
+# Learn sections DECISIONS U (make spec C §6a): the source's own papers, found by rule at index time, never by the model.
+ARXIV_REF = re.compile(r'arxiv\.org/(?:abs|pdf)/((?:\d{4}\.\d{4,5}|[a-z-]+(?:\.[A-Z]{2})?/\d{7}))(?:v\d+)?|arxiv:\s*(\d{4}\.\d{4,5})(?:v\d+)?', re.I)
+MD_LINK = re.compile(r'\[([^\]]{3,200})\]\([^)]*$')  # the Markdown link text just before the URL is the paper's title
+MAX_PAPERS = 20
+
+
+def papers_of(files: dict) -> list:
+    """[{id, title, source}]: arXiv references in READMEs, CITATION files and Python files (docstrings, comments); the first citation wins; `source` is path:line."""
+    def rank(p):
+        name = PurePosixPath(p).name.lower()
+        return (0 if name.startswith('readme') else 1 if name.startswith('citation') else 2, p.count('/'), p)
+    out, seen = [], set()
+    for p in sorted((p for p in files if isinstance(files[p], str) and (re.match(r'(readme|citation)', PurePosixPath(p).name, re.I) or p.endswith('.py'))), key=rank):
+        for n, line in enumerate(files[p].splitlines(), 1):
+            for m in ARXIV_REF.finditer(line):
+                pid = m.group(1) or m.group(2)
+                if pid not in seen:
+                    seen.add(pid)
+                    link = MD_LINK.search(line[:m.start()])
+                    out.append({'id': pid, 'title': link.group(1).strip() if link else '', 'source': f'{p}:{n}'})
+    return out[:MAX_PAPERS]
+
+
+def with_papers(doc: dict, job: dict) -> dict:
+    return doc if 'papers' in doc else {**doc, 'papers': papers_of(job['files'])}
+
+
+def _papers_self_check() -> None:
+    # ponytail: an assert self-check, not a pytest file: the catalogue tests need jsonschema, which this machine lacks (BLOCKERS.md).
+    files = {'README.md': 'Read [Attention Is All You Need](https://arxiv.org/abs/1706.03762v7) and arXiv:2005.14165.\nAgain https://arxiv.org/pdf/1706.03762.',
+             'CITATION.cff': 'url: https://arxiv.org/abs/hep-th/9901001', 'model.py': '"""See arxiv.org/abs/1512.03385 for the residual block."""', 'data.txt': 'arxiv.org/abs/1111.11111'}
+    assert papers_of(files) == [{'id': '1706.03762', 'title': 'Attention Is All You Need', 'source': 'README.md:1'}, {'id': '2005.14165', 'title': '', 'source': 'README.md:1'},
+                                {'id': 'hep-th/9901001', 'title': '', 'source': 'CITATION.cff:1'}, {'id': '1512.03385', 'title': '', 'source': 'model.py:1'}], papers_of(files)
+    assert with_papers({'papers': []}, {'files': files}) == {'papers': []}
+    print('papers_of: ok')
+
+
 def main() -> None:
-    """python catalogue.py <snapshot.json | files.json>: print the rule pass. No model call."""
+    """python catalogue.py <snapshot.json | files.json>: print the rule pass. No model call. `python catalogue.py --self-check` checks papers_of."""
+    if sys.argv[1:] == ['--self-check']:
+        return _papers_self_check()
     snap = json.loads(open(sys.argv[1], encoding='utf-8').read())
     rp = rule_pass(snap.get('files', snap))
     print(json.dumps({'groups': rp['groups'], 'readmes': list(rp['readmes']), 'count': len(rp['candidates'])}, indent=1))
