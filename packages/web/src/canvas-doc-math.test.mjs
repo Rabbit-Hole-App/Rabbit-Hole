@@ -20,7 +20,7 @@ test('fenced code is never math, and an unclosed $$ stays text', () => {
   assert.deepEqual(parts, [{ markdown: '```\n$$ x $$\nprint("$a$")\n```\n$$ unclosed' }]);
 });
 
-test('withInlineMath puts each placeholder back as inline math, keeping styles, inside links and children', () => {
+test('withInlineMath puts each placeholder back as inline math, keeping styles, inside a link and children', () => {
   const inline = ['\\eta', 'y'];
   const blocks = [{ type: 'paragraph', content: [{ type: 'text', text: 'rate RHMATH0X here', styles: { bold: true } }, { type: 'link', href: 'https://x', content: [{ type: 'text', text: 'RHMATH1X', styles: {} }] }],
     children: [{ type: 'paragraph', content: [{ type: 'text', text: 'RHMATH1X', styles: {} }], children: [] }] }];
