@@ -1,0 +1,9 @@
+{ "id": "operators", "title": "Operator symbols", "width": 408, "height": 120, "duration": 0,
+  "objects": [
+    { "id": "o1", "type": "circle", "initialState": { "text": "×", "x": 40, "y": 60, "w": 44, "role": "operator" } },
+    { "id": "o2", "type": "circle", "initialState": { "text": "+", "x": 110, "y": 60, "w": 44, "role": "operator" } },
+    { "id": "o3", "type": "circle", "initialState": { "text": "−", "x": 180, "y": 60, "w": 44, "role": "operator" } },
+    { "id": "o4", "type": "circle", "initialState": { "text": "·", "x": 250, "y": 60, "w": 44, "role": "operator" } },
+    { "id": "o5", "type": "circle", "initialState": { "text": "Σ", "x": 320, "y": 60, "w": 44, "role": "operator" } },
+    { "id": "o6", "type": "circle", "initialState": { "text": "f", "x": 380, "y": 60, "w": 44, "role": "operator" } }
+  ], "timeline": [] }
