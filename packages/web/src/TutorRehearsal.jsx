@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { api } from './api.js';
 import { ChatMessage } from './ChatMessages.jsx';
-import { CHOICE, startGoal } from './TutorCodebase.jsx';
+import { CHOICE, codebasePost, startGoal } from './TutorCodebase.jsx';
 import { coachingCanvas } from './learn-coaching-client.js';
 import { goalOf, useOf } from './learn-codebase-goals.js';
-import { CODEBASE_OPTIONS_EVENT, INTAKE_TEXT_EVENT, routeIntakeText } from './codebase-use-route.js';
+import { CODEBASE_OPTIONS_EVENT, INTAKE_TEXT_EVENT, routeIntakeText, routeLearnText } from './codebase-use-route.js';
 import { REHEARSAL_POLL_MS } from './learn-rehearsal-view.js';
 import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
-import { flowMessages, goalForm, intakeOpen, onlyRoute } from './rehearsal-flow.js';
+import { flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute } from './rehearsal-flow.js';
+import { fitReply, learnOf, learnReply } from './learn-intake.js';
 import { catalogueMessage } from './tutor-rehearsal-text.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
@@ -24,7 +25,7 @@ import { toast } from './ui.jsx';
 const FAILS = 3; // consecutive failed reads of the state before the Tutor says so
 let counter = 0;
 const line = (role, text) => ({ key: `line-${++counter}`, role, text });
-const INITIAL = { intakeDone: false, get: null, doc: null, docError: false, use: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
+const INITIAL = { intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
 
 function Pending({ text }) {
   return <span role="status" data-rehearsal-pending className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{text}</span></span>;
@@ -117,6 +118,13 @@ export default function TutorRehearsalFlow({ chat }) {
   };
   useEffect(() => { if (active) poll(); return () => clearTimeout(timer.current); }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Learn from it before the document has its `learn` section (an older stored catalogue): the additive call is running on the server, so the document is read again every few seconds until it arrives or fails.
+  const waiting = s.mode === 'learn' && !!s.doc && !s.doc.learn && s.get?.learn?.status === 'queued';
+  useEffect(() => {
+    if (!waiting) return undefined;
+    const tick = setInterval(() => { fetchDoc().then(() => api(url(route.current)).then(data => live.current && patch({ get: data }), () => {})); }, 4000);
+    return () => clearInterval(tick);
+  }, [waiting]); // eslint-disable-line react-hooks/exhaustive-deps
   const retryCatalogue = () => { patch({ docError: false, get: null }); fails.current = 0; clearTimeout(timer.current); fetchDoc().then(done => { if (!done) poll(); }); };
 
   // The chosen route's rehearsal: POST start, then the same poll with the route.
@@ -134,7 +142,7 @@ export default function TutorRehearsalFlow({ chat }) {
     const use = useOf(key);
     if (!use?.enabled) return;
     if (key === 'use_codebase') {
-      patch({ use: key });
+      patch({ use: key, mode: 'run' });
       const only = onlyRoute(st.current.doc);
       if (only) startRoute(only.routeId, only.title);
       return;
@@ -154,16 +162,39 @@ export default function TutorRehearsalFlow({ chat }) {
     if (out.note) append(line('assistant', out.note)); else patch({ goalChosen: true });
   };
 
+  // Learn from it, a topic chosen (Intake v2): the goal is saved through the existing goal path with the option itself (no clarifying form), then the Tutor opens the topic in one paragraph.
+  const chooseLearn = async picked => {
+    const kept = st.current.focus, option = kept && kept.id === picked.id ? { ...picked, focus: kept.text } : picked; // a line narrower than the option keeps the learner's words as the focus
+    patch({ learn: option, learnIntro: { status: 'loading' }, focus: null });
+    const out = await startGoal({ chat, board, repository: repoRef.current, goalId: 'learn_concept', text: '', learn: option });
+    if (!live.current) return;
+    if (out.note) { patch({ learn: null, learnIntro: null }); append(line('assistant', out.note)); return; }
+    patch({ goalChosen: true });
+    openLearnIntro(option);
+  };
+  const openLearnIntro = async option => {
+    patch({ learnIntro: { status: 'loading' } });
+    try {
+      const out = await codebasePost(chat, board, { action: 'learn_intro', learn: option });
+      if (live.current) patch({ learnIntro: out?.text ? { status: 'done', text: out.text } : { status: 'failed' } });
+    } catch { if (live.current) patch({ learnIntro: { status: 'failed' } }); }
+  };
+  const learnOption = id => learnOf(st.current.doc).options.find(option => option.id === id);
+
   choose.current = chooseUse;
   // The router decided the learner asked what they can do here (ask.jsx): the intake is offered again, whatever was chosen before.
   useEffect(() => {
-    const again = event => { if (event.detail?.canvas !== canvas) return; event.detail.handled = true; forgetIntake(canvas); patch({ intakeDone: false, use: null, goalChosen: false, elsewhere: false, form: null }); };
+    const again = event => { if (event.detail?.canvas !== canvas) return; event.detail.handled = true; forgetIntake(canvas); patch({ intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, focus: null, goalChosen: false, elsewhere: false, form: null }); };
     window.addEventListener(CODEBASE_OPTIONS_EVENT, again);
     return () => window.removeEventListener(CODEBASE_OPTIONS_EVENT, again);
   }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = id => {
-    if (/^(use|route|goal):/.test(id) || id === 'else') rememberIntake(canvas); // asked once: a way is the answer
-    if (id.startsWith('use:')) chooseUse(id.slice(4));
+    if (/^(use|route|goal|learn):/.test(id) || id === 'mode:run' || id === 'else') rememberIntake(canvas); // asked once: a way is the answer
+    if (id === 'mode:run') chooseUse('use_codebase');
+    else if (id === 'mode:learn') patch({ mode: 'learn' });
+    else if (id.startsWith('learn:')) { const option = learnOption(id.slice(6)); if (option && learnOpen(st.current)) chooseLearn(option); }
+    else if (id === 'retry:learn') { if (st.current.learn) openLearnIntro(st.current.learn); }
+    else if (id.startsWith('use:')) chooseUse(id.slice(4));
     else if (id.startsWith('goal:')) chooseGoal(id.slice(5));
     else if (id.startsWith('route:')) { patch({ use: 'use_codebase' }); startRoute(id.slice(6), routeTitleOf(id.slice(6))); }
     else if (id === 'else') patch({ elsewhere: true });
@@ -193,7 +224,28 @@ export default function TutorRehearsalFlow({ chat }) {
     const onText = event => {
       const { canvas: where, text } = event.detail || {};
       const cm = st.current.doc ? catalogueMessage(st.current.doc) : null;
-      if (where !== canvas || !intakeOpen(st.current, cm)) return;
+      if (where !== canvas) return;
+      // While the Learn options are open the line is a reply to them: the scoped router reads it against the options (and what this codebase cannot teach).
+      if (learnOpen(st.current) && st.current.doc) {
+        event.preventDefault();
+        const learn = learnOf(st.current.doc), full = st.current.doc.learn;
+        append(line('user', text));
+        routeLearnText({ post: body => api('/api/learn/chat/route', { method: 'POST', body: JSON.stringify(body) }), app: canvas, text, learn: { options: learn.options, cannot: full?.cannot || [] } }).then(async outcome => {
+          if (!live.current) return;
+          let reply;
+          // A hit (a confirmed option, or something this codebase lacks) is answered with no model turn. A miss is one Tutor turn that says whether it can be learned here and why (learn_fit); every typed line gets an answer.
+          if (outcome.kind === 'confirmed' || outcome.kind === 'cannot') reply = learnReply(outcome, learn);
+          else {
+            try { reply = fitReply(await codebasePost(chat, board, { action: 'learn_fit', text, learn: { options: learn.options, cannot: full?.cannot || [] } }), learn); }
+            catch { reply = learnReply({ kind: 'none' }, learn); }
+          }
+          if (!live.current) return;
+          patch({ focus: reply.focus || null });
+          append({ key: `line-${++counter}`, role: 'assistant', text: reply.text, choices: reply.choices, learnRows: true });
+        });
+        return;
+      }
+      if (!intakeOpen(st.current, cm)) return;
       event.preventDefault();
       append(line('user', text));
       routeIntakeText({ post: body => api('/api/learn/chat/route', { method: 'POST', body: JSON.stringify(body) }), app: canvas, text }).then(reply => {

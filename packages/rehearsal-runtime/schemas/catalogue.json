@@ -24,6 +24,29 @@
       }
     },
     "routes": { "type": "array", "items": { "$ref": "#/$defs/route" } },
+    "learn": {
+      "type": "object", "additionalProperties": false, "required": ["options", "cannot"],
+      "description": "What a learner can study here (intake-run-or-learn-spec section 2). Written by catalogue.add_learn: ONE model call after the routes, or alone on a stored document that has none (the routes are kept; no version bump). Enforced by catalogue.learn_clean: 1-4 options, every anchor exists in the snapshot, no path or file name in a label, kinds unique, an option whose anchors are all under docs/ dropped; nothing surviving gives one default structure option. `cannot` names what the repository does not have, for the scoped router. Optional: a document made before it has none.",
+      "properties": {
+        "options": {
+          "type": "array", "minItems": 1, "maxItems": 4,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["id", "label", "what", "anchors", "kind"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 60, "description": "at most 6 words, no path or file name" },
+              "what": { "type": "string", "minLength": 1, "maxLength": 300, "description": "one sentence: what the learner would understand" },
+              "anchors": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "string", "minLength": 1 }, "description": "paths (or directories) in the snapshot where the topic lives" },
+              "kind": { "enum": ["science", "data", "structure", "testing", "deploy", "domain", "other"] }
+            }
+          }
+        },
+        "cannot": {
+          "type": "array", "maxItems": 4,
+          "items": { "type": "object", "additionalProperties": false, "required": ["kind", "thing", "why"], "properties": { "kind": { "enum": ["science", "data", "structure", "testing", "deploy", "domain", "other"] }, "thing": { "type": "string", "minLength": 1, "maxLength": 80 }, "why": { "type": "string", "minLength": 1, "maxLength": 200 } } }
+        }
+      }
+    },
     "more": {
       "type": "array",
       "description": "practical routes beyond the cap of 8: shown as a plain line under the list",

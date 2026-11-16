@@ -16,6 +16,7 @@
         "error": { "type": "string", "description": "a plain reason for the Tutor's sentence, never a stack trace" }
       }
     },
+    "learn": { "type": "object", "additionalProperties": false, "required": ["status"], "properties": { "status": { "enum": ["queued", "failed"] } }, "description": "present only while a stored catalogue document has no `learn` section yet: queued (the additive call is running or waiting) or failed (it made none; the Tutor says so)" },
     "catalogueDoc": { "$ref": "catalogue.json", "description": "present when catalogue.status is ready and the caller asked for it (POST action catalogue)" },
     "routes": {
       "type": "array",

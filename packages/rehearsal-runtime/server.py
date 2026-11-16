@@ -61,7 +61,7 @@ def run(key: str, job: dict) -> None:
 
 
 def catalogue(key: str, job: dict) -> None:
-    """One catalogue job: the rule pass and one model call (catalogue.py). Ends `ready` with the document, or `failed` with a plain error; nothing here reads a key value."""
+    """One catalogue job: the rule pass, one model call for the routes and one for the learn options (catalogue.py); a job with a stored `catalogue` makes only the learn call. Ends `ready` with the document, or `failed` with a plain error; nothing here reads a key value."""
     import catalogue as cat
 
     def status(state):
@@ -69,9 +69,10 @@ def catalogue(key: str, job: dict) -> None:
             CATALOGUES[key].update(status=state, updated=time.time())
     CAT_SLOT.acquire()
     try:
-        doc, calls = cat.run_catalogue(job, MODEL, status)
+        doc, calls = cat.catalogue_with_learn(job, MODEL, status)
         with LOCK:
             CATALOGUES[key].update(status='ready', doc=doc, calls=calls, finished=time.time(), updated=time.time())
+        print(f"catalogue {key[:8]} model calls: " + ', '.join(f"{c['role']} US${c['usd']:.4f}" for c in calls) + f" (total US${sum(c['usd'] for c in calls):.4f})", flush=True)  # the operator's record of the cost; never in the document
     except cat.CatalogueFailed as e:
         with LOCK:
             CATALOGUES[key].update(status='failed', error=f'{e.code}: {e.detail}'[:400], finished=time.time(), updated=time.time())

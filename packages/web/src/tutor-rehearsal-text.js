@@ -102,6 +102,12 @@ export function routeQuestion(doc) {
   return { text: 'Which of these should I set up?', chips: [...practical.map(chipOf), { id: 'else', label: SOMETHING_ELSE_CHIP }] };
 }
 
+// Intake v2: for a codebase that can run, the facts message ahead of the Run or Learn question: its name and what it is, then what is out of reach. The ways it can run are the Run it route list.
+export function factsMessage(doc, cm = catalogueMessage(doc)) {
+  const name = repoName(doc?.repo), summary = noStop(doc?.summary), text = summary ? `**${name}**: ${summary}.` : `**${name}**`;
+  return { text: leaks(text, { repo: doc?.repo }) ? `**${name}**` : text, rest: cm.rest || '' };
+}
+
 // ---- the other Tutor sentences (cannot-run-edge-cases.md section 1a) ------------------------------------------------------
 
 export const SENTENCES = {
@@ -117,6 +123,17 @@ export const SENTENCES = {
   soon: label => `**${label}** isn't built yet. Pick one of the others below, or tell me what you want to do with this codebase.`,
   notSure: 'I wasn\'t sure which of these you meant. Pick one below.',
   intake: 'What do you want to do with this codebase?',
+  // Intake v2, Run or Learn (owner 2026-11-15, intake-run-or-learn-spec.md section 5): no repository name in any of these; the options, `thing` and `why` come from the catalogue document.
+  runIt: 'Run it',
+  learnIt: 'Learn from it',
+  learnOptions: 'From this codebase you can learn:',
+  learnOrType: "Or tell me what you'd like to learn.",
+  start: 'Start',
+  learnNear: 'Did you mean one of these?',
+  learnCannot: (thing, why) => `This codebase doesn't have ${thing} to learn from — ${why}. I can teach:`,
+  learnCannotPlain: "This codebase doesn't have that to learn from. I can teach:",
+  learnNone: "I couldn't work out what to teach from this codebase just now. Tell me what you'd like to learn.",
+  learnIntroFailed: "I couldn't open that topic just now. Try again; nothing was lost.",
 };
 
 // Indexing failed: too big when the plain reason says so (a number of files or the limit), else the connect-time line.
@@ -181,7 +198,7 @@ export function didYouMean(flag, known = []) {
   }
   return best && bestDistance > 0 && bestDistance <= Math.min(3, Math.max(1, Math.floor(name.length / 3))) ? best : null;
 }
-// The flag a program refused, from its error output: nanoGPT's configurator (Unknown config key), click (No such option), argparse (unrecognized arguments), a Python call (unexpected keyword). -> '--name' or null.
+// The flag a program refused, from its error output: a config-key runner (Unknown config key), click (No such option), argparse (unrecognized arguments), a Python call (unexpected keyword). -> '--name' or null.
 export function rejectedFlag(out) {
   const m = /Unknown config key:?\s*['"]?([A-Za-z0-9_-]+)|No such option:?\s*(?:--?)?([A-Za-z0-9_-]+)|unrecognized arguments:?\s*(?:--?)?([A-Za-z0-9_-]+)|unexpected keyword argument\s*['"]([A-Za-z0-9_]+)['"]/i.exec(String(out || ''));
   const name = m && (m[1] || m[2] || m[3] || m[4]);
