@@ -1,0 +1,19 @@
+{
+  "note": "First rerun after the Reviewer's 10:50 rulings (2026-11-16, 10:44 PT). The runner overwrote this file's twin (nano-2.1-i1.json) with the second rerun, so this record is reconstructed from the runner's printed result and the stack log line; the context's text was not kept, only its length.",
+  "case": "nano",
+  "section": "2.1",
+  "itemId": "i1",
+  "ms": 7622,
+  "out": {
+    "perform": {
+      "op": "slash",
+      "line": "/explain Why is a language model checked on text it was not trained on, and how do these lines cut the one long string into a training piece and a validation piece? Show it on the 1,115,394-character Shakespeare text: the first 90% of characters train, the last 10% are held back.\nThe reader already knows: the corpus is one string, its length is counted, and characters map to ints.\nDo not cover: why validation text must stay unseen.\nAfterwards the reader should be able to: say the first 90% of characters train and the last 10% validate.",
+      "depth": "balanced",
+      "context": "206 characters"
+    },
+    "lead": "You can now turn any string into ids and back. Before the script encodes anything, it cuts the one long string in two.\n\nA language model can memorize its text. A score on text it already studied would not show whether it learned anything general. So the script holds back a small piece to check on later. Lines 37-40 make that cut."
+  },
+  "log": [
+    { "event": "learn_section_make", "section": "2.1", "item": "i1", "command": "explanation", "calls": 2, "usd": 0.022713, "cap_usd": 0.1, "outcome": "ok" }
+  ]
+}

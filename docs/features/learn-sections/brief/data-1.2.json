@@ -2,7 +2,7 @@
   "case": "data",
   "section": "1.2",
   "sectionId": "1.2",
-  "ms": 11271,
+  "ms": 10249,
   "out": {
     "error": "sectionBriefFailed",
     "words": "I couldn't plan this section cleanly. Try again, or skip to the next section."
@@ -12,16 +12,12 @@
       "event": "learn_section_brief",
       "section": "1.2",
       "calls": 4,
-      "usd": 0.057946,
+      "usd": 0.083216,
       "cap_usd": 0.15,
       "searches": 0,
       "outcome": "invalid",
       "errors": [
-        "beat b1: shows must be plain words, with no path, file name, flag or code name",
-        "beat b2: idea is one sentence of at most 200 characters",
-        "beat b2: idea must be plain words, with no path, file name, flag or code name",
-        "beat b2: shows must be plain words, with no path, file name, flag or code name",
-        "beat b4: idea is one sentence of at most 200 characters"
+        "beat b5: idea is one sentence of at most 200 characters"
       ]
     }
   ]
