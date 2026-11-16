@@ -324,7 +324,66 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
   return { width, height: legendY, plotBounds: bounds, crowded, elements: [...elements, ...geometry, ...marks, ...foreground] };
 }
 
-function barChart(d, requested) {
+// BAR-1: the bar chart as the written diagrams draw it: vertical bars, an L-axis in ink (2 px, the value axis on the left and the category baseline at zero, no top or right line, no box),
+// dotted gridlines at the value ticks, one fill per category in the palette's series order (a grouped chart: one fill per series, as its legend pills), the value above each bar (not with more than
+// 12 bars, or on a bar narrower than the label), square 2 px outlined bars with a gap of 40% of the bar width. A single series has no legend. A plain bars chart is one series of one bar per category.
+const BAR_FILLS = [T.blueFill, T.mustardFill, T.tealFill, T.coral, T.olive, T.lavender, T.rose, T.slate];
+function verticalBars(d, requested, options) {
+  const grouped = d.variant === 'grouped';
+  const categories = grouped ? d.categories : d.bars.map(bar => bar.label);
+  const series = grouped ? d.series : [{ label: d.title ?? '', values: d.bars.map(bar => bar.value) }];
+  const n = categories.length, k = series.length;
+  const width = bodyWidth(d, requested);
+  const values = series.flatMap(entry => entry.values);
+  let min = Math.min(0, ...values), max = Math.max(0, ...values);
+  if (min === max) { min = -1; max = 1; }
+  const PLOT = 210, top = PAD + 24, bottom = top + PLOT;
+  const y = scale({ min, max }, bottom, top);
+  const ticks = plotTicks({ min, max }, y, { horizontal: false });
+  const tickWidth = Math.ceil(Math.max(...ticks.map(tick => Math.max(...tick.lines.map(line => textWidth(line, TICK))))));
+  const left = PAD + tickWidth + 10, right = width - PAD - 10;
+  const slot = (right - left) / n, inner = 2; // 2 px between the bars of one cluster
+  const barWidth = (slot - inner * (k - 1)) / (k + 0.4);
+  const cluster = k * barWidth + (k - 1) * inner;
+  const elements = [];
+  // Dotted gridlines behind everything, at the value ticks (the baseline stands at zero).
+  for (const tick of ticks) {
+    elements.push(h('line', { x1: left, x2: right, y1: tick.at, y2: tick.at, stroke: T.outline, strokeOpacity: 0.3, strokeWidth: GRID, strokeDasharray: '1.5 4', strokeLinecap: 'round', 'data-tutor-plot-grid': '' }));
+    elements.push(label(tick.lines, left - 8, tick.at, { anchor: 'end', size: TICK }));
+  }
+  const showValues = n * k <= 12;
+  const bars = [], labels = [];
+  categories.forEach((category, i) => {
+    const start = left + slot * i + (slot - cluster) / 2;
+    const name = wrap(category, slot - 4, SMALL + 1);
+    labels.push(label(name, left + slot * (i + 0.5), bottom + 10 + name.length * lineHeight(SMALL + 1) / 2, { size: SMALL + 1 }));
+    series.forEach((entry, j) => {
+      const value = entry.values[i], x = start + j * (barWidth + inner), cx = x + barWidth / 2, zero = y(0), end = y(value);
+      const fill = grouped ? COLORS[j] : options?.labelColors?.get(category) ?? BAR_FILLS[i % BAR_FILLS.length];
+      const attrs = grouped ? { 'data-tutor-grouped-bar': value, 'data-tutor-bar-category': category, 'data-tutor-bar-series': entry.label, 'data-tutor-stack-from': 0, 'data-tutor-stack-to': value }
+        : { 'data-tutor-bar': value };
+      if (value !== 0) bars.push(h('rect', { x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end), fill, stroke: T.outline, strokeWidth: 2, ...attrs }));
+      else bars.push(h('line', { x1: x, x2: x + barWidth, y1: zero, y2: zero, stroke: T.outline, strokeWidth: 2, ...attrs }));
+      const text = amount(value, d.unit);
+      if (showValues && textWidth(text, TICK) <= barWidth + inner + 0.4 * barWidth) labels.push(label(text, cx, value < 0 ? end + 12 : end - 12, { size: TICK, weight: 600 }));
+    });
+  });
+  elements.push(...bars);
+  // The L-axis over the bars' feet: the value axis, and the category baseline at zero.
+  elements.push(h('line', { x1: left, x2: left, y1: top - 6, y2: bottom, stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-axis': '' }),
+    h('line', { x1: left, x2: right, y1: y(0), y2: y(0), stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-baseline': '' }), ...labels);
+  const labelsHeight = Math.max(1, ...categories.map(category => wrap(category, slot - 4, SMALL + 1).length)) * lineHeight(SMALL + 1);
+  let bottomOfLabels = bottom + 10 + labelsHeight + 8;
+  if (grouped) {
+    const drawn = legendPills(series.map((entry, i) => ({ i, text: entry.label })), width, bottomOfLabels + 4);
+    elements.push(...drawn.elements);
+    bottomOfLabels += 4 + drawn.height + 8;
+  }
+  return { width, height: bottomOfLabels + PAD, elements };
+}
+
+function barChart(d, requested, options) {
+  if (d.variant !== 'stacked') return verticalBars(d, requested, options);
   const width = bodyWidth(d, requested);
   const left = 120, right = width - 86;
   const groups = d.categories.map((category, i) => {
@@ -413,6 +472,6 @@ export function createLayouts({ legacy }) {
   return {
     // Every coordinate plot, plain or extended, is drawn by this layout: a plain spec gets the theme defaults with no styling field (the legacy plot layout is no longer used).
     'coordinate-plot': (d, width, options) => coordinatePlot(d, width, options),
-    'bar-chart': (d, width, options) => isStackedBar(d) ? stackedBar(d, width, options) : d.variant ? barChart(d, width) : legacy['bar-chart'](d, width, options),
+    'bar-chart': (d, width, options) => isStackedBar(d) ? stackedBar(d, width, options) : d.variant || !options?.compact ? barChart(d, width, options) : legacy['bar-chart'](d, width, options),
   };
 }
