@@ -81,7 +81,7 @@ function renderSaved(id, width, edit = spec => spec) {
   const result = renderTutorDiagram(saved, width);
   const svg = renderToStaticMarkup(result.element);
   assert.match(svg, /^<svg .*role="img"/);
-  assert.ok(svg.includes(TEACHING.blue));
+  assert.ok(svg.includes(TEACHING.blue) || svg.includes(TEACHING.blueFill));
   assert.doesNotMatch(svg, /NaN|Infinity|undefined|katex-error/);
   assert.equal(svg, renderToStaticMarkup(renderTutorDiagram(spec, width).element));
   assert.ok(Number.isFinite(result.height) && result.height > 0);

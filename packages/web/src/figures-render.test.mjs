@@ -124,6 +124,6 @@ test('the markup of each figure kind in the composed card is pinned', () => {
 const EXPECTED_MARKUP_HASHES = {
   axisX: 'a560140acaa12466e1f91058e0d27fe305a0b69b54e8c3179d95b4f5b01f3491',
   axisY: '82f48c2487842873aefc04b0df5a842101a1e332028dc432030980c9adaccdec',
-  plot: 'd79d9afed29b65e1c58bd56b4edecb23d0b31468b6813a0400cb011e36780c6a',
+  plot: '2693df24ec2e0c2717a9e49f567bee2e4410b4b52a14628e74bec9c5c1821ef1',
   diagram: '97c0443ec308667cf6f1cb2952b53cc20095b02dff7461dba427894a792de4c5',
 };
