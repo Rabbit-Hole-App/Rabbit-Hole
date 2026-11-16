@@ -175,7 +175,7 @@ test('narrow comparisons stack full real panels instead of creating a multi-char
   input.panels.push({ heading: 'Third', diagram: plot('Third fit') });
   const scene = realLayouts.comparison(input, 408);
   const children = groups(scene).map(translation);
-  assert.equal(scene.width, 444, '420px native plot plus panel padding; panels stack rather than shrink text');
+  assert.equal(scene.width, 432, '408px native plot (the themed minimum) plus panel padding; panels stack rather than shrink text');
   assert.equal(children.length, 3);
   assert.equal(children[0][0], children[1][0]);
   assert.equal(children[1][0], children[2][0]);

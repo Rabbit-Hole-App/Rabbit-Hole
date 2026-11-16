@@ -71,10 +71,11 @@ test('line and data cues keep contrast and preserve selection while interactive 
     const markPercent = Number(interactMarkColor(role).match(/ (\d+)%/)?.[1]);
     const rest = interactDataStyle(role);
     const selected = interactDataStyle(role, { selected: true });
-    assert.equal(rest.onFill, '#32211c', 'a cell is the role fill at 100% with the outline ink on it');
+    const onFill = role === 'success' ? '#FFFCF0' : '#32211c'; // text on a success fill is the cream ground (4.68:1 on the dark teal), on any other role the outline ink
+    assert.equal(rest.onFill, onFill, 'a cell is the role fill at 100% with its on-fill ink on it');
     assert.equal(rest.fill, hue, 'no 22% or 58% tint');
     assert.equal(selected.fill, hue);
-    assert.equal(selected.onFill, '#32211c');
+    assert.equal(selected.onFill, onFill);
     for (const [background, ink] of [['#FFFCF0', '#37352f'], ['#1f1f1f', '#d4d4d4']]) {
       assert.ok(contrast(mix(rgb(hue), rgb(ink), markPercent), rgb(background)) >= 4.5, role + ' line ' + background);
     }
