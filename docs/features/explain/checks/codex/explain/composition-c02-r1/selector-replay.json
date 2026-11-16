@@ -1,0 +1,492 @@
+{
+  "baselineRef": "eb29478ee4875c5e62dcee5c360f37aa419dc8ae",
+  "ref": "7a9dd67a4098e3f82bb2a8dd89f622c14da31951",
+  "method": "Fresh offline source-prompt replay through planWithReferenceKind and selectForAuthor; deterministic source-kind JEV plans; deduplicated prompts + paraphrases at brief/balanced/detailed. Exact emitted identities compared separately from authored-kind restoration. No live providers.",
+  "priorCases": 3048,
+  "priorPickParity": true,
+  "plannerKindDifferenceClassification": "authored single restored over main's matrix fallback",
+  "changedPriorPicks": [],
+  "changedRequirements": [],
+  "changedPlannedKinds": [
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 0,
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "brief",
+      "before": [
+        "matrix"
+      ],
+      "after": [
+        "coordinate-plot"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 1,
+      "prompt": "Show a recursive rollout as predicted values become the next inputs.",
+      "depth": "brief",
+      "before": [
+        "matrix"
+      ],
+      "after": [
+        "coordinate-plot"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 2,
+      "prompt": "Why can forecast feedback drift away from refreshed one-step estimates?",
+      "depth": "brief",
+      "before": [
+        "matrix"
+      ],
+      "after": [
+        "coordinate-plot"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 3,
+      "prompt": "Compare a recursive rollout with forecasts that receive new measured readings.",
+      "depth": "brief",
+      "before": [
+        "matrix"
+      ],
+      "after": [
+        "coordinate-plot"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 4,
+      "prompt": "Trace forecast feedback from a measured seed to reused predictions.",
+      "depth": "brief",
+      "before": [
+        "matrix"
+      ],
+      "after": [
+        "coordinate-plot"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 5,
+      "prompt": "How does moving the starting point change a recursive rollout?",
+      "depth": "brief",
+      "before": [
+        "matrix"
+      ],
+      "after": [
+        "coordinate-plot"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 0,
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "detailed",
+      "before": [
+        "sample-set"
+      ],
+      "after": [
+        "bar-chart"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 1,
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "detailed",
+      "before": [
+        "sample-set"
+      ],
+      "after": [
+        "bar-chart"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 2,
+      "prompt": "Show an input style shift with the fixed class rule still applied in both domains.",
+      "depth": "detailed",
+      "before": [
+        "sample-set"
+      ],
+      "after": [
+        "bar-chart"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 3,
+      "prompt": "How can an input style shift happen when both target classes appear in training?",
+      "depth": "detailed",
+      "before": [
+        "sample-set"
+      ],
+      "after": [
+        "bar-chart"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 4,
+      "prompt": "Compare independently drawn card domains with a fixed class rule and different tones.",
+      "depth": "detailed",
+      "before": [
+        "sample-set"
+      ],
+      "after": [
+        "bar-chart"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 5,
+      "prompt": "Count the dark and light cards to explain an input style shift.",
+      "depth": "detailed",
+      "before": [
+        "sample-set"
+      ],
+      "after": [
+        "bar-chart"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 6,
+      "prompt": "Why does a fixed class rule allow different input styles at deployment?",
+      "depth": "detailed",
+      "before": [
+        "sample-set"
+      ],
+      "after": [
+        "bar-chart"
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    }
+  ],
+  "changedEmittedKinds": [
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 0,
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "matrix"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 1,
+      "prompt": "Show a recursive rollout as predicted values become the next inputs.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "matrix"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 2,
+      "prompt": "Why can forecast feedback drift away from refreshed one-step estimates?",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "matrix"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 3,
+      "prompt": "Compare a recursive rollout with forecasts that receive new measured readings.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "matrix"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 4,
+      "prompt": "Trace forecast feedback from a measured seed to reused predictions.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "matrix"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 5,
+      "prompt": "How does moving the starting point change a recursive rollout?",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "matrix"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 0,
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "sample-set"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 1,
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "sample-set"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 2,
+      "prompt": "Show an input style shift with the fixed class rule still applied in both domains.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "sample-set"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 3,
+      "prompt": "How can an input style shift happen when both target classes appear in training?",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "sample-set"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 4,
+      "prompt": "Compare independently drawn card domains with a fixed class rule and different tones.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "sample-set"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 5,
+      "prompt": "Count the dark and light cards to explain an input style shift.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "sample-set"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 6,
+      "prompt": "Why does a fixed class rule allow different input styles at deployment?",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "sample-set"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "classification": "authored single restored over main's matrix fallback"
+    }
+  ],
+  "newCollisions": [],
+  "summary": {
+    "changedPriorPicks": 0,
+    "changedRequirements": 0,
+    "changedPlannedKinds": 13,
+    "changedEmittedKinds": 13,
+    "newCollisions": 0
+  },
+  "publishedBranchTip": "16718410f212ab664a3948ea047fda615f43e424",
+  "contentUnchangedSinceReplayRef": "git diff --quiet 7a9dd67a4098e3f82bb2a8dd89f622c14da31951 16718410f212ab664a3948ea047fda615f43e424 -- packages (passed; receipt-only update)"
+}

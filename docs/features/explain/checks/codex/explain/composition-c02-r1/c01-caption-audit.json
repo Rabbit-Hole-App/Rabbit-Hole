@@ -1,0 +1,19 @@
+{
+  "task": "f56dab7a-9ff2-48bb-b0a8-b30af708de07",
+  "acceptedC01": "eb29478ee4875c5e62dcee5c360f37aa419dc8ae",
+  "sourceCaption": "Worked example. $\\Delta\\hat y=w_A\\Delta a$ when the other feature and weights stay fixed.",
+  "referenceIsPlainText": false,
+  "usesKatex": true,
+  "source": "packages/web/src/tutor-diagrams/topic-linear-regression-references.js:297",
+  "rendererPath": [
+    "TutorDiagram.js:27 layoutCaption",
+    "primitives.js:207 layoutCaption",
+    "math.js:34 mathLabel",
+    "math-tokens.js:4 tokenizeMath",
+    "math.js:17 katex.renderToString"
+  ],
+  "nativeFallbackText": "Worked example. Deltaŷ=w_AΔ a when the other feature and weights stay fixed.",
+  "fallbackCause": "plainMath replaces hat-y first, joining preceding Delta command to y; greedy command parsing then interprets Deltay as unknown and retains the word.",
+  "fallbackSource": "packages/web/src/tutor-diagrams/primitives.js:191-226",
+  "disposition": "Reference already uses KaTeX, so conditional plain-reference correction does not apply. No content or renderer change in chain. Any display/fallback correction deferred until after C13."
+}

@@ -1,0 +1,82 @@
+{
+  "task": "f56dab7a-9ff2-48bb-b0a8-b30af708de07",
+  "branch": "explain/composition-c02-r1",
+  "originalHead": "10cab31e70ac1db654ab197e89ed6ef2dc48778e",
+  "newParent": "eb29478ee4875c5e62dcee5c360f37aa419dc8ae",
+  "publishedBranchTip": "16718410f212ab664a3948ea047fda615f43e424",
+  "publishedBranchTree": "2b6fc8e422cec26e94ab484f4ace5a7860f79104",
+  "referenceIds": [
+    "ml-attention-scaled-score-normalization",
+    "ml-model-evaluation-training-diagnostics",
+    "ml-model-evaluation-schedule-run-diagnostics",
+    "ml-time-series-recursive-rollout",
+    "ml-distribution-shift-input-distribution-shift",
+    "ml-distribution-shift-concept-shift"
+  ],
+  "snapshots": {
+    "changed": 3271,
+    "added": 0,
+    "removed": 0,
+    "regenerationCommit": "fa977f60"
+  },
+  "tests": {
+    "command": "node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-reference*.test.js packages/control-plane/test/explanation-plan-kind-from-reference.test.js packages/control-plane/test/explanation-composition-author-variants.test.js packages/control-plane/test/explanation-learner-keywords.test.js packages/control-plane/test/explanation-fast-chain.test.js",
+    "testedCommit": "16718410f212ab664a3948ea047fda615f43e424",
+    "testedTree": "2b6fc8e422cec26e94ab484f4ace5a7860f79104",
+    "startedAt": "2026-11-16T18:46:12.305996+00:00",
+    "durationSeconds": 38.54,
+    "exitCode": 1,
+    "tests": 1395,
+    "suites": 0,
+    "pass": 1394,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0,
+    "failureNames": [
+      "small forces retain visible arrows and disclose their minimum size (4.459728ms)",
+      "failing tests:",
+      "small forces retain visible arrows and disclose their minimum size (4.459728ms)"
+    ],
+    "classification": "Sole existing release148 baseline failure in figure-layout.test.mjs:70: expected stroke-width 1.5 versus actual 2. Test and renderer files match main exactly; left unchanged."
+  },
+  "replay": {
+    "priorCases": 3048,
+    "changedPriorPicks": 0,
+    "changedRequirements": 0,
+    "plannerKindDifferences": 13,
+    "emittedKindDifferences": 13,
+    "classification": "authored single restored over main's matrix fallback",
+    "newCollisions": 0,
+    "ownCases": 111,
+    "ownHits": 111,
+    "canonicalCases": 21,
+    "canonicalHits": 21,
+    "paraphraseCases": 90,
+    "paraphraseHits": 90
+  },
+  "schema": {
+    "actualProbes": 216,
+    "maxGeminiProperties": 307,
+    "limit": 362
+  },
+  "sourcePreservation": {
+    "ownReferences": 6,
+    "ownSingles": 6,
+    "priorReferences": 468,
+    "priorSingles": 37
+  },
+  "sheet": {
+    "views": 30,
+    "renders": 60,
+    "width": 1210,
+    "height": 18856,
+    "sha256": "b89405c51ce4516c5fab5b1d9910dcd0b38d32d567a5ef76655307194c8efca9",
+    "layout": "Accepted C01 layout and embedded fonts, unchanged."
+  },
+  "evidenceBranch": "film/evidence",
+  "evidencePath": "docs/features/explain/checks/codex/explain/composition-c02-r1",
+  "browserRasterVerified": false,
+  "released": false,
+  "next": "C03 only after owner reads C02 sheet; C01 caption display/fallback follow-up after C13."
+}

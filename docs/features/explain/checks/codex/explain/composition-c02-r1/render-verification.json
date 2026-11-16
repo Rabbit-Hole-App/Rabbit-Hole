@@ -1,0 +1,14 @@
+{
+  "checks": {
+    "xmlParses": true,
+    "artifactHashes": true,
+    "allViewsInSheet": true,
+    "allColumnsInSheet": true,
+    "completeViewports": true,
+    "sameC01Layout": true,
+    "noExternalResources": true
+  },
+  "references": 6,
+  "views": 30,
+  "renders": 60
+}

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Position weights",
+    "bars": [
+      {
+        "label": "A",
+        "value": 0.284
+      },
+      {
+        "label": "B",
+        "value": 0.14
+      },
+      {
+        "label": "C",
+        "value": 0.576
+      }
+    ],
+    "variant": "stacked",
+    "caption": "Toy $q=(1,1)$; keys A $(2,0)$, B $(0,1)$, C $(1,2)$. Raw matches are dot products; head width $d_k=2$. Divide by $\\sqrt{d_k}$, then softmax."
+  }
+}

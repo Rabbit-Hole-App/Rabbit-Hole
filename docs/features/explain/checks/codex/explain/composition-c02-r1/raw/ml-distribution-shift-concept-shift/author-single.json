@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "Ash",
+    "unit": "Cards",
+    "bars": [
+      {
+        "label": "A",
+        "value": 0
+      },
+      {
+        "label": "B",
+        "value": 3
+      }
+    ],
+    "caption": "Same dark round cards, different names. Elm: Round is A; square is B. Ash: Round is B; square is A."
+  }
+}

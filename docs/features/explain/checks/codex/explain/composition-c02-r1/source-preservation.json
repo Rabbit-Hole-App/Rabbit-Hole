@@ -1,0 +1,61 @@
+{
+  "branch": "explain/composition-c02-r1",
+  "originalRef": "10cab31e70ac1db654ab197e89ed6ef2dc48778e",
+  "ref": "7a9dd67a4098e3f82bb2a8dd89f622c14da31951",
+  "parentBaselineRef": "eb29478ee4875c5e62dcee5c360f37aa419dc8ae",
+  "checked": {
+    "ownReferences": 6,
+    "ownSingles": 6,
+    "priorReferences": 468,
+    "priorSingles": 37
+  },
+  "inheritedUpdates": [],
+  "restoredOwnSingles": [
+    {
+      "id": "ml-attention-scaled-score-normalization",
+      "beforeKind": "bar-chart",
+      "afterKind": "bar-chart",
+      "classification": "authored single restored over main's matrix fallback",
+      "exactOriginalMatch": true
+    },
+    {
+      "id": "ml-distribution-shift-concept-shift",
+      "beforeKind": "bar-chart",
+      "afterKind": "bar-chart",
+      "classification": "authored single restored over main's matrix fallback",
+      "exactOriginalMatch": true
+    },
+    {
+      "id": "ml-distribution-shift-input-distribution-shift",
+      "beforeKind": "sample-set",
+      "afterKind": "bar-chart",
+      "classification": "authored single restored over main's matrix fallback",
+      "exactOriginalMatch": true
+    },
+    {
+      "id": "ml-model-evaluation-schedule-run-diagnostics",
+      "beforeKind": "coordinate-plot",
+      "afterKind": "coordinate-plot",
+      "classification": "authored single restored over main's matrix fallback",
+      "exactOriginalMatch": true
+    },
+    {
+      "id": "ml-model-evaluation-training-diagnostics",
+      "beforeKind": "coordinate-plot",
+      "afterKind": "coordinate-plot",
+      "classification": "authored single restored over main's matrix fallback",
+      "exactOriginalMatch": true
+    },
+    {
+      "id": "ml-time-series-recursive-rollout",
+      "beforeKind": "matrix",
+      "afterKind": "coordinate-plot",
+      "classification": "authored single restored over main's matrix fallback",
+      "exactOriginalMatch": true
+    }
+  ],
+  "mismatches": [],
+  "passed": true,
+  "publishedBranchTip": "16718410f212ab664a3948ea047fda615f43e424",
+  "contentUnchangedSinceReplayRef": "git diff --quiet 7a9dd67a4098e3f82bb2a8dd89f622c14da31951 16718410f212ab664a3948ea047fda615f43e424 -- packages (passed; receipt-only update)"
+}

@@ -1,0 +1,2951 @@
+{
+  "method": "Offline prepareArtifactAuthorRequest and actual stepRequest Google JSON-schema path. No provider/model calls or credentials.",
+  "probes": 216,
+  "passed": 216,
+  "maxGeminiProperties": 307,
+  "limit": 362,
+  "rows": [
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "default",
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "planned-source",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "planned-source",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-linear-regression-linear-unit",
+      "mode": "planned-source",
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "kind": "block-stack"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Show how a hidden feature layer changes the inputs before prediction.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Show how a hidden feature layer changes the inputs before prediction.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Show how a hidden feature layer changes the inputs before prediction.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "How do nonlinear hidden features feed a readout?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "How do nonlinear hidden features feed a readout?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "How do nonlinear hidden features feed a readout?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Explain a hidden feature layer using input, ReLU, and output panels.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Explain a hidden feature layer using input, ReLU, and output panels.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Explain a hidden feature layer using input, ReLU, and output panels.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Trace nonlinear hidden features from an affine map to a prediction.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Trace nonlinear hidden features from an affine map to a prediction.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Trace nonlinear hidden features from an affine map to a prediction.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Use a hidden feature layer to show what ReLU does to a negative value.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Use a hidden feature layer to show what ReLU does to a negative value.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "default",
+      "prompt": "Use a hidden feature layer to show what ReLU does to a negative value.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "planned-source",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "planned-source",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-neural-networks-hidden-layer",
+      "mode": "planned-source",
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Show a penalized objective with data loss and a weight penalty.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Show a penalized objective with data loss and a weight penalty.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Show a penalized objective with data loss and a weight penalty.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "How does a regularization cost add to mean squared error?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "How does a regularization cost add to mean squared error?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "How does a regularization cost add to mean squared error?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Draw the dependencies of a penalized objective and its stacked parts.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Draw the dependencies of a penalized objective and its stacked parts.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Draw the dependencies of a penalized objective and its stacked parts.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Keep the predictions fixed and double the regularization cost strength.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Keep the predictions fixed and double the regularization cost strength.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Keep the predictions fixed and double the regularization cost strength.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Explain a penalized objective without confusing the loss with its weight penalty.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Explain a penalized objective without confusing the loss with its weight penalty.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "default",
+      "prompt": "Explain a penalized objective without confusing the loss with its weight penalty.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "planned-source",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "planned-source",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-regularized-objective",
+      "mode": "planned-source",
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Show a temporary dropout mask and how surviving activations are scaled.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Show a temporary dropout mask and how surviving activations are scaled.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Show a temporary dropout mask and how surviving activations are scaled.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Explain inverted dropout with the same hidden units in each panel.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Explain inverted dropout with the same hidden units in each panel.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Explain inverted dropout with the same hidden units in each panel.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "What does a temporary dropout mask change during one training pass?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "What does a temporary dropout mask change during one training pass?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "What does a temporary dropout mask change during one training pass?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Trace inverted dropout from activations through a mask to scaling.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Trace inverted dropout from activations through a mask to scaling.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Trace inverted dropout from activations through a mask to scaling.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Compare inverted dropout mask averages with a linear inference readout.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Compare inverted dropout mask averages with a linear inference readout.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "default",
+      "prompt": "Compare inverted dropout mask averages with a linear inference readout.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "planned-source",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "planned-source",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-regularization-dropout-mask",
+      "mode": "planned-source",
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Show attention score scaling followed by normalized position weights.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Show attention score scaling followed by normalized position weights.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Show attention score scaling followed by normalized position weights.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "How does the square root of head width change query-key matches before softmax?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "How does the square root of head width change query-key matches before softmax?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "How does the square root of head width change query-key matches before softmax?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Draw scaled match weights from one query and three candidate keys.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Draw scaled match weights from one query and three candidate keys.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Draw scaled match weights from one query and three candidate keys.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Trace a query-key dot product through the head-width divisor and softmax.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Trace a query-key dot product through the head-width divisor and softmax.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "Trace a query-key dot product through the head-width divisor and softmax.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "What happens to normalized attention matches when the query is doubled?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "What happens to normalized attention matches when the query is doubled?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "default",
+      "prompt": "What happens to normalized attention matches when the query is doubled?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "planned-source",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "planned-source",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-attention-scaled-score-normalization",
+      "mode": "planned-source",
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Compare training and held-out loss with held-out accuracy during dropout.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Compare training and held-out loss with held-out accuracy during dropout.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Compare training and held-out loss with held-out accuracy during dropout.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Show a dropout metric history with separate loss and accuracy scales.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Show a dropout metric history with separate loss and accuracy scales.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Show a dropout metric history with separate loss and accuracy scales.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "How can dropout validation loss keep falling after accuracy stops changing?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "How can dropout validation loss keep falling after accuracy stops changing?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "How can dropout validation loss keep falling after accuracy stops changing?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Explain loss accuracy traces with the same recorded epochs.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Explain loss accuracy traces with the same recorded epochs.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Explain loss accuracy traces with the same recorded epochs.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Check a dropout prediction that loses less while remaining correct.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Check a dropout prediction that loses less while remaining correct.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "default",
+      "prompt": "Check a dropout prediction that loses less while remaining correct.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "planned-source",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "planned-source",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-training-diagnostics",
+      "mode": "planned-source",
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Show a fixed rate plateau with a growing training heldout gap.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Show a fixed rate plateau with a growing training heldout gap.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Show a fixed rate plateau with a growing training heldout gap.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Compare training and held-out accuracy while the learning rate stays constant.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Compare training and held-out accuracy while the learning rate stays constant.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Compare training and held-out accuracy while the learning rate stays constant.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Why can training loss fall after held-out accuracy reaches a plateau?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Why can training loss fall after held-out accuracy reaches a plateau?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Why can training loss fall after held-out accuracy reaches a plateau?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Plot a constant-rate history with training loss separate from both accuracies.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Plot a constant-rate history with training loss separate from both accuracies.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Plot a constant-rate history with training loss separate from both accuracies.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Check training and held-out predictions when an accuracy gap first appears.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Check training and held-out predictions when an accuracy gap first appears.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "default",
+      "prompt": "Check training and held-out predictions when an accuracy gap first appears.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "planned-source",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "planned-source",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "mode": "planned-source",
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Show a recursive rollout as predicted values become the next inputs.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Show a recursive rollout as predicted values become the next inputs.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Show a recursive rollout as predicted values become the next inputs.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Why can forecast feedback drift away from refreshed one-step estimates?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Why can forecast feedback drift away from refreshed one-step estimates?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Why can forecast feedback drift away from refreshed one-step estimates?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Compare a recursive rollout with forecasts that receive new measured readings.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Compare a recursive rollout with forecasts that receive new measured readings.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Compare a recursive rollout with forecasts that receive new measured readings.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Trace forecast feedback from a measured seed to reused predictions.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Trace forecast feedback from a measured seed to reused predictions.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "Trace forecast feedback from a measured seed to reused predictions.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "How does moving the starting point change a recursive rollout?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "How does moving the starting point change a recursive rollout?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "default",
+      "prompt": "How does moving the starting point change a recursive rollout?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "planned-source",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-coordinate-plot",
+          "kind": "coordinate-plot"
+        },
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "kind": "coordinate-plot"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "planned-source",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-time-series-recursive-rollout",
+      "mode": "planned-source",
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Show an input style shift with the fixed class rule still applied in both domains.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Show an input style shift with the fixed class rule still applied in both domains.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Show an input style shift with the fixed class rule still applied in both domains.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "How can an input style shift happen when both target classes appear in training?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "How can an input style shift happen when both target classes appear in training?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "How can an input style shift happen when both target classes appear in training?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Compare independently drawn card domains with a fixed class rule and different tones.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Compare independently drawn card domains with a fixed class rule and different tones.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Compare independently drawn card domains with a fixed class rule and different tones.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Count the dark and light cards to explain an input style shift.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Count the dark and light cards to explain an input style shift.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Count the dark and light cards to explain an input style shift.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Why does a fixed class rule allow different input styles at deployment?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Why does a fixed class rule allow different input styles at deployment?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "default",
+      "prompt": "Why does a fixed class rule allow different input styles at deployment?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "planned-source",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "planned-source",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "planned-source",
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-bar-chart",
+          "kind": "bar-chart"
+        },
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "planned-source",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "planned-source",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-comparison",
+          "kind": "comparison"
+        },
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "kind": "comparison"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-input-distribution-shift",
+      "mode": "planned-source",
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-bar-chart",
+          "kind": "bar-chart"
+        },
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Show conditional label change when invented studios name the same cards differently.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Show conditional label change when invented studios name the same cards differently.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Show conditional label change when invented studios name the same cards differently.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Explain a changed naming rule while holding every input card fixed.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Explain a changed naming rule while holding every input card fixed.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Explain a changed naming rule while holding every input card fixed.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Compare conditional label change for one dark round input across two studios.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Compare conditional label change for one dark round input across two studios.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Compare conditional label change for one dark round input across two studios.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "How can a changed naming rule reverse labels without changing input frequencies?",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "How can a changed naming rule reverse labels without changing input frequencies?",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "How can a changed naming rule reverse labels without changing input frequencies?",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Check conditional label change even when the total class counts stay balanced.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Check conditional label change even when the total class counts stay balanced.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "default",
+      "prompt": "Check conditional label change even when the total class counts stay balanced.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "planned-source",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "brief",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "planned-source",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "balanced",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    },
+    {
+      "referenceId": "ml-distribution-shift-concept-shift",
+      "mode": "planned-source",
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "depth": "detailed",
+      "offeredReferences": [
+        {
+          "id": "shape-panels",
+          "kind": "panels"
+        },
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "kind": "bar-chart"
+        }
+      ],
+      "geminiProperties": 307
+    }
+  ],
+  "publishedBranchTip": "16718410f212ab664a3948ea047fda615f43e424",
+  "contentUnchangedSinceReplayRef": "git diff --quiet 7a9dd67a4098e3f82bb2a8dd89f622c14da31951 16718410f212ab664a3948ea047fda615f43e424 -- packages (passed; receipt-only update)"
+}

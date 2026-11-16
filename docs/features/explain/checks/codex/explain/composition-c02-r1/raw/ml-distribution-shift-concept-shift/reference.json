@@ -1,0 +1,331 @@
+{
+  "id": "ml-distribution-shift-concept-shift",
+  "topic": "distribution-shift",
+  "lessons": [
+    "20"
+  ],
+  "sources": [
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-environment-and-distribution-shift/briefs.md#figure-03",
+      "revision": "05d5f02f6"
+    }
+  ],
+  "prompts": [
+    "The same input can acquire different labels across settings when the labeling rule itself changes.",
+    "Show conditional label change when invented studios name the same cards differently.",
+    "Explain a changed naming rule while holding every input card fixed.",
+    "Compare conditional label change for one dark round input across two studios.",
+    "How can a changed naming rule reverse labels without changing input frequencies?",
+    "Check conditional label change even when the total class counts stay balanced."
+  ],
+  "paraphrases": [
+    "Show conditional label change when invented studios name the same cards differently.",
+    "Explain a changed naming rule while holding every input card fixed.",
+    "Compare conditional label change for one dark round input across two studios.",
+    "How can a changed naming rule reverse labels without changing input frequencies?",
+    "Check conditional label change even when the total class counts stay balanced."
+  ],
+  "keywords": [
+    "conditional label change",
+    "changed naming rule",
+    "conditional label change",
+    "changed naming rule"
+  ],
+  "useWhen": "Show conditional label change across invented naming settings on the same inputs; not a shift in input frequency or class balance.",
+  "alsoCovers": [],
+  "dedupeBasis": "Changed conditional label rule; keep distinct from input prevalence shift.",
+  "spec": {
+    "version": 1,
+    "diagram": {
+      "kind": "panels",
+      "title": "Same dark round cards, different names",
+      "caption": "Invented studios name the same fixed input differently.",
+      "panels": [
+        {
+          "label": "Round is A; square is B",
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "Elm",
+            "unit": "Cards",
+            "bars": [
+              {
+                "label": "A",
+                "value": 3
+              },
+              {
+                "label": "B",
+                "value": 0
+              }
+            ]
+          }
+        },
+        {
+          "label": "Round is B; square is A",
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "Ash",
+            "unit": "Cards",
+            "bars": [
+              {
+                "label": "A",
+                "value": 0
+              },
+              {
+                "label": "B",
+                "value": 3
+              }
+            ]
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": 0,
+          "to": 1,
+          "operation": "Change label rule"
+        }
+      ],
+      "shared": [
+        "classes",
+        "colours"
+      ]
+    }
+  },
+  "depths": {
+    "overview": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Same dark round cards, different names",
+          "caption": "Invented studios name the same fixed input differently.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Elm",
+                "unit": "Cards",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 3
+                  },
+                  {
+                    "label": "B",
+                    "value": 0
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Ash",
+                "unit": "Cards",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 0
+                  },
+                  {
+                    "label": "B",
+                    "value": 3
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Change rule"
+            }
+          ],
+          "shared": [
+            "classes",
+            "colours"
+          ]
+        }
+      }
+    },
+    "standard": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Same dark round cards, different names",
+          "caption": "Invented studios name the same fixed input differently.",
+          "panels": [
+            {
+              "label": "Round is A; square is B",
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Elm",
+                "unit": "Cards",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 3
+                  },
+                  {
+                    "label": "B",
+                    "value": 0
+                  }
+                ]
+              }
+            },
+            {
+              "label": "Round is B; square is A",
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Ash",
+                "unit": "Cards",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 0
+                  },
+                  {
+                    "label": "B",
+                    "value": 3
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Change label rule"
+            }
+          ],
+          "shared": [
+            "classes",
+            "colours"
+          ]
+        }
+      }
+    },
+    "deep": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Same light square cards, different names",
+          "caption": "Same 8 inputs in both studios; 8 labels change; each still has 4 A and 4 B.",
+          "panels": [
+            {
+              "label": "Round is A; square is B",
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Elm",
+                "unit": "Cards",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 0
+                  },
+                  {
+                    "label": "B",
+                    "value": 3
+                  }
+                ]
+              }
+            },
+            {
+              "label": "Round is B; square is A",
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Ash",
+                "unit": "Cards",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 3
+                  },
+                  {
+                    "label": "B",
+                    "value": 0
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Change label rule"
+            }
+          ],
+          "shared": [
+            "classes",
+            "colours"
+          ]
+        }
+      },
+      "detailSpec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Count all cards under each naming rule",
+          "caption": "8 fixed inputs; all 8 labels change, but class totals stay equal.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Elm",
+                "unit": "Cards",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 4
+                  },
+                  {
+                    "label": "B",
+                    "value": 4
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Ash",
+                "unit": "Cards",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 4
+                  },
+                  {
+                    "label": "B",
+                    "value": 4
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Change label rule"
+            }
+          ],
+          "shared": [
+            "classes",
+            "colours"
+          ]
+        }
+      }
+    }
+  },
+  "shortKeywords": [
+    "conditional label change",
+    "changed naming rule"
+  ]
+}

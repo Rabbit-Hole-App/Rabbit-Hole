@@ -1,0 +1,20 @@
+{
+  "command": "node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-reference*.test.js packages/control-plane/test/explanation-plan-kind-from-reference.test.js packages/control-plane/test/explanation-composition-author-variants.test.js packages/control-plane/test/explanation-learner-keywords.test.js packages/control-plane/test/explanation-fast-chain.test.js",
+  "testedCommit": "16718410f212ab664a3948ea047fda615f43e424",
+  "testedTree": "2b6fc8e422cec26e94ab484f4ace5a7860f79104",
+  "startedAt": "2026-11-16T18:46:12.305996+00:00",
+  "durationSeconds": 38.54,
+  "exitCode": 1,
+  "tests": 1395,
+  "suites": 0,
+  "pass": 1394,
+  "fail": 1,
+  "cancelled": 0,
+  "skipped": 0,
+  "todo": 0,
+  "failureNames": [
+    "small forces retain visible arrows and disclose their minimum size (4.459728ms)",
+    "failing tests:",
+    "small forces retain visible arrows and disclose their minimum size (4.459728ms)"
+  ]
+}

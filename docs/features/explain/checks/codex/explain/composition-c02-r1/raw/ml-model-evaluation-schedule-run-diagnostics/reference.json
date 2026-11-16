@@ -1,0 +1,635 @@
+{
+  "id": "ml-model-evaluation-schedule-run-diagnostics",
+  "topic": "model-evaluation",
+  "lessons": [
+    "09",
+    "10",
+    "12"
+  ],
+  "sources": [
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-01",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-02",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-03",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-07",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-08",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-09",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-16",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-17",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-18",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-22",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-23",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-24",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-28",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-29",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lr-scheduler/briefs.md#figure-30",
+      "revision": "05d5f02f6"
+    }
+  ],
+  "prompts": [
+    "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+    "Show a fixed rate plateau with a growing training heldout gap.",
+    "Compare training and held-out accuracy while the learning rate stays constant.",
+    "Why can training loss fall after held-out accuracy reaches a plateau?",
+    "Plot a constant-rate history with training loss separate from both accuracies.",
+    "Check training and held-out predictions when an accuracy gap first appears."
+  ],
+  "paraphrases": [
+    "Show a fixed rate plateau with a growing training heldout gap.",
+    "Compare training and held-out accuracy while the learning rate stays constant.",
+    "Why can training loss fall after held-out accuracy reaches a plateau?",
+    "Plot a constant-rate history with training loss separate from both accuracies.",
+    "Check training and held-out predictions when an accuracy gap first appears."
+  ],
+  "keywords": [
+    "fixed rate plateau",
+    "training heldout gap",
+    "fixed rate plateau",
+    "training heldout gap"
+  ],
+  "useWhen": "Show an illustrative fixed-rate accuracy plateau and training heldout gap; not a learning-rate decay curve or a guarantee that a schedule improves generalization.",
+  "illustrative": true,
+  "spec": {
+    "version": 1,
+    "diagram": {
+      "kind": "comparison",
+      "variant": "panels",
+      "title": "Fixed-rate diagnostics",
+      "caption": "Illustrative predictions; fixed $\\eta=0.1$, no optimizer guarantee.",
+      "panels": [
+        {
+          "heading": "Accuracy",
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Accuracy",
+            "x": {
+              "label": "Epoch",
+              "min": 1,
+              "max": 4,
+              "integerTicks": true
+            },
+            "y": {
+              "label": "Accuracy",
+              "min": 0,
+              "max": 100,
+              "unit": "%"
+            },
+            "series": [
+              {
+                "label": "Training",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "y": [
+                    50,
+                    75,
+                    100,
+                    100
+                  ]
+                }
+              },
+              {
+                "label": "Held-out",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "y": [
+                    50,
+                    75,
+                    75,
+                    75
+                  ]
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "kind": "band",
+                "axis": "x",
+                "from": 2,
+                "to": 4,
+                "label": "Gap opens"
+              }
+            ]
+          }
+        },
+        {
+          "heading": "Training loss",
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Training loss",
+            "x": {
+              "label": "Epoch",
+              "min": 1,
+              "max": 4,
+              "integerTicks": true
+            },
+            "y": {
+              "label": "BCE loss",
+              "min": 0,
+              "max": 1,
+              "unit": "nats"
+            },
+            "series": [
+              {
+                "label": "Training",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "y": [
+                    0.714,
+                    0.543,
+                    0.382,
+                    0.226
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "sharedAxes": [
+        "x"
+      ]
+    }
+  },
+  "depths": {
+    "overview": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "comparison",
+          "variant": "panels",
+          "title": "A held-out accuracy plateau",
+          "caption": "Illustrative predictions at fixed rate $\\eta=0.1$; not an optimizer guarantee.",
+          "panels": [
+            {
+              "heading": "Training loss",
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Training loss",
+                "unit": "nats",
+                "bars": [
+                  {
+                    "label": "Epoch 2",
+                    "value": 0.543
+                  },
+                  {
+                    "label": "Epoch 4",
+                    "value": 0.226
+                  }
+                ]
+              }
+            },
+            {
+              "heading": "Correct predictions",
+              "diagram": {
+                "kind": "bar-chart",
+                "variant": "grouped",
+                "title": "Correct predictions",
+                "unit": "of 4",
+                "categories": [
+                  "Epoch 2",
+                  "Epoch 4"
+                ],
+                "series": [
+                  {
+                    "label": "Training",
+                    "values": [
+                      3,
+                      4
+                    ]
+                  },
+                  {
+                    "label": "Held-out",
+                    "values": [
+                      3,
+                      3
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "standard": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "comparison",
+          "variant": "panels",
+          "title": "Fixed-rate diagnostics",
+          "caption": "Illustrative predictions; fixed $\\eta=0.1$, no optimizer guarantee.",
+          "panels": [
+            {
+              "heading": "Accuracy",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Accuracy",
+                "x": {
+                  "label": "Epoch",
+                  "min": 1,
+                  "max": 4,
+                  "integerTicks": true
+                },
+                "y": {
+                  "label": "Accuracy",
+                  "min": 0,
+                  "max": 100,
+                  "unit": "%"
+                },
+                "series": [
+                  {
+                    "label": "Training",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        50,
+                        75,
+                        100,
+                        100
+                      ]
+                    }
+                  },
+                  {
+                    "label": "Held-out",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        50,
+                        75,
+                        75,
+                        75
+                      ]
+                    }
+                  }
+                ],
+                "annotations": [
+                  {
+                    "kind": "band",
+                    "axis": "x",
+                    "from": 2,
+                    "to": 4,
+                    "label": "Gap opens"
+                  }
+                ]
+              }
+            },
+            {
+              "heading": "Training loss",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Training loss",
+                "x": {
+                  "label": "Epoch",
+                  "min": 1,
+                  "max": 4,
+                  "integerTicks": true
+                },
+                "y": {
+                  "label": "BCE loss",
+                  "min": 0,
+                  "max": 1,
+                  "unit": "nats"
+                },
+                "series": [
+                  {
+                    "label": "Training",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        0.714,
+                        0.543,
+                        0.382,
+                        0.226
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "sharedAxes": [
+            "x"
+          ]
+        }
+      }
+    },
+    "deep": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "comparison",
+          "variant": "panels",
+          "title": "Fixed-rate diagnostics",
+          "caption": "Illustrative predictions; $\\eta=0.1$; gap 25 percentage points.",
+          "panels": [
+            {
+              "heading": "Accuracy",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Accuracy",
+                "x": {
+                  "label": "Epoch",
+                  "min": 1,
+                  "max": 4,
+                  "integerTicks": true
+                },
+                "y": {
+                  "label": "Accuracy",
+                  "min": 0,
+                  "max": 100,
+                  "unit": "%"
+                },
+                "series": [
+                  {
+                    "label": "Training",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        50,
+                        75,
+                        100,
+                        100
+                      ]
+                    }
+                  },
+                  {
+                    "label": "Held-out",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        50,
+                        75,
+                        75,
+                        75
+                      ]
+                    }
+                  }
+                ],
+                "annotations": [
+                  {
+                    "kind": "band",
+                    "axis": "x",
+                    "from": 2,
+                    "to": 4,
+                    "label": "Gap opens"
+                  }
+                ]
+              }
+            },
+            {
+              "heading": "Training loss",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Training loss",
+                "x": {
+                  "label": "Epoch",
+                  "min": 1,
+                  "max": 4,
+                  "integerTicks": true
+                },
+                "y": {
+                  "label": "BCE loss",
+                  "min": 0,
+                  "max": 1,
+                  "unit": "nats"
+                },
+                "series": [
+                  {
+                    "label": "Training",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        0.714,
+                        0.543,
+                        0.382,
+                        0.226
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "sharedAxes": [
+            "x"
+          ]
+        }
+      },
+      "detailSpec": {
+        "version": 1,
+        "diagram": {
+          "kind": "comparison",
+          "variant": "panels",
+          "title": "One training case crosses the threshold",
+          "caption": "Illustrative true class 0; T2 becomes correct, H2 stays wrong at threshold 0.5.",
+          "panels": [
+            {
+              "heading": "T2 Training",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "T2 Training",
+                "x": {
+                  "label": "Epoch",
+                  "min": 2,
+                  "max": 3,
+                  "integerTicks": true
+                },
+                "y": {
+                  "label": "Class-one probability",
+                  "min": 0,
+                  "max": 1
+                },
+                "series": [
+                  {
+                    "label": "Class one",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        2,
+                        3
+                      ],
+                      "y": [
+                        0.55,
+                        0.45
+                      ]
+                    }
+                  }
+                ],
+                "annotations": [
+                  {
+                    "kind": "reference-line",
+                    "axis": "y",
+                    "value": 0.5,
+                    "label": "Decision threshold"
+                  }
+                ]
+              }
+            },
+            {
+              "heading": "H2 Held-out",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "H2 Held-out",
+                "x": {
+                  "label": "Epoch",
+                  "min": 2,
+                  "max": 3,
+                  "integerTicks": true
+                },
+                "y": {
+                  "label": "Class-one probability",
+                  "min": 0,
+                  "max": 1
+                },
+                "series": [
+                  {
+                    "label": "Class one",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        2,
+                        3
+                      ],
+                      "y": [
+                        0.55,
+                        0.6
+                      ]
+                    }
+                  }
+                ],
+                "annotations": [
+                  {
+                    "kind": "reference-line",
+                    "axis": "y",
+                    "value": 0.5,
+                    "label": "Decision threshold"
+                  }
+                ]
+              }
+            }
+          ],
+          "sharedAxes": [
+            "x",
+            "y"
+          ]
+        }
+      }
+    }
+  },
+  "shortKeywords": [
+    "fixed rate plateau",
+    "training heldout gap"
+  ]
+}

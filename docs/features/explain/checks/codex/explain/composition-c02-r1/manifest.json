@@ -1,0 +1,2289 @@
+{
+  "formatVersion": 1,
+  "status": "rendered-vector",
+  "generator": "render-evidence.mjs",
+  "repo": "/workspace/scratch/7bb740f8b567/composition-chain",
+  "ref": "16718410f212ab664a3948ea047fda615f43e424",
+  "ids": [
+    "ml-attention-scaled-score-normalization",
+    "ml-model-evaluation-training-diagnostics",
+    "ml-model-evaluation-schedule-run-diagnostics",
+    "ml-time-series-recursive-rollout",
+    "ml-distribution-shift-input-distribution-shift",
+    "ml-distribution-shift-concept-shift"
+  ],
+  "inputs": {
+    "ids": {
+      "path": "/workspace/scratch/7bb740f8b567/c02-evidence/ids.json",
+      "sha256": "28e4584cb2f0d152fc4cc44504cd065488e672eb47a195adc39aec92091d3150"
+    },
+    "approvedC01Sheet": {
+      "sha256": "db1a83477b73f7a2ce5d33210c35be8ad1a50fec8e9bc340420960deab484671"
+    },
+    "approvedC01Html": {
+      "sha256": "a0a991e24cff5517e4240959d343b31a9e5d425f2174165ae6c3d3cd74630ed6"
+    }
+  },
+  "renderer": {
+    "module": "packages/web/src/tutor-diagrams/TutorDiagram.js",
+    "export": "renderTutorDiagram",
+    "react": "19.2.8",
+    "widths": [
+      408,
+      720
+    ],
+    "rawSvg": "Unmodified renderToStaticMarkup(element) bytes; no stylesheet injection or dimension edits.",
+    "rawSpec": "Unmodified source payload serialized as indented JSON with one trailing newline."
+  },
+  "vector": {
+    "engine": "Production renderTutorDiagram SVG composition",
+    "offline": true,
+    "layout": "Accepted C01: 1210px sheet; 408px / 720px columns with 24px gap; 12px row gaps; native viewports uniformly scaled without cropping.",
+    "fonts": {
+      "inter": "Embedded Inter Latin variable WOFF2",
+      "katex": "Production katex.min.css with all WOFF2 faces embedded",
+      "embeddedKatexFaces": 20
+    },
+    "scalePolicy": "min(1, requestedWidth / naturalWidth)",
+    "namespaceHosting": "Only missing XHTML xmlns annotations are added to hosted foreignObject div roots. Raw SVGs are untouched.",
+    "ground": "#FFFCF0",
+    "outline": "#32211C"
+  },
+  "browserRasterVerified": false,
+  "contactSheet": {
+    "path": "contact-sheet.svg",
+    "bytes": 961329,
+    "sha256": "b89405c51ce4516c5fab5b1d9910dcd0b38d32d567a5ef76655307194c8efca9",
+    "format": "svg",
+    "width": 1210,
+    "height": 18856,
+    "rows": [
+      {
+        "key": "ml-attention-scaled-score-normalization--overview-main",
+        "left": 16,
+        "top": 96,
+        "width": 1178,
+        "height": 474
+      },
+      {
+        "key": "ml-attention-scaled-score-normalization--standard-main",
+        "left": 16,
+        "top": 582,
+        "width": 1178,
+        "height": 431
+      },
+      {
+        "key": "ml-attention-scaled-score-normalization--deep-main",
+        "left": 16,
+        "top": 1025,
+        "width": 1178,
+        "height": 431
+      },
+      {
+        "key": "ml-attention-scaled-score-normalization--deep-detail",
+        "left": 16,
+        "top": 1468,
+        "width": 1178,
+        "height": 821
+      },
+      {
+        "key": "ml-attention-scaled-score-normalization--author-single",
+        "left": 16,
+        "top": 2301,
+        "width": 1178,
+        "height": 441
+      },
+      {
+        "key": "ml-model-evaluation-training-diagnostics--overview-main",
+        "left": 16,
+        "top": 2754,
+        "width": 1178,
+        "height": 643
+      },
+      {
+        "key": "ml-model-evaluation-training-diagnostics--standard-main",
+        "left": 16,
+        "top": 3409,
+        "width": 1178,
+        "height": 1045
+      },
+      {
+        "key": "ml-model-evaluation-training-diagnostics--deep-main",
+        "left": 16,
+        "top": 4466,
+        "width": 1178,
+        "height": 1062
+      },
+      {
+        "key": "ml-model-evaluation-training-diagnostics--deep-detail",
+        "left": 16,
+        "top": 5540,
+        "width": 1178,
+        "height": 384
+      },
+      {
+        "key": "ml-model-evaluation-training-diagnostics--author-single",
+        "left": 16,
+        "top": 5936,
+        "width": 1178,
+        "height": 497
+      },
+      {
+        "key": "ml-model-evaluation-schedule-run-diagnostics--overview-main",
+        "left": 16,
+        "top": 6445,
+        "width": 1178,
+        "height": 626
+      },
+      {
+        "key": "ml-model-evaluation-schedule-run-diagnostics--standard-main",
+        "left": 16,
+        "top": 7083,
+        "width": 1178,
+        "height": 1045
+      },
+      {
+        "key": "ml-model-evaluation-schedule-run-diagnostics--deep-main",
+        "left": 16,
+        "top": 8140,
+        "width": 1178,
+        "height": 1045
+      },
+      {
+        "key": "ml-model-evaluation-schedule-run-diagnostics--deep-detail",
+        "left": 16,
+        "top": 9197,
+        "width": 1178,
+        "height": 1045
+      },
+      {
+        "key": "ml-model-evaluation-schedule-run-diagnostics--author-single",
+        "left": 16,
+        "top": 10254,
+        "width": 1178,
+        "height": 497
+      },
+      {
+        "key": "ml-time-series-recursive-rollout--overview-main",
+        "left": 16,
+        "top": 10763,
+        "width": 1178,
+        "height": 528
+      },
+      {
+        "key": "ml-time-series-recursive-rollout--standard-main",
+        "left": 16,
+        "top": 11303,
+        "width": 1178,
+        "height": 804
+      },
+      {
+        "key": "ml-time-series-recursive-rollout--deep-main",
+        "left": 16,
+        "top": 12119,
+        "width": 1178,
+        "height": 804
+      },
+      {
+        "key": "ml-time-series-recursive-rollout--deep-detail",
+        "left": 16,
+        "top": 12935,
+        "width": 1178,
+        "height": 562
+      },
+      {
+        "key": "ml-time-series-recursive-rollout--author-single",
+        "left": 16,
+        "top": 13509,
+        "width": 1178,
+        "height": 497
+      },
+      {
+        "key": "ml-distribution-shift-input-distribution-shift--overview-main",
+        "left": 16,
+        "top": 14018,
+        "width": 1178,
+        "height": 702
+      },
+      {
+        "key": "ml-distribution-shift-input-distribution-shift--standard-main",
+        "left": 16,
+        "top": 14732,
+        "width": 1178,
+        "height": 925
+      },
+      {
+        "key": "ml-distribution-shift-input-distribution-shift--deep-main",
+        "left": 16,
+        "top": 15669,
+        "width": 1178,
+        "height": 389
+      },
+      {
+        "key": "ml-distribution-shift-input-distribution-shift--deep-detail",
+        "left": 16,
+        "top": 16070,
+        "width": 1178,
+        "height": 411
+      },
+      {
+        "key": "ml-distribution-shift-input-distribution-shift--author-single",
+        "left": 16,
+        "top": 16493,
+        "width": 1178,
+        "height": 389
+      },
+      {
+        "key": "ml-distribution-shift-concept-shift--overview-main",
+        "left": 16,
+        "top": 16894,
+        "width": 1178,
+        "height": 378
+      },
+      {
+        "key": "ml-distribution-shift-concept-shift--standard-main",
+        "left": 16,
+        "top": 17284,
+        "width": 1178,
+        "height": 422
+      },
+      {
+        "key": "ml-distribution-shift-concept-shift--deep-main",
+        "left": 16,
+        "top": 17718,
+        "width": 1178,
+        "height": 422
+      },
+      {
+        "key": "ml-distribution-shift-concept-shift--deep-detail",
+        "left": 16,
+        "top": 18152,
+        "width": 1178,
+        "height": 378
+      },
+      {
+        "key": "ml-distribution-shift-concept-shift--author-single",
+        "left": 16,
+        "top": 18542,
+        "width": 1178,
+        "height": 298
+      }
+    ]
+  },
+  "references": [
+    {
+      "id": "ml-attention-scaled-score-normalization",
+      "sourceReference": "raw/ml-attention-scaled-score-normalization/reference.json",
+      "sourceReferenceSha256": "059e649385128de1538c53c95bdd55f86701e9cd6298b3f8363ec25b7a964ef7",
+      "linkedSingleId": "ml-attention-scaled-score-normalization-single",
+      "views": [
+        {
+          "key": "ml-attention-scaled-score-normalization--overview-main",
+          "depth": "overview",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.overview.spec",
+          "spec": "raw/ml-attention-scaled-score-normalization/overview-main.json",
+          "specSha256": "268a5e7bf628f1b6e9c633c0da54600152a17a95469cb90751ed275fd79c683f",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 444,
+              "naturalHeight": 334,
+              "scale": 0.918918918918919,
+              "displayWidth": 408,
+              "displayHeight": 306.91891891891896,
+              "frameHeight": 307,
+              "svg": "raw/ml-attention-scaled-score-normalization/overview-main-408.svg",
+              "svgSha256": "86e5bb403f01f7701f9e4e635a2da5fc44269602721527feed20abaed32b05c9",
+              "vector": {
+                "left": 29,
+                "top": 159,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 398,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 398,
+              "frameHeight": 398,
+              "svg": "raw/ml-attention-scaled-score-normalization/overview-main-720.svg",
+              "svgSha256": "7d0f81014dcf76908aea0de04067cfc4cd3c5c56c889569c325b2d423d403e7d",
+              "vector": {
+                "left": 461,
+                "top": 159,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-attention-scaled-score-normalization--standard-main",
+          "depth": "standard",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.standard.spec",
+          "spec": "raw/ml-attention-scaled-score-normalization/standard-main.json",
+          "specSha256": "7432a17ee580141ae9b0ded790fd3882c0e08d670c63eb766a7a88686693368a",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 621,
+              "naturalHeight": 351,
+              "scale": 0.6570048309178744,
+              "displayWidth": 408,
+              "displayHeight": 230.60869565217394,
+              "frameHeight": 231,
+              "svg": "raw/ml-attention-scaled-score-normalization/standard-main-408.svg",
+              "svgSha256": "a33f55dba8add7f3922b1f59388f0340c9307a17bafba1a64817deb31170e1e0",
+              "vector": {
+                "left": 29,
+                "top": 645,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 3,
+                "katexSpans": 6
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 355,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 355,
+              "frameHeight": 355,
+              "svg": "raw/ml-attention-scaled-score-normalization/standard-main-720.svg",
+              "svgSha256": "8d5852711e16f66fdb0284aea24fc23d2065b96da7eb9c9e17b974b35095938d",
+              "vector": {
+                "left": 461,
+                "top": 645,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 3,
+                "katexSpans": 6
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-attention-scaled-score-normalization--deep-main",
+          "depth": "deep",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.deep.spec",
+          "spec": "raw/ml-attention-scaled-score-normalization/deep-main.json",
+          "specSha256": "bcb64c143025888fadb593237ffe8c7b23c9bde1eea1fe4172948e7184d2719a",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 621,
+              "naturalHeight": 351,
+              "scale": 0.6570048309178744,
+              "displayWidth": 408,
+              "displayHeight": 230.60869565217394,
+              "frameHeight": 231,
+              "svg": "raw/ml-attention-scaled-score-normalization/deep-main-408.svg",
+              "svgSha256": "974215056a4c931a5a862f96628d802e59dbafd1dc4ad306bfc30c31ad51b19f",
+              "vector": {
+                "left": 29,
+                "top": 1088,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 2,
+                "katexSpans": 2
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 355,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 355,
+              "frameHeight": 355,
+              "svg": "raw/ml-attention-scaled-score-normalization/deep-main-720.svg",
+              "svgSha256": "896b039185c36a6b89c8f701bf8c0f077337e2e540e1029642a1b2f1d82e898a",
+              "vector": {
+                "left": 461,
+                "top": 1088,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 2,
+                "katexSpans": 2
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-attention-scaled-score-normalization--deep-detail",
+          "depth": "deep",
+          "role": "detail",
+          "kind": "comparison",
+          "source": "depths.deep.detailSpec",
+          "spec": "raw/ml-attention-scaled-score-normalization/deep-detail.json",
+          "specSha256": "f595b17f336f588dd3bc357f87772cd489d249763031bf6fc53d1d5233a785f0",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 745,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 745,
+              "frameHeight": 745,
+              "svg": "raw/ml-attention-scaled-score-normalization/deep-detail-408.svg",
+              "svgSha256": "b18e9a2f51ec690cb67eff04b64e9fa87ab240f8309348bf0fd13c161b142257",
+              "vector": {
+                "left": 29,
+                "top": 1531,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 409,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 409,
+              "frameHeight": 409,
+              "svg": "raw/ml-attention-scaled-score-normalization/deep-detail-720.svg",
+              "svgSha256": "d95157b068b7862c1e5443e5f2c59598840b031f0440730a421ac4e9824f7068",
+              "vector": {
+                "left": 461,
+                "top": 1531,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-attention-scaled-score-normalization--author-single",
+          "depth": "author",
+          "role": "single",
+          "kind": "bar-chart",
+          "source": "singleDiagramReferences.ml-attention-scaled-score-normalization-single.spec",
+          "spec": "raw/ml-attention-scaled-score-normalization/author-single.json",
+          "specSha256": "3ec7e5d412601504673aef81dc15bec462b6fef83d415a55ca4df467d37db10b",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 365,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 365,
+              "frameHeight": 365,
+              "svg": "raw/ml-attention-scaled-score-normalization/author-single-408.svg",
+              "svgSha256": "fab7006b325e9820c4db6bf91121433aeec2497a1d304ad1146b4067bd9305e5",
+              "vector": {
+                "left": 29,
+                "top": 2364,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 2,
+                "katexSpans": 6
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 348,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 348,
+              "frameHeight": 348,
+              "svg": "raw/ml-attention-scaled-score-normalization/author-single-720.svg",
+              "svgSha256": "f12fd80ee1ded7a1db3c2e5a54a50cae33fc38cf8869163968f32ebc17700ef2",
+              "vector": {
+                "left": 461,
+                "top": 2364,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 2,
+                "katexSpans": 6
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-model-evaluation-training-diagnostics",
+      "sourceReference": "raw/ml-model-evaluation-training-diagnostics/reference.json",
+      "sourceReferenceSha256": "de335321a4144843a09660eff6c729845f5a3acd37ca0c1ba06d8854f3a27745",
+      "linkedSingleId": "ml-model-evaluation-training-diagnostics-single",
+      "views": [
+        {
+          "key": "ml-model-evaluation-training-diagnostics--overview-main",
+          "depth": "overview",
+          "role": "main",
+          "kind": "comparison",
+          "source": "depths.overview.spec",
+          "spec": "raw/ml-model-evaluation-training-diagnostics/overview-main.json",
+          "specSha256": "fad1b1ef4a386eec114b449745e9fb76d6faaa80e7ee0add88d93e4c1079f589",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 432,
+              "naturalHeight": 584,
+              "scale": 0.9444444444444444,
+              "displayWidth": 408,
+              "displayHeight": 551.5555555555555,
+              "frameHeight": 552,
+              "svg": "raw/ml-model-evaluation-training-diagnostics/overview-main-408.svg",
+              "svgSha256": "c68030217e542bf4b4e85da2201db5d5e1832e7dfe429ad824e05308498715cd",
+              "vector": {
+                "left": 29,
+                "top": 2817,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 567,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 567,
+              "frameHeight": 567,
+              "svg": "raw/ml-model-evaluation-training-diagnostics/overview-main-720.svg",
+              "svgSha256": "7207d64aa72b0fb53e8f74dbaa2f24b4c824f439fe506ecdf983b2d0b87ba434",
+              "vector": {
+                "left": 461,
+                "top": 2817,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-model-evaluation-training-diagnostics--standard-main",
+          "depth": "standard",
+          "role": "main",
+          "kind": "comparison",
+          "source": "depths.standard.spec",
+          "spec": "raw/ml-model-evaluation-training-diagnostics/standard-main.json",
+          "specSha256": "3dfc8da02dd9757bfab7842e122dd2ba2f7ce26dcb0a191a3bc28545fc47a818",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 432,
+              "naturalHeight": 986,
+              "scale": 0.9444444444444444,
+              "displayWidth": 408,
+              "displayHeight": 931.2222222222222,
+              "frameHeight": 932,
+              "svg": "raw/ml-model-evaluation-training-diagnostics/standard-main-408.svg",
+              "svgSha256": "54000d45952d7bb9a8589441615cd3f36135755b517777e29bdc1f16cdf8133c",
+              "vector": {
+                "left": 29,
+                "top": 3472,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 969,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 969,
+              "frameHeight": 969,
+              "svg": "raw/ml-model-evaluation-training-diagnostics/standard-main-720.svg",
+              "svgSha256": "920154b7a82bc4efb97dfe4c58602b22847f93881f51cdf645b8d6f0da483123",
+              "vector": {
+                "left": 461,
+                "top": 3472,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-model-evaluation-training-diagnostics--deep-main",
+          "depth": "deep",
+          "role": "main",
+          "kind": "comparison",
+          "source": "depths.deep.spec",
+          "spec": "raw/ml-model-evaluation-training-diagnostics/deep-main.json",
+          "specSha256": "d45f21d659009cece303a5d1961166167c868b721fbf7209a6406dc059ae68e9",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 432,
+              "naturalHeight": 986,
+              "scale": 0.9444444444444444,
+              "displayWidth": 408,
+              "displayHeight": 931.2222222222222,
+              "frameHeight": 932,
+              "svg": "raw/ml-model-evaluation-training-diagnostics/deep-main-408.svg",
+              "svgSha256": "d198d03fd0bd9f28e5a60dad65a7cd2c8af47c098e127913d730c2488d9b8783",
+              "vector": {
+                "left": 29,
+                "top": 4529,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 986,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 986,
+              "frameHeight": 986,
+              "svg": "raw/ml-model-evaluation-training-diagnostics/deep-main-720.svg",
+              "svgSha256": "cd4e3dfc35b888639909969d2e2510890ead0dc9ac9acda1af39f910b282d2cb",
+              "vector": {
+                "left": 461,
+                "top": 4529,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-model-evaluation-training-diagnostics--deep-detail",
+          "depth": "deep",
+          "role": "detail",
+          "kind": "panels",
+          "source": "depths.deep.detailSpec",
+          "spec": "raw/ml-model-evaluation-training-diagnostics/deep-detail.json",
+          "specSha256": "fbf5d91a7f19889f0fe1b282e7b807b28a9da870a9cef7af6bce57f0d3d16bc1",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 308,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 308,
+              "frameHeight": 308,
+              "svg": "raw/ml-model-evaluation-training-diagnostics/deep-detail-408.svg",
+              "svgSha256": "1bddfc2d7423c68fc25dc7d4b44e49f35b2b48a2604abbc2cd91c203c63b5e97",
+              "vector": {
+                "left": 29,
+                "top": 5603,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 272,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 272,
+              "frameHeight": 272,
+              "svg": "raw/ml-model-evaluation-training-diagnostics/deep-detail-720.svg",
+              "svgSha256": "ae81f99f00b33a69b6286de2ec13f0b0fe7ab8a874d5383016c1258f06da9fb1",
+              "vector": {
+                "left": 461,
+                "top": 5603,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-model-evaluation-training-diagnostics--author-single",
+          "depth": "author",
+          "role": "single",
+          "kind": "coordinate-plot",
+          "source": "singleDiagramReferences.ml-model-evaluation-training-diagnostics-single.spec",
+          "spec": "raw/ml-model-evaluation-training-diagnostics/author-single.json",
+          "specSha256": "22ecccbc15cae6f49df70c9764049c247f258adbbc064108bfa0a2e85183dd8b",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 420.5,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 420.5,
+              "frameHeight": 421,
+              "svg": "raw/ml-model-evaluation-training-diagnostics/author-single-408.svg",
+              "svgSha256": "d1dfe266b20bd945b86f30e088986f4fd4597d649b3226c99a3b0785ed87cb45",
+              "vector": {
+                "left": 29,
+                "top": 5999,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 420.5,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 420.5,
+              "frameHeight": 421,
+              "svg": "raw/ml-model-evaluation-training-diagnostics/author-single-720.svg",
+              "svgSha256": "a272334f5b7281fff5ccfcf7040e37d003b6c82fe240170e53a8f8bc18d69d1e",
+              "vector": {
+                "left": 461,
+                "top": 5999,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-model-evaluation-schedule-run-diagnostics",
+      "sourceReference": "raw/ml-model-evaluation-schedule-run-diagnostics/reference.json",
+      "sourceReferenceSha256": "0eb3df3f978755f42ccbb652e4559dde1a0fa2c6ab548de99b8ea51e71ac1733",
+      "linkedSingleId": "ml-model-evaluation-schedule-run-diagnostics-single",
+      "views": [
+        {
+          "key": "ml-model-evaluation-schedule-run-diagnostics--overview-main",
+          "depth": "overview",
+          "role": "main",
+          "kind": "comparison",
+          "source": "depths.overview.spec",
+          "spec": "raw/ml-model-evaluation-schedule-run-diagnostics/overview-main.json",
+          "specSha256": "35d6144be4610f40ffdf0d59e86cd8f83b7e4364da23f9ebf5f32ed355732261",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 432,
+              "naturalHeight": 567,
+              "scale": 0.9444444444444444,
+              "displayWidth": 408,
+              "displayHeight": 535.5,
+              "frameHeight": 536,
+              "svg": "raw/ml-model-evaluation-schedule-run-diagnostics/overview-main-408.svg",
+              "svgSha256": "885360055c67f03e1eb0c797f20b403fb0c34800d80fbf6963c55a700147458e",
+              "vector": {
+                "left": 29,
+                "top": 6508,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 550,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 550,
+              "frameHeight": 550,
+              "svg": "raw/ml-model-evaluation-schedule-run-diagnostics/overview-main-720.svg",
+              "svgSha256": "abdb95d3978dbbcfec624fe6c9b20c2c12800e27bce1a1b8a988fbf38adc0240",
+              "vector": {
+                "left": 461,
+                "top": 6508,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-model-evaluation-schedule-run-diagnostics--standard-main",
+          "depth": "standard",
+          "role": "main",
+          "kind": "comparison",
+          "source": "depths.standard.spec",
+          "spec": "raw/ml-model-evaluation-schedule-run-diagnostics/standard-main.json",
+          "specSha256": "95ecd197967055770e25ccd56d6b4a6c942dbab039e43542766863ed97328c29",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 432,
+              "naturalHeight": 986,
+              "scale": 0.9444444444444444,
+              "displayWidth": 408,
+              "displayHeight": 931.2222222222222,
+              "frameHeight": 932,
+              "svg": "raw/ml-model-evaluation-schedule-run-diagnostics/standard-main-408.svg",
+              "svgSha256": "425c77419421374393206322cfbd660c73c4895403f1e82e655bb26c641b2f59",
+              "vector": {
+                "left": 29,
+                "top": 7146,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 969,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 969,
+              "frameHeight": 969,
+              "svg": "raw/ml-model-evaluation-schedule-run-diagnostics/standard-main-720.svg",
+              "svgSha256": "1bbbd5f7c1c7f3c810cfd799f11904693731eebb5702399193b24d91f4d82064",
+              "vector": {
+                "left": 461,
+                "top": 7146,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-model-evaluation-schedule-run-diagnostics--deep-main",
+          "depth": "deep",
+          "role": "main",
+          "kind": "comparison",
+          "source": "depths.deep.spec",
+          "spec": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-main.json",
+          "specSha256": "ca312cd9aa42b3912fb89ffd7066a956092398f46257d55fd8a9a95f2d6de907",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 432,
+              "naturalHeight": 986,
+              "scale": 0.9444444444444444,
+              "displayWidth": 408,
+              "displayHeight": 931.2222222222222,
+              "frameHeight": 932,
+              "svg": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-main-408.svg",
+              "svgSha256": "0aa01f80693ce49d295c166c9528db3f87a37e8b5b0f4ab911376f242ee0f8d2",
+              "vector": {
+                "left": 29,
+                "top": 8203,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 969,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 969,
+              "frameHeight": 969,
+              "svg": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-main-720.svg",
+              "svgSha256": "8c892b18796a5284e4a00944c9af993ffb817122afd1b454a76330ac56a1e174",
+              "vector": {
+                "left": 461,
+                "top": 8203,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-model-evaluation-schedule-run-diagnostics--deep-detail",
+          "depth": "deep",
+          "role": "detail",
+          "kind": "comparison",
+          "source": "depths.deep.detailSpec",
+          "spec": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-detail.json",
+          "specSha256": "9e24c716d53aed36ae3432d4eed2427eb5b5770b7cccd75ccefcb892a958c50a",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 432,
+              "naturalHeight": 1008,
+              "scale": 0.9444444444444444,
+              "displayWidth": 408,
+              "displayHeight": 952,
+              "frameHeight": 952,
+              "svg": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-detail-408.svg",
+              "svgSha256": "436b9ef2ea88c19ede6039f9a96e77931c6a3fe2ecf23664a787e22dad664afc",
+              "vector": {
+                "left": 29,
+                "top": 9260,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 969,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 969,
+              "frameHeight": 969,
+              "svg": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-detail-720.svg",
+              "svgSha256": "b6ce78641d384631ae11b8ee0bb329fc1f244d269cc803b74576d43ee090e212",
+              "vector": {
+                "left": 461,
+                "top": 9260,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-model-evaluation-schedule-run-diagnostics--author-single",
+          "depth": "author",
+          "role": "single",
+          "kind": "coordinate-plot",
+          "source": "singleDiagramReferences.ml-model-evaluation-schedule-run-diagnostics-single.spec",
+          "spec": "raw/ml-model-evaluation-schedule-run-diagnostics/author-single.json",
+          "specSha256": "47c754810d49ac7a477c4815f5ccfa4c7485602cefb4ec12f3c2268882a7dd72",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 420.5,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 420.5,
+              "frameHeight": 421,
+              "svg": "raw/ml-model-evaluation-schedule-run-diagnostics/author-single-408.svg",
+              "svgSha256": "e25e028155a54e6db9a2520708fdbc252776afda182909fae61084354c3431a1",
+              "vector": {
+                "left": 29,
+                "top": 10317,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 420.5,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 420.5,
+              "frameHeight": 421,
+              "svg": "raw/ml-model-evaluation-schedule-run-diagnostics/author-single-720.svg",
+              "svgSha256": "ceb71c4a088f8c83870ae8fabcaf7451c9bc208423be5095bdc294d809a3929f",
+              "vector": {
+                "left": 461,
+                "top": 10317,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-time-series-recursive-rollout",
+      "sourceReference": "raw/ml-time-series-recursive-rollout/reference.json",
+      "sourceReferenceSha256": "0e7f10a4a15fee3fbc28bad99219d80851423f3893c42c9ec607eac40244171a",
+      "linkedSingleId": "ml-time-series-recursive-rollout-single",
+      "views": [
+        {
+          "key": "ml-time-series-recursive-rollout--overview-main",
+          "depth": "overview",
+          "role": "main",
+          "kind": "coordinate-plot",
+          "source": "depths.overview.spec",
+          "spec": "raw/ml-time-series-recursive-rollout/overview-main.json",
+          "specSha256": "a6b7bea945e73ba660ed0943c181cb0ab3f1480a634963b26c1ecbedd7f2a86b",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 451.5,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 451.5,
+              "frameHeight": 452,
+              "svg": "raw/ml-time-series-recursive-rollout/overview-main-408.svg",
+              "svgSha256": "d6f105747df40fa9c16ef69c0c2367e5cf733d27b0e29689883e0d437670c065",
+              "vector": {
+                "left": 29,
+                "top": 10826,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 451.5,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 451.5,
+              "frameHeight": 452,
+              "svg": "raw/ml-time-series-recursive-rollout/overview-main-720.svg",
+              "svgSha256": "bebffc6e9dba2fe34d4d5691717960d296183f6a3d2844e0a105524cdaf409f7",
+              "vector": {
+                "left": 461,
+                "top": 10826,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-time-series-recursive-rollout--standard-main",
+          "depth": "standard",
+          "role": "main",
+          "kind": "comparison",
+          "source": "depths.standard.spec",
+          "spec": "raw/ml-time-series-recursive-rollout/standard-main.json",
+          "specSha256": "215fbe5397970d3706498259c9a841a1f361a3c95c294efa8dca1030cb894834",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 432,
+              "naturalHeight": 744.5,
+              "scale": 0.9444444444444444,
+              "displayWidth": 408,
+              "displayHeight": 703.1388888888889,
+              "frameHeight": 704,
+              "svg": "raw/ml-time-series-recursive-rollout/standard-main-408.svg",
+              "svgSha256": "4d2441dabaf0d7594ae1bb93e364c1aff5bd5493f52dbf08dcabf7fc450ac966",
+              "vector": {
+                "left": 29,
+                "top": 11366,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 727.5,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 727.5,
+              "frameHeight": 728,
+              "svg": "raw/ml-time-series-recursive-rollout/standard-main-720.svg",
+              "svgSha256": "9b440dda413d3b587dfeb8af62e2311c06c6e4c0063e494193c2ecc1a9b245ed",
+              "vector": {
+                "left": 461,
+                "top": 11366,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-time-series-recursive-rollout--deep-main",
+          "depth": "deep",
+          "role": "main",
+          "kind": "comparison",
+          "source": "depths.deep.spec",
+          "spec": "raw/ml-time-series-recursive-rollout/deep-main.json",
+          "specSha256": "0e339db881fd6b5fa4109026b07d9c2bd0590b1cb305ba496b0e55b60761dfdb",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 432,
+              "naturalHeight": 727.5,
+              "scale": 0.9444444444444444,
+              "displayWidth": 408,
+              "displayHeight": 687.0833333333334,
+              "frameHeight": 688,
+              "svg": "raw/ml-time-series-recursive-rollout/deep-main-408.svg",
+              "svgSha256": "7200aefd58354022df4a5f3e10d5eb493e3777098bc65787d06ebdffe6a0a3cd",
+              "vector": {
+                "left": 29,
+                "top": 12182,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 2
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 727.5,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 727.5,
+              "frameHeight": 728,
+              "svg": "raw/ml-time-series-recursive-rollout/deep-main-720.svg",
+              "svgSha256": "0137a066fa647a80250e7b41cfdae52e54c859b524b5c23857f33acace39ffd6",
+              "vector": {
+                "left": 461,
+                "top": 12182,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 2
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-time-series-recursive-rollout--deep-detail",
+          "depth": "deep",
+          "role": "detail",
+          "kind": "coordinate-plot",
+          "source": "depths.deep.detailSpec",
+          "spec": "raw/ml-time-series-recursive-rollout/deep-detail.json",
+          "specSha256": "61fae0846e29aec78b50b86f37f025239ea658221574ab4c656f0d5836fde0fc",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 485.5,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 485.5,
+              "frameHeight": 486,
+              "svg": "raw/ml-time-series-recursive-rollout/deep-detail-408.svg",
+              "svgSha256": "489ed6ebd499eb29f66f21e23324f1e67bc2a2baedb7edf108b96d73a36fed57",
+              "vector": {
+                "left": 29,
+                "top": 12998,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 468.5,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 468.5,
+              "frameHeight": 469,
+              "svg": "raw/ml-time-series-recursive-rollout/deep-detail-720.svg",
+              "svgSha256": "9acbfd32b4d85f32975931571808a4bfae4ebe56d2dc7d5c5f790a5992de64c4",
+              "vector": {
+                "left": 461,
+                "top": 12998,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-time-series-recursive-rollout--author-single",
+          "depth": "author",
+          "role": "single",
+          "kind": "coordinate-plot",
+          "source": "singleDiagramReferences.ml-time-series-recursive-rollout-single.spec",
+          "spec": "raw/ml-time-series-recursive-rollout/author-single.json",
+          "specSha256": "fbd78b335991dbc448032fedcf3f202cd291550307b6b839c2dd5e582129a6f2",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 420.5,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 420.5,
+              "frameHeight": 421,
+              "svg": "raw/ml-time-series-recursive-rollout/author-single-408.svg",
+              "svgSha256": "9327ae6ae57f6885d6a38a8c0122191cace62c1add2a560e91753eac551e535a",
+              "vector": {
+                "left": 29,
+                "top": 13572,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 420.5,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 420.5,
+              "frameHeight": 421,
+              "svg": "raw/ml-time-series-recursive-rollout/author-single-720.svg",
+              "svgSha256": "63836b88d2f6ca25b34b3c17d320a0b3bde7e4020b18e3733f761c424339ebb4",
+              "vector": {
+                "left": 461,
+                "top": 13572,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-distribution-shift-input-distribution-shift",
+      "sourceReference": "raw/ml-distribution-shift-input-distribution-shift/reference.json",
+      "sourceReferenceSha256": "a8d0e310b970d0cd415bd874bac5ab7e397f396e3d875617d8d9b5ea24a18700",
+      "linkedSingleId": "ml-distribution-shift-input-distribution-shift-single",
+      "views": [
+        {
+          "key": "ml-distribution-shift-input-distribution-shift--overview-main",
+          "depth": "overview",
+          "role": "main",
+          "kind": "comparison",
+          "source": "depths.overview.spec",
+          "spec": "raw/ml-distribution-shift-input-distribution-shift/overview-main.json",
+          "specSha256": "f13fc5c2394f8380aaeedbbd8298cdead33ab957998d9c42d7d4efdcbd07a32d",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 626,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 626,
+              "frameHeight": 626,
+              "svg": "raw/ml-distribution-shift-input-distribution-shift/overview-main-408.svg",
+              "svgSha256": "63e4b4d3eccfc6ed1851da75a45a03e64c646de506d5e33b65e4768292b9e5e9",
+              "vector": {
+                "left": 29,
+                "top": 14081,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 358,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 358,
+              "frameHeight": 358,
+              "svg": "raw/ml-distribution-shift-input-distribution-shift/overview-main-720.svg",
+              "svgSha256": "30cb74bfaad3dd4e1a0e29c46700e560c4901b542840884ccf50c9bfb1c3fa69",
+              "vector": {
+                "left": 461,
+                "top": 14081,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-distribution-shift-input-distribution-shift--standard-main",
+          "depth": "standard",
+          "role": "main",
+          "kind": "comparison",
+          "source": "depths.standard.spec",
+          "spec": "raw/ml-distribution-shift-input-distribution-shift/standard-main.json",
+          "specSha256": "b16b87445a6fcfbd7cd9c9c975fb751f022251edcdc94bee9dd2d2c9ad1c67c4",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 849,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 849,
+              "frameHeight": 849,
+              "svg": "raw/ml-distribution-shift-input-distribution-shift/standard-main-408.svg",
+              "svgSha256": "9034350bc1365c43acd2ab4d060840202863cde655f89042f3b3b1c804420770",
+              "vector": {
+                "left": 29,
+                "top": 14795,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 480,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 480,
+              "frameHeight": 480,
+              "svg": "raw/ml-distribution-shift-input-distribution-shift/standard-main-720.svg",
+              "svgSha256": "8f5192aacdf5f1ca7b6dfcc6f5575fa5661a2d0504137e24da86295d3e25921f",
+              "vector": {
+                "left": 461,
+                "top": 14795,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-distribution-shift-input-distribution-shift--deep-main",
+          "depth": "deep",
+          "role": "main",
+          "kind": "bar-chart",
+          "source": "depths.deep.spec",
+          "spec": "raw/ml-distribution-shift-input-distribution-shift/deep-main.json",
+          "specSha256": "4321a55e46d8bba04ea0c42ad393c8052386ec93e997396e6a11b0d0f255be50",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 313,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 313,
+              "frameHeight": 313,
+              "svg": "raw/ml-distribution-shift-input-distribution-shift/deep-main-408.svg",
+              "svgSha256": "ff09c4856e38f74e57614850980cdc2f4f5ec04fcb64969ec78a55b6b0654698",
+              "vector": {
+                "left": 29,
+                "top": 15732,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 296,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 296,
+              "frameHeight": 296,
+              "svg": "raw/ml-distribution-shift-input-distribution-shift/deep-main-720.svg",
+              "svgSha256": "449b15a8dc42f6336a07ad129b9f0da5bfa1ab223ac7d2e82da43821a3576638",
+              "vector": {
+                "left": 461,
+                "top": 15732,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-distribution-shift-input-distribution-shift--deep-detail",
+          "depth": "deep",
+          "role": "detail",
+          "kind": "bar-chart",
+          "source": "depths.deep.detailSpec",
+          "spec": "raw/ml-distribution-shift-input-distribution-shift/deep-detail.json",
+          "specSha256": "28ebc894abfd98d688cc05495d335acdd71316136715aab8c774b27052f9228c",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 335,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 335,
+              "frameHeight": 335,
+              "svg": "raw/ml-distribution-shift-input-distribution-shift/deep-detail-408.svg",
+              "svgSha256": "d16f689926aa0000472b193dfbae14b6e4aa181dc68a991c8edc5dc4764856bd",
+              "vector": {
+                "left": 29,
+                "top": 16133,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 296,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 296,
+              "frameHeight": 296,
+              "svg": "raw/ml-distribution-shift-input-distribution-shift/deep-detail-720.svg",
+              "svgSha256": "e1181e5999e60eb438b2f828408da84bd5b8609fcedf8ac5bea9717a32583841",
+              "vector": {
+                "left": 461,
+                "top": 16133,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-distribution-shift-input-distribution-shift--author-single",
+          "depth": "author",
+          "role": "single",
+          "kind": "bar-chart",
+          "source": "singleDiagramReferences.ml-distribution-shift-input-distribution-shift-single.spec",
+          "spec": "raw/ml-distribution-shift-input-distribution-shift/author-single.json",
+          "specSha256": "4321a55e46d8bba04ea0c42ad393c8052386ec93e997396e6a11b0d0f255be50",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 313,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 313,
+              "frameHeight": 313,
+              "svg": "raw/ml-distribution-shift-input-distribution-shift/author-single-408.svg",
+              "svgSha256": "ff09c4856e38f74e57614850980cdc2f4f5ec04fcb64969ec78a55b6b0654698",
+              "vector": {
+                "left": 29,
+                "top": 16556,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 296,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 296,
+              "frameHeight": 296,
+              "svg": "raw/ml-distribution-shift-input-distribution-shift/author-single-720.svg",
+              "svgSha256": "449b15a8dc42f6336a07ad129b9f0da5bfa1ab223ac7d2e82da43821a3576638",
+              "vector": {
+                "left": 461,
+                "top": 16556,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-distribution-shift-concept-shift",
+      "sourceReference": "raw/ml-distribution-shift-concept-shift/reference.json",
+      "sourceReferenceSha256": "d3fc228677b50134f36e82849e693f1ab3d12b864eaba814d4a3548eb2a9c646",
+      "linkedSingleId": "ml-distribution-shift-concept-shift-single",
+      "views": [
+        {
+          "key": "ml-distribution-shift-concept-shift--overview-main",
+          "depth": "overview",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.overview.spec",
+          "spec": "raw/ml-distribution-shift-concept-shift/overview-main.json",
+          "specSha256": "2ff4cfbc8e94c67fbab71e8ab9380ef8de85002625c6e1d65b31496afe611ed3",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 302,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 302,
+              "frameHeight": 302,
+              "svg": "raw/ml-distribution-shift-concept-shift/overview-main-408.svg",
+              "svgSha256": "c6416f215b22b4669a46c23e62a84dcd103cb6a19698a10e8b4152e0808e1853",
+              "vector": {
+                "left": 29,
+                "top": 16957,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 255,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 255,
+              "frameHeight": 255,
+              "svg": "raw/ml-distribution-shift-concept-shift/overview-main-720.svg",
+              "svgSha256": "aa5e9a9ab4544dabd29b8420a63bc6fd62b280b079637e4f050f08d8edbd24aa",
+              "vector": {
+                "left": 461,
+                "top": 16957,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-distribution-shift-concept-shift--standard-main",
+          "depth": "standard",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.standard.spec",
+          "spec": "raw/ml-distribution-shift-concept-shift/standard-main.json",
+          "specSha256": "a20a3e2837a088726024de3ef2d5fba36e52a21fccc7660e8d6eb12e43a847cf",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 346,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 346,
+              "frameHeight": 346,
+              "svg": "raw/ml-distribution-shift-concept-shift/standard-main-408.svg",
+              "svgSha256": "fb80607bd08acb24bc6946eccdbcf205d7a5f840d079903dec54ab09f9994155",
+              "vector": {
+                "left": 29,
+                "top": 17347,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 280,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 280,
+              "frameHeight": 280,
+              "svg": "raw/ml-distribution-shift-concept-shift/standard-main-720.svg",
+              "svgSha256": "109ab85c5ebe2027179c8fecbab6bc233b580ce3d76a2fb65e886e9d3964ea49",
+              "vector": {
+                "left": 461,
+                "top": 17347,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-distribution-shift-concept-shift--deep-main",
+          "depth": "deep",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.deep.spec",
+          "spec": "raw/ml-distribution-shift-concept-shift/deep-main.json",
+          "specSha256": "5d450714739b76a02a3055ae317e12f390df9c4527b3284a4b3b968845801ab9",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 346,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 346,
+              "frameHeight": 346,
+              "svg": "raw/ml-distribution-shift-concept-shift/deep-main-408.svg",
+              "svgSha256": "83575ed7384b9d16be58cffd23f0eb7b5b4db12b990bb1818f95bb9747009bca",
+              "vector": {
+                "left": 29,
+                "top": 17781,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 280,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 280,
+              "frameHeight": 280,
+              "svg": "raw/ml-distribution-shift-concept-shift/deep-main-720.svg",
+              "svgSha256": "a2b16bc1ea5e384dbe36d0918014c51a0403a96fe92c098336f8efddb31ba768",
+              "vector": {
+                "left": 461,
+                "top": 17781,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-distribution-shift-concept-shift--deep-detail",
+          "depth": "deep",
+          "role": "detail",
+          "kind": "panels",
+          "source": "depths.deep.detailSpec",
+          "spec": "raw/ml-distribution-shift-concept-shift/deep-detail.json",
+          "specSha256": "f50f2c3e05e3c3fc21ff6395009b7e66172eaa65a6c9899da63954a3a1d36c0f",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 302,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 302,
+              "frameHeight": 302,
+              "svg": "raw/ml-distribution-shift-concept-shift/deep-detail-408.svg",
+              "svgSha256": "4cd4c613780fc30384291ed4b3360e8cded1a1bcd3c365bc93c82fb776c5e7ae",
+              "vector": {
+                "left": 29,
+                "top": 18215,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 255,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 255,
+              "frameHeight": 255,
+              "svg": "raw/ml-distribution-shift-concept-shift/deep-detail-720.svg",
+              "svgSha256": "773564dddb25a7799fd18cc720e1ab142f5c9f4664955fb7e5826ddd5ec3284a",
+              "vector": {
+                "left": 461,
+                "top": 18215,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-distribution-shift-concept-shift--author-single",
+          "depth": "author",
+          "role": "single",
+          "kind": "bar-chart",
+          "source": "singleDiagramReferences.ml-distribution-shift-concept-shift-single.spec",
+          "spec": "raw/ml-distribution-shift-concept-shift/author-single.json",
+          "specSha256": "89d4c3f9d761f9351def453bd2d78786ac85d46d863506015bf688aa8916639b",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 222,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 222,
+              "frameHeight": 222,
+              "svg": "raw/ml-distribution-shift-concept-shift/author-single-408.svg",
+              "svgSha256": "79e427edd20a972ea46ae40e9448a350b8ef0becd603e1d08a8632ee96e40af0",
+              "vector": {
+                "left": 29,
+                "top": 18605,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 205,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 205,
+              "frameHeight": 205,
+              "svg": "raw/ml-distribution-shift-concept-shift/author-single-720.svg",
+              "svgSha256": "f4f158484b410c2b419f614f36a33813aa6a8d7721fd73471dd9acaf84bf8cbf",
+              "vector": {
+                "left": 461,
+                "top": 18605,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/reference.json",
+      "bytes": 11617,
+      "sha256": "059e649385128de1538c53c95bdd55f86701e9cd6298b3f8363ec25b7a964ef7"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/overview-main.json",
+      "bytes": 1219,
+      "sha256": "268a5e7bf628f1b6e9c633c0da54600152a17a95469cb90751ed275fd79c683f"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/overview-main-408.svg",
+      "bytes": 5953,
+      "sha256": "86e5bb403f01f7701f9e4e635a2da5fc44269602721527feed20abaed32b05c9"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/overview-main-720.svg",
+      "bytes": 5958,
+      "sha256": "7d0f81014dcf76908aea0de04067cfc4cd3c5c56c889569c325b2d423d403e7d"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/standard-main.json",
+      "bytes": 1753,
+      "sha256": "7432a17ee580141ae9b0ded790fd3882c0e08d670c63eb766a7a88686693368a"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/standard-main-408.svg",
+      "bytes": 13628,
+      "sha256": "a33f55dba8add7f3922b1f59388f0340c9307a17bafba1a64817deb31170e1e0"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/standard-main-720.svg",
+      "bytes": 13601,
+      "sha256": "8d5852711e16f66fdb0284aea24fc23d2065b96da7eb9c9e17b974b35095938d"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/deep-main.json",
+      "bytes": 1740,
+      "sha256": "bcb64c143025888fadb593237ffe8c7b23c9bde1eea1fe4172948e7184d2719a"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/deep-main-408.svg",
+      "bytes": 10930,
+      "sha256": "974215056a4c931a5a862f96628d802e59dbafd1dc4ad306bfc30c31ad51b19f"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/deep-main-720.svg",
+      "bytes": 10897,
+      "sha256": "896b039185c36a6b89c8f701bf8c0f077337e2e540e1029642a1b2f1d82e898a"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/deep-detail.json",
+      "bytes": 1239,
+      "sha256": "f595b17f336f588dd3bc357f87772cd489d249763031bf6fc53d1d5233a785f0"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/deep-detail-408.svg",
+      "bytes": 5187,
+      "sha256": "b18e9a2f51ec690cb67eff04b64e9fa87ab240f8309348bf0fd13c161b142257"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/deep-detail-720.svg",
+      "bytes": 5154,
+      "sha256": "d95157b068b7862c1e5443e5f2c59598840b031f0440730a421ac4e9824f7068"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/author-single.json",
+      "bytes": 487,
+      "sha256": "3ec7e5d412601504673aef81dc15bec462b6fef83d415a55ca4df467d37db10b"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/author-single-408.svg",
+      "bytes": 9078,
+      "sha256": "fab7006b325e9820c4db6bf91121433aeec2497a1d304ad1146b4067bd9305e5"
+    },
+    {
+      "path": "raw/ml-attention-scaled-score-normalization/author-single-720.svg",
+      "bytes": 8893,
+      "sha256": "f12fd80ee1ded7a1db3c2e5a54a50cae33fc38cf8869163968f32ebc17700ef2"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/reference.json",
+      "bytes": 15304,
+      "sha256": "de335321a4144843a09660eff6c729845f5a3acd37ca0c1ba06d8854f3a27745"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/overview-main.json",
+      "bytes": 1268,
+      "sha256": "fad1b1ef4a386eec114b449745e9fb76d6faaa80e7ee0add88d93e4c1079f589"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/overview-main-408.svg",
+      "bytes": 6759,
+      "sha256": "c68030217e542bf4b4e85da2201db5d5e1832e7dfe429ad824e05308498715cd"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/overview-main-720.svg",
+      "bytes": 6726,
+      "sha256": "7207d64aa72b0fb53e8f74dbaa2f24b4c824f439fe506ecdf983b2d0b87ba434"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/standard-main.json",
+      "bytes": 2371,
+      "sha256": "3dfc8da02dd9757bfab7842e122dd2ba2f7ce26dcb0a191a3bc28545fc47a818"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/standard-main-408.svg",
+      "bytes": 11775,
+      "sha256": "54000d45952d7bb9a8589441615cd3f36135755b517777e29bdc1f16cdf8133c"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/standard-main-720.svg",
+      "bytes": 11734,
+      "sha256": "920154b7a82bc4efb97dfe4c58602b22847f93881f51cdf645b8d6f0da483123"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/deep-main.json",
+      "bytes": 2393,
+      "sha256": "d45f21d659009cece303a5d1961166167c868b721fbf7209a6406dc059ae68e9"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/deep-main-408.svg",
+      "bytes": 14357,
+      "sha256": "d198d03fd0bd9f28e5a60dad65a7cd2c8af47c098e127913d730c2488d9b8783"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/deep-main-720.svg",
+      "bytes": 14315,
+      "sha256": "cd4e3dfc35b888639909969d2e2510890ead0dc9ac9acda1af39f910b282d2cb"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/deep-detail.json",
+      "bytes": 1024,
+      "sha256": "fbf5d91a7f19889f0fe1b282e7b807b28a9da870a9cef7af6bce57f0d3d16bc1"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/deep-detail-408.svg",
+      "bytes": 4647,
+      "sha256": "1bddfc2d7423c68fc25dc7d4b44e49f35b2b48a2604abbc2cd91c203c63b5e97"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/deep-detail-720.svg",
+      "bytes": 4579,
+      "sha256": "ae81f99f00b33a69b6286de2ec13f0b0fe7ab8a874d5383016c1258f06da9fb1"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/author-single.json",
+      "bytes": 898,
+      "sha256": "22ecccbc15cae6f49df70c9764049c247f258adbbc064108bfa0a2e85183dd8b"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/author-single-408.svg",
+      "bytes": 6007,
+      "sha256": "d1dfe266b20bd945b86f30e088986f4fd4597d649b3226c99a3b0785ed87cb45"
+    },
+    {
+      "path": "raw/ml-model-evaluation-training-diagnostics/author-single-720.svg",
+      "bytes": 6003,
+      "sha256": "a272334f5b7281fff5ccfcf7040e37d003b6c82fe240170e53a8f8bc18d69d1e"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/reference.json",
+      "bytes": 18202,
+      "sha256": "0eb3df3f978755f42ccbb652e4559dde1a0fa2c6ab548de99b8ea51e71ac1733"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/overview-main.json",
+      "bytes": 1269,
+      "sha256": "35d6144be4610f40ffdf0d59e86cd8f83b7e4364da23f9ebf5f32ed355732261"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/overview-main-408.svg",
+      "bytes": 7812,
+      "sha256": "885360055c67f03e1eb0c797f20b403fb0c34800d80fbf6963c55a700147458e"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/overview-main-720.svg",
+      "bytes": 7631,
+      "sha256": "abdb95d3978dbbcfec624fe6c9b20c2c12800e27bce1a1b8a988fbf38adc0240"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/standard-main.json",
+      "bytes": 2577,
+      "sha256": "95ecd197967055770e25ccd56d6b4a6c942dbab039e43542766863ed97328c29"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/standard-main-408.svg",
+      "bytes": 13742,
+      "sha256": "425c77419421374393206322cfbd660c73c4895403f1e82e655bb26c641b2f59"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/standard-main-720.svg",
+      "bytes": 13549,
+      "sha256": "1bbbd5f7c1c7f3c810cfd799f11904693731eebb5702399193b24d91f4d82064"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-main.json",
+      "bytes": 2573,
+      "sha256": "ca312cd9aa42b3912fb89ffd7066a956092398f46257d55fd8a9a95f2d6de907"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-main-408.svg",
+      "bytes": 13730,
+      "sha256": "0aa01f80693ce49d295c166c9528db3f87a37e8b5b0f4ab911376f242ee0f8d2"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-main-720.svg",
+      "bytes": 13535,
+      "sha256": "8c892b18796a5284e4a00944c9af993ffb817122afd1b454a76330ac56a1e174"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-detail.json",
+      "bytes": 2228,
+      "sha256": "9e24c716d53aed36ae3432d4eed2427eb5b5770b7cccd75ccefcb892a958c50a"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-detail-408.svg",
+      "bytes": 10096,
+      "sha256": "436b9ef2ea88c19ede6039f9a96e77931c6a3fe2ecf23664a787e22dad664afc"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/deep-detail-720.svg",
+      "bytes": 10008,
+      "sha256": "b6ce78641d384631ae11b8ee0bb329fc1f244d269cc803b74576d43ee090e212"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/author-single.json",
+      "bytes": 1034,
+      "sha256": "47c754810d49ac7a477c4815f5ccfa4c7485602cefb4ec12f3c2268882a7dd72"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/author-single-408.svg",
+      "bytes": 6516,
+      "sha256": "e25e028155a54e6db9a2520708fdbc252776afda182909fae61084354c3431a1"
+    },
+    {
+      "path": "raw/ml-model-evaluation-schedule-run-diagnostics/author-single-720.svg",
+      "bytes": 6510,
+      "sha256": "ceb71c4a088f8c83870ae8fabcaf7451c9bc208423be5095bdc294d809a3929f"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/reference.json",
+      "bytes": 16248,
+      "sha256": "0e7f10a4a15fee3fbc28bad99219d80851423f3893c42c9ec607eac40244171a"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/overview-main.json",
+      "bytes": 1204,
+      "sha256": "a6b7bea945e73ba660ed0943c181cb0ab3f1480a634963b26c1ecbedd7f2a86b"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/overview-main-408.svg",
+      "bytes": 9315,
+      "sha256": "d6f105747df40fa9c16ef69c0c2367e5cf733d27b0e29689883e0d437670c065"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/overview-main-720.svg",
+      "bytes": 9735,
+      "sha256": "bebffc6e9dba2fe34d4d5691717960d296183f6a3d2844e0a105524cdaf409f7"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/standard-main.json",
+      "bytes": 2747,
+      "sha256": "215fbe5397970d3706498259c9a841a1f361a3c95c294efa8dca1030cb894834"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/standard-main-408.svg",
+      "bytes": 14489,
+      "sha256": "4d2441dabaf0d7594ae1bb93e364c1aff5bd5493f52dbf08dcabf7fc450ac966"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/standard-main-720.svg",
+      "bytes": 14852,
+      "sha256": "9b440dda413d3b587dfeb8af62e2311c06c6e4c0063e494193c2ecc1a9b245ed"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/deep-main.json",
+      "bytes": 2727,
+      "sha256": "0e339db881fd6b5fa4109026b07d9c2bd0590b1cb305ba496b0e55b60761dfdb"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/deep-main-408.svg",
+      "bytes": 14909,
+      "sha256": "7200aefd58354022df4a5f3e10d5eb493e3777098bc65787d06ebdffe6a0a3cd"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/deep-main-720.svg",
+      "bytes": 15460,
+      "sha256": "0137a066fa647a80250e7b41cfdae52e54c859b524b5c23857f33acace39ffd6"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/deep-detail.json",
+      "bytes": 1784,
+      "sha256": "61fae0846e29aec78b50b86f37f025239ea658221574ab4c656f0d5836fde0fc"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/deep-detail-408.svg",
+      "bytes": 12225,
+      "sha256": "489ed6ebd499eb29f66f21e23324f1e67bc2a2baedb7edf108b96d73a36fed57"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/deep-detail-720.svg",
+      "bytes": 12801,
+      "sha256": "9acbfd32b4d85f32975931571808a4bfae4ebe56d2dc7d5c5f790a5992de64c4"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/author-single.json",
+      "bytes": 1414,
+      "sha256": "fbd78b335991dbc448032fedcf3f202cd291550307b6b839c2dd5e582129a6f2"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/author-single-408.svg",
+      "bytes": 9025,
+      "sha256": "9327ae6ae57f6885d6a38a8c0122191cace62c1add2a560e91753eac551e535a"
+    },
+    {
+      "path": "raw/ml-time-series-recursive-rollout/author-single-720.svg",
+      "bytes": 9646,
+      "sha256": "63836b88d2f6ca25b34b3c17d320a0b3bde7e4020b18e3733f761c424339ebb4"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/reference.json",
+      "bytes": 11146,
+      "sha256": "a8d0e310b970d0cd415bd874bac5ab7e397f396e3d875617d8d9b5ea24a18700"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/overview-main.json",
+      "bytes": 1474,
+      "sha256": "f13fc5c2394f8380aaeedbbd8298cdead33ab957998d9c42d7d4efdcbd07a32d"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/overview-main-408.svg",
+      "bytes": 6996,
+      "sha256": "63e4b4d3eccfc6ed1851da75a45a03e64c646de506d5e33b65e4768292b9e5e9"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/overview-main-720.svg",
+      "bytes": 6994,
+      "sha256": "30cb74bfaad3dd4e1a0e29c46700e560c4901b542840884ccf50c9bfb1c3fa69"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/standard-main.json",
+      "bytes": 2090,
+      "sha256": "b16b87445a6fcfbd7cd9c9c975fb751f022251edcdc94bee9dd2d2c9ad1c67c4"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/standard-main-408.svg",
+      "bytes": 11257,
+      "sha256": "9034350bc1365c43acd2ab4d060840202863cde655f89042f3b3b1c804420770"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/standard-main-720.svg",
+      "bytes": 11338,
+      "sha256": "8f5192aacdf5f1ca7b6dfcc6f5575fa5661a2d0504137e24da86295d3e25921f"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/deep-main.json",
+      "bytes": 522,
+      "sha256": "4321a55e46d8bba04ea0c42ad393c8052386ec93e997396e6a11b0d0f255be50"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/deep-main-408.svg",
+      "bytes": 4410,
+      "sha256": "ff09c4856e38f74e57614850980cdc2f4f5ec04fcb64969ec78a55b6b0654698"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/deep-main-720.svg",
+      "bytes": 4382,
+      "sha256": "449b15a8dc42f6336a07ad129b9f0da5bfa1ab223ac7d2e82da43821a3576638"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/deep-detail.json",
+      "bytes": 510,
+      "sha256": "28ebc894abfd98d688cc05495d335acdd71316136715aab8c774b27052f9228c"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/deep-detail-408.svg",
+      "bytes": 4381,
+      "sha256": "d16f689926aa0000472b193dfbae14b6e4aa181dc68a991c8edc5dc4764856bd"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/deep-detail-720.svg",
+      "bytes": 4319,
+      "sha256": "e1181e5999e60eb438b2f828408da84bd5b8609fcedf8ac5bea9717a32583841"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/author-single.json",
+      "bytes": 522,
+      "sha256": "4321a55e46d8bba04ea0c42ad393c8052386ec93e997396e6a11b0d0f255be50"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/author-single-408.svg",
+      "bytes": 4410,
+      "sha256": "ff09c4856e38f74e57614850980cdc2f4f5ec04fcb64969ec78a55b6b0654698"
+    },
+    {
+      "path": "raw/ml-distribution-shift-input-distribution-shift/author-single-720.svg",
+      "bytes": 4382,
+      "sha256": "449b15a8dc42f6336a07ad129b9f0da5bfa1ab223ac7d2e82da43821a3576638"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/reference.json",
+      "bytes": 8883,
+      "sha256": "d3fc228677b50134f36e82849e693f1ab3d12b864eaba814d4a3548eb2a9c646"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/overview-main.json",
+      "bytes": 1030,
+      "sha256": "2ff4cfbc8e94c67fbab71e8ab9380ef8de85002625c6e1d65b31496afe611ed3"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/overview-main-408.svg",
+      "bytes": 4490,
+      "sha256": "c6416f215b22b4669a46c23e62a84dcd103cb6a19698a10e8b4152e0808e1853"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/overview-main-720.svg",
+      "bytes": 4348,
+      "sha256": "aa5e9a9ab4544dabd29b8420a63bc6fd62b280b079637e4f050f08d8edbd24aa"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/standard-main.json",
+      "bytes": 1124,
+      "sha256": "a20a3e2837a088726024de3ef2d5fba36e52a21fccc7660e8d6eb12e43a847cf"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/standard-main-408.svg",
+      "bytes": 5005,
+      "sha256": "fb80607bd08acb24bc6946eccdbcf205d7a5f840d079903dec54ab09f9994155"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/standard-main-720.svg",
+      "bytes": 4802,
+      "sha256": "109ab85c5ebe2027179c8fecbab6bc233b580ce3d76a2fb65e886e9d3964ea49"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/deep-main.json",
+      "bytes": 1146,
+      "sha256": "5d450714739b76a02a3055ae317e12f390df9c4527b3284a4b3b968845801ab9"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/deep-main-408.svg",
+      "bytes": 5051,
+      "sha256": "83575ed7384b9d16be58cffd23f0eb7b5b4db12b990bb1818f95bb9747009bca"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/deep-main-720.svg",
+      "bytes": 4848,
+      "sha256": "a2b16bc1ea5e384dbe36d0918014c51a0403a96fe92c098336f8efddb31ba768"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/deep-detail.json",
+      "bytes": 1046,
+      "sha256": "f50f2c3e05e3c3fc21ff6395009b7e66172eaa65a6c9899da63954a3a1d36c0f"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/deep-detail-408.svg",
+      "bytes": 4592,
+      "sha256": "4cd4c613780fc30384291ed4b3360e8cded1a1bcd3c365bc93c82fb776c5e7ae"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/deep-detail-720.svg",
+      "bytes": 4452,
+      "sha256": "773564dddb25a7799fd18cc720e1ab142f5c9f4664955fb7e5826ddd5ec3284a"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/author-single.json",
+      "bytes": 358,
+      "sha256": "89d4c3f9d761f9351def453bd2d78786ac85d46d863506015bf688aa8916639b"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/author-single-408.svg",
+      "bytes": 2188,
+      "sha256": "79e427edd20a972ea46ae40e9448a350b8ef0becd603e1d08a8632ee96e40af0"
+    },
+    {
+      "path": "raw/ml-distribution-shift-concept-shift/author-single-720.svg",
+      "bytes": 2153,
+      "sha256": "f4f158484b410c2b419f614f36a33813aa6a8d7721fd73471dd9acaf84bf8cbf"
+    },
+    {
+      "path": "index.html",
+      "bytes": 974594,
+      "sha256": "532e59037dc33cb73bef4ee77c3a78293da7cd107224b5f69035d86baa35af5a"
+    },
+    {
+      "path": "contact-sheet.svg",
+      "bytes": 961329,
+      "sha256": "b89405c51ce4516c5fab5b1d9910dcd0b38d32d567a5ef76655307194c8efca9"
+    }
+  ],
+  "limitations": [
+    "Deterministic offline production-renderer evidence, not live model/provider output.",
+    "Vector evidence only; no browser raster or visual verification was performed. The owner rasterises the SVG sheet."
+  ]
+}

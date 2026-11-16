@@ -1,0 +1,2346 @@
+{
+  "ref": "7a9dd67a4098e3f82bb2a8dd89f622c14da31951",
+  "method": "Fresh offline source-prompt replay through planWithReferenceKind and selectForAuthor; deterministic source-kind JEV plans; deduplicated prompts + paraphrases at brief/balanced/detailed. Exact emitted identities compared separately from authored-kind restoration. No live providers.",
+  "ownCases": 111,
+  "ownHits": 111,
+  "canonicalCases": 21,
+  "canonicalHits": 21,
+  "paraphraseCases": 90,
+  "paraphraseHits": 90,
+  "passed": true,
+  "rows": [
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 0,
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 0,
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 0,
+      "prompt": "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 1,
+      "prompt": "Show attention score scaling followed by normalized position weights.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 1,
+      "prompt": "Show attention score scaling followed by normalized position weights.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 1,
+      "prompt": "Show attention score scaling followed by normalized position weights.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 2,
+      "prompt": "How does the square root of head width change query-key matches before softmax?",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 2,
+      "prompt": "How does the square root of head width change query-key matches before softmax?",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 2,
+      "prompt": "How does the square root of head width change query-key matches before softmax?",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 3,
+      "prompt": "Draw scaled match weights from one query and three candidate keys.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 3,
+      "prompt": "Draw scaled match weights from one query and three candidate keys.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 3,
+      "prompt": "Draw scaled match weights from one query and three candidate keys.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 4,
+      "prompt": "Trace a query-key dot product through the head-width divisor and softmax.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 4,
+      "prompt": "Trace a query-key dot product through the head-width divisor and softmax.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 4,
+      "prompt": "Trace a query-key dot product through the head-width divisor and softmax.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 5,
+      "prompt": "What happens to normalized attention matches when the query is doubled?",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 5,
+      "prompt": "What happens to normalized attention matches when the query is doubled?",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-attention-scaled-score-normalization",
+      "promptIndex": 5,
+      "prompt": "What happens to normalized attention matches when the query is doubled?",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-attention-scaled-score-normalization-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 0,
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 0,
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 0,
+      "prompt": "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 1,
+      "prompt": "Compare training and held-out loss with held-out accuracy during dropout.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 1,
+      "prompt": "Compare training and held-out loss with held-out accuracy during dropout.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 1,
+      "prompt": "Compare training and held-out loss with held-out accuracy during dropout.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 2,
+      "prompt": "Show a dropout metric history with separate loss and accuracy scales.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 2,
+      "prompt": "Show a dropout metric history with separate loss and accuracy scales.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 2,
+      "prompt": "Show a dropout metric history with separate loss and accuracy scales.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 3,
+      "prompt": "How can dropout validation loss keep falling after accuracy stops changing?",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 3,
+      "prompt": "How can dropout validation loss keep falling after accuracy stops changing?",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 3,
+      "prompt": "How can dropout validation loss keep falling after accuracy stops changing?",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 4,
+      "prompt": "Explain loss accuracy traces with the same recorded epochs.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 4,
+      "prompt": "Explain loss accuracy traces with the same recorded epochs.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 4,
+      "prompt": "Explain loss accuracy traces with the same recorded epochs.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 5,
+      "prompt": "Check a dropout prediction that loses less while remaining correct.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 5,
+      "prompt": "Check a dropout prediction that loses less while remaining correct.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-training-diagnostics",
+      "promptIndex": 5,
+      "prompt": "Check a dropout prediction that loses less while remaining correct.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-training-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 0,
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 0,
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 0,
+      "prompt": "A fixed learning rate can keep improving the training metric after held-out accuracy levels off.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 1,
+      "prompt": "Show a fixed rate plateau with a growing training heldout gap.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 1,
+      "prompt": "Show a fixed rate plateau with a growing training heldout gap.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 1,
+      "prompt": "Show a fixed rate plateau with a growing training heldout gap.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 2,
+      "prompt": "Compare training and held-out accuracy while the learning rate stays constant.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 2,
+      "prompt": "Compare training and held-out accuracy while the learning rate stays constant.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 2,
+      "prompt": "Compare training and held-out accuracy while the learning rate stays constant.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 3,
+      "prompt": "Why can training loss fall after held-out accuracy reaches a plateau?",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 3,
+      "prompt": "Why can training loss fall after held-out accuracy reaches a plateau?",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 3,
+      "prompt": "Why can training loss fall after held-out accuracy reaches a plateau?",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 4,
+      "prompt": "Plot a constant-rate history with training loss separate from both accuracies.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 4,
+      "prompt": "Plot a constant-rate history with training loss separate from both accuracies.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 4,
+      "prompt": "Plot a constant-rate history with training loss separate from both accuracies.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 5,
+      "prompt": "Check training and held-out predictions when an accuracy gap first appears.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 5,
+      "prompt": "Check training and held-out predictions when an accuracy gap first appears.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-model-evaluation-schedule-run-diagnostics",
+      "promptIndex": 5,
+      "prompt": "Check training and held-out predictions when an accuracy gap first appears.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-model-evaluation-schedule-run-diagnostics",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 0,
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 0,
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 0,
+      "prompt": "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 1,
+      "prompt": "Show a recursive rollout as predicted values become the next inputs.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 1,
+      "prompt": "Show a recursive rollout as predicted values become the next inputs.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 1,
+      "prompt": "Show a recursive rollout as predicted values become the next inputs.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 2,
+      "prompt": "Why can forecast feedback drift away from refreshed one-step estimates?",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 2,
+      "prompt": "Why can forecast feedback drift away from refreshed one-step estimates?",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 2,
+      "prompt": "Why can forecast feedback drift away from refreshed one-step estimates?",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 3,
+      "prompt": "Compare a recursive rollout with forecasts that receive new measured readings.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 3,
+      "prompt": "Compare a recursive rollout with forecasts that receive new measured readings.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 3,
+      "prompt": "Compare a recursive rollout with forecasts that receive new measured readings.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 4,
+      "prompt": "Trace forecast feedback from a measured seed to reused predictions.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 4,
+      "prompt": "Trace forecast feedback from a measured seed to reused predictions.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 4,
+      "prompt": "Trace forecast feedback from a measured seed to reused predictions.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 5,
+      "prompt": "How does moving the starting point change a recursive rollout?",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 5,
+      "prompt": "How does moving the starting point change a recursive rollout?",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-time-series-recursive-rollout",
+      "promptIndex": 5,
+      "prompt": "How does moving the starting point change a recursive rollout?",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-time-series-recursive-rollout",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 0,
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 0,
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 0,
+      "prompt": "A training sample can teach a model a narrow version of the input domain even when both target classes are represented.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "bar-chart",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 1,
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 1,
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 1,
+      "prompt": "Deployment inputs can look unlike training inputs while the task still uses the same class definitions.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "bar-chart",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 2,
+      "prompt": "Show an input style shift with the fixed class rule still applied in both domains.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 2,
+      "prompt": "Show an input style shift with the fixed class rule still applied in both domains.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 2,
+      "prompt": "Show an input style shift with the fixed class rule still applied in both domains.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "bar-chart",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 3,
+      "prompt": "How can an input style shift happen when both target classes appear in training?",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 3,
+      "prompt": "How can an input style shift happen when both target classes appear in training?",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 3,
+      "prompt": "How can an input style shift happen when both target classes appear in training?",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "bar-chart",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 4,
+      "prompt": "Compare independently drawn card domains with a fixed class rule and different tones.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 4,
+      "prompt": "Compare independently drawn card domains with a fixed class rule and different tones.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 4,
+      "prompt": "Compare independently drawn card domains with a fixed class rule and different tones.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "bar-chart",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 5,
+      "prompt": "Count the dark and light cards to explain an input style shift.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 5,
+      "prompt": "Count the dark and light cards to explain an input style shift.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 5,
+      "prompt": "Count the dark and light cards to explain an input style shift.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "bar-chart",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 6,
+      "prompt": "Why does a fixed class rule allow different input styles at deployment?",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 6,
+      "prompt": "Why does a fixed class rule allow different input styles at deployment?",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "comparison"
+        }
+      ],
+      "plannedKinds": [
+        "comparison"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "comparison",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-input-distribution-shift",
+      "promptIndex": 6,
+      "prompt": "Why does a fixed class rule allow different input styles at deployment?",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-input-distribution-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "bar-chart"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "bar-chart",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 0,
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 0,
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 0,
+      "prompt": "The same input can acquire different labels across settings when the labeling rule itself changes.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 1,
+      "prompt": "Show conditional label change when invented studios name the same cards differently.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 1,
+      "prompt": "Show conditional label change when invented studios name the same cards differently.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 1,
+      "prompt": "Show conditional label change when invented studios name the same cards differently.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 2,
+      "prompt": "Explain a changed naming rule while holding every input card fixed.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 2,
+      "prompt": "Explain a changed naming rule while holding every input card fixed.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 2,
+      "prompt": "Explain a changed naming rule while holding every input card fixed.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 3,
+      "prompt": "Compare conditional label change for one dark round input across two studios.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 3,
+      "prompt": "Compare conditional label change for one dark round input across two studios.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 3,
+      "prompt": "Compare conditional label change for one dark round input across two studios.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 4,
+      "prompt": "How can a changed naming rule reverse labels without changing input frequencies?",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 4,
+      "prompt": "How can a changed naming rule reverse labels without changing input frequencies?",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 4,
+      "prompt": "How can a changed naming rule reverse labels without changing input frequencies?",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 5,
+      "prompt": "Check conditional label change even when the total class counts stay balanced.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 5,
+      "prompt": "Check conditional label change even when the total class counts stay balanced.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-distribution-shift-concept-shift",
+      "promptIndex": 5,
+      "prompt": "Check conditional label change even when the total class counts stay balanced.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-distribution-shift-concept-shift-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    }
+  ],
+  "publishedBranchTip": "16718410f212ab664a3948ea047fda615f43e424",
+  "contentUnchangedSinceReplayRef": "git diff --quiet 7a9dd67a4098e3f82bb2a8dd89f622c14da31951 16718410f212ab664a3948ea047fda615f43e424 -- packages (passed; receipt-only update)"
+}

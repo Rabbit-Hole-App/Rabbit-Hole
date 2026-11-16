@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Accuracy",
+    "x": {
+      "label": "Epoch",
+      "min": 1,
+      "max": 4,
+      "integerTicks": true
+    },
+    "y": {
+      "label": "Accuracy",
+      "min": 0,
+      "max": 100,
+      "unit": "%"
+    },
+    "series": [
+      {
+        "label": "Training",
+        "kind": "line",
+        "samples": {
+          "x": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "y": [
+            50,
+            75,
+            100,
+            100
+          ]
+        }
+      },
+      {
+        "label": "Held-out",
+        "kind": "line",
+        "samples": {
+          "x": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "y": [
+            50,
+            75,
+            75,
+            75
+          ]
+        }
+      }
+    ],
+    "annotations": [
+      {
+        "kind": "band",
+        "axis": "x",
+        "from": 2,
+        "to": 4,
+        "label": "Gap opens"
+      }
+    ]
+  }
+}

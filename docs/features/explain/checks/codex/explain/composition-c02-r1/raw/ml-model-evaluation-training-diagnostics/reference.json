@@ -1,0 +1,542 @@
+{
+  "id": "ml-model-evaluation-training-diagnostics",
+  "topic": "model-evaluation",
+  "lessons": [
+    "09",
+    "10"
+  ],
+  "sources": [
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-dropout/briefs.md#figure-02",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-dropout/briefs.md#figure-03",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-dropout/briefs.md#figure-04",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-dropout/briefs.md#figure-05",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-dropout/briefs.md#figure-06",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-dropout/briefs.md#figure-07",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-dropout/briefs.md#figure-08",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-dropout/briefs.md#figure-09",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lenet/briefs.md#figure-03",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lenet/briefs.md#figure-04",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lenet/briefs.md#figure-05",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-lenet/briefs.md#figure-06",
+      "revision": "05d5f02f6"
+    }
+  ],
+  "prompts": [
+    "During dropout training the held-out loss can track the training loss while held-out accuracy improves.",
+    "Compare training and held-out loss with held-out accuracy during dropout.",
+    "Show a dropout metric history with separate loss and accuracy scales.",
+    "How can dropout validation loss keep falling after accuracy stops changing?",
+    "Explain loss accuracy traces with the same recorded epochs.",
+    "Check a dropout prediction that loses less while remaining correct."
+  ],
+  "paraphrases": [
+    "Compare training and held-out loss with held-out accuracy during dropout.",
+    "Show a dropout metric history with separate loss and accuracy scales.",
+    "How can dropout validation loss keep falling after accuracy stops changing?",
+    "Explain loss accuracy traces with the same recorded epochs.",
+    "Check a dropout prediction that loses less while remaining correct."
+  ],
+  "keywords": [
+    "dropout metrics",
+    "loss accuracy traces",
+    "dropout metrics",
+    "loss accuracy traces"
+  ],
+  "useWhen": "Show illustrative dropout loss and held-out accuracy diagnostics; not a dropout mask, a learning-rate policy, or a guarantee of improved generalization.",
+  "illustrative": true,
+  "spec": {
+    "version": 1,
+    "diagram": {
+      "kind": "comparison",
+      "variant": "panels",
+      "title": "Dropout diagnostics",
+      "caption": "Illustrative recorded predictions, not an optimizer guarantee.",
+      "panels": [
+        {
+          "heading": "Loss",
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Loss",
+            "x": {
+              "label": "Epoch",
+              "min": 1,
+              "max": 4,
+              "integerTicks": true
+            },
+            "y": {
+              "label": "BCE loss",
+              "min": 0,
+              "max": 1,
+              "unit": "nats"
+            },
+            "series": [
+              {
+                "label": "Training",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "y": [
+                    0.714,
+                    0.456,
+                    0.359,
+                    0.29
+                  ]
+                }
+              },
+              {
+                "label": "Held-out",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "y": [
+                    0.714,
+                    0.506,
+                    0.399,
+                    0.317
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "heading": "Held-out accuracy",
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Held-out accuracy",
+            "x": {
+              "label": "Epoch",
+              "min": 1,
+              "max": 4,
+              "integerTicks": true
+            },
+            "y": {
+              "label": "Accuracy",
+              "min": 0,
+              "max": 100,
+              "unit": "%"
+            },
+            "series": [
+              {
+                "label": "Held-out",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "y": [
+                    50,
+                    75,
+                    100,
+                    100
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "sharedAxes": [
+        "x"
+      ]
+    }
+  },
+  "depths": {
+    "overview": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "comparison",
+          "variant": "panels",
+          "title": "Dropout metric summaries",
+          "caption": "Illustrative recorded predictions; loss and accuracy describe different aspects of this history.",
+          "panels": [
+            {
+              "heading": "Loss",
+              "diagram": {
+                "kind": "bar-chart",
+                "variant": "grouped",
+                "title": "Loss",
+                "unit": "nats",
+                "categories": [
+                  "Epoch 1",
+                  "Epoch 4"
+                ],
+                "series": [
+                  {
+                    "label": "Training",
+                    "values": [
+                      0.714,
+                      0.29
+                    ]
+                  },
+                  {
+                    "label": "Held-out",
+                    "values": [
+                      0.714,
+                      0.317
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "heading": "Held-out accuracy",
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Held-out accuracy",
+                "unit": "%",
+                "bars": [
+                  {
+                    "label": "Epoch 1",
+                    "value": 50
+                  },
+                  {
+                    "label": "Epoch 4",
+                    "value": 100
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "standard": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "comparison",
+          "variant": "panels",
+          "title": "Dropout diagnostics",
+          "caption": "Illustrative recorded predictions, not an optimizer guarantee.",
+          "panels": [
+            {
+              "heading": "Loss",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Loss",
+                "x": {
+                  "label": "Epoch",
+                  "min": 1,
+                  "max": 4,
+                  "integerTicks": true
+                },
+                "y": {
+                  "label": "BCE loss",
+                  "min": 0,
+                  "max": 1,
+                  "unit": "nats"
+                },
+                "series": [
+                  {
+                    "label": "Training",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        0.714,
+                        0.456,
+                        0.359,
+                        0.29
+                      ]
+                    }
+                  },
+                  {
+                    "label": "Held-out",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        0.714,
+                        0.506,
+                        0.399,
+                        0.317
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "heading": "Held-out accuracy",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Held-out accuracy",
+                "x": {
+                  "label": "Epoch",
+                  "min": 1,
+                  "max": 4,
+                  "integerTicks": true
+                },
+                "y": {
+                  "label": "Accuracy",
+                  "min": 0,
+                  "max": 100,
+                  "unit": "%"
+                },
+                "series": [
+                  {
+                    "label": "Held-out",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        50,
+                        75,
+                        100,
+                        100
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "sharedAxes": [
+            "x"
+          ]
+        }
+      }
+    },
+    "deep": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "comparison",
+          "variant": "panels",
+          "title": "Dropout diagnostics",
+          "caption": "Illustrative recorded predictions; binary cross entropy $L=-y\\ln p-(1-y)\\ln(1-p)$.",
+          "panels": [
+            {
+              "heading": "Loss",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Loss",
+                "x": {
+                  "label": "Epoch",
+                  "min": 1,
+                  "max": 4,
+                  "integerTicks": true
+                },
+                "y": {
+                  "label": "BCE loss",
+                  "min": 0,
+                  "max": 1,
+                  "unit": "nats"
+                },
+                "series": [
+                  {
+                    "label": "Training",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        0.714,
+                        0.456,
+                        0.359,
+                        0.29
+                      ]
+                    }
+                  },
+                  {
+                    "label": "Held-out",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        0.714,
+                        0.506,
+                        0.399,
+                        0.317
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "heading": "Held-out accuracy",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Held-out accuracy",
+                "x": {
+                  "label": "Epoch",
+                  "min": 1,
+                  "max": 4,
+                  "integerTicks": true
+                },
+                "y": {
+                  "label": "Accuracy",
+                  "min": 0,
+                  "max": 100,
+                  "unit": "%"
+                },
+                "series": [
+                  {
+                    "label": "Held-out",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        1,
+                        2,
+                        3,
+                        4
+                      ],
+                      "y": [
+                        50,
+                        75,
+                        100,
+                        100
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "sharedAxes": [
+            "x"
+          ]
+        }
+      },
+      "detailSpec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "One correct prediction can lose less",
+          "caption": "Illustrative H2, true class 0; wrong-class probabilities stay below threshold 0.5, so both predictions are correct.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Class-one p by epoch",
+                "bars": [
+                  {
+                    "label": "3",
+                    "value": 0.4
+                  },
+                  {
+                    "label": "4",
+                    "value": 0.32
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "BCE by epoch (nats)",
+                "bars": [
+                  {
+                    "label": "3",
+                    "value": 0.511
+                  },
+                  {
+                    "label": "4",
+                    "value": 0.386
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Compute BCE"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "shortKeywords": [
+    "dropout metrics",
+    "loss accuracy traces"
+  ]
+}

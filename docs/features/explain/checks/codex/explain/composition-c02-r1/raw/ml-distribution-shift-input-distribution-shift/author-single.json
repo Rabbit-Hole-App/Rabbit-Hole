@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "variant": "grouped",
+    "title": "Count input styles in each domain",
+    "unit": "Cards",
+    "caption": "Count dark and light cards in each independently drawn domain.",
+    "categories": [
+      "Dark",
+      "Light"
+    ],
+    "series": [
+      {
+        "label": "Training",
+        "values": [
+          3,
+          1
+        ]
+      },
+      {
+        "label": "Deployment",
+        "values": [
+          1,
+          3
+        ]
+      }
+    ]
+  }
+}

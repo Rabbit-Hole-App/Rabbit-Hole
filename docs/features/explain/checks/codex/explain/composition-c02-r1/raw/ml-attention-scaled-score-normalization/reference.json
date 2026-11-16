@@ -1,0 +1,437 @@
+{
+  "id": "ml-attention-scaled-score-normalization",
+  "topic": "attention",
+  "lessons": [
+    "03"
+  ],
+  "sources": [
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-transformer/briefs.md#figure-12",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/illustrated-gpt2/briefs.md#figure-23",
+      "revision": "05d5f02f6"
+    }
+  ],
+  "prompts": [
+    "Scaling and softmax convert raw matches into a comparable distribution over positions.",
+    "Show attention score scaling followed by normalized position weights.",
+    "How does the square root of head width change query-key matches before softmax?",
+    "Draw scaled match weights from one query and three candidate keys.",
+    "Trace a query-key dot product through the head-width divisor and softmax.",
+    "What happens to normalized attention matches when the query is doubled?"
+  ],
+  "paraphrases": [
+    "Show attention score scaling followed by normalized position weights.",
+    "How does the square root of head width change query-key matches before softmax?",
+    "Draw scaled match weights from one query and three candidate keys.",
+    "Trace a query-key dot product through the head-width divisor and softmax.",
+    "What happens to normalized attention matches when the query is doubled?"
+  ],
+  "keywords": [
+    "attention score scaling",
+    "scaled match weights",
+    "attention score scaling",
+    "scaled match weights"
+  ],
+  "useWhen": "Show attention score scaling and normalized position weights for one query; not a full-sequence score matrix, value-vector mixing or next-token probabilities.",
+  "spec": {
+    "version": 1,
+    "diagram": {
+      "kind": "panels",
+      "title": "Scaled attention weights",
+      "caption": "Toy $q=(1,1)$; keys A $(2,0)$, B $(0,1)$, C $(1,2)$. Raw matches are dot products; head width $d_k=2$.",
+      "panels": [
+        {
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "Raw matches",
+            "bars": [
+              {
+                "label": "A",
+                "value": 2
+              },
+              {
+                "label": "B",
+                "value": 1
+              },
+              {
+                "label": "C",
+                "value": 3
+              }
+            ]
+          }
+        },
+        {
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "Scaled matches",
+            "bars": [
+              {
+                "label": "A",
+                "value": 1.414
+              },
+              {
+                "label": "B",
+                "value": 0.707
+              },
+              {
+                "label": "C",
+                "value": 2.121
+              }
+            ]
+          }
+        },
+        {
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "Position weights",
+            "bars": [
+              {
+                "label": "A",
+                "value": 0.284
+              },
+              {
+                "label": "B",
+                "value": 0.14
+              },
+              {
+                "label": "C",
+                "value": 0.576
+              }
+            ],
+            "variant": "stacked",
+            "total": 1
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": 0,
+          "to": 1,
+          "operation": "$\\div\\sqrt{2}$"
+        },
+        {
+          "from": 1,
+          "to": 2,
+          "operation": "softmax"
+        }
+      ],
+      "shared": [
+        "classes",
+        "colours"
+      ]
+    }
+  },
+  "depths": {
+    "overview": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Scaled attention weights",
+          "caption": "Toy query. Positive position weights sum to one.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Raw matches",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 2
+                  },
+                  {
+                    "label": "B",
+                    "value": 1
+                  },
+                  {
+                    "label": "C",
+                    "value": 3
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Position weights",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 0.284
+                  },
+                  {
+                    "label": "B",
+                    "value": 0.14
+                  },
+                  {
+                    "label": "C",
+                    "value": 0.576
+                  }
+                ],
+                "variant": "stacked",
+                "total": 1
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "$\\text{scale + softmax}$"
+            }
+          ],
+          "shared": [
+            "classes",
+            "colours"
+          ]
+        }
+      }
+    },
+    "standard": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Scaled attention weights",
+          "caption": "Toy $q=(1,1)$; keys A $(2,0)$, B $(0,1)$, C $(1,2)$. Raw matches are dot products; head width $d_k=2$.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Raw matches",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 2
+                  },
+                  {
+                    "label": "B",
+                    "value": 1
+                  },
+                  {
+                    "label": "C",
+                    "value": 3
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Scaled matches",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 1.414
+                  },
+                  {
+                    "label": "B",
+                    "value": 0.707
+                  },
+                  {
+                    "label": "C",
+                    "value": 2.121
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Position weights",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 0.284
+                  },
+                  {
+                    "label": "B",
+                    "value": 0.14
+                  },
+                  {
+                    "label": "C",
+                    "value": 0.576
+                  }
+                ],
+                "variant": "stacked",
+                "total": 1
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "$\\div\\sqrt{2}$"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "operation": "softmax"
+            }
+          ],
+          "shared": [
+            "classes",
+            "colours"
+          ]
+        }
+      }
+    },
+    "deep": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Scaled attention weights",
+          "caption": "Toy $q′=2q$; fixed keys. Positive query scaling keeps order and changes concentration.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Raw matches",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 4
+                  },
+                  {
+                    "label": "B",
+                    "value": 2
+                  },
+                  {
+                    "label": "C",
+                    "value": 6
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Scaled matches",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 2.828
+                  },
+                  {
+                    "label": "B",
+                    "value": 1.414
+                  },
+                  {
+                    "label": "C",
+                    "value": 4.243
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Position weights",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 0.187
+                  },
+                  {
+                    "label": "B",
+                    "value": 0.045
+                  },
+                  {
+                    "label": "C",
+                    "value": 0.768
+                  }
+                ],
+                "variant": "stacked",
+                "total": 1
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "$\\div\\sqrt{2}$"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "operation": "softmax"
+            }
+          ],
+          "shared": [
+            "classes",
+            "colours"
+          ]
+        }
+      },
+      "detailSpec": {
+        "version": 1,
+        "diagram": {
+          "kind": "comparison",
+          "variant": "panels",
+          "title": "Query scale changes concentration",
+          "caption": "Toy query doubled; keys fixed. Position order and total stay the same.",
+          "panels": [
+            {
+              "heading": "Original query",
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Original query",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 0.284
+                  },
+                  {
+                    "label": "B",
+                    "value": 0.14
+                  },
+                  {
+                    "label": "C",
+                    "value": 0.576
+                  }
+                ],
+                "variant": "stacked",
+                "total": 1
+              }
+            },
+            {
+              "heading": "Doubled query",
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Doubled query",
+                "bars": [
+                  {
+                    "label": "A",
+                    "value": 0.187
+                  },
+                  {
+                    "label": "B",
+                    "value": 0.045
+                  },
+                  {
+                    "label": "C",
+                    "value": 0.768
+                  }
+                ],
+                "variant": "stacked",
+                "total": 1
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "shortKeywords": [
+    "attention score scaling",
+    "scaled match weights"
+  ]
+}

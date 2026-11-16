@@ -1,0 +1,616 @@
+{
+  "id": "ml-time-series-recursive-rollout",
+  "topic": "time-series",
+  "lessons": [
+    "15"
+  ],
+  "sources": [
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-sequence/briefs.md#figure-15",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-sequence/briefs.md#figure-16",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-sequence/briefs.md#figure-17",
+      "revision": "05d5f02f6"
+    },
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-sequence/briefs.md#figure-18",
+      "revision": "05d5f02f6"
+    }
+  ],
+  "prompts": [
+    "Rolling a predictor forward on its own outputs can amplify errors as measured inputs stop arriving.",
+    "Show a recursive rollout as predicted values become the next inputs.",
+    "Why can forecast feedback drift away from refreshed one-step estimates?",
+    "Compare a recursive rollout with forecasts that receive new measured readings.",
+    "Trace forecast feedback from a measured seed to reused predictions.",
+    "How does moving the starting point change a recursive rollout?"
+  ],
+  "paraphrases": [
+    "Show a recursive rollout as predicted values become the next inputs.",
+    "Why can forecast feedback drift away from refreshed one-step estimates?",
+    "Compare a recursive rollout with forecasts that receive new measured readings.",
+    "Trace forecast feedback from a measured seed to reused predictions.",
+    "How does moving the starting point change a recursive rollout?"
+  ],
+  "keywords": [
+    "recursive rollout",
+    "forecast feedback",
+    "recursive rollout",
+    "forecast feedback"
+  ],
+  "useWhen": "Show measured inputs replaced by predictions during recursive rollout; NOT one-step forecasting alone or horizon-only comparisons.",
+  "spec": {
+    "version": 1,
+    "diagram": {
+      "kind": "comparison",
+      "variant": "panels",
+      "title": "Forecast feedback",
+      "caption": "Worked example. $f(x)=0.5x+1$; recursion reuses predictions.",
+      "panels": [
+        {
+          "heading": "Traces",
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Traces",
+            "x": {
+              "label": "Time",
+              "min": 1,
+              "max": 8
+            },
+            "y": {
+              "label": "Reading",
+              "min": 0,
+              "max": 10
+            },
+            "series": [
+              {
+                "label": "Observed",
+                "kind": "line",
+                "samples": {
+                  "x": {
+                    "start": 1,
+                    "step": 1
+                  },
+                  "y": [
+                    4,
+                    6,
+                    8,
+                    6,
+                    8,
+                    10,
+                    8,
+                    10
+                  ]
+                }
+              },
+              {
+                "label": "Recursive",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    5,
+                    6,
+                    7,
+                    8
+                  ],
+                  "y": [
+                    4,
+                    3,
+                    2.5,
+                    2.25
+                  ]
+                }
+              },
+              {
+                "label": "One-step",
+                "kind": "line",
+                "samples": {
+                  "x": [
+                    5,
+                    6,
+                    7,
+                    8
+                  ],
+                  "y": [
+                    4,
+                    5,
+                    6,
+                    5
+                  ]
+                }
+              }
+            ],
+            "annotations": [
+              {
+                "kind": "reference-line",
+                "label": "Origin",
+                "axis": "x",
+                "value": 4
+              },
+              {
+                "kind": "reference-line",
+                "label": "Mean",
+                "axis": "y",
+                "value": 7.5
+              }
+            ]
+          }
+        },
+        {
+          "heading": "Inputs",
+          "diagram": {
+            "kind": "matrix",
+            "title": "Inputs",
+            "columns": [
+              "First",
+              "Next"
+            ],
+            "rows": [
+              {
+                "heading": "Recursive",
+                "cells": [
+                  "Measured",
+                  "Predicted"
+                ]
+              },
+              {
+                "heading": "One-step",
+                "cells": [
+                  "Measured",
+                  "Measured"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "depths": {
+    "overview": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "coordinate-plot",
+          "title": "Predictions become inputs",
+          "x": {
+            "label": "Time",
+            "min": 1,
+            "max": 8
+          },
+          "y": {
+            "label": "Reading",
+            "min": 0,
+            "max": 10
+          },
+          "series": [
+            {
+              "label": "Observed",
+              "kind": "line",
+              "samples": {
+                "x": {
+                  "start": 1,
+                  "step": 1
+                },
+                "y": [
+                  4,
+                  6,
+                  8,
+                  6,
+                  8,
+                  10,
+                  8,
+                  10
+                ]
+              }
+            },
+            {
+              "label": "Recursive",
+              "kind": "line",
+              "samples": {
+                "x": [
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "y": [
+                  4,
+                  3,
+                  2.5,
+                  2.25
+                ]
+              }
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "reference-line",
+              "label": "Origin",
+              "axis": "x",
+              "value": 4
+            },
+            {
+              "kind": "reference-line",
+              "label": "Mean",
+              "axis": "y",
+              "value": 7.5
+            }
+          ],
+          "caption": "Worked example. $f(x)=0.5x+1$."
+        }
+      }
+    },
+    "standard": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "comparison",
+          "variant": "panels",
+          "title": "Forecast feedback",
+          "caption": "Worked example. $f(x)=0.5x+1$; recursion reuses predictions.",
+          "panels": [
+            {
+              "heading": "Traces",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Traces",
+                "x": {
+                  "label": "Time",
+                  "min": 1,
+                  "max": 8
+                },
+                "y": {
+                  "label": "Reading",
+                  "min": 0,
+                  "max": 10
+                },
+                "series": [
+                  {
+                    "label": "Observed",
+                    "kind": "line",
+                    "samples": {
+                      "x": {
+                        "start": 1,
+                        "step": 1
+                      },
+                      "y": [
+                        4,
+                        6,
+                        8,
+                        6,
+                        8,
+                        10,
+                        8,
+                        10
+                      ]
+                    }
+                  },
+                  {
+                    "label": "Recursive",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        5,
+                        6,
+                        7,
+                        8
+                      ],
+                      "y": [
+                        4,
+                        3,
+                        2.5,
+                        2.25
+                      ]
+                    }
+                  },
+                  {
+                    "label": "One-step",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        5,
+                        6,
+                        7,
+                        8
+                      ],
+                      "y": [
+                        4,
+                        5,
+                        6,
+                        5
+                      ]
+                    }
+                  }
+                ],
+                "annotations": [
+                  {
+                    "kind": "reference-line",
+                    "label": "Origin",
+                    "axis": "x",
+                    "value": 4
+                  },
+                  {
+                    "kind": "reference-line",
+                    "label": "Mean",
+                    "axis": "y",
+                    "value": 7.5
+                  }
+                ]
+              }
+            },
+            {
+              "heading": "Inputs",
+              "diagram": {
+                "kind": "matrix",
+                "title": "Inputs",
+                "columns": [
+                  "First",
+                  "Next"
+                ],
+                "rows": [
+                  {
+                    "heading": "Recursive",
+                    "cells": [
+                      "Measured",
+                      "Predicted"
+                    ]
+                  },
+                  {
+                    "heading": "One-step",
+                    "cells": [
+                      "Measured",
+                      "Measured"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "deep": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "comparison",
+          "variant": "panels",
+          "title": "Forecast feedback",
+          "caption": "Worked example. $f(x)=0.5x+1$; $s=f(s)$.",
+          "panels": [
+            {
+              "heading": "Traces",
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Traces",
+                "x": {
+                  "label": "Time",
+                  "min": 1,
+                  "max": 8
+                },
+                "y": {
+                  "label": "Reading",
+                  "min": 0,
+                  "max": 10
+                },
+                "series": [
+                  {
+                    "label": "Observed",
+                    "kind": "line",
+                    "samples": {
+                      "x": {
+                        "start": 1,
+                        "step": 1
+                      },
+                      "y": [
+                        4,
+                        6,
+                        8,
+                        6,
+                        8,
+                        10,
+                        8,
+                        10
+                      ]
+                    }
+                  },
+                  {
+                    "label": "Recursive",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        5,
+                        6,
+                        7,
+                        8
+                      ],
+                      "y": [
+                        4,
+                        3,
+                        2.5,
+                        2.25
+                      ]
+                    }
+                  },
+                  {
+                    "label": "One-step",
+                    "kind": "line",
+                    "samples": {
+                      "x": [
+                        5,
+                        6,
+                        7,
+                        8
+                      ],
+                      "y": [
+                        4,
+                        5,
+                        6,
+                        5
+                      ]
+                    }
+                  }
+                ],
+                "annotations": [
+                  {
+                    "kind": "reference-line",
+                    "label": "Origin",
+                    "axis": "x",
+                    "value": 4
+                  },
+                  {
+                    "kind": "reference-line",
+                    "label": "Mean",
+                    "axis": "y",
+                    "value": 7.5
+                  }
+                ]
+              }
+            },
+            {
+              "heading": "Inputs",
+              "diagram": {
+                "kind": "matrix",
+                "title": "Inputs",
+                "columns": [
+                  "First",
+                  "Next"
+                ],
+                "rows": [
+                  {
+                    "heading": "Recursive",
+                    "cells": [
+                      "Measured",
+                      "Predicted"
+                    ]
+                  },
+                  {
+                    "heading": "One-step",
+                    "cells": [
+                      "Measured",
+                      "Measured"
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "detailSpec": {
+        "version": 1,
+        "diagram": {
+          "kind": "coordinate-plot",
+          "title": "Move the forecast origin",
+          "x": {
+            "label": "Time",
+            "min": 1,
+            "max": 8
+          },
+          "y": {
+            "label": "Reading",
+            "min": 0,
+            "max": 10
+          },
+          "series": [
+            {
+              "label": "Observed",
+              "kind": "line",
+              "samples": {
+                "x": {
+                  "start": 1,
+                  "step": 1
+                },
+                "y": [
+                  4,
+                  6,
+                  8,
+                  6,
+                  8,
+                  10,
+                  8,
+                  10
+                ]
+              }
+            },
+            {
+              "label": "Earlier origin",
+              "kind": "line",
+              "samples": {
+                "x": [
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "y": [
+                  4,
+                  3,
+                  2.5,
+                  2.25
+                ]
+              }
+            },
+            {
+              "label": "Later origin",
+              "kind": "line",
+              "samples": {
+                "x": [
+                  6,
+                  7,
+                  8
+                ],
+                "y": [
+                  5,
+                  3.5,
+                  2.75
+                ]
+              }
+            }
+          ],
+          "annotations": [
+            {
+              "kind": "reference-line",
+              "label": "Origin",
+              "axis": "x",
+              "value": 4
+            },
+            {
+              "kind": "reference-line",
+              "label": "Later origin",
+              "axis": "x",
+              "value": 5
+            },
+            {
+              "kind": "reference-line",
+              "label": "Mean",
+              "axis": "y",
+              "value": 7.5
+            },
+            {
+              "kind": "reference-line",
+              "label": "Fixed point",
+              "axis": "y",
+              "value": 2
+            }
+          ],
+          "caption": "Worked example. $f(x)=0.5x+1$. A newly measured seed changes the path; the fixed point stays the same."
+        }
+      }
+    }
+  },
+  "shortKeywords": [
+    "recursive rollout",
+    "forecast feedback"
+  ]
+}
