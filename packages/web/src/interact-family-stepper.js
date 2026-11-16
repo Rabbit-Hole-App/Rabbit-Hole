@@ -5,7 +5,7 @@ import { id, pickCriterion, templates, independent, templateData } from './inter
 import { STEPPER_PLANS } from './interact-stepper-plans.js';
 import * as stepperScene from './interact-templates/stepper-scene.js';
 import {
-  canonicalIds, DEPTH_LIMITS, WORDS, compositionSchemaFor, parseComposition, plainText, schemaFailures, wordsSchema,
+  canonicalIds, DEPTH_LIMITS, WORDS, compositionSchemaFor, fillCompositionSchemaFor, parseComposition, plainText, schemaFailures, wordsSchema,
 } from './interact-stepper-schema.js';
 
 export { id, pickCriterion, templates, independent, templateData };
@@ -73,12 +73,11 @@ const briefSchemas = new Map();
 export function briefSchema(depth) {
   infoOf(depth);
   if (briefSchemas.has(depth)) return briefSchemas.get(depth);
-  const schema = z.object({
-    ...Object.fromEntries(TEXT_KEYS.map(([key]) => [key, plainText(LIMITS[key])])),
-    composition: compositionSchemaFor(depth), words: wordsSchema,
-  }).strict();
+  const shape = composition => z.object({ ...Object.fromEntries(TEXT_KEYS.map(([key]) => [key, plainText(LIMITS[key])])), composition, words: wordsSchema }).strict();
+  const schema = shape(compositionSchemaFor(depth));
   const result = Object.freeze({
-    jsonSchema: z.toJSONSchema(schema),
+    // The model is shown one composition alternative per depth (the merge picture, the only one assembled live); parse admits all three approved ones.
+    jsonSchema: z.toJSONSchema(shape(fillCompositionSchemaFor(depth))),
     parse(raw) {
       const parsed = schema.safeParse(raw);
       if (parsed.success) return { ok: true, value: parsed.data };
@@ -87,7 +86,7 @@ export function briefSchema(depth) {
     },
     keys: Object.freeze({
       text: TEXT_KEYS.map(([key, what]) => ({ key, what, max: LIMITS[key] })), scalars: [], inputs: [], formulas: [],
-      composition: { key: 'composition', canonicalIds, limits: DEPTH_LIMITS[depth], what: 'Closed canonical state-table data and approved part bindings.' },
+      composition: { key: 'composition', canonicalIds: [canonicalIds[0]], limits: DEPTH_LIMITS[depth], what: 'Closed canonical state-table data and approved part bindings.' },
       words: WORDS.map(([key, max, what]) => ({ key, max, what })),
     }),
   });
@@ -117,6 +116,7 @@ export function fillTeachingRules(depth) {
   infoOf(depth);
   return [
     `The composition's closed structure is fixed for this depth: copy these keys and values into composition exactly, with no change, then add only id, canonical, story, aha and data: ${JSON.stringify(closedStructure(depth))}`,
+    `Region ids are the picture's fixed anchors: use only ${[...mergeAnchors()].join(', ')}, each at most once, with 2 or more regions; a region's values are its numbers (1 to 8, no text). Each link joins two declared regions. A state's optional status.source is the id of a state (leave status out when unsure).`,
     'Teach one aha that answers the opening question. Name its state and hold it until the learner changes the discrete step index; there is no timeline or elapsed time.',
     'Use tested parts plus canonical composition data plus these rules. Bind every visible region, link, highlight, word and readout to the declared state data.',
     'Name every changing part in the story and use the same names in the picture and selected-state sentence. A control must change the aha evidence, beyond changing a label.',
@@ -130,6 +130,7 @@ export function fillTeachingRules(depth) {
   ];
 }
 
+const mergeAnchors = () => referenceComposition('merge-sort', 'brief').data.variants[0].regions.map(region => region.id);
 export class StepperBriefError extends Error {
   constructor(failure) { super(`${failure.path}: ${failure.message}`); this.name = 'StepperBriefError'; this.code = failure.code; this.path = failure.path; }
 }
@@ -207,6 +208,7 @@ export function check(brief, depth) {
     checked.domains += 1;
     if (step && step.default >= variant.states.length) bad('state_index', `controls.${stepIndex}.default`, `The initial step must be inside variant ${vi}'s 0..${variant.states.length - 1} domain.`);
     else if (step && step.default !== 0) bad('initial_state', `controls.${stepIndex}.default`, 'The admitted initial step is zero.');
+    if (variant.states.length > independent.domain[1] + 1) bad('state_domain', `${path}.states`, `The step input admits at most ${independent.domain[1] + 1} states.`);
     known(states, composition.aha.stateId, 'aha.stateId', 'state');
     variant.links.forEach((item, li) => {
       known(regions, item.from, `${path}.links.${li}.from`); known(regions, item.to, `${path}.links.${li}.to`);

@@ -93,6 +93,7 @@
   "id": 16,
   "prompt": "How does gravity's force on a ball change with its mass during a toss?",
   "label": "vertical-throw",
+  "accept": ["curve-sliders"],
   "note": "owner 2026-11-14 00:40: stays vertical-throw, but only the Deep (detailed) card has mass"
  },
  {
@@ -224,7 +225,7 @@
  {
   "id": 38,
   "prompt": "What is gradient descent?",
-  "label": "none",
+  "label": "stepper-states",
   "note": ""
  },
  {
@@ -266,13 +267,13 @@
  {
   "id": 45,
   "prompt": "How does TCP's three-way handshake work?",
-  "label": "none",
+  "label": "stepper-states",
   "note": ""
  },
  {
   "id": 46,
   "prompt": "What are the steps of the Krebs cycle?",
-  "label": "none",
+  "label": "stepper-states",
   "note": ""
  },
  {
@@ -284,19 +285,19 @@
  {
   "id": 48,
   "prompt": "How does a convolution slide over an image?",
-  "label": "none",
+  "label": "stepper-states",
   "note": ""
  },
  {
   "id": 49,
   "prompt": "A ball is dropped from a tower. How long until it hits the ground?",
-  "label": "none",
+  "label": "vertical-throw",
   "note": "deliberate near miss for vertical-throw: the ball starts at rest, the template assumes an upward launch"
  },
  {
   "id": 50,
   "prompt": "A ball is thrown downward from a bridge. How fast is it after one second?",
-  "label": "none",
+  "label": "vertical-throw",
   "note": "deliberate near miss for vertical-throw: the velocity starts downward, the template assumes an upward launch"
  },
  {
@@ -308,7 +309,7 @@
  {
   "id": 52,
   "prompt": "How does DNS resolve a name?",
-  "label": "none",
+  "label": "stepper-states",
   "note": ""
  },
  {
@@ -332,7 +333,7 @@
  {
   "id": 56,
   "prompt": "Explain the water cycle.",
-  "label": "none",
+  "label": "stepper-states",
   "note": ""
  },
  {
@@ -344,7 +345,7 @@
  {
   "id": 58,
   "prompt": "How does bootstrap sampling pick rows?",
-  "label": "none",
+  "label": "stepper-states",
   "note": ""
  },
  {

@@ -3,10 +3,10 @@
 import { INTERACT_FAMILIES } from './interact-families.js';
 import { PLANNER_MODEL } from './explanation-planner.js';
 
-export const PICK_TIMEOUT_MS = 1200, PICK_THRESHOLD = 0.7, PICK_THRESHOLD_MANY = 0.95, NONE_CRITERION = 'Nothing above fits: another mechanism, a process with steps, a structure, a comparison, a grid of values, a network.';
+export const PICK_TIMEOUT_MS = 1200, PICK_THRESHOLD = 0.7, PICK_THRESHOLD_MANY = 0.5, NONE_CRITERION = 'Nothing above fits: another mechanism, a process with steps, a structure, a comparison, a grid of values, a network.';
 const INSTRUCTIONS = 'Which scene would show the answer to this request? Judge by what the scene draws, not by the subject of the words.';
 
-// Owner 2026-11-14: 0.7 with one registered family (0 wrong fits in the bench), 0.95 with two or more (three families, bench-pick/2026-11-15: the highest value with 0 wrong fits); INTERACT_PICK_THRESHOLD overrides (a number from 0 to 1, anything else is ignored).
+// Owner 2026-11-14: 0.7 with one registered family (0 wrong fits in the bench), 0.5 with two or more (three families, bench-pick/2026-11-15 recounted with the labels corrected 2026-11-15: 0 wrong fits on the stepper, toss/curve and none groups, then the fewest missed fits); INTERACT_PICK_THRESHOLD overrides (a number from 0 to 1, anything else is ignored).
 export const defaultThreshold = count => (count > 1 ? PICK_THRESHOLD_MANY : PICK_THRESHOLD);
 export const pickThreshold = (env, families = INTERACT_FAMILIES) => { const set = env?.INTERACT_PICK_THRESHOLD; const n = set === undefined || set === null || set === '' ? NaN : Number(set); return n >= 0 && n <= 1 ? n : defaultThreshold(families.length); };
 

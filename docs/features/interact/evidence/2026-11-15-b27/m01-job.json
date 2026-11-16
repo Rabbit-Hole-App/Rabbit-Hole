@@ -1,0 +1,152 @@
+{
+  "job": {
+    "id": "ej_4dca3631fa82451ab53da6d03e1f3f5f",
+    "version": 1,
+    "boardId": "555d5783-d1d6-4df1-9712-c9052b4bdf23",
+    "cardId": "767e68e8-6056-4724-8813-9c4b0621024c",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 2,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 76,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 11311,
+      "approvalWaitMs": 0,
+      "calls": 2,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 11311,
+          "calls": 2,
+          "inputTokens": 4425,
+          "outputTokens": 3720,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794792685995,
+    "updatedAt": 1794792697382,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "how does merge sort work?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 2,
+      "fallback": "gap",
+      "firstProblem": "schema_mismatch: The structured result does not match its schema: $.composition: matches 0 of the exclusive alternatives, not exactly one; closest alternative: $.composition.data.variants[0].regions: fewer than 7 items; $.composition.data.variants[0].states[0].readouts: more than 0 items; $.composit",
+      "costUsd": 0.010628,
+      "pick": {
+        "family": "stepper-states",
+        "confidence": 0.97,
+        "probabilities": {
+          "vertical-throw": 0,
+          "curve-sliders": 0,
+          "stepper-states": 0.98,
+          "none": 0.02
+        },
+        "ms": 99,
+        "reason": "fit"
+      },
+      "lastProblem": "schema_mismatch: The structured result does not match its schema: $.composition: matches 0 of the exclusive alternatives, not exactly one; closest alternative: $.composition.data.variants[0].regions[0].values: more than 4 items; $.composition.data.variants[0].regions[5].values: more than 4 items; $."
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [
+      {
+        "key": "ej_4dca3631fa82451ab53da6d03e1f3f5f-design_fill-1",
+        "role": "design_fill",
+        "attempt": 1,
+        "requested": null,
+        "served": "gemini-3.5-flash-lite",
+        "status": "failed",
+        "boundMicros": 38000,
+        "images": 0,
+        "costMicros": 5426,
+        "inputTokens": 2161,
+        "outputTokens": 1911,
+        "startedAt": 1794792686178,
+        "endedAt": 1794792692260,
+        "error": "schema_mismatch"
+      },
+      {
+        "key": "ej_4dca3631fa82451ab53da6d03e1f3f5f-design_fill-2",
+        "role": "design_fill",
+        "attempt": 1,
+        "requested": null,
+        "served": "gemini-3.5-flash-lite",
+        "status": "failed",
+        "boundMicros": 38000,
+        "images": 0,
+        "costMicros": 5202,
+        "inputTokens": 2264,
+        "outputTokens": 1809,
+        "startedAt": 1794792692263,
+        "endedAt": 1794792697378,
+        "error": "schema_mismatch"
+      }
+    ],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794792685995,
+        "firstFeedback": 1794792686071
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794792686071,
+          "endedAt": 1794792697382,
+          "calls": 2,
+          "inputTokens": 4425,
+          "outputTokens": 3720,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}

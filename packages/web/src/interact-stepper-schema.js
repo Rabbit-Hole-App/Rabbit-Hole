@@ -27,6 +27,8 @@ const pole = z.enum(['left', 'right']);
 const label = plainText(24);
 const collectionValue = integer(-999, 999);
 const collection = (max = 4) => array(collectionValue, max, 1);
+// Brief 29 limits the family check does not impose: the merge picture draws 2 to 16 regions, 2 to 12 states, 0 to 4 readouts per state, 3 to 6 parts and 2 to 3 controls.
+export const FILL_LIMITS = Object.freeze({ regions: 16, regionValues: 8, states: 12, readouts: 4, parts: 6, controls: 3 });
 const regionBase = { id, label };
 const link = object({ from: id, to: id });
 const status = object({ id, text: plainText(96), source: id });
@@ -42,10 +44,9 @@ const numberText = (min, max) => z.union([
   integer(min, max), z.string().min(1).max(1).regex(new RegExp(`^[${min}-${max}]$`)),
 ]);
 const readout = (name, value) => object({ id: z.literal(name), label, value });
-const mergeReadout = z.discriminatedUnion('id', [
-  readout('comparisons', integer(0, 6)),
-  readout('placed', z.string().min(5).max(5).regex(/^[0-4] \/ 4$/)),
-]);
+// Brief 29: a merge-sort state carries 0 to 4 readouts of any id, a short text or a small number (the first live fills wrote ids and texts of their own).
+// The two approved readouts (comparisons, placed) are instances of this shape.
+const mergeReadout = object({ id, label, value: z.union([plainText(24), integer(-999, 999)]) });
 const sequence = integer(0, 4294967295);
 // Legacy reference readouts use strings. New sequence values use the bounded
 // numeric branch rather than pretending a decimal string has a numeric domain.
@@ -123,7 +124,7 @@ function makeSchemas(depth) {
   const limits = DEPTH_LIMITS[depth];
   if (!limits) throw new RangeError(`stepper-states has no depth "${depth}"`);
   const state = extra => object({ ...stateBase, ...extra });
-  const mergeState = state({ readouts: array(mergeReadout, limits.readouts), comparison: comparison.optional() });
+  const mergeState = state({ readouts: array(mergeReadout, FILL_LIMITS.readouts), comparison: comparison.optional() });
   const protocolState = state({
     readouts: array(protocolReadout, limits.readouts),
     endpoints: object({ client: endpoint(['CLOSED', 'SYN-SENT', 'ESTABLISHED']), server: endpoint(['LISTEN', 'SYN-RECEIVED', 'ESTABLISHED']) }),
@@ -134,12 +135,12 @@ function makeSchemas(depth) {
     schemaVersion: z.literal(1), status: z.literal('reference-proposal'), id, family: z.literal('stepper-states'), depth: z.literal(depth),
     canonical: z.literal(canonical), story: plainText(600), aha: object({ stateId: id, observation: plainText(240) }),
     layout: object({ preset: z.literal(canonical), width: z.literal(640) }),
-    parts: array(part, limits.parts, 3), controls: array(control, depth === 'brief' ? 2 : 3, 2),
+    parts: array(part, FILL_LIMITS.parts, 3), controls: array(control, FILL_LIMITS.controls, 2),
   });
   const variants = item => object({ variants: array(item, limits.variants, 1) });
   const merge = object({ ...base(canonicalIds[0]), data: variants(object({
-    label, regions: array(object({ ...regionBase, values: collection() }), 7, 7), links: array(link, 8, 1),
-    states: array(mergeState, limits.states, 2), calculations,
+    label, regions: array(object({ ...regionBase, values: collection(FILL_LIMITS.regionValues) }), FILL_LIMITS.regions, 2), links: array(link, FILL_LIMITS.regions, 1),
+    states: array(mergeState, FILL_LIMITS.states, 2), calculations,
   })) });
   const protocol = object({ ...base(canonicalIds[1]), data: variants(object({
     lostReply: z.boolean(),
@@ -149,10 +150,18 @@ function makeSchemas(depth) {
   const cycle = object({ ...base(canonicalIds[2]), data: variants(object({
     regions: array(cycleRegion, limits.regions, 4), links: array(cycleLink, limits.links, 1), states: array(cycleState, limits.states, 2),
   })) });
-  return z.discriminatedUnion('canonical', [merge, protocol, cycle]);
+  return { union: z.discriminatedUnion('canonical', [merge, protocol, cycle]), merge };
 }
 
-const schemas = Object.freeze(Object.fromEntries(Object.keys(DEPTH_LIMITS).map(depth => [depth, makeSchemas(depth)])));
+const made = Object.fromEntries(Object.keys(DEPTH_LIMITS).map(depth => [depth, makeSchemas(depth)]));
+const schemas = Object.freeze(Object.fromEntries(Object.keys(made).map(depth => [depth, made[depth].union])));
+// The model-facing composition: one alternative per depth. Only the algorithm-over-collection picture is assembled live (stepper-scene), so the
+// fill is shown that one object and never a choice of three; the parser still admits the approved protocol and cycle compositions.
+export function fillCompositionSchemaFor(depth) {
+  const schema = made[depth]?.merge;
+  if (!schema) throw new RangeError(`stepper-states has no depth "${depth}"`);
+  return schema;
+}
 export function compositionSchemaFor(depth) {
   const schema = schemas[depth];
   if (!schema) throw new RangeError(`stepper-states has no depth "${depth}"`);

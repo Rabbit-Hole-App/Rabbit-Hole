@@ -64,10 +64,12 @@ test('all labels are nonblank and collection, state, variant and prose bounds ar
   const words = fixture(); words.data.variants[0].states[0].sentence = 'x'.repeat(97);
   assert.equal(schema.parseComposition(words, 'brief').ok, false);
   const states = fixture(); states.data.variants[0].states.push(structuredClone(states.data.variants[0].states[0]));
+  assert.equal(schema.parseComposition(states, 'brief').ok, true, 'brief 29: five states are within the 2 to 12 the schema admits');
+  while (states.data.variants[0].states.length <= schema.FILL_LIMITS.states) states.data.variants[0].states.push(structuredClone(states.data.variants[0].states[0]));
   assert.equal(schema.parseComposition(states, 'brief').ok, false);
   const variants = fixture(); variants.data.variants.push(structuredClone(variants.data.variants[0]));
   assert.equal(schema.parseComposition(variants, 'brief').ok, false);
-  const collection = fixture(); collection.data.variants[0].regions[0].values.push(5);
+  const collection = fixture(); while (collection.data.variants[0].regions[0].values.length <= schema.FILL_LIMITS.regionValues) collection.data.variants[0].regions[0].values.push(5);
   assert.equal(schema.parseComposition(collection, 'brief').ok, false);
 });
 
@@ -236,4 +238,42 @@ test('the fill rules carry the composition\'s closed structure for every depth, 
     for (const key of Object.keys(closed)) assert.deepEqual(closed[key], reference[key], `${depth} ${key}`);
     assert.ok(stepper.fillTeachingRules(depth).join('\n').includes(JSON.stringify(closed)), depth);
   }
+});
+
+// Brief 29: the first live Brief fill (m01, 'how does merge sort work?', Flash Lite) was refused by the strict merge schema (regions fewer than 7, readouts more than 0, values more than 4),
+// while the family check admits a subset of the preset's anchors. The saved reply is the model's own composition, unedited.
+test('the saved m01 Brief fill reply passes the fill schema; the family check still refuses its invented region ids and a status source that is a region, not a state', async () => {
+  const family = await import('./interact-family-stepper.js');
+  const reply = JSON.parse(await readFile(new URL('../../../docs/features/interact/evidence/2026-11-15-b29/m01-fill-reply.json', import.meta.url), 'utf8'));
+  const parsed = family.briefSchema('brief').parse(reply);
+  assert.deepEqual(parsed.problems ?? [], []);
+  assert.equal(parsed.ok, true);
+  const checked = family.check(reply, 'brief');
+  assert.deepEqual([...new Set(checked.failures.map(f => f.code))].sort(), ['unknown_anchor', 'unknown_state']);
+});
+
+test('a 3-region, 4-state Brief composition with no readouts passes the fill schema and the family check', async () => {
+  const family = await import('./interact-family-stepper.js');
+  const brief = family.referenceBrief('merge-sort', 'brief'), variant = brief.composition.data.variants[0];
+  const keep = ['input', 'left', 'right'], pick = id => variant.regions.find(r => r.id === id);
+  variant.regions = keep.map(pick); variant.links = variant.links.filter(l => keep.includes(l.from) && keep.includes(l.to));
+  variant.states = variant.states.slice(0, 4).map((state, i) => ({ ...state, readouts: [], active: [keep[i % 3]], calloutRegion: keep[i % 3] }));
+  variant.states.forEach(state => { delete state.status; });
+  brief.composition.aha.stateId = variant.states[1].id;
+  assert.equal(variant.regions.length, 3); assert.equal(variant.states.length, 4);
+  assert.deepEqual(family.briefSchema('brief').parse(brief).problems ?? [], []);
+  assert.deepEqual(family.check(brief, 'brief').failures, []);
+});
+
+test('the model-facing composition is one object per depth, not a choice of three, and a state table past the step input domain is refused by the check', async () => {
+  const family = await import('./interact-family-stepper.js');
+  for (const depth of ['brief', 'balanced', 'detailed']) {
+    const composition = family.briefSchema(depth).jsonSchema.properties.composition;
+    assert.equal(composition.type, 'object'); assert.equal(composition.oneOf ?? composition.anyOf, undefined);
+    assert.equal(composition.properties.canonical.const, 'algorithm-over-collection');
+  }
+  const brief = family.referenceBrief('merge-sort', 'brief'), variant = brief.composition.data.variants[0];
+  while (variant.states.length < 9) variant.states.push({ ...structuredClone(variant.states[0]), id: `extra${variant.states.length}` });
+  assert.equal(family.briefSchema('brief').parse(brief).ok, true);
+  assert.ok(family.check(brief, 'brief').failures.some(f => f.code === 'state_domain'));
 });

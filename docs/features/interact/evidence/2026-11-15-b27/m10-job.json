@@ -1,0 +1,118 @@
+{
+  "job": {
+    "id": "ej_06401ecf5a4942fdb1d5cd3259ab4e75",
+    "version": 1,
+    "boardId": "555d5783-d1d6-4df1-9712-c9052b4bdf23",
+    "cardId": "1368b099-8906-4a77-ba79-a33b80ff1408",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 84,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 48,
+      "approvalWaitMs": 0,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 48,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794792705637,
+    "updatedAt": 1794792705769,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "how does a decision tree search for the best threshold on one feature?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 0,
+      "fallback": "gap",
+      "firstProblem": null,
+      "costUsd": 0,
+      "pick": {
+        "family": null,
+        "confidence": 0.37,
+        "probabilities": {
+          "vertical-throw": 0,
+          "curve-sliders": 0.06,
+          "stepper-states": 0.53,
+          "none": 0.41
+        },
+        "ms": 46,
+        "reason": "below_threshold"
+      }
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794792705637,
+        "firstFeedback": 1794792705721
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794792705721,
+          "endedAt": 1794792705769,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}

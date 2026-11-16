@@ -194,23 +194,23 @@ test('a JEV timeout (after its retry), a JEV error and a missing key are gaps to
 });
 
 test('a fit below the threshold is a gap; INTERACT_PICK_THRESHOLD moves the line', async t => {
-  const low = { choice: 'vertical-throw', confidence: 0.6 };
+  const low = { choice: 'vertical-throw', confidence: 0.4 };
   const s = fastStack(t, { answers: [GOOD], pick: low, script: OPUS });
   const { body } = await s.create({ depth: 'balanced' });
   const { job } = await s.design(body.job.id);
-  assert.deepEqual([job.design.fast.fallback, job.design.fast.pick.reason, s.fills.length, job.stopReason], ['gap', 'below_threshold', 0, 'design_gap'], '0.6 is under the one-family default of 0.7');
-  const s2 = fastStack(t, { answers: [GOOD], env: { ...SEEK, INTERACT_PICK_THRESHOLD: '0.5' }, pick: low, evidence: [] });
+  assert.deepEqual([job.design.fast.fallback, job.design.fast.pick.reason, s.fills.length, job.stopReason], ['gap', 'below_threshold', 0, 'design_gap'], '0.4 is under the default of 0.5');
+  const s2 = fastStack(t, { answers: [GOOD], env: { ...SEEK, INTERACT_PICK_THRESHOLD: '0.3' }, pick: low, evidence: [] });
   const { body: b2 } = await s2.create({ depth: 'brief' });
   const { job: j2 } = await s2.design(b2.job.id);
-  assert.deepEqual([j2.design.fast.fallback, s2.fills.length], ['none', 1], 'the setting lowers the line to 0.5');
+  assert.deepEqual([j2.design.fast.fallback, s2.fills.length], ['none', 1], 'the setting lowers the line to 0.3');
 });
 
 test('the default threshold is a function of the registry size; the setting overrides it, bad values are ignored', () => {
   const one = [{ id: 'a' }], two = [{ id: 'a' }, { id: 'b' }];
-  assert.deepEqual([defaultThreshold(1), defaultThreshold(2), defaultThreshold(3)], [0.7, 0.95, 0.95]);
-  assert.deepEqual([pickThreshold({}, one), pickThreshold({}, two)], [0.7, 0.95]);
+  assert.deepEqual([defaultThreshold(1), defaultThreshold(2), defaultThreshold(3)], [0.7, 0.5, 0.5]);
+  assert.deepEqual([pickThreshold({}, one), pickThreshold({}, two)], [0.7, 0.5]);
   assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0.55' }, two), 0.55); assert.equal(pickThreshold({ INTERACT_PICK_THRESHOLD: '0' }, two), 0);
-  assert.deepEqual([pickThreshold({ INTERACT_PICK_THRESHOLD: 'x' }, one), pickThreshold({ INTERACT_PICK_THRESHOLD: '7' }, two), pickThreshold({ INTERACT_PICK_THRESHOLD: '' }, one)], [0.7, 0.95, 0.7]);
+  assert.deepEqual([pickThreshold({ INTERACT_PICK_THRESHOLD: 'x' }, one), pickThreshold({ INTERACT_PICK_THRESHOLD: '7' }, two), pickThreshold({ INTERACT_PICK_THRESHOLD: '' }, one)], [0.7, 0.5, 0.7]);
 });
 
 // The captured failure of the fast clone (2026-11-14, three of three Detailed plans): the model's own checkpoint asks for gravity 1, where body-plot's acceleration arrow (a fixed 3.4 px per m/s^2 then) was shorter than the
