@@ -10,6 +10,7 @@ import { cloneElement, createElement as h } from 'react';
 import { backEdge, box, connector, dot, label, lineHeight, SURFACE, textWidth, wire, wrap } from './primitives.js';
 import { TEACHING as T, TEACHING_GRID } from './teaching-theme.js';
 import { quantitativeLayouts } from './quantitative-layouts.js';
+import { tuplePieceWidth, tuplePlainText } from './matrix-tuple.js';
 import { teachingLayouts } from './teaching-layouts.js';
 import { usesTensorItems } from './illustration-kinds.js';
 import { layoutTensor, layoutTensorTransformation } from './tensor-layout.js';
@@ -193,7 +194,9 @@ function sequence(diagram, width) {
 }
 
 function matrix(diagram, width) {
-  const grid = columnsFor(width, diagram.columns.length + 1, 72, 7);
+  // A tuple cell is plain text that wraps at its comma: the column holds its widest piece (the other cells keep the 72 px minimum).
+  const tupleCell = Math.ceil(Math.max(0, ...diagram.rows.flatMap(row => row.cells).map(cell => tuplePieceWidth(cell, text => textWidth(text, TEXT))))) + 14;
+  const grid = columnsFor(width, diagram.columns.length + 1, Math.max(72, tupleCell), 7);
   const elements = [];
   const headings = diagram.columns.map(heading => wrap(heading, grid.cell - 12));
   const headerHeight = rowHeight(headings);
@@ -204,7 +207,7 @@ function matrix(diagram, width) {
   }
   let y = PAD + headerHeight + 7;
   for (const row of diagram.rows) {
-    const cells = [row.heading, ...row.cells].map(cell => wrap(cell, grid.cell - 12));
+    const cells = [row.heading, ...row.cells].map(cell => wrap(tuplePlainText(cell), grid.cell - 12));
     const height = rowHeight(cells);
     for (let index = 0; index < cells.length; index++) {
       const x = grid.xAt(index);
