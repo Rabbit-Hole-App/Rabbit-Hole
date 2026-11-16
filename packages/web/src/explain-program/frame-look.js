@@ -91,8 +91,8 @@ const KIND_WORDS = Object.freeze({
 const wordsOf = text => String(text ?? '').split(/[^A-Za-z]+|(?<=[a-z])(?=[A-Z])/).filter(Boolean).map(word => word.toLowerCase());
 export function vectorKind(label, id) {
   for (const source of [label, id]) {
-    // An id names a kind only when it is that one word ('v', 'force'), not any id that starts with one ('v-arrow').
-    if (source === id && wordsOf(source).length !== 1) continue;
+    // The sdk's ids (vec.v, vec.v.toss, tossedVelocity) name a kind; a hyphenated or spaced id that merely starts with one ('v-arrow') does not.
+    if (source === id && /[-_\s]/.test(id) && wordsOf(id).length > 1) continue;
     for (const word of wordsOf(source)) for (const [kind, names] of Object.entries(KIND_WORDS)) if (names.includes(word)) return kind;
   }
   return null;
