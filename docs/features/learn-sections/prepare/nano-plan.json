@@ -1,0 +1,234 @@
+{
+  "option": {
+    "id": "dataset-preparation",
+    "label": "Preparing text into token files",
+    "kind": "data"
+  },
+  "draft": {
+    "text": "From Raw Text to Token Files and Batches\n\nThe plan follows the data: raw text, then ids, then the train/validation split, then the binary files, then the web-scale version, then batches read at training time. It is about 17 sittings, and I left out the model and the config files because they use tokens but don't make them. The OpenWebText chapter and the batch-reading chapter go past the lines shown, so those sections open the rest of those files when you start.",
+    "proposal": {
+      "ops": [
+        {
+          "op": "add",
+          "text": "1. Turning Letters into Numbers",
+          "level": 1,
+          "after": null,
+          "key": "c1",
+          "description": "Why a model needs ids, and the simplest way to make them."
+        },
+        {
+          "op": "add",
+          "text": "Getting the raw text",
+          "level": 2,
+          "after": null,
+          "parent": "c1",
+          "description": "The small Shakespeare text is downloaded once and read into one long string. [files: data/shakespeare_char/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "Finding every distinct character",
+          "level": 2,
+          "after": null,
+          "parent": "c1",
+          "description": "Unique characters are sorted and counted to give the vocabulary size. [files: data/shakespeare_char/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "Building the two-way lookup",
+          "level": 2,
+          "after": null,
+          "parent": "c1",
+          "description": "Two dictionaries map character to id and id to character, wrapped as an encoder and a decoder. [files: data/shakespeare_char/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "2. Setting Aside Text for Checking",
+          "level": 1,
+          "after": null,
+          "key": "c2",
+          "description": "How one long text becomes a training part and a validation part."
+        },
+        {
+          "op": "add",
+          "text": "Cutting at ninety percent",
+          "level": 2,
+          "after": null,
+          "parent": "c2",
+          "description": "The first nine-tenths of the characters train and the last tenth validates. [files: data/shakespeare_char/prepare.py, data/shakespeare/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "Why validation text must stay unseen",
+          "level": 2,
+          "after": null,
+          "parent": "c2",
+          "description": "The validation part is a fair test only because the model never trains on it. [files: data/shakespeare_char/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "3. Words in Pieces Instead of Letters",
+          "level": 1,
+          "after": null,
+          "key": "c3",
+          "description": "The same text, tokenized with a fixed vocabulary of word pieces."
+        },
+        {
+          "op": "add",
+          "text": "Letters versus word pieces",
+          "level": 2,
+          "after": null,
+          "parent": "c3",
+          "description": "Compare the character vocabulary built from the text with a ready-made GPT-2 vocabulary. [files: data/shakespeare/prepare.py, data/shakespeare_char/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "Encoding each split",
+          "level": 2,
+          "after": null,
+          "parent": "c3",
+          "description": "Train and validation text are each turned into lists of ids by the GPT-2 encoder. [files: data/shakespeare/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "Counting tokens",
+          "level": 2,
+          "after": null,
+          "parent": "c3",
+          "description": "The printed counts, 301,966 for train and 36,059 for validation, show how many ids each file holds. [files: data/shakespeare/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "4. Writing the Token Files",
+          "level": 1,
+          "after": null,
+          "key": "c4",
+          "description": "Ids become plain binary files on disk."
+        },
+        {
+          "op": "add",
+          "text": "Packing ids into small integers",
+          "level": 2,
+          "after": null,
+          "parent": "c4",
+          "description": "Why the ids are stored as 16-bit unsigned numbers, and how that fits the GPT-2 vocabulary. [files: data/shakespeare/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "Dumping the numbers to disk",
+          "level": 2,
+          "after": null,
+          "parent": "c4",
+          "description": "Each array is written out raw as the train file and the validation file. [files: data/shakespeare/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "Keeping the lookup for later",
+          "level": 2,
+          "after": null,
+          "parent": "c4",
+          "description": "The character version also saves its encoder, decoder and vocabulary size so text can be decoded again. [files: data/shakespeare_char/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "5. Scaling Up to a Web-Sized Collection",
+          "level": 1,
+          "after": null,
+          "key": "c5",
+          "description": "The same steps when the text is millions of documents."
+        },
+        {
+          "op": "add",
+          "text": "Loading millions of documents",
+          "level": 2,
+          "after": null,
+          "parent": "c5",
+          "description": "The collection is loaded with several workers and holds only a training part at first. [files: data/openwebtext/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "A random, repeatable validation split",
+          "level": 2,
+          "after": null,
+          "parent": "c5",
+          "description": "A tiny fraction of documents is shuffled out with a fixed seed and renamed as validation. [files: data/openwebtext/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "Tokenizing in parallel and writing to disk",
+          "level": 2,
+          "after": null,
+          "parent": "c5",
+          "description": "Documents are tokenized by several workers and the ids are written into a large binary file. [files: data/openwebtext/prepare.py]"
+        },
+        {
+          "op": "add",
+          "text": "6. Reading Batches at Training Time",
+          "level": 1,
+          "after": null,
+          "key": "c6",
+          "description": "How the binary files become the examples the model sees."
+        },
+        {
+          "op": "add",
+          "text": "Opening a file without loading it all",
+          "level": 2,
+          "after": null,
+          "parent": "c6",
+          "description": "The token file is mapped from disk so a huge file does not have to fit in memory. [files: train.py]"
+        },
+        {
+          "op": "add",
+          "text": "Picking random windows",
+          "level": 2,
+          "after": null,
+          "parent": "c6",
+          "description": "Random start positions each give a block of consecutive ids, stacked into a batch. [files: train.py]"
+        },
+        {
+          "op": "add",
+          "text": "Targets are the inputs shifted by one",
+          "level": 2,
+          "after": null,
+          "parent": "c6",
+          "description": "Each target is the next token after its input, so every position is a prediction task. [files: train.py]"
+        }
+      ],
+      "base": "r0",
+      "source": "learn-plan"
+    },
+    "rows": [
+      {
+        "id": "accept"
+      },
+      {
+        "id": "change"
+      },
+      {
+        "id": "learn:gpt-transformer-model"
+      },
+      {
+        "id": "learn:training-and-config-layout"
+      },
+      {
+        "id": "start_plain"
+      }
+    ],
+    "off_plan": false,
+    "path": "auto"
+  },
+  "log": [
+    {
+      "event": "learn_plan",
+      "path": "auto",
+      "calls": 2,
+      "estimate_usd": [
+        0.071432,
+        0.071308
+      ],
+      "cap_usd": 0.1,
+      "ms": 23337,
+      "outcome": "ok",
+      "ops": 23
+    }
+  ]
+}

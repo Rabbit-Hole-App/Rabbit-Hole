@@ -1,0 +1,427 @@
+{
+  "nano": {
+    "project": "repo-9591be45-nanogpt",
+    "canvas": "canvas-0634b48d",
+    "option": {
+      "id": "dataset-preparation",
+      "label": "Preparing text into token files",
+      "what": "You would understand how raw text such as Shakespeare or OpenWebText is tokenized into binary train and validation files and read as batches.",
+      "anchors": [
+        "data/shakespeare_char/prepare.py",
+        "data/openwebtext/prepare.py",
+        "data/shakespeare/prepare.py"
+      ],
+      "kind": "data"
+    },
+    "ops": [
+      {
+        "op": "add",
+        "text": "1. Turning Letters into Numbers",
+        "level": 1,
+        "after": null,
+        "key": "c1",
+        "description": "Why a model needs ids, and the simplest way to make them."
+      },
+      {
+        "op": "add",
+        "text": "Getting the raw text",
+        "level": 2,
+        "after": null,
+        "parent": "c1",
+        "description": "The small Shakespeare text is downloaded once and read into one long string. [files: data/shakespeare_char/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "Finding every distinct character",
+        "level": 2,
+        "after": null,
+        "parent": "c1",
+        "description": "Unique characters are sorted and counted to give the vocabulary size. [files: data/shakespeare_char/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "Building the two-way lookup",
+        "level": 2,
+        "after": null,
+        "parent": "c1",
+        "description": "Two dictionaries map character to id and id to character, wrapped as an encoder and a decoder. [files: data/shakespeare_char/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "2. Setting Aside Text for Checking",
+        "level": 1,
+        "after": null,
+        "key": "c2",
+        "description": "How one long text becomes a training part and a validation part."
+      },
+      {
+        "op": "add",
+        "text": "Cutting at ninety percent",
+        "level": 2,
+        "after": null,
+        "parent": "c2",
+        "description": "The first nine-tenths of the characters train and the last tenth validates. [files: data/shakespeare_char/prepare.py, data/shakespeare/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "Why validation text must stay unseen",
+        "level": 2,
+        "after": null,
+        "parent": "c2",
+        "description": "The validation part is a fair test only because the model never trains on it. [files: data/shakespeare_char/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "3. Words in Pieces Instead of Letters",
+        "level": 1,
+        "after": null,
+        "key": "c3",
+        "description": "The same text, tokenized with a fixed vocabulary of word pieces."
+      },
+      {
+        "op": "add",
+        "text": "Letters versus word pieces",
+        "level": 2,
+        "after": null,
+        "parent": "c3",
+        "description": "Compare the character vocabulary built from the text with a ready-made GPT-2 vocabulary. [files: data/shakespeare/prepare.py, data/shakespeare_char/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "Encoding each split",
+        "level": 2,
+        "after": null,
+        "parent": "c3",
+        "description": "Train and validation text are each turned into lists of ids by the GPT-2 encoder. [files: data/shakespeare/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "Counting tokens",
+        "level": 2,
+        "after": null,
+        "parent": "c3",
+        "description": "The printed counts, 301,966 for train and 36,059 for validation, show how many ids each file holds. [files: data/shakespeare/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "4. Writing the Token Files",
+        "level": 1,
+        "after": null,
+        "key": "c4",
+        "description": "Ids become plain binary files on disk."
+      },
+      {
+        "op": "add",
+        "text": "Packing ids into small integers",
+        "level": 2,
+        "after": null,
+        "parent": "c4",
+        "description": "Why the ids are stored as 16-bit unsigned numbers, and how that fits the GPT-2 vocabulary. [files: data/shakespeare/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "Dumping the numbers to disk",
+        "level": 2,
+        "after": null,
+        "parent": "c4",
+        "description": "Each array is written out raw as the train file and the validation file. [files: data/shakespeare/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "Keeping the lookup for later",
+        "level": 2,
+        "after": null,
+        "parent": "c4",
+        "description": "The character version also saves its encoder, decoder and vocabulary size so text can be decoded again. [files: data/shakespeare_char/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "5. Scaling Up to a Web-Sized Collection",
+        "level": 1,
+        "after": null,
+        "key": "c5",
+        "description": "The same steps when the text is millions of documents."
+      },
+      {
+        "op": "add",
+        "text": "Loading millions of documents",
+        "level": 2,
+        "after": null,
+        "parent": "c5",
+        "description": "The collection is loaded with several workers and holds only a training part at first. [files: data/openwebtext/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "A random, repeatable validation split",
+        "level": 2,
+        "after": null,
+        "parent": "c5",
+        "description": "A tiny fraction of documents is shuffled out with a fixed seed and renamed as validation. [files: data/openwebtext/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "Tokenizing in parallel and writing to disk",
+        "level": 2,
+        "after": null,
+        "parent": "c5",
+        "description": "Documents are tokenized by several workers and the ids are written into a large binary file. [files: data/openwebtext/prepare.py]"
+      },
+      {
+        "op": "add",
+        "text": "6. Reading Batches at Training Time",
+        "level": 1,
+        "after": null,
+        "key": "c6",
+        "description": "How the binary files become the examples the model sees."
+      },
+      {
+        "op": "add",
+        "text": "Opening a file without loading it all",
+        "level": 2,
+        "after": null,
+        "parent": "c6",
+        "description": "The token file is mapped from disk so a huge file does not have to fit in memory. [files: train.py]"
+      },
+      {
+        "op": "add",
+        "text": "Picking random windows",
+        "level": 2,
+        "after": null,
+        "parent": "c6",
+        "description": "Random start positions each give a block of consecutive ids, stacked into a batch. [files: train.py]"
+      },
+      {
+        "op": "add",
+        "text": "Targets are the inputs shifted by one",
+        "level": 2,
+        "after": null,
+        "parent": "c6",
+        "description": "Each target is the next token after its input, so every position is a prediction task. [files: train.py]"
+      }
+    ],
+    "planAccepted": true
+  },
+  "data": {
+    "project": "repo-16e6d15d-datasette",
+    "canvas": "canvas-a2693f6c",
+    "option": {
+      "id": "datasette-architecture",
+      "label": "Core app, views and plugins",
+      "what": "You would understand how the Datasette app object, views, hooks, plugins and permissions modules fit together to handle a request.",
+      "anchors": [
+        "datasette/app.py",
+        "datasette/hookspecs.py",
+        "datasette/views/base.py",
+        "datasette/plugins.py"
+      ],
+      "kind": "structure"
+    },
+    "ops": [
+      {
+        "op": "add",
+        "text": "1. The App Object at the Centre",
+        "level": 1,
+        "after": null,
+        "key": "c1",
+        "description": "What the single app object is, what it holds and why everything else reaches back to it."
+      },
+      {
+        "op": "add",
+        "text": "What the app is made of",
+        "level": 2,
+        "after": null,
+        "key": "c1a",
+        "parent": "c1",
+        "description": "The imports at the top show the pieces the app pulls together: async work, templates, signing, threads. [files: datasette/app.py]"
+      },
+      {
+        "op": "add",
+        "text": "Settings, databases and shared state",
+        "level": 2,
+        "after": null,
+        "key": "c1b",
+        "parent": "c1",
+        "description": "How the app is created and what it keeps for the life of the server. [files: datasette/app.py]"
+      },
+      {
+        "op": "add",
+        "text": "Why views and plugins are handed the app",
+        "level": 2,
+        "after": null,
+        "key": "c1c",
+        "parent": "c1",
+        "description": "The app is passed around as the one shared handle. [files: datasette/app.py, datasette/hookspecs.py]"
+      },
+      {
+        "op": "add",
+        "text": "2. Plugins and the Points They Plug Into",
+        "level": 1,
+        "after": "c1c",
+        "key": "c2",
+        "description": "How extension points are declared and how plugins attach to them."
+      },
+      {
+        "op": "add",
+        "text": "Declaring the extension points",
+        "level": 2,
+        "after": null,
+        "key": "c2a",
+        "parent": "c2",
+        "description": "Each hook is a named function with a signature and a one-line purpose, from startup to page styling. [files: datasette/hookspecs.py]"
+      },
+      {
+        "op": "add",
+        "text": "The plugin manager and the built-in plugins",
+        "level": 2,
+        "after": null,
+        "key": "c2b",
+        "parent": "c2",
+        "description": "The manager is created, the hook list is registered, and the default plugin list is loaded. [files: datasette/plugins.py]"
+      },
+      {
+        "op": "add",
+        "text": "How the app calls hooks",
+        "level": 2,
+        "after": null,
+        "key": "c2c",
+        "parent": "c2",
+        "description": "Where the app asks the manager for every plugin's answer and uses the results. [files: datasette/app.py, datasette/plugins.py]"
+      },
+      {
+        "op": "add",
+        "text": "3. Deciding Who May Do What",
+        "level": 1,
+        "after": "c2c",
+        "key": "c3",
+        "description": "The permission model that views will consult before answering."
+      },
+      {
+        "op": "add",
+        "text": "Actions and resources",
+        "level": 2,
+        "after": null,
+        "key": "c3a",
+        "parent": "c3",
+        "description": "What is being asked about (an action) and what it is asked of (a database, table or row). [files: datasette/permissions.py, datasette/resources.py, datasette/default_actions.py]"
+      },
+      {
+        "op": "add",
+        "text": "Permission rules supplied by plugins",
+        "level": 2,
+        "after": null,
+        "key": "c3b",
+        "parent": "c3",
+        "description": "The default permission plugins contribute allow and deny rules through hooks. [files: datasette/default_permissions/__init__.py, datasette/default_permissions/defaults.py, datasette/default_permissions/config.py]"
+      },
+      {
+        "op": "add",
+        "text": "Who is asking: actors, tokens and cookies",
+        "level": 2,
+        "after": null,
+        "key": "c3c",
+        "parent": "c3",
+        "description": "How a request is tied to an actor. [files: datasette/actor_auth_cookie.py, datasette/tokens.py, datasette/default_permissions/tokens.py]"
+      },
+      {
+        "op": "add",
+        "text": "4. A Request Arrives",
+        "level": 1,
+        "after": "c3c",
+        "key": "c4",
+        "description": "The path from the incoming request to the right view."
+      },
+      {
+        "op": "add",
+        "text": "Request and response objects",
+        "level": 2,
+        "after": null,
+        "key": "c4a",
+        "parent": "c4",
+        "description": "The wrappers every view receives and returns. [files: datasette/utils/asgi.py]"
+      },
+      {
+        "op": "add",
+        "text": "Matching a path to a view",
+        "level": 2,
+        "after": null,
+        "key": "c4b",
+        "parent": "c4",
+        "description": "The app's route table and how it picks a view. [files: datasette/app.py, datasette/utils/asgi.py]"
+      },
+      {
+        "op": "add",
+        "text": "Wrappers around the whole app",
+        "level": 2,
+        "after": null,
+        "key": "c4c",
+        "parent": "c4",
+        "description": "Where plugins can wrap the app, and where cross-site protection sits. [files: datasette/app.py, datasette/csrf.py, datasette/hookspecs.py]"
+      },
+      {
+        "op": "add",
+        "text": "5. Views Build the Answer",
+        "level": 1,
+        "after": "c4c",
+        "key": "c5",
+        "description": "What a view does between receiving a request and returning a response."
+      },
+      {
+        "op": "add",
+        "text": "The shared base for views",
+        "level": 2,
+        "after": null,
+        "key": "c5a",
+        "parent": "c5",
+        "description": "The common behaviour views inherit, including the error type they raise. [files: datasette/views/base.py]"
+      },
+      {
+        "op": "add",
+        "text": "Checking permission before acting",
+        "level": 2,
+        "after": null,
+        "key": "c5b",
+        "parent": "c5",
+        "description": "How a view asks the app whether the actor is allowed. [files: datasette/views/base.py, datasette/views/index.py, datasette/app.py]"
+      },
+      {
+        "op": "add",
+        "text": "Home, database, table and row pages",
+        "level": 2,
+        "after": null,
+        "key": "c5c",
+        "parent": "c5",
+        "description": "How each view fetches data and chooses its output format. [files: datasette/views/index.py, datasette/views/database.py, datasette/views/table.py, datasette/views/row.py]"
+      },
+      {
+        "op": "add",
+        "text": "6. When Things Go Wrong",
+        "level": 1,
+        "after": "c5c",
+        "key": "c6",
+        "description": "How failures and refusals travel back out to the visitor."
+      },
+      {
+        "op": "add",
+        "text": "Errors raised by views",
+        "level": 2,
+        "after": null,
+        "key": "c6a",
+        "parent": "c6",
+        "description": "How a raised error becomes an error page or JSON. [files: datasette/views/base.py, datasette/handle_exception.py]"
+      },
+      {
+        "op": "add",
+        "text": "Refusals and plugin overrides",
+        "level": 2,
+        "after": null,
+        "key": "c6b",
+        "parent": "c6",
+        "description": "What happens on a denied request, and how a plugin can change it. [files: datasette/forbidden.py, datasette/hookspecs.py]"
+      }
+    ],
+    "planAccepted": true
+  },
+  "nanoScienceUnused": {
+    "canvas": "canvas-b5294c99"
+  }
+}
