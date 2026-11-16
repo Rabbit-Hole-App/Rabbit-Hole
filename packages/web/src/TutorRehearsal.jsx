@@ -319,7 +319,7 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
       let done;
       try {
         done = await performItem({ canvasApi: chatRef.current.canvasOps?.tutorCanvas?.() || null, slash, perform: out.perform, item: out.item,
-          ctx: { sectionId, itemId, ops: chatRef.current.canvasOps, after: composed.after ? cards[composed.after] || null : null, previous: st.current.section.last || null, repository: repoRef.current } });
+          ctx: { sectionId, itemId, board, depth: depthOf(chatRef.current.settings?.depth) || null, ops: chatRef.current.canvasOps, after: composed.after ? cards[composed.after] || null : null, previous: st.current.section.last || null, repository: repoRef.current } });
       } catch { if (alive()) failSection('make', null); return; }
       if (!alive()) return;
       sectionPatch({ cards: { ...cards, ...(done.cardId ? { [itemId]: done.cardId } : {}) }, last: done.last || done.cardId || st.current.section.last || null });

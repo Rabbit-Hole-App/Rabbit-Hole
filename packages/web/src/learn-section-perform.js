@@ -44,9 +44,13 @@ export async function linkCards(canvasApi, from, to, id = `learn-${from}-${to}`)
 async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
   const op = perform?.op;
   if (op === 'slash') {
-    if (!slash?.current?.intercept) throw new Error('no_composer');
-    slash.current.intercept(perform.line, { depth: perform.depth, context: perform.context, madeBy: perform.madeBy });
-    return {};
+    if (!slash?.current?.intercept || typeof perform.line !== 'string') throw new Error('no_composer');
+    // Exactly as a typed line (DECISIONS M): the composer's command intercept, with the learner's depth (sent with its board, as learn-slash.js generateCommand needs), the server's
+    // context in place of a selected card's, and madeBy. Its first card is this item's card; an error notice, or no card, is a failure.
+    const cards = [];
+    const out = await new Promise(resolve => slash.current.intercept(perform.line, { depth: perform.depth || ctx.depth || null, board: ctx.board || 'main', context: perform.context ?? null, madeBy: perform.madeBy || 'learn-section', onCard: id => cards.push(id), onDone: resolve }));
+    if (!cards.length || out?.notice?.tone === 'error') throw new Error(out?.notice?.text || 'no_card');
+    return { cardId: cards[0] };
   }
   if (op === 'doc') return { cardId: await placeDoc(canvasApi, perform.markdown, ctx, 'card', beside) }; // a pure text beat has no card: only its lead
   throw new Error(`unknown_op:${op}`);
