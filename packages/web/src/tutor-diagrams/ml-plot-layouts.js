@@ -273,43 +273,89 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
       .some(([px, py]) => px > box.x - margin && px < box.x + box.width + margin && py > box.y - margin && py < box.y + box.height + margin);
   }));
   const apart = (a, b) => a.x + a.width + 3 < b.x || b.x + b.width + 3 < a.x || a.y + a.height + 3 < b.y || b.y + b.height + 3 < a.y;
-  // An annotation's label is a callout: its text in a pill (wrapped at 200 px) in the first free cell the placement finds (cells that sit on a curve are skipped first), and a 1.5 px leader
-  // with the standard head ending at the mark: a point's ring (stop = its radius), else the annotation's anchor. No numbered badge is drawn: a number would point at a list that is gone.
+  // Marks a label must not cover: every sample of every series (a marker is 7 px of radius) and every point annotation's ring, and the stems of a stem series.
+  const markPoints = [...curves.flat(), ...(d.annotations ?? []).flatMap(a => a.kind === 'point' ? [xy(a)] : [])];
+  const stems = d.series.flatMap((series, k) => series.kind === 'stem' ? curves[k].map(([sx, sy]) => ({ x: sx, y1: Math.min(sy, y(0)), y2: Math.max(sy, y(0)) })) : []);
+  const onMark = (box, pad = 11) => markPoints.some(([px, py]) => px > box.x - pad && px < box.x + box.width + pad && py > box.y - pad && py < box.y + box.height + pad)
+    || stems.some(stem => stem.x > box.x - 4 && stem.x < box.x + box.width + 4 && stem.y2 > box.y && stem.y1 < box.y + box.height);
+  // The first free cell for a box of size x tall near an anchor (gap: how far from it the first choice stands): none of the other labels, no series path, no mark; when there is none, a cell that
+  // only crosses a path, and last any cell not on another label.
+  // withLeader: the cell's leader (from its nearest corner to the anchor) must also pass over no other label (tier 0).
+  function freeCell(anchor, size, tall, gap, withLeader = false) {
+    const crossesLabel = candidate => {
+      const corner = [Math.max(candidate.x, Math.min(candidate.x + candidate.width, anchor[0])), Math.max(candidate.y, Math.min(candidate.y + candidate.height, anchor[1]))];
+      return Array.from({ length: 21 }, (_, k) => [corner[0] + (anchor[0] - corner[0]) * k / 20, corner[1] + (anchor[1] - corner[1]) * k / 20])
+        .some(([px, py]) => occupied.some(other => px > other.x && px < other.x + other.width && py > other.y && py < other.y + other.height));
+    };
+    const free = (candidate, tier) => occupied.every(other => apart(candidate, other)) && (tier === 2 || (!onMark(candidate) && (tier === 1 || !onCurve(candidate)) && !(withLeader && tier === 0 && crossesLabel(candidate))));
+    for (const tier of [0, 1, 2]) {
+      for (let radius = 0; radius <= 9; radius++) {
+        // The first choice is up and to the right of the mark, clear of its ring.
+        for (const [dx, dy] of [[gap + 22 * radius, -gap - tall - 22 * radius], [-size - gap + 4 - 22 * radius, -gap - tall - 22 * radius], [gap + 22 * radius, gap + 22 * radius], [-size - gap + 4 - 22 * radius, gap + 22 * radius], [-size / 2, -gap - tall - 22 * radius], [-size / 2, gap + 22 * radius]]) {
+          const candidate = { x: Math.max(left + 2, Math.min(right - size - 2, anchor[0] + dx)), y: Math.max(top + 2, Math.min(bottom - tall - 2, anchor[1] + dy)), width: size, height: tall };
+          if (free(candidate, tier)) return candidate;
+        }
+      }
+      // A free row anywhere in the plot, when the cells around the mark are all taken.
+      for (let row = top + 2; row < bottom - tall; row += 6) {
+        for (let col = left + 2; col < right - size - 2; col += 10) {
+          const candidate = { x: col, y: row, width: size, height: tall };
+          if (free(candidate, tier)) return candidate;
+        }
+      }
+    }
+    return null;
+  }
+  // A point annotation's label is a callout: its text in a pill (wrapped at 200 px) in the first free cell the placement finds, and a 1.5 px leader with the standard head ending at its ring.
+  // A free cell touches no other label, no series path and no mark; when there is none, a cell that only crosses a path, and last any cell not on another label. No numbered badge is drawn.
   let calloutCount = 0;
   function callout(anchor, text, stop = 0) {
     if (calloutCount >= PLOT_NOTES_MAX) return;
     calloutCount++;
     const lines = wrap(text, 200, SMALL);
     const size = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))) + 20, tall = Math.max(22, lines.length * lineHeight(SMALL) + 8);
-    let box;
-    for (const avoidCurves of [true, false]) {
-      for (let radius = 0; radius <= 7 && !box; radius++) {
-        // The first choice is 14 px up and to the right of the mark, clear of its ring.
-        for (const [dx, dy] of [[14 + 22 * radius, -14 - tall - 22 * radius], [-size - 10 - 22 * radius, -24], [10, 10 + 22 * radius], [-size - 10, 10 + 22 * radius], [10, -24 - 22 * radius]]) {
-          const candidate = { x: Math.max(left + 2, Math.min(right - size - 2, anchor[0] + dx)),
-            y: Math.max(top + 2, Math.min(bottom - tall - 2, anchor[1] + dy)), width: size, height: tall };
-          if (occupied.every(other => apart(candidate, other)) && (!avoidCurves || !onCurve(candidate))) { box = candidate; break; }
-        }
-      }
-      if (box) break;
-    }
-    // Dense repeated coordinates use a free row in the chart; the mark stays exact and the leader keeps the label tied to it.
-    if (!box) {
-      for (let row = top + 2; row < bottom - tall && !box; row += tall + 4) {
-        for (let col = left + 2; col < right - size - 2; col += 26) {
-          if (occupied.every(other => apart({ x: col, y: row, width: size, height: tall }, other))) { box = { x: col, y: row, width: size, height: tall }; break; }
-        }
-      }
-    }
+    const box = freeCell(anchor, size, tall, 14, true);
     if (!box) return;
     occupied.push(box);
     const corner = [Math.max(box.x, Math.min(box.x + size, anchor[0])), Math.max(box.y, Math.min(box.y + tall, anchor[1]))];
     const away = Math.hypot(anchor[0] - corner[0], anchor[1] - corner[1]) || 1;
-    const end = [anchor[0] - (anchor[0] - corner[0]) * stop / away, anchor[1] - (anchor[1] - corner[1]) * stop / away];
-    foreground.push(h('g', { 'data-tutor-plot-leader': text }, wire([corner, end], { width: 1.5 })));
+    const stopAt = [anchor[0] - (anchor[0] - corner[0]) * stop / away, anchor[1] - (anchor[1] - corner[1]) * stop / away];
+    foreground.push(h('g', { 'data-tutor-plot-leader': text }, wire([corner, stopAt], { width: 1.5 })));
     foreground.push(h('rect', { ...box, rx: Math.min(11, tall / 2), fill: T.surface, stroke: T.outline, strokeWidth: 1.5, 'data-tutor-plot-callout': text }));
     foreground.push(label(lines, box.x + size / 2, box.y + tall / 2, { size: SMALL, weight: 700 }));
   }
+  // The label of a reference line, a band or another shape is plain text: 12 px, muted ink, on a ground-coloured halo, no pill and no leader. It stands at the top end of its line, inside its
+  // band along the band's top edge, or at the middle of another shape; its box is reserved so a callout keeps clear of it. at: [x, y] of the text's anchor point, side: 'start' | 'middle' | 'end'.
+  const yOnCurve = px => {
+    const values = curves[0] ?? [], k = values.findIndex(([vx], j) => j && vx >= px && values[j - 1][0] <= px);
+    if (k < 1) return null;
+    const [x1, y1] = values[k - 1], [x2, y2] = values[k];
+    return x2 === x1 ? y2 : y1 + (y2 - y1) * (px - x1) / (x2 - x1);
+  };
+  function plainLabel(text, at, side, maxWidth = 180, stack = false, other = null) {
+    // The text wraps to the room the plot leaves on its side of the anchor, and never stands outside the plot.
+    const room = side === 'start' ? right - at[0] - 2 : side === 'end' ? at[0] - left - 2 : maxWidth;
+    const lines = wrap(text, Math.max(50, Math.min(maxWidth, room)), SMALL), w = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))), tall = lines.length * lineHeight(SMALL);
+    const boxAt = (point, edge) => ({ x: Math.max(left + 2, Math.min(right - w - 2, edge === 'start' ? point[0] : edge === 'end' ? point[0] - w : point[0] - w / 2)), y: Math.min(bottom - tall / 2 - 2, Math.max(top + tall / 2 + 2, point[1])) - tall / 2, width: w, height: tall });
+    const free = box => occupied.every(taken => apart(box, taken));
+    // A line's label: the side beside its line that is free at the top end; when neither is, it stands under the other labels there.
+    if (other && !free(boxAt(at, side)) && free(boxAt(other.at, other.side))) { at = other.at; side = other.side; }
+    const x0 = boxAt(at, side).x;
+    let cy = boxAt(at, side).y + tall / 2;
+    // Labels that meet along one edge (two bands around the same centre) stack downward, one under the other.
+    while (stack && cy + tall < bottom && occupied.some(taken => !apart({ x: x0, y: cy - tall / 2, width: w, height: tall }, taken))) cy += tall + 2;
+    occupied.push({ x: x0, y: cy - tall / 2, width: w, height: tall });
+    foreground.push(h('g', { stroke: T.ground, strokeWidth: 3, strokeLinejoin: 'round', paintOrder: 'stroke', 'data-tutor-plot-label': text }, label(lines, side === 'start' ? x0 : side === 'end' ? x0 + w : x0 + w / 2, cy, { anchor: side, size: SMALL, weight: 500, fill: T.muted })));
+  }
+  // A shape's label (segment, vector, rectangle, polygon, circle, ellipse) stands in the first free cell beside the shape's anchor.
+  function shapeLabel(text, anchor) {
+    const lines = wrap(text, 160, SMALL), w = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))), tall = lines.length * lineHeight(SMALL);
+    const box = freeCell(anchor, w, tall, 6);
+    if (!box) return;
+    occupied.push(box);
+    foreground.push(h('g', { stroke: T.ground, strokeWidth: 3, strokeLinejoin: 'round', paintOrder: 'stroke', 'data-tutor-plot-label': text }, label(lines, box.x + w / 2, box.y + tall / 2, { size: SMALL, weight: 500, fill: T.muted })));
+  }
+  const pointCallouts = [];
   for (const [i, a] of (d.annotations ?? []).entries()) {
     const color = COLORS[i % 3], fill = SOFT[i % 3];
     const props = { fill, stroke: T.outline, strokeWidth: 1.5 };
@@ -352,9 +398,24 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
       } else geometry.push(h('ellipse', { cx: anchor[0], cy: anchor[1], rx: x(a.center.x + rx) - anchor[0], ry: anchor[1] - y(a.center.y + ry),
         ...props, [`data-tutor-plot-${a.kind}`]: a.label }));
     }
-    // A point whose label only restates its coordinates (PL-1) draws no callout: its ring carries it.
-    if (!(a.kind === 'point' && restatesPoint(a.label, a))) callout(anchor, a.label, a.kind === 'point' ? 7 : 0);
+    if (a.kind === 'point') {
+      // A point whose label only restates its coordinates (PL-1) draws no callout: its ring carries it. The callouts are placed after every other label, so they keep clear of them.
+      if (!restatesPoint(a.label, a)) pointCallouts.push([anchor, a.label]);
+    } else if (a.kind === 'reference-line') {
+      if (a.axis === 'x') {
+        const lineX = x(a.value), w = Math.ceil(Math.max(textWidth(a.label, SMALL), widestFormula(a.label, SMALL)));
+        const beside = { at: [lineX + 5, top + 9], side: 'start' }, before = { at: [lineX - 5, top + 9], side: 'end' };
+        if (lineX + 5 + w <= right - 2) plainLabel(a.label, beside.at, beside.side, 180, true, before);
+        else plainLabel(a.label, before.at, before.side, 180, true, beside);
+      } else plainLabel(a.label, [right - 4, y(a.value) - 8], 'end');
+    } else if (a.kind === 'band') {
+      if (a.axis === 'x') {
+        const centre = (x(a.from) + x(a.to)) / 2, edge = clipId ? yOnCurve(centre) : null;
+        plainLabel(a.label, [centre, (edge === null ? top : Math.max(top, edge)) + 18], 'middle', Math.max(60, Math.abs(x(a.to) - x(a.from)) - 8), true);
+      } else plainLabel(a.label, [left + 6, Math.min(y(a.from), y(a.to)) + 10], 'start');
+    } else shapeLabel(a.label, anchor);
   }
+  for (const [anchor, text] of pointCallouts) callout(anchor, text, 7);
   // A line series draws no marker where a scatter series has a point (within 0.5 px): the scatter's marker stays, drawn last (on top).
   const scatterAt = d.series.flatMap((series, k) => series.kind === 'scatter' ? curves[k] : []);
   const marks = [], scatterMarks = [], legend = [];
