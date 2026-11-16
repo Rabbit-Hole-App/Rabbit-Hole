@@ -101,7 +101,7 @@ export async function sectionTurn(env, { composed, user, submit, research = [], 
   const messages = [{ role: 'user', content: user }];
   let usage = { calls: 0, usd: 0 }, asked = false, steps = 0, errors = [];
   for (;;) {
-    const tools = [...(steps < maxResearchSteps ? researchToolDefs(research) : []), submit];
+    const tools = [...researchToolDefs(research), submit]; // kept after the step limit: earlier tool_use blocks name them; a call past the limit is answered 'not run'
     const body = modelRequest(system, messages, task.maxTokens, { output_config: { effort: task.effort }, tools, tool_choice: { type: 'auto' } });
     const bound = requestSpendBound(body, model);
     if (bound == null || usage.usd + bound > capUsd) return { failed: 'over_cap', errors: errors.length ? errors : ['the cost limit for this item did not allow another call'], usage };
@@ -115,7 +115,7 @@ export async function sectionTurn(env, { composed, user, submit, research = [], 
     usage = usageOf(model, usage, result?.usage);
     const blocks = Array.isArray(result?.content) ? result.content : [], calls = blocks.filter(b => b?.type === 'tool_use');
     const submits = calls.filter(c => c.name === submit.name);
-    if (!submits.length && calls.length && !cutOff(result)) {
+    if (!submits.length && calls.length && !cutOff(result) && steps < maxResearchSteps) {
       // Research: run every call, answer each, and go on.
       steps += 1;
       const results = [];
@@ -127,7 +127,7 @@ export async function sectionTurn(env, { composed, user, submit, research = [], 
       continue;
     }
     if (cutOff(result)) errors = [`the output was cut off before ${submit.name} finished; write less`];
-    else if (submits.length !== 1) errors = [`call ${submit.name} exactly once (got ${submits.length})`];
+    else if (submits.length !== 1) errors = [steps >= maxResearchSteps && calls.length ? `the reading is done: call ${submit.name} now with what you have` : `call ${submit.name} exactly once (got ${submits.length})`];
     else {
       const checked = await validate(submits[0].input ?? {});
       if (!checked.errors?.length) return { ok: checked.value, usage };
