@@ -16,9 +16,19 @@ const roleColors = {
   output: [TEACHING.tealFill, TEACHING.outline],
 };
 
+// A row of strips that would pass its width budget (block-stack-layout.js rowCap) asks for a cap on the cell width while it is laid out: cells shrink, below 36 px if they must,
+// as far as needed and never below their own text.
+let cellCap = Infinity;
+export function withTensorCellCap(cap, run) {
+  const before = cellCap;
+  cellCap = cap;
+  try { return run(); } finally { cellCap = before; }
+}
+
 function stripMetrics({ columns, dimensions, name, values }) {
   const numbers = (values ?? []).map(String);
-  const cellWidth = Math.max(36, Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))) + 12));
+  const text = Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))));
+  const cellWidth = Math.max(text + 4, Math.min(Math.max(36, text + 12), cellCap));
   const gridWidth = columns * cellWidth;
   const nameWidth = name ? longestWordWidth(name, TEXT) : 0;
   const width = Math.ceil(Math.max(gridWidth, nameWidth, textWidth(dimensions, SMALL))) + 2 * STRIP_PAD;
