@@ -1,5 +1,6 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
+import { tuplePieceWidth, tuplePlainText } from './matrix-tuple.js';
 import { TEACHING, teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
 
 const PAD = 12;
@@ -150,7 +151,7 @@ function wrapHeader(name, width) {
 function matrix(d, requestedWidth) {
   const count = d.columns.length + 1, gap = 7;
   // A column header carries 8 px of padding around its formula (the cells keep 18).
-  const minimumCell = Math.ceil(Math.max(84, ...d.columns.map(value => widestFormula(value, 15) + 8), ...d.rows.flatMap(row => [row.heading, ...row.cells]).map(value => widestFormula(value, 15) + 18))); // measured at the size the cell text is drawn (15), not the 14 default
+  const minimumCell = Math.ceil(Math.max(84, ...d.columns.map(value => widestFormula(value, 15) + 8), ...d.rows.flatMap(row => [row.heading, ...row.cells]).map(value => (tuplePlainText(value) === value ? widestFormula(value, 15) : tuplePieceWidth(value, text => textWidth(text, 15))) + 18))); // measured at the size the cell text is drawn (15), not the 14 default
   const width = Math.max(requestedWidth, PAD * 2 + count * minimumCell + (count - 1) * gap);
   const cellWidth = (width - PAD * 2 - (count - 1) * gap) / count;
   const xAt = index => PAD + index * (cellWidth + gap);
@@ -167,7 +168,7 @@ function matrix(d, requestedWidth) {
   });
   let y = PAD + headerHeight + gap;
   for (const row of d.rows) {
-    const lines = [row.heading, ...row.cells].map(cell => wrap(cell, cellWidth - 14));
+    const lines = [row.heading, ...row.cells].map(cell => wrap(tuplePlainText(cell), cellWidth - 14));
     const contentHeights = lines.map((cell, i) => cell.length * lineHeight() + (i && states.has(`${row.id}:${i - 1}`) ? lineHeight(SMALL) + 5 : 0));
     const height = Math.max(36, ...contentHeights.map(value => value + 14));
     lines.forEach((cell, i) => {
