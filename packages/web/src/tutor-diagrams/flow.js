@@ -7,6 +7,8 @@ import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 const PAD = 14;
 const NODE_GAP = 18;
 const NODE_MIN = 180;
+// A flow inside a block stack is a small inset, not a figure: its nodes may be narrower than a standalone flow's and wrap their label. 130 is the widest word of the Gemma reference (82 px, "Sliding-window") plus the node's 48 px padding: below it no node of that reference gets narrower.
+const NODE_MIN_NESTED = 130;
 const NODE_MAX = 220;
 const EDGE_TEXT = 13;
 const EDGE_WRAP = 158;
@@ -168,7 +170,7 @@ export function layoutFlow(diagram, requestedWidth, paintNode) {
   }
 }
 
-function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, unshared) {
+function layoutPass({ nodes, edges, highlightPath, nested }, requestedWidth, paintNode, unshared) {
   const paths = flowPaths(highlightPath);
   const onPath = new Set(paths.flat());
   const pathEdge = ({ from, to }) => paths.some(path => path.some((id, index) => id === from && path[index + 1] === to));
@@ -186,7 +188,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   const metrics = rows.map(row => {
     const space = PARALLEL_WIDTH - 2 * PAD - outer - (row.length - 1) * NODE_GAP;
     const wordLimit = paths.length === 2 ? Math.min(NODE_MAX, Math.floor(space / row.length)) : NODE_MAX;
-    const floor = Math.min(NODE_MIN, wordLimit);
+    const floor = Math.min(nested ? NODE_MIN_NESTED : NODE_MIN, wordLimit);
     return row.map(node => {
       const text = node.label ?? '';
       const word = longestWordWidth(text);

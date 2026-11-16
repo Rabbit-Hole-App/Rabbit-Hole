@@ -4,7 +4,7 @@ import { layoutFlow } from './flow.js';
 import { connector, label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { skipLanePoints, skipLaneX } from './skip-lanes.js';
 import { TEACHING, teachingBox as box } from './teaching-theme.js';
-import { tensorMinimumWidth, withTensorCellCap } from './tensor-layout.js';
+import { tensorCellCap, tensorMinimumWidth, tensorRowBudget, withTensorCellCap } from './tensor-layout.js';
 
 const PAD = 12;
 const INSET = 10;
@@ -47,7 +47,7 @@ function fullChild({ label: title, diagram }) {
     stackRole: typeof step === 'string' ? undefined : step.role,
   }));
   const edges = nodes.slice(1).map((node, index) => ({ from: nodes[index].id, to: node.id }));
-  return { kind: 'flow', title, nodes, edges };
+  return { kind: 'flow', title, nodes, edges, nested: true };
 }
 
 function childMinimumWidth(child) {
@@ -81,13 +81,8 @@ function rowMetrics(blocks) {
   return { children, widths, width };
 }
 
-// A horizontal row of blocks is at most 960 px: when it would be wider, its tensor cells shrink only as far as needed (tensor-layout.js withTensorCellCap).
-const ROW_MAX = 960;
-function rowCap(blocks) {
-  if (rowMetrics(blocks).width <= ROW_MAX) return Infinity;
-  for (let cap = 64; cap > 12; cap--) if (withTensorCellCap(cap, () => rowMetrics(blocks).width) <= ROW_MAX) return cap;
-  return 12;
-}
+// A horizontal row of blocks is held to the tensor row budget (720 at a narrow request, at most 960): when it would be wider, its tensor cells shrink only as far as needed.
+const rowCap = (blocks, preferredWidth) => tensorCellCap(tensorRowBudget(preferredWidth), cell => withTensorCellCap(cell, () => rowMetrics(blocks).width));
 
 function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
   const order = new Map(blocks.map(({ id }, index) => [id, index]));
@@ -111,7 +106,7 @@ function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
 }
 
 export function blockStackNaturalWidth(diagram) {
-  if (diagram.orientation === 'horizontal') return withTensorCellCap(rowCap(diagram.blocks), () => rowMetrics(diagram.blocks).width);
+  if (diagram.orientation === 'horizontal') return withTensorCellCap(rowCap(diagram.blocks, 0), () => rowMetrics(diagram.blocks).width);
   const { minBlockWidth, leftBand, rightBand, noteMinWidth, ledgerMinWidth } = horizontalMetrics(diagram);
   const noteBand = diagram.callouts?.length ? Math.max(156, noteMinWidth) + NOTE_GAP : 0;
   return Math.min(960, Math.max(ledgerMinWidth, 2 * PAD + Math.max(PREFERRED_BLOCK_WIDTH, minBlockWidth) + leftBand + rightBand + noteBand));
@@ -240,7 +235,7 @@ function drawJoin(operation, x, y) {
     label(operation === 'multiply' ? '⊗' : '⊕', x, y, { size: 22, weight: 700 }));
 }
 
-const layoutBlockRow = (blocks, preferredWidth, renderChild) => withTensorCellCap(rowCap(blocks), () => layoutBlockRowAt(blocks, preferredWidth, renderChild));
+const layoutBlockRow = (blocks, preferredWidth, renderChild) => withTensorCellCap(rowCap(blocks, preferredWidth), () => layoutBlockRowAt(blocks, preferredWidth, renderChild));
 function layoutBlockRowAt(blocks, preferredWidth, renderChild) {
   const { children, widths, width: rowWidth } = rowMetrics(blocks);
   const width = Math.max(preferredWidth, rowWidth);

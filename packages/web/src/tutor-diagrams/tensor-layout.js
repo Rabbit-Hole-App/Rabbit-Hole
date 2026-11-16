@@ -25,10 +25,19 @@ export function withTensorCellCap(cap, run) {
   try { return run(); } finally { cellCap = before; }
 }
 
+// The width a row of strips is held to: the card's 720 when it is asked for less (a narrow request), the request when it asks for more, never above 960. A row wider than that shrinks its
+// cells as far as needed (tensorCellCap), never below their text.
+export const tensorRowBudget = preferredWidth => Math.min(960, Math.max(720, preferredWidth));
+export function tensorCellCap(budget, widthAt) {
+  if (widthAt(Infinity) <= budget) return Infinity;
+  for (let cap = 64; cap > 12; cap--) if (widthAt(cap) <= budget) return cap;
+  return 12;
+}
+
 function stripMetrics({ columns, dimensions, name, values }) {
   const numbers = (values ?? []).map(String);
   const text = Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))));
-  const cellWidth = Math.max(text + 4, Math.min(Math.max(36, text + 12), cellCap));
+  const cellWidth = Math.max(text + 1.5, Math.min(Math.max(36, text + 12), cellCap));
   const gridWidth = columns * cellWidth;
   const nameWidth = name ? longestWordWidth(name, TEXT) : 0;
   const width = Math.ceil(Math.max(gridWidth, nameWidth, textWidth(dimensions, SMALL))) + 2 * STRIP_PAD;
@@ -121,6 +130,11 @@ function linkGroups(links) {
 }
 
 export function layoutTensorTransformation(diagram, preferredWidth = 0) {
+  const cap = tensorCellCap(tensorRowBudget(preferredWidth), cell => withTensorCellCap(cell, () => transformationAt(diagram, 0).width));
+  return withTensorCellCap(cap, () => transformationAt(diagram, preferredWidth));
+}
+
+function transformationAt(diagram, preferredWidth) {
   const { operation, links = [] } = diagram;
   const before = section(diagram.before, 'process');
   const after = section(diagram.after, 'outcome');
