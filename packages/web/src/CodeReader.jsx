@@ -32,7 +32,7 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
   const treeNav = useRef(null);
   const resizeTree = next => { const h = Math.round(Math.min(600, Math.max(64, next))); setTreeH(h); try { localStorage.setItem('rh.filesTreeHeight', String(h)); } catch { /* the height holds until a reload */ } };
   const dragTree = event => { event.preventDefault(); const y0 = event.clientY, h0 = treeH; const move = e => resizeTree(h0 + e.clientY - y0), up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); }; window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); };
-  const closeAll = () => { treeNav.current?.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open')); onCloseAll?.(); };
+  const closeAll = () => { treeNav.current?.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open')); onCloseAll?.(); chat?.panels?.companion?.close?.(); };
   // Code cards (repo-graph Release 2): beside a canvas, Add to canvas puts the open file, a symbol or the selected lines on it
   // at this snapshot's commit, and a file or symbol row drags onto the canvas as one (code-card.js; the same creation path).
   const chat = useChatWorkspace(), ops = chat?.canvasOps, cards = panel && !!ops?.insertCard;
@@ -91,7 +91,7 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
               cards && { id: 'canvas', onClick: () => addCard(open), title: 'Add to canvas: this file as a code card', data: { 'data-file-add-card': '' } },
               inChat && { id: 'chat', onClick: () => addInChat(open), title: 'Add to chat: keep this file with the chat', data: { 'data-file-add-chat': '' } },
             ] : null}
-            tail={panel && onCloseAll ? [{ id: 'close', onClick: closeAll, title: 'Close the open file and fold every folder', data: { 'data-file-close-all': '' } }] : null} pick={pick?.path === open ? pick : null}
+            tail={panel && onCloseAll ? [{ id: 'close', label: 'Close', onClick: closeAll, title: 'Close: the open file, the folders and this panel', data: { 'data-file-close-all': '' } }] : null} pick={pick?.path === open ? pick : null}
             line={here && here.kind !== 'file' ? here.line : null} lineEnd={here?.end}
             actions={(r) => <div data-range-actions role="toolbar" aria-label={`Selected ${rangeTitle(r)}`} onPointerDown={(e) => e.preventDefault()}
               className="absolute top-full left-12 z-10 mt-1 flex items-center gap-0.5 rounded-md bg-white p-1 font-sans whitespace-nowrap shadow-pop select-none">

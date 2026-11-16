@@ -1,5 +1,5 @@
 import { ArrowUpRight, Copy, MessageSquare, MessageSquarePlus, Network, SquareCode, X } from 'lucide-react';
-import { IconBtn } from './ui.jsx';
+import { IconBtn, Tip } from './ui.jsx';
 
 // The one vocabulary for the actions the Graph, Files and the repository viewer offer (owner 2026-11-15): one name and one icon per action, drawn as icons with the name as the tooltip,
 // never a text button for one and an icon for another. The same name is used by the menus.
@@ -20,19 +20,23 @@ export const ACTIONS = {
   close: { label: 'Close all', Icon: X },
 };
 
+// Every action shows the same Tip (bold name, plain description under it), never the browser's own title: a `title` of 'Name: what it does' gives the description.
+const info = (title, label) => { const t = (title || '').startsWith(`${label}: `) ? title.slice(label.length + 2) : title; return t && t !== label ? t : undefined; };
+
 // actions: [{ id: 'chat' | 'canvas' | 'graph' | 'repo' | 'close', onClick?, href?, disabled?, label?, title?, data?: { 'data-x': '' } }] - a compact group that is only as wide as its icons.
-export default function ActionBar({ actions, className = '' }) {
+export default function ActionBar({ actions, className = '', side = 'bottom' }) {
   const rows = (actions || []).filter(Boolean);
   if (!rows.length) return null;
   return (
     <span role="group" aria-label="Actions" data-action-bar className={`inline-flex shrink-0 items-center gap-0.5 ${className}`}>
       {rows.map(action => {
         const { Icon: own, label: name } = ACTIONS[action.id], Icon = action.Icon || own, label = action.label || name, size = 15;
+        const tip = children => <Tip key={action.id} label={label} info={info(action.title, label)} side={side}>{children}</Tip>;
         if (action.href) {
-          return <a key={action.id} href={action.href} target="_blank" rel="noreferrer" aria-label={label} title={action.title || label} {...(action.data || {})}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-ink-2 transition-colors duration-100 hover:bg-hover hover:text-ink"><Icon size={size} aria-hidden="true" /></a>;
+          return tip(<a href={action.href} target="_blank" rel="noreferrer" aria-label={label} {...(action.data || {})}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-sm text-ink-2 transition-colors duration-100 hover:bg-hover hover:text-ink"><Icon size={size} aria-hidden="true" /></a>);
         }
-        return <IconBtn key={action.id} type="button" aria-label={label} title={action.title || label} disabled={!!action.disabled} onClick={action.onClick} {...(action.data || {})}><Icon size={size} aria-hidden="true" /></IconBtn>;
+        return tip(<IconBtn type="button" aria-label={label} disabled={!!action.disabled} onClick={action.onClick} {...(action.data || {})}><Icon size={size} aria-hidden="true" /></IconBtn>);
       })}
     </span>
   );
