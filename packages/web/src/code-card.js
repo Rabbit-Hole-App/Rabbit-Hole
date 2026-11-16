@@ -6,7 +6,7 @@ import { codeRef } from './chat-sources.js';
 import { codeLanguage } from './code-language.js';
 import { switchCardLayout } from './card-layout.js';
 
-export const CODE_CARD = { w: 480, h: 320 };
+export const CODE_CARD = { w: 480, h: 480 }; // tall enough to read a screenful of the file (owner 2026-11-15: 320 was too short)
 // The preview's bound: a longer file or range shows its first lines and says so; Full content (card-layout.js) shows the whole stored text.
 export const PREVIEW_LINES = 40;
 // What Add to chat carries for an upload card (the server's per-ref text bound is 8000 characters).

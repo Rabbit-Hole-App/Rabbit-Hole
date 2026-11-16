@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, MessageSquarePlus, Package, Search, SquareCode, SquarePlus, Waypoints, X } from 'lucide-react';
+import { ArrowUpRight, Braces, ChevronDown, FileCode, Layers, Loader2, Package, Search, SquareCode, Waypoints } from 'lucide-react';
 import RepositoryGraph from './RepositoryGraph.jsx';
 import { Button, IconBtn, Input, Menu, MenuItem } from './ui.jsx';
+import ActionBar, { ACTIONS } from './ActionIcons.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { objectOf, relationshipGroups, typeOf } from './inspector.js';
 import { askDraft, askQuestion, whyQuestion } from './agent/scope.js';
@@ -29,7 +30,7 @@ import { insertCodeCard, insertCodeCards, nodeCodeCard } from './code-card.js';
 // Closing the companion column clears the temporary selection; pinned refs stay.
 // Add to canvas (clarification section 1, Release 2; owner brief 2026-10-16 item 5): the header's add adds the graph shown
 // here (addGraph below), and for a selection
-// "Add selection as graph" (its nodes and only their indexed relationships) or "Add code card" (nodes with retrievable code),
+// "Add selection as graph" (its nodes and only their indexed relationships) or "Add to canvas" (nodes with retrievable code),
 // from the selection row or a node's right-click menu. They place a card on this canvas and never touch Chat.
 const ICONS = { file: FileCode, symbol: Braces, external: Package };
 const short = commit => (commit || '').slice(0, 7);
@@ -121,16 +122,18 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
       <p className="shrink-0 text-xs text-ink-3">{snapshot.files?.length ?? 0} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships{snapshot.skipped?.length ? ` · ${snapshot.skipped.length} excluded` : ''}</p>
       {selected.length > 0 && <div data-graph-selection className="flex shrink-0 items-center gap-2 border-t border-line pt-2 text-sm">
         <span className="min-w-0 flex-1 text-ink-2">{selected.length} selected</span>
-        <Button size="sm" variant="secondary" data-graph-add-to-chat disabled={!chat || !graphRefs(repository).length} title="Keep the selected code with this chat" onClick={addToChat}>Add to chat</Button>
-        <IconBtn data-graph-add-selection aria-label="Add selection as graph" title="Add selection as graph" disabled={!ops || !indexed(selected).length} onClick={() => addGraph(indexed(selected))}><SquarePlus size={14} /></IconBtn>
-        <IconBtn data-graph-add-code aria-label="Add code card" title={insertCodeCard ? 'Add code card' : 'Code cards are not available yet'} disabled={!canCode} onClick={() => addCode(codeNodes(selected))}><FileCode size={14} /></IconBtn>
-        <IconBtn data-graph-clear aria-label="Clear selection" title="Clear selection (Escape)" onClick={() => setSelected([])}><X size={14} /></IconBtn>
+        <ActionBar actions={[
+          { id: 'chat', disabled: !chat || !graphRefs(repository).length, onClick: addToChat, title: 'Add to chat: keep the selected code with this chat', data: { 'data-graph-add-to-chat': '' } },
+          { id: 'graph', disabled: !ops || !indexed(selected).length, onClick: () => addGraph(indexed(selected)), data: { 'data-graph-add-selection': '' } },
+          { id: 'canvas', disabled: !canCode, onClick: () => addCode(codeNodes(selected)), title: insertCodeCard ? 'Add to canvas: the selected code as code cards' : 'Code cards are not available yet', data: { 'data-graph-add-code': '' } },
+          { id: 'close', label: 'Clear selection', title: 'Clear selection (Escape)', onClick: () => clearSelection(repository), data: { 'data-graph-clear': '' } },
+        ]} />
       </div>}
       <Menu open={!!menu} portal style={menu ? { left: menu.x, top: menu.y } : undefined} onClose={() => setMenu(null)} className="w-52">
         <div data-graph-node-menu role="menu" aria-label="Graph selection">
-          <MenuItem icon={SquarePlus} role="menuitem" data-menu-add-selection disabled={!ops || !indexed(menuIds).length} onClick={() => { addGraph(indexed(menuIds)); setMenu(null); }}>Add selection as graph</MenuItem>
-          <MenuItem icon={FileCode} role="menuitem" data-menu-add-code disabled={!canCode} onClick={() => { addCode(codeNodes(menuIds)); setMenu(null); }}>Add code card</MenuItem>
-          <MenuItem icon={MessageSquarePlus} role="menuitem" data-menu-add-to-chat disabled={!chat || !graphRefs(repository).length} onClick={() => { addToChat(); setMenu(null); }}>Add to chat</MenuItem>
+          <MenuItem icon={ACTIONS.graph.Icon} role="menuitem" data-menu-add-selection disabled={!ops || !indexed(menuIds).length} onClick={() => { addGraph(indexed(menuIds)); setMenu(null); }}>Add selection as graph</MenuItem>
+          <MenuItem icon={ACTIONS.canvas.Icon} role="menuitem" data-menu-add-code disabled={!canCode} onClick={() => { addCode(codeNodes(menuIds)); setMenu(null); }}>Add to canvas</MenuItem>
+          <MenuItem icon={ACTIONS.chat.Icon} role="menuitem" data-menu-add-to-chat disabled={!chat || !graphRefs(repository).length} onClick={() => { addToChat(); setMenu(null); }}>Add to chat</MenuItem>
         </div>
       </Menu>
       {one && <NodeDetails repository={repository} node={one} onOpenSource={onOpenSource} onExplore={id => setExplore({ id, at: Date.now() })} onSelect={node => choose(node)} />}
@@ -173,7 +176,7 @@ function NodeDetails({ repository, node, onOpenSource, onExplore, onSelect }) {
     <div className="flex items-center gap-1"><p className="min-w-0 flex-1 truncate text-xs text-ink-3" title={object.path || ''}>{object.path ? `${object.path}:${object.line || 1} · ` : ''}{typeOf(object)}</p>{inFiles(object.path) && openIcon(object.path, object.line)}</div>
     <div className="flex flex-wrap gap-1">
       <Button size="sm" variant="secondary" data-node-open-source disabled={!object.path} title={object.path ? 'Open in Files at this line' : 'An external dependency has no source here'} onClick={() => onOpenSource?.(object.path, object.line || 1, object.line || 1)}>Open source</Button>
-      {ops?.insertCard && nodeCodeCard({ app: app?.name, repo: app?.repo, commit: snapshot.commit }, object) && <Button size="sm" variant="secondary" data-node-add-card title="Put this code on the canvas as a code card" onClick={() => insertCodeCard(ops, nodeCodeCard({ app: app.name, repo: app.repo, commit: snapshot.commit }, object))}><SquareCode size={13} />Add code card</Button>}
+      {ops?.insertCard && nodeCodeCard({ app: app?.name, repo: app?.repo, commit: snapshot.commit }, object) && <Button size="sm" variant="secondary" data-node-add-card title="Put this code on the canvas as a code card" onClick={() => insertCodeCard(ops, nodeCodeCard({ app: app.name, repo: app.repo, commit: snapshot.commit }, object))}><SquareCode size={13} />Add to canvas</Button>}
       <Button size="sm" data-node-ask onClick={() => askDraft(askQuestion(object))}>Ask about this</Button>
       <Button size="sm" data-node-why onClick={() => askDraft(whyQuestion(object))}>Ask why</Button>
       <Button size="sm" data-node-learn onClick={() => askDraft(`Teach me ${object.label}`)}>Learn this</Button>

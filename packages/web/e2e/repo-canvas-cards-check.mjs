@@ -32,7 +32,7 @@ const SELECTORS = {
   openInCompanion: '[data-graph-card-expand]', // GRAPH: the graph card's Show in the Graph beside Chat
   addToCanvas: 'Add to canvas', // the selection controls' menu button, when the choices sit behind one
   nodeAddCard: '[data-node-add-card]', // GRAPH: the node details' Add code card
-  addCodeCard: 'Add code card', addSelectionAsGraph: 'Add selection as graph',
+  addCodeCard: 'Add to canvas', addSelectionAsGraph: 'Add selection as graph',
   // Context: a graph card selected with no node inside it rides as a graph-scope ref (GRAPH).
   graphScopeRef: ref => ref.kind === 'graph' || String(ref.sourceId || '').startsWith('graph:'),
   // ACCESS: the owner-checked source route for a card. Owner reads are served from the fixture here (a keyless stack has no
