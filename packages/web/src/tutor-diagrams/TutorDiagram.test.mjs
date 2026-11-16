@@ -25,7 +25,7 @@ test('every fixture renders deterministically, with a readable SVG and the share
     assert.equal(markup, renderToStaticMarkup(renderTutorDiagram(JSON.stringify(fixture), 408).element));
     assert.ok(width >= 408 && height > 100);
     assert.match(markup, /<svg[^>]+role="img"/);
-    assert.match(markup, /fill="var\(--viz-surface, #fbfbfa\)"/);
+    assert.match(markup, /fill="var\(--viz-surface, #FFFCF0\)"/);
     assert.ok(markup.includes(fixture.diagram.title), fixture.diagram.title);
     assert.ok(!markup.includes('NaN'), fixture.diagram.kind);
   }
