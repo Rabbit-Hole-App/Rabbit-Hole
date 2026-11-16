@@ -1,23 +1,23 @@
 # bench-pick, three registered families (2026-11-15, brief 27 task 2, recounted with the corrected labels: brief 28 task 2)
 
-360 JEV calls (pickFamily, threshold 0, probabilities stored; thresholds applied offline), families vertical-throw, curve-sliders, stepper-states, depth balanced, 3 calls per prompt. Groups: (a) stepper prompts, both coverage votes stepper-states: 46; (b) toss and curve prompts of design-pick.json: 32; (c) both-vote none rows of bench-coverage.jsonl: 17; (d) the design-pick none prompts, an extra negative set: 25.
+360 JEV calls (pickFamily, threshold 0, probabilities stored; thresholds applied offline), families vertical-throw, curve-sliders, stepper-states, depth balanced, 3 calls per prompt. Groups: (a) stepper prompts, both coverage votes stepper-states: 51; (b) toss and curve prompts of design-pick.json: 34; (c) both-vote none rows of bench-coverage.jsonl: 17; (d) the design-pick none prompts, an extra negative set: 18.
 
 A wrong fit is a prompt where ANY call fits a family other than its label; a missed fit is a prompt with a family label where more than half of its calls come back gap. Threshold rule (brief 28): 0 wrong fits on groups a, b, c, then the fewest missed fits (group d is reported beside the rule); a label may list further right fits (`accept`).
 
-Chosen threshold: **0.5**; stepper prompts passing at it: **37 of 46**.
+Chosen threshold: **0.5**; stepper prompts passing at it: **42 of 51**.
 
 | Threshold | Wrong (a+b+c) | Missed (a+b+c) | Wrong (all four groups) | Missed (all four groups) |
 |---|---|---|---|---|
-| 0.5 | 0 | 10 | 7 | 10 |
-| 0.55 | 0 | 13 | 6 | 13 |
-| 0.6 | 0 | 16 | 6 | 16 |
-| 0.65 | 0 | 19 | 5 | 19 |
-| 0.7 | 0 | 20 | 4 | 20 |
-| 0.75 | 0 | 24 | 3 | 24 |
-| 0.8 | 0 | 28 | 3 | 28 |
-| 0.85 | 0 | 36 | 3 | 36 |
-| 0.9 | 0 | 43 | 2 | 43 |
-| 0.95 | 0 | 45 | 2 | 45 |
+| 0.5 | 0 | 10 | 0 | 10 |
+| 0.55 | 0 | 14 | 0 | 14 |
+| 0.6 | 0 | 17 | 0 | 17 |
+| 0.65 | 0 | 22 | 0 | 22 |
+| 0.7 | 0 | 24 | 0 | 24 |
+| 0.75 | 0 | 28 | 0 | 28 |
+| 0.8 | 0 | 32 | 0 | 32 |
+| 0.85 | 0 | 40 | 0 | 40 |
+| 0.9 | 0 | 48 | 0 | 48 |
+| 0.95 | 0 | 50 | 0 | 50 |
 
 Per prompt: top family of each call (`none` included) with its probability, then W wrong fit, m missed fit, ok right fit, - none prompt left at gap, at each threshold.
 
@@ -99,8 +99,15 @@ Per prompt: top family of each call (`none` included) with its probability, then
 | dp:31 | b | curve-sliders | How does a Gaussian kernel's width change the smoothing? | curve-sliders 0.79; curve-sliders 0.84; curve-sliders 0.82 | ok | ok | ok | ok | ok | ok | ok | m | m | m |
 | dp:32 | b | curve-sliders | How does the tanh activation differ from a sigmoid? | none 0.51; curve-sliders 0.5; curve-sliders 0.5 | ok | m | m | m | m | m | m | m | m | m |
 | dp:33 | b | curve-sliders | How does a pendulum's period depend on its length? | curve-sliders 0.9; curve-sliders 0.9; curve-sliders 0.89 | ok | ok | ok | ok | ok | ok | ok | ok | ok | m |
+| dp:49 | b | vertical-throw | A ball is dropped from a tower. How long until it hits the ground? | vertical-throw 0.51; vertical-throw 0.5; vertical-throw 0.5 | ok | m | m | m | m | m | m | m | m | m |
+| dp:50 | b | vertical-throw | A ball is thrown downward from a bridge. How fast is it after one second? | vertical-throw 0.61; vertical-throw 0.63; vertical-throw 0.65 | ok | ok | ok | m | m | m | m | m | m | m |
 | dp:38 | a | stepper-states | What is gradient descent? | stepper-states 0.83; stepper-states 0.86; stepper-states 0.84 | ok | ok | ok | ok | ok | ok | ok | m | m | m |
 | dp:45 | a | stepper-states | How does TCP's three-way handshake work? | stepper-states 0.98; stepper-states 0.98; stepper-states 0.98 | ok | ok | ok | ok | ok | ok | ok | ok | ok | ok |
+| dp:46 | a | stepper-states | What are the steps of the Krebs cycle? | stepper-states 0.99; stepper-states 0.99; stepper-states 0.99 | ok | ok | ok | ok | ok | ok | ok | ok | ok | ok |
+| dp:48 | a | stepper-states | How does a convolution slide over an image? | stepper-states 0.54; stepper-states 0.6; stepper-states 0.6 | ok | ok | ok | m | m | m | m | m | m | m |
+| dp:52 | a | stepper-states | How does DNS resolve a name? | stepper-states 0.84; stepper-states 0.85; stepper-states 0.89 | ok | ok | ok | ok | ok | ok | ok | ok | m | m |
+| dp:56 | a | stepper-states | Explain the water cycle. | stepper-states 0.98; stepper-states 0.98; stepper-states 0.98 | ok | ok | ok | ok | ok | ok | ok | ok | ok | ok |
+| dp:58 | a | stepper-states | How does bootstrap sampling pick rows? | stepper-states 0.7; stepper-states 0.68; stepper-states 0.69 | ok | ok | ok | ok | m | m | m | m | m | m |
 | no:aiml/vector-db | c | none | what is a vector database? | none 0.94; none 0.94; none 0.94 | - | - | - | - | - | - | - | - | - | - |
 | no:aiml/gpu-look | c | none | what does a GPU look like? | none 1; none 1; none 1 | - | - | - | - | - | - | - | - | - | - |
 | no:aiml/rack-look | c | none | what does a data-center rack look like? | none 1; none 1; none 1 | - | - | - | - | - | - | - | - | - | - |
@@ -128,18 +135,11 @@ Per prompt: top family of each call (`none` included) with its probability, then
 | dp:42 | d | none | Why do satellites stay in orbit? | none 0.88; none 0.86; none 0.86 | - | - | - | - | - | - | - | - | - | - |
 | dp:43 | d | none | How does a hash map work? | none 0.69; none 0.65; none 0.69 | - | - | - | - | - | - | - | - | - | - |
 | dp:44 | d | none | What is a confusion matrix? | none 0.99; none 0.99; none 0.99 | - | - | - | - | - | - | - | - | - | - |
-| dp:46 | d | none | What are the steps of the Krebs cycle? | stepper-states 0.99; stepper-states 0.99; stepper-states 0.99 | W | W | W | W | W | W | W | W | W | W |
 | dp:47 | d | none | How does a decision tree split a dataset? | none 0.66; none 0.65; none 0.71 | - | - | - | - | - | - | - | - | - | - |
-| dp:48 | d | none | How does a convolution slide over an image? | stepper-states 0.54; stepper-states 0.6; stepper-states 0.6 | W | W | W | - | - | - | - | - | - | - |
-| dp:49 | d | none | A ball is dropped from a tower. How long until it hits the ground? | vertical-throw 0.51; vertical-throw 0.5; vertical-throw 0.5 | W | - | - | - | - | - | - | - | - | - |
-| dp:50 | d | none | A ball is thrown downward from a bridge. How fast is it after one second? | vertical-throw 0.61; vertical-throw 0.63; vertical-throw 0.65 | W | W | W | W | - | - | - | - | - | - |
 | dp:51 | d | none | Compare a binary tree and a linked list. | none 0.99; none 0.99; none 0.99 | - | - | - | - | - | - | - | - | - | - |
-| dp:52 | d | none | How does DNS resolve a name? | stepper-states 0.84; stepper-states 0.85; stepper-states 0.89 | W | W | W | W | W | W | W | W | - | - |
 | dp:53 | d | none | What is the difference between precision and recall? | none 0.93; none 0.95; none 0.95 | - | - | - | - | - | - | - | - | - | - |
 | dp:54 | d | none | How does backpropagation assign blame to each weight? | none 0.65; none 0.67; none 0.62 | - | - | - | - | - | - | - | - | - | - |
 | dp:55 | d | none | How does a transformer block stack its layers? | none 0.87; none 0.86; none 0.88 | - | - | - | - | - | - | - | - | - | - |
-| dp:56 | d | none | Explain the water cycle. | stepper-states 0.98; stepper-states 0.98; stepper-states 0.98 | W | W | W | W | W | W | W | W | W | W |
 | dp:57 | d | none | How does an electric field look around two charges? | none 0.97; none 0.96; none 0.96 | - | - | - | - | - | - | - | - | - | - |
-| dp:58 | d | none | How does bootstrap sampling pick rows? | stepper-states 0.7; stepper-states 0.68; stepper-states 0.69 | W | W | W | W | W | - | - | - | - | - |
 | dp:59 | d | none | Why does a bridge sway in wind? | none 0.85; none 0.83; none 0.87 | - | - | - | - | - | - | - | - | - | - |
 | dp:60 | d | none | How does a neural network forward pass compute an output? | none 0.83; none 0.85; none 0.85 | - | - | - | - | - | - | - | - | - | - |
