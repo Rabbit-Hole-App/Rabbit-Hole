@@ -52,7 +52,7 @@ function stepPoints(points) {
 function bodyWidth(d, requested) {
   const text = [d.x?.label, d.y?.label, ...(d.series ?? []).map(s => s.label),
     ...(d.annotations ?? []).map(a => a.label), ...(d.categories ?? [])];
-  return Math.max(requested, 420, ...text.filter(Boolean).map(t => widestFormula(t) + 150));
+  return Math.max(requested, 408, ...text.filter(Boolean).map(t => widestFormula(t) + 150)); // 408: the narrowest card content (cards are clamped 440 to 720, CV-1)
 }
 
 function plotEndLabels(series) {
