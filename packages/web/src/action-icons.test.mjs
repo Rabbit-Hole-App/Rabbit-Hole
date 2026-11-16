@@ -41,3 +41,11 @@ test('the chat strip centres on the whole window: the composer shifts by half th
   assert.match(pane, /frame\.style\.removeProperty\('--study-pane-w'\)/, 'leaving Study puts the strip back');
   assert.match(canvas, /data-canvas-composer [^\n]*style=\{\{ transform: 'translateX\(calc\(var\(--study-pane-w, 0px\) \/ -2\)\)' \}\}/);
 });
+
+// Owner 2026-11-15: the Files X closes the panel Files is in. In Study that is the reference pane on the left (back to the canvas), otherwise the companion column.
+test('the Files X closes its panel: Study goes back to the canvas, else the companion column closes', () => {
+  assert.match(read('CodeReader.jsx'), /onCloseAll\?\.\(\); window\.dispatchEvent\(new CustomEvent\('small:close-files'\)\)/);
+  const page = read('LearnPage.jsx');
+  assert.match(page, /const closeFiles = \(\) => \{ const study = studyNow\.current; if \(study\?\.open\) study\.setMode\('canvas'\); else companionNow\.current\.close\(\); \};/);
+  assert.match(page, /addEventListener\('small:close-files', closeFiles\)[\s\S]*removeEventListener\('small:close-files', closeFiles\)/);
+});

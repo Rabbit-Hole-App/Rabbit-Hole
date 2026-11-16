@@ -238,10 +238,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const companionNow = useRef(companion);
   companionNow.current = companion;
   useEffect(() => {
+    // The Files X (owner 2026-11-15): closes the panel Files is in: Study's reference pane (back to the canvas) or the companion column.
+    const closeFiles = () => { const study = studyNow.current; if (study?.open) study.setMode('canvas'); else companionNow.current.close(); };
     const showFiles = () => companionNow.current.show('files'), showGraph = () => companionNow.current.show('graph');
     if (files) window.addEventListener('small:open-files', showFiles);
     if (graph) window.addEventListener('small:open-graph', showGraph);
-    return () => { window.removeEventListener('small:open-files', showFiles); window.removeEventListener('small:open-graph', showGraph); };
+    if (files) window.addEventListener('small:close-files', closeFiles);
+    return () => { window.removeEventListener('small:open-files', showFiles); window.removeEventListener('small:close-files', closeFiles); window.removeEventListener('small:open-graph', showGraph); };
   }, [!!files, !!graph]); // eslint-disable-line react-hooks/exhaustive-deps
   // Initial pipeline (dev flag): a repository canvas opens its right panel on Files the first time it arrives, once per canvas (remembered on this device), never on a reload or a later visit.
   useEffect(() => {

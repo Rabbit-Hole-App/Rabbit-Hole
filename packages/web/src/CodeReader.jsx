@@ -32,7 +32,7 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
   const treeNav = useRef(null);
   const resizeTree = next => { const h = Math.round(Math.min(600, Math.max(64, next))); setTreeH(h); try { localStorage.setItem('rh.filesTreeHeight', String(h)); } catch { /* the height holds until a reload */ } };
   const dragTree = event => { event.preventDefault(); const y0 = event.clientY, h0 = treeH; const move = e => resizeTree(h0 + e.clientY - y0), up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); }; window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); };
-  const closeAll = () => { treeNav.current?.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open')); onCloseAll?.(); chat?.panels?.companion?.close?.(); };
+  const closeAll = () => { treeNav.current?.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open')); onCloseAll?.(); window.dispatchEvent(new CustomEvent('small:close-files')); };
   // Code cards (repo-graph Release 2): beside a canvas, Add to canvas puts the open file, a symbol or the selected lines on it
   // at this snapshot's commit, and a file or symbol row drags onto the canvas as one (code-card.js; the same creation path).
   const chat = useChatWorkspace(), ops = chat?.canvasOps, cards = panel && !!ops?.insertCard;
