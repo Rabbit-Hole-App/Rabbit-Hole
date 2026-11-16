@@ -5,7 +5,7 @@
 // title-less safe wording. Never a stack trace, a sandbox id, a dollar figure or a Modal term, and never "something went wrong".
 // Pure: no React, no network, no storage.
 import { CODEBASE_GOALS } from './learn-codebase-goals.js';
-import { catalogueView, chooseText, oneText, zeroText } from './catalogue-view.js';
+import { cannotBlock, catalogueView, chooseText, effortWord, oneText, waysOf, zeroText } from './catalogue-view.js';
 
 export const STAR = '⭐';
 export const SOMETHING_ELSE_CHIP = 'Something else';
@@ -39,7 +39,7 @@ export const internal = text => INTERNAL.test(String(text || ''));
 const practicalOf = doc => (doc?.routes || []).filter(route => route.practical);
 const impracticalOf = doc => (doc?.routes || []).filter(route => !route.practical);
 const hardwareOf = doc => (doc?.hardware === 'cpu' || !doc?.hardware ? 'CPU' : String(doc.hardware).toUpperCase());
-const chipOf = route => ({ id: `route:${route.routeId}`, routeId: route.routeId, label: `${route.recommended ? `${STAR} ` : ''}${route.title}`, recommended: !!route.recommended });
+const chipOf = route => ({ id: `route:${route.routeId}`, routeId: route.routeId, label: noStop(route.title), hint: effortWord(route.effort), star: !!route.recommended, recommended: !!route.recommended });
 const blockOf = route => [`${route.recommended ? `${STAR} ` : ''}**${route.title}** · *${route.effort}*`, [route.description, route.recommended ? '**Recommended to start.**' : ''].filter(Boolean).join(' ')].filter(Boolean).join('\n');
 const closingLine = doc => {
   const rest = impracticalOf(doc);
@@ -69,7 +69,7 @@ function safeMessage(doc, name) {
   if (!practical.length) return { kind: 'zero', safe: true, text: `I've read **${name}**. Running it here needs more than this canvas has. You can still explore the code.`, chips: GOAL_CHIPS() };
   const text = `I've read **${name}**. Here's what you can do with it: there ${practical.length === 1 ? 'is one practical way' : `are ${practical.length} practical ways`} to use it on a ${hardwareOf(doc)}.`;
   return { kind: practical.length === 1 ? 'one' : 'choose', safe: true, text, routeId: practical[0].routeId,
-    chips: practical.length === 1 ? [] : [...practical.map((route, i) => ({ id: `route:${route.routeId}`, routeId: route.routeId, label: `${route.recommended ? `${STAR} ` : ''}Way ${i + 1}`, recommended: !!route.recommended })), { id: 'else', label: SOMETHING_ELSE_CHIP }] };
+    chips: practical.length === 1 ? [] : [...practical.map((route, i) => ({ id: `route:${route.routeId}`, routeId: route.routeId, label: `Way ${i + 1}`, star: !!route.recommended, recommended: !!route.recommended })), { id: 'else', label: SOMETHING_ELSE_CHIP }] };
 }
 
 // The can / cannot message. -> { kind: 'none' | 'zero' | 'one' | 'choose', text, chips, routeId?, safe? }
@@ -86,11 +86,11 @@ export function catalogueMessage(doc) {
   } else if (!practical.length) {
     built = { kind: 'zero', text: zeroText(catalogueView(doc, name), doc.summary), chips: GOAL_CHIPS() };
   } else if (practical.length === 1) {
-    built = { kind: 'one', routeId: practical[0].routeId, text: oneText(catalogueView(doc, name)), chips: [] };
+    built = { kind: 'one', routeId: practical[0].routeId, text: oneText(catalogueView(doc, name)), rest: cannotBlock(catalogueView(doc, name)), chips: waysOf(catalogueView(doc, name)) };
   } else {
-    built = { kind: 'choose', text: chooseText(catalogueView(doc, name)), chips: [] };
+    built = { kind: 'choose', text: chooseText(catalogueView(doc, name)), rest: cannotBlock(catalogueView(doc, name)), chips: [...waysOf(catalogueView(doc, name)), { id: 'else', label: SOMETHING_ELSE_CHIP }] };
   }
-  const labels = [built.text, ...built.chips.map(chip => chip.label)].join('\n');
+  const labels = [built.text, built.rest, ...built.chips.map(chip => chip.label)].filter(Boolean).join('\n');
   return leaks(labels, { repo: doc?.repo }) ? safeMessage(doc, name) : built;
 }
 

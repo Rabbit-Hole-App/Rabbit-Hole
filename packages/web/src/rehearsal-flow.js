@@ -5,9 +5,9 @@
 //
 // state: { get, doc, docError, use, goalChosen, elsewhere, log[], routeId, routeTitle, run, startError }
 //   get: the last GET /api/learn/rehearsal (schemas/learn-rehearsal-get.json); doc: the catalogue document; use: the chosen use id; run: { status, step, attempt, error, record } of routeId.
-// A message: { key, role: 'assistant' | 'user', text?, pending?, chips?, groups?, form?, actions? }. Chip: { id, label, disabled?, note? }.
+// A message: { key, role: 'assistant' | 'user', text?, pending?, chips?, choices?, form?, actions? }. Chip: { id, label, disabled?, note? } (a pill button: Retry, the plan's actions).
+// choices: the clickable rows (ChoiceList.jsx): { id, label, hint?, star?, disabled? }. Options are always rows, never typed or in a dropdown (owner 2026-11-15).
 import { CODEBASE_GOALS } from './learn-codebase-goals.js';
-import { intakeModel } from './codebase-use-route.js';
 import { planMessage } from './learn-rehearsal-view.js';
 import { SENTENCES, catalogueMessage, indexingFailure, rehearsalFailure, repoName, routeQuestion } from './tutor-rehearsal-text.js';
 
@@ -15,7 +15,7 @@ import { SENTENCES, catalogueMessage, indexingFailure, rehearsalFailure, repoNam
 const STATUS_WORDS = { queued: 'Getting ready to try it', discovering: 'Reading how it is meant to run', provisioning: 'Setting up a place to run it', running: 'Running the steps', repairing: 'Fixing a step that did not work', planning: 'Writing up the plan' };
 export const statusWords = run => [STATUS_WORDS[run?.status] || STATUS_WORDS.queued, run?.step ? `step ${run.step}` : '', Number.isInteger(run?.attempt) && run.attempt > 1 ? `attempt ${run.attempt}` : ''].filter(Boolean).join(', ');
 
-const note = (key, text, chips) => ({ key, role: 'assistant', text, ...(chips ? { chips } : {}) });
+const note = (key, text, chips, choices) => ({ key, role: 'assistant', text, ...(chips ? { chips } : {}), ...(choices?.length ? { choices } : {}) });
 const pending = (key, text) => ({ key, role: 'assistant', pending: text });
 export const RETRY_CATALOGUE = { id: 'retry:catalogue', label: 'Retry' };
 export const RETRY_ROUTE = { id: 'retry:route', label: 'Retry' };
@@ -33,18 +33,18 @@ export function flowMessages(state, { repo }) {
     if (cat === 'failed' || state.docError) return [note('catalogue-failed', SENTENCES.catalogueFailed(name), [RETRY_CATALOGUE])];
     return [pending('indexing', !g || ['queued', 'indexing'].includes(g.indexing) ? `Reading ${name}` : `Working out how ${name} can be used`)];
   }
-  // 2. the can / cannot message; for no route or no practical route its chips are the reading goals
-  const cm = catalogueMessage(doc), set = state.goalChosen || state.elsewhere;
-  out.push(note('catalogue', cm.text, ['none', 'zero'].includes(cm.kind) && !set ? cm.chips : null));
-  // 3. the intake question, its chips while it is open
-  // Asked once (owner 2026-11-15): a canvas whose intake was answered before does not show the question again unless something is chosen now.
-  if (['one', 'choose'].includes(cm.kind) && !(state.intakeDone && !state.use && !state.goalChosen && !state.elsewhere)) out.push({ key: 'intake', role: 'assistant', text: SENTENCES.intake, ...(intakeOpen(state, cm) ? { groups: intakeModel() } : {}) });
+  // 2. the can / cannot message: its ways are clickable rows under the heading (the reading goals when nothing can run), then what is out of reach.
+  // Picking a way is the answer (owner 2026-11-15: click only, no separate question). A way stays drawn but greyed once something is chosen; the goals go away.
+  const cm = catalogueMessage(doc), set = state.goalChosen || state.elsewhere, ways = ['one', 'choose'].includes(cm.kind);
+  const open = intakeOpen(state, cm);
+  out.push(note('catalogue', cm.text, null, ways ? cm.chips.map(chip => ({ ...chip, disabled: !open })) : set ? null : cm.chips));
+  if (cm.rest) out.push(note('catalogue-rest', cm.rest));
   // 4. what was typed, what the Tutor answered, the goal's own question
   for (const line of state.log) out.push(line);
   if (state.elsewhere) return out;
   // 5. "Use the codebase": the route question when more than one route is practical, then the rehearsal
   if (state.use === 'use_codebase' && cm.kind !== 'zero' && cm.kind !== 'none') {
-    if (cm.kind === 'choose' && !state.routeId) { const q = routeQuestion(doc); out.push(note('route-question', q.text, q.chips)); }
+    if (cm.kind === 'choose' && !state.routeId) { const q = routeQuestion(doc); out.push(note('route-question', q.text, null, q.chips)); }
     if (state.routeId) {
       const run = state.run, failed = state.startError ? { text: SENTENCES.noMachine(name), retry: true } : run?.status === 'failed' ? rehearsalFailure(name, run.error) : null;
       if (failed) out.push(note('rehearsal-failed', failed.text, failed.retry ? [RETRY_ROUTE] : null));

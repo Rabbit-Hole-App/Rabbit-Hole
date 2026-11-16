@@ -3,10 +3,11 @@
 // composer (Lane A's composer.prepare, contract A6) or inserts the answer's own notebook code: rendering never sends, never
 // generates and never fetches. Actions make artifacts, questions continue the talk, so the two are drawn apart.
 import { useState } from 'react';
-import { ChartLine, ChevronDown, CircleHelp, Code, CornerDownRight, Film, Image, NotebookPen, PencilLine, SlidersHorizontal, Video, Workflow } from 'lucide-react';
+import { ChartLine, ChevronDown, CircleHelp, Code, Film, Image, NotebookPen, PencilLine, SlidersHorizontal, Video, Workflow } from 'lucide-react';
 import { isLearnCommand } from './learn-slash.js';
 import { addKnobToCard, knobActionOn, knobFromAnswer } from './tutor-knob-action.js';
 import { REHEARSAL } from './rehearsal-flag.js';
+import ChoiceList from './ChoiceList.jsx';
 
 // What the Run card said back (RunNode answers the event: tutor-knob-action.js addKnobToCard).
 const KNOB_NOTE = { added: 'Added to the Run card.', exists: 'The Run card already has it.', nostep: 'Start the Run card session first, so I know which step it belongs to.', locked: 'The Run card is locked or view-only.', full: 'The Run card has the most added parameters it can hold.', invalid: 'I cannot add that one.', none: 'This canvas has no Run card for this repository.' };
@@ -68,16 +69,7 @@ export default function AnswerSuggestions({ message, latest, threadId, prepare, 
         </div>
       )}
       {followUps.length > 0 && (
-        <section aria-label="Explore next" className="flex flex-col gap-0.5">
-          <h3 className="text-xs font-medium text-ink-3">Explore next</h3>
-          {followUps.map(f => (
-            <button key={f.id} type="button" data-answer-followup={f.kind} onClick={() => prepare({ text: f.text })}
-              className="flex items-start gap-1.5 rounded-md px-1.5 py-1 text-left text-sm text-ink-2 hover:bg-hover hover:text-ink">
-              <CornerDownRight size={14} aria-hidden="true" className="mt-0.5 shrink-0 text-ink-3" />
-              <span className="min-w-0">{f.text}</span>
-            </button>
-          ))}
-        </section>
+        <ChoiceList heading="Explore next" items={followUps.map(f => ({ id: f.id, label: f.text, data: { 'data-answer-followup': f.kind } }))} onPick={item => prepare({ text: item.label })} />
       )}
     </div>
   );

@@ -15,21 +15,26 @@ const doc = {
   ],
 };
 
-test('several practical ways: the repository, a numbered list with the star and one word of effort, then a bullet list of what is out of reach', () => {
-  const { kind, text } = catalogueMessage(doc);
+test('several practical ways: a heading, the ways as clickable rows (star, one word of effort, Something else last), then what is out of reach as bullets', () => {
+  const { kind, text, rest, chips } = catalogueMessage(doc);
   assert.equal(kind, 'choose');
-  assert.equal(text, [
-    '**nanoGPT**: what you can do here',
-    '1. ⭐ **Train a tiny Shakespeare model on CPU and read what it writes** · Quick\n2. **Give the pretrained GPT-2 a prompt and read its continuation** · Quick\n3. **Time the GPT training step on your CPU** · Quick',
-    '**Not on this canvas**\n- Train the full-size Shakespeare model and sample from it: needs a GPU\n- Reproduce GPT-2 training on OpenWebText: needs a download of about 54 GB',
-  ].join('\n\n'));
-  assert.doesNotMatch(text, /Downloads the Shakespeare|Recommended to start|Here's what you can do with it/, 'no descriptions, no repeated phrases');
+  assert.equal(text, '**nanoGPT**: what you can do here');
+  assert.deepEqual(chips.map(c => [c.id, c.label, c.hint, !!c.star]), [
+    ['route:shakespeare_char_cpu', 'Train a tiny Shakespeare model on CPU and read what it writes', 'Quick', true],
+    ['route:sample_pretrained_gpt2', 'Give the pretrained GPT-2 a prompt and read its continuation', 'Quick', false],
+    ['route:benchmark', 'Time the GPT training step on your CPU', 'Quick', false],
+    ['else', 'Something else', undefined, false],
+  ]);
+  assert.equal(rest, ['**Not on this canvas**', '- Train the full-size Shakespeare model and sample from it: needs a GPU', '- Reproduce GPT-2 training on OpenWebText: needs a download of about 54 GB'].join('\n'));
+  assert.doesNotMatch(text + rest, /Downloads the Shakespeare|Recommended to start|Here's what you can do with it|1\./, 'no descriptions, no numbered text: the ways are rows');
 });
 
 test('one practical way and none: the same template, short', () => {
   const one = catalogueMessage({ ...doc, routes: doc.routes.filter(r => r.routeId === 'shakespeare_char_cpu' || !r.practical) });
   assert.equal(one.kind, 'one');
-  assert.match(one.text, /^\*\*nanoGPT\*\*: one way to use it on a CPU\n\n1\. ⭐ \*\*Train a tiny Shakespeare model on CPU and read what it writes\*\* · Quick\n\nSetting that up now\.\n\n\*\*Not on this canvas\*\*\n- /);
+  assert.equal(one.text, '**nanoGPT**: one way to use it on a CPU');
+  assert.deepEqual(one.chips.map(c => c.id), ['route:shakespeare_char_cpu'], 'the one way is a row too: a click starts it');
+  assert.match(one.rest, /^\*\*Not on this canvas\*\*\n- /);
   const zero = catalogueMessage({ ...doc, routes: doc.routes.filter(r => !r.practical) });
   assert.equal(zero.kind, 'zero');
   assert.match(zero.text, /^\*\*nanoGPT\*\*: it can't run on this canvas\n\nA small GPT training codebase\.\n\n\*\*What it needs\*\*\n- /);
