@@ -92,11 +92,11 @@ function renderMarks(id, width, edit = spec => spec) {
 
 test('the run band and flag align with the observed counts at all three widths', () => {
   for (const width of widths) {
-    // A line series of more than six points marks only its first and last point and labelled points (owner 2026-11-08): the run's start point, which the band is checked against, is labelled here.
-    const labelRunStart = spec => { for (const series of spec.diagram.series) for (const point of series.points) if (point.x === 7 && point.y === 5) point.label = 'Run start'; return spec; };
+    // Sprint default: a line series of 9 to 19 samples marks every other sample and the labelled ones (it used to mark the first, last and labelled points above six): the run's start and end points, which the band and flag are checked against, are labelled here.
+    const labelRunStart = spec => { for (const series of spec.diagram.series) for (const point of series.points) { if (point.x === 7 && point.y === 5) point.label = 'Run start'; if (point.x === 12 && point.y === 5) point.label = 'Run end'; } return spec; };
     const marks = renderMarks(runId, width, labelRunStart);
     const observations = marks.filter(mark => mark.props['data-tutor-coordinate-point']);
-    assert.equal(observations.length, 3, 'first point, the labelled run start and the last point');
+    assert.equal(observations.length, 7, 'every other sample (minutes 1, 3, 5, 7, 9, 11) and the labelled run end');
     const start = observations.find(mark => mark.props['data-tutor-coordinate-point'] === '7,5');
     const end = observations.find(mark => mark.props['data-tutor-coordinate-point'] === '12,5');
     const band = marks.find(mark => mark.props['data-tutor-plot-band']);

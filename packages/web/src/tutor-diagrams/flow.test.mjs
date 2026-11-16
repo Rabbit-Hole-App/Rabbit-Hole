@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { convergingFlow } from '../../scripts/batch-1-followup-fixtures.mjs';
 import { layoutFlow } from './flow.js';
 import { textWidth } from './primitives.js';
+import { wirePoints } from './test-wire-points.mjs';
 
 const cache = {
   kind: 'flow', title: 'Cache lookup',
@@ -51,7 +52,7 @@ test('a skip edge stays outside intermediate boxes and preserves a labeled join'
   const boxes = elements.filter(element => element.props['data-tutor-node']);
   assert.equal(routes.length, 3);
   for (const route of routes) {
-    const points = route.props.children.props.children[0].props.points.split(' ').map(pair => pair.split(',').map(Number));
+    const points = wirePoints(route);
     for (const node of boxes.filter(node => !route.props['data-tutor-edge'].split(':').includes(node.props['data-tutor-node']))) {
       const { x, y, width, height } = node.props.children[0].props;
       for (let i = 1; i < points.length; i++) {
@@ -67,8 +68,7 @@ test('a skip edge stays outside intermediate boxes and preserves a labeled join'
   assert.match(render(layoutFlow(flow, 320)), /Continue/);
 });
 
-const pointsFor = element => element.props.children.props.children[0].props.points
-  .split(' ').map(pair => pair.split(',').map(Number));
+const pointsFor = wirePoints;
 
 function touches(points, rect) {
   return points.slice(1).some(([x2, y2], index) => {
@@ -186,7 +186,7 @@ test('flow preserves ordinary long words and wraps hyphenated labels at their hy
     assert.ok(bottom - top <= right - left, 'long label should not force an unusually tall diamond');
     assert.match(render({ elements: [review] }).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '), /Review recommendations/);
     const paths = layout.elements.filter(element => element.props['data-tutor-edge']?.startsWith('root:'));
-    assert.ok(pointsFor(paths[0])[0][0] < pointsFor(paths[1])[0][0], 'the outer route leaves from the outer port');
+    assert.deepEqual(pointsFor(paths[0])[0], pointsFor(paths[1])[0], 'the two branches of a two-way decision leave from its one bottom-centre point');
     const visible = render(layout).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     assert.match(visible, /Has recommendations/);
     assert.match(visible, /Configuration- ?dependent response/);
@@ -219,7 +219,7 @@ test('converging routes have distinct arrowheads that meet the rounded outcome',
       assert.ok(routes[i - 1][2][0] > routes[i][2][0], 'earlier departures use the outer lanes');
       assert.ok(routes[i - 1][3][1] > routes[i][3][1], 'the inner lane turns toward the outcome first');
     }
-    if (width === 320) assert.ok(tips.some(([, y]) => y > rect.y), 'outer tips reach the rounded corners');
+    if (width === 320) assert.ok(tips.every(([, y]) => y === rect.y), 'at the 180 px minimum width every arrowhead lands on the flat top of the pill');
     const rx = Math.min(rect.rx, rect.width / 2);
     const ry = Math.min(rect.rx, rect.height / 2);
     for (const [index, [x, y]] of tips.entries()) {
@@ -343,78 +343,79 @@ const labelRect = (elements, word) => elements.find(item => Array.isArray(item.p
   && !item.props['data-tutor-node'] && texts(item).some(({ lines }) => lines.join(' ') === word))?.props.children[0].props;
 const digest = layout => createHash('sha256').update(render(layout)).digest('hex').slice(0, 16);
 
-test('RD-2: a two-way decision leaves both side vertices at its mid-height and drops straight onto each target', () => {
+test('RD-2: a two-way decision leaves its bottom centre, shares the first drop, runs apart at one height and drops onto each target', () => {
   for (const width of [600, 720]) {
     const { elements } = layoutFlow(swallow, width);
     const diamond = shapeOf(elements, 'aspiration');
     const yes = wireOf(elements, 'aspiration:defer'), no = wireOf(elements, 'aspiration:proceed');
-    assert.deepEqual(yes[0], [diamond.left, diamond.mid], 'Yes leaves the left vertex');
-    assert.deepEqual(no[0], [diamond.right, diamond.mid], 'No leaves the right vertex');
-    assert.equal(yes.length, 3);
-    assert.equal(no.length, 3);
-    assert.equal(yes[0][1], no[0][1], 'both runs are at the same height');
+    assert.deepEqual(yes[0], [diamond.cx, diamond.bottom], 'Yes leaves the bottom centre');
+    assert.deepEqual(no[0], [diamond.cx, diamond.bottom], 'No leaves the same point');
+    assert.equal(yes.length, 4);
+    assert.equal(no.length, 4);
+    assert.equal(yes[1][1], no[1][1], 'both runs are at the same height');
     for (const [points, id] of [[yes, 'defer'], [no, 'proceed']]) {
       const target = shapeOf(elements, id);
-      assert.equal(points[1][1], points[0][1], 'the first segment is horizontal');
-      assert.equal(points[2][0], points[1][0], 'the second segment drops straight');
-      assert.equal(points[2][1], target.y, 'the drop ends on the target top');
-      assert.ok(target.x < points[2][0] && points[2][0] < target.x + target.width, 'and lands inside the target');
+      assert.equal(points[1][0], diamond.cx, 'the first segment drops straight from the diamond');
+      assert.equal(points[2][1], points[1][1], 'the second segment is the horizontal run');
+      assert.equal(points[3][0], points[2][0], 'the last segment drops straight');
+      assert.equal(points[3][1], target.y, 'the drop ends on the target top');
+      assert.ok(target.x < points[3][0] && points[3][0] < target.x + target.width, 'and lands inside the target');
     }
-    assert.ok(yes[1][0] < diamond.left && no[1][0] > diamond.right, 'each run goes outward from its vertex');
+    assert.ok(yes[2][0] < diamond.cx && no[2][0] > diamond.cx, 'each run goes outward from the centre');
   }
 });
 
-test('RD-2: the Yes and No labels are centred on their runs, sit above the line, and touch no wire', () => {
+test('RD-2: the Yes and No labels are centred on their runs, sit on the line (the wire is cut behind them), and touch no other wire', () => {
   for (const width of [600, 720]) {
     const { elements } = layoutFlow(swallow, width);
-    const wires = elements.filter(element => element.props['data-tutor-edge']).map(pointsFor);
+    const others = elements.filter(element => element.props['data-tutor-edge'] && !element.props['data-tutor-edge'].startsWith('aspiration:')).map(pointsFor);
     for (const [word, edge] of [['Yes', 'aspiration:defer'], ['No', 'aspiration:proceed']]) {
       const rect = labelRect(elements, word);
       assert.ok(rect, `${word} label is drawn on the graph`);
-      const [from, turn] = wireOf(elements, edge);
-      assert.ok(Math.abs(rect.x + rect.width / 2 - (from[0] + turn[0]) / 2) <= 1, `${word} is centred on its run`);
-      assert.ok(Math.abs(rect.y + rect.height + 4 - from[1]) <= 1, `${word} sits 4 px above the line`);
-      for (const points of wires) assert.equal(touches(points, rect), false, `${word} label touches a wire`);
+      const [, corner, end] = wireOf(elements, edge);
+      assert.ok(Math.abs(rect.x + rect.width / 2 - (corner[0] + end[0]) / 2) <= 1, `${word} is centred on its run`);
+      assert.ok(Math.abs(rect.y + rect.height / 2 - corner[1]) <= 1, `${word} sits on its run`);
+      for (const points of others) assert.equal(touches(points, rect), false, `${word} label touches another wire`);
     }
   }
 });
 
-test('RD-2: the gap below a two-way decision row takes no lanes for its two branches', () => {
+test('RD-2: the gap below a two-way decision row holds one lane shared by its two branches', () => {
   const { elements } = layoutFlow(swallow, 600);
   const diamond = shapeOf(elements, 'aspiration');
   const target = shapeOf(elements, 'defer');
-  assert.ok(target.y - diamond.bottom <= 24, `the targets sit close under the diamond (${target.y - diamond.bottom} px)`);
+  assert.equal(wireOf(elements, 'aspiration:defer')[1][1], wireOf(elements, 'aspiration:proceed')[1][1], 'one lane for both branches');
+  assert.ok(target.y - diamond.bottom <= 64, `the targets sit close under the diamond (${target.y - diamond.bottom} px)`);
 });
 
-test('RD-2: a three-branch decision and a decision whose targets share one side route exactly as before', () => {
-  assert.deepEqual([408, 720].map(width => digest(layoutFlow(triage, width))), ['713a9b0ec863121c', '0375c15d75a71a98']);
-  // RD-4a: the three-branch decision's labels now share one height (they moved from their own lanes to the lane above the targets); the same-side decision below has its Yes and No labels on one lane above the targets too.
-  assert.deepEqual([408, 720].map(width => digest(layoutFlow(sameSide, width))), ['43a2ad3084b48105', 'f4a1391e12a3b428']);
+test('RD-2: a three-branch decision keeps its lanes; the digests are the markup under the sprint theme', () => {
+  assert.deepEqual([408, 720].map(width => digest(layoutFlow(triage, width))), ['4ba500adae549484', '4b724c68cf64896f']);
+  // The same-side decision below has two branches, so it takes the shared fork; its card is as wide at 408 as at 720 (the 180 px node minimum).
+  assert.deepEqual([408, 720].map(width => digest(layoutFlow(sameSide, width))), ['5c87270433a1ca7a', '5c87270433a1ca7a']);
 });
 
-test('RD-2b: where the targets sit under the side vertices (the swallow card at card widths) each wire drops straight from its vertex and its label stands outside it', () => {
+test('RD-2b: at the card widths each branch drops onto its target from the shared run and its label is centred on its run', () => {
   for (const width of [320, 408, 440]) {
     const { elements } = layoutFlow(swallow, width);
     const diamond = shapeOf(elements, 'aspiration');
-    const wires = elements.filter(element => element.props['data-tutor-edge']).map(pointsFor);
-    for (const [edge, id, vertexX, word, outward] of [['aspiration:defer', 'defer', diamond.left, 'Yes', -1], ['aspiration:proceed', 'proceed', diamond.right, 'No', 1]]) {
+    const others = elements.filter(element => element.props['data-tutor-edge'] && !element.props['data-tutor-edge'].startsWith('aspiration:')).map(pointsFor);
+    for (const [edge, id, word, outward] of [['aspiration:defer', 'defer', 'Yes', -1], ['aspiration:proceed', 'proceed', 'No', 1]]) {
       const points = wireOf(elements, edge), target = shapeOf(elements, id), rect = labelRect(elements, word);
-      assert.deepEqual(points[0], [vertexX, diamond.mid], `${word} leaves its side vertex at ${width}`);
-      assert.equal(points.length, 2, `${word} drops straight at ${width}`);
-      assert.deepEqual(points[1], [vertexX, target.y], `${word} lands on the target top at ${width}`);
-      assert.ok(target.x < vertexX && vertexX < target.x + target.width, `${word} lands inside its target at ${width}`);
+      assert.deepEqual(points[0], [diamond.cx, diamond.bottom], `${word} leaves the bottom centre at ${width}`);
+      assert.equal(points.length, 4, `${word} has one run and one drop at ${width}`);
+      assert.equal(points[3][1], target.y, `${word} lands on the target top at ${width}`);
+      assert.ok(target.x < points[3][0] && points[3][0] < target.x + target.width, `${word} lands inside its target at ${width}`);
+      assert.ok(outward < 0 ? points[2][0] < diamond.cx : points[2][0] > diamond.cx, `${word} runs outward at ${width}`);
       assert.ok(rect, `${word} label is drawn`);
-      assert.ok(outward < 0 ? rect.x + rect.width <= vertexX - 3 : rect.x >= vertexX + 3, `${word} stands outside the vertex at ${width}`);
-      assert.ok(Math.abs(rect.y + rect.height + 4 - diamond.mid) <= 1, `${word} sits 4 px above the line at ${width}`);
-      for (const other of wires) assert.equal(touches(other, rect), false, `${word} label touches a wire at ${width}`);
+      assert.ok(Math.abs(rect.x + rect.width / 2 - (points[1][0] + points[2][0]) / 2) <= 1 && Math.abs(rect.y + rect.height / 2 - points[1][1]) <= 1, `${word} is centred on its run at ${width}`);
+      for (const other of others) assert.equal(touches(other, rect), false, `${word} label touches another wire at ${width}`);
     }
-    assert.equal(wireOf(elements, 'aspiration:defer')[0][1], wireOf(elements, 'aspiration:proceed')[0][1], 'both branches leave at the same height');
+    assert.equal(wireOf(elements, 'aspiration:defer')[1][1], wireOf(elements, 'aspiration:proceed')[1][1], 'both branches run at the same height');
   }
 });
 
-test('RD-2b: at the natural width of the swallow card, where the drop would miss the capsule, the old routing is kept byte for byte', () => {
-  assert.deepEqual([layoutFlow(swallow, 0).width, digest(layoutFlow(swallow, 0)), digest(layoutFlow(swallow, 300))], [283, '4efc8861c41c41fa', 'cfdf62dc8f81d3e7']);
-  // RD-4c changed the corner radius of the two outcome capsules (their text left the pill); RD-4a moved the Yes and No labels onto one lane. The wires' routes are as before.
+test('RD-2b: the swallow card is as wide at its natural width as at any narrower request: the 180 px node minimum', () => {
+  assert.deepEqual([layoutFlow(swallow, 0).width, digest(layoutFlow(swallow, 0)) === digest(layoutFlow(swallow, 300))], [406, true]);
 });
 
 test('RD-2: the highlight path style applies to the routed branch', () => {

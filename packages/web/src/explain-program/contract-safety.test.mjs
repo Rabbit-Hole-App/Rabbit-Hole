@@ -68,7 +68,8 @@ test('the renderer path draws program text through text nodes: the only HTML sin
   assert.equal(renderer.includes('innerHTML ='), false);
   // Prose and labels are children or SVG text, not markup: the two places program text lands.
   assert.match(renderer, /<span key=\{index\} style=\{\{ whiteSpace: 'pre' \}\}>\{run\.text\}<\/span>/);
-  assert.match(renderer, /fill: labelFill \}\}>\{shown\}<\/text>/);
+  // a caption wraps through wrapped(), which returns tspans of the same string (the composed theme wraps a caption at the scene width)
+  assert.match(renderer, /fill: labelFill \}\}>\{wrapped\(shown, [^\n]*\)\}<\/text>/);
   // The program card itself never sets HTML.
   const scene = read('./ProgramScene.jsx');
   for (const sink of ['dangerouslySetInnerHTML', 'innerHTML', 'eval(', 'new Function', 'document.write']) assert.equal(scene.includes(sink), false, `ProgramScene must not use ${sink}`);
