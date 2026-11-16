@@ -11,7 +11,7 @@ import { renderTutorPrompts } from '../scripts/build-tutor-prompts.mjs';
 import { REPOSITORY_SYSTEM } from '../src/agents/learn-chat.js';
 import { CODEBASE_USES } from '../../web/src/learn-codebase-goals.js';
 import { CODE_CAPABILITIES, CHAT_CAPABILITIES, CHAT_ROUTES, chatRoutesWith } from '../../web/src/inline-ai-route.js';
-import { decideChat, decideCodebaseUse, hasCodeRef, verifyChatRoute } from '../src/chat-capability-route.js';
+import { availability, decideChat, decideCodebaseUse, hasCodeRef, verifyChatRoute } from '../src/chat-capability-route.js';
 
 const read = path => readFileSync(new URL(`../src/prompts/tutor/${path}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const sha = text => createHash('sha256').update(text).digest('hex');
@@ -86,10 +86,10 @@ const untouchable = new Proxy({}, { get: (_, key) => { throw new Error(`touched 
 const ENV = { INLINE_DECISION_KEY: 'k'.repeat(40), VERCEL_TYPESAFE_API_KEY: 'test-only', LEARN_DB: untouchable, DB: untouchable, LEARN_VIDEOS: untouchable };
 const EMAIL = 'owner@example.test';
 const CODE_REF = { sourceId: 'code:acme/lab@' + 'a'.repeat(40) + ':lab.py', kind: 'code', name: 'lab.py', version: '', range: { path: 'lab.py', start: 1, end: 5 } };
-const fieldsOf = (text, source_refs = null) => ({ app: 'canvas-0a1b2c3d', text, mode: 'auto', selection: null, source_refs, motion: null });
+const fieldsOf = (text, source_refs = null, rehearsal = true) => ({ app: 'canvas-0a1b2c3d', text, mode: 'auto', selection: null, source_refs, motion: null, rehearsal });
 const jev = (choice, probability, confidence = 0.9) => ({ body: { model: 'jev-1.13.0', answers: { route: { type: 'choice', choice, confidence, probabilities: { [choice]: probability } } } }, ms: 40, model: 'jev-1.13.0', inputTokens: 600, cost: 0.0004 });
 const asked = reply => { const ask = async (...args) => { ask.calls.push(args); return reply; }; ask.calls = []; return ask; };
-const decide = (ask, text, refs, over = {}) => decideChat(ENV, { email: EMAIL, app: 'canvas-0a1b2c3d', requestId: 'req-00000001', fields: fieldsOf(text, refs), capability: null, enabled: null, ...over }, { ask });
+const decide = (ask, text, refs, over = {}) => decideChat(ENV, { email: EMAIL, app: 'canvas-0a1b2c3d', requestId: 'req-00000001', fields: fieldsOf(text, refs, over.rehearsal ?? true), capability: null, enabled: null, ...over }, { ask });
 const offered = ask => Object.keys(ask.calls[0][1].questions.route.criteria);
 
 test('code-explain is a declared route, not a command: never in CHAT_CAPABILITIES or the default routes, offered only through chatRoutesWith', () => {
@@ -126,6 +126,17 @@ test('with no code ref code-explain is not offered, cannot be picked, and the qu
 test('below the threshold a code question is an ordinary answer, never a guess', async () => {
   const out = await decide(asked(jev('code-explain', 0.4, 0.9)), 'what do these lines do?', [CODE_REF]);
   assert.deepEqual([out.route, out.via, out.token], ['answer', 'jev-low', null]);
+});
+
+test('code-explain ships dark: a production build (no rehearsal flag) is never offered it and a pick or a named capability is an ordinary answer (Reviewer 2026-11-16 11:55)', async () => {
+  const ask = asked(jev('answer', 0.97));
+  await decide(ask, 'how does attention hide later tokens?', [CODE_REF], { rehearsal: false });
+  assert.ok(!offered(ask).includes('code-explain'));
+  assert.equal((await decide(asked(jev('code-explain', 0.99, 0.9)), 'how does attention hide later tokens?', [CODE_REF], { rehearsal: false })).route, 'answer');
+  const named = await decide(asked(jev('answer', 0.97)), 'how does attention hide later tokens?', [CODE_REF], { rehearsal: false, capability: 'code-explain' });
+  assert.deepEqual([named.route, named.token], ['answer', null]);
+  assert.equal(availability(ENV, { name: 'code-explain' }, null), false);
+  assert.equal(availability(ENV, { name: 'code-explain', rehearsal: true }, null), true);
 });
 
 test('the intake decision carries route { use, confidence }, null when nothing was chosen', async () => {

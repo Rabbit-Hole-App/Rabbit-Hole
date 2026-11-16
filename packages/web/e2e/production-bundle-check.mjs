@@ -20,7 +20,7 @@ const DEV_MARKERS = ['Insert a sample lesson block', 'Agent workspace', 'Maths a
   'No review board is registered', 'small-learn-notebook-dev', 'small-learn-canvas-notebook-dev',
   'Material plan ready for review', 'Draft material plan', 'Quiz answer key', 'Edit this section in chat', 'Edit and approve curriculum',
   'Finish up in Curriculum', '__voiceFake', 'failStt',
-  'data-code-explain-card', 'code-explain']; // the code-explain card's DOM marker and its capability string (control plane route / contract $id): in the lazy chunks only
+  'data-code-explain-card']; // the code-explain card's DOM marker: in the lazy chunks only. The capability name 'code-explain' is a route constant the server and the client share (inline-ai-route.js), so it ships; the route itself is dark in production (chat-capability-route.js availability, Reviewer 2026-11-16 11:55)
 // The retired CLI/BYOC Library empty state (App.jsx, behind !learnPreview): a Rabbit Hole build folds it away, so these strings must not
 // ship at all. A build without VITE_RABBIT_HOLE / VITE_COACHING_DEV (DIST=<that build>) must FAIL on them: it proves they are real.
 // ponytail: the Sidebar Developer tab / New app dialog and run.jsx copy stay in the bundle behind a runtime flag; e2e/legacy-copy-check.mjs
