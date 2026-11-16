@@ -12,3 +12,7 @@ When every `event.time` is one or two digits, the timeline draws the steps form:
 
 ## Evidence
 `steps-after-408.png`, `steps-after-720.png`: times 1 to 4 with the four titles and their one-line details. `steps-before-408.png`, `steps-before-720.png`: the same spec on released main (pill form). `dates-after-408.png`: a word-time timeline, unchanged.
+
+## Follow-ups (coordinator, after the owner's read)
+- Planner: the two-line edit from planner-grep.md is applied exactly (`planner-edit.diff`; KIND.timeline also covers a short numbered derivation or recipe of 3 to 6 branch-free stages with times "1" to "N", KIND.flow says such a derivation is a timeline). The ship round's planner-kind replay will report moved picks.
+- Reference: `ml-mle-steps` (ml-mle-steps-reference.js, registered in `estimationEvaluationReferences` next to the Bernoulli and k-fold references, the way those two are). `reference-standard-408.png` and `reference-standard-720.png` are drawn through the library path (diagramReferences). Ship round, not done here: svg-snapshots.json, and the reference's token budget in illustration-token-budgets.json (the Bernoulli reference has one) if its test requires it.

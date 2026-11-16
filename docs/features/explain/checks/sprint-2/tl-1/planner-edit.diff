@@ -1,0 +1,17 @@
+diff --git a/packages/control-plane/src/explanation-planner.js b/packages/control-plane/src/explanation-planner.js
+index d93c7f4d4..563fb914f 100644
+--- a/packages/control-plane/src/explanation-planner.js
++++ b/packages/control-plane/src/explanation-planner.js
+@@ -13,10 +13,10 @@ export const PLANNER_MODEL = 'jev-latest', PLANNER_TIMEOUT_MS = 1200, FIX_AT = 0
+ // A two-things plan draws each thing as a structure: only these kinds are offered (a matrix is a grid and a comparison is the one-visual answer this plan replaces: stack-vs-queue got an invalid matrix, owner 2026-11-08).
+ const EACH_KINDS = ['tree', 'flow', 'relationship', 'layers', 'cycle', 'sequence'];
+ const KIND = {
+-  flow: 'Ordered steps of one process, with or without decisions; the default only when nothing below fits.',
++  flow: 'Ordered steps of one process, with or without decisions (a numbered derivation with no branches is a timeline); the default only when nothing below fits.',
+   sequence: 'Two to four named parties sending things to each other: client/server, sender/receiver, protocols, handshakes, request/response.',
+   cycle: 'Steps that repeat, where the last feeds the first: water cycle, training loop, engine strokes.',
+-  timeline: 'Events ordered by dates, years or eras.',
++  timeline: 'Events ordered by dates, years or eras. Also a short numbered derivation or recipe of 3 to 6 stages in a fixed order with no branches, written with times "1" to "N".',
+   tree: 'A hierarchy, parts of one thing, splits, recursive calls; binary trees, BSTs, heaps, decision trees as structures.',
+   relationship: 'Named things linked by labelled relations, including feedback and cycles between them; causes and effects.',
+   transformation: 'The same thing before and after an operation: reshape, encode, normalise, differencing. Never for a function, wave or encoding over position or time.',
