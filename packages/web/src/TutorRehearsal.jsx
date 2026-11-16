@@ -11,7 +11,7 @@ import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
 import { flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute } from './rehearsal-flow.js';
 import { fitReply, learnOf, learnReply } from './learn-intake.js';
-import { chapterCount, planRows, storedLearn } from './learn-plan.js';
+import { chapterCount, cleanOps, planRows, storedLearn } from './learn-plan.js';
 import { SENTENCES, catalogueMessage } from './tutor-rehearsal-text.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
@@ -202,7 +202,7 @@ export default function TutorRehearsalFlow({ chat }) {
       patch({ plan: { ...before, busy: false }, planLog: [...st.current.planLog, { ...line('assistant', out.text), ...(extra.length ? { choices: extra } : {}) }] });
       return;
     }
-    const proposal = { ops: out.proposal.ops, base: out.proposal.base, source: 'learn-plan' };
+    const proposal = { ops: cleanOps(out.proposal.ops), base: out.proposal.base, source: 'learn-plan' }; // the model's own numbers in titles are dropped: the list and the contents number them
     patch({ plan: { status: 'draft', text: out.text, ops: proposal.ops, base: proposal.base, rows: planRows(out.rows, { ops: proposal.ops, learn }), count: chapterCount(proposal.ops), previous, option } });
     chat.canvasOps?.proposeOutline?.(proposal); // the same proposal in the contents panel: Apply there is Accept here
     savePlan({ ops: proposal.ops, revision: proposal.base, acceptedAt: null, text: out.text });

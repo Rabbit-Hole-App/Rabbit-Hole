@@ -93,3 +93,12 @@ test('wiring: the contents go read-only with no composer after Accept; the draft
   assert.match(flow, /\.\.\.\(extra\.length \? \{ choices: extra \} : \{\}\)/, 'an off-plan answer keeps its nearest-topic rows');
   for (const file of ['learn-plan.js', 'rehearsal-flow.js', 'TutorRehearsal.jsx']) assert.doesNotMatch(read(file), /nanoGPT|datasette|shakespeare|attention|tokens|word2vec/i, file);
 });
+
+test('a title that carries its own number is not numbered twice', async () => {
+  const { cleanTitle, cleanOps } = await import('./learn-plan.js');
+  assert.deepEqual(['1. The Big Picture', '2.1 Plugins', '3) Setup', 'Version 2 notes', '2024 in review'].map(cleanTitle), ['The Big Picture', 'Plugins', 'Setup', 'Version 2 notes', '2024 in review']);
+  const numbered = [{ op: 'add', key: 'c', text: '1. The Big Picture', level: 1 }, { op: 'add', text: '1.1 One object', parent: 'c', level: 2 }];
+  assert.equal(planList(numbered), '1. The Big Picture\n   1. One object');
+  assert.deepEqual(cleanOps(numbered).map(op => op.text), ['The Big Picture', 'One object']);
+  assert.match(read('TutorRehearsal.jsx'), /ops: cleanOps\(out\.proposal\.ops\)/, 'the contents get the clean titles too');
+});

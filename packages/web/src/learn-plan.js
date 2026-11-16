@@ -4,6 +4,10 @@
 // Pure: no React, no network, no storage.
 import { SENTENCES } from './tutor-rehearsal-text.js';
 
+// A title that carries its own number ("1. The Big Picture", "2.1 Plugins") would be numbered twice, in the list and in the contents: the model's number is dropped (a live draft did this, 2026-11-15).
+export const cleanTitle = text => String(text || '').replace(/^\s*(?:\d+(?:\.\d+)+[.)]?|\d+[.)])\s+/, '').trim();
+export const cleanOps = ops => (Array.isArray(ops) ? ops : []).map(op => (op && typeof op.text === 'string' ? { ...op, text: cleanTitle(op.text) } : op));
+
 // A trailing "[files: a, b]" rides in a description for the contents; the list shows titles only (spec section 2).
 export const stripFiles = text => String(text || '').replace(/\s*\[files:[^\]]*\]\s*$/i, '').trim();
 
@@ -13,8 +17,8 @@ export function planTree(ops) {
   for (const op of Array.isArray(ops) ? ops : []) {
     if (op?.op !== 'add' || typeof op.text !== 'string') continue;
     const level = Number(op.level) || (op.parent ? 2 : 1), background = /\(background\)/i.test(String(op.description || ''));
-    if (level === 1 && !op.parent) { const chapter = { key: op.key ?? null, title: op.text.trim(), sections: [] }; chapters.push(chapter); if (op.key) byKey.set(op.key, chapter); }
-    else { const chapter = byKey.get(op.parent) ?? chapters.at(-1); chapter?.sections.push({ key: op.key ?? null, title: op.text.trim(), background }); }
+    if (level === 1 && !op.parent) { const chapter = { key: op.key ?? null, title: cleanTitle(op.text), sections: [] }; chapters.push(chapter); if (op.key) byKey.set(op.key, chapter); }
+    else { const chapter = byKey.get(op.parent) ?? chapters.at(-1); chapter?.sections.push({ key: op.key ?? null, title: cleanTitle(op.text), background }); }
   }
   return chapters;
 }
