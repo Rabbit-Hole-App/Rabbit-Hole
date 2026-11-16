@@ -12,7 +12,14 @@ export const TEACHING = Object.freeze({
   blueFill: PALETTE.process, mustardFill: PALETTE.decision, tealFill: PALETTE.outcome,
   coral: PALETTE.coral, olive: PALETTE.olive, lavender: PALETTE.lavender, rose: PALETTE.rose, slate: PALETTE.slate,
   ground: '#FFFCF0', outline: FILLED_INK.toUpperCase(),
+  orange: '#F89830', // measured from Wondering's illustrations, approximate
 });
+// The names a tree node's `fill` may use (ml-topology-spec.js TREE_FILLS) and the fill order of a tree drawn by depth: root, level 1, level 2, level 3, then on.
+export const TEACHING_FILL = Object.freeze({
+  blue: TEACHING.blueFill, teal: TEACHING.tealFill, olive: TEACHING.olive, mustard: TEACHING.mustardFill, orange: TEACHING.orange,
+  coral: TEACHING.coral, lavender: TEACHING.lavender, rose: TEACHING.rose, slate: TEACHING.slate,
+});
+export const TEACHING_DEPTH_FILLS = Object.freeze(['blue', 'teal', 'mustard', 'orange', 'lavender', 'rose', 'slate']);
 // Tokens of the approved Codex /interactive reference cards (docs/features/interact/references) that the written card's TEACHING set has no name for: the blue ink of a heading
 // or a button label, and the border of a blue chip. Additive: TEACHING itself is unchanged.
 export const TEACHING_ACCENT = Object.freeze({ blueInk: '#375d92', blueBorder: '#adc4e5' });

@@ -1,7 +1,8 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { TEACHING, teachingBox, teachingConnector } from './teaching-theme.js';
-import { extendedFlow, extendedTree, nodeMetadata } from './ml-topology-spec.js';
+import { extendedFlow, extendedTree, isDotTree, nodeMetadata } from './ml-topology-spec.js';
+import { dotTree } from './dot-tree-layout.js';
 import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
 const PAD = 12, TEXT = 14, SMALL = 13, GAP = 18;
@@ -315,7 +316,7 @@ function restyleFlow(element, roles, active = false, role) {
 
 export function createLayouts({ legacy }) {
   return {
-    tree: (d, width) => !extendedTree(d) ? legacy.tree(d, width) : d.layout === 'dendrogram' ? dendrogram(d, width)
+    tree: (d, width, options) => isDotTree(d) ? dotTree(d, width, options) : !extendedTree(d) ? legacy.tree(d, width) : d.layout === 'dendrogram' ? dendrogram(d, width)
       : d.layout === 'binary' || d.layout === 'hierarchy' ? topDown(d, width) : outline(d, width),
     relationship: (d, width) => {
       const hasTensor = d.nodes.some(n => n.tensor);

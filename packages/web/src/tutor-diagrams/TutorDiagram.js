@@ -1,4 +1,5 @@
-import { TEACHING_FONT, TEACHING_STYLE } from './teaching-theme.js';
+import { TEACHING, TEACHING_FONT, TEACHING_STYLE } from './teaching-theme.js';
+import { isDotTree } from './ml-topology-spec.js';
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react';
 import { layouts } from './layouts.js';
 import { isExtendedPlot } from './ml-plot-spec.js';
@@ -30,7 +31,9 @@ export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
     xmlns: 'http://www.w3.org/2000/svg', width, height, viewBox: `0 0 ${width} ${height}`, role: 'img',
     'aria-label': describeTutorDiagram(document),
     fontFamily: teaching ? TEACHING_FONT : 'Arial, Liberation Sans, sans-serif',
-    style: { display: 'block', maxWidth: 'none', marginInline: 'auto', ...(teaching ? TEACHING_STYLE : {}) },
+    style: { display: 'block', maxWidth: 'none', marginInline: 'auto', ...(teaching ? TEACHING_STYLE : {}),
+      // Panels of round-and-square trees sit on the palette's cream ground alone: no inset surface.
+      ...(diagram.kind === 'panels' && diagram.panels.every(panel => isDotTree(panel.diagram)) ? { '--viz-surface': TEACHING.ground } : {}) },
     'data-tutor-diagram': diagram.kind,
   },
   h('title', null, diagram.title),

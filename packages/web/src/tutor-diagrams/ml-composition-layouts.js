@@ -1,6 +1,7 @@
 import { createElement as h } from 'react';
 import { fitCaption, label, layoutCaption, lineHeight, longestWordWidth, wrap } from './primitives.js';
 import { sharedPlotLabelSpace } from './ml-plot-layouts.js';
+import { isDotTree } from './ml-topology-spec.js';
 import { TEACHING as T, TEACHING_SERIES, teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
 
 const BUDGET = 680; // the card's text column: panels share it whatever the available width
@@ -190,9 +191,39 @@ function panelsKind(diagram, width, renderChild) {
   return { width: sceneWidth, height: bottom + PAD, elements: offset ? [h('g', { transform: `translate(${offset} 0)` }, ...elements)] : elements };
 }
 
+// panels of round-and-square trees (the Wondering look): no panel border, each panel exactly its tree's width (every tree is at the one fixed node size and level
+// spacing, so a smaller tree is drawn smaller), the panel label printed once as the only title, and a thick dark arrow with its operation above it.
+const TREE_LABEL = 16, TREE_ARROW = 4, TREE_HEAD = 12, TREE_OPERATION = 20, TREE_LINK_GAP = 112;
+function treePanels(diagram, renderChild) {
+  const { panels, links = [] } = diagram;
+  const scenes = panels.map(panel => renderChild(panel.diagram, 0, { natural: true }));
+  const named = panels.some(panel => panel.label);
+  const bodyTop = PAD + (named ? lineHeight(TREE_LABEL) + 8 : 0);
+  const body = Math.max(...scenes.map(scene => scene.height));
+  const elements = [], edges = [];
+  let x = PAD, lastGap = GAP;
+  panels.forEach((panel, index) => {
+    const { width } = scenes[index];
+    if (panel.label) elements.push(label(panel.label, x + width / 2, PAD + lineHeight(TREE_LABEL) / 2, { size: TREE_LABEL, weight: 700 }));
+    elements.push(h('g', { transform: `translate(${x} ${bodyTop})`, 'data-tutor-composition-child': index }, ...scenes[index].elements));
+    edges.push([x, x + width]);
+    lastGap = links.some(link => link.from === index) ? TREE_LINK_GAP : GAP;
+    x += width + lastGap;
+  });
+  const y = bodyTop + body / 2;
+  for (const link of links) {
+    const start = edges[link.from][1] + 14, end = edges[link.to][0] - 14;
+    elements.push(h('g', { 'data-tutor-panel-link': '' },
+      h('line', { x1: start, y1: y, x2: end - TREE_HEAD, y2: y, stroke: T.outline, strokeWidth: TREE_ARROW }),
+      h('polygon', { points: `${end},${y} ${end - TREE_HEAD},${y - TREE_HEAD / 2 - 1} ${end - TREE_HEAD},${y + TREE_HEAD / 2 + 1}`, fill: T.outline })));
+    elements.push(label(link.operation, (start + end) / 2, y - 12 - lineHeight(TREE_OPERATION) / 2, { size: TREE_OPERATION, weight: 700 }));
+  }
+  return { width: x - lastGap + PAD, height: bodyTop + body + PAD, elements };
+}
+
 export function createLayouts({ legacy, renderChild }) {
   return {
-    panels: (diagram, width) => panelsKind(diagram, width, renderChild),
+    panels: (diagram, width) => diagram.panels.every(panel => isDotTree(panel.diagram)) ? treePanels(diagram, renderChild) : panelsKind(diagram, width, renderChild),
     comparison: (diagram, width) => diagram.variant === 'panels' ? visualComparison(diagram, width, renderChild) : legacy.comparison(diagram, width),
     transformation: (diagram, width) => diagram.variant === 'visual' ? visualTransformation(diagram, width, renderChild) : legacy.transformation(diagram, width),
   };
