@@ -8,7 +8,7 @@ Query strip input (blue); Key strip output (teal); Value strip observed (olive);
 ## Stops (nearest thing used)
 1. `duration` must be positive in the scene schema (`z.number().positive()`): duration 1 with an empty timeline (a static scene, `isStaticScene`).
 2. A strip prints numbers; there is no cells-only option: values are eight `null` (blank cells). The cell fill is the role's 22% tint over the ground (the soft data tier), pale next to the target's saturated cells; no per-strip strength control.
-3. Circle: neutral would be a plain surface circle, but in the composed theme `frameLook` turns the circles into "bodies" with identity hues (x blue, sigma mustard); the target's lavender operator cannot be asked for, and neither circle's symbol size can be set (the label uses the small equation scale, 15 px; the target's symbols are large).
+3. Circle: neutral would be a plain surface circle, but in the composed theme `frameLook` turns the circles into "bodies" with identity hues (x blue, sigma mustard); the target's lavender operator cannot be asked for, and neither circle's symbol size can be set (the label uses the equation text scale, 14 px, small next to the target's large symbols).
 4. Arrows are straight only: the Query-to-x elbow is a `line` plus an `arrow` (two objects, a sharp corner, not rounded).
 5. The Value-to-sigma arrow is drawn in the path blue (the composed theme's highlight colour) while its siblings are ink; I did not find why (the other two plain arrows are ink).
 6. `bars`: one flat role fill (pale lavender), no colour by value, no warm ramp; its label "weights" sits above and left of the bars, not centred beneath; the baseline is a full-width line. The six values 0.04, 0.09, 0.19, 0.38, 0.19, 0.11 sum to 1.
