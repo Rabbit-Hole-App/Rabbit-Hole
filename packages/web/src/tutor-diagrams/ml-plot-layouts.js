@@ -8,7 +8,7 @@ import { annotationDescription, axisName, isExtendedPlot, isStackedBar, plotNote
 const PAD = 12;
 const SMALL = 12;
 const COLORS = [...TEACHING_SERIES, T.ink, T.muted];
-const SOFT = [T.blueSoft, T.warmSoft, T.greenSoft, T.inset, T.inset];
+const SOFT = TEACHING_SERIES; // the saturated series fills (the pale soft tokens stay defined, unused)
 const DASH = [undefined, '7 4', '2 4', '12 5', '6 3 1 3'];
 const pointString = values => values.map(p => p.join(',')).join(' ');
 const format = value => String(value);
@@ -24,7 +24,7 @@ function scale(axis, start, end) {
   return value => start + (end - start) * (project(value) - min) / (max - min);
 }
 function symbol(x, y, index, attributes = {}, title) {
-  const props = { fill: COLORS[index], stroke: T.surface, strokeWidth: 1.1, ...attributes };
+  const props = { fill: COLORS[index], stroke: T.outline, strokeWidth: 1.2, ...attributes };
   const child = title ? h('title', null, title) : null;
   if (index % 3 === 1) return h('rect', { x: x - 4, y: y - 4, width: 8, height: 8, ...props }, child);
   if (index % 3 === 2) return h('polygon', { points: pointString([[x, y - 5], [x + 5, y], [x, y + 5], [x - 5, y]]), ...props }, child);
@@ -82,18 +82,20 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
   const x = scale(d.x, left, right), y = scale(d.y, bottom, top);
   const xy = p => [x(p.x), y(p.y)];
   const elements = [h('rect', { x: left, y: top, width: right - left, height: bottom - top,
-    fill: T.surface, stroke: T.line, strokeWidth: 1, 'data-tutor-plot-area': '' })];
+    fill: T.surface, 'data-tutor-plot-area': '' })];
   const geometry = [], foreground = [], notes = [];
   const yTitle = wrap(axisName(d.y), width - 2 * PAD);
   elements.push(label(yTitle, PAD, PAD + yTitle.length * lineHeight() / 2, { anchor: 'start', weight: 700 }));
   const xTicks = plotTicks(d.x, x, { horizontal: true });
   for (const { at } of xTicks) {
-    elements.push(teachingConnector([[at, top], [at, bottom]], { dashed: true }));
+    elements.push(teachingConnector([[at, top], [at, bottom]], { guide: true }));
   }
   for (const { at, lines, anchor } of plotTicks(d.y, y, { labelWidth: left - PAD - 8 })) {
-    elements.push(teachingConnector([[left, at], [right, at]], { dashed: true }));
+    elements.push(teachingConnector([[left, at], [right, at]], { guide: true }));
     elements.push(label(lines, left - 8, at, { anchor, size: SMALL }));
   }
+  // The frame is drawn over the guides so their dashes do not break it.
+  elements.push(h('rect', { x: left, y: top, width: right - left, height: bottom - top, fill: 'none', stroke: T.outline, strokeWidth: 1.5 }));
   const tickHeight = Math.max(...xTicks.map(tick => tick.lines.length)) * lineHeight(SMALL);
   for (const { at, lines, anchor } of xTicks) elements.push(label(lines, at, bottom + 8 + tickHeight / 2, { anchor, size: SMALL }));
   const xTitle = wrap(axisName(d.x), right - left);
@@ -128,16 +130,16 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
     if (!box) return; // Schema-bounded marks fit the chart's available badge cells.
     occupied.push(box);
     foreground.push(teachingConnector([anchor, [box.x + size / 2, box.y + 9]]));
-    foreground.push(h('rect', { ...box, rx: 4, fill: T.surface, stroke: T.wire, strokeWidth: 1, 'data-tutor-plot-badge': number }));
+    foreground.push(h('rect', { ...box, rx: 4, fill: T.surface, stroke: T.outline, strokeWidth: 1.5, 'data-tutor-plot-badge': number }));
     foreground.push(label(String(number), box.x + size / 2, box.y + 9, { size: SMALL, weight: 700 }));
   }
   for (const [i, a] of (d.annotations ?? []).entries()) {
     const color = COLORS[i % 3], fill = SOFT[i % 3];
-    const props = { fill, stroke: color, strokeWidth: 1.5 };
+    const props = { fill, stroke: T.outline, strokeWidth: 1.5 };
     let anchor;
     if (a.kind === 'point') {
       anchor = xy(a);
-      foreground.push(h('circle', { cx: anchor[0], cy: anchor[1], r: 6, fill: T.surface, stroke: color, strokeWidth: 2, 'data-tutor-plot-point': `${a.x},${a.y}` }));
+      foreground.push(h('circle', { cx: anchor[0], cy: anchor[1], r: 6, fill: T.surface, stroke: T.outline, strokeWidth: 2, 'data-tutor-plot-point': `${a.x},${a.y}` }));
     } else if (a.kind === 'segment' || a.kind === 'vector') {
       const start = xy(a.from), end = xy(a.to);
       anchor = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
@@ -181,7 +183,7 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
       const low = series.points.map(p => [x(p.x), y(p.low)]);
       if (series.kind === 'line') band = high.map((point, j) => [point[1], low[j][1]]);
       const project = values => series.kind === 'step' ? stepPoints(values) : values;
-      geometry.push(h('polygon', { points: pointString([...project(high), ...project(low).reverse()]), fill: SOFT[i], stroke: COLORS[i], strokeWidth: 0.8,
+      geometry.push(h('polygon', { points: pointString([...project(high), ...project(low).reverse()]), fill: SOFT[i], fillOpacity: 0.4, stroke: COLORS[i], strokeWidth: 0.8,
         'data-tutor-plot-uncertainty': series.label }));
     }
     const values = series.points.map(xy);
@@ -262,7 +264,7 @@ function barChart(d, requested) {
   for (const group of groups) {
     const name = wrap(group.category, left - PAD - 14);
     const height = d.variant === 'grouped' ? Math.max(group.segments.length * 28, name.length * lineHeight()) : Math.max(30, name.length * lineHeight());
-    elements.push(h('line', { x1: zero, x2: zero, y1: top, y2: top + height, stroke: T.wire, strokeWidth: 1.5, 'data-tutor-bar-baseline': '' }));
+    elements.push(h('line', { x1: zero, x2: zero, y1: top, y2: top + height, stroke: T.outline, strokeWidth: 1.5, 'data-tutor-bar-baseline': '' }));
     elements.push(label(name, PAD, top + height / 2, { anchor: 'start' }));
     for (const segment of group.segments) {
       const cy = d.variant === 'grouped' ? top + (segment.index + 0.5) * height / group.segments.length : top + height / 2;
@@ -270,7 +272,7 @@ function barChart(d, requested) {
         'data-tutor-stack-from': segment.from, 'data-tutor-stack-to': segment.to };
       if (!segment.value) elements.push(h('circle', { cx: x(segment.from), cy, r: 3, fill: COLORS[segment.index], ...attrs }));
       else elements.push(h('rect', { x: Math.min(x(segment.from), x(segment.to)), y: cy - 9, width: Math.abs(x(segment.to) - x(segment.from)), height: 18,
-        fill: COLORS[segment.index], stroke: T.surface, strokeWidth: 1, ...attrs }));
+        fill: COLORS[segment.index], stroke: T.outline, strokeWidth: 1.2, ...attrs }));
       if (d.variant === 'grouped') elements.push(label(wrap(amount(segment.value, d.unit), width - right - 16, SMALL), right + 8, cy, { anchor: 'start', size: SMALL }));
     }
     top += height + 6;
@@ -296,7 +298,7 @@ function stackedBar(d, requested, options) {
   let before = 0, nextTop = top;
   for (const [i, bar] of d.bars.entries()) {
     const y = top + HEIGHT * before / total, height = HEIGHT * bar.value / total, middle = y + height / 2;
-    elements.push(h('rect', { x: left, y, width: BAR, height, fill: options?.labelColors?.get(bar.label) ?? COLORS[i % COLORS.length], stroke: T.surface, strokeWidth: 1.5,
+    elements.push(h('rect', { x: left, y, width: BAR, height, fill: options?.labelColors?.get(bar.label) ?? COLORS[i % COLORS.length], stroke: T.outline, strokeWidth: 1.5,
       'data-tutor-stacked-part': bar.value, 'data-tutor-bar-series': bar.label, 'data-tutor-stack-from': before, 'data-tutor-stack-to': before + bar.value }, h('title', null, `${bar.label}: ${bar.value.toFixed(places)}`)));
     const lines = wrap(`${bar.label}: ${bar.value.toFixed(places)}`, width - textX - PAD, SIZE), rows = lines.length * lineHeight(SIZE);
     const centre = Math.max(middle, nextTop + rows / 2);

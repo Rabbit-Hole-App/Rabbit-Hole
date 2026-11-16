@@ -11,9 +11,9 @@ const SMALL = 12;
 const VALUE = 13;
 
 const roleColors = {
-  input: [TEACHING.blueSoft, TEACHING.blue],
-  weight: [TEACHING.warmSoft, TEACHING.warm],
-  output: [TEACHING.greenSoft, TEACHING.green],
+  input: [TEACHING.blueFill, TEACHING.outline],
+  weight: [TEACHING.mustardFill, TEACHING.outline],
+  output: [TEACHING.tealFill, TEACHING.outline],
 };
 
 function stripMetrics({ columns, dimensions, name, values }) {
@@ -41,7 +41,7 @@ export function layoutTensorStrip(payload, preferredWidth = 0) {
     elements.push(label(lines, width / 2, top + height / 2, { weight: 700 }));
     top += height + 5;
   }
-  const [fill, stroke] = roleColors[role] ?? [TEACHING.inset, TEACHING.wire];
+  const [fill, stroke] = roleColors[role] ?? [TEACHING.surface, TEACHING.outline];
   const left = (width - gridWidth) / 2;
   for (let i = 0; i < rows * columns; i++) {
     const x = left + (i % columns) * cellWidth;

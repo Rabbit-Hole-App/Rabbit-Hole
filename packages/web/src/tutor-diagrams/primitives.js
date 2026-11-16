@@ -14,7 +14,7 @@ export const PALETTE = Object.freeze({
 });
 // E3: the one fixed style of a highlighted worked route (a diagram author picks no colour): a blue wire and a blue ring, the approved card 07 look.
 export const PATH = '#2F80D8';
-export const SURFACE = 'var(--viz-surface, #fbfbfa)';
+export const SURFACE = 'var(--viz-surface, #FFFCF0)';
 export const INK = 'var(--color-ink, #32211c)';
 export const MUTED = 'var(--color-ink-2, #665951)';
 export const FILLED_INK = '#32211c';
@@ -250,7 +250,7 @@ export function dot(x, y, r, role = 'outcome') {
 export function connector(points, { arrow = true, dashed = false, path = false } = {}) {
   const wire = h('polyline', {
     points: points.map(point => point.join(',')).join(' '), fill: 'none', stroke: path ? PATH : dashed ? MUTED : INK,
-    strokeWidth: path ? 3 : dashed ? 1 : 1.5, strokeDasharray: dashed ? '4 4' : undefined,
+    strokeWidth: path ? 3 : dashed ? 1 : 2, strokeDasharray: dashed ? '4 4' : undefined,
     strokeLinecap: 'round', strokeLinejoin: 'round',
   });
   if (!arrow) return wire;
@@ -259,9 +259,9 @@ export function connector(points, { arrow = true, dashed = false, path = false }
   const length = Math.hypot(x - prevX, y - prevY);
   if (!length) return wire;
   const dx = (x - prevX) / length, dy = (y - prevY) / length;
-  const tip = Math.min(7, length);
+  const tip = Math.min(10, length);
   const baseX = x - dx * tip, baseY = y - dy * tip;
-  const head = [[x, y], [baseX - dy * 3.4, baseY + dx * 3.4], [baseX + dy * 3.4, baseY - dx * 3.4]];
+  const head = [[x, y], [baseX - dy * 4.5, baseY + dx * 4.5], [baseX + dy * 4.5, baseY - dx * 4.5]];
   return h('g', null, wire, h('polygon', {
     points: head.map(point => point.join(',')).join(' '), fill: path ? PATH : INK, 'data-tutor-arrowhead': '',
   }));

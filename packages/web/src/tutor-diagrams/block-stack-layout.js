@@ -22,12 +22,12 @@ const REPEAT_LANE = 50;
 const JOIN_RADIUS = 10;
 const BADGE_RADIUS = 9;
 const STACK_PAINT = {
-  norm: { fill: TEACHING.inset, stroke: TEACHING.line, strokeWidth: 1 },
-  attention: { fill: TEACHING.blueSoft, stroke: TEACHING.line, strokeWidth: 1 },
-  feedforward: { fill: TEACHING.warmSoft, stroke: TEACHING.line, strokeWidth: 1 },
-  embedding: { fill: TEACHING.greenSoft, stroke: TEACHING.line, strokeWidth: 1 },
-  output: { fill: TEACHING.greenSoft, stroke: TEACHING.green, strokeWidth: 1.5 },
-  changed: { fill: TEACHING.blueSoft, stroke: TEACHING.blue, strokeWidth: 2 },
+  norm: { fill: TEACHING.surface, stroke: TEACHING.outline, strokeWidth: 1.5 },
+  attention: { fill: TEACHING.blueFill, stroke: TEACHING.outline, strokeWidth: 1.5 },
+  feedforward: { fill: TEACHING.mustardFill, stroke: TEACHING.outline, strokeWidth: 1.5 },
+  embedding: { fill: TEACHING.tealFill, stroke: TEACHING.outline, strokeWidth: 1.5 },
+  output: { fill: TEACHING.tealFill, stroke: TEACHING.outline, strokeWidth: 2.5 },
+  changed: { fill: TEACHING.blueFill, stroke: TEACHING.blue, strokeWidth: 3 },
 };
 
 const paintBlock = (shape, role) => role ? cloneElement(shape, STACK_PAINT[role]) : shape;
@@ -116,7 +116,7 @@ function pill(text, width) {
 
 function drawPill({ lines, height, width }, x, y, role = 'plain') {
   return [box(x, y, width, height, { role }), label(lines, x + width / 2, y + height / 2, {
-    size: SMALL, weight: 700, fill: role === 'process' ? TEACHING.blue : undefined,
+    size: SMALL, weight: 700, fill: role === 'process' ? TEACHING.outline : undefined,
   })];
 }
 
@@ -140,7 +140,7 @@ function blockContent(block, width, child) {
 }
 
 function numberedBadge(number, x, y) {
-  return [h('circle', { cx: x, cy: y, r: BADGE_RADIUS, fill: TEACHING.blueSoft, stroke: TEACHING.blue, strokeWidth: 1.4 }),
+  return [h('circle', { cx: x, cy: y, r: BADGE_RADIUS, fill: TEACHING.blueFill, stroke: TEACHING.outline, strokeWidth: 1.5 }),
     label(String(number), x, y, { size: SMALL, weight: 700 })];
 }
 

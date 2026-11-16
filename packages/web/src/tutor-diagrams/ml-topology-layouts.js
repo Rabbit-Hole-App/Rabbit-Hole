@@ -183,7 +183,7 @@ function dendrogram(d, preferredWidth) {
       { active: pathEdge(d, node.parent, node.id), dashed: pruned.has(node.id) })));
   }
   if (d.cutoff) elements.push(h('line', { x1: axisX, x2: width - PAD, y1: valueY(d.cutoff.value), y2: valueY(d.cutoff.value),
-    stroke: TEACHING.warm, strokeWidth: 1.5, strokeDasharray: '5 4', 'data-tutor-cutoff': d.cutoff.value }));
+    stroke: TEACHING.outline, strokeWidth: 1.5, strokeDasharray: '5 4', 'data-tutor-cutoff': d.cutoff.value }));
   const merges = d.nodes.filter(n => children.get(n.id).length);
   const crowded = new Set(merges.filter(node => {
     const p = positions.get(node.id);
@@ -211,18 +211,18 @@ function dendrogram(d, preferredWidth) {
   }
   for (const node of lane) {
     const point = positions.get(node.id), badge = badges.get(node.id);
-    elements.push(cloneElement(teachingConnector([[point.x, point.y], [badge.x, badge.y]], { dashed: true }),
+    elements.push(cloneElement(teachingConnector([[point.x, point.y], [badge.x, badge.y]], { guide: true }),
       { 'data-tutor-merge-leader': node.id }));
   }
   for (const node of d.nodes) {
     const { x, y } = positions.get(node.id), index = merges.indexOf(node);
     elements.push(h('circle', { cx: x, cy: y, r: index < 0 || crowded.has(node.id) ? 3.5 : 9,
-      fill: TEACHING.surface, stroke: onPath.has(node.id) ? TEACHING.blue : TEACHING.wire, strokeWidth: 1.6,
+      fill: TEACHING.surface, stroke: onPath.has(node.id) ? TEACHING.blue : TEACHING.outline, strokeWidth: 1.5,
       'data-tutor-node': node.id, 'data-tutor-merge-height': node.height }));
     if (index >= 0) {
       const badge = badges.get(node.id);
       if (crowded.has(node.id)) elements.push(h('circle', { cx: badge.x, cy: badge.y, r: 9,
-        fill: TEACHING.surface, stroke: onPath.has(node.id) ? TEACHING.blue : TEACHING.wire, strokeWidth: 1.6 }));
+        fill: TEACHING.surface, stroke: onPath.has(node.id) ? TEACHING.blue : TEACHING.outline, strokeWidth: 1.5 }));
       elements.push(label(String(index + 1), badge.x, badge.y, { size: 12, weight: 700 }));
     }
   }
@@ -283,7 +283,7 @@ function graph(d, preferredWidth, hasTensor) {
     const badgeY = upper.y + upper.content.height + 24;
     elements.push(h('g', { 'data-tutor-edge': `${r.from}:${r.to}`, 'data-tutor-edge-index': r.index },
       teachingConnector([from, [laneX, from[1]], [laneX, to[1]], to], { arrow: true }),
-      h('circle', { cx: laneX, cy: badgeY, r: 9, fill: TEACHING.surface, stroke: TEACHING.line }),
+      h('circle', { cx: laneX, cy: badgeY, r: 9, fill: TEACHING.surface, stroke: TEACHING.outline, strokeWidth: 1.5 }),
       label(String(r.index + 1), laneX, badgeY, { size: 12, weight: 700 })));
   }
   for (const node of d.nodes) elements.push(card(node, positions.get(node.id)));
@@ -305,11 +305,11 @@ function restyleFlow(element, roles, active = false, role) {
   active ||= p['data-tutor-path'] !== undefined;
   const attrs = nodeId ? { 'data-tutor-role': role } : {};
   if (element.type === 'rect' || (element.type === 'polygon' && role)) Object.assign(attrs, {
-    fill: role === 'decision' ? TEACHING.warmSoft : role === 'outcome' ? TEACHING.greenSoft : TEACHING.surface,
-    stroke: role ? active ? TEACHING.blue : TEACHING.line : undefined, strokeWidth: role ? active ? 2 : 1 : undefined,
+    fill: role === 'decision' ? TEACHING.mustardFill : role === 'outcome' ? TEACHING.tealFill : role ? TEACHING.blueFill : TEACHING.surface,
+    stroke: role ? active ? TEACHING.blue : TEACHING.outline : undefined, strokeWidth: role ? active ? 3 : 1.5 : undefined,
   });
-  if (element.type === 'polyline') Object.assign(attrs, { stroke: active ? TEACHING.blue : TEACHING.wire, strokeWidth: active ? 2.5 : 1.6 });
-  if (element.type === 'polygon' && p['data-tutor-arrowhead'] !== undefined) attrs.fill = active ? TEACHING.blue : TEACHING.wire;
+  if (element.type === 'polyline') Object.assign(attrs, { stroke: active ? TEACHING.blue : TEACHING.outline, strokeWidth: active ? 3 : 2 });
+  if (element.type === 'polygon' && p['data-tutor-arrowhead'] !== undefined) attrs.fill = active ? TEACHING.blue : TEACHING.outline;
   if (element.type === 'text') attrs.fill = TEACHING.ink;
   return cloneElement(element, attrs, ...[p.children].flat().map(child => restyleFlow(child, roles, active, role)));
 }

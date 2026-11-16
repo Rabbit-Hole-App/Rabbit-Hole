@@ -44,7 +44,7 @@ function weightBadge(from, to, weight) {
   const width = textWidth(text, SMALL) + 14;
   return h('g', { 'data-tutor-token-largest-weight': weight },
     box(x - width / 2, y - 10, width, 20, { role: 'process', active: true }),
-    label(text, x, y, { size: SMALL, weight: 700, fill: TEACHING.blue }));
+    label(text, x, y, { size: SMALL, weight: 700, fill: TEACHING.ink }));
 }
 
 export function layoutTokenLinks(diagram, requestedWidth = 408, { compact = false } = {}) {

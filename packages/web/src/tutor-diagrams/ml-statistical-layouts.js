@@ -19,9 +19,9 @@ function textBlock(elements, text, x, top, width, options = {}) {
 
 function heatColor(value, range) {
   const { min, max } = range;
-  if (min < 0 && max > 0) return { fill: value < 0 ? TEACHING.warm : TEACHING.blue, opacity: value < 0 ? value / min : value / max };
-  if (max <= 0) return { fill: TEACHING.warm, opacity: (max - value) / (max - min) };
-  return { fill: TEACHING.blue, opacity: (value - min) / (max - min) };
+  if (min < 0 && max > 0) return { fill: value < 0 ? TEACHING.coral : TEACHING.blueFill, opacity: value < 0 ? value / min : value / max };
+  if (max <= 0) return { fill: TEACHING.coral, opacity: (max - value) / (max - min) };
+  return { fill: TEACHING.blueFill, opacity: (value - min) / (max - min) };
 }
 
 function heatmap(d, requested) {
@@ -50,16 +50,16 @@ function heatmap(d, requested) {
     elements.push(label(rowLines, PAD + 6, top + height / 2, { anchor: 'start', weight: 700 }));
     row.cells.forEach((value, column) => {
       const x = left + column * cellWidth;
-      const { fill, opacity } = value === null ? { fill: TEACHING.inset, opacity: 1 } : heatColor(value, d.range);
+      const { fill, opacity } = value === null ? { fill: TEACHING.surface, opacity: 1 } : heatColor(value, d.range);
       const active = highlighted.has(`${rowIndex}:${column}`);
       elements.push(h('rect', { x, y: top, width: cellWidth, height, fill: TEACHING.surface }));
       elements.push(h('rect', {
         x, y: top, width: cellWidth, height, fill, fillOpacity: opacity,
-        stroke: active ? TEACHING.blue : TEACHING.line, strokeWidth: active ? 3 : 1,
+        stroke: active ? TEACHING.blue : TEACHING.outline, strokeWidth: active ? 3 : 1.5,
         strokeDasharray: value === null ? '4 3' : undefined,
         'data-tutor-heatmap-cell': `${rowIndex}:${column}`, 'data-tutor-masked': value === null ? 'true' : undefined,
       }));
-      const ink = value !== null && opacity > 0.6 ? TEACHING.surface : TEACHING.ink;
+      const ink = TEACHING.outline;
       elements.push(cloneElement(label(cellLines[column], x + cellWidth / 2, top + height / 2, { weight: active ? 700 : 400 }), { fill: ink }));
     });
     top += height;
@@ -153,7 +153,7 @@ function histogram(d, requested) {
     const top = y + Math.max(12, tickHeight / 2 + 4) + (d.markers?.length || 0) * 20;
     const bottom = top + 132;
     const height = value => value / maximum * (bottom - top);
-    elements.push(teachingConnector([[left, top], [right, top]], { dashed: true }));
+    elements.push(teachingConnector([[left, top], [right, top]], { guide: true }));
     elements.push(label(maxLines, left - 8, top, { anchor: 'end', size: SMALL }));
     elements.push(label('0', left - 8, bottom, { anchor: 'end', size: SMALL }));
     series.values.forEach((value, bin) => {
@@ -161,13 +161,13 @@ function histogram(d, requested) {
       const barHeight = height(seriesHeights[index][bin]);
       elements.push(h('rect', {
         x, y: bottom - barHeight, width: barWidth, height: barHeight,
-        fill: [TEACHING.blueSoft, TEACHING.warmSoft, TEACHING.greenSoft][index], stroke: TEACHING_SERIES[index], strokeWidth: 1.3,
+        fill: TEACHING_SERIES[index], stroke: TEACHING.outline, strokeWidth: 1.5,
         'data-tutor-histogram-bin': `${index}:${bin}`, 'data-tutor-bin-mass': value, 'data-tutor-bin-height': seriesHeights[index][bin],
       }));
     });
     (d.markers ?? []).forEach((marker, markerIndex) => {
       const x = position(marker.value), my = markerTop + markerIndex * 20;
-      elements.push(h('line', { x1: x, x2: x, y1: my + 8, y2: bottom, stroke: TEACHING.warm, strokeWidth: 1.4, strokeDasharray: '4 3', 'data-tutor-histogram-marker': marker.value }));
+      elements.push(h('line', { x1: x, x2: x, y1: my + 8, y2: bottom, stroke: TEACHING.outline, strokeWidth: 1.5, strokeDasharray: '4 3', 'data-tutor-histogram-marker': marker.value }));
       elements.push(label(String(markerIndex + 1), x, my, { size: SMALL, weight: 700 }));
     });
     elements.push(teachingConnector([[left, top], [left, bottom], [right, bottom]]));
@@ -194,15 +194,15 @@ function boxPlot(d, requested) {
     const center = top + 26;
     const color = TEACHING_SERIES[index % TEACHING_SERIES.length];
     elements.push(h('line', { x1: x(box.whiskerLow), x2: x(box.whiskerHigh), y1: center, y2: center,
-      stroke: color, strokeWidth: 1.8, 'data-tutor-box-whisker': index }));
-    for (const value of [box.whiskerLow, box.whiskerHigh]) elements.push(h('line', { x1: x(value), x2: x(value), y1: center - 9, y2: center + 9, stroke: color, strokeWidth: 1.8 }));
-    elements.push(h('rect', { x: x(box.q1), y: center - 14, width: x(box.q3) - x(box.q1), height: 28, fill: TEACHING.inset, stroke: color, strokeWidth: 1.8, 'data-tutor-box': index }));
+      stroke: TEACHING.outline, strokeWidth: 1.5, 'data-tutor-box-whisker': index }));
+    for (const value of [box.whiskerLow, box.whiskerHigh]) elements.push(h('line', { x1: x(value), x2: x(value), y1: center - 9, y2: center + 9, stroke: TEACHING.outline, strokeWidth: 1.5 }));
+    elements.push(h('rect', { x: x(box.q1), y: center - 14, width: x(box.q3) - x(box.q1), height: 28, fill: color, stroke: TEACHING.outline, strokeWidth: 1.5, 'data-tutor-box': index }));
     elements.push(h('line', { x1: x(box.median), x2: x(box.median), y1: center - 14, y2: center + 14,
-      stroke: color, strokeWidth: 3, 'data-tutor-box-median': box.median }));
+      stroke: TEACHING.outline, strokeWidth: 3, 'data-tutor-box-median': box.median }));
     if (box.fences) {
       for (const value of [box.fences.lower, box.fences.upper]) elements.push(h('line', {
         x1: x(value), x2: x(value), y1: center - 24, y2: center + 24,
-        stroke: TEACHING.warm, strokeWidth: 1.5, strokeDasharray: '4 3', 'data-tutor-box-fence': value,
+        stroke: TEACHING.outline, strokeWidth: 1.5, strokeDasharray: '4 3', 'data-tutor-box-fence': value,
       }));
     }
     const lanes = [];
@@ -211,8 +211,8 @@ function boxPlot(d, requested) {
       let row = lanes.findIndex(values => values.every(other => Math.abs(px - other) >= 14));
       if (row < 0) { row = lanes.length; lanes.push([]); }
       lanes[row].push(px);
-      elements.push(h('circle', { cx: px, cy: center + row * 14, r: 4.5, fill: TEACHING.warmSoft,
-        stroke: TEACHING.warm, strokeWidth: 1.5, 'data-tutor-box-outlier': point.value }));
+      elements.push(h('circle', { cx: px, cy: center + row * 14, r: 4.5, fill: TEACHING.coral,
+        stroke: TEACHING.outline, strokeWidth: 1.5, 'data-tutor-box-outlier': point.value }));
     });
     top = center + Math.max(34, lanes.length * 14 + 6);
     top = textBlock(elements, boxSummary(box), PAD, top, width - PAD * 2, { size: SMALL }) + 6;

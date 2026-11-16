@@ -171,7 +171,6 @@ function panelsKind(diagram, width, renderChild) {
   let x = PAD;
   const edges = [];
   prepared.forEach((panel, index) => {
-    elements.push(box(x, PAD, panelWidth, bottom - PAD, { role: 'plain' }));
     if (nameHeight) elements.push(label(panel.name, x + panelWidth / 2, PAD + 8 + nameHeight / 2, { weight: 700 }));
     elements.push(label(panel.title, x + panelWidth / 2, PAD + 8 + (nameHeight ? nameHeight + 6 : 0) + titleHeight / 2, { tone: nameHeight ? 'muted' : 'ink', weight: nameHeight ? 400 : 700 }));
     elements.push(h('g', { transform: `translate(${x + (panelWidth - panel.scene.width * panel.scale) / 2} ${bodyTop}) scale(${panel.scale})`, 'data-tutor-composition-child': index }, ...panel.scene.elements));

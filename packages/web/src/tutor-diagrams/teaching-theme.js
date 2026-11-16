@@ -5,8 +5,9 @@ import { box, connector, PALETTE, FILLED_INK } from './primitives.js';
 // Rabbit-Hole@012d4ae3dfd9b20ef14156bea89c2632b844cc46. New teaching layouts
 // share these tokens; legacy version-1 layouts keep their existing appearance.
 export const TEACHING = Object.freeze({
-  surface: '#fffefa', inset: '#f6f8f4', line: '#e3e7e0', wire: '#b9c3b9',
-  ink: '#202723', muted: '#5d675f', blue: '#426db2', blueSoft: '#eaf1fb',
+  // The pale tokens (blueSoft, warmSoft, greenSoft, inset, and the dark blue, warm and green lines) stay defined for old callers; the layouts draw with the fills below.
+  surface: '#FFFCF0', inset: '#f6f8f4', line: '#e3e7e0', wire: '#b9c3b9',
+  ink: '#32211C', muted: '#665951', blue: '#426db2', blueSoft: '#eaf1fb',
   warm: '#b86232', warmSoft: '#f8ece3', green: '#267657', greenSoft: '#e7f3ed',
   // Saturated fills and the other hues are palette A's (primitives.js PALETTE): one set, not two. Text on any fill is `outline`.
   blueFill: PALETTE.process, mustardFill: PALETTE.decision, tealFill: PALETTE.outcome,
@@ -38,18 +39,19 @@ export const TEACHING_STYLE = Object.freeze({
   '--color-line': TEACHING.line, '--viz-surface': TEACHING.surface,
 });
 export function teachingBox(x, y, width, height, { role = 'plain', active = false } = {}) {
-  const fill = role === 'process' ? TEACHING.blueSoft : role === 'outcome' ? TEACHING.greenSoft
-    : role === 'decision' ? TEACHING.warmSoft : TEACHING.surface;
+  const fill = role === 'process' ? TEACHING.blueFill : role === 'outcome' ? TEACHING.tealFill
+    : role === 'decision' ? TEACHING.mustardFill : TEACHING.surface;
   return cloneElement(box(x, y, width, height), {
-    rx: 9, fill, stroke: active ? TEACHING.blue : TEACHING.line, strokeWidth: active ? 2 : 1,
+    rx: 9, fill, stroke: active ? TEACHING.blue : TEACHING.outline, strokeWidth: active ? 3 : 1.5,
   });
 }
-export function teachingConnector(points, { active = false, dashed = false, arrow = false } = {}) {
+export function teachingConnector(points, { active = false, dashed = false, guide = false, arrow = false } = {}) {
   // The connector primitive owns arrow geometry. A currentColor wrapper scopes
   // no global theme changes; explicit sage/blue strokes match approved wires.
-  const element = connector(points, { arrow, dashed });
-  const color = active ? TEACHING.blue : TEACHING.wire;
-  if (!arrow) return cloneElement(element, { stroke: color, strokeWidth: active ? 2.5 : 1.6 });
+  const element = connector(points, { arrow, dashed: dashed || guide });
+  // Wires and arrows are the outline colour at 2 px (a dashed one, such as a pruned branch, at 1.5); a guide (a gridline) stays light and thin.
+  const color = active ? TEACHING.blue : guide ? TEACHING.wire : TEACHING.outline, width = active ? 3 : guide ? 1 : dashed ? 1.5 : 2;
+  if (!arrow) return cloneElement(element, { stroke: color, strokeWidth: width });
   return cloneElement(element, {}, ...element.props.children.map(child => cloneElement(child,
-    child.type === 'polygon' ? { fill: color } : { stroke: color, strokeWidth: active ? 2.5 : 1.6 })));
+    child.type === 'polygon' ? { fill: color } : { stroke: color, strokeWidth: width })));
 }
