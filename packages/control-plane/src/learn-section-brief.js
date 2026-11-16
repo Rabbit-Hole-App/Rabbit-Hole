@@ -149,7 +149,7 @@ export async function runBrief(env, { actor, snapshot }, body, { callModel = log
     composed, user, submit: SUBMIT_BRIEF_TOOL, research: ['read_source', 'search_code', 'get_relationships', 'search_material'], ctx, capUsd, callModel,
     validate: input => validateBrief(input, { sectionId: section.id, first: index === 0, last: index === plan.sections.length - 1, anchorsExist, earlierBeats }),
   });
-  const line = { event: 'learn_section_brief', section: section.id, calls: out.usage.calls, usd: Number(out.usage.usd.toFixed(6)), cap_usd: capUsd, searches: ctx.turn.searches.length, outcome: out.ok ? 'ok' : out.failed };
+  const line = { event: 'learn_section_brief', section: section.id, calls: out.usage.calls, usd: Number(out.usage.usd.toFixed(6)), cap_usd: capUsd, searches: ctx.turn.searches.length, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8) }) };
   try { console.log(JSON.stringify(line)); } catch { /* a log line is never worth a failed answer */ }
   if (out.failed === 'unavailable') return json({ error: 'learn_section_unavailable' }, 502);
   if (out.failed === 'over_cap' && out.usage.calls === 0) return json({ error: 'learn_section_over_cap' }, 422);
