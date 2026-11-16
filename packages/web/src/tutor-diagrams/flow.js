@@ -33,11 +33,14 @@ function portOffset(node, edges, edge) {
   return edges.length > 1 ? (2 * edges.indexOf(edge) / (edges.length - 1) - 1) * spread : 0;
 }
 
+// A pill (fully rounded capsule): an outcome, and the start of the flow (the first node, which has no incoming edge) unless it is a decision.
+const isCapsule = node => !node.tensor && node.role !== 'decision' && (node.role === 'outcome' || node.start === true);
+
 function port(node, edges, edge, bottom, move = 0) {
   const dx = portOffset(node, edges, edge) + move;
   let inset = 0;
   if (node.role === 'decision') inset = Math.abs(dx) * node.height / node.width;
-  if (node.role === 'outcome' && !node.tensor) {
+  if (isCapsule(node)) {
     // A wide fan-in can reach the curved ends of the outcome capsule.
     const radiusX = capsuleRadius(node);
     const cornerX = Math.max(0, Math.abs(dx) - (node.width / 2 - radiusX));
@@ -57,6 +60,9 @@ function capsuleRadius({ width, height, lines }) {
   for (let radius = pill; radius > 7; radius -= 1) if (fits(radius)) return radius;
   return 7;
 }
+
+// The width of a decision that holds its whole label on one line: the diamond keeps about 68% of its width at the label's height.
+const oneLineDecision = text => Math.ceil((textWidth(text) + 6) / 0.68);
 
 function measureDecision(lines, width) {
   // The width available at y falls linearly away from the center of a diamond.
@@ -186,7 +192,9 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       const required = Math.ceil(word + pad);
       // A long word wraps by characters. Unbreakable formulas and tensors can widen their node.
       const min = Math.max(floor, required <= wordLimit ? required : Math.ceil(widestFormula(text) + pad));
-      if (!node.tensor) return { word, min };
+      // A decision is wide enough for its label on one line (the diamond narrows away from its middle), when that stays within 360 px.
+      const oneLine = decision && !node.tensor ? oneLineDecision(text) : 0;
+      if (!node.tensor) return { word, min: oneLine && oneLine <= 360 ? Math.max(min, oneLine) : min };
       const contentWidth = Math.max(tensorMinimumWidth(node.tensor), widestFormula(text));
       const tensorWidth = Math.ceil((contentWidth + 2 * TENSOR_PAD) / (decision ? DECISION_BAND : 1));
       return { word, min: Math.max(min, tensorWidth) };
@@ -224,11 +232,11 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       const cx = Math.max(PAD + w / 2, Math.min(PAD + inner - w / 2, ideal));
       if (node.tensor) return { ...node, width: w, cx, ...measureTensorNode(node, w) };
       const isDecision = node.role === 'decision';
-      const wrapWidth = isDecision ? Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].word)) : w - 20;
+      const wrapWidth = isDecision ? (w >= oneLineDecision(node.label ?? '') ? w : Math.max(w * 0.58, Math.min(w - 32, metrics[rank][index].word))) : w - 20;
       const lines = wrap(node.label, wrapWidth);
       const { height, offset } = isDecision ? measureDecision(lines, w)
         : { height: Math.max(38, lines.length * lineHeight() + 14), offset: 0 };
-      return { ...node, width: w, height, cx, lines, offset };
+      return { ...node, width: w, height, cx, lines, offset, start: previous.length === 0 };
     });
     for (const node of rowNodes) placements.set(node.id, node);
     return rowNodes;
@@ -261,7 +269,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       const clearOf = (a, b) => placedRows[ranks.get(node.id)].every(other => other === node || other.cx + other.width / 2 <= Math.min(a, b) - 2 || other.cx - other.width / 2 >= Math.max(a, b) + 2);
       if (sign * (turnX - vertexX) > 0 && Math.abs(turnX - vertexX) >= labelWidth && clearOf(vertexX, turnX)) return { kind: 'run', dir: sign, labelWidth, labelHeight, vertexX, turnX };
       // The drop lands on the top edge of the target away from its rounded corners, which only a lone arrival may move.
-      const margin = target.role === 'outcome' && !target.tensor ? capsuleRadius(target) : 8;
+      const margin = isCapsule(target) ? capsuleRadius(target) : 8;
       const lands = incoming.get(edge.to).length === 1 && vertexX >= target.cx - target.width / 2 + margin && vertexX <= target.cx + target.width / 2 - margin;
       return lands && clearOf(vertexX, vertexX) ? { kind: 'drop', dir: sign, labelWidth, labelHeight, vertexX } : null;
     });
@@ -438,7 +446,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     const active = onPath.has(id);
     const baseShape = role === 'decision'
       ? diamond(x, y, width, height, { active })
-      : box(x, y, width, height, { role, radius: role === 'outcome' && !strip ? capsuleRadius(node) : 7, active });
+      : box(x, y, width, height, { role, radius: isCapsule(node) ? capsuleRadius(node) : 9, active });
     const shape = paintNode ? paintNode(baseShape, node) : baseShape;
     // title: the full label when the server trimmed it to fit (item 47), shown as the node's tooltip.
     const props = { 'data-tutor-node': id, ...(active ? { 'data-tutor-path': '' } : {}) };
@@ -462,7 +470,7 @@ function flowGeometry(width, height, placements, routed, labelBoxes) {
       const textW = textWidth(line, size), middle = centerY + (index - (all.length - 1) / 2) * step;
       return { x: cx - textW / 2, y: middle - size / 2, width: textW, height: size };
     });
-    return { id, role, shape: role === 'decision' ? 'diamond' : role === 'outcome' && !strip ? 'capsule' : 'box', x: cx - w / 2, y, width: w, height: h2, text, ...(role === 'outcome' && !strip ? { radius: capsuleRadius(node) } : {}) };
+    return { id, role, shape: role === 'decision' ? 'diamond' : isCapsule(node) ? 'capsule' : 'box', x: cx - w / 2, y, width: w, height: h2, text, ...(isCapsule(node) ? { radius: capsuleRadius(node) } : {}) };
   });
   const edges = routed.map(({ edge, points }) => ({ from: edge.from, to: edge.to, points: points.map(point => [...point]), label: labelBoxes.get(edge) ? { ...labelBoxes.get(edge) } : null }));
   return { width, height, nodes, edges };

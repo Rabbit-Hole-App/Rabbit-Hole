@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "coordinate-plot",
+    "title": "Gini impurity and entropy",
+    "x": {
+      "label": "Class fraction p",
+      "min": 0,
+      "max": 1
+    },
+    "y": {
+      "label": "Impurity",
+      "min": 0,
+      "max": 1
+    },
+    "series": [
+      {
+        "label": "Gini (scaled)",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.2,
+            "y": 0.64
+          },
+          {
+            "x": 0.4,
+            "y": 0.96
+          },
+          {
+            "x": 0.5,
+            "y": 1
+          },
+          {
+            "x": 0.6,
+            "y": 0.96
+          },
+          {
+            "x": 0.8,
+            "y": 0.64
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "label": "Entropy",
+        "kind": "line",
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.2,
+            "y": 0.722
+          },
+          {
+            "x": 0.4,
+            "y": 0.971
+          },
+          {
+            "x": 0.5,
+            "y": 1
+          },
+          {
+            "x": 0.6,
+            "y": 0.971
+          },
+          {
+            "x": 0.8,
+            "y": 0.722
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ]
+      }
+    ]
+  }
+}

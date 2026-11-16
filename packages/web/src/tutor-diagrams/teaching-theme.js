@@ -37,6 +37,8 @@ export const TEACHING_SERIES = Object.freeze([
 // The darker weight of each series colour (about 4.6:1 or more on the ground, blue from the approved card): a line is drawn in its ink, its markers in the fill. Same order as TEACHING_SERIES.
 export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936A25', '#B82E56', '#507195']);
 export const TEACHING_GRID = '#D9D3C3';
+// The zero line of a plot or bar chart: the one solid line a chart keeps (there are no axis lines).
+export const TEACHING_ZERO = '#786860';
 export const TEACHING_STYLE = Object.freeze({
   '--color-ink': TEACHING.ink, '--color-ink-2': TEACHING.muted,
   '--color-line': TEACHING.line, '--viz-surface': TEACHING.surface,

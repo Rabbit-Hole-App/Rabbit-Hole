@@ -90,5 +90,6 @@ function isTeachingDiagram(d) {
   if (['scaled-lanes', 'teaching', 'hierarchy', 'dendrogram', 'graph'].includes(d.layout)) return true;
   if (d.kind === 'tree') return d.highlightPath || d.nodes.some(n => n.edgeLabel || n.detail || n.count !== undefined || n.pruned);
   if (d.kind === 'flow') return d.nodes.some(n => n.role === 'fork' || n.role === 'merge');
+  if (d.kind === 'coordinate-plot') return true;
   return isExtendedPlot(d);
 }
