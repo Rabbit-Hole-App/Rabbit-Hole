@@ -881,7 +881,7 @@ test('a project canvas asks with its own project\'s repository, re-checked on ev
 // fourteen uses), and the answer's meta records the route decision and the prompt record. askStream is the recording stub, so no model is called.
 test('a project canvas chat turn composes base + chat (+ the goal overlay) and records route and the prompt record in the answer meta', async t => {
   const env = fixture(t);
-  env.INLINE_DECISION_KEY = 'k'.repeat(40);
+  env.INLINE_DECISION_KEY = 'k'.repeat(40); env.CODE_EXPLAIN_ENABLED = 'true'; // the code-explain route's switch (on in dev; off in production)
   env.DB = { prepare: sql => { throw new Error(`live D1 touched: ${sql}`); }, batch: async () => { throw new Error('live D1 touched: batch'); } };
   const sqlite = new DatabaseSync(':memory:');
   t.after(() => sqlite.close());
@@ -919,7 +919,7 @@ test('a project canvas chat turn composes base + chat (+ the goal overlay) and r
   assert.equal(meta().tutor.use, null, 'an id that is not one of the fourteen is no goal');
 
   // A verified code-explain route is recorded; the model call itself is the handler's (learn-code-explain.js), not this turn's.
-  const routed = await decideChat(env, { email: owner.email, app: 'canvas-0a1b2c3d', requestId: 'req-00000009', fields: { app: 'canvas-0a1b2c3d', text: message, mode: 'auto', selection: null, source_refs: [code], motion: null, rehearsal: true }, capability: 'code-explain' });
+  const routed = await decideChat(env, { email: owner.email, app: 'canvas-0a1b2c3d', requestId: 'req-00000009', fields: { app: 'canvas-0a1b2c3d', text: message, mode: 'auto', selection: null, source_refs: [code], motion: null }, capability: 'code-explain' });
   assert.equal(routed.route, 'capability:code-explain');
   await ask({ route_token: routed.token });
   assert.equal(meta().route, 'code-explain');
@@ -930,7 +930,7 @@ test('a project canvas chat turn composes base + chat (+ the goal overlay) and r
   assert.deepEqual([meta().tutor.task, storedAnswer()], ['chat', `Answer: ${message}\n\n${UNANCHORED_LINE}`], "the ordinary chat's own record stands on a fall back");
 
   // With the model's reply: the Standard prose is the chat answer, the payload is in the meta (stored and on the stream), the record is the code-explain one.
-  const token = async n => (await decideChat(env, { email: owner.email, app: 'canvas-0a1b2c3d', requestId: `req-0000002${n}`, fields: { app: 'canvas-0a1b2c3d', text: message, mode: 'auto', selection: null, source_refs: [code], motion: null, rehearsal: true }, capability: 'code-explain' })).token;
+  const token = async n => (await decideChat(env, { email: owner.email, app: 'canvas-0a1b2c3d', requestId: `req-0000002${n}`, fields: { app: 'canvas-0a1b2c3d', text: message, mode: 'auto', selection: null, source_refs: [code], motion: null }, capability: 'code-explain' })).token;
   const reply = input => ({ model: 'claude-sonnet-5-5', stop_reason: 'tool_use', usage: { input_tokens: 5000, output_tokens: 900 }, content: [{ type: 'tool_use', id: 'tu1', name: 'code_explain', input }] });
   const good = {
     title: 'What lab.py does', suggestions: ['Why torch?', 'What does print do here?', 'What if it printed 2?'],

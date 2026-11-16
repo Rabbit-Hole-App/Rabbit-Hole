@@ -8,9 +8,13 @@ import { ANIMATION_CLIENT_FEATURES } from '../src/animation3d/capabilities.js';
 const dir = new URL(`../${process.env.DIST || 'dist-dev'}/static/`, import.meta.url);
 const names = readdirSync(dir);
 // Animation3DCard: the /animation card (owner production GO 2026-11-02); /animation has no build flag, so every build ships it.
-const REQUIRED_CHUNKS = ['CanvasPage', 'RepositoryPage', 'Home', 'AgentBar', 'Animation3DCard'];
-// CodeExplainCard and code-explain-insert: the code-explain card (CodeExplainCard.jsx, ChatMessages.jsx) loads only behind VITE_REHEARSAL_TRIGGER=1, like the Run card, so a production build drops both chunks.
-const DEV_CHUNKS = /^(review-fixtures-data|map-memory-data|CodeExplainCard|code-explain-insert)-/;
+// RunCard and TutorRehearsal: the rehearsal feature ships ON in production (Reviewer 2026-11-16 12:10; prod-release.mjs BUILD_ENV VITE_REHEARSAL_TRIGGER=1).
+const REQUIRED_CHUNKS = ['CanvasPage', 'RepositoryPage', 'Home', 'AgentBar', 'Animation3DCard', 'RunCard', 'TutorRehearsal'];
+// The rehearsal feature's user-facing text that must ship with it: the codebase chip, the Tutor flow, the Run card and the section rows.
+const REQUIRED_TEXT = ['Use the codebase', 'Next section', 'Build this section', 'Planning this section'];
+// The code-explain card (CodeExplainCard.jsx, code-explain-insert.js) loads behind the same rehearsal flag, so its chunks ship; it is never made in production
+// because its chat route is dark behind the server's CODE_EXPLAIN_ENABLED (chat-capability-route.js availability, Reviewer 2026-11-16 12:10).
+const DEV_CHUNKS = /^(review-fixtures-data|map-memory-data)-/;
 // Lesson-block workbench, coaching dev panel, dev-only palette items, review fixtures, review boards, and the
 // dev notebook origins a build falls back to without VITE_NOTEBOOK_ORIGIN / VITE_LESSON_NOTEBOOK_ORIGIN, and the
 // NanoGPT course's review wording, quiz answer key and editor controls (LessonPlanPreview.jsx, owner editor view of the
@@ -20,7 +24,7 @@ const DEV_MARKERS = ['Insert a sample lesson block', 'Agent workspace', 'Maths a
   'No review board is registered', 'small-learn-notebook-dev', 'small-learn-canvas-notebook-dev',
   'Material plan ready for review', 'Draft material plan', 'Quiz answer key', 'Edit this section in chat', 'Edit and approve curriculum',
   'Finish up in Curriculum', '__voiceFake', 'failStt',
-  'data-code-explain-card']; // the code-explain card's DOM marker: in the lazy chunks only. The capability name 'code-explain' is a route constant the server and the client share (inline-ai-route.js), so it ships; the route itself is dark in production (chat-capability-route.js availability, Reviewer 2026-11-16 11:55)
+  'Make section', 'REHEARSAL_PIN_COMMIT']; // the section row's old dev label (renamed Build this section for users) and the owner-stack commit pin (server only)
 // The retired CLI/BYOC Library empty state (App.jsx, behind !learnPreview): a Rabbit Hole build folds it away, so these strings must not
 // ship at all. A build without VITE_RABBIT_HOLE / VITE_COACHING_DEV (DIST=<that build>) must FAIL on them: it proves they are real.
 // ponytail: the Sidebar Developer tab / New app dialog and run.jsx copy stay in the bundle behind a runtime flag; e2e/legacy-copy-check.mjs
@@ -37,6 +41,7 @@ const declared = new Set();
 const failures = [];
 if (ANALYTICS && !ANALYTICS.every(Boolean)) failures.push('scripts/prod-release.mjs BUILD_ENV names no PostHog project token and host');
 for (const chunk of REQUIRED_CHUNKS) if (!names.some(n => n.startsWith(`${chunk}-`))) failures.push(`missing Learn chunk ${chunk}`);
+const shipped = new Set();
 for (const name of names) {
   if (DEV_CHUNKS.test(name)) failures.push(`${name}: a dev-only chunk`);
   if (!name.endsWith('.js')) continue;
@@ -45,11 +50,13 @@ for (const name of names) {
   if (ANALYTICS?.every(value => value && text.includes(value))) analyticsChunk = name;
   for (const feature of ANIMATION_CLIENT_FEATURES) if (text.includes(feature)) declared.add(feature);
   for (const marker of DEV_MARKERS) if (text.includes(marker)) failures.push(`${name}: contains dev-only "${marker}"`);
+  for (const t of REQUIRED_TEXT) if (text.includes(t)) shipped.add(t);
   for (const marker of LEGACY_MARKERS) if (text.includes(marker)) failures.push(`${name}: contains retired CLI/BYOC copy "${marker}"`);
 }
 // The Animation client declares what it can draw (animation3d/capabilities.js ANIMATION_CLIENT_FEATURES, owner 2026-11-02): a production build with the
 // card but missing one of them (curve_radius, action_motion) would be an older Animation client, which cannot be told to update when it meets a scene that needs it.
 for (const feature of ANIMATION_CLIENT_FEATURES) if (!declared.has(feature)) failures.push(`no chunk declares the Animation client feature ${feature}: this build is an older Animation client`);
+for (const t of REQUIRED_TEXT) if (!shipped.has(t)) failures.push(`no chunk carries "${t}": the rehearsal feature did not ship (build with VITE_REHEARSAL_TRIGGER=1)`);
 if (ANALYTICS && !analyticsChunk) failures.push('no chunk carries the PostHog project token and host: the release build is not configured for usage analytics');
 // The /explain render entry (EXP-T18) and the /animation one (AN-05): explain-render.js / animation-render.js load them from this
 // build's assets and their interception serves only the entry and /static/<file>.(js|css|woff2?|ttf), so each must exist and reference nothing else.
