@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "variant": "stacked",
+    "title": "Objective parts",
+    "unit": "Objective",
+    "bars": [
+      {
+        "label": "Data fit",
+        "value": 2.5
+      },
+      {
+        "label": "Penalty",
+        "value": 1
+      }
+    ]
+  }
+}

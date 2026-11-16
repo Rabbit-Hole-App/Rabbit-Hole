@@ -1,0 +1,15 @@
+{
+  "branch": "explain/composition-c01-r1",
+  "originalRef": "99a7e4c92bcb65ecd2e7aa6a23187f74887b8c05",
+  "ref": "66c354077041d61a2aec45aa11f1c97f88ade211",
+  "parentBaselineRef": "74c4f68aeba1384336418c5230528138ef8ec113",
+  "checked": {
+    "ownReferences": 4,
+    "ownSingles": 4,
+    "priorReferences": 464,
+    "priorSingles": 39
+  },
+  "inheritedUpdates": [],
+  "mismatches": [],
+  "passed": true
+}

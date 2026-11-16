@@ -1,0 +1,362 @@
+{
+  "id": "ml-linear-regression-linear-unit",
+  "topic": "linear-regression",
+  "lessons": [
+    "01",
+    "02"
+  ],
+  "sources": [
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-linear-regression/briefs.md#figure-06",
+      "revision": "05d5f02f6"
+    }
+  ],
+  "prompts": [
+    "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+    "Show an affine unit with weighted feature contributions and a bias.",
+    "How does a weighted feature sum become one linear prediction?",
+    "Trace an affine unit from the inputs through multiplication and summation.",
+    "Explain a weighted feature sum as a single output unit.",
+    "Use an affine unit to show what happens when only one feature changes."
+  ],
+  "paraphrases": [
+    "Show an affine unit with weighted feature contributions and a bias.",
+    "How does a weighted feature sum become one linear prediction?",
+    "Trace an affine unit from the inputs through multiplication and summation.",
+    "Explain a weighted feature sum as a single output unit.",
+    "Use an affine unit to show what happens when only one feature changes."
+  ],
+  "keywords": [
+    "affine unit",
+    "weighted feature sum",
+    "affine unit",
+    "weighted feature sum"
+  ],
+  "useWhen": "Trace a single affine unit from weighted features to a prediction; not a fitted-line residual plot or a nonlinear hidden layer.",
+  "spec": {
+    "version": 1,
+    "diagram": {
+      "kind": "panels",
+      "title": "Multiply, add, then add the bias",
+      "caption": "Worked example. $x=(1,2)$, $w=(2,1)$, $b=1$.",
+      "panels": [
+        {
+          "diagram": {
+            "kind": "block-stack",
+            "title": "Linear unit",
+            "blocks": [
+              {
+                "id": "x",
+                "label": "Input features"
+              },
+              {
+                "id": "y",
+                "label": "Weighted sum",
+                "inputs": [
+                  {
+                    "label": "$w,b$"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "Weighted terms",
+            "bars": [
+              {
+                "label": "Feature A",
+                "value": 2
+              },
+              {
+                "label": "Feature B",
+                "value": 2
+              }
+            ]
+          }
+        },
+        {
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "Output",
+            "bars": [
+              {
+                "label": "Bias",
+                "value": 1
+              },
+              {
+                "label": "Prediction",
+                "value": 5
+              }
+            ]
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": 0,
+          "to": 1,
+          "operation": "Multiply"
+        },
+        {
+          "from": 1,
+          "to": 2,
+          "operation": "$\\sum+b$"
+        }
+      ]
+    }
+  },
+  "depths": {
+    "overview": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "A linear predictor is one unit",
+          "caption": "Worked example. Every input connects to the same linear output.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "block-stack",
+                "title": "Linear unit",
+                "blocks": [
+                  {
+                    "id": "x",
+                    "label": "Input features"
+                  },
+                  {
+                    "id": "y",
+                    "label": "Weighted sum",
+                    "inputs": [
+                      {
+                        "label": "$w,b$"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Output",
+                "bars": [
+                  {
+                    "label": "Bias",
+                    "value": 1
+                  },
+                  {
+                    "label": "Prediction",
+                    "value": 5
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Evaluate"
+            }
+          ]
+        }
+      }
+    },
+    "standard": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Multiply, add, then add the bias",
+          "caption": "Worked example. $x=(1,2)$, $w=(2,1)$, $b=1$.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "block-stack",
+                "title": "Linear unit",
+                "blocks": [
+                  {
+                    "id": "x",
+                    "label": "Input features"
+                  },
+                  {
+                    "id": "y",
+                    "label": "Weighted sum",
+                    "inputs": [
+                      {
+                        "label": "$w,b$"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Weighted terms",
+                "bars": [
+                  {
+                    "label": "Feature A",
+                    "value": 2
+                  },
+                  {
+                    "label": "Feature B",
+                    "value": 2
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Output",
+                "bars": [
+                  {
+                    "label": "Bias",
+                    "value": 1
+                  },
+                  {
+                    "label": "Prediction",
+                    "value": 5
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Multiply"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "operation": "$\\sum+b$"
+            }
+          ]
+        }
+      }
+    },
+    "deep": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Multiply, add, then add the bias",
+          "caption": "Worked example. $\\Delta\\hat y=w_A\\Delta a$ when the other feature and weights stay fixed.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "block-stack",
+                "title": "Linear unit",
+                "blocks": [
+                  {
+                    "id": "x",
+                    "label": "Input features"
+                  },
+                  {
+                    "id": "y",
+                    "label": "Weighted sum",
+                    "inputs": [
+                      {
+                        "label": "$w,b$"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Weighted terms",
+                "bars": [
+                  {
+                    "label": "Feature A",
+                    "value": 2
+                  },
+                  {
+                    "label": "Feature B",
+                    "value": 2
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Output",
+                "bars": [
+                  {
+                    "label": "Bias",
+                    "value": 1
+                  },
+                  {
+                    "label": "Prediction",
+                    "value": 5
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Multiply"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "operation": "$\\sum+b$"
+            }
+          ]
+        }
+      },
+      "detailSpec": {
+        "version": 1,
+        "diagram": {
+          "kind": "coordinate-plot",
+          "title": "One feature changes, one stays fixed",
+          "caption": "Worked example. Feature B stays $2$; $w_A=2$ is the slope.",
+          "x": {
+            "label": "Feature A",
+            "min": 0,
+            "max": 3
+          },
+          "y": {
+            "label": "Prediction",
+            "min": 4,
+            "max": 8
+          },
+          "series": [
+            {
+              "label": "Same linear unit",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 1,
+                  "y": 5
+                },
+                {
+                  "x": 2,
+                  "y": 7
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "shortKeywords": [
+    "affine unit",
+    "weighted feature sum"
+  ]
+}

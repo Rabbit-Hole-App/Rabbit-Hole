@@ -1,0 +1,522 @@
+{
+  "id": "ml-regularization-dropout-mask",
+  "topic": "regularization",
+  "lessons": [
+    "10",
+    "12"
+  ],
+  "sources": [
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-dropout/briefs.md#figure-01",
+      "revision": "05d5f02f6"
+    }
+  ],
+  "prompts": [
+    "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+    "Show a temporary dropout mask and how surviving activations are scaled.",
+    "Explain inverted dropout with the same hidden units in each panel.",
+    "What does a temporary dropout mask change during one training pass?",
+    "Trace inverted dropout from activations through a mask to scaling.",
+    "Compare inverted dropout mask averages with a linear inference readout."
+  ],
+  "paraphrases": [
+    "Show a temporary dropout mask and how surviving activations are scaled.",
+    "Explain inverted dropout with the same hidden units in each panel.",
+    "What does a temporary dropout mask change during one training pass?",
+    "Trace inverted dropout from activations through a mask to scaling.",
+    "Compare inverted dropout mask averages with a linear inference readout."
+  ],
+  "keywords": [
+    "temporary dropout mask",
+    "inverted dropout",
+    "temporary dropout mask",
+    "inverted dropout"
+  ],
+  "useWhen": "Show a temporary activation mask and keep-probability scaling; not permanent neuron pruning or a general network architecture.",
+  "spec": {
+    "version": 1,
+    "diagram": {
+      "kind": "panels",
+      "title": "Mask and rescale",
+      "caption": "Worked example. A then B; keep probability $q=0.5$.",
+      "panels": [
+        {
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Before mask",
+            "x": {
+              "label": "Hidden unit",
+              "min": 0,
+              "max": 3
+            },
+            "y": {
+              "label": "Activation",
+              "min": 0,
+              "max": 6
+            },
+            "series": [
+              {
+                "label": "A then B",
+                "kind": "stem",
+                "samples": {
+                  "x": [
+                    1,
+                    2
+                  ],
+                  "y": [
+                    3,
+                    1
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Mask only",
+            "x": {
+              "label": "Hidden unit",
+              "min": 0,
+              "max": 3
+            },
+            "y": {
+              "label": "Activation",
+              "min": 0,
+              "max": 6
+            },
+            "series": [
+              {
+                "label": "A then B",
+                "kind": "stem",
+                "samples": {
+                  "x": [
+                    1,
+                    2
+                  ],
+                  "y": [
+                    3,
+                    0
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "diagram": {
+            "kind": "coordinate-plot",
+            "title": "Training output",
+            "x": {
+              "label": "Hidden unit",
+              "min": 0,
+              "max": 3
+            },
+            "y": {
+              "label": "Activation",
+              "min": 0,
+              "max": 6
+            },
+            "series": [
+              {
+                "label": "A then B",
+                "kind": "stem",
+                "samples": {
+                  "x": [
+                    1,
+                    2
+                  ],
+                  "y": [
+                    6,
+                    0
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": 0,
+          "to": 1,
+          "operation": "Mask"
+        },
+        {
+          "from": 1,
+          "to": 2,
+          "operation": "$\\div 0.5$"
+        }
+      ],
+      "shared": [
+        "axis"
+      ]
+    }
+  },
+  "depths": {
+    "overview": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "A temporary dropout mask",
+          "caption": "Worked example. The mask zeros an activation for this pass; inference keeps the full network.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Before mask",
+                "bars": [
+                  {
+                    "label": "Hidden A",
+                    "value": 3
+                  },
+                  {
+                    "label": "Hidden B",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Mask only",
+                "bars": [
+                  {
+                    "label": "Hidden A",
+                    "value": 3
+                  },
+                  {
+                    "label": "Hidden B",
+                    "value": 0
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Mask"
+            }
+          ],
+          "shared": [
+            "classes",
+            "colours"
+          ]
+        }
+      }
+    },
+    "standard": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Mask and rescale",
+          "caption": "Worked example. A then B; keep probability $q=0.5$.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Before mask",
+                "x": {
+                  "label": "Hidden unit",
+                  "min": 0,
+                  "max": 3
+                },
+                "y": {
+                  "label": "Activation",
+                  "min": 0,
+                  "max": 6
+                },
+                "series": [
+                  {
+                    "label": "A then B",
+                    "kind": "stem",
+                    "samples": {
+                      "x": [
+                        1,
+                        2
+                      ],
+                      "y": [
+                        3,
+                        1
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Mask only",
+                "x": {
+                  "label": "Hidden unit",
+                  "min": 0,
+                  "max": 3
+                },
+                "y": {
+                  "label": "Activation",
+                  "min": 0,
+                  "max": 6
+                },
+                "series": [
+                  {
+                    "label": "A then B",
+                    "kind": "stem",
+                    "samples": {
+                      "x": [
+                        1,
+                        2
+                      ],
+                      "y": [
+                        3,
+                        0
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Training output",
+                "x": {
+                  "label": "Hidden unit",
+                  "min": 0,
+                  "max": 3
+                },
+                "y": {
+                  "label": "Activation",
+                  "min": 0,
+                  "max": 6
+                },
+                "series": [
+                  {
+                    "label": "A then B",
+                    "kind": "stem",
+                    "samples": {
+                      "x": [
+                        1,
+                        2
+                      ],
+                      "y": [
+                        6,
+                        0
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Mask"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "operation": "$\\div 0.5$"
+            }
+          ],
+          "shared": [
+            "axis"
+          ]
+        }
+      }
+    },
+    "deep": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Mask and rescale",
+          "caption": "Worked example. $E[mh/q]=h$; linear readout check below.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Before mask",
+                "x": {
+                  "label": "Hidden unit",
+                  "min": 0,
+                  "max": 3
+                },
+                "y": {
+                  "label": "Activation",
+                  "min": 0,
+                  "max": 6
+                },
+                "series": [
+                  {
+                    "label": "A then B",
+                    "kind": "stem",
+                    "samples": {
+                      "x": [
+                        1,
+                        2
+                      ],
+                      "y": [
+                        3,
+                        1
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Mask only",
+                "x": {
+                  "label": "Hidden unit",
+                  "min": 0,
+                  "max": 3
+                },
+                "y": {
+                  "label": "Activation",
+                  "min": 0,
+                  "max": 6
+                },
+                "series": [
+                  {
+                    "label": "A then B",
+                    "kind": "stem",
+                    "samples": {
+                      "x": [
+                        1,
+                        2
+                      ],
+                      "y": [
+                        3,
+                        0
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Training output",
+                "x": {
+                  "label": "Hidden unit",
+                  "min": 0,
+                  "max": 3
+                },
+                "y": {
+                  "label": "Activation",
+                  "min": 0,
+                  "max": 6
+                },
+                "series": [
+                  {
+                    "label": "A then B",
+                    "kind": "stem",
+                    "samples": {
+                      "x": [
+                        1,
+                        2
+                      ],
+                      "y": [
+                        6,
+                        0
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Mask"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "operation": "$\\div 0.5$"
+            }
+          ],
+          "shared": [
+            "axis"
+          ]
+        }
+      },
+      "detailSpec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Check the linear readout over all masks",
+          "caption": "Worked example. 4 equally likely masks; averaging matches inference for this linear readout.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Outputs by mask",
+                "bars": [
+                  {
+                    "label": "None",
+                    "value": 1
+                  },
+                  {
+                    "label": "A only",
+                    "value": 7
+                  },
+                  {
+                    "label": "B only",
+                    "value": 5
+                  },
+                  {
+                    "label": "Both",
+                    "value": 11
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Expected output",
+                "bars": [
+                  {
+                    "label": "Mask mean",
+                    "value": 6
+                  },
+                  {
+                    "label": "Inference",
+                    "value": 6
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Average masks"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "shortKeywords": [
+    "temporary dropout mask",
+    "inverted dropout"
+  ]
+}

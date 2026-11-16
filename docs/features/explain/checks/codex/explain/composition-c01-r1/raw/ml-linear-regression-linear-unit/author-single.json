@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "block-stack",
+    "title": "Linear unit",
+    "blocks": [
+      {
+        "id": "x",
+        "label": "Input features"
+      },
+      {
+        "id": "y",
+        "label": "Weighted sum",
+        "inputs": [
+          {
+            "label": "$w,b$"
+          }
+        ]
+      }
+    ]
+  }
+}

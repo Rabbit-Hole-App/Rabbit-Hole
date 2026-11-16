@@ -1,0 +1,1525 @@
+{
+  "ref": "66c354077041d61a2aec45aa11f1c97f88ade211",
+  "method": "Fresh offline source-prompt replay through selectAtDepth; deterministic JEV plan from each source reference diagram.kind; deduplicated prompts + paraphrases matching author-runtime baseline at brief/balanced/detailed; no planner/provider calls.",
+  "ownCases": 72,
+  "ownHits": 72,
+  "canonicalCases": 12,
+  "canonicalHits": 12,
+  "paraphraseCases": 60,
+  "paraphraseHits": 60,
+  "passed": true,
+  "rows": [
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 0,
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 0,
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 0,
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 1,
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 1,
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 1,
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 2,
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 2,
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 2,
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 3,
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 3,
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 3,
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 4,
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 4,
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 4,
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 5,
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 5,
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 5,
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 0,
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 0,
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 0,
+      "prompt": "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 1,
+      "prompt": "Show how a hidden feature layer changes the inputs before prediction.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 1,
+      "prompt": "Show how a hidden feature layer changes the inputs before prediction.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 1,
+      "prompt": "Show how a hidden feature layer changes the inputs before prediction.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 2,
+      "prompt": "How do nonlinear hidden features feed a readout?",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 2,
+      "prompt": "How do nonlinear hidden features feed a readout?",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 2,
+      "prompt": "How do nonlinear hidden features feed a readout?",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 3,
+      "prompt": "Explain a hidden feature layer using input, ReLU, and output panels.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 3,
+      "prompt": "Explain a hidden feature layer using input, ReLU, and output panels.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 3,
+      "prompt": "Explain a hidden feature layer using input, ReLU, and output panels.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 4,
+      "prompt": "Trace nonlinear hidden features from an affine map to a prediction.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 4,
+      "prompt": "Trace nonlinear hidden features from an affine map to a prediction.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 4,
+      "prompt": "Trace nonlinear hidden features from an affine map to a prediction.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 5,
+      "prompt": "Use a hidden feature layer to show what ReLU does to a negative value.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 5,
+      "prompt": "Use a hidden feature layer to show what ReLU does to a negative value.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-neural-networks-hidden-layer",
+      "promptIndex": 5,
+      "prompt": "Use a hidden feature layer to show what ReLU does to a negative value.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-neural-networks-hidden-layer-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 0,
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 0,
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 0,
+      "prompt": "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 1,
+      "prompt": "Show a penalized objective with data loss and a weight penalty.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 1,
+      "prompt": "Show a penalized objective with data loss and a weight penalty.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 1,
+      "prompt": "Show a penalized objective with data loss and a weight penalty.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 2,
+      "prompt": "How does a regularization cost add to mean squared error?",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 2,
+      "prompt": "How does a regularization cost add to mean squared error?",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 2,
+      "prompt": "How does a regularization cost add to mean squared error?",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 3,
+      "prompt": "Draw the dependencies of a penalized objective and its stacked parts.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 3,
+      "prompt": "Draw the dependencies of a penalized objective and its stacked parts.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 3,
+      "prompt": "Draw the dependencies of a penalized objective and its stacked parts.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 4,
+      "prompt": "Keep the predictions fixed and double the regularization cost strength.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 4,
+      "prompt": "Keep the predictions fixed and double the regularization cost strength.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 4,
+      "prompt": "Keep the predictions fixed and double the regularization cost strength.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 5,
+      "prompt": "Explain a penalized objective without confusing the loss with its weight penalty.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 5,
+      "prompt": "Explain a penalized objective without confusing the loss with its weight penalty.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-regularized-objective",
+      "promptIndex": 5,
+      "prompt": "Explain a penalized objective without confusing the loss with its weight penalty.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-regularized-objective-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 0,
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 0,
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 0,
+      "prompt": "Training-time dropout temporarily disables some hidden activations and their paths while retaining the full network for inference.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 1,
+      "prompt": "Show a temporary dropout mask and how surviving activations are scaled.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 1,
+      "prompt": "Show a temporary dropout mask and how surviving activations are scaled.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 1,
+      "prompt": "Show a temporary dropout mask and how surviving activations are scaled.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 2,
+      "prompt": "Explain inverted dropout with the same hidden units in each panel.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 2,
+      "prompt": "Explain inverted dropout with the same hidden units in each panel.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 2,
+      "prompt": "Explain inverted dropout with the same hidden units in each panel.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 3,
+      "prompt": "What does a temporary dropout mask change during one training pass?",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 3,
+      "prompt": "What does a temporary dropout mask change during one training pass?",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 3,
+      "prompt": "What does a temporary dropout mask change during one training pass?",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 4,
+      "prompt": "Trace inverted dropout from activations through a mask to scaling.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 4,
+      "prompt": "Trace inverted dropout from activations through a mask to scaling.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 4,
+      "prompt": "Trace inverted dropout from activations through a mask to scaling.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 5,
+      "prompt": "Compare inverted dropout mask averages with a linear inference readout.",
+      "sourceKind": "panels",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 5,
+      "prompt": "Compare inverted dropout mask averages with a linear inference readout.",
+      "sourceKind": "panels",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    },
+    {
+      "sourceReferenceId": "ml-regularization-dropout-mask",
+      "promptIndex": 5,
+      "prompt": "Compare inverted dropout mask averages with a linear inference readout.",
+      "sourceKind": "panels",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-regularization-dropout-mask-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "panels"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "panels",
+      "collision": false
+    }
+  ]
+}

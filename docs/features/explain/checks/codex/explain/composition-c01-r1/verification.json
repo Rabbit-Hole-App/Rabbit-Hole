@@ -1,0 +1,53 @@
+{
+  "task": "f56dab7a-9ff2-48bb-b0a8-b30af708de07",
+  "branch": "explain/composition-c01-r1",
+  "originalHead": "99a7e4c92bcb65ecd2e7aa6a23187f74887b8c05",
+  "newParent": "74c4f68aeba1384336418c5230528138ef8ec113",
+  "testedContentCommit": "66c354077041d61a2aec45aa11f1c97f88ade211",
+  "referenceIds": [
+    "ml-linear-regression-linear-unit",
+    "ml-neural-networks-hidden-layer",
+    "ml-regularization-regularized-objective",
+    "ml-regularization-dropout-mask"
+  ],
+  "snapshots": {
+    "changed": 3253,
+    "added": 18,
+    "removed": 0
+  },
+  "tests": {
+    "command": "node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-reference*.test.js packages/control-plane/test/explanation-plan-kind-from-reference.test.js packages/control-plane/test/explanation-composition-author-variants.test.js packages/control-plane/test/explanation-learner-keywords.test.js packages/control-plane/test/explanation-fast-chain.test.js",
+    "tests": 1388,
+    "pass": 1387,
+    "fail": 1,
+    "skipped": 0,
+    "failures": [
+      "small forces retain visible arrows and disclose their minimum size"
+    ],
+    "classification": "Existing release148 baseline assertion: figure-layout.test.mjs:70 expects stroke-width 1.5; actual release148 connector uses 2. No renderer/content/test fix in this rebase."
+  },
+  "replay": {
+    "priorCases": 3048,
+    "changedPriorPicks": 0,
+    "changedRequirements": 0,
+    "approvedOwnVariantKindChanges": 18,
+    "newCollisions": 0
+  },
+  "schema": {
+    "actualProbes": 216,
+    "maxGeminiProperties": 319,
+    "limit": 362
+  },
+  "sourcePreservation": {
+    "ownReferences": 4,
+    "ownSingles": 4,
+    "priorReferences": 464,
+    "priorSingles": 39
+  },
+  "evidenceBranch": "film/evidence",
+  "evidencePath": "docs/features/explain/checks/codex/explain/composition-c01-r1",
+  "format": "Self-contained SVG contact sheet + HTML with embedded Inter/KaTeX fonts; exact production renderer output at408and720. No PNG/browser visual inspection: execution environment blocks Chromium IPC and browser policy disallows local-file previews.",
+  "released": false,
+  "publishedBranchTip": "eb29478ee4875c5e62dcee5c360f37aa419dc8ae",
+  "publishedBranchTree": "fa48720876d72d4ebdb58aad93281a7c189eda70"
+}

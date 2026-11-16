@@ -1,0 +1,382 @@
+{
+  "id": "ml-regularization-regularized-objective",
+  "topic": "regularization",
+  "lessons": [
+    "02",
+    "10"
+  ],
+  "sources": [
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-backprop/briefs.md#figure-01",
+      "revision": "05d5f02f6"
+    }
+  ],
+  "prompts": [
+    "A computation graph shows which intermediate values, weights and targets determine the data loss and the regularized objective.",
+    "Show a penalized objective with data loss and a weight penalty.",
+    "How does a regularization cost add to mean squared error?",
+    "Draw the dependencies of a penalized objective and its stacked parts.",
+    "Keep the predictions fixed and double the regularization cost strength.",
+    "Explain a penalized objective without confusing the loss with its weight penalty."
+  ],
+  "paraphrases": [
+    "Show a penalized objective with data loss and a weight penalty.",
+    "How does a regularization cost add to mean squared error?",
+    "Draw the dependencies of a penalized objective and its stacked parts.",
+    "Keep the predictions fixed and double the regularization cost strength.",
+    "Explain a penalized objective without confusing the loss with its weight penalty."
+  ],
+  "keywords": [
+    "penalized objective",
+    "regularization cost",
+    "penalized objective",
+    "regularization cost"
+  ],
+  "useWhen": "Show independent data-loss and weight-penalty dependencies and their sum; not an optimizer update or an overfitting curve.",
+  "spec": {
+    "version": 1,
+    "diagram": {
+      "kind": "panels",
+      "title": "Loss and regularized objective",
+      "caption": "Worked example. $\\lambda=0.2$, $\\|w\\|^2=5$; the bias is excluded.",
+      "panels": [
+        {
+          "diagram": {
+            "kind": "block-stack",
+            "title": "Dependencies",
+            "blocks": [
+              {
+                "id": "pred",
+                "label": "Prediction",
+                "inputs": [
+                  {
+                    "label": "$x$"
+                  },
+                  {
+                    "label": "$w,b$"
+                  }
+                ]
+              },
+              {
+                "id": "loss",
+                "label": "Data fit",
+                "inputs": [
+                  {
+                    "label": "Targets"
+                  }
+                ]
+              },
+              {
+                "id": "obj",
+                "label": "Objective",
+                "merge": "add",
+                "inputs": [
+                  {
+                    "label": "$\\lambda\\|w\\|^2$"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "diagram": {
+            "kind": "bar-chart",
+            "variant": "stacked",
+            "title": "Objective parts",
+            "unit": "Objective",
+            "bars": [
+              {
+                "label": "Data fit",
+                "value": 2.5
+              },
+              {
+                "label": "Penalty",
+                "value": 1
+              }
+            ],
+            "total": 3.5
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": 0,
+          "to": 1,
+          "operation": "Evaluate"
+        }
+      ]
+    }
+  },
+  "depths": {
+    "overview": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Fit plus a weight penalty",
+          "caption": "Worked example. Penalizing weights adds to the data loss; the bias is excluded.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "block-stack",
+                "title": "Objective terms",
+                "blocks": [
+                  {
+                    "id": "fit",
+                    "label": "Data fit"
+                  },
+                  {
+                    "id": "obj",
+                    "label": "Objective",
+                    "merge": "add",
+                    "inputs": [
+                      {
+                        "label": "Weight penalty"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Total objective",
+                "bars": [
+                  {
+                    "label": "Without penalty",
+                    "value": 2.5
+                  },
+                  {
+                    "label": "With penalty",
+                    "value": 3.5
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Add"
+            }
+          ]
+        }
+      }
+    },
+    "standard": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Loss and regularized objective",
+          "caption": "Worked example. $\\lambda=0.2$, $\\|w\\|^2=5$; the bias is excluded.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "block-stack",
+                "title": "Dependencies",
+                "blocks": [
+                  {
+                    "id": "pred",
+                    "label": "Prediction",
+                    "inputs": [
+                      {
+                        "label": "$x$"
+                      },
+                      {
+                        "label": "$w,b$"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "loss",
+                    "label": "Data fit",
+                    "inputs": [
+                      {
+                        "label": "Targets"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "obj",
+                    "label": "Objective",
+                    "merge": "add",
+                    "inputs": [
+                      {
+                        "label": "$\\lambda\\|w\\|^2$"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "variant": "stacked",
+                "title": "Objective parts",
+                "unit": "Objective",
+                "bars": [
+                  {
+                    "label": "Data fit",
+                    "value": 2.5
+                  },
+                  {
+                    "label": "Penalty",
+                    "value": 1
+                  }
+                ],
+                "total": 3.5
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Evaluate"
+            }
+          ]
+        }
+      }
+    },
+    "deep": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Loss and regularized objective",
+          "caption": "Worked example. $\\Delta J=\\Delta\\lambda\\|w\\|^2$ for fixed weights; the bias is excluded.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "block-stack",
+                "title": "Dependencies",
+                "blocks": [
+                  {
+                    "id": "pred",
+                    "label": "Prediction",
+                    "inputs": [
+                      {
+                        "label": "$x$"
+                      },
+                      {
+                        "label": "$w,b$"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "loss",
+                    "label": "Data fit",
+                    "inputs": [
+                      {
+                        "label": "Targets"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "obj",
+                    "label": "Objective",
+                    "merge": "add",
+                    "inputs": [
+                      {
+                        "label": "$\\lambda\\|w\\|^2$"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "variant": "stacked",
+                "title": "Objective parts",
+                "unit": "Objective",
+                "bars": [
+                  {
+                    "label": "Data fit",
+                    "value": 2.5
+                  },
+                  {
+                    "label": "Penalty",
+                    "value": 1
+                  }
+                ],
+                "total": 3.5
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Evaluate"
+            }
+          ]
+        }
+      },
+      "detailSpec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Change strength, keep the predictions",
+          "caption": "Worked example. Same fit; $\\lambda=0.2\\to0.4$, $J=3.5\\to4.5$.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Original strength",
+                "bars": [
+                  {
+                    "label": "Data fit",
+                    "value": 2.5
+                  },
+                  {
+                    "label": "Penalty",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Doubled strength",
+                "bars": [
+                  {
+                    "label": "Data fit",
+                    "value": 2.5
+                  },
+                  {
+                    "label": "Penalty",
+                    "value": 2
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "$\\lambda\\times2$"
+            }
+          ],
+          "shared": [
+            "classes",
+            "colours"
+          ]
+        }
+      }
+    }
+  },
+  "shortKeywords": [
+    "penalized objective",
+    "regularization cost"
+  ]
+}

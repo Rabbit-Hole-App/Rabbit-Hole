@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "bar-chart",
+    "title": "After ReLU",
+    "bars": [
+      {
+        "label": "Hidden A",
+        "value": 3
+      },
+      {
+        "label": "Hidden B",
+        "value": 1
+      }
+    ]
+  }
+}

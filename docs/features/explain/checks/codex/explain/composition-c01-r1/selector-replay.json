@@ -1,0 +1,1066 @@
+{
+  "baselineRef": "74c4f68aeba1384336418c5230528138ef8ec113",
+  "ref": "66c354077041d61a2aec45aa11f1c97f88ade211",
+  "method": "Fresh offline source-prompt replay through selectAtDepth; deterministic JEV plan from each source reference diagram.kind; deduplicated prompts + paraphrases matching author-runtime baseline at brief/balanced/detailed; no planner/provider calls.",
+  "priorCases": 3048,
+  "baselineCasesSha256": "18c533d32f823ef08586692c800a2ec5f534c8485da7208f512bf1266d0d689b",
+  "priorPickParity": true,
+  "changedPriorPicks": [],
+  "changedRequirements": [],
+  "changedEmittedKinds": [
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 0,
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 0,
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 0,
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 1,
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 1,
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 1,
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 2,
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 2,
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 2,
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 3,
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 3,
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 3,
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 4,
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 4,
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 4,
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 5,
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 5,
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 5,
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    }
+  ],
+  "approvedOwnVariantKindChanges": [
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 0,
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 0,
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 0,
+      "prompt": "An ordinary linear predictor can be drawn as one output unit with a connection from each input feature.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 1,
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 1,
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 1,
+      "prompt": "Show an affine unit with weighted feature contributions and a bias.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 2,
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 2,
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 2,
+      "prompt": "How does a weighted feature sum become one linear prediction?",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 3,
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 3,
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 3,
+      "prompt": "Trace an affine unit from the inputs through multiplication and summation.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 4,
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 4,
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 4,
+      "prompt": "Explain a weighted feature sum as a single output unit.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 5,
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "depth": "brief",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 5,
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "depth": "balanced",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-linear-unit",
+      "promptIndex": 5,
+      "prompt": "Use an affine unit to show what happens when only one feature changes.",
+      "depth": "detailed",
+      "before": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "bar-chart"
+        }
+      ],
+      "after": [
+        {
+          "id": "ml-linear-regression-linear-unit-single",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "block-stack"
+        }
+      ]
+    }
+  ],
+  "unapprovedEmittedKindChanges": [],
+  "collisions": [
+    {
+      "sourceReferenceId": "ml-raw-log-distributions",
+      "promptIndex": 0,
+      "prompt": "Show raw and log-transformed histograms for the same skewed sample.",
+      "sourceKind": "comparison",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-raw-log-distributions--part-1",
+          "sourceId": "ml-raw-log-distributions",
+          "partIndex": 0,
+          "kind": "histogram"
+        },
+        {
+          "id": "ml-raw-log-distributions--part-2",
+          "sourceId": "ml-raw-log-distributions",
+          "partIndex": 1,
+          "kind": "histogram"
+        }
+      ],
+      "plannedKinds": [
+        "histogram"
+      ],
+      "requiredKinds": [
+        "histogram"
+      ],
+      "resolvedPlanKind": "comparison",
+      "collision": true
+    },
+    {
+      "sourceReferenceId": "ml-raw-log-distributions",
+      "promptIndex": 0,
+      "prompt": "Show raw and log-transformed histograms for the same skewed sample.",
+      "sourceKind": "comparison",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-raw-log-distributions--part-1",
+          "sourceId": "ml-raw-log-distributions",
+          "partIndex": 0,
+          "kind": "histogram"
+        },
+        {
+          "id": "ml-raw-log-distributions--part-2",
+          "sourceId": "ml-raw-log-distributions",
+          "partIndex": 1,
+          "kind": "histogram"
+        }
+      ],
+      "plannedKinds": [
+        "histogram"
+      ],
+      "requiredKinds": [
+        "histogram"
+      ],
+      "resolvedPlanKind": "comparison",
+      "collision": true
+    },
+    {
+      "sourceReferenceId": "ml-raw-log-distributions",
+      "promptIndex": 0,
+      "prompt": "Show raw and log-transformed histograms for the same skewed sample.",
+      "sourceKind": "comparison",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-raw-log-distributions--part-1",
+          "sourceId": "ml-raw-log-distributions",
+          "partIndex": 0,
+          "kind": "histogram"
+        },
+        {
+          "id": "ml-raw-log-distributions--part-2",
+          "sourceId": "ml-raw-log-distributions",
+          "partIndex": 1,
+          "kind": "histogram"
+        }
+      ],
+      "plannedKinds": [
+        "histogram"
+      ],
+      "requiredKinds": [
+        "histogram"
+      ],
+      "resolvedPlanKind": "comparison",
+      "collision": true
+    },
+    {
+      "sourceReferenceId": "d2l-complexity-heldout-error",
+      "promptIndex": 1,
+      "prompt": "What does error versus model complexity look like for overfitting?",
+      "sourceKind": "coordinate-plot",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "d2l-complexity-heldout-error",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        },
+        {
+          "id": "double-descent-curve",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": true
+    },
+    {
+      "sourceReferenceId": "d2l-complexity-heldout-error",
+      "promptIndex": 1,
+      "prompt": "What does error versus model complexity look like for overfitting?",
+      "sourceKind": "coordinate-plot",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "d2l-complexity-heldout-error",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        },
+        {
+          "id": "double-descent-curve",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": true
+    },
+    {
+      "sourceReferenceId": "d2l-complexity-heldout-error",
+      "promptIndex": 1,
+      "prompt": "What does error versus model complexity look like for overfitting?",
+      "sourceKind": "coordinate-plot",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "d2l-complexity-heldout-error",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        },
+        {
+          "id": "double-descent-curve",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": true
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-residual-cost",
+      "promptIndex": 5,
+      "prompt": "connect the residual gaps on the scatter plot to the sum and mean of squared errors",
+      "sourceKind": "coordinate-plot",
+      "depth": "brief",
+      "references": [
+        {
+          "id": "ml-linear-regression-residual-cost",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        },
+        {
+          "id": "regression-residuals",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [
+        "coordinate-plot"
+      ],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": true
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-residual-cost",
+      "promptIndex": 5,
+      "prompt": "connect the residual gaps on the scatter plot to the sum and mean of squared errors",
+      "sourceKind": "coordinate-plot",
+      "depth": "balanced",
+      "references": [
+        {
+          "id": "ml-linear-regression-residual-cost",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        },
+        {
+          "id": "regression-residuals",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [
+        "coordinate-plot"
+      ],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": true
+    },
+    {
+      "sourceReferenceId": "ml-linear-regression-residual-cost",
+      "promptIndex": 5,
+      "prompt": "connect the residual gaps on the scatter plot to the sum and mean of squared errors",
+      "sourceKind": "coordinate-plot",
+      "depth": "detailed",
+      "references": [
+        {
+          "id": "ml-linear-regression-residual-cost",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        },
+        {
+          "id": "regression-residuals",
+          "sourceId": null,
+          "partIndex": null,
+          "kind": "coordinate-plot"
+        }
+      ],
+      "plannedKinds": [
+        "coordinate-plot"
+      ],
+      "requiredKinds": [
+        "coordinate-plot"
+      ],
+      "resolvedPlanKind": "coordinate-plot",
+      "collision": true
+    }
+  ],
+  "newCollisions": [],
+  "passed": true
+}

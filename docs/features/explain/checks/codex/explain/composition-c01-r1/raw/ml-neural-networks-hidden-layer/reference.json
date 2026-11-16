@@ -1,0 +1,413 @@
+{
+  "id": "ml-neural-networks-hidden-layer",
+  "topic": "neural-networks",
+  "lessons": [
+    "01",
+    "03",
+    "10"
+  ],
+  "sources": [
+    {
+      "kind": "figure-brief",
+      "path": "docs/features/explain-on-canvas/handoff/figure-briefs/d2l-mlp/briefs.md#figure-01",
+      "revision": "05d5f02f6"
+    }
+  ],
+  "prompts": [
+    "A hidden layer lets each output depend on nonlinear features learned from the same original inputs.",
+    "Show how a hidden feature layer changes the inputs before prediction.",
+    "How do nonlinear hidden features feed a readout?",
+    "Explain a hidden feature layer using input, ReLU, and output panels.",
+    "Trace nonlinear hidden features from an affine map to a prediction.",
+    "Use a hidden feature layer to show what ReLU does to a negative value."
+  ],
+  "paraphrases": [
+    "Show how a hidden feature layer changes the inputs before prediction.",
+    "How do nonlinear hidden features feed a readout?",
+    "Explain a hidden feature layer using input, ReLU, and output panels.",
+    "Trace nonlinear hidden features from an affine map to a prediction.",
+    "Use a hidden feature layer to show what ReLU does to a negative value."
+  ],
+  "keywords": [
+    "hidden feature layer",
+    "nonlinear hidden features",
+    "hidden feature layer",
+    "nonlinear hidden features"
+  ],
+  "useWhen": "Trace learned nonlinear features through a hidden layer and linear readout; not an activation-function curve alone or an optimizer loop.",
+  "spec": {
+    "version": 1,
+    "diagram": {
+      "kind": "panels",
+      "title": "A hidden layer changes the features",
+      "caption": "Worked example. $x=(1,2)$, $W=((1,1),(2,-1))$, $c=(0,1)$, $v=(1,2)$, $b=1$.",
+      "panels": [
+        {
+          "diagram": {
+            "kind": "block-stack",
+            "title": "Preactivation",
+            "blocks": [
+              {
+                "id": "x",
+                "label": "Input features"
+              },
+              {
+                "id": "z",
+                "label": "Affine map",
+                "inputs": [
+                  {
+                    "label": "$W,c$"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "After ReLU",
+            "bars": [
+              {
+                "label": "Hidden A",
+                "value": 3
+              },
+              {
+                "label": "Hidden B",
+                "value": 1
+              }
+            ]
+          }
+        },
+        {
+          "diagram": {
+            "kind": "bar-chart",
+            "title": "Output",
+            "bars": [
+              {
+                "label": "Bias",
+                "value": 1
+              },
+              {
+                "label": "Prediction",
+                "value": 6
+              }
+            ]
+          }
+        }
+      ],
+      "links": [
+        {
+          "from": 0,
+          "to": 1,
+          "operation": "$\\max(0,z)$"
+        },
+        {
+          "from": 1,
+          "to": 2,
+          "operation": "$v\\cdot h+b$"
+        }
+      ]
+    }
+  },
+  "depths": {
+    "overview": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "Learn nonlinear features",
+          "caption": "Worked example. A hidden layer transforms the original features before the readout.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "block-stack",
+                "title": "Hidden features",
+                "blocks": [
+                  {
+                    "id": "x",
+                    "label": "Input features"
+                  },
+                  {
+                    "id": "z",
+                    "label": "ReLU features",
+                    "inputs": [
+                      {
+                        "label": "$W,c$"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Output",
+                "bars": [
+                  {
+                    "label": "Bias",
+                    "value": 1
+                  },
+                  {
+                    "label": "Prediction",
+                    "value": 6
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "Predict"
+            }
+          ]
+        }
+      }
+    },
+    "standard": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "A hidden layer changes the features",
+          "caption": "Worked example. $x=(1,2)$, $W=((1,1),(2,-1))$, $c=(0,1)$, $v=(1,2)$, $b=1$.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "block-stack",
+                "title": "Preactivation",
+                "blocks": [
+                  {
+                    "id": "x",
+                    "label": "Input features"
+                  },
+                  {
+                    "id": "z",
+                    "label": "Affine map",
+                    "inputs": [
+                      {
+                        "label": "$W,c$"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "After ReLU",
+                "bars": [
+                  {
+                    "label": "Hidden A",
+                    "value": 3
+                  },
+                  {
+                    "label": "Hidden B",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Output",
+                "bars": [
+                  {
+                    "label": "Bias",
+                    "value": 1
+                  },
+                  {
+                    "label": "Prediction",
+                    "value": 6
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "$\\max(0,z)$"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "operation": "$v\\cdot h+b$"
+            }
+          ]
+        }
+      }
+    },
+    "deep": {
+      "spec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "A hidden layer changes the features",
+          "caption": "Worked example. $x=(1,2)$, $W=((1,1),(2,-1))$, $c=(0,1)$, $v=(1,2)$, $b=1$. $h\\ge0$.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "block-stack",
+                "title": "Preactivation",
+                "blocks": [
+                  {
+                    "id": "x",
+                    "label": "Input features"
+                  },
+                  {
+                    "id": "z",
+                    "label": "Affine map",
+                    "inputs": [
+                      {
+                        "label": "$W,c$"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "After ReLU",
+                "bars": [
+                  {
+                    "label": "Hidden A",
+                    "value": 3
+                  },
+                  {
+                    "label": "Hidden B",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "bar-chart",
+                "title": "Output",
+                "bars": [
+                  {
+                    "label": "Bias",
+                    "value": 1
+                  },
+                  {
+                    "label": "Prediction",
+                    "value": 6
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "$\\max(0,z)$"
+            },
+            {
+              "from": 1,
+              "to": 2,
+              "operation": "$v\\cdot h+b$"
+            }
+          ]
+        }
+      },
+      "detailSpec": {
+        "version": 1,
+        "diagram": {
+          "kind": "panels",
+          "title": "ReLU clips a negative preactivation",
+          "caption": "Worked example. Input $(0,2)$; weights unchanged.",
+          "panels": [
+            {
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "Before ReLU",
+                "x": {
+                  "label": "Hidden unit",
+                  "min": 0,
+                  "max": 3
+                },
+                "y": {
+                  "label": "Activation",
+                  "min": -1,
+                  "max": 2
+                },
+                "series": [
+                  {
+                    "label": "A then B",
+                    "kind": "stem",
+                    "samples": {
+                      "x": [
+                        1,
+                        2
+                      ],
+                      "y": [
+                        2,
+                        -1
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "diagram": {
+                "kind": "coordinate-plot",
+                "title": "After ReLU",
+                "x": {
+                  "label": "Hidden unit",
+                  "min": 0,
+                  "max": 3
+                },
+                "y": {
+                  "label": "Activation",
+                  "min": -1,
+                  "max": 2
+                },
+                "series": [
+                  {
+                    "label": "A then B",
+                    "kind": "stem",
+                    "samples": {
+                      "x": [
+                        1,
+                        2
+                      ],
+                      "y": [
+                        2,
+                        0
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "links": [
+            {
+              "from": 0,
+              "to": 1,
+              "operation": "$\\max(0,z)$"
+            }
+          ],
+          "shared": [
+            "axis"
+          ]
+        }
+      }
+    }
+  },
+  "shortKeywords": [
+    "hidden feature layer",
+    "nonlinear hidden features"
+  ]
+}

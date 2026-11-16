@@ -1,0 +1,1547 @@
+{
+  "formatVersion": 1,
+  "status": "rendered-vector",
+  "generator": "rebase148-render.mjs",
+  "repo": "/workspace/scratch/8367069fa9d9/lesson-pipeline-repo",
+  "ids": [
+    "ml-linear-regression-linear-unit",
+    "ml-neural-networks-hidden-layer",
+    "ml-regularization-regularized-objective",
+    "ml-regularization-dropout-mask"
+  ],
+  "inputs": {
+    "ids": {
+      "path": "/workspace/scratch/8367069fa9d9/rebase148-frozen/C01/ids.json",
+      "sha256": "0473077ccb329d13dc6db373a6f63f9333e509b8886565b62af8725dbf83c950"
+    }
+  },
+  "renderer": {
+    "module": "packages/web/src/tutor-diagrams/TutorDiagram.js",
+    "export": "renderTutorDiagram",
+    "react": "19.2.8",
+    "widths": [
+      408,
+      720
+    ],
+    "rawSvg": "Unmodified renderToStaticMarkup(element) bytes; no stylesheet injection or dimension edits.",
+    "rawSpec": "Unmodified source payload serialized as indented JSON with one trailing newline."
+  },
+  "vector": {
+    "engine": "Production renderTutorDiagram SVG composition",
+    "offline": true,
+    "networkAccess": "None; vector-only mode does not import Playwright or Sharp and does not launch a browser or server.",
+    "fonts": {
+      "inter": "Embedded Inter Latin variable WOFF2",
+      "katex": "Production katex.min.css with all WOFF2 faces embedded",
+      "embeddedKatexFaces": 20
+    },
+    "scalePolicy": "min(1, requestedWidth / naturalWidth); complete native SVG viewports are nested without additional clip paths.",
+    "namespaceHosting": "Only missing XHTML xmlns annotations are added on hosted foreignObject div roots, matching the inline HTML host; exact raw SVG assets remain untouched.",
+    "ground": "#FFFCF0",
+    "outline": "#32211C"
+  },
+  "browserRasterVerified": false,
+  "pngCaptureBlockedReason": "System Chromium cannot create its required IPC socket (Operation not permitted); the cloud browser rejected local file URLs by policy. No alternate browser, server or raster fallback is attempted in vector-only mode.",
+  "contactSheet": {
+    "path": "contact-sheet.svg",
+    "bytes": 794617,
+    "sha256": "db1a83477b73f7a2ce5d33210c35be8ad1a50fec8e9bc340420960deab484671",
+    "format": "svg",
+    "width": 1210,
+    "height": 8273,
+    "rows": [
+      {
+        "key": "ml-linear-regression-linear-unit--overview-main",
+        "left": 16,
+        "top": 96,
+        "width": 1178,
+        "height": 348
+      },
+      {
+        "key": "ml-linear-regression-linear-unit--standard-main",
+        "left": 16,
+        "top": 456,
+        "width": 1178,
+        "height": 355
+      },
+      {
+        "key": "ml-linear-regression-linear-unit--deep-main",
+        "left": 16,
+        "top": 823,
+        "width": 1178,
+        "height": 355
+      },
+      {
+        "key": "ml-linear-regression-linear-unit--deep-detail",
+        "left": 16,
+        "top": 1190,
+        "width": 1178,
+        "height": 567
+      },
+      {
+        "key": "ml-linear-regression-linear-unit--author-single",
+        "left": 16,
+        "top": 1769,
+        "width": 1178,
+        "height": 237
+      },
+      {
+        "key": "ml-neural-networks-hidden-layer--overview-main",
+        "left": 16,
+        "top": 2018,
+        "width": 1178,
+        "height": 367
+      },
+      {
+        "key": "ml-neural-networks-hidden-layer--standard-main",
+        "left": 16,
+        "top": 2397,
+        "width": 1178,
+        "height": 355
+      },
+      {
+        "key": "ml-neural-networks-hidden-layer--deep-main",
+        "left": 16,
+        "top": 2764,
+        "width": 1178,
+        "height": 355
+      },
+      {
+        "key": "ml-neural-networks-hidden-layer--deep-detail",
+        "left": 16,
+        "top": 3131,
+        "width": 1178,
+        "height": 477
+      },
+      {
+        "key": "ml-neural-networks-hidden-layer--author-single",
+        "left": 16,
+        "top": 3620,
+        "width": 1178,
+        "height": 233
+      },
+      {
+        "key": "ml-regularization-regularized-objective--overview-main",
+        "left": 16,
+        "top": 3865,
+        "width": 1178,
+        "height": 391
+      },
+      {
+        "key": "ml-regularization-regularized-objective--standard-main",
+        "left": 16,
+        "top": 4268,
+        "width": 1178,
+        "height": 474
+      },
+      {
+        "key": "ml-regularization-regularized-objective--deep-main",
+        "left": 16,
+        "top": 4754,
+        "width": 1178,
+        "height": 474
+      },
+      {
+        "key": "ml-regularization-regularized-objective--deep-detail",
+        "left": 16,
+        "top": 5240,
+        "width": 1178,
+        "height": 401
+      },
+      {
+        "key": "ml-regularization-regularized-objective--author-single",
+        "left": 16,
+        "top": 5653,
+        "width": 1178,
+        "height": 376
+      },
+      {
+        "key": "ml-regularization-dropout-mask--overview-main",
+        "left": 16,
+        "top": 6041,
+        "width": 1178,
+        "height": 389
+      },
+      {
+        "key": "ml-regularization-dropout-mask--standard-main",
+        "left": 16,
+        "top": 6442,
+        "width": 1178,
+        "height": 378
+      },
+      {
+        "key": "ml-regularization-dropout-mask--deep-main",
+        "left": 16,
+        "top": 6832,
+        "width": 1178,
+        "height": 378
+      },
+      {
+        "key": "ml-regularization-dropout-mask--deep-detail",
+        "left": 16,
+        "top": 7222,
+        "width": 1178,
+        "height": 478
+      },
+      {
+        "key": "ml-regularization-dropout-mask--author-single",
+        "left": 16,
+        "top": 7712,
+        "width": 1178,
+        "height": 545
+      }
+    ]
+  },
+  "references": [
+    {
+      "id": "ml-linear-regression-linear-unit",
+      "sourceReference": "raw/ml-linear-regression-linear-unit/reference.json",
+      "sourceReferenceSha256": "9a31b4f715785b061dbe6feea4ee1276d3ce678fce2fdfa9139792a0c7c425ef",
+      "linkedSingleId": "ml-linear-regression-linear-unit-single",
+      "views": [
+        {
+          "key": "ml-linear-regression-linear-unit--overview-main",
+          "depth": "overview",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.overview.spec",
+          "spec": "raw/ml-linear-regression-linear-unit/overview-main.json",
+          "specSha256": "4f5b8fd396dea8a45a4f8605c508709aad9a9221fd03acec50db87d461a37591",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 272,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 272,
+              "frameHeight": 272,
+              "svg": "raw/ml-linear-regression-linear-unit/overview-main-408.svg",
+              "svgSha256": "eac3fa75b5fa4375e4c42c812a13761960c9fce56da7173bd5730c6e1c13b6b1",
+              "vector": {
+                "left": 29,
+                "top": 159,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 259,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 259,
+              "frameHeight": 259,
+              "svg": "raw/ml-linear-regression-linear-unit/overview-main-720.svg",
+              "svgSha256": "1b81d6215ed5eb111fdc4674272be3b53a25ec216aebbeb4375891f71ad62951",
+              "vector": {
+                "left": 461,
+                "top": 159,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-linear-regression-linear-unit--standard-main",
+          "depth": "standard",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.standard.spec",
+          "spec": "raw/ml-linear-regression-linear-unit/standard-main.json",
+          "specSha256": "9ed5e1c56734f2c9376b2bed12ae71de9c0522ca9753ccd3cbd310ef47f846cc",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 623,
+              "naturalHeight": 298,
+              "scale": 0.6548956661316212,
+              "displayWidth": 408,
+              "displayHeight": 195.15890850722312,
+              "frameHeight": 196,
+              "svg": "raw/ml-linear-regression-linear-unit/standard-main-408.svg",
+              "svgSha256": "67344c616ff897a60dde1d4c4e041beda7d46dd5a060c4e68e2604684ef8239e",
+              "vector": {
+                "left": 29,
+                "top": 519,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 2,
+                "foreignObjects": 3,
+                "katexSpans": 5
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 279,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 279,
+              "frameHeight": 279,
+              "svg": "raw/ml-linear-regression-linear-unit/standard-main-720.svg",
+              "svgSha256": "d2e8502b1bedac3d200dc1803495b42a932de79ace86f2422679dc97712b0e7f",
+              "vector": {
+                "left": 461,
+                "top": 519,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 2,
+                "foreignObjects": 3,
+                "katexSpans": 5
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-linear-regression-linear-unit--deep-main",
+          "depth": "deep",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.deep.spec",
+          "spec": "raw/ml-linear-regression-linear-unit/deep-main.json",
+          "specSha256": "70eda9f05f9b1c0f6c89821825c23b88e7ad3ef9eec0aede01d26ff916820b51",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 623,
+              "naturalHeight": 315,
+              "scale": 0.6548956661316212,
+              "displayWidth": 408,
+              "displayHeight": 206.2921348314607,
+              "frameHeight": 207,
+              "svg": "raw/ml-linear-regression-linear-unit/deep-main-408.svg",
+              "svgSha256": "d744579aa90a53e8792a140e8df8fd1d1656dd79cea25200b1a975e28c1a5d6e",
+              "vector": {
+                "left": 29,
+                "top": 886,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 2,
+                "foreignObjects": 3,
+                "katexSpans": 3
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 279,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 279,
+              "frameHeight": 279,
+              "svg": "raw/ml-linear-regression-linear-unit/deep-main-720.svg",
+              "svgSha256": "742e84b75c50c041bc5087e426e827df156ffbc653b84a482243db34f724c6c0",
+              "vector": {
+                "left": 461,
+                "top": 886,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 2,
+                "foreignObjects": 3,
+                "katexSpans": 3
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-linear-regression-linear-unit--deep-detail",
+          "depth": "deep",
+          "role": "detail",
+          "kind": "coordinate-plot",
+          "source": "depths.deep.detailSpec",
+          "spec": "raw/ml-linear-regression-linear-unit/deep-detail.json",
+          "specSha256": "59d03f20f3384125f7e2c50ef60d9de8a2297516d12b4a989e9edf6bfd8dfeee",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 490.5,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 490.5,
+              "frameHeight": 491,
+              "svg": "raw/ml-linear-regression-linear-unit/deep-detail-408.svg",
+              "svgSha256": "a62fdf5dc5b6c460537e403150a4b15f2c4b29d5bf8d3215ac9f744aff2033c3",
+              "vector": {
+                "left": 29,
+                "top": 1253,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 2
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 451.5,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 451.5,
+              "frameHeight": 452,
+              "svg": "raw/ml-linear-regression-linear-unit/deep-detail-720.svg",
+              "svgSha256": "cc14d3b18da25835bce390ea122e519f3d73e099c441dd78ba5d2ec7440a59bc",
+              "vector": {
+                "left": 461,
+                "top": 1253,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 2
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-linear-regression-linear-unit--author-single",
+          "depth": "author",
+          "role": "single",
+          "kind": "block-stack",
+          "source": "singleDiagramReferences:ml-linear-regression-linear-unit-single",
+          "spec": "raw/ml-linear-regression-linear-unit/author-single.json",
+          "specSha256": "d94b7d0c606e6d8401c4ad50da17daa2a959085648cb27a283828d5b1639c91e",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 161,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 161,
+              "frameHeight": 161,
+              "svg": "raw/ml-linear-regression-linear-unit/author-single-408.svg",
+              "svgSha256": "8a45e72f25123ffea94f2fffcf561e35c9defa4adcd4c46bd9706f4f7518a779",
+              "vector": {
+                "left": 29,
+                "top": 1832,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 161,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 161,
+              "frameHeight": 161,
+              "svg": "raw/ml-linear-regression-linear-unit/author-single-720.svg",
+              "svgSha256": "e914c86769b4116d706fd4bdfcd963d539abe2737ad727b6ffd642024dad38aa",
+              "vector": {
+                "left": 461,
+                "top": 1832,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-neural-networks-hidden-layer",
+      "sourceReference": "raw/ml-neural-networks-hidden-layer/reference.json",
+      "sourceReferenceSha256": "18385fedcf351a4e0c64a8b54934e129e63ef260c3035d3b0da9ec4634dbbae9",
+      "linkedSingleId": "ml-neural-networks-hidden-layer-single",
+      "views": [
+        {
+          "key": "ml-neural-networks-hidden-layer--overview-main",
+          "depth": "overview",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.overview.spec",
+          "spec": "raw/ml-neural-networks-hidden-layer/overview-main.json",
+          "specSha256": "b807c5d220b88591fb0014911f0e4749f1a4ed5366ece7dde1a526e0f573b873",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 291,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 291,
+              "frameHeight": 291,
+              "svg": "raw/ml-neural-networks-hidden-layer/overview-main-408.svg",
+              "svgSha256": "227dbe7d7bf801f81e8557485b7915435bb3d4c44db0ea0581924da67613322c",
+              "vector": {
+                "left": 29,
+                "top": 2081,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 259,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 259,
+              "frameHeight": 259,
+              "svg": "raw/ml-neural-networks-hidden-layer/overview-main-720.svg",
+              "svgSha256": "fc491d59e0f4c1e2015c99a4f6affb0f1ad5fbcd6b4d07c7ecba50d32d77bb1c",
+              "vector": {
+                "left": 461,
+                "top": 2081,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 1,
+                "katexSpans": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-neural-networks-hidden-layer--standard-main",
+          "depth": "standard",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.standard.spec",
+          "spec": "raw/ml-neural-networks-hidden-layer/standard-main.json",
+          "specSha256": "55cc0c0e2557660ffeec3d6348a22d91c60fbba674d60dca2888143035659173",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 658,
+              "naturalHeight": 279,
+              "scale": 0.6200607902735562,
+              "displayWidth": 408,
+              "displayHeight": 172.9969604863222,
+              "frameHeight": 173,
+              "svg": "raw/ml-neural-networks-hidden-layer/standard-main-408.svg",
+              "svgSha256": "6e41a906285cfae250ca8fe20f258fa0bff3e40e8bbb67784a3e156aaf166d34",
+              "vector": {
+                "left": 29,
+                "top": 2460,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 3,
+                "foreignObjects": 4,
+                "katexSpans": 8
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 279,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 279,
+              "frameHeight": 279,
+              "svg": "raw/ml-neural-networks-hidden-layer/standard-main-720.svg",
+              "svgSha256": "cd2bf1051ba30fa6586c2bd4b8222abb866c76dd05dea9c693bb308cc5889e3d",
+              "vector": {
+                "left": 461,
+                "top": 2460,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 3,
+                "foreignObjects": 4,
+                "katexSpans": 8
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-neural-networks-hidden-layer--deep-main",
+          "depth": "deep",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.deep.spec",
+          "spec": "raw/ml-neural-networks-hidden-layer/deep-main.json",
+          "specSha256": "3cf0f88c2055a19bcac4d2018db9ff4f34df3884a71c145b22baa661b6c5d87a",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 658,
+              "naturalHeight": 296,
+              "scale": 0.6200607902735562,
+              "displayWidth": 408,
+              "displayHeight": 183.53799392097264,
+              "frameHeight": 184,
+              "svg": "raw/ml-neural-networks-hidden-layer/deep-main-408.svg",
+              "svgSha256": "1cdd59d881a8aef3e73ce62cc0307f1ba9400355c2f19b12411902b3b9d54831",
+              "vector": {
+                "left": 29,
+                "top": 2827,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 3,
+                "foreignObjects": 5,
+                "katexSpans": 9
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 279,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 279,
+              "frameHeight": 279,
+              "svg": "raw/ml-neural-networks-hidden-layer/deep-main-720.svg",
+              "svgSha256": "f740a4018c17620516fe2740fd62552d89fe23c88753b6fa6c7fd0d1d17a9769",
+              "vector": {
+                "left": 461,
+                "top": 2827,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 3,
+                "foreignObjects": 4,
+                "katexSpans": 9
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-neural-networks-hidden-layer--deep-detail",
+          "depth": "deep",
+          "role": "detail",
+          "kind": "panels",
+          "source": "depths.deep.detailSpec",
+          "spec": "raw/ml-neural-networks-hidden-layer/deep-detail.json",
+          "specSha256": "edfb96c755eab181ec2bda73ca20570a65581dd852481d22a12042eccee60d98",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 416,
+              "naturalHeight": 278,
+              "scale": 0.9807692307692307,
+              "displayWidth": 408,
+              "displayHeight": 272.65384615384613,
+              "frameHeight": 273,
+              "svg": "raw/ml-neural-networks-hidden-layer/deep-detail-408.svg",
+              "svgSha256": "9b20f221bf8ef479cf58dd51dbef1c67c57a6044adb7018a5bb60f057b5b830e",
+              "vector": {
+                "left": 29,
+                "top": 3194,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 2,
+                "katexSpans": 2
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 401,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 401,
+              "frameHeight": 401,
+              "svg": "raw/ml-neural-networks-hidden-layer/deep-detail-720.svg",
+              "svgSha256": "ccf1c7d00f977d8c51ff8acceefdeb4f68268ab32efead7aa8a1d1db34c4376f",
+              "vector": {
+                "left": 461,
+                "top": 3194,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 2,
+                "katexSpans": 2
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-neural-networks-hidden-layer--author-single",
+          "depth": "author",
+          "role": "single",
+          "kind": "bar-chart",
+          "source": "singleDiagramReferences:ml-neural-networks-hidden-layer-single",
+          "spec": "raw/ml-neural-networks-hidden-layer/author-single.json",
+          "specSha256": "b8229ed854f4be1e5033415543a4a345c65981f25154be0ab24be8cea699f324",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 157,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 157,
+              "frameHeight": 157,
+              "svg": "raw/ml-neural-networks-hidden-layer/author-single-408.svg",
+              "svgSha256": "884cbb4e04599bca3f1d4a121ea1dbdae86c97d82c37bed97a32bb125301cb7b",
+              "vector": {
+                "left": 29,
+                "top": 3683,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 157,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 157,
+              "frameHeight": 157,
+              "svg": "raw/ml-neural-networks-hidden-layer/author-single-720.svg",
+              "svgSha256": "1037b7a5e2d0e45a6406353aea30895b285db77706fb8cba3c86e73bb00ae16b",
+              "vector": {
+                "left": 461,
+                "top": 3683,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-regularization-regularized-objective",
+      "sourceReference": "raw/ml-regularization-regularized-objective/reference.json",
+      "sourceReferenceSha256": "b330c92d91cf60d5e50a07e360c9ddf2ce7b2e6993ed344ac843d633556c72a8",
+      "linkedSingleId": "ml-regularization-regularized-objective-single",
+      "views": [
+        {
+          "key": "ml-regularization-regularized-objective--overview-main",
+          "depth": "overview",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.overview.spec",
+          "spec": "raw/ml-regularization-regularized-objective/overview-main.json",
+          "specSha256": "aeaf30aa5c4adffe4db93f81255bf38de30a72af9aa0ba9b718d9f949420b21f",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 315,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 315,
+              "frameHeight": 315,
+              "svg": "raw/ml-regularization-regularized-objective/overview-main-408.svg",
+              "svgSha256": "d63b21bf37050df907010620c587a5c4c6e860bdb8dbcd88dd759eda6c0602d6",
+              "vector": {
+                "left": 29,
+                "top": 3928,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 307,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 307,
+              "frameHeight": 307,
+              "svg": "raw/ml-regularization-regularized-objective/overview-main-720.svg",
+              "svgSha256": "3cb363aa016f3e05e5fab8edb50c263d3628e0929f1348e709776a3fff465437",
+              "vector": {
+                "left": 461,
+                "top": 3928,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-regularization-regularized-objective--standard-main",
+          "depth": "standard",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.standard.spec",
+          "spec": "raw/ml-regularization-regularized-objective/standard-main.json",
+          "specSha256": "6c2e8d14950a4323c6f17a781bbf71b1593d3ee6708c538d7f3599314ff154e3",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 351,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 351,
+              "frameHeight": 351,
+              "svg": "raw/ml-regularization-regularized-objective/standard-main-408.svg",
+              "svgSha256": "23700acf22f43e311e2fc5cfcae66f7ff140ab9724a24df774355de412549220",
+              "vector": {
+                "left": 29,
+                "top": 4331,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 3,
+                "foreignObjects": 4,
+                "katexSpans": 5
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 398,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 398,
+              "frameHeight": 398,
+              "svg": "raw/ml-regularization-regularized-objective/standard-main-720.svg",
+              "svgSha256": "37c3014499fdc994947261310a3e75b6f746ff03333bc3c813dd1b0e9334967f",
+              "vector": {
+                "left": 461,
+                "top": 4331,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 3,
+                "foreignObjects": 4,
+                "katexSpans": 5
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-regularization-regularized-objective--deep-main",
+          "depth": "deep",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.deep.spec",
+          "spec": "raw/ml-regularization-regularized-objective/deep-main.json",
+          "specSha256": "52b51ed46b4d495e945c8980322af179d9f7d1cb5c55e83ecfcf4c38e7e4acc9",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 351,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 351,
+              "frameHeight": 351,
+              "svg": "raw/ml-regularization-regularized-objective/deep-main-408.svg",
+              "svgSha256": "3797a511b8241ea479a9dc89fec79c7c7a98b2bbe9d3ff43a545fa89000aa3a9",
+              "vector": {
+                "left": 29,
+                "top": 4817,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 3,
+                "foreignObjects": 4,
+                "katexSpans": 4
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 398,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 398,
+              "frameHeight": 398,
+              "svg": "raw/ml-regularization-regularized-objective/deep-main-720.svg",
+              "svgSha256": "0706af7d678cbd37710fe2d337aee49491af1060feefdf0e04eb4bf1aa7a61ca",
+              "vector": {
+                "left": 461,
+                "top": 4817,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 3,
+                "foreignObjects": 4,
+                "katexSpans": 4
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-regularization-regularized-objective--deep-detail",
+          "depth": "deep",
+          "role": "detail",
+          "kind": "panels",
+          "source": "depths.deep.detailSpec",
+          "spec": "raw/ml-regularization-regularized-objective/deep-detail.json",
+          "specSha256": "6443a79272944127176ed0f6f00798b4d1d16a57d34d90a7f8f5a23c0afb529a",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 325,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 325,
+              "frameHeight": 325,
+              "svg": "raw/ml-regularization-regularized-objective/deep-detail-408.svg",
+              "svgSha256": "8d0b3de40524a722dcd155d2b5868739ff70d8a1b7bf0c5d3540d0bed41841ab",
+              "vector": {
+                "left": 29,
+                "top": 5303,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 3,
+                "katexSpans": 3
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 267,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 267,
+              "frameHeight": 267,
+              "svg": "raw/ml-regularization-regularized-objective/deep-detail-720.svg",
+              "svgSha256": "acc6e2312908a8ef6a9884f422ad783bf5fb6fb5db4c05bd107010d7d71e7e93",
+              "vector": {
+                "left": 461,
+                "top": 5303,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 2,
+                "katexSpans": 3
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-regularization-regularized-objective--author-single",
+          "depth": "author",
+          "role": "single",
+          "kind": "bar-chart",
+          "source": "singleDiagramReferences:ml-regularization-regularized-objective-single",
+          "spec": "raw/ml-regularization-regularized-objective/author-single.json",
+          "specSha256": "4bfa4f8ff1b7be3c7044a35ec72abe1dfdfe735a3b1b1a7601fcc933d8c2f104",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 300,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 300,
+              "frameHeight": 300,
+              "svg": "raw/ml-regularization-regularized-objective/author-single-408.svg",
+              "svgSha256": "8debba862985a7ae75e9095a4f3669cd50d306ba51f2b710739710774653f22d",
+              "vector": {
+                "left": 29,
+                "top": 5716,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 300,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 300,
+              "frameHeight": 300,
+              "svg": "raw/ml-regularization-regularized-objective/author-single-720.svg",
+              "svgSha256": "f44ebe1d55937618b9e8074c2edf6c38b81b79d95830740d425722ee915c8b9c",
+              "vector": {
+                "left": 461,
+                "top": 5716,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ml-regularization-dropout-mask",
+      "sourceReference": "raw/ml-regularization-dropout-mask/reference.json",
+      "sourceReferenceSha256": "c8d2410c082f5cfde0f52d4014eeb4c8883e1769a3573224ca88fa2a0ed7d749",
+      "linkedSingleId": "ml-regularization-dropout-mask-single",
+      "views": [
+        {
+          "key": "ml-regularization-dropout-mask--overview-main",
+          "depth": "overview",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.overview.spec",
+          "spec": "raw/ml-regularization-dropout-mask/overview-main.json",
+          "specSha256": "97e3d9e7c2fadf4b050420fcdaf5ce6f91aef0458a5509801408f7f995e58f52",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 313,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 313,
+              "frameHeight": 313,
+              "svg": "raw/ml-regularization-dropout-mask/overview-main-408.svg",
+              "svgSha256": "2bf5a28ebb5c9f247bdcf78afd12daebd71c4e983d9fa5dd41793564abd3232d",
+              "vector": {
+                "left": 29,
+                "top": 6104,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 296,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 296,
+              "frameHeight": 296,
+              "svg": "raw/ml-regularization-dropout-mask/overview-main-720.svg",
+              "svgSha256": "0fc8296bb0fd3b6330e5eb8818a3656c23f8fdd0bf353836b32b2115283f383e",
+              "vector": {
+                "left": 461,
+                "top": 6104,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-regularization-dropout-mask--standard-main",
+          "depth": "standard",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.standard.spec",
+          "spec": "raw/ml-regularization-dropout-mask/standard-main.json",
+          "specSha256": "031477c1b233aa7a85e64c64c5d45b28816d31f47f1598aaed2c2e401711d810",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 602,
+              "naturalHeight": 297,
+              "scale": 0.6777408637873754,
+              "displayWidth": 408,
+              "displayHeight": 201.2890365448505,
+              "frameHeight": 202,
+              "svg": "raw/ml-regularization-dropout-mask/standard-main-408.svg",
+              "svgSha256": "0a4396f1f991efb6d007ca1e25486b985e868d022b90f72281b44e6e709567c5",
+              "vector": {
+                "left": 29,
+                "top": 6505,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 2,
+                "katexSpans": 2
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 302,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 302,
+              "frameHeight": 302,
+              "svg": "raw/ml-regularization-dropout-mask/standard-main-720.svg",
+              "svgSha256": "1d20b3160933ac3ed7fe85fb5b819d15caade052b06d51d862623b04e6ac39d6",
+              "vector": {
+                "left": 461,
+                "top": 6505,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 2,
+                "katexSpans": 2
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-regularization-dropout-mask--deep-main",
+          "depth": "deep",
+          "role": "main",
+          "kind": "panels",
+          "source": "depths.deep.spec",
+          "spec": "raw/ml-regularization-dropout-mask/deep-main.json",
+          "specSha256": "696a48fb7b80b475874470ec955a41ac7e34639c9be81f27c44a6fe06b5de354",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 602,
+              "naturalHeight": 297,
+              "scale": 0.6777408637873754,
+              "displayWidth": 408,
+              "displayHeight": 201.2890365448505,
+              "frameHeight": 202,
+              "svg": "raw/ml-regularization-dropout-mask/deep-main-408.svg",
+              "svgSha256": "96b0cb3e4750e22fe9600181c8edc3038a1f09c94f709aa7f97ea15507aafe50",
+              "vector": {
+                "left": 29,
+                "top": 6895,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 2,
+                "katexSpans": 2
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 302,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 302,
+              "frameHeight": 302,
+              "svg": "raw/ml-regularization-dropout-mask/deep-main-720.svg",
+              "svgSha256": "45f2403ff5c4fee7afedbf789cf3bb1ba5f5c32deff5321a69aea0d93e15a3ff",
+              "vector": {
+                "left": 461,
+                "top": 6895,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 1,
+                "foreignObjects": 2,
+                "katexSpans": 2
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-regularization-dropout-mask--deep-detail",
+          "depth": "deep",
+          "role": "detail",
+          "kind": "panels",
+          "source": "depths.deep.detailSpec",
+          "spec": "raw/ml-regularization-dropout-mask/deep-detail.json",
+          "specSha256": "3808130e39f2eda0b9d46e40b876188840c2487804a56a0f2cc94a22a094e4f0",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 402,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 402,
+              "frameHeight": 402,
+              "svg": "raw/ml-regularization-dropout-mask/deep-detail-408.svg",
+              "svgSha256": "3939b1f31de02834eb522c7ef2bcf0dbb89d969b385e9071fae610c89c748e2e",
+              "vector": {
+                "left": 29,
+                "top": 7285,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 344,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 344,
+              "frameHeight": 344,
+              "svg": "raw/ml-regularization-dropout-mask/deep-detail-720.svg",
+              "svgSha256": "7507fe30f8661332c563c443541fd2b5e060bba5d867a948c79e3a9ab19ff921",
+              "vector": {
+                "left": 461,
+                "top": 7285,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 0,
+                "katexSpans": 0
+              }
+            }
+          ]
+        },
+        {
+          "key": "ml-regularization-dropout-mask--author-single",
+          "depth": "author",
+          "role": "single",
+          "kind": "coordinate-plot",
+          "source": "singleDiagramReferences:ml-regularization-dropout-mask-single",
+          "spec": "raw/ml-regularization-dropout-mask/author-single.json",
+          "specSha256": "3907b768c1012f3c86e6e7e70443cb1bc3bab8e056a3caca6f4225be96d7858e",
+          "renders": [
+            {
+              "requestedWidth": 408,
+              "naturalWidth": 408,
+              "naturalHeight": 468.5,
+              "scale": 1,
+              "displayWidth": 408,
+              "displayHeight": 468.5,
+              "frameHeight": 469,
+              "svg": "raw/ml-regularization-dropout-mask/author-single-408.svg",
+              "svgSha256": "53e6c4c39313dc59fb3b030ef34084f2bcb23d99835fb044069310306c6894b2",
+              "vector": {
+                "left": 29,
+                "top": 7775,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 2,
+                "katexSpans": 5
+              }
+            },
+            {
+              "requestedWidth": 720,
+              "naturalWidth": 720,
+              "naturalHeight": 451.5,
+              "scale": 1,
+              "displayWidth": 720,
+              "displayHeight": 451.5,
+              "frameHeight": 452,
+              "svg": "raw/ml-regularization-dropout-mask/author-single-720.svg",
+              "svgSha256": "a5f6b87a404d30c591d0b497b9e44ff2f10366630444f98ca0e26732013986e6",
+              "vector": {
+                "left": 461,
+                "top": 7775,
+                "nativeViewportFullyInsideRow": true,
+                "xhtmlNamespaceAnnotations": 0,
+                "foreignObjects": 1,
+                "katexSpans": 5
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "raw/ml-linear-regression-linear-unit/reference.json",
+      "bytes": 9422,
+      "sha256": "9a31b4f715785b061dbe6feea4ee1276d3ce678fce2fdfa9139792a0c7c425ef"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/overview-main.json",
+      "bytes": 1080,
+      "sha256": "4f5b8fd396dea8a45a4f8605c508709aad9a9221fd03acec50db87d461a37591"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/overview-main-408.svg",
+      "bytes": 5631,
+      "sha256": "eac3fa75b5fa4375e4c42c812a13761960c9fce56da7173bd5730c6e1c13b6b1"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/overview-main-720.svg",
+      "bytes": 5555,
+      "sha256": "1b81d6215ed5eb111fdc4674272be3b53a25ec216aebbeb4375891f71ad62951"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/standard-main.json",
+      "bytes": 1476,
+      "sha256": "9ed5e1c56734f2c9376b2bed12ae71de9c0522ca9753ccd3cbd310ef47f846cc"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/standard-main-408.svg",
+      "bytes": 10732,
+      "sha256": "67344c616ff897a60dde1d4c4e041beda7d46dd5a060c4e68e2604684ef8239e"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/standard-main-720.svg",
+      "bytes": 10743,
+      "sha256": "d2e8502b1bedac3d200dc1803495b42a932de79ace86f2422679dc97712b0e7f"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/deep-main.json",
+      "bytes": 1524,
+      "sha256": "70eda9f05f9b1c0f6c89821825c23b88e7ad3ef9eec0aede01d26ff916820b51"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/deep-main-408.svg",
+      "bytes": 10862,
+      "sha256": "d744579aa90a53e8792a140e8df8fd1d1656dd79cea25200b1a975e28c1a5d6e"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/deep-main-720.svg",
+      "bytes": 10685,
+      "sha256": "742e84b75c50c041bc5087e426e827df156ffbc653b84a482243db34f724c6c0"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/deep-detail.json",
+      "bytes": 611,
+      "sha256": "59d03f20f3384125f7e2c50ef60d9de8a2297516d12b4a989e9edf6bfd8dfeee"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/deep-detail-408.svg",
+      "bytes": 6918,
+      "sha256": "a62fdf5dc5b6c460537e403150a4b15f2c4b29d5bf8d3215ac9f744aff2033c3"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/deep-detail-720.svg",
+      "bytes": 6691,
+      "sha256": "cc14d3b18da25835bce390ea122e519f3d73e099c441dd78ba5d2ec7440a59bc"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/author-single.json",
+      "bytes": 337,
+      "sha256": "d94b7d0c606e6d8401c4ad50da17daa2a959085648cb27a283828d5b1639c91e"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/author-single-408.svg",
+      "bytes": 3103,
+      "sha256": "8a45e72f25123ffea94f2fffcf561e35c9defa4adcd4c46bd9706f4f7518a779"
+    },
+    {
+      "path": "raw/ml-linear-regression-linear-unit/author-single-720.svg",
+      "bytes": 3107,
+      "sha256": "e914c86769b4116d706fd4bdfcd963d539abe2737ad727b6ffd642024dad38aa"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/reference.json",
+      "bytes": 10921,
+      "sha256": "18385fedcf351a4e0c64a8b54934e129e63ef260c3035d3b0da9ec4634dbbae9"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/overview-main.json",
+      "bytes": 1098,
+      "sha256": "b807c5d220b88591fb0014911f0e4749f1a4ed5366ece7dde1a526e0f573b873"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/overview-main-408.svg",
+      "bytes": 5643,
+      "sha256": "227dbe7d7bf801f81e8557485b7915435bb3d4c44db0ea0581924da67613322c"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/overview-main-720.svg",
+      "bytes": 5605,
+      "sha256": "fc491d59e0f4c1e2015c99a4f6affb0f1ad5fbcd6b4d07c7ecba50d32d77bb1c"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/standard-main.json",
+      "bytes": 1512,
+      "sha256": "55cc0c0e2557660ffeec3d6348a22d91c60fbba674d60dca2888143035659173"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/standard-main-408.svg",
+      "bytes": 13833,
+      "sha256": "6e41a906285cfae250ca8fe20f258fa0bff3e40e8bbb67784a3e156aaf166d34"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/standard-main-720.svg",
+      "bytes": 13912,
+      "sha256": "cd2bf1051ba30fa6586c2bd4b8222abb866c76dd05dea9c693bb308cc5889e3d"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/deep-main.json",
+      "bytes": 1522,
+      "sha256": "3cf0f88c2055a19bcac4d2018db9ff4f34df3884a71c145b22baa661b6c5d87a"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/deep-main-408.svg",
+      "bytes": 14708,
+      "sha256": "1cdd59d881a8aef3e73ce62cc0307f1ba9400355c2f19b12411902b3b9d54831"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/deep-main-720.svg",
+      "bytes": 14480,
+      "sha256": "f740a4018c17620516fe2740fd62552d89fe23c88753b6fa6c7fd0d1d17a9769"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/deep-detail.json",
+      "bytes": 1692,
+      "sha256": "edfb96c755eab181ec2bda73ca20570a65581dd852481d22a12042eccee60d98"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/deep-detail-408.svg",
+      "bytes": 10980,
+      "sha256": "9b20f221bf8ef479cf58dd51dbef1c67c57a6044adb7018a5bb60f057b5b830e"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/deep-detail-720.svg",
+      "bytes": 11007,
+      "sha256": "ccf1c7d00f977d8c51ff8acceefdeb4f68268ab32efead7aa8a1d1db34c4376f"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/author-single.json",
+      "bytes": 240,
+      "sha256": "b8229ed854f4be1e5033415543a4a345c65981f25154be0ab24be8cea699f324"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/author-single-408.svg",
+      "bytes": 1827,
+      "sha256": "884cbb4e04599bca3f1d4a121ea1dbdae86c97d82c37bed97a32bb125301cb7b"
+    },
+    {
+      "path": "raw/ml-neural-networks-hidden-layer/author-single-720.svg",
+      "bytes": 1813,
+      "sha256": "1037b7a5e2d0e45a6406353aea30895b285db77706fb8cba3c86e73bb00ae16b"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/reference.json",
+      "bytes": 10515,
+      "sha256": "b330c92d91cf60d5e50a07e360c9ddf2ce7b2e6993ed344ac843d633556c72a8"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/overview-main.json",
+      "bytes": 1150,
+      "sha256": "aeaf30aa5c4adffe4db93f81255bf38de30a72af9aa0ba9b718d9f949420b21f"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/overview-main-408.svg",
+      "bytes": 5482,
+      "sha256": "d63b21bf37050df907010620c587a5c4c6e860bdb8dbcd88dd759eda6c0602d6"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/overview-main-720.svg",
+      "bytes": 5416,
+      "sha256": "3cb363aa016f3e05e5fab8edb50c263d3628e0929f1348e709776a3fff465437"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/standard-main.json",
+      "bytes": 1618,
+      "sha256": "6c2e8d14950a4323c6f17a781bbf71b1593d3ee6708c538d7f3599314ff154e3"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/standard-main-408.svg",
+      "bytes": 12803,
+      "sha256": "23700acf22f43e311e2fc5cfcae66f7ff140ab9724a24df774355de412549220"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/standard-main-720.svg",
+      "bytes": 12538,
+      "sha256": "37c3014499fdc994947261310a3e75b6f746ff03333bc3c813dd1b0e9334967f"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/deep-main.json",
+      "bytes": 1643,
+      "sha256": "52b51ed46b4d495e945c8980322af179d9f7d1cb5c55e83ecfcf4c38e7e4acc9"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/deep-main-408.svg",
+      "bytes": 12483,
+      "sha256": "3797a511b8241ea479a9dc89fec79c7c7a98b2bbe9d3ff43a545fa89000aa3a9"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/deep-main-720.svg",
+      "bytes": 12215,
+      "sha256": "0706af7d678cbd37710fe2d337aee49491af1060feefdf0e04eb4bf1aa7a61ca"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/deep-detail.json",
+      "bytes": 1048,
+      "sha256": "6443a79272944127176ed0f6f00798b4d1d16a57d34d90a7f8f5a23c0afb529a"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/deep-detail-408.svg",
+      "bytes": 7924,
+      "sha256": "8d0b3de40524a722dcd155d2b5868739ff70d8a1b7bf0c5d3540d0bed41841ab"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/deep-detail-720.svg",
+      "bytes": 7498,
+      "sha256": "acc6e2312908a8ef6a9884f422ad783bf5fb6fb5db4c05bd107010d7d71e7e93"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/author-single.json",
+      "bytes": 297,
+      "sha256": "4bfa4f8ff1b7be3c7044a35ec72abe1dfdfe735a3b1b1a7601fcc933d8c2f104"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/author-single-408.svg",
+      "bytes": 1998,
+      "sha256": "8debba862985a7ae75e9095a4f3669cd50d306ba51f2b710739710774653f22d"
+    },
+    {
+      "path": "raw/ml-regularization-regularized-objective/author-single-720.svg",
+      "bytes": 1998,
+      "sha256": "f44ebe1d55937618b9e8074c2edf6c38b81b79d95830740d425722ee915c8b9c"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/reference.json",
+      "bytes": 13590,
+      "sha256": "c8d2410c082f5cfde0f52d4014eeb4c8883e1769a3573224ca88fa2a0ed7d749"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/overview-main.json",
+      "bytes": 1035,
+      "sha256": "97e3d9e7c2fadf4b050420fcdaf5ce6f91aef0458a5509801408f7f995e58f52"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/overview-main-408.svg",
+      "bytes": 4544,
+      "sha256": "2bf5a28ebb5c9f247bdcf78afd12daebd71c4e983d9fa5dd41793564abd3232d"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/overview-main-720.svg",
+      "bytes": 4563,
+      "sha256": "0fc8296bb0fd3b6330e5eb8818a3656c23f8fdd0bf353836b32b2115283f383e"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/standard-main.json",
+      "bytes": 2426,
+      "sha256": "031477c1b233aa7a85e64c64c5d45b28816d31f47f1598aaed2c2e401711d810"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/standard-main-408.svg",
+      "bytes": 15107,
+      "sha256": "0a4396f1f991efb6d007ca1e25486b985e868d022b90f72281b44e6e709567c5"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/standard-main-720.svg",
+      "bytes": 15119,
+      "sha256": "1d20b3160933ac3ed7fe85fb5b819d15caade052b06d51d862623b04e6ac39d6"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/deep-main.json",
+      "bytes": 2431,
+      "sha256": "696a48fb7b80b475874470ec955a41ac7e34639c9be81f27c44a6fe06b5de354"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/deep-main-408.svg",
+      "bytes": 15316,
+      "sha256": "96b0cb3e4750e22fe9600181c8edc3038a1f09c94f709aa7f97ea15507aafe50"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/deep-main-720.svg",
+      "bytes": 15329,
+      "sha256": "45f2403ff5c4fee7afedbf789cf3bb1ba5f5c32deff5321a69aea0d93e15a3ff"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/deep-detail.json",
+      "bytes": 1181,
+      "sha256": "3808130e39f2eda0b9d46e40b876188840c2487804a56a0f2cc94a22a094e4f0"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/deep-detail-408.svg",
+      "bytes": 5606,
+      "sha256": "3939b1f31de02834eb522c7ef2bcf0dbb89d969b385e9071fae610c89c748e2e"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/deep-detail-720.svg",
+      "bytes": 5525,
+      "sha256": "7507fe30f8661332c563c443541fd2b5e060bba5d867a948c79e3a9ab19ff921"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/author-single.json",
+      "bytes": 601,
+      "sha256": "3907b768c1012f3c86e6e7e70443cb1bc3bab8e056a3caca6f4225be96d7858e"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/author-single-408.svg",
+      "bytes": 8402,
+      "sha256": "53e6c4c39313dc59fb3b030ef34084f2bcb23d99835fb044069310306c6894b2"
+    },
+    {
+      "path": "raw/ml-regularization-dropout-mask/author-single-720.svg",
+      "bytes": 8051,
+      "sha256": "a5f6b87a404d30c591d0b497b9e44ff2f10366630444f98ca0e26732013986e6"
+    },
+    {
+      "path": "index.html",
+      "bytes": 801647,
+      "sha256": "a0a991e24cff5517e4240959d343b31a9e5d425f2174165ae6c3d3cd74630ed6"
+    },
+    {
+      "path": "contact-sheet.svg",
+      "bytes": 794617,
+      "sha256": "db1a83477b73f7a2ce5d33210c35be8ad1a50fec8e9bc340420960deab484671"
+    }
+  ],
+  "limitations": [
+    "This is deterministic offline production-renderer evidence from checked reference payloads, not live model or provider output.",
+    "The vector sheet and HTML embed the production KaTeX CSS and all WOFF2 fonts; browser font loading, foreignObject formula appearance and visual layout have not been observed.",
+    "Native SVG viewports are geometrically preserved and scaled to fit each column; any renderer-native clipping or content defects remain as produced by the renderer.",
+    "A browser screenshot/contact-sheet PNG is unavailable because browser execution and local file access were blocked; no Sharp SVG raster substitute was used."
+  ]
+}
