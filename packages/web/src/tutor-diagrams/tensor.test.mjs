@@ -58,7 +58,7 @@ function itemPosition(item) {
   return [Number(x), Number(y)];
 }
 
-test('Q/K/V uses four natural-width strips on a single row with three mapped arrows', () => {
+test('Q/K/V keeps four natural-width strips and wraps at the group boundary (the input, then the three outputs) when the row would pass the budget, one row at 960', () => {
   const [{ id, spec }] = tensorReferences;
   assert.equal(id, 'ml-transformer-qkv-projections');
   assert.deepEqual(lintDiagramContent(spec), []);
@@ -74,13 +74,16 @@ test('Q/K/V uses four natural-width strips on a single row with three mapped arr
   }
   const natural = layoutTensorTransformation(diagram, 0);
   assert.ok(natural.width > 408);
-  for (const width of [408, natural.width, 960]) {
+  // TOK-W: the row budget is the request (at least 720, at most 960); the four strips need more than 720, so below 960 the outputs wrap onto a second row.
+  for (const [width, rowCount] of [[408, 2], [natural.width, 2], [960, 1]]) {
     const scene = layoutTensorTransformation(diagram, width);
     assert.equal(scene.width, Math.max(natural.width, width));
     const items = scene.elements.filter(element => element.props['data-tutor-transformation-item']);
     assert.deepEqual(items.map(item => item.props['data-tutor-transformation-item']), ['before:0', 'after:0', 'after:1', 'after:2']);
     const positions = items.map(itemPosition);
-    assert.ok(positions.every(([, y]) => y === positions[0][1]));
+    assert.equal(new Set(positions.map(([, y]) => y)).size, rowCount, `rows at ${width}`);
+    assert.ok(positions.slice(1).every(([, y]) => y === positions[1][1]), 'the three outputs share a row');
+    if (rowCount === 2) assert.ok(positions[1][1] > positions[0][1], 'the outputs wrap below the input');
     const gridTops = [];
     items.forEach((item, i) => {
       const [x, y] = positions[i];
@@ -91,22 +94,28 @@ test('Q/K/V uses four natural-width strips on a single row with three mapped arr
         assert.ok(x + cell.props.x > 0 && x + cell.props.x + cell.props.width < scene.width);
         assert.ok(y + cell.props.y > 0 && y + cell.props.y + cell.props.height < scene.height);
       }
-      if (i > 0) assert.ok(positions[i - 1][0] + tensorMinimumWidth(payloads[i - 1]) < x);
+      if (i > 0 && positions[i - 1][1] === y) assert.ok(positions[i - 1][0] + tensorMinimumWidth(payloads[i - 1]) < x);
     });
-    assert.equal(new Set(gridTops).size, 1, 'all four grids align on the same row');
+    assert.equal(new Set(gridTops).size, rowCount, 'the grids of one row align');
     const markup = svg(scene);
-    assert.equal([...markup.matchAll(/data-tutor-arrowhead/g)].length, 3);
+    // One row keeps the three mapped arrows; a wrapped transformation draws the one arrow from the end of the first row to the start of the second.
+    assert.equal([...markup.matchAll(/data-tutor-arrowhead/g)].length, rowCount === 1 ? 3 : 1);
     assert.match(markup, /Multiply by the learned weight matrices/);
     assert.doesNotMatch(markup, /NaN|Infinity|undefined|katex-error/);
   }
 });
 
 test('tensor transformations keep mixed text items and respect explicit mapping indices', () => {
-  const scene = layoutTensorTransformation({
+  const mixed = {
     before: { label: 'Before', items: ['Plain input', { label: 'Selected tensor', tensor }] },
     after: { label: 'After', items: [{ tensor }, 'Mapped output'] },
     operation: 'Map the items', links: [{ from: 1, to: 1, label: 'Use this pair' }],
-  }, 408);
+  };
+  // TOK-W: the four items need more than the 720 px row budget, so at 408 the groups wrap onto two rows joined by one arrow, and the explicit mapping is drawn on one row (960).
+  const wrapped = svg(layoutTensorTransformation(mixed, 408));
+  for (const value of ['Plain input', 'Selected tensor', 'Mapped output']) assert.ok(value.split(' ').every(word => wrapped.includes(word)), value);
+  assert.equal([...wrapped.matchAll(/data-tutor-arrowhead/g)].length, 1);
+  const scene = layoutTensorTransformation(mixed, 960);
   const markup = svg(scene);
   // a label may wrap onto lines at the 15 px body size, so each word must be drawn
   for (const value of ['Plain input', 'Selected tensor', 'Mapped output', 'Use this pair']) assert.ok(value.split(' ').every(word => markup.includes(word)), value);

@@ -70,8 +70,8 @@ test('the line stays inside a narrow linear uncertainty band', () => {
   }
 });
 
-// Sprint default: a line is straight between samples unless `smooth: true` (or 20 samples or more), and a line of up to 8 samples marks every sample.
-test('basic and Phase 02 plots draw straight segments by default and smooth on opt-in', () => {
+// A line is smooth unless `smooth: false`; a line of up to 8 samples marks every sample (the first, the last and the labelled ones from 9).
+test('basic and Phase 02 plots smooth lines by default and preserve straight segments on opt-out', () => {
   for (const extended of [false, true]) {
     const points = [0, 0.1, 0.4, 0.9, 0.7, 0.3, 0].map((y, x) => ({ x, y,
       ...(extended && x === 3 ? { label: 'Peak' } : {}),
@@ -81,10 +81,6 @@ test('basic and Phase 02 plots draw straight segments by default and smooth on o
       x: { label: 'X', min: 0, max: 6 }, y: { label: 'Y', min: 0, max: 1 }, series: [series],
     } };
     const render = () => renderToStaticMarkup(renderTutorDiagram(spec, 408).element);
-    const plain = render();
-    assert.doesNotMatch(plain, /<path d="M[^"]+C[^"]+"/);
-    assert.match(plain, /<polyline points="(?:[\d.,]+ ){6}[\d.,]+"/);
-    series.smooth = true;
     const svg = render();
     assert.match(svg, /<path d="M[^"]+C[^"]+"/);
     assert.deepEqual([...svg.matchAll(/data-tutor-coordinate-point="([^"]+)"/g)].map(match => match[1]),
@@ -94,6 +90,22 @@ test('basic and Phase 02 plots draw straight segments by default and smooth on o
     assert.doesNotMatch(straight, /<path d="M[^"]+C[^"]+"/);
     assert.match(straight, /<polyline points="(?:[\d.,]+ ){6}[\d.,]+"/);
   }
+});
+
+test('smooth: false draws straight segments with a marker on every sample, and 9 or more samples mark only the first, the last and the labelled ones', () => {
+  const draw = (n, extra = {}) => {
+    const points = Array.from({ length: n }, (_, x) => ({ x, y: (x * 7) % 5, ...(x === 2 ? { label: 'Peak' } : {}) }));
+    const spec = { version: 1, diagram: { kind: 'coordinate-plot', title: 'Samples', x: { label: 'X', min: 0, max: n }, y: { label: 'Y', min: 0, max: 5 },
+      series: [{ kind: 'line', label: 'Samples', points, ...extra }] } };
+    return renderToStaticMarkup(renderTutorDiagram(spec, 408).element);
+  };
+  const straight = draw(6, { smooth: false });
+  assert.doesNotMatch(straight, /<path d="M[^"]+C[^"]+"/);
+  assert.match(straight, /<polyline points="(?:[\d.,]+ ){5}[\d.,]+"/);
+  assert.equal([...straight.matchAll(/data-tutor-coordinate-point=/g)].length, 6);
+  const long = draw(12);
+  assert.match(long, /<path d="M[^"]+C[^"]+"/);
+  assert.deepEqual([...long.matchAll(/data-tutor-coordinate-point="([^"]+)"/g)].map(match => match[1]), ['0,0', '2,4', '11,2']);
 });
 
 test('integer axis ticks show each depth when space allows and reject noninteger bounds', () => {
@@ -177,9 +189,7 @@ test('smooth closed lines have matching cubic tangents at every sample including
     const svg = renderToStaticMarkup(renderTutorDiagram(contourPlot(series), 408).element);
     return svg.match(/<path[^>]*data-tutor-plot-series="Loss level"[^>]*>/)[0].match(/\bd="([^"]+)"/)[1];
   };
-  // Sprint default: a contour is a straight closed polygon unless `smooth: true`, so the smooth closure opts in.
-  const smoothed = { ...periodic, smooth: true };
-  const geometry = path(smoothed);
+  const geometry = path(periodic);
   assert.match(geometry, /^M[^L]+Z$/);
   const cubics = segments(geometry.slice(0, -1));
   assert.equal(cubics.length, periodic.points.length);
@@ -192,7 +202,7 @@ test('smooth closed lines have matching cubic tangents at every sample including
     assert.ok(outgoing.every((value, axis) => Math.abs(value - incoming[axis]) < 1e-9));
   }
   const { x, y } = periodic.points[0];
-  assert.equal(path({ ...smoothed, points: [...periodic.points, { x, y }] }), geometry);
+  assert.equal(path({ ...periodic, points: [...periodic.points, { x, y }] }), geometry);
 });
 
 test('closed lines reject ambiguous geometry and the explicit false option keeps an open line', () => {

@@ -105,11 +105,11 @@ test('both lesson references round-trip, pass the content contract and render as
         assert.equal(svg.match(/data-tutor-plot-segment="segment"/g)?.length, 2);
         assert.equal(svg.match(/data-tutor-plot-point=/g)?.length, 2);
         assert.equal(svg.match(/data-tutor-coordinate-point=/g)?.length, 12);
-        // Sprint default (r6): no numbered note list under the figure, so a note's formula is not drawn on it; it stays in the diagram's written text (the card prose).
+        // Sprint default (PLT-2): no numbered note list under the figure; an annotation's label is drawn on the figure as a callout, so its formula is drawn there and also stays in the diagram's written text (the card prose).
         const written = tutorDiagramVisibleText(spec).join(' ');
         for (const formula of lofFormulas) {
           assert.ok(written.includes(formula), 'the formula stays in the written text');
-          assert.ok(!svg.includes(`data-tutor-tex="${formula}"`), 'the note text is not drawn on the figure');
+          assert.ok(svg.includes(`data-tutor-tex="${formula}"`), 'the formula text is drawn on the figure');
         }
       }
     }

@@ -395,6 +395,20 @@
         "tokens": 299,
         "sha256": "d92f013b4c95f4cd2354e768725663fd1d8ee8135f7e97a6aebb4d960b35032e"
       }
+    },
+    "ml-mle-steps": {
+      "brief": {
+        "tokens": 122,
+        "sha256": "60dc3b0c0ceb6743253c6c1e4f7d56657fbd88d146ecebc0f7bca9756a34f088"
+      },
+      "balanced": {
+        "tokens": 126,
+        "sha256": "dddbc56d58a26a371bcdac7ee027a51d68f42395d53513aa0936959fdfad1638"
+      },
+      "detailed": {
+        "tokens": 128,
+        "sha256": "c61f54b53405624c97d45351d1299b685e2b5015b4802e1d9bfaf978d0526a6c"
+      }
     }
   }
 }
