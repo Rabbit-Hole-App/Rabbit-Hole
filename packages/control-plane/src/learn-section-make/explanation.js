@@ -3,12 +3,12 @@
 // context: per anchor one header line `<path>:<start>-<end> @ <commit>` and the numbered lines read here at the pinned commit; for an item made for an earlier card's text
 // (item.after), that passage first, under a header naming the card's kind and id. At most 300 lines and 8000 characters (the artifact route refuses a longer context):
 // lines are cut from the end of the last block first, every header kept, the cut recorded. The prompt itself stays free of paths.
-import { CODE_TOKEN } from '../learn-section-brief.js';
+import { codeNameError } from '../learn-section-brief.js';
 import { validDepth } from '../chat-depth.js';
 
 export const PROMPT_MAX = 600, CONTEXT_LINES = 300, CONTEXT_CHARS = 8000;
 export const fields = {
-  prompt: { type: 'string', maxLength: PROMPT_MAX, description: 'The explanation request from the EXPLANATION template: one question at most, at most 600 characters, no file names, paths, flags or code names.' },
+  prompt: { type: 'string', maxLength: PROMPT_MAX, description: 'The explanation request from the EXPLANATION template: one question at most, at most 600 characters, no file names, paths or flags; a code name only in backticks, as the source lines spell it.' },
 };
 export const required = ['prompt'];
 export const tools = [];
@@ -43,18 +43,20 @@ export async function validate(input, ctx) {
   if (!prompt) return { error: 'prompt is the explanation request; it is empty' };
   if (prompt.length > PROMPT_MAX) return { error: `prompt is at most ${PROMPT_MAX} characters; it has ${prompt.length}` };
   if ((prompt.match(/\?/g) || []).length > 1) return { error: 'prompt asks one question at most' };
-  if (CODE_TOKEN.test(prompt)) return { error: 'prompt must have no file names, paths, flags or code names: the source lines travel with it separately' };
   const blocks = [];
   if (ctx.item.after) {
     const earlier = (ctx.earlier || []).find(e => e.itemId === ctx.item.after);
     if (!earlier) return { error: `the earlier item ${ctx.item.after} this explanation is made for was not made` };
-    blocks.push(pairBlock(earlier));
+    blocks.push({ ...pairBlock(earlier), pair: true });
   }
   for (const anchor of ctx.beat?.anchors || []) {
     const a = anchorOf(anchor), read = a && ctx.readSource(a.path, a.start ?? 1, a.end ?? a.start ?? Infinity);
     if (!read) continue;
     blocks.push({ header: `${read.path}:${read.start}-${read.end} @ ${ctx.commit}`, lines: read.lines.map((line, i) => `${read.start + i}: ${line}`) });
   }
+  const anchored = blocks.filter(b => !b.pair).map(b => b.lines.join('\n')).join('\n');
+  const wrong = codeNameError(prompt, anchored);
+  if (wrong) return { error: `prompt ${wrong}: the source lines travel with it separately` };
   const allowed = new Set(`${blocks.map(b => b.lines.join('\n')).join('\n')}\n${JSON.stringify(ctx.brief)}\n${ctx.item.request}`.match(NUMBER) || []);
   const invented = (prompt.match(NUMBER) || []).filter(n => !allowed.has(n));
   if (invented.length) return { error: `prompt uses ${invented.join(', ')}, which the source lines and the brief do not: use only their numbers` };

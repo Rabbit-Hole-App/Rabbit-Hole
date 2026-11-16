@@ -106,7 +106,11 @@ test('explanation: perform is the typed /explain line with the learner depth and
 });
 
 test('explanation: a planted prompt naming train.py is refused (C §1d.3); a second question, a long prompt and an invented number too', async () => {
-  assert.match((await explanation.validate({ prompt: 'How does train.py cut the batches?' }, exCtx())).error, /^prompt must have no file names, paths, flags or code names/);
+  assert.match((await explanation.validate({ prompt: 'How does train.py cut the batches?' }, exCtx())).error, /^prompt must have no path, file name or flag/);
+  // Reviewer 10:50: a backticked identifier from the anchored lines passes; one not in them, or a bare code name, is refused.
+  assert.equal((await explanation.validate({ prompt: 'How does `completionPercent` turn the share into a percentage?' }, exCtx())).error, undefined);
+  assert.match((await explanation.validate({ prompt: 'How does `get_batch` cut the share?' }, exCtx())).error, /^prompt names `get_batch`, which the anchored lines do not/);
+  assert.match((await explanation.validate({ prompt: 'How does completionPercent work?' }, exCtx())).error, /^prompt must be plain words; a code name only in backticks/);
   assert.equal((await explanation.validate({ prompt: 'Why? And how?' }, exCtx())).error, 'prompt asks one question at most');
   assert.match((await explanation.validate({ prompt: 'x'.repeat(601) }, exCtx())).error, /^prompt is at most 600 characters/);
   assert.match((await explanation.validate({ prompt: 'Show it on a list of 7 tasks.' }, exCtx())).error, /^prompt uses 7, which the source lines and the brief do not/);

@@ -347,7 +347,10 @@ export async function advanceActivity(env, actor, activityId, to, assessment = n
 // Ruling Q2: a canvas's Tutor rows follow its lifecycle. Trash deletes nothing (Progress hides them while trashed); a
 // permanent delete removes them in the canvas's own delete batch, children first. Every learner's rows on that canvas (org,
 // app), all boards: only its owner, or a pending hole's, can hold any (canvasAccess).
-export const purgeTutorRows = (db, org, app) => {
+// Learn sections (migration 0046) exist only where that migration ran, local until the owner's go: callers pass
+// sections: await hasTable(db, 'learn_sections'), so a delete never fails its batch on a database without the table (Reviewer 10:50).
+export const hasTable = async (db, name) => !!(await db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").bind(name).first());
+export const purgeTutorRows = (db, org, app, { sections = false } = {}) => {
   const goals = 'SELECT id FROM learn_goals WHERE org = ? AND app = ?', attempts = 'SELECT id FROM learn_attempts WHERE org = ? AND app = ?';
   return [
     // Explain-back (learn 0034): transcripts of this canvas's answer audio, its answer media rows and drafts.
@@ -362,6 +365,7 @@ export const purgeTutorRows = (db, org, app) => {
     db.prepare(`DELETE FROM learn_goal_criteria WHERE goal_id IN (${goals})`).bind(org, app),
     db.prepare('DELETE FROM learn_goals WHERE org = ? AND app = ?').bind(org, app),
     db.prepare('DELETE FROM learn_coaching_state WHERE org = ? AND app = ?').bind(org, app),
+    ...(sections ? [db.prepare('DELETE FROM learn_sections WHERE org = ? AND app = ?').bind(org, app)] : []),
   ];
 };
 

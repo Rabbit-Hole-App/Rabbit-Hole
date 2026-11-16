@@ -11,7 +11,7 @@ import { purgeCanvasAttachments } from './comment-attachments.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
 import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
-import { purgeTutorRows } from './learn-coaching-store.js';
+import { hasTable, purgeTutorRows } from './learn-coaching-store.js';
 import { noAccount, purgeStars, setStar, starActor, starsFor, surfaceFrom } from './canvas-stars.js';
 import { purgeAnalytics } from './publication-analytics-purge.js';
 
@@ -539,7 +539,7 @@ export async function canvasesFetch(req, env) {
           dropRefs(db, user.org, user.email, name),
           dropFileRefs(db, user.org, user.email, name),
           db.prepare("DELETE FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name),
-          ...purgeTutorRows(db, user.org, name), // ruling Q2: a permanent delete takes its Tutor rows; Trash keeps them
+          ...purgeTutorRows(db, user.org, name, { sections: await hasTable(db, 'learn_sections') }), // ruling Q2: a permanent delete takes its Tutor rows; Trash keeps them
           ...purgeCommentRows(db, user.org, name),
           ...purgeStars(db, user.org, name, user.email), // every star on it goes, recorded as a lifecycle removal (docs/features/stars.md)
           ...purgeAnalytics(db, user.org, name), // its creator analytics; Unpublish, Archive and Trash keep them

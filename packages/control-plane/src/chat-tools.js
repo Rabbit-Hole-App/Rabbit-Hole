@@ -37,6 +37,8 @@ export const SECTION_TOOLS = Object.freeze({
   browser: { label: 'Browser', intent: 'An existing web page captured onto the canvas, scrolled to a passage, with highlights (found, not made).', fit: { narration: null, interactive: null, limits: 'Finds and captures a public web page; highlights a passage. Never generates.' } },
 });
 
+// Never in the section set: the visual explain (N); quiz, flashcards and practice (Reviewer 10:50; practice is a later slice).
+const NOT_IN_SECTIONS = new Set(['explain', 'quiz', 'flashcards', 'practice']);
 const SEARCH = new Set(['youtube', 'wikipedia', 'arxiv', 'image']);
 export const toolNameOf = command => `run_${command.replace(/-/g, '_')}`;
 const entryOf = command => SLASH.find(c => c.name === command && c.places.includes('learn'));
@@ -45,7 +47,7 @@ const fitOf = (command, sectionFlow) => sectionTool(command, sectionFlow)?.fit |
 const labelFor = (command, sectionFlow) => sectionTool(command, sectionFlow)?.label || commandLabel(command);
 
 // The direct tools this caller may use now: declared, not explicit-only, guarded ones only where the server enables them, and available
-// (the same checks the router applies). -> [{ command, name, label }]. sectionFlow: the ordinary set minus explain, plus SECTION_TOOLS.
+// (the same checks the router applies). -> [{ command, name, label }]. sectionFlow: the ordinary set minus NOT_IN_SECTIONS, plus SECTION_TOOLS.
 export function directTools(env, email = null, { sectionFlow = false } = {}) {
   const tools = Object.entries(CHAT_CAPABILITIES)
     .filter(([command, cap]) => cap.flow === 'direct' && !cap.explicit && FIT[command] && entryOf(command))
@@ -53,7 +55,7 @@ export function directTools(env, email = null, { sectionFlow = false } = {}) {
     .filter(([command]) => availability(env, { name: command, needs: entryOf(command).needs || null }, null, email))
     .map(([command]) => ({ command, name: toolNameOf(command), label: commandLabel(command) }));
   if (!sectionFlow) return tools;
-  return [...tools.filter(t => t.command !== 'explain' && !Object.hasOwn(SECTION_TOOLS, t.command)),
+  return [...tools.filter(t => !NOT_IN_SECTIONS.has(t.command) && !Object.hasOwn(SECTION_TOOLS, t.command)),
     ...Object.entries(SECTION_TOOLS).filter(([command]) => availability(env, { name: command, needs: entryOf(command)?.needs || null }, null, email))
       .map(([command, tool]) => ({ command, name: toolNameOf(command), label: tool.label }))];
 }

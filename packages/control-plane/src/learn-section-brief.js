@@ -2,7 +2,7 @@
 // One Sonnet turn (learn-section-research.js sectionTurn) composed as base + tasks/learn-section-brief.md + uses/learn_concept.md, its submit_section_brief input
 // checked HERE (validateBrief, never trusted), one re-ask, then the failure sentence. Nothing here names a repository or a topic.
 //
-//   validateBrief(input, { sectionId, first, last, anchorsExist, earlierBeats }) -> { value: brief } | { errors }
+//   validateBrief(input, { sectionId, first, last, anchorsExist, anchorText, earlierBeats }) -> { value: brief } | { errors }
 //   repositoryAnchors(snapshot) -> anchor => boolean ("path", "path:line" or "path:start-end" inside this snapshot)
 //   briefMessage({ plan, section, previous, focus, anchorsText }) -> the A §2 user message
 //   anchorExcerpt(snapshot, files, budget) -> the anchor lines for the message, widened to the enclosing symbol, budget lines in all
@@ -21,6 +21,20 @@ const PATH_PART = String.raw`\b[\w.-]+\/[\w.-]+\/[\w./-]*|\b[\w-]+\/[\w-]+\.\w+|
 export const CODE_TOKEN = new RegExp(String.raw`${'`'}|${PATH_PART}|\b[a-z0-9]+_\w+\b|\b\w+\(\)|\b[a-z]+[A-Z]\w*\b`);
 // A path, a file name or a flag only: never in the words around a card or in a document's prose (code names may appear there as the code uses them).
 export const PROSE_PATH = new RegExp(PATH_PART);
+// Reviewer 10:50: an identifier that is in the anchored lines may appear in backticks; paths, file names and flags never, and any other code name stays refused.
+// -> null when the text is acceptable, else what is wrong with it.
+const IDENTIFIER = /^[A-Za-z_]\w*(?:\.\w+)*$/;
+export function codeNameError(text, anchored = '') {
+  if (PROSE_PATH.test(text)) return 'must have no path, file name or flag';
+  const unknown = [];
+  const rest = String(text).replace(/`([^`\n]{1,80})`/g, (_, name) => {
+    const bare = name.trim().replace(/\(\)$/, '');
+    if (!IDENTIFIER.test(bare) || !new RegExp(String.raw`(?<!\w)${bare.replace(/\./g, '\\.')}(?!\w)`).test(anchored)) unknown.push(name);
+    return ' ';
+  });
+  if (unknown.length) return `names ${unknown.map(n => `\`${n}\``).join(', ')}, which the anchored lines do not`;
+  return CODE_TOKEN.test(rest) ? 'must be plain words; a code name only in backticks, exactly as the anchored lines spell it' : null;
+}
 const MATERIAL_KINDS = ['paper', 'video', 'article'];
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const str = v => (typeof v === 'string' ? v.trim() : '');
@@ -50,6 +64,15 @@ export const SUBMIT_BRIEF_TOOL = {
   },
 };
 
+// -> anchor => the text of its lines ('' when it is not in the snapshot): what codeNameError checks a backticked name against.
+export function repositoryAnchorText(snapshot) {
+  const files = snapshot?.files || {};
+  return anchor => {
+    const m = /^(.+?)(?::(\d+)(?:-(\d+))?)?$/.exec(str(anchor));
+    if (!m || !Object.hasOwn(files, m[1])) return '';
+    return m[2] ? files[m[1]].split('\n').slice(Number(m[2]) - 1, Number(m[3] || m[2])).join('\n') : files[m[1]];
+  };
+}
 export function repositoryAnchors(snapshot) {
   const files = snapshot?.files || {};
   return anchor => {
@@ -61,7 +84,7 @@ export function repositoryAnchors(snapshot) {
   };
 }
 
-export function validateBrief(input, { sectionId, first, last, anchorsExist, earlierBeats = [] }) {
+export function validateBrief(input, { sectionId, first, last, anchorsExist, anchorText = () => '', earlierBeats = [] }) {
   const errors = [], o = isObject(input) ? input : {};
   const from = str(o.from), to = str(o.to);
   if (first && from) errors.push('from must be empty: this is the first section');
@@ -76,7 +99,8 @@ export function validateBrief(input, { sectionId, first, last, anchorsExist, ear
     const anchors = Array.isArray(b.anchors) ? b.anchors.map(str).filter(Boolean) : [];
     if (!idea || idea.length > 200 || sentencesOf(idea).length !== 1) errors.push(`beat ${id}: idea is one sentence of at most 200 characters`);
     if (!shows) errors.push(`beat ${id}: shows says what the learner can see, compute or try`);
-    for (const [name, value] of [['idea', idea], ['shows', shows]]) if (CODE_TOKEN.test(value)) errors.push(`beat ${id}: ${name} must be plain words, with no path, file name, flag or code name`);
+    const anchored = anchors.map(a => anchorText(a)).join('\n');
+    for (const [name, value] of [['idea', idea], ['shows', shows]]) { const wrong = codeNameError(value, anchored); if (wrong) errors.push(`beat ${id}: ${name} ${wrong}`); }
     for (const a of anchors) if (!anchorsExist(a)) errors.push(`beat ${id}: anchor ${a} is not in the source`);
     if (!anchors.length && b.background !== true) errors.push(`beat ${id}: a beat with no anchors is background: true`);
     let material = null;
@@ -143,11 +167,11 @@ export async function runBrief(env, { actor, snapshot }, body, { callModel = log
   const composed = composeTutorPrompt({ task: 'learn-section-brief', use: 'learn_concept' });
   const user = briefMessage({ book: bookTitle(plan.learn), section, index, sections: plan.sections, previous, focus: plan.learn.focus, anchorsText: anchorExcerpt(snapshot, section.files) });
   const ctx = { env, snapshot, turn: newTurn(), limits: { search_material: BRIEF_SEARCHES }, deps: researchDeps };
-  const anchorsExist = repositoryAnchors(snapshot);
+  const anchorsExist = repositoryAnchors(snapshot), anchorText = repositoryAnchorText(snapshot);
   const earlierBeats = earlier.flatMap(s => s.brief.beats.map(b => ({ sectionId: s.sectionId, idea: b.idea })));
   const out = await sectionTurn(env, {
     composed, user, submit: SUBMIT_BRIEF_TOOL, research: ['read_source', 'search_code', 'get_relationships', 'search_material'], ctx, capUsd, callModel, maxResearchSteps: 2, // two reads, then the submit fits under the cap (BLOCKERS.md)
-    validate: input => validateBrief(input, { sectionId: section.id, first: index === 0, last: index === plan.sections.length - 1, anchorsExist, earlierBeats }),
+    validate: input => validateBrief(input, { sectionId: section.id, first: index === 0, last: index === plan.sections.length - 1, anchorsExist, anchorText, earlierBeats }),
   });
   const line = { event: 'learn_section_brief', section: section.id, calls: out.usage.calls, usd: Number(out.usage.usd.toFixed(6)), cap_usd: capUsd, searches: ctx.turn.searches.length, outcome: out.ok ? 'ok' : out.failed, ...(out.ok ? {} : { errors: (out.errors || []).slice(0, 8) }) };
   try { console.log(JSON.stringify(line)); } catch { /* a log line is never worth a failed answer */ }

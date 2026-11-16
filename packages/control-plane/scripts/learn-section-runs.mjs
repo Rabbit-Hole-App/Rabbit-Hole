@@ -74,10 +74,10 @@ async function step(action, key, refs) {
   }
 }
 
-async function make(key, ref) {
+async function make(key, ref, only = null) { // only: remake that one item and stop
   const s = state[key], sectionId = ref;
   const composition = JSON.parse(readFileSync(`${OUT}/compose/${key}-${ref}.json`, 'utf8')).out.composition;
-  let itemId = composition.items[0]?.id;
+  let itemId = only || composition.items[0]?.id;
   const made = [];
   while (itemId) {
     const before = logSize(), t0 = Date.now();
@@ -87,10 +87,10 @@ async function make(key, ref) {
     const ms = Date.now() - t0;
     await sleep(500);
     made.push({ itemId, ms, out, log: logSince(before, ['learn_section']) });
-    write('make', `${key}-${ref}-${itemId}.json`, { case: key, section: ref, sectionId, itemId, preReview: true, ms, out, log: made.at(-1).log });
+    write('make', `${key}-${ref}-${itemId}.json`, { case: key, section: ref, sectionId, itemId, ms, out, log: made.at(-1).log });
     console.log(`make ${key} ${ref} ${itemId}: ${out.httpError || out.error || out.skipped?.note || out.perform?.op || 'ok'} in ${ms} ms`);
     if (out.perform || out.skipped) await post({ app: s.canvas, board: 'main', action: 'learn_section_made', sectionId, itemId, jobId: `api-level-${itemId}` }).catch(error => console.log(`made ${itemId}: ${error.message}`));
-    itemId = out.next ?? null;
+    itemId = only ? null : out.next ?? null;
   }
   write('make', `${key}-${ref}-summary.json`, made.map(m => ({ itemId: m.itemId, ms: m.ms, op: m.out.perform?.op ?? null, skipped: m.out.skipped ?? null, error: m.out.httpError || m.out.error || null })));
 }
@@ -99,5 +99,5 @@ const [cmd, key, ...refs] = process.argv.slice(2);
 if (cmd === 'prepare') await prepare();
 else if (cmd === 'brief') await step('learn_section_brief', key, refs);
 else if (cmd === 'compose') await step('learn_section_compose', key, refs);
-else if (cmd === 'make') await make(key, refs[0]);
-else throw Error('usage: prepare | brief <case> <n.m>... | compose <case> <n.m>... | make <case> <n.m>');
+else if (cmd === 'make') await make(key, refs[0], refs[1] || null);
+else throw Error('usage: prepare | brief <case> <n.m>... | compose <case> <n.m>... | make <case> <n.m> [itemId]');
