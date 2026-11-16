@@ -99,7 +99,7 @@ export async function sectionTurn(env, { composed, user, submit, research = [], 
   const task = LEARN_TASKS.learn_section, model = task.model, record = tutorRecord(composed, { route, model });
   const system = env.SUBSCRIPTION_ONLY === 'true' ? composed.text : [{ type: 'text', text: composed.text, cache_control: { type: 'ephemeral' } }];
   const messages = [{ role: 'user', content: user }];
-  let usage = { calls: 0, usd: 0 }, asked = false, steps = 0, errors = [];
+  let usage = { calls: 0, usd: 0 }, asked = false, steps = 0, errors = [], submitted = null; // submitted: the last refused submit input, for the failure log
   for (;;) {
     const tools = [...researchToolDefs(research), submit]; // kept after the step limit: earlier tool_use blocks name them; a call past the limit is answered 'not run'
     const body = modelRequest(system, messages, task.maxTokens, { output_config: { effort: task.effort }, tools, tool_choice: { type: 'auto' } });
@@ -129,11 +129,12 @@ export async function sectionTurn(env, { composed, user, submit, research = [], 
     if (cutOff(result)) errors = [`the output was cut off before ${submit.name} finished; write less`];
     else if (submits.length !== 1) errors = [steps >= maxResearchSteps && calls.length ? `the reading is done: call ${submit.name} now with what you have` : `call ${submit.name} exactly once (got ${submits.length})`];
     else {
-      const checked = await validate(submits[0].input ?? {});
+      submitted = submits[0].input ?? {};
+      const checked = await validate(submitted);
       if (!checked.errors?.length) return { ok: checked.value, usage };
       errors = checked.errors;
     }
-    if (asked) return { failed: 'invalid', errors, usage };
+    if (asked) return { failed: 'invalid', errors, usage, submitted };
     asked = true;
     const note = `Not accepted:\n${errors.slice(0, 12).join('\n')}\nCall ${submit.name} again with a corrected result.`;
     messages.push(calls.length

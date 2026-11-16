@@ -2,7 +2,7 @@
   "case": "data",
   "section": "1.2",
   "sectionId": "1.2",
-  "ms": 11758,
+  "ms": 15251,
   "out": {
     "error": "sectionBriefFailed",
     "words": "I couldn't plan this section cleanly. Try again, or skip to the next section."
@@ -12,17 +12,18 @@
       "event": "learn_section_brief",
       "section": "1.2",
       "calls": 4,
-      "usd": 0.082588,
+      "usd": 0.091603,
       "cap_usd": 0.15,
       "searches": 0,
       "outcome": "invalid",
       "errors": [
-        "beat b1: shows must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found \"default_page_size\")",
-        "beat b3: idea is one idea in one or two short sentences, at most 220 characters",
-        "beat b4: idea is one idea in one or two short sentences, at most 220 characters",
-        "beat b5: idea is one idea in one or two short sentences, at most 220 characters",
-        "beat b5: idea must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found \"config_dir\")",
-        "beat b5: shows must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found \"config_dir\")"
+        "beat b1: shows names `DEFAULT_SETTINGS[\"num_sql_threads\"]`, `DEFAULT_SETTINGS[\"sql_time_limit_ms\"]`, which the anchored lines do not",
+        "beat b2: idea must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found \"config_dir\")",
+        "beat b3: idea must have no path, file name or flag (found \"inspect-data.json\")",
+        "beat b3: shows names `files=[\"a.db\"]`, `immutables=[\"b.db\"]`, which the anchored lines do not",
+        "beat b4: idea is one idea in one or two short sentences, at most 260 characters",
+        "beat b5: idea is one idea in one or two short sentences, at most 260 characters",
+        "beat b6: shows names `if config_dir and ...`, which the anchored lines do not"
       ]
     }
   ]
