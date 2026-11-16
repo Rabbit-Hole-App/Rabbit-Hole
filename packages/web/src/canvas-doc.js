@@ -2,8 +2,8 @@
 // the block types this version edits, the migration of a legacy single document into a card, and the board's size against the server limit.
 
 // BlockNote 0.54's default blocks less image, video, audio and file (no media in this MVP; CanvasDoc.jsx builds the schema
-// from the same list). A saved block of any other type is content this version cannot edit, never dropped.
-export const DOC_BLOCK_TYPES = ['paragraph', 'heading', 'quote', 'bulletListItem', 'numberedListItem', 'checkListItem', 'toggleListItem', 'codeBlock', 'table', 'divider'];
+// from the same list), plus `math`, a KaTeX formula (DECISIONS J; CanvasDoc.jsx's own block). A saved block of any other type is content this version cannot edit, never dropped.
+export const DOC_BLOCK_TYPES = ['paragraph', 'heading', 'quote', 'bulletListItem', 'numberedListItem', 'checkListItem', 'toggleListItem', 'codeBlock', 'table', 'divider', 'math'];
 const KNOWN = new Set(DOC_BLOCK_TYPES);
 export const unknownDocBlock = blocks => (blocks || []).some(block => !KNOWN.has(block?.type) || unknownDocBlock(block?.children));
 
