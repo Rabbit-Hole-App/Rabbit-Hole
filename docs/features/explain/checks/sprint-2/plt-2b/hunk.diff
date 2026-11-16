@@ -1,0 +1,140 @@
+c4ab80ade plot: every annotation label is a callout (its text in a pill, a leader with the standard head ending at the mark; a point's ring is filled with the nearest band's colour); no numbered badge remains on a coordinate plot; a point label that only restates its coordinates draws nothing
+
+
+diff --git a/packages/web/src/tutor-diagrams/ml-plot-layouts.js b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+index 4aa0b7bef..552b21712 100644
+--- a/packages/web/src/tutor-diagrams/ml-plot-layouts.js
++++ b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+@@ -1,9 +1,9 @@
+ import { cloneElement, createElement as h } from 'react';
+-import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
++import { label, lineHeight, textWidth, widestFormula, wire, wrap } from './primitives.js';
+ import { closedLinePath, monotoneLinePath, showPlotMarker } from './plot-lines.js';
+ import { plotTicks } from './plot-ticks.js';
+ import { TEACHING as T, TEACHING_GRID, TEACHING_SERIES, TEACHING_SERIES_INK, TEACHING_ZERO, mixHex, teachingConnector } from './teaching-theme.js';
+-import { annotationDescription, axisName, isStackedBar, plotSeriesPoints } from './ml-plot-spec.js';
++import { axisName, isStackedBar, plotSeriesPoints, restatesPoint } from './ml-plot-spec.js';
+ 
+ const PAD = 12;
+ const SMALL = 12;
+@@ -13,7 +13,7 @@ const INKS = [...TEACHING_SERIES_INK, T.ink, T.muted]; // the darker weight of a
+ const TICK = 15, MARKER = 7, LINE = 4.5, GRID = 1.5;
+ // The caps of a coordinate plot (the author's constraints sheet reads these): value labels only on a plot of ONE series with at most this many samples;
+ // a marker on every sample of a line series up to PLOT_MARKER_ALL_MAX_SAMPLES, on every other sample up to PLOT_MARKER_LINE_ONLY_FROM_SAMPLES (the line alone from there; labelled samples keep theirs);
+-// at most PLOT_NOTES_MAX numbered notes.
++// at most PLOT_NOTES_MAX callouts (an annotation's label in a pill; no number is drawn).
+ // A note never restates a sample's own coordinates (PL-1): a labelled sample draws no badge and no list line.
+ export const PLOT_VALUE_LABEL_MAX_SAMPLES = 8, PLOT_MARKER_ALL_MAX_SAMPLES = 8, PLOT_MARKER_LINE_ONLY_FROM_SAMPLES = 20, PLOT_NOTES_MAX = 6;
+ export const PLOT_CAPS = Object.freeze({ valueLabelMaxSamples: PLOT_VALUE_LABEL_MAX_SAMPLES, markerAllMaxSamples: PLOT_MARKER_ALL_MAX_SAMPLES,
+@@ -144,9 +144,16 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
+   const { left, right, top, bottom } = bounds;
+   const x = scale(d.x, left, right), y = scale(d.y, bottom, top);
+   const xy = p => [x(p.x), y(p.y)];
++  const curves = d.series.map(series => series.points.map(xy));
++  // The colour a point's ring takes: the x-band that holds it (the narrowest), else the nearest one; no band: the ground.
++  const xBands = (d.annotations ?? []).flatMap((a, k) => a.kind === 'band' && a.axis === 'x' ? [{ from: a.from, to: a.to, fill: SOFT[k % 3] }] : []);
++  const bandFill = value => {
++    const reach = band => Math.max(band.from - value, value - band.to, 0);
++    return [...xBands].sort((a, b) => reach(a) - reach(b) || (a.to - a.from) - (b.to - b.from))[0]?.fill ?? T.surface;
++  };
+   const elements = [h('rect', { x: left, y: top, width: right - left, height: bottom - top,
+     fill: 'none', 'data-tutor-plot-area': '' })];
+-  const geometry = [], foreground = [], notes = [];
++  const geometry = [], foreground = [];
+   if (rotateY) {
+     const cx = PAD + 10, cy = (top + bottom) / 2;
+     elements.push(h('g', { transform: `rotate(-90 ${cx} ${cy})`, 'data-tutor-plot-y-title': '' }, label(yName, cx, cy, { size: 16, weight: 700 })));
+@@ -182,40 +189,49 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
+   elements.push(label(xTitle, (left + right) / 2, legendY + xTitle.length * lineHeight(16) / 2, { weight: 700, size: 16 }));
+   legendY += xTitle.length * lineHeight(16) + 12;
+   const occupied = [];
+-  function note(anchor, text) {
+-    if (notes.length >= PLOT_NOTES_MAX) return;
+-    const number = notes.length + 1;
+-    notes.push({ number, text });
+-    const size = number > 9 ? 22 : 18;
++  // True when a box (grown by `margin`) holds a point of any curve: a label placed there would sit on a line.
++  const onCurve = (box, margin = 4) => curves.some(values => values.slice(1).some(([x2, y2], k) => {
++    const [x1, y1] = values[k], steps = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 3));
++    return Array.from({ length: steps + 1 }, (_, s) => [x1 + (x2 - x1) * s / steps, y1 + (y2 - y1) * s / steps])
++      .some(([px, py]) => px > box.x - margin && px < box.x + box.width + margin && py > box.y - margin && py < box.y + box.height + margin);
++  }));
++  const apart = (a, b) => a.x + a.width + 3 < b.x || b.x + b.width + 3 < a.x || a.y + a.height + 3 < b.y || b.y + b.height + 3 < a.y;
++  // An annotation's label is a callout: its text in a pill (wrapped at 200 px) in the first free cell the placement finds (cells that sit on a curve are skipped first), and a 1.5 px leader
++  // with the standard head ending at the mark: a point's ring (stop = its radius), else the annotation's anchor. No numbered badge is drawn: a number would point at a list that is gone.
++  let calloutCount = 0;
++  function callout(anchor, text, stop = 0) {
++    if (calloutCount >= PLOT_NOTES_MAX) return;
++    calloutCount++;
++    const lines = wrap(text, 200, SMALL);
++    const size = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))) + 20, tall = Math.max(22, lines.length * lineHeight(SMALL) + 8);
+     let box;
+-    for (let radius = 0; radius <= 7 && !box; radius++) {
+-      // The first choice is 14 px up and to the right of the point (the badge's lower left corner), clear of the marker ring.
+-      for (const [dx, dy] of [[14 + 22 * radius, -14 - 18 - 22 * radius], [-size - 10 - 22 * radius, -24], [10, 10 + 22 * radius], [-size - 10, 10 + 22 * radius], [10, -24 - 22 * radius]]) {
+-        const candidate = { x: Math.max(left + 2, Math.min(right - size - 2, anchor[0] + dx)),
+-          y: Math.max(top + 2, Math.min(bottom - 20, anchor[1] + dy)), width: size, height: 18 };
+-        if (occupied.every(other => candidate.x + size + 3 < other.x || other.x + other.width + 3 < candidate.x ||
+-            candidate.y + 21 < other.y || other.y + 21 < candidate.y)) { box = candidate; break; }
++    for (const avoidCurves of [true, false]) {
++      for (let radius = 0; radius <= 7 && !box; radius++) {
++        // The first choice is 14 px up and to the right of the mark, clear of its ring.
++        for (const [dx, dy] of [[14 + 22 * radius, -14 - tall - 22 * radius], [-size - 10 - 22 * radius, -24], [10, 10 + 22 * radius], [-size - 10, 10 + 22 * radius], [10, -24 - 22 * radius]]) {
++          const candidate = { x: Math.max(left + 2, Math.min(right - size - 2, anchor[0] + dx)),
++            y: Math.max(top + 2, Math.min(bottom - tall - 2, anchor[1] + dy)), width: size, height: tall };
++          if (occupied.every(other => apart(candidate, other)) && (!avoidCurves || !onCurve(candidate))) { box = candidate; break; }
++        }
+       }
++      if (box) break;
+     }
+-    // Dense repeated coordinates use a free row in the chart; their data marks
+-    // remain exact and a leader preserves the relationship to the label.
++    // Dense repeated coordinates use a free row in the chart; the mark stays exact and the leader keeps the label tied to it.
+     if (!box) {
+-      for (let row = top + 2; row < bottom - 18 && !box; row += 22) {
++      for (let row = top + 2; row < bottom - tall && !box; row += tall + 4) {
+         for (let col = left + 2; col < right - size - 2; col += 26) {
+-          if (occupied.every(other => col + size + 3 < other.x || other.x + other.width + 3 < col || row + 21 < other.y || other.y + 21 < row)) {
+-            box = { x: col, y: row, width: size, height: 18 }; break;
+-          }
++          if (occupied.every(other => apart({ x: col, y: row, width: size, height: tall }, other))) { box = { x: col, y: row, width: size, height: tall }; break; }
+         }
+       }
+     }
+-    if (!box) return; // Schema-bounded marks fit the chart's available badge cells.
++    if (!box) return;
+     occupied.push(box);
+-    // A 1 px leader from the edge of the point's marker to the nearest corner of the badge.
+-    const corner = [Math.max(box.x, Math.min(box.x + size, anchor[0])), Math.max(box.y, Math.min(box.y + 18, anchor[1]))];
+-    const run = Math.hypot(corner[0] - anchor[0], corner[1] - anchor[1]) || 1, reach = Math.min(MARKER + 1, run);
+-    foreground.push(h('line', { x1: anchor[0] + (corner[0] - anchor[0]) * reach / run, y1: anchor[1] + (corner[1] - anchor[1]) * reach / run, x2: corner[0], y2: corner[1], stroke: T.outline, strokeWidth: 1, 'data-tutor-plot-leader': number }));
+-    foreground.push(h('rect', { ...box, rx: 4, fill: T.surface, stroke: T.outline, strokeWidth: 1.5, 'data-tutor-plot-badge': number }));
+-    foreground.push(label(String(number), box.x + size / 2, box.y + 9, { size: SMALL, weight: 700 }));
++    const corner = [Math.max(box.x, Math.min(box.x + size, anchor[0])), Math.max(box.y, Math.min(box.y + tall, anchor[1]))];
++    const away = Math.hypot(anchor[0] - corner[0], anchor[1] - corner[1]) || 1;
++    const end = [anchor[0] - (anchor[0] - corner[0]) * stop / away, anchor[1] - (anchor[1] - corner[1]) * stop / away];
++    foreground.push(h('g', { 'data-tutor-plot-leader': text }, wire([corner, end], { width: 1.5 })));
++    foreground.push(h('rect', { ...box, rx: Math.min(11, tall / 2), fill: T.surface, stroke: T.outline, strokeWidth: 1.5, 'data-tutor-plot-callout': text }));
++    foreground.push(label(lines, box.x + size / 2, box.y + tall / 2, { size: SMALL, weight: 700 }));
+   }
+   for (const [i, a] of (d.annotations ?? []).entries()) {
+     const color = COLORS[i % 3], fill = SOFT[i % 3];
+@@ -223,7 +239,7 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
+     let anchor;
+     if (a.kind === 'point') {
+       anchor = xy(a);
+-      foreground.push(h('circle', { cx: anchor[0], cy: anchor[1], r: 6, fill: T.surface, stroke: T.outline, strokeWidth: 2, 'data-tutor-plot-point': `${a.x},${a.y}` }));
++      foreground.push(h('circle', { cx: anchor[0], cy: anchor[1], r: 6, fill: bandFill(a.x), stroke: T.outline, strokeWidth: 2, 'data-tutor-plot-point': `${a.x},${a.y}` }));
+     } else if (a.kind === 'segment' || a.kind === 'vector') {
+       const start = xy(a.from), end = xy(a.to);
+       anchor = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
+@@ -256,7 +272,8 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
+       } else geometry.push(h('ellipse', { cx: anchor[0], cy: anchor[1], rx: x(a.center.x + rx) - anchor[0], ry: anchor[1] - y(a.center.y + ry),
+         ...props, [`data-tutor-plot-${a.kind}`]: a.label }));
+     }
+-    note(anchor, annotationDescription(a));
++    // A point whose label only restates its coordinates (PL-1) draws no callout: its ring carries it.
++    if (!(a.kind === 'point' && restatesPoint(a.label, a))) callout(anchor, a.label, a.kind === 'point' ? 7 : 0);
+   }
+   const marks = [], legend = [];
+   for (const [i, series] of d.series.entries()) {
