@@ -7,7 +7,6 @@ import { deriveVisualRequirements } from '../src/explanation-visuals.js';
 import { prepareArtifactAuthorRequest } from '../src/learn-artifact.js';
 import { illustrateExplanation } from '../src/explanation-figures.js';
 import { composeVisuals, dropInvalidDiagrams, explanationLayoutProblem, PRIMITIVES, settleExplanationBody } from '../src/learn-primitives.js';
-import { withFormulaSeries } from '../src/explanation-formula-series.js';
 
 const fastEnv = { SMALL_ENV: 'test', EXPLANATION_MODEL_PROFILE: 'fireworks-low', FIREWORKS_API_KEY: 'offline-fixture' };
 const paraphrases = {
@@ -160,25 +159,4 @@ test('an invalid detail marker is stripped and the card delivers (transformer-bl
   assert.equal(explanationLayoutProblem({ body: settled }, prompt), null);
   assert.match(settled, /Transformer block stack/);
   assert.equal(settleExplanationBody(settled), settled);
-});
-
-test('FLAG-1: with EXPLANATION_FORMULA_SAMPLER on, a bundle whose plot series items are { anyOf: [points, formula] } is built, not thrown on; only the points form drops its compact samples', () => {
-  const plotOf = schema => {
-    const visuals = schema.properties.visuals.items;
-    const spec = (visuals.oneOf ?? visuals.anyOf).find(v => v.properties.spec).properties.spec;
-    const union = spec.properties.diagram;
-    return (union.oneOf ?? union.anyOf).find(b => b.properties.kind.const === 'coordinate-plot').properties.series.items;
-  };
-  const base = withFormulaSeries(PRIMITIVES.explanation.schema);
-  assert.ok(plotOf(base).anyOf, 'the formula form is offered beside the points form');
-  const built = bundledAuthorSchema(base, diagramBundle({ requiredKinds: ['coordinate-plot'] }));
-  const [points, formula] = plotOf(built).anyOf;
-  assert.equal(points.properties.samples, undefined, 'the points form has no compact samples');
-  assert.ok(points.required.includes('points'), 'the points form requires its points');
-  assert.equal(formula.properties.samples.type, 'integer', 'the formula form keeps its integer sample count');
-  assert.ok(formula.required.includes('formula'));
-  // flag off: the single-form schema is reduced exactly as before
-  const plain = plotOf(bundledAuthorSchema(PRIMITIVES.explanation.schema, diagramBundle({ requiredKinds: ['coordinate-plot'] })));
-  assert.equal(plain.properties.samples, undefined);
-  assert.ok(plain.required.includes('points'));
 });

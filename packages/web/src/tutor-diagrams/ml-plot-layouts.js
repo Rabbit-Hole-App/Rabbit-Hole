@@ -190,7 +190,7 @@ function coordinatePlot(diagram, requested, options) {
   return drawn;
 }
 
-function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
+function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
   const d = diagram.series.some(series => series.samples) ? { ...diagram,
     series: diagram.series.map(series => series.samples ? { ...series, points: plotSeriesPoints(series) } : series),
   } : diagram;
@@ -201,8 +201,7 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
   // The y title runs along the axis when it is plain text that fits the plot's height; otherwise it stays above the plot, bold 16.
   const yName = titleOf(d.y);
   const rotateY = widestFormula(yName) === 0 && textWidth(yName, 16) * 1.1 <= 232;
-  // lift: the rows of labels above the plot area push the plot down by 14 px each (a second pass, once the first has counted them); 0 leaves every other plot as it was.
-  const top0 = (rotateY ? 40 : 66) + lift;
+  const top0 = rotateY ? 40 : 66;
   const bottomEdge = top0 + Math.max(240, endLabels.height, sharedLabelSpace?.height ?? 0);
   const bounds = { left: 104, right: width - 24 - endGutter, top: top0, bottom: bottomEdge };
   const { left, right, top, bottom } = bounds;
@@ -341,39 +340,20 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
     const [x1, y1] = values[k - 1], [x2, y2] = values[k];
     return x2 === x1 ? y2 : y1 + (y2 - y1) * (px - x1) / (x2 - x1);
   };
-  // A line or band label is ONE line of text (PLT-2B-n2). One that does not fit where it belongs goes above the plot area, 11 px, centred on its line or band (clamped inside the card), in the first
-  // row that holds nothing at that x; rows stack upward, 14 px apart, and the plot is laid out again with its top margin grown by the rows used (plotLayout's lift).
-  const ABOVE = 11, ROW = 14, aboveRows = [];
-  const textWidthOf = (text, size) => Math.ceil(Math.max(textWidth(text, size), widestFormula(text, size)));
-  const haloLabel = (text, x, cy, size, anchor) => h('g', { stroke: T.ground, strokeWidth: 3, strokeLinejoin: 'round', paintOrder: 'stroke', 'data-tutor-plot-label': text }, label([text], x, cy, { anchor, size, weight: 500, fill: T.muted }));
-  function aboveLabel(text, centre) {
-    const w = textWidthOf(text, ABOVE), x0 = Math.max(2, Math.min(width - w - 2, centre - w / 2));
-    let k = 0;
-    while (aboveRows[k]?.some(taken => x0 < taken.x + taken.width + 6 && taken.x < x0 + w + 6)) k++;
-    (aboveRows[k] ??= []).push({ x: x0, width: w });
-    const cy = top - 10 - ROW * k;
-    occupied.push({ x: x0, y: cy - ABOVE / 2, width: w, height: ABOVE });
-    foreground.push(haloLabel(text, x0 + w / 2, cy, ABOVE, 'middle'));
-  }
-  // An inside label, clamped inside the plot. stack: labels that meet along one edge (two bands around the same centre) stand one under the other.
-  function plainLabel(text, at, side, stack = false) {
-    const w = textWidthOf(text, SMALL), tall = lineHeight(SMALL);
-    const x0 = Math.max(left + 2, Math.min(right - w - 2, side === 'start' ? at[0] : side === 'end' ? at[0] - w : at[0] - w / 2));
-    let cy = Math.min(bottom - tall / 2 - 2, Math.max(top + tall / 2 + 2, at[1]));
+  function plainLabel(text, at, side, maxWidth = 180, stack = false, other = null) {
+    // The text wraps to the room the plot leaves on its side of the anchor, and never stands outside the plot.
+    const room = side === 'start' ? right - at[0] - 2 : side === 'end' ? at[0] - left - 2 : maxWidth;
+    const lines = wrap(text, Math.max(50, Math.min(maxWidth, room)), SMALL), w = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))), tall = lines.length * lineHeight(SMALL);
+    const boxAt = (point, edge) => ({ x: Math.max(left + 2, Math.min(right - w - 2, edge === 'start' ? point[0] : edge === 'end' ? point[0] - w : point[0] - w / 2)), y: Math.min(bottom - tall / 2 - 2, Math.max(top + tall / 2 + 2, point[1])) - tall / 2, width: w, height: tall });
+    const free = box => occupied.every(taken => apart(box, taken));
+    // A line's label: the side beside its line that is free at the top end; when neither is, it stands under the other labels there.
+    if (other && !free(boxAt(at, side)) && free(boxAt(other.at, other.side))) { at = other.at; side = other.side; }
+    const x0 = boxAt(at, side).x;
+    let cy = boxAt(at, side).y + tall / 2;
+    // Labels that meet along one edge (two bands around the same centre) stack downward, one under the other.
     while (stack && cy + tall < bottom && occupied.some(taken => !apart({ x: x0, y: cy - tall / 2, width: w, height: tall }, taken))) cy += tall + 2;
     occupied.push({ x: x0, y: cy - tall / 2, width: w, height: tall });
-    foreground.push(haloLabel(text, side === 'start' ? x0 : side === 'end' ? x0 + w : x0 + w / 2, cy, SMALL, side));
-  }
-  // A vertical line's label stands at its top end on the side of the line that holds it whole inside the plot and holds no other label; neither: above the plot at the line's x.
-  function lineLabel(text, lineX) {
-    const w = textWidthOf(text, SMALL), tall = lineHeight(SMALL);
-    const sides = [{ at: [lineX + 5, top + 9], side: 'start', x: lineX + 5 }, { at: [lineX - 5, top + 9], side: 'end', x: lineX - 5 - w }].filter(s => s.x >= left + 2 && s.x + w <= right - 2);
-    const chosen = sides.find(s => occupied.every(taken => apart({ x: s.x, y: top + 2, width: w, height: tall }, taken)));
-    if (chosen) plainLabel(text, chosen.at, chosen.side); else aboveLabel(text, lineX);
-  }
-  // A band's label stands inside along its top edge when it fits the band (4 px each side), else above the plot at the band's centre.
-  function bandLabel(text, centre, bandWidth, at, side) {
-    if (textWidthOf(text, SMALL) + 8 <= bandWidth) plainLabel(text, at, side, true); else aboveLabel(text, centre);
+    foreground.push(h('g', { stroke: T.ground, strokeWidth: 3, strokeLinejoin: 'round', paintOrder: 'stroke', 'data-tutor-plot-label': text }, label(lines, side === 'start' ? x0 : side === 'end' ? x0 + w : x0 + w / 2, cy, { anchor: side, size: SMALL, weight: 500, fill: T.muted })));
   }
   // A shape's label (segment, vector, rectangle, polygon, circle, ellipse) stands in the first free cell beside the shape's anchor.
   function shapeLabel(text, anchor) {
@@ -430,14 +410,17 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
       // A point whose label only restates its coordinates (PL-1) draws no callout: its ring carries it. The callouts are placed after every other label, so they keep clear of them.
       if (!restatesPoint(a.label, a)) pointCallouts.push([anchor, a.label]);
     } else if (a.kind === 'reference-line') {
-      if (a.axis === 'x') lineLabel(a.label, x(a.value));
-      else if (textWidthOf(a.label, SMALL) + 6 <= right - left) plainLabel(a.label, [right - 4, y(a.value) - 8], 'end');
-      else aboveLabel(a.label, (left + right) / 2);
+      if (a.axis === 'x') {
+        const lineX = x(a.value), w = Math.ceil(Math.max(textWidth(a.label, SMALL), widestFormula(a.label, SMALL)));
+        const beside = { at: [lineX + 5, top + 9], side: 'start' }, before = { at: [lineX - 5, top + 9], side: 'end' };
+        if (lineX + 5 + w <= right - 2) plainLabel(a.label, beside.at, beside.side, 180, true, before);
+        else plainLabel(a.label, before.at, before.side, 180, true, beside);
+      } else plainLabel(a.label, [right - 4, y(a.value) - 8], 'end');
     } else if (a.kind === 'band') {
       if (a.axis === 'x') {
         const centre = (x(a.from) + x(a.to)) / 2, edge = clipId ? yOnCurve(centre) : null;
-        bandLabel(a.label, centre, Math.abs(x(a.to) - x(a.from)), [centre, (edge === null ? top : Math.max(top, edge)) + 18], 'middle');
-      } else bandLabel(a.label, (left + right) / 2, right - left, [left + 6, Math.min(y(a.from), y(a.to)) + 10], 'start');
+        plainLabel(a.label, [centre, (edge === null ? top : Math.max(top, edge)) + 18], 'middle', Math.max(60, Math.abs(x(a.to) - x(a.from)) - 8), true);
+      } else plainLabel(a.label, [left + 6, Math.min(y(a.from), y(a.to)) + 10], 'start');
     } else shapeLabel(a.label, anchor);
   }
   for (const [anchor, text] of pointCallouts) callout(anchor, text, 7);
@@ -512,8 +495,6 @@ function plotLayout(diagram, requested, { sharedLabelSpace, lift = 0 } = {}) {
     nextLabelTop = rowTop + height + 4;
     remainingLabels -= height + 4;
   }
-  // The labels above the plot area are counted: lay the plot out again, once, with its top margin grown by their rows.
-  if (aboveRows.length && !lift) return plotLayout(diagram, requested, { sharedLabelSpace, lift: aboveRows.length * ROW });
   const crowded = Math.max(0, ...xTicks.slice(1).map((tick, i) => tickSpan(xTicks[i])[1] + 4 - tickSpan(tick)[0]));
   return { width, height: legendY, plotBounds: bounds, crowded, elements: [...elements, ...geometry, ...marks, ...scatterMarks, ...foreground] };
 }

@@ -67,7 +67,7 @@ test('small forces retain visible arrows and disclose their minimum size', () =>
     { direction: 'left', magnitude: 100, label: 'Force A' },
     { direction: 'right', magnitude: 1, label: 'Force B' },
   ] });
-  assert.match(svg, /data-figure-vector="right">.*?<polyline points="189,116 197,116"[^>]*stroke-width="2"/);
+  assert.match(svg, /data-figure-vector="right">.*?<polyline points="189,116 197,116"[^>]*stroke-width="1.5"/);
   assert.match(text(svg), /Force B.*1 N/);
   assert.match(text(svg), /minimum arrow length/);
 });

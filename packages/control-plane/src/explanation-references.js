@@ -237,13 +237,10 @@ function trimIllustrationPayloads(branch, { tensorHosts, parallelPaths, blockSta
 function keepExplicitPlotPoints(schema) {
   if (!schema || typeof schema !== 'object') return;
   if (diagramKindOf(schema) === 'coordinate-plot') {
-    // With EXPLANATION_FORMULA_SAMPLER=on the series items are { anyOf: [points form, formula form] } (withFormulaSeries): only the points form loses its compact samples; the formula form keeps its own sample count.
-    const items = schema.properties.series.items;
-    for (const series of items.anyOf ?? items.oneOf ?? [items]) {
-      if (series.properties?.samples && !series.properties.formula) {
-        delete series.properties.samples;
-        series.required.push('points');
-      }
+    const series = schema.properties.series.items;
+    if (series.properties.samples) {
+      delete series.properties.samples;
+      series.required.push('points');
     }
     return;
   }
