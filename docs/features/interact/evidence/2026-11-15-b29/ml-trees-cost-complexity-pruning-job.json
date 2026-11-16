@@ -1,0 +1,152 @@
+{
+  "job": {
+    "id": "ej_4bd52bed6d8a469d92265279b773edf5",
+    "version": 1,
+    "boardId": "3ff6a8eb-ab50-40b7-aaeb-7c812ba3a4a5",
+    "cardId": "69c78d74-fc89-4a34-be5c-56ceaf2de7ba",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 140,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 520,
+      "approvalWaitMs": 0,
+      "calls": 2,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 520,
+          "calls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794809585515,
+    "updatedAt": 1794809586174,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "how does cost-complexity pruning trade tree size against accuracy as alpha increases?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 2,
+      "fallback": "gap",
+      "firstProblem": "provider_unavailable: The AI provider is temporarily unavailable. Nothing ran.",
+      "costUsd": 0,
+      "pick": {
+        "family": "curve-sliders",
+        "confidence": 0.88,
+        "probabilities": {
+          "vertical-throw": 0,
+          "curve-sliders": 0.91,
+          "stepper-states": 0.04,
+          "none": 0.05
+        },
+        "ms": 63,
+        "reason": "fit"
+      },
+      "lastProblem": "provider_unavailable: The AI provider is temporarily unavailable. Nothing ran."
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [
+      {
+        "key": "ej_4bd52bed6d8a469d92265279b773edf5-design_fill-1",
+        "role": "design_fill",
+        "attempt": 1,
+        "requested": null,
+        "served": null,
+        "status": "refused",
+        "boundMicros": 38000,
+        "images": 0,
+        "costMicros": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "startedAt": 1794809585725,
+        "endedAt": 1794809585885,
+        "error": "provider_unavailable"
+      },
+      {
+        "key": "ej_4bd52bed6d8a469d92265279b773edf5-design_fill-2",
+        "role": "design_fill",
+        "attempt": 1,
+        "requested": null,
+        "served": null,
+        "status": "refused",
+        "boundMicros": 38000,
+        "images": 0,
+        "costMicros": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "startedAt": 1794809585889,
+        "endedAt": 1794809586170,
+        "error": "provider_unavailable"
+      }
+    ],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794809585515,
+        "firstFeedback": 1794809585655
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794809585654,
+          "endedAt": 1794809586174,
+          "calls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}

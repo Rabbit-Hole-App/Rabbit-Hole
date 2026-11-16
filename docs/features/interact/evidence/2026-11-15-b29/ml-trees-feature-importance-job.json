@@ -1,0 +1,118 @@
+{
+  "job": {
+    "id": "ej_e92f42bad29747648f4cb0823cd9cb16",
+    "version": 1,
+    "boardId": "3ff6a8eb-ab50-40b7-aaeb-7c812ba3a4a5",
+    "cardId": "efb95c31-acfb-4090-b223-2327c9e18035",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 121,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 85,
+      "approvalWaitMs": 0,
+      "calls": 0,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 85,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794809595349,
+    "updatedAt": 1794809595555,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 0,
+      "fallback": "gap",
+      "firstProblem": null,
+      "costUsd": 0,
+      "pick": {
+        "family": null,
+        "confidence": 0.92,
+        "probabilities": {
+          "vertical-throw": 0,
+          "curve-sliders": 0.06,
+          "stepper-states": 0,
+          "none": 0.94
+        },
+        "ms": 81,
+        "reason": "none"
+      }
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794809595349,
+        "firstFeedback": 1794809595470
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794809595470,
+          "endedAt": 1794809595555,
+          "calls": 0,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}

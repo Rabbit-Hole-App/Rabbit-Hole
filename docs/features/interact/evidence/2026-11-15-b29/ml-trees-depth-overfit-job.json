@@ -1,0 +1,152 @@
+{
+  "job": {
+    "id": "ej_461809a04ea845eb8e8e020310685fa1",
+    "version": 1,
+    "boardId": "3ff6a8eb-ab50-40b7-aaeb-7c812ba3a4a5",
+    "cardId": "acc6ec5c-a507-4ec1-9ba7-9b1b123fc754",
+    "requestClass": "simple",
+    "stage": "failed",
+    "attempt": 1,
+    "terminal": true,
+    "round": 0,
+    "stopReason": "design_gap",
+    "failure": {
+      "stage": "design_authoring",
+      "category": "capability",
+      "message": "This kind of scene isn't supported yet.",
+      "retryable": false
+    },
+    "recovery": [
+      "edit_request"
+    ],
+    "usage": {
+      "credits": 0,
+      "unknown": false
+    },
+    "result": null,
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "firstFeedbackMs": 129,
+      "proposalMs": null,
+      "generateToResultMs": null,
+      "processingMs": 1168,
+      "approvalWaitMs": 0,
+      "calls": 2,
+      "repairs": 0,
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "ms": 1168,
+          "calls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ]
+    },
+    "createdAt": 1794809583509,
+    "updatedAt": 1794809584806,
+    "flow": {
+      "version": 1
+    },
+    "designState": null,
+    "designRevision": 1
+  },
+  "diagnostics": {
+    "spec": null,
+    "request": {
+      "prompt": "how does held-out error change as a decision tree grows deeper?",
+      "depth": "brief"
+    },
+    "designFast": {
+      "kind": "fast",
+      "model": null,
+      "calls": 2,
+      "fallback": "gap",
+      "firstProblem": "provider_unavailable: The AI provider is temporarily unavailable. Nothing ran.",
+      "costUsd": 0,
+      "pick": {
+        "family": "curve-sliders",
+        "confidence": 0.95,
+        "probabilities": {
+          "vertical-throw": 0,
+          "curve-sliders": 0.96,
+          "stepper-states": 0.01,
+          "none": 0.03
+        },
+        "ms": 208,
+        "reason": "fit"
+      },
+      "lastProblem": "provider_unavailable: The AI provider is temporarily unavailable. Nothing ran."
+    },
+    "findings": [],
+    "candidates": [],
+    "settings": null,
+    "calls": [
+      {
+        "key": "ej_461809a04ea845eb8e8e020310685fa1-design_fill-1",
+        "role": "design_fill",
+        "attempt": 1,
+        "requested": null,
+        "served": null,
+        "status": "refused",
+        "boundMicros": 38000,
+        "images": 0,
+        "costMicros": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "startedAt": 1794809583853,
+        "endedAt": 1794809584582,
+        "error": "provider_unavailable"
+      },
+      {
+        "key": "ej_461809a04ea845eb8e8e020310685fa1-design_fill-2",
+        "role": "design_fill",
+        "attempt": 1,
+        "requested": null,
+        "served": null,
+        "status": "refused",
+        "boundMicros": 38000,
+        "images": 0,
+        "costMicros": 0,
+        "inputTokens": null,
+        "outputTokens": null,
+        "startedAt": 1794809584587,
+        "endedAt": 1794809584801,
+        "error": "provider_unavailable"
+      }
+    ],
+    "captures": [],
+    "counts": {
+      "brief": 0,
+      "author": 0,
+      "review": 0,
+      "repair": 0
+    },
+    "timing": {
+      "requestClass": "simple",
+      "cache": null,
+      "marks": {
+        "submitted": 1794809583509,
+        "firstFeedback": 1794809583638
+      },
+      "stages": [
+        {
+          "stage": "design_authoring",
+          "startedAt": 1794809583638,
+          "endedAt": 1794809584806,
+          "calls": 2,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "images": 0,
+          "captures": 0,
+          "outcome": "design_gap"
+        }
+      ],
+      "v": 2
+    }
+  }
+}
