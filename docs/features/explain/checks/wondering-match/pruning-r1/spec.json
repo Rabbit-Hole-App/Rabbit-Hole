@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "diagram": {
+    "kind": "panels",
+    "title": "Cost-complexity pruning",
+    "panels": [
+      {
+        "label": "Large Tree",
+        "diagram": {
+          "kind": "tree",
+          "title": "Large Tree",
+          "layout": "binary",
+          "nodes": [
+            {
+              "id": "r",
+              "label": "r"
+            },
+            {
+              "id": "a",
+              "label": "a",
+              "parent": "r",
+              "side": "left"
+            },
+            {
+              "id": "b",
+              "label": "b",
+              "parent": "r",
+              "side": "right"
+            },
+            {
+              "id": "a1",
+              "label": "a1",
+              "parent": "a",
+              "side": "left"
+            },
+            {
+              "id": "a2",
+              "label": "a2",
+              "parent": "a",
+              "side": "right"
+            },
+            {
+              "id": "b1",
+              "label": "b1",
+              "parent": "b",
+              "side": "left"
+            },
+            {
+              "id": "b2",
+              "label": "b2",
+              "parent": "b",
+              "side": "right"
+            },
+            {
+              "id": "a1l",
+              "label": "l1",
+              "parent": "a1",
+              "side": "left"
+            },
+            {
+              "id": "a1r",
+              "label": "l2",
+              "parent": "a1",
+              "side": "right"
+            },
+            {
+              "id": "a2l",
+              "label": "l3",
+              "parent": "a2",
+              "side": "left"
+            },
+            {
+              "id": "a2r",
+              "label": "l4",
+              "parent": "a2",
+              "side": "right"
+            },
+            {
+              "id": "b1l",
+              "label": "l5",
+              "parent": "b1",
+              "side": "left"
+            }
+          ]
+        }
+      },
+      {
+        "label": "Pruned Tree",
+        "diagram": {
+          "kind": "tree",
+          "title": "Pruned Tree",
+          "layout": "binary",
+          "nodes": [
+            {
+              "id": "r",
+              "label": "r"
+            },
+            {
+              "id": "a",
+              "label": "a",
+              "parent": "r",
+              "side": "left"
+            },
+            {
+              "id": "b",
+              "label": "b",
+              "parent": "r",
+              "side": "right"
+            },
+            {
+              "id": "a1",
+              "label": "l1",
+              "parent": "a",
+              "side": "left"
+            },
+            {
+              "id": "a2",
+              "label": "l2",
+              "parent": "a",
+              "side": "right"
+            },
+            {
+              "id": "b1",
+              "label": "l3",
+              "parent": "b",
+              "side": "left"
+            },
+            {
+              "id": "b2",
+              "label": "l4",
+              "parent": "b",
+              "side": "right"
+            }
+          ]
+        }
+      }
+    ],
+    "links": [
+      {
+        "from": 0,
+        "to": 1,
+        "operation": "α"
+      }
+    ]
+  }
+}
