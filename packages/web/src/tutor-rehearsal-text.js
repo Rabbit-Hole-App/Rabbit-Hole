@@ -143,6 +143,7 @@ export const SENTENCES = {
   planEditPlaceholder: 'Tell me what to change',
   planInvalid: "I couldn't make a clean plan for this. Try again, or start without one.",
   planDrafting: 'Drafting a plan',
+  planNotSaved: "I couldn't save the plan, so it may be gone after a reload.",
   learnIntroFailed: "I couldn't open that topic just now. Try again; nothing was lost.",
 };
 

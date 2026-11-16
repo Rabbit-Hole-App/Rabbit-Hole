@@ -99,7 +99,7 @@ test('Add to chat on a contents row makes a pill in the CONTENTS composer and ne
   assert.match(told[0], /Could not add/);
   // The page hands that ref to the contents workspace's own context, and nothing else.
   const page = read('LearnPage.jsx');
-  assert.match(page, /onAddToChat=\{ref => \{ chat\.toc\.context\.attach\(ref\); chat\.toc\.composer\.focus\?\.\(\); \}\}/);
+  assert.match(page, /onAddToChat=\{planDone \? null : ref => \{ chat\.toc\.context\.attach\(ref\); chat\.toc\.composer\.focus\?\.\(\); \}\}/); // after an accepted plan there is no composer to add to
   assert.doesNotMatch(page, /onAddToChat=\{[^}]*chat\.(addToChat|context\.attach)/);
   // The canvas builds the ref; it selects, sends and adds nothing.
   const canvas = read('AdaptiveCanvas.jsx');

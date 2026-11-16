@@ -13,7 +13,12 @@ export default function TooltipLayer() {
     const pop = box.current;
     if (!pop || typeof pop.showPopover !== 'function') return undefined;
     let target = null, timer = 0;
-    const give = () => { if (target?.dataset?.tipTitle != null) { target.setAttribute('title', target.dataset.tipTitle); delete target.dataset.tipTitle; } };
+    const give = () => {
+      if (target?.dataset?.tipTitle == null) return;
+      if (!target.hasAttribute('title')) target.setAttribute('title', target.dataset.tipTitle); // a title React set meanwhile wins over the one saved
+      delete target.dataset.tipTitle;
+      if (target.dataset.tipAria != null) { target.removeAttribute('aria-label'); delete target.dataset.tipAria; }
+    };
     const hide = () => { clearTimeout(timer); give(); target = null; try { pop.hidePopover(); } catch { /* not shown */ } };
     const open = el => {
       pop.textContent = el.dataset.tipTitle;
@@ -28,6 +33,7 @@ export default function TooltipLayer() {
       const title = el.getAttribute('title');
       if (!title) return;
       el.dataset.tipTitle = title; el.removeAttribute('title'); target = el;
+      if (!el.hasAttribute('aria-label') && !el.textContent.trim()) { el.setAttribute('aria-label', title); el.dataset.tipAria = ''; } // an icon with only a title keeps its name while the title is away
       timer = setTimeout(() => open(el), DELAY_MS);
     };
     const events = [['pointerover', over], ['pointerdown', hide], ['keydown', hide], ['scroll', hide], ['blur', hide]];

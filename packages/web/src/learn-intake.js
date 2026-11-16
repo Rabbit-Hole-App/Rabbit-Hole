@@ -2,7 +2,7 @@
 // The Learn half of the Tutor's intake (intake-run-or-learn-spec.md section 1, owner 2026-11-15): the options the catalogue document offers as rows, and the Tutor's reply to a typed line.
 // Everything said here comes from the catalogue document's `learn` section (options: label and what; cannot: thing and why) - nothing is a word of one repository.
 // Pure: no React, no network, no storage.
-import { SENTENCES, SOMETHING_ELSE_CHIP, leaks } from './tutor-rehearsal-text.js';
+import { SENTENCES, SOMETHING_ELSE_CHIP, internal, leaks } from './tutor-rehearsal-text.js';
 
 const noStop = text => String(text || '').trim().replace(/[.\s]+$/, '');
 
@@ -44,7 +44,7 @@ export function learnReply(outcome, learn) {
 //   several:   those options as rows;  none: every option as rows (the sentence says what the repository lacks)
 export function fitReply(out, learn) {
   const ids = Array.isArray(out?.fits) ? out.fits.filter(id => learn.options.some(option => option.id === id)) : [];
-  const text = String(out?.text || '').trim() || SENTENCES.notSure;
+  const said = String(out?.text || '').trim(), text = said && !internal(said) ? said : SENTENCES.notSure; // a fit sentence may name a file; it never shows a dollar figure or a trace
   if (ids.length === 1) {
     const focus = typeof out.focus === 'string' && out.focus.trim() ? { id: ids[0], text: out.focus.trim().slice(0, 300) } : null;
     return { text, choices: [{ id: `learn:${ids[0]}`, label: SENTENCES.start }], focus };

@@ -35,7 +35,7 @@ test('the bottom strip: the minimap above the zoom row at lower left, the hooks 
   assert.ok(strip.indexOf('data-canvas-minimap') < strip.indexOf('data-canvas-composer') && strip.indexOf('data-canvas-composer') < strip.indexOf('data-canvas-lower-right'), 'minimap left, composer, hooks right');
   assert.match(strip, /md:grid [\s\S]*?md:items-end/, 'one lower edge: the hooks\' bottom is the composer\'s; three grid columns, the two side ones equal, so the composer is centred (owner 2026-11-15)');
   // On a phone the hooks sit above the composer, at the right.
-  assert.match(strip, /data-canvas-composer data-composer-hidden=\{composerHidden \? '' : undefined\} style=\{\{ transform: '[^']*' \}\} className=\{`\$\{DOCK_WIDTH\} relative min-w-0 md:col-start-2 md:mx-0 max-md:order-2 \$\{composerHidden \? 'hidden' : ''\}`\}/);
+  assert.match(strip, /data-canvas-composer data-composer-hidden=\{composerHidden \? '' : undefined\} style=\{\{ translate: '[^']*' \}\} className=\{`\$\{DOCK_WIDTH\} relative min-w-0 md:col-start-2 md:mx-0 max-md:order-2 \$\{composerHidden \? 'hidden' : ''\}`\}/);
   assert.match(strip, /data-canvas-lower-right className="flex items-end justify-end gap-2 md:col-start-3 max-md:order-1"/);
   assert.doesNotMatch(canvas.slice(0, canvas.indexOf('<div data-canvas-bottom')), /<CanvasMinimap boxes=\{minimapBoxes\} view=\{view\} onFit=\{zoomFit\}\n\s+surface=\{\{ w: surface\.current\?\.clientWidth \|\| 0, h: surface\.current\?\.clientHeight \|\| 0 \}\}\n\s+onView=\{next => setView\(v => \(\{ \.\.\.v, x: next\.x, y: next\.y \}\)\)\} \/>\}/, 'no second desktop minimap');
   assert.match(read('CanvasMinimap.jsx'), /className="relative overflow-hidden rounded-xl/, 'its frame is in the strip\'s flow');

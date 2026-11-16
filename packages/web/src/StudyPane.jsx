@@ -197,11 +197,16 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready, f
     if (!frame || !place) return;
     frame.style.marginLeft = place.marginLeft ? `${place.marginLeft}px` : '';
     frame.style.marginTop = `${place.marginTop}px`;
-    // The chat strip is centred on the whole window, not on the work pane (owner 2026-11-15, "in the middle of the whole screen"): the pane's width is
-    // the one CSS variable the canvas's composer shifts by (half of it, leftward), so it sits over the reference pane's edge when the two are side by side.
-    frame.style.setProperty('--study-pane-w', `${place.marginLeft || 0}px`);
+    // The chat strip is centred on the whole window, not on the work pane (owner 2026-11-15, "in the middle of the whole screen"): half the pane's width
+    // (leftward) is the one CSS variable the canvas's composer shifts by, so it sits over the reference pane's edge when the two are side by side.
+    // Side by side only: the shift is a length, so with no Study (or stacked) the variable is unset, `translate` computes to none and the strip is exactly the canvas's own. The frame sits above the pane (z 30
+    // over the pane's 20) so the shifted strip paints over it and keeps its clicks.
+    const side = !!place.marginLeft;
+    if (side) frame.style.setProperty('--study-shift', `${-Math.round(place.marginLeft / 2)}px`); else frame.style.removeProperty('--study-shift');
+    frame.style.zIndex = side ? '30' : '';
+    if (side && getComputedStyle(frame).position === 'static') { frame.style.position = 'relative'; frame.dataset.studyPosition = ''; } else if (!side && frame.dataset.studyPosition != null) { frame.style.position = ''; delete frame.dataset.studyPosition; }
   }, [place?.marginLeft, place?.marginTop]); // eslint-disable-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => () => { const frame = canvasFrame.current; if (frame) { frame.style.marginLeft = ''; frame.style.marginTop = ''; frame.style.removeProperty('--study-pane-w'); } }, [canvasFrame]);
+  useLayoutEffect(() => () => { const frame = canvasFrame.current; if (frame) { frame.style.marginLeft = ''; frame.style.marginTop = ''; frame.style.removeProperty('--study-shift'); frame.style.zIndex = ''; if (frame.dataset.studyPosition != null) { frame.style.position = ''; delete frame.dataset.studyPosition; } } }, [canvasFrame]);
 
   // Study opened with a card as the work (the notebook, Run or Runbook): frame it once the canvas has its cards. Only for the work the pane opened
   // with, so a press inside Study never captures the camera a second time.

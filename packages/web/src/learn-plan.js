@@ -2,7 +2,7 @@
 // The Learn plan as the Tutor shows it (learn-plan-toc-spec.md, owner 2026-11-15): the server's draft (ops from propose_lesson_outline, validated there) becomes a numbered nested list in the Tutor's
 // message and, on Accept, the Table of contents. Everything here is the document's and the model's words; nothing is a word of one repository.
 // Pure: no React, no network, no storage.
-import { SENTENCES } from './tutor-rehearsal-text.js';
+import { SENTENCES, internal } from './tutor-rehearsal-text.js';
 
 // A title that carries its own number ("1. The Big Picture", "2.1 Plugins") would be numbered twice, in the list and in the contents: the model's number is dropped (a live draft did this, 2026-11-15).
 export const cleanTitle = text => String(text || '').replace(/^\s*(?:\d+(?:\.\d+)+[.)]?|\d+[.)])\s+/, '').trim();
@@ -30,7 +30,7 @@ export const planList = ops => planTree(ops).map((chapter, i) => [`${i + 1}. ${c
 // The Tutor's message for a draft: the book title (the first line of the model's words), the list, then the rest of the words (at most three sentences).
 export function draftText(text, ops) {
   const lines = String(text || '').trim().split('\n'), title = (lines.shift() || '').replace(/^#+\s*/, '').trim();
-  const words = lines.join('\n').trim();
+  const said = lines.join('\n').trim(), words = internal(said) ? '' : said; // a dollar figure or a stack trace never reaches the chat
   return [title ? `**${title}**` : '', planList(ops), words].filter(Boolean).join('\n\n');
 }
 

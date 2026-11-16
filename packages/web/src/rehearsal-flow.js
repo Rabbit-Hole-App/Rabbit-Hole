@@ -75,7 +75,8 @@ export function flowMessages(state, { repo }) {
     else if (plan?.status === 'draft') out.push(note('learn-plan', draftText(plan.text, plan.ops), null, plan.rows.map(row => ({ ...row, disabled: !!plan.busy }))));
     else if (plan?.status === 'invalid') out.push(note('learn-plan', SENTENCES.planInvalid, null, plan.rows));
     else if (plan?.status === 'accepted') out.push(note('learn-plan', SENTENCES.planAccepted(plan.count)));
-    for (const line of state.planLog || []) out.push(line);
+    const liveRows = plan?.status === 'draft' && !plan.busy; // rows under a typed answer act only while a draft waits
+    for (const line of state.planLog || []) out.push(line.choices ? { ...line, choices: line.choices.map(choice => ({ ...choice, disabled: !liveRows })) } : line);
   }
   if (state.elsewhere) return out;
   // 5. "Use the codebase": the route question when more than one route is practical, then the rehearsal
