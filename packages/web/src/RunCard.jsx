@@ -263,7 +263,7 @@ export default function RunCard({ block, readOnly, onSave }) {
     <>
       <CardHeader block={block} className="relative px-4 pt-3 pb-2" meta={COPY.subtitle} trailing={<>
         <Chip tone={hs.tone} data-run-session-chip>{hs.busy && <Loader2 aria-hidden="true" size={12} className="motion-safe:animate-spin" />}{hs.chip}</Chip>
-        <Button type="button" variant={hs.button === 'stop' ? 'danger' : 'primary'} size="sm" data-run-session disabled={readOnly || hs.busy || (hs.button === 'stop' && !session?.sessionId)} onPointerDown={stopPress} onClick={hs.button === 'stop' ? stop : begin}>
+        <Button type="button" variant={hs.button === 'stop' ? 'danger' : 'primary'} size="sm" data-run-session title={COPY.header.hint} disabled={readOnly || hs.busy || (hs.button === 'stop' && !session?.sessionId)} onPointerDown={stopPress} onClick={hs.button === 'stop' ? stop : begin}>
           {hs.button === 'stop' ? <Square size={12} aria-hidden="true" /> : <Play size={12} aria-hidden="true" />}{hs.button === 'stop' ? COPY.header.stop : hs.button === 'startAgain' ? COPY.header.startAgain : hs.button === 'tryAgain' ? COPY.header.tryAgain : COPY.header.start}
         </Button>
       </>} />
@@ -276,7 +276,7 @@ export default function RunCard({ block, readOnly, onSave }) {
             {stepCells(cells).length === 0
               ? <p className="px-4 py-3 text-sm text-ink-2">{COPY.step.startFirst}</p>
               : <>
-                <div className="flex items-center justify-end px-4 pt-3"><Button type="button" variant="primary" size="sm" data-run-all disabled={readOnly || !ready || !!active} onClick={runAll}><ListChecks size={12} aria-hidden="true" />{COPY.step.runAll}</Button></div>
+                <div className="flex items-center gap-2 px-4 pt-3">{!ready && <p data-run-hint className="min-w-0 flex-1 text-xs text-ink-3">{COPY.header.hint}</p>}<span className="flex-1" /><Button type="button" variant="primary" size="sm" data-run-all disabled={readOnly || !ready || !!active} onClick={runAll}><ListChecks size={12} aria-hidden="true" />{COPY.step.runAll}</Button></div>
                 <div className="flex flex-col divide-y divide-line">{stepCells(cells).map(renderStep)}</div>
               </>}
           </TabsContent>

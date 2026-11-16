@@ -519,7 +519,7 @@ await check('16 View has Canvas and Study radios above Show / hide (Canvas check
   assert.ok(rows.indexOf('Study') > rows.indexOf('Fit selection') && rows.indexOf('Study') < rows.indexOf('Show / hide'), `Canvas and Study sit above Show / hide: ${rows.join(', ')}`);
   assert.ok(!rows.includes('Workspace') && !rows.includes('Go to document start'), `the single document's rows are gone: ${rows.join(', ')}`);
   const view = await openMenu(page, 'View');
-  await view.getByRole('menuitemradio', { name: 'Study', exact: true }).click();
+  await view.getByRole('menuitemradio', { name: 'Run', exact: true }).click();
   await closeMenus(page);
   await page.locator('[data-study-pane]').waitFor({ timeout: 10000 });
   assert.deepEqual(await radios(), [['Canvas', 'false'], ['Study', 'true']]);

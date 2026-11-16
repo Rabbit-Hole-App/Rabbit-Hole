@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import CardHeader from './CardHeader.jsx';
-import { FolderTree, MoreHorizontal, Play, RotateCcw } from 'lucide-react';
+import { FolderTree, Play, RotateCcw } from 'lucide-react';
 import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, activePath, ipynbPath, notebookUrl, trimOutputs } from './learn-notebook.js';
 import { EXPORT_WORKSPACES, workspaceIdFor, workspaceStore } from './learn-board-assets.js';
-import { toast, useDismissMenu } from './ui.jsx';
-import { CardActionRows } from './CanvasMenu.jsx';
+import { toast } from './ui.jsx';
 import { perfMark } from './learn-perf.js';
 import { registerNotebookEditor, notebookCellRequest } from './notebook-inline-client.js';
 import { fullContent } from './card-layout.js';
@@ -32,7 +31,6 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
     return () => clearTimeout(timer);
   }, [loaded, attempt]);
   const [files, setFiles] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [kind, setKind] = useState('notebook');
   const kindRef = useRef(kind);
   kindRef.current = kind;
@@ -132,7 +130,6 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
   const toggleFiles = () => { send('files', { open: !files }); setFiles(!files); };
   const action = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
   const stop = event => event.stopPropagation();
-  useDismissMenu(menu, () => setMenu(false), '[data-card-menu], [aria-label="More notebook actions"]');
 
   return (
     <>
@@ -142,13 +139,6 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
           <button type="button" aria-pressed={files} className={`${action} ${files ? 'bg-hover text-ink' : ''}`} disabled={!loaded} onPointerDown={stop} onClick={toggleFiles}><FolderTree size={12} />Files</button>
           <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('run-all')}><Play size={12} />Run all</button>
           <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('restart')}><RotateCcw size={12} />Restart</button>
-          <button type="button" aria-label="More notebook actions" className={action} disabled={preview} onPointerDown={stop} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>
-          {menu && (
-            // UI-25: the card's own rows from the canvas action registry, run like the right-click menu's (CanvasMenu.jsx).
-            <div role="menu" aria-label="Notebook actions" data-card-menu className="absolute top-8 right-3 z-30 w-60 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={stop}>
-              <CardActionRows id={block.id} groups={['type', 'content']} onDone={() => setMenu(false)} />
-            </div>
-          )}
       </>} />
       {/* Full content (card-layout.js): the frame is as tall as the notebook's cells (notebook-height.js), so the card is, and the page scrolls it. */}
       <div className={`relative overflow-hidden rounded-b-xl border-t border-line ${fullContent(block) ? 'flex-none' : 'min-h-0 flex-1'}`} style={fullContent(block) ? { height: notebookHeight(block.ipynb, block.cardLayout.fullWidth) } : undefined}>

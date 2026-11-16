@@ -109,7 +109,7 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
         // moves a card, saves the board or asks a model; this browser remembers the choice for this canvas.
         ...(study ? [
           { label: 'Canvas', icon: Frame, radio: study.mode !== 'study', onSelect: () => study.setMode('canvas') },
-          { label: 'Study', icon: GraduationCap, radio: study.mode === 'study', onSelect: () => study.setMode('study') },
+          { label: 'Run', icon: GraduationCap, radio: study.mode === 'study', onSelect: () => study.setMode('study') },
           { divider: true },
         ] : []),
         // Each row drives the state that already shows or hides the thing; the choice is this person's, on this device

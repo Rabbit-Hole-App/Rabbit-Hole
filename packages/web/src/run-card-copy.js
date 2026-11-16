@@ -6,7 +6,7 @@
 export const RUN_CARD_COPY = Object.freeze({
   subtitle: 'Run card',
   tabs: { run: 'Run', custom: 'Custom run', history: 'History' },
-  header: { ready: 'Ready to run', starting: 'Starting', live: 'Live', ended: 'Ended · outputs kept', failed: "Couldn't start", start: 'Start', stop: 'Stop', startAgain: 'Start again', tryAgain: 'Try again' },
+  header: { hint: 'Runs on a cloud machine', ready: 'Ready to run', starting: 'Starting', live: 'Live', ended: 'Ended · outputs kept', failed: "Couldn't start", start: 'Start', stop: 'Stop', startAgain: 'Start again', tryAgain: 'Try again' },
   step: {
     notRun: 'Not run yet', running: 'Running', done: 'Done', didnt: "Didn't finish", stopped: 'Stopped', rehearsalDidnt: "Didn't finish in the rehearsal", validator: 'Not run',
     run: 'Run', runAll: 'Run all', showCommand: 'Show command', hideCommand: 'Hide command', details: 'Details', showAll: 'Show all', showLess: 'Show less',
