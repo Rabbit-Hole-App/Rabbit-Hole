@@ -381,7 +381,7 @@ async function learnPlanAction(env, snapshot, body, deps) {
   if (body.draft != null) {
     try { draft = validateOutlineOps(body.draft, outline, { maxOps: PLAN_MAX_OPS }); } catch { return bad('draft must be the outline operations of the draft you were shown'); }
   }
-  return learnPlan(env, snapshot, { learn, catalogue: options.map(o => o.id), outline, outlineRevision: revision ?? null, draft, edit }, deps);
+  return learnPlan(env, snapshot, { learn, catalogue: options.map(o => o.id), outline, outlineRevision: revision ?? null, draft, edit }, { ...deps, callModel: deps.callModel || loggedModel('home_ask', anthropic) }); // the same default as learn_intro and learn_fit: the unit tests inject theirs
 }
 
 // Save the draft (or its acceptance) on the active learn activity: checkpoint.learn.plan = { ops, revision, acceptedAt, text, current?, done? }, through the coaching write path.

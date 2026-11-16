@@ -25,3 +25,10 @@ test('a stored document with `learn` starts nothing; one without it starts the j
   assert.deepEqual(schema.properties.learn.properties.status.enum, ['queued', 'failed']);
   assert.equal(schema.properties.learn.additionalProperties, false);
 });
+
+// A live bug the first real run found (2026-11-15): learn_plan took its model seam only from the caller's deps, so the real route threw "callModel is not a function" while the unit tests (which inject one) passed.
+test('learn_plan falls back to the real model seam exactly as learn_intro and learn_fit do', () => {
+  const route = readFileSync(new URL('../src/learn-codebase-source-map.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(route, /learnPlan\(env, snapshot, \{[^\n]*\}, \{ \.\.\.deps, callModel: deps\.callModel \|\| loggedModel\('home_ask', anthropic\) \}\)/);
+  assert.match(route, /async function learnIntro\(env, snapshot, value, \{ callModel = loggedModel\('home_ask', anthropic\) \}/);
+});

@@ -34,7 +34,7 @@ const api = async (path, init = {}) => {
   return d;
 };
 const sleep = ms => new Promise(done => setTimeout(done, ms));
-const waitFor = async (read, what, ms = 120000) => { const end = Date.now() + ms; for (;;) { const value = await read().catch(() => null); if (value) return value; if (Date.now() > end) throw Error(`timed out: ${what}`); await sleep(2000); } };
+const waitFor = async (read, what, ms = 600000) => { const end = Date.now() + ms; for (;;) { const value = await read().catch(() => null); if (value) return value; if (Date.now() > end) throw Error(`timed out: ${what}`); await sleep(2000); } };
 
 const REPOS = {
   nano: { env: 'CANVAS_NANOGPT', url: 'https://github.com/karpathy/nanoGPT', branch: 'master', commit: process.env.COMMIT_NANOGPT || '3adf61e' },
@@ -54,7 +54,7 @@ async function prepare(key) {
   if (!project) throw Error(`${R.env}: that canvas has no repository`);
   const probe = await canvasIn(project, `Plan drafts ${key} ${run}`);
   await waitFor(async () => { const g = await api(`/api/learn/rehearsal?app=${probe}&board=main`); if (g.indexing === 'failed') throw Error(`${key}: indexing failed`); return g.indexing === 'ready'; }, `${key}: the repository is indexed`);
-  const doc = await waitFor(async () => { const out = await api('/api/learn/rehearsal', { method: 'POST', body: JSON.stringify({ app: probe, board: 'main', action: 'catalogue' }) }); if (out.catalogue?.status === 'failed') throw Error(`${key}: the catalogue failed`); return out.catalogue?.status === 'ready' && out.catalogue.catalogueDoc?.learn ? out.catalogue.catalogueDoc : null; }, `${key}: the catalogue document with its learn section`);
+  const doc = await waitFor(async () => { const out = await api('/api/learn/rehearsal', { method: 'POST', body: JSON.stringify({ app: probe, board: 'main', action: 'catalogue' }) }); if (out.catalogue?.status === 'failed') throw Error(`${key}: the catalogue failed`); return out.catalogue?.status === "ready" && out.catalogueDoc?.learn ? out.catalogueDoc : null; }, `${key}: the catalogue document with its learn section`);
   return (prepared[key] = { project, doc });
 }
 
