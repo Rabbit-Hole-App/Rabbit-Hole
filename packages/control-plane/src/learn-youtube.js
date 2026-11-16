@@ -145,7 +145,8 @@ const MOMENT_MAX_S = 300;
 // `found` is what find_video_moments returned this answer: videoId ->
 // { title, hasCaptions, duration }. The same bargain as show_paper: nothing
 // is put in front of the learner that the tutor has not checked exists.
-export function validateShowVideo(input, found) {
+// madeBy 'learn-section' (Learn sections C §5c): a section item's window may be any length; the chat's 5 min bound stays.
+export function validateShowVideo(input, found, { madeBy = null } = {}) {
   const videoId = videoIdFrom(input?.videoId);
   if (!videoId || !found.has(videoId)) throw new Error('Show a video from this answer\'s find_video_moments result');
   const video = found.get(videoId);
@@ -163,7 +164,7 @@ export function validateShowVideo(input, found) {
   const start = Math.floor(Number(input.start ?? 0));
   const end = Math.floor(Number(input.end));
   if (!Number.isFinite(start) || start < 0) throw new Error('Invalid window start');
-  if (!Number.isFinite(end) || end - start < MOMENT_MIN_S || end - start > MOMENT_MAX_S) throw new Error(`A moment is ${MOMENT_MIN_S}s to ${MOMENT_MAX_S / 60}min long`);
+  if (!Number.isFinite(end) || end - start < MOMENT_MIN_S || (madeBy !== 'learn-section' && end - start > MOMENT_MAX_S)) throw new Error(`A moment is ${MOMENT_MIN_S}s to ${MOMENT_MAX_S / 60}min long`);
   if (video.duration && end > video.duration + 2) throw new Error('The window ends after the video does');
   return { videoId, title, start, end, unverified: false, confidence, reason: String(input?.reason || '').slice(0, 300) || null };
 }
