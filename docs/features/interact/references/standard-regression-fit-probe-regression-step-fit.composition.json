@@ -1,0 +1,310 @@
+{
+  "family": "regression-fit-probe",
+  "canonical": "source-sine-leaf-means",
+  "layout": {
+    "width": 640,
+    "height": 370
+  },
+  "story": "A regression tree predicts one constant value inside each leaf. Compare the supplied shallow and deep fits on the same sine samples, then inspect which sample values determine a selected leaf’s height.",
+  "aha": {
+    "inputs": {
+      "angle": 90
+    },
+    "observation": "At 90°, the target is 1, the depth-2 prediction is 0.734 and the depth-4 prediction is 0.933.",
+    "stateId": "aha"
+  },
+  "parts": [
+    {
+      "id": "target",
+      "kind": "sampled-sine-plot",
+      "bind": "data.targets"
+    },
+    {
+      "id": "fits",
+      "kind": "dual-step-fit",
+      "bind": "data.fits; computed.selectedFit"
+    },
+    {
+      "id": "probe",
+      "kind": "angle-to-leaf-probe",
+      "bind": "inputs.angle; computed.values"
+    },
+    {
+      "id": "values",
+      "kind": "fit-readouts",
+      "bind": "computed.values; computed.selectedFit"
+    }
+  ],
+  "controls": [
+    {
+      "id": "angle",
+      "kind": "range",
+      "label": "Probe angle",
+      "min": 0,
+      "max": 360,
+      "step": 15,
+      "effect": "Move among the 25 supplied sample angles, updating target, both predictions and selected leaf members."
+    },
+    {
+      "id": "reset",
+      "kind": "reset",
+      "effect": "Restore the declared initial inputs and the initial evidence."
+    }
+  ],
+  "data": {
+    "title": "Compare both fits at the same angle.",
+    "heading": "Same 25 rounded sine samples",
+    "prompt": "how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 4?",
+    "instructions": "Move the angle probe. Compare both leaf predictions at each supplied target.",
+    "initialInputs": {
+      "angle": 0
+    },
+    "targets": [
+      {
+        "angle": 0,
+        "integer": 0,
+        "value": 0
+      },
+      {
+        "angle": 15,
+        "integer": 259,
+        "value": 0.259
+      },
+      {
+        "angle": 30,
+        "integer": 500,
+        "value": 0.5
+      },
+      {
+        "angle": 45,
+        "integer": 707,
+        "value": 0.707
+      },
+      {
+        "angle": 60,
+        "integer": 866,
+        "value": 0.866
+      },
+      {
+        "angle": 75,
+        "integer": 966,
+        "value": 0.966
+      },
+      {
+        "angle": 90,
+        "integer": 1000,
+        "value": 1
+      },
+      {
+        "angle": 105,
+        "integer": 966,
+        "value": 0.966
+      },
+      {
+        "angle": 120,
+        "integer": 866,
+        "value": 0.866
+      },
+      {
+        "angle": 135,
+        "integer": 707,
+        "value": 0.707
+      },
+      {
+        "angle": 150,
+        "integer": 500,
+        "value": 0.5
+      },
+      {
+        "angle": 165,
+        "integer": 259,
+        "value": 0.259
+      },
+      {
+        "angle": 180,
+        "integer": 0,
+        "value": 0
+      },
+      {
+        "angle": 195,
+        "integer": -259,
+        "value": -0.259
+      },
+      {
+        "angle": 210,
+        "integer": -500,
+        "value": -0.5
+      },
+      {
+        "angle": 225,
+        "integer": -707,
+        "value": -0.707
+      },
+      {
+        "angle": 240,
+        "integer": -866,
+        "value": -0.866
+      },
+      {
+        "angle": 255,
+        "integer": -966,
+        "value": -0.966
+      },
+      {
+        "angle": 270,
+        "integer": -1000,
+        "value": -1
+      },
+      {
+        "angle": 285,
+        "integer": -966,
+        "value": -0.966
+      },
+      {
+        "angle": 300,
+        "integer": -866,
+        "value": -0.866
+      },
+      {
+        "angle": 315,
+        "integer": -707,
+        "value": -0.707
+      },
+      {
+        "angle": 330,
+        "integer": -500,
+        "value": -0.5
+      },
+      {
+        "angle": 345,
+        "integer": -259,
+        "value": -0.259
+      },
+      {
+        "angle": 360,
+        "integer": 0,
+        "value": 0
+      }
+    ],
+    "fits": {
+      "2": {
+        "edges": [
+          0,
+          22.5,
+          172.5,
+          202.5,
+          360
+        ],
+        "predictions": [
+          0.13,
+          0.734,
+          -0.129,
+          -0.667
+        ]
+      },
+      "4": {
+        "edges": [
+          0,
+          7.5,
+          22.5,
+          37.5,
+          52.5,
+          127.5,
+          142.5,
+          157.5,
+          172.5,
+          187.5,
+          202.5,
+          217.5,
+          232.5,
+          307.5,
+          322.5,
+          352.5,
+          360
+        ],
+        "predictions": [
+          0,
+          0.259,
+          0.5,
+          0.707,
+          0.933,
+          0.707,
+          0.5,
+          0.259,
+          0,
+          -0.259,
+          -0.5,
+          -0.707,
+          -0.933,
+          -0.707,
+          -0.379,
+          0
+        ]
+      }
+    },
+    "calculations": [
+      "Copy the supplied fitted edges and step heights, not uniform invented bins. The last repeated step entry closes the curve at 360°; it is not another leaf.",
+      "A leaf contains source sample angles between its adjacent midpoint edges; 360° belongs to the final leaf.",
+      "Mean = sum of supplied rounded integer targets / member count / 1000. Reference prediction = Math.round(integerSum/memberCount)/1000, using the reference rounding convention.",
+      "This preserves the source +0.130 and −0.129 for means +0.1295 and −0.1295; the 16-leaf peak mean is 0.9328 and displayed height 0.933.",
+      "Probe residual = supplied target − selected prediction. All targets, leaf means, sums and residuals use the supplied rounded data."
+    ],
+    "sourceKind": "worked 25-sample sine fits, depths 2 and 4",
+    "missingCounterparts": [
+      "discrete step-fit plot",
+      "angle/leaf linkage",
+      "selected-leaf sample membership",
+      "leaf-mean and rounding ledger"
+    ],
+    "captureStates": [
+      {
+        "id": "initial",
+        "inputs": {
+          "angle": 0
+        }
+      },
+      {
+        "id": "aha",
+        "inputs": {
+          "angle": 90
+        }
+      }
+    ],
+    "treeReference": true,
+    "provenance": {
+      "reference": "ml-trees-regression-step-fit",
+      "sourceProof": {
+        "path": "packages/web/src/tutor-diagrams/lesson-decision-trees-data.js",
+        "revision": "aedd55b01",
+        "sha256": "38fc3a438bc78e9f9f21124065da9a5e9b271faa4a7454c895a253e37b90bb49"
+      }
+    },
+    "verification": {
+      "maxObjects": 39,
+      "cases": 25,
+      "renderedFit": "Unknown — owner browser acceptance required"
+    },
+    "review": {
+      "rubric": "scene-composition-scorecard.md",
+      "reviewer": "Codex",
+      "date": "2026-11-15",
+      "amendment": "Owner 11:45: depth pattern and parameter budget waived; scene design independent of existing runtime families.",
+      "checks": {
+        "1": "Yes: bound mechanism answers the prompt",
+        "2": "Yes: inputs persist without a clock",
+        "3": "Yes: every experiment control changes numerical or structural evidence",
+        "4": "Yes: composition data binds the visible parts",
+        "5": "Unknown: owner browser fit acceptance pending",
+        "6": "Yes: story, controls and part names agree",
+        "7": "Yes under owner amendment: depth chosen for this question",
+        "8": "Yes: calculations and source provenance declared and checked",
+        "9": "Unknown: source SVG inspected separately; complete-card browser legibility pending",
+        "10": "Unknown: Reset/handler boundaries checked; native browser keyboard/focus acceptance pending"
+      }
+    }
+  },
+  "schemaVersion": 1,
+  "status": "reference-proposal",
+  "id": "standard-regression-fit-probe-regression-step-fit",
+  "depth": "balanced"
+}
