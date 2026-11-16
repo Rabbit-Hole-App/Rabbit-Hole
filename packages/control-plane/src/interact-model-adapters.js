@@ -43,7 +43,7 @@ export function schemaProblems(schema, value, path = '$', root = schema) {
   const out = [], types = [].concat(schema.type ?? []);
   if (types.length && !types.some(t => typeOk(t, value))) return [`${path}: expected ${types.join(' or ')}`];
   if (schema.enum && !schema.enum.some(e => canonical(e) === canonical(value))) out.push(`${path}: not one of the allowed values`);
-  if ('const' in schema && canonical(schema.const) !== canonical(value)) out.push(`${path}: not the required constant`);
+  if ('const' in schema && canonical(schema.const) !== canonical(value)) out.push(`${path}: not the required constant ${JSON.stringify(schema.const).slice(0, 80)}`);
   if (typeof value === 'string') {
     if (schema.minLength !== undefined && value.length < schema.minLength) out.push(`${path}: shorter than ${schema.minLength}`);
     if (schema.maxLength !== undefined && value.length > schema.maxLength) out.push(`${path}: longer than ${schema.maxLength}`);
@@ -67,10 +67,12 @@ export function schemaProblems(schema, value, path = '$', root = schema) {
       else if (isObject(schema.additionalProperties)) out.push(...schemaProblems(schema.additionalProperties, item, `${path}.${key}`, root));
     }
   }
-  if (schema.anyOf && !schema.anyOf.some(s => !schemaProblems(s, value, path, root).length)) out.push(`${path}: matches none of the alternatives`);
+  // A union that matches nothing names the alternative it came closest to and that alternative's first problems, so a correction call (and a log line) says what to change instead of only that something is wrong.
+  const closest = alternatives => { const tried = alternatives.map(s => schemaProblems(s, value, path, root)).sort((x, y) => x.length - y.length)[0] ?? []; return tried.length ? `; closest alternative: ${tried.slice(0, 6).join('; ')}` : ''; };
+  if (schema.anyOf && !schema.anyOf.some(s => !schemaProblems(s, value, path, root).length)) out.push(`${path}: matches none of the alternatives${closest(schema.anyOf)}`);
   if (schema.oneOf) {
     const matches = schema.oneOf.filter(s => !schemaProblems(s, value, path, root).length).length;
-    if (matches !== 1) out.push(`${path}: matches ${matches} of the exclusive alternatives, not exactly one`);
+    if (matches !== 1) out.push(`${path}: matches ${matches} of the exclusive alternatives, not exactly one${matches === 0 ? closest(schema.oneOf) : ''}`);
   }
   return out;
 }

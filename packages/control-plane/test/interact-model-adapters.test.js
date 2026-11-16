@@ -27,7 +27,7 @@ test('schemaProblems enforces the supported keywords and refuses ones it cannot 
   assert.deepEqual(schemaProblems(PLAN, { title: 'a' }), ['$.n: required']);
   const either = { anyOf: [{ type: 'string' }, { type: 'integer' }] };
   assert.deepEqual(schemaProblems(either, 3), []);
-  assert.deepEqual(schemaProblems(either, true), ['$: matches none of the alternatives']);
+  assert.deepEqual(schemaProblems(either, true), ["$: matches none of the alternatives; closest alternative: $: expected string"]);
   assert.throws(() => schemaProblems({ $ref: '#/x' }, {}), { code: 'unsupported_schema' });
   assert.throws(() => schemaProblems({ allOf: [] }, {}), { code: 'unsupported_schema' });
 });
@@ -64,7 +64,17 @@ test('a property that is merely NAMED oneOf is not a union', () => {
 test('exclusive oneOf is enforced on the returned data against the ORIGINAL schema', () => {
   const schema = { type: 'object', required: ['v'], properties: { v: { oneOf: [kind('a'), kind('b')] } } };
   assert.deepEqual(schemaProblems(schema, { v: { kind: 'a' } }), []);
-  assert.deepEqual(schemaProblems(schema, { v: { kind: 'z' } }), ['$.v: matches 0 of the exclusive alternatives, not exactly one']);
+  const problems = schemaProblems(schema, { v: { kind: 'z' } });
+  assert.equal(problems.length, 1);
+  assert.ok(problems[0].startsWith('$.v: matches 0 of the exclusive alternatives, not exactly one'), problems[0]);
+});
+
+test('a union that matches nothing names the closest alternative and the constant it expected', () => {
+  const schema = { type: 'object', properties: { v: { oneOf: [{ type: 'object', properties: { kind: { const: 'a' }, size: { type: 'number' } }, required: ['kind', 'size'] }, { type: 'object', properties: { kind: { const: 'b' } }, required: ['kind'] }] } } };
+  const [line] = schemaProblems(schema, { v: { kind: 'a', size: 'big' } });
+  assert.ok(line.includes('closest alternative: $.v.size: expected number'), line);
+  const [other] = schemaProblems(schema, { v: { kind: 'c' } });
+  assert.ok(other.includes('closest alternative: $.v.kind: not the required constant "b"'), other);
 });
 
 // ---- C05 normalization ----
