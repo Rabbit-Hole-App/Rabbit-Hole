@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs';
 import { DEFAULT_PANE, paneTitle, resolveSettingsTab, SETTINGS_PANES } from './settings-model.js';
 
 test('the panes, in order, are the learning product\'s; the nav label is Profile, never the person\'s name', () => {
-  assert.deepEqual(SETTINGS_PANES.map((p) => p.title), ['Profile', 'Appearance & input', 'Learning & voice', 'AI usage', 'Privacy & security']);
+  assert.deepEqual(SETTINGS_PANES.map((p) => p.title), ['Profile', 'Appearance & input', 'Learning & voice', 'Usage', 'Privacy & security']);
   assert.equal(DEFAULT_PANE, 'profile');
-  assert.equal(paneTitle('usage'), 'AI usage');
+  assert.equal(paneTitle('usage'), 'Usage');
   assert.equal(paneTitle('developer'), null);
 });
 

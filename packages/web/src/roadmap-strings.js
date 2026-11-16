@@ -62,7 +62,7 @@ export const STRINGS = Object.freeze({
   courseProgress: (made, total) => `${made} of ${total} cards made`, courseNow: title => `Making ${title}`, courseFailed: n => (n === 1 ? '1 could not be made' : `${n} could not be made`),
   tryAgain: 'Try again', courseSummary: (made, total, failed) => `${made} of ${total} cards made. ${failed === 1 ? '1 could not be made' : `${failed} could not be made`}.`,
   prepareFailed: 'I could not prepare this file. Drop it again.', saveFailed: 'The cards could not be saved to this canvas (it may be full or offline). The course goes on when they can be saved.', // owner 2026-11-14
-  courseStopped: { allowance: 'Your credits ran out, so the course stopped. The cards already made are on the canvas.', blocked: 'The course stopped at a card that could not be prepared. The cards already made are on the canvas.',
+  courseStopped: { allowance: 'Your AI units ran out, so the course stopped. The cards already made are on the canvas.', blocked: 'The course stopped at a card that could not be prepared. The cards already made are on the canvas.',
     source_changed: 'The file changed after the plan was made, so the course stopped. Edit the plan to continue.', failures: 'Several cards in a row could not be made, so the course stopped. Use Try again in a moment.',
     safety: 'The course stopped because a card could not be made safely. The cards already made are on the canvas.', incomplete: 'Some cards could not be made. Use Try again.' },
   nextCard: 'Next card', editCard: 'Edit card', goToCard: 'Go to card', goToText: 'Go to highlighted text',

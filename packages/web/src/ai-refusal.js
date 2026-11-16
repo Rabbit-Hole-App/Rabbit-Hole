@@ -14,10 +14,10 @@ export function refusalMessage(body) {
   if (body?.code !== 'allowance_limited') return body?.error || 'AI is paused for now. Try again later.';
   const renews = body.resetsAt && !Number.isNaN(Date.parse(body.resetsAt)) ? ` Renews on ${formatReset(body.resetsAt)}.` : '';
   switch (body.reason) {
-    case 'exhausted': return `Not enough AI credits.${renews}`;
-    case 'insufficient': return `This needs more AI credits than you have left.${renews}`;
-    case 'reserved': return 'Your remaining AI credits are temporarily reserved by AI work that is still running. Try again when it finishes.';
-    default: return 'AI is temporarily unavailable: your AI credits cannot be checked right now. Your work is saved; try again shortly.';
+    case 'exhausted': return `Not enough AI units.${renews}`;
+    case 'insufficient': return `This needs more AI units than you have left.${renews}`;
+    case 'reserved': return 'Your remaining AI units are temporarily reserved by AI work that is still running. Try again when it finishes.';
+    default: return 'AI is temporarily unavailable: your AI units cannot be checked right now. Your work is saved; try again shortly.';
   }
 }
 

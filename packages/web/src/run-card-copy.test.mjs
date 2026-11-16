@@ -53,3 +53,10 @@ test('the card names no repository, file, flag or command in its source (the cop
   assert.match(tabs, /COPY\.tabs\[id\]/);
   assert.doesNotMatch(tabs, /Rehearsal output|Session not started|Start session/, 'the old strings are gone');
 });
+
+test('the compute lines are plain words with the allowance and the renewal date, and never a machine or provider term', () => {
+  const out = RUN_CARD_COPY.lines.computeOut('1,000', 'December 1, 12:00 AM UTC');
+  assert.match(out, /^You've used this month's compute allowance \(1,000 units\)\. It renews on December 1, 12:00 AM UTC\. Your outputs and runbook stay; runs resume then\.$/);
+  for (const line of [out, RUN_CARD_COPY.lines.computeRanOut, RUN_CARD_COPY.lines.computeUnavailable, RUN_CARD_COPY.header.autoStop]) assert.doesNotMatch(line, /Modal|sandbox|rc |credit/i);
+  assert.equal(RUN_CARD_COPY.header.autoStop, 'Stops after 10 minutes without a run, or after 60 minutes.');
+});

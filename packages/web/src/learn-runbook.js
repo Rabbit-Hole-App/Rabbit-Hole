@@ -266,7 +266,7 @@ export function ifItBreaks(record, ctx) {
   return rows.length ? [heading(2, 'If it breaks'), table(['Symptom', 'Likely cause', 'Where to look'].map(cellText), rows)] : [];
 }
 
-// Provenance. Reads: startedUtc, sandboxId, image.digest. (modelSpendUsd is deliberately not shown: users see AI credits only, CLAUDE.md.)
+// Provenance. Reads: startedUtc, sandboxId, image.digest. (modelSpendUsd is deliberately not shown: users see AI units only, CLAUDE.md.)
 export function provenance(record) {
   if (!record.startedUtc || !record.sandboxId) return [];
   const digest = String(record.image?.digest || '').replace(/^sha256:/, '').slice(0, 12);

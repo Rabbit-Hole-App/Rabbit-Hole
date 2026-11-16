@@ -43,7 +43,7 @@ test('the notice says where Settings opened, and that a planned provider was not
   assert.equal(openedNotice('connections', 'slack'), 'Opened Settings.');
   assert.equal(openedNotice('connections'), 'Opened Settings.');
   assert.equal(openedNotice('preferences'), 'Opened Settings → Appearance & input.');
-  assert.equal(openedNotice('usage'), 'Opened Settings → AI usage.');
+  assert.equal(openedNotice('usage'), 'Opened Settings → Usage.');
   assert.equal(openedNotice(), 'Opened Settings.');
   assert.equal(CONNECTIONS.some((c) => /Planned/.test(c.account || '')), false);
 });

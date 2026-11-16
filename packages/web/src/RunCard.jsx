@@ -8,6 +8,7 @@ import { tutorLine } from './tutor-lines.js';
 import { SENTENCES, cellFailedLine, flagRefusedLine, flagRejectedLine, valueRuleLine } from './tutor-rehearsal-text.js';
 import { CUSTOM_KEY, RUN_POLL_MS, TABS, failedStepOf, paneText, progressOf, sessionEnded, sessionReady } from './run-card-view.js';
 import { RUN_CARD_COPY as COPY, headerState, sessionGoneText, stepState, whatHappens } from './run-card-copy.js';
+import { formatReset } from './account-usage.js';
 import { cellRunBody, cleanOverrides, customRunBody, knobFields, openSourceLine, stepCells, stepIdOf } from './run-card-knobs.js';
 import { addHistory, addPreset, deletePreset, historyEntry, presetFromDraft, presetFromEntry, runAgainSpec, sessionLabelOf } from './run-card-history.js';
 import { fileQuery } from './run-card-outputs.js';
@@ -32,7 +33,7 @@ const wait = (timer, ms) => new Promise(resolve => { timer.current = setTimeout(
 export default function RunCard({ block, readOnly, onSave }) {
   const saved = block.run || {}, { app, board } = saved, repo = block.generated?.repo, added = saved.addedKnobs || [];
   const [session, setSession] = useState(null), [runs, setRuns] = useState(() => resultsToRuns(saved.results)), [logs, setLogs] = useState({}), [flags, setFlags] = useState(saved.flags || {});
-  const [notes, setNotes] = useState({}), [expanded, setExpanded] = useState({}); // notes: a state the card set itself per step; expanded: output panes opened past their last lines
+  const [notes, setNotes] = useState({}), [expanded, setExpanded] = useState({}), [startLine, setStartLine] = useState(''); // notes: a state the card set itself per step; expanded: output panes opened past their last lines
   const [active, setActive] = useState(null); // the key (a cellId, or CUSTOM_KEY) whose run is in progress: one run at a time
   const [tab, setTabNow] = useState(TABS.some(([id]) => id === saved.tab) ? saved.tab : 'run'), [filter, setFilter] = useState('All');
   const [draft, setDraft] = useState({ steps: [], values: {}, name: '' });
@@ -59,7 +60,7 @@ export default function RunCard({ block, readOnly, onSave }) {
   // The last outputs stay: they are what the card kept, labelled with their time. -> the session state once it is not starting (null when the sandbox could not start).
   async function begin() {
     const mine = ++startGen.current;
-    setSession({ status: 'starting' }); setActive(null);
+    setSession({ status: 'starting' }); setActive(null); setStartLine('');
     try {
       for (;;) {
         const state = await call({ action: 'start' });
@@ -75,7 +76,11 @@ export default function RunCard({ block, readOnly, onSave }) {
         if (!live.current || startGen.current !== mine) return null;
       }
     } catch (error) {
-      if (live.current && startGen.current === mine) { setSession({ status: 'failed' }); tell(SENTENCES.runStartFailed); }
+      if (live.current && startGen.current === mine) {
+        const code = error.data?.error, line = code === 'compute_exhausted' ? COPY.lines.computeOut(error.data.allowanceUnits?.toLocaleString('en-US') ?? '', error.data.resetsAt ? formatReset(error.data.resetsAt) : 'the 1st')
+          : code === 'compute_unavailable' ? COPY.lines.computeUnavailable : COPY.lines.startFailed;
+        setSession({ status: 'failed' }); setStartLine(line); tell(code === 'compute_exhausted' || code === 'compute_unavailable' ? line : SENTENCES.runStartFailed);
+      }
       return null;
     }
   }
@@ -114,7 +119,7 @@ export default function RunCard({ block, readOnly, onSave }) {
       if (live.current && runGen.current === mine) {
         // The run is gone, so the cell shows what it last kept; a session the controller no longer has (idle or hard timeout) sends the card back to Start.
         setRuns(old => { const { [key]: _gone, ...rest } = old; const prior = spec.cellId && store.current.results?.[spec.cellId]; return prior ? { ...rest, [key]: runFromStored(prior) } : rest; });
-        if ([404, 410].includes(error.status)) { setSession(old => ({ ...old, status: 'expired' })); setNotes(old => ({ ...old, [key]: { tone: 'warn', chip: COPY.header.ended, line: COPY.lines.sessionEnded } })); } // not an error: the header says Ended and the earlier outputs stay; Start again is the learner's
+        if ([404, 410].includes(error.status)) { setSession(old => ({ ...old, status: 'expired' })); setNotes(old => ({ ...old, [key]: { tone: 'warn', chip: COPY.header.ended, line: error.data?.error === 'compute_out' ? COPY.lines.computeRanOut : COPY.lines.sessionEnded } })); if (error.data?.error === 'compute_out') tell(COPY.lines.computeRanOut); } // not an error: the header says Ended and the earlier outputs stay; Start again is the learner's
         else if (error.status === 400) { setNotes(old => ({ ...old, [key]: { tone: 'idle', chip: COPY.step.validator, line: error.data?.error || error.message } })); tell(flagRefusedLine({ repo, message: error.data?.error || error.message, accepted: spec.known })); }
         else tell(SENTENCES.runFailed);
       }
@@ -262,12 +267,13 @@ export default function RunCard({ block, readOnly, onSave }) {
   return (
     <>
       <CardHeader block={block} className="relative px-4 pt-3 pb-2" meta={COPY.subtitle} trailing={<>
-        <Chip tone={hs.tone} data-run-session-chip>{hs.busy && <Loader2 aria-hidden="true" size={12} className="motion-safe:animate-spin" />}{hs.chip}</Chip>
-        <Button type="button" variant={hs.button === 'stop' ? 'danger' : 'primary'} size="sm" data-run-session title={COPY.header.hint} disabled={readOnly || hs.busy || (hs.button === 'stop' && !session?.sessionId)} onPointerDown={stopPress} onClick={hs.button === 'stop' ? stop : begin}>
+        <Chip tone={hs.tone} data-run-session-chip title={hs.button === 'stop' ? COPY.header.autoStop : undefined}>{hs.busy && <Loader2 aria-hidden="true" size={12} className="motion-safe:animate-spin" />}{hs.chip}</Chip>
+        <Button type="button" variant={hs.button === 'stop' ? 'danger' : 'primary'} size="sm" data-run-session title={hs.button === 'stop' ? COPY.header.autoStop : COPY.header.hint} disabled={readOnly || hs.busy || (hs.button === 'stop' && !session?.sessionId)} onPointerDown={stopPress} onClick={hs.button === 'stop' ? stop : begin}>
           {hs.button === 'stop' ? <Square size={12} aria-hidden="true" /> : <Play size={12} aria-hidden="true" />}{hs.button === 'stop' ? COPY.header.stop : hs.button === 'startAgain' ? COPY.header.startAgain : hs.button === 'tryAgain' ? COPY.header.tryAgain : COPY.header.start}
         </Button>
       </>} />
       <div data-run-card data-run-session-status={session?.status || 'idle'} aria-label="Run card" className="flex min-h-0 flex-1 flex-col rounded-b-xl border-t border-line">
+        {startLine && <p data-run-start-line role="alert" className="px-4 pt-2 text-xs text-fail">{startLine}</p>}
         <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <TabsList className="shrink-0 overflow-x-auto px-4" aria-label="Run card">
             {TABS.map(([id]) => <TabsTrigger key={id} value={id} data-run-tab={id} className="shrink-0 whitespace-nowrap">{COPY.tabs[id]}{id === 'custom' && dirty && <span aria-label={COPY.custom.unsaved} title={COPY.custom.unsaved} className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-accent" />}</TabsTrigger>)}

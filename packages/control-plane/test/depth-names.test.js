@@ -63,7 +63,9 @@ test('writes use only the new names: an old-name write from an old client is sto
 
 test('0044 widens both CHECKs to accept both vocabularies, copies every row unchanged, recreates the indexes, is re-runnable and is exactly what repository-schema.sql applies', t => {
   assert.ok(SCHEMA.replace(/\r/g, '').includes(MIGRATION.replace(/\r/g, '').trim()), 'repository-schema.sql holds 0044 verbatim');
-  assert.ok(SCHEMA.trimEnd().endsWith(MIGRATION.trim()) || SCHEMA.replace(/\r/g, '').trimEnd().endsWith(MIGRATION.replace(/\r/g, '').trim()), '0044 is the last section of the schema mirror');
+  // 0044 is followed only by later migrations' sections (0045 compute usage, ...): nothing else is appended after it.
+  const after = SCHEMA.replace(/\r/g, '').split(MIGRATION.replace(/\r/g, '').trim())[1] || '';
+  assert.ok(after.split('-- learn-migrations/').slice(1).every(section => /^00(4[5-9]|[5-9]\d)-/.test(section)), '0044 is followed only by later migrations in the schema mirror');
   assert.doesNotMatch(MIGRATION.replace(/--.*$/gm, ''), /\bUPDATE\b/i, 'no stored value is rewritten by the migration');
   assert.doesNotMatch(MIGRATION.replace(/--.*$/gm, ''), /CREATE TABLE IF NOT EXISTS/i, 'the _new tables are not counted as tables the migrations create (scripts/dev-deploy.mjs learnTables)');
   const { sqlite } = learnDb(t, BEFORE_0044);

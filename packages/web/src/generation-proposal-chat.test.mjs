@@ -316,8 +316,8 @@ test('the /animation card says what Generate costs from the server figure, with 
   const plan = { command: 'animation', usage: { estimate_credits: null, max_credits: 591, reserve_credits: null }, input: { job: 'aj_1', scene: {} } };
   assert.equal(jobReviewCopy(plan).note, 'Generate: up to 591 credits; most animations use 50–100; a failed one is refunded.');
   assert.equal(jobReviewCopy({ ...plan, usage: { max_credits: 1234 } }).note, 'Generate: up to 1,234 credits; most animations use 50–100; a failed one is refunded.', 'the number comes from the server, never typed here');
-  assert.equal(animationCostNote({ ...plan, input: { scene: { planCredits: 56 } } }), 'Edit plan uses up to 56 AI credits to rewrite the plan. Generate: up to 591 credits; most animations use 50–100; a failed one is refunded.');
-  assert.equal(animationCostNote({ ...plan, usage: {} , input: { scene: { planCredits: 56 } } }), 'Edit plan uses up to 56 AI credits to rewrite the plan.', 'the plan credits alone when the server sent no maximum');
+  assert.equal(animationCostNote({ ...plan, input: { scene: { planCredits: 56 } } }), 'Edit plan uses up to 56 AI units to rewrite the plan. Generate: up to 591 credits; most animations use 50–100; a failed one is refunded.');
+  assert.equal(animationCostNote({ ...plan, usage: {} , input: { scene: { planCredits: 56 } } }), 'Edit plan uses up to 56 AI units to rewrite the plan.', 'the plan credits alone when the server sent no maximum');
   assert.doesNotMatch(jobReviewCopy(plan).note, /\.\.\.|…|\$|dollar/);
   assert.equal(jobReviewCopy({ command: 'explain', usage: { max_credits: 591 } }).note, undefined, 'the Explain review card carries no cost note (owner 2026-11-07)');
 });

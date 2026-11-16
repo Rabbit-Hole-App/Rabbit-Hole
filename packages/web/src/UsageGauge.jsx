@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { Gauge } from 'lucide-react';
-import { barParts, creditCount, featureRows, formatCredits, formatReset, unknownLine, usageStore, usageView } from './account-usage.js';
+import { barParts, creditCount, featureRows, formatComputeUnits, formatCredits, formatReset, unknownLine, usageStore, usageView } from './account-usage.js';
+import { USAGE_COPY } from './usage-copy.js';
 import { Button, SettingsRow } from './ui.jsx';
 import BuyCreditsDialog from './BuyCreditsDialog.jsx';
 
@@ -30,11 +31,11 @@ export function popoverShift(anchorRight, width, viewport, gutter = 12) {
 
 const TONE = { ok: 'text-pass', empty: 'text-fail', neutral: 'text-ink-2' };
 
-export function UsageBar({ usage }) {
+export function UsageBar({ usage, label = USAGE_COPY.ai.units, format = formatCredits }) {
   const { usedPct, reservedPct } = barParts(usage);
   return (
-    <div data-usage-bar role="meter" aria-label="AI credits used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usedPct}
-      aria-valuetext={`${formatCredits(usage.used)} of ${formatCredits(usage.allowance)} used${usage.reserved > 0 ? `, ${formatCredits(usage.reserved)} temporarily reserved` : ''}`}
+    <div data-usage-bar role="meter" aria-label={`${label} used`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={usedPct}
+      aria-valuetext={`${format(usage.used)} of ${format(usage.allowance)} used${usage.reserved > 0 ? `, ${format(usage.reserved)} temporarily reserved` : ''}`}
       className="flex h-1.5 w-full overflow-hidden rounded-full bg-hover">
       <span className="h-full bg-ink-2" style={{ width: `${usedPct}%` }} />
       {reservedPct > 0 && <span data-usage-bar-reserved className="h-full bg-ink-3" style={{ width: `${reservedPct}%` }} />}
@@ -44,31 +45,43 @@ export function UsageBar({ usage }) {
 
 const Note = ({ children }) => <p data-usage-note className="rounded-md bg-hover px-2 py-1.5 text-xs text-ink-2">{children}</p>;
 
-// The popover's content (D4 section 3).
+// One meter of the popover, kept to a line and a bar (owner 2026-11-15: too many texts): the meter's name, what is left, the bar. What counts and the used-of-total figures are the tooltip.
+function Meter({ kind, meter, format, tone, extra = null }) {
+  const copy = USAGE_COPY[kind];
+  return (
+    <section data-usage-meter={kind} title={`${copy.counts} ${format(meter.used)} of ${format(meter.allowance)} used${meter.reserved > 0 ? `, ${format(meter.reserved)} reserved` : ''}.`} className="flex flex-col gap-1">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-semibold text-ink">{copy.title}</p>
+        <p data-usage-remaining={kind} className={`text-sm tabular-nums ${tone === 'empty' ? 'text-fail' : 'text-ink-2'}`}>{format(meter.remaining)} left</p>
+      </div>
+      <UsageBar usage={meter} label={copy.units} format={format} />
+      {extra}
+    </section>
+  );
+}
+
+// The popover's content: the Usage limit's two meters, AI first (usage-limits-spec.md section 4a).
 export function UsageDetails({ state, onViewUsage, onBuyCredits }) {
-  const view = usageView(state), usage = view.usage;
+  const view = usageView(state), usage = view.usage, c = usage?.compute;
   return (
     <>
-      <p className="text-sm font-semibold text-ink">AI credits</p>
+      <p className="text-xs font-medium text-ink-2">{USAGE_COPY.menu}</p>
       {usage ? (
-        <>
-          <p data-usage-remaining className={`mt-2 text-2xl font-semibold tabular-nums ${view.tone === 'empty' ? 'text-fail' : 'text-ink'}`}>
-            {formatCredits(usage.remaining)} <span className="text-sm font-normal text-ink-2">remaining</span>
-          </p>
-          {view.tone === 'empty' && <p className="text-xs text-ink-2">No AI credits remaining.</p>}
-          <p data-usage-every className="text-xs text-ink-2 tabular-nums">{creditCount(usage.allowance)} AI credits every month</p>
-          <p data-usage-used className="text-xs text-ink-2 tabular-nums">{formatCredits(usage.used)} used</p>
-          {usage.reserved > 0 && <p data-usage-reserved className="text-xs text-ink-2 tabular-nums">Temporarily reserved: {formatCredits(usage.reserved)}</p>}
-          {unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}
-          <div className="mt-2"><UsageBar usage={usage} /></div>
-          <p data-usage-reset className="mt-2 text-xs text-ink-2">Renews on {formatReset(usage.resetsAt)}</p>
-          {view.note && <div className="mt-2"><Note>{view.note}</Note></div>}
-        </>
+        <div className="mt-2 flex flex-col gap-2.5">
+          <Meter kind="ai" meter={usage} format={formatCredits} tone={usage.remaining === 0 ? 'empty' : 'ok'}
+            extra={<>{unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}</>} />
+          {c && !c.unavailable
+            ? <Meter kind="compute" meter={c} format={formatComputeUnits} tone={c.remaining === 0 ? 'empty' : 'ok'}
+              extra={c.minutesLeft != null && c.remaining > 0 && c.minutesLeft < 60 ? <p data-usage-low className="text-xs text-ink-2">{USAGE_COPY.compute.minutesLeft(c.minutesLeft)}</p> : null} />
+            : <section data-usage-meter="compute"><p className="text-sm font-semibold text-ink">{USAGE_COPY.compute.title}</p><p data-usage-compute-note className="text-xs text-ink-2">{c ? USAGE_COPY.compute.unavailable : USAGE_COPY.compute.notMetered}</p></section>}
+          <p data-usage-reset className="text-xs text-ink-2">Renews on {formatReset(usage.resetsAt)}</p>
+          {view.note && <Note>{view.note}</Note>}
+        </div>
       ) : <p role="status" className="mt-1 text-sm text-ink-2">{view.label}</p>}
       {state.status !== 'signed_out' && (
         <div className="mt-3 flex items-center gap-4">
-          <button type="button" data-view-usage onClick={onViewUsage} className="rounded-sm text-sm font-medium text-accent hover:underline">View usage</button>
-          <button type="button" data-buy-credits onClick={onBuyCredits} className="rounded-sm text-sm font-medium text-accent hover:underline">Buy credits</button>
+          <button type="button" data-view-usage onClick={onViewUsage} className="rounded-sm text-sm font-medium text-accent hover:underline">{USAGE_COPY.viewUsage}</button>
+          <button type="button" data-buy-credits onClick={onBuyCredits} className="rounded-sm text-sm font-medium text-accent hover:underline">{USAGE_COPY.addUnits}</button>
         </div>
       )}
     </>
@@ -110,7 +123,7 @@ export default function UsageGauge({ signedIn = true, onViewUsage = openUsageSet
         <Gauge size={15} strokeWidth={1.8} aria-hidden className={TONE[view.tone]} />
       </button>
       {open && (
-        <div ref={panel} id={id} role="dialog" aria-label="AI credits" tabIndex={-1} data-usage-popover style={shift ? { right: -shift } : undefined}
+        <div ref={panel} id={id} role="dialog" aria-label={USAGE_COPY.menu} tabIndex={-1} data-usage-popover style={shift ? { right: -shift } : undefined}
           className="absolute top-full right-0 z-50 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-3 shadow-pop outline-none">
           <UsageDetails state={state} onViewUsage={() => { close(false); onViewUsage(); }}
             onBuyCredits={() => { close(true); setBuying(true); }} />
@@ -124,49 +137,64 @@ export default function UsageGauge({ signedIn = true, onViewUsage = openUsageSet
 
 const Amount = ({ children, className = '' }) => <span className={`text-sm tabular-nums ${className}`}>{children}</span>;
 
-// Settings > AI usage (D4 section 1): the signed-in person's account allowance across all canvases.
+// Settings > Usage (usage-limits-spec.md section 4b): the signed-in person's two allowances across all canvases, AI usage then Compute usage, each with this month's bar, the monthly units, used, reserved, remaining and renewal.
+function SettingsMeter({ kind, meter, format, Heading, tone, children }) {
+  const copy = USAGE_COPY[kind];
+  return (
+    <section data-usage-section={kind}>
+      <Heading>{copy.title}</Heading>
+      <div className="pt-4"><UsageBar usage={meter} label={copy.units} format={format} /></div>
+      <SettingsRow title={`Monthly ${copy.units}`}><Amount>{creditCount(meter.allowance)} {copy.every}</Amount></SettingsRow>
+      <SettingsRow title="Used"><Amount>{format(meter.used)}</Amount></SettingsRow>
+      {meter.reserved > 0 && <SettingsRow title="Temporarily reserved" desc={kind === 'ai' ? 'Held for AI work still running, until it finishes.' : 'Held for a machine still running, until it stops.'}><Amount>{format(meter.reserved)}</Amount></SettingsRow>}
+      <SettingsRow title="Remaining" desc={tone === 'empty' ? `No ${copy.units} remaining.` : null}><Amount className={tone === 'empty' ? 'text-fail' : ''}>{format(meter.remaining)}</Amount></SettingsRow>
+      {children}
+    </section>
+  );
+}
+
+const machineLine = m => [m.repo ? `${m.repo}${m.commit ? ` @ ${m.commit}` : ''}` : null, m.routeTitle, USAGE_COPY.compute[m.kind] || m.kind, `${m.minutes} min`, `${m.usedUnits} ${m.usedUnits === 1 ? USAGE_COPY.compute.unit : USAGE_COPY.compute.units}`].filter(Boolean).join(' · ');
+
 export function UsageSettings({ Heading, store = usageStore }) {
   const state = useAccountUsage({ store });
   const [buying, setBuying] = useState(false);
   // Opening the section is a refresh point (D4 section 5); a first load the hook just started already is one.
   useEffect(() => { if (store.getSnapshot().status !== 'loading') store.refresh(); }, [store]);
-  const view = usageView(state), usage = view.usage;
+  const view = usageView(state), usage = view.usage, c = usage?.compute;
   return (
     <div data-usage-settings>
-      <div className="text-2xl font-semibold">AI usage</div>
-      <div className="pt-2 text-base text-ink-2">Your AI credits, shared across all your canvases and devices. Different AI features use different amounts.</div>
-      <div className="pt-4"><Button variant="secondary" data-buy-credits onClick={() => setBuying(true)}>Buy credits</Button></div>
+      <div className="text-2xl font-semibold">{USAGE_COPY.settingsTitle}</div>
+      <div className="pt-2 text-base text-ink-2">Your AI units and Compute units, shared across all your canvases and devices. Different features use different amounts.</div>
+      <div className="pt-4"><Button variant="secondary" data-buy-credits onClick={() => setBuying(true)}>{USAGE_COPY.addUnits}</Button></div>
       {buying && <BuyCreditsDialog onClose={() => setBuying(false)} />}
       {view.note && <div className="pt-4"><Note>{view.note}</Note></div>}
-      <Heading>This month</Heading>
       {usage ? (
         <>
-          <div className="pt-4"><UsageBar usage={usage} /></div>
-          <SettingsRow title="Monthly credits"><Amount>{creditCount(usage.allowance)} AI credits every month</Amount></SettingsRow>
-          <SettingsRow title="Used"><Amount>{formatCredits(usage.used)}</Amount></SettingsRow>
-          {usage.reserved > 0 && (
-            <SettingsRow title="Temporarily reserved" desc="Held for AI work still running, until it finishes.">
-              <Amount>{formatCredits(usage.reserved)}</Amount>
-            </SettingsRow>
-          )}
-          {unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="pb-1 text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}
-          <SettingsRow title="Remaining" desc={view.tone === 'empty' ? 'No AI credits remaining.' : null}>
-            <Amount className={view.tone === 'empty' ? 'text-fail' : ''}>{formatCredits(usage.remaining)}</Amount>
-          </SettingsRow>
-          <SettingsRow title="Renewal" desc="At the start of each calendar month in UTC, shown in your time. Unused credits do not carry over.">
-            <Amount>Renews on {formatReset(usage.resetsAt)}</Amount>
-          </SettingsRow>
-          {/* Recorded per feature by the same accounting (GET /api/learn/usage byFeature); absent from an older server. */}
-          {usage.byFeature?.length > 0 && <>
-            <Heading>This month by feature</Heading>
-            <div data-usage-by-feature>
-              {featureRows(usage.byFeature).map(row => (
-                <SettingsRow key={row.label} title={row.label} desc={[row.reserved > 0 && `${formatCredits(row.reserved)} reserved`, unknownLine(row.unknownAttempts)].filter(Boolean).join(' · ') || null}>
-                  <Amount>{formatCredits(row.used)}</Amount>
-                </SettingsRow>
-              ))}
-            </div>
-          </>}
+          <SettingsMeter kind="ai" meter={usage} format={formatCredits} Heading={Heading} tone={usage.remaining === 0 ? 'empty' : 'ok'}>
+            {unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="pb-1 text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}
+            <SettingsRow title="Renewal" desc={USAGE_COPY.renewal}><Amount>Renews on {formatReset(usage.resetsAt)}</Amount></SettingsRow>
+            {/* Recorded per feature by the same accounting (GET /api/learn/usage byFeature); absent from an older server. */}
+            {usage.byFeature?.length > 0 && <>
+              <Heading>This month by feature</Heading>
+              <div data-usage-by-feature>
+                {featureRows(usage.byFeature).map(row => (
+                  <SettingsRow key={row.label} title={row.label} desc={[row.reserved > 0 && `${formatCredits(row.reserved)} reserved`, unknownLine(row.unknownAttempts)].filter(Boolean).join(' · ') || null}>
+                    <Amount>{formatCredits(row.used)}</Amount>
+                  </SettingsRow>
+                ))}
+              </div>
+            </>}
+          </SettingsMeter>
+          {c && !c.unavailable
+            ? <SettingsMeter kind="compute" meter={c} format={formatComputeUnits} Heading={Heading} tone={c.remaining === 0 ? 'empty' : 'ok'}>
+              <SettingsRow title="Renewal" desc={USAGE_COPY.renewal}><Amount>Renews on {formatReset(c.resetsAt || usage.resetsAt)}</Amount></SettingsRow>
+              <Heading>{USAGE_COPY.compute.byMachine}</Heading>
+              <div data-usage-by-machine>
+                {c.byMachine.length === 0 && <p className="py-2 text-sm text-ink-2">{USAGE_COPY.compute.byMachineEmpty}</p>}
+                {c.byMachine.map((m, i) => <SettingsRow key={`${m.startedAt}-${i}`} title={machineLine(m)} desc={m.running ? 'Running now' : null}><span /></SettingsRow>)}
+              </div>
+            </SettingsMeter>
+            : <section data-usage-section="compute"><Heading>{USAGE_COPY.compute.title}</Heading><p data-usage-compute-note className="py-3 text-sm text-ink-2">{c ? USAGE_COPY.compute.unavailable : USAGE_COPY.compute.notMetered}</p></section>}
         </>
       ) : <p role="status" className="py-3 text-sm text-ink-2">{view.label}</p>}
     </div>
