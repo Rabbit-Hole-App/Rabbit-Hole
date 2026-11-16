@@ -83,6 +83,8 @@ import { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-workspace.jsx';
 import TocConversation from './TocConversation.jsx';
+import { outlineRevision } from './learn-outline-model.js';
+import { acceptedPlan } from './learn-plan.js';
 import { effectiveControls } from './learn-coaching-client.js';
 import { canSuggest } from './learn-coaching-contract.js';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
@@ -261,6 +263,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // A proposal from the tutor. It sits here until the learner applies or
   // discards it; nothing reaches the canvas on its own.
   const [proposal, setProposal] = useState(null);
+  // The Learn plan (learn-plan-toc-spec.md): once accepted the contents are read-only with no composer under them, and the Tutor sets the section the learner is on (never a tick).
+  const [planAcceptedNow, setPlanAcceptedNow] = useState(false), [planCurrent, setPlanCurrent] = useState(null);
+  const outlineRef = useRef([]);
   // The source finder (SearchBar), opened only through openSourceFinder (source-finder.js; Release B, B3): Chat's and Ctrl+K's
   // /youtube /arxiv /wikipedia, a typed /paper <topic>, the Insert menu and the + palette's YouTube moment. finder:
   // { source, query, origin, from, done } while it is open, else null; done settles the opener's promise once ({ added }).
@@ -591,6 +596,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return job;
     },
     removeCard: id => canvasApi.current?.removeBlock(id),
+    // The Learn plan's draft (TutorRehearsal.jsx): the contents as the draft sees them, the draft as the contents' own pending proposal (the one path a chat turn's proposal takes too), Accept, and what Accept leaves behind.
+    outlineNow: () => ({ outline: outlineRef.current, revision: outlineRevision(outlineRef.current) }),
+    proposeOutline: proposal => setProposal(proposal),
+    applyLearnPlan: (ops, base) => { const result = canvasApi.current?.applyOutline(ops, { base, source: 'learn-plan' }); if (result?.ok) setProposal(null); return result; },
+    planAccepted: () => setPlanAcceptedNow(true),
     // The plan message's Study these (rehearsal-flow.js, spec 2g): Files at the route's first source file, the Run card as the work, Study open.
     studyThese: place => {
       const files = heldRepository.current?.files;
@@ -2424,6 +2434,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     ...canvasEditMenus({ canvas, canvasState, inlineAi, quickEdit: true, comments, panel: { open: panelOpen, setOpen: setPanelOpen }, study, onShortcuts: () => setShortcutsOpen(true), onSlashCommands: () => setSlashHelpOpen(true) }),
   ];
   const canvasOutline = canvasState.outline || [];
+  outlineRef.current = canvasOutline;
+  const planDone = !!repository && (planAcceptedNow || !!acceptedPlan(chat?.coaching?.state));
+  // On Accept (or a reload of an accepted plan) the first section is current; the Tutor moves it on as it closes sections (the lesson slice).
+  useEffect(() => {
+    if (!planDone || planCurrent) return;
+    const first = canvasOutline.find(entry => entry.level >= 2) || canvasOutline[0];
+    if (first) setPlanCurrent(first.id);
+  }, [planDone, planCurrent, canvasOutline]);
   const outlineDisabled = !editor || answering || !!noteEditing;
   const coursePanel = <CoursePanel state={course} app={app} onPreview={previewLesson} onDeleted={() => {
           if (lesson.current?.lessonId?.startsWith('course-')) {
@@ -2652,7 +2670,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
-      <TableOfContents tocLinks={canvasState.tocLinks} onAddLink={entryId => setCardPick({ entryId })} flash={tocFlash} roadmap={roadmap} onAddToChat={ref => { chat.toc.context.attach(ref); chat.toc.composer.focus?.(); }} subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
+      <TableOfContents tocLinks={canvasState.tocLinks} onAddLink={entryId => setCardPick({ entryId })} flash={tocFlash} roadmap={roadmap} onAddToChat={ref => { chat.toc.context.attach(ref); chat.toc.composer.focus?.(); }} subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={planDone && planCurrent ? planCurrent : canvasState.activeSection ?? null} readOnly={!canEditCanvas || planDone} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
         className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
       {setupChat && <CourseInterview state={course} app={app} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
@@ -2660,7 +2678,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       </div>
       {/* The contents' own conversation (owner approved 2026-11-07, over checklist UI.02): the outline above scrolls, the composer stays fixed below it; its thread,
           draft and context pills are the contents', never Chat's. A change the Tutor proposes here applies to the contents at once; one that cannot apply waits as the Apply/Discard card. */}
-      {!setupChat && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline"
+      {!setupChat && !planDone && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline"
         codebase={repository} repositoryExcerpt={repositoryExcerpt} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository}
         boardContext={{ ...boardContext, onOutlineProposal: canEditCanvas ? proposal => { const result = canvasApi.current?.applyOutline(proposal.ops, { base: proposal.base, source: proposal.source }); if (!result?.ok) setProposal(proposal); } : undefined }} /></TocWorkspace>}
       </div>

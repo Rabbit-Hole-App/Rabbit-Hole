@@ -23,6 +23,8 @@
 //        the goal's label is learn.label, its outcome learn.what, the sources are the anchors, and the activity's checkpoint records learn: {id, kind, focus} (learn.focus: the learner's own words, optional)
 //   POST {action: 'learn_intro', app, board, learn} -> {text}: the opening paragraph for that option (one model call, nothing saved; no actionId or revision)
 //   POST {action: 'learn_fit', app, board, text, learn: {options, cannot}} -> {text, fits: [option ids], focus: string | null}: whether what the learner typed can be learned here (one model call, nothing saved, capped at US$0.05)
+//   POST {action: 'learn_plan', app, board, learn: {..., options?}, outline, outlineRevision, draft: ops | null, edit: text | null} -> {text, proposal: {ops, base, source}, rows, off_plan, path} (learn-plan.js; one capped, metered generation, nothing saved)
+//   POST {action: 'learn_plan_save', app, board, plan: {ops, revision, acceptedAt, text, current?, done?}} -> {state, activityId}: checkpoint.learn.plan of the active learn activity (no actionId or revision: read here, retried when it moved)
 //   POST {action: 'refresh', app, board, activityId, actionId, expectedRevision} -> {state, activityId, drift}: a new activity
 //        at the current commit; the old one keeps its revision, its attempts and its feedback
 //   POST {action: 'another', app, board, activityId, actionId, expectedRevision} -> {state, activityId}: Try another question,
@@ -39,6 +41,8 @@ import { composeTutorPrompt, logTutorCall, tutorRecord } from './tutor-prompt.js
 import { anthropic } from './ask.js';
 import { LEARN_TASKS, MODEL_NOT_CONFIGURED, loggedModel } from './learn-models.js';
 import { requestSpendBound } from './learn-spend.js';
+import { PLAN_MAX_OPS, learnPlan } from './learn-plan.js';
+import { validateOutlineOps } from './learn-outline-tool.js';
 import { finishWithResponse, noteUsageIdentity, withUsage } from './learn-usage.js';
 
 const MAX_FILES = 8, CITE_LINES = 30, DOC_LINES = 40, EXCERPT = 12000, MAX_EDGES = 12, MAX_OMISSIONS = 20, MAX_NOT_SHOWN = 6;
@@ -245,7 +249,7 @@ export async function sourceDrift(sourceRefs, snapshot) {
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
 const ACTION_ID = /^[A-Za-z0-9_-]{8,120}$/;
-const READ_ONLY = new Set(['learn_intro', 'learn_fit']); // model calls that write no coaching state: no actionId or revision
+const READ_ONLY = new Set(['learn_intro', 'learn_fit', 'learn_plan', 'learn_plan_save']); // no actionId or revision from the browser: the model calls write nothing, the save reads the revision itself
 
 // The canvas's project repository, as projectRepository (canvases.js) reads it: the learner's own import, not in Trash, indexed.
 export async function canvasRepository(env, access) {
@@ -355,6 +359,46 @@ async function learnFit(env, snapshot, body, { callModel = loggedModel('home_ask
   return read.text ? json(read) : json({ error: 'learn_fit_empty' }, 502);
 }
 
+// The learn plan (learn-plan.js): validate the body, then one metered generation. Read-only. outline: the table of contents as the browser holds it (id, level; may be empty);
+// draft + edit travel together (an edit of the draft the learner was shown); learn.options: the catalogue's topics, for the learn:<id> rows.
+const PLAN_ITEM = o => o && typeof o === 'object' && typeof o.id === 'string' && o.id.length >= 1 && o.id.length <= 80 && [1, 2, 3].includes(o.level);
+async function learnPlanAction(env, snapshot, body, deps) {
+  const learn = learnOf(body.learn, snapshot);
+  const options = body.learn && body.learn.options != null ? body.learn.options : [];
+  const outline = body.outline == null ? [] : body.outline;
+  const revision = body.outlineRevision;
+  const bad = text => json({ error: text }, 400);
+  if (!learn) return bad(LEARN_SHAPE);
+  if (!learn.anchors.length) return json({ error: 'anchors_not_found' }, 404);
+  if (!Array.isArray(options) || options.length > 4 || options.some(o => !o || typeof o !== 'object' || !LEARN_ID.test(o.id))) return bad('learn.options must be at most 4 topics with an id');
+  if (!Array.isArray(outline) || outline.length > 120 || !outline.every(PLAN_ITEM)) return bad('outline must be at most 120 items of { id, level }');
+  if (revision != null && !(typeof revision === 'string' && revision.length <= 80) && !Number.isFinite(revision)) return bad('outlineRevision must be a string or a number');
+  if (body.goalId != null && (typeof body.goalId !== 'string' || body.goalId.length > 80)) return bad('goalId must be text');
+  const edit = typeof body.edit === 'string' ? body.edit.trim() : null;
+  if (body.edit != null && (!edit || edit.length > FIT_TEXT_MAX)) return bad('edit must be 1-500 characters');
+  if ((body.draft != null) !== (edit != null)) return bad('draft and edit go together');
+  let draft = null;
+  if (body.draft != null) {
+    try { draft = validateOutlineOps(body.draft, outline, { maxOps: PLAN_MAX_OPS }); } catch { return bad('draft must be the outline operations of the draft you were shown'); }
+  }
+  return learnPlan(env, snapshot, { learn, catalogue: options.map(o => o.id), outline, outlineRevision: revision ?? null, draft, edit }, deps);
+}
+
+// Save the draft (or its acceptance) on the active learn activity: checkpoint.learn.plan = { ops, revision, acceptedAt, text, current?, done? }, through the coaching write path.
+// The browser sends no actionId or revision: the current revision is read here and a write that finds it moved is retried on the fresh one.
+async function learnPlanSave(env, actor, body) {
+  for (let tries = 0; ; tries += 1) {
+    const state = await readCoachingState(env, actor), active = (state.activities || []).find(a => a.activityId === state.activeActivityId);
+    if (!active?.checkpoint?.learn) return json({ error: 'not_learn_activity' }, 409);
+    try {
+      const out = await applyCoachingAction(env, actor, { actionId: `lp-${crypto.randomUUID()}`, expectedRevision: state.revision, action: 'save_learn_plan', payload: { activityId: active.activityId, plan: body.plan } });
+      return json({ state: out.state, activityId: out.state.activeActivityId });
+    } catch (error) {
+      if (!(error instanceof CoachingConflict) || error.code !== 'revision' || tries >= 2) throw error;
+    }
+  }
+}
+
 export async function codebaseRoute(path, req, env, deps = {}) {
   if (path !== '/api/learn/codebase') return null;
   if (req.method !== 'GET' && req.method !== 'POST') return json({ error: 'GET or POST required' }, 405);
@@ -390,8 +434,10 @@ export async function codebaseRoute(path, req, env, deps = {}) {
     if (!repo) return json({ error: 'no_repository' }, 409);
     let snapshot;
     try { snapshot = await loadSnapshot(env, repo); } catch { return json({ error: 'repository_unavailable' }, 503); }
-    if (body.action === 'learn_intro') return metered(env, access, 'learn_intro', scoped => learnIntro(scoped, snapshot, body.learn, deps));
-    if (body.action === 'learn_fit') return metered(env, access, 'learn_fit', scoped => learnFit(scoped, snapshot, body, deps));
+    if (body.action === 'learn_intro') return await metered(env, access, 'learn_intro', scoped => learnIntro(scoped, snapshot, body.learn, deps));
+    if (body.action === 'learn_plan') return await metered(env, access, 'learn_plan', scoped => learnPlanAction(scoped, snapshot, body, deps));
+    if (body.action === 'learn_plan_save') return await learnPlanSave(env, actor, body);
+    if (body.action === 'learn_fit') return await metered(env, access, 'learn_fit', scoped => learnFit(scoped, snapshot, body, deps));
     if (body.action === 'start') {
       const goal = goalOf(body.goal);
       if (!goal) return json({ error: `goal must be one of ${CODEBASE_GOALS.map(g => g.id).join('|')}` }, 400);
@@ -448,7 +494,7 @@ export async function codebaseRoute(path, req, env, deps = {}) {
           sourceRefs: old.sourceRefs, checkpoint: { ...kept, codebase: { ...base, questionIndex: next.checkpoint.codebase.questionIndex } } } } });
       return json({ state: out.state, activityId: out.state.activeActivityId });
     }
-    return json({ error: 'action must be start, refresh, another, learn_intro or learn_fit' }, 400);
+    return json({ error: 'action must be start, refresh, another, learn_intro, learn_fit, learn_plan or learn_plan_save' }, 400);
   } catch (error) {
     if (error instanceof CoachingConflict) {
       if (error.status !== 409) return json({ error: error.code }, error.status);

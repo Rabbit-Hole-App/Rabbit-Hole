@@ -11,7 +11,8 @@ import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
 import { flowMessages, goalForm, intakeOpen, learnOpen, onlyRoute } from './rehearsal-flow.js';
 import { fitReply, learnOf, learnReply } from './learn-intake.js';
-import { catalogueMessage } from './tutor-rehearsal-text.js';
+import { chapterCount, planRows, storedLearn } from './learn-plan.js';
+import { SENTENCES, catalogueMessage } from './tutor-rehearsal-text.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
 import { toast } from './ui.jsx';
@@ -25,7 +26,7 @@ import { toast } from './ui.jsx';
 const FAILS = 3; // consecutive failed reads of the state before the Tutor says so
 let counter = 0;
 const line = (role, text) => ({ key: `line-${++counter}`, role, text });
-const INITIAL = { intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
+const INITIAL = { intakeDone: false, get: null, doc: null, docError: false, use: null, mode: null, learn: null, learnIntro: null, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
 
 function Pending({ text }) {
   return <span role="status" data-rehearsal-pending className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{text}</span></span>;
@@ -73,7 +74,9 @@ export default function TutorRehearsalFlow({ chat }) {
       .then(out => { if (on) setInfo({ key: canvas, ...out }); }, () => { if (on) setInfo({ key: canvas, repository: null, activity: null }); });
     return () => { on = false; live.current = false; clearTimeout(timer.current); };
   }, [canvas, eligible]); // eslint-disable-line react-hooks/exhaustive-deps
-  const active = !!repository && !info?.activity;
+  // A saved Learn goal keeps the flow on screen (its plan draft, or the accepted plan) after a reload; any other saved activity hands the Chat to the activity card.
+  const stored = storedLearn(chat.coaching.state);
+  const active = !!repository && (!info?.activity || !!stored);
 
   const url = routeId => `/api/learn/rehearsal?app=${encodeURIComponent(canvas)}&board=${encodeURIComponent(board)}${routeId ? `&routeId=${encodeURIComponent(routeId)}` : ''}`;
   const post = body => api('/api/learn/rehearsal', { method: 'POST', body: JSON.stringify({ app: canvas, board, ...body }) });
@@ -171,6 +174,7 @@ export default function TutorRehearsalFlow({ chat }) {
     if (out.note) { patch({ learn: null, learnIntro: null }); append(line('assistant', out.note)); return; }
     patch({ goalChosen: true });
     openLearnIntro(option);
+    requestPlan(option);
   };
   const openLearnIntro = async option => {
     patch({ learnIntro: { status: 'loading' } });
@@ -179,21 +183,64 @@ export default function TutorRehearsalFlow({ chat }) {
       if (live.current) patch({ learnIntro: out?.text ? { status: 'done', text: out.text } : { status: 'failed' } });
     } catch { if (live.current) patch({ learnIntro: { status: 'failed' } }); }
   };
+  // The plan (learn-plan-toc-spec.md): the server drafts the table of contents for the chosen option (action learn_plan); an edit sends the draft and the learner's words and gets a whole new draft back.
+  const planOptions = () => learnOf(st.current.doc).options;
+  const canvasOutline = () => chat.canvasOps?.outlineNow?.() || { outline: [], revision: '' };
+  const savePlan = plan => { codebasePost(chat, board, { action: 'learn_plan_save', plan }).catch(() => {}); };
+  const requestPlan = async (option, { edit = null, draft = null } = {}) => {
+    const before = st.current.plan, previous = before?.status === 'draft' ? before : before?.previous || null, current = canvasOutline();
+    patch({ plan: edit && before?.status === 'draft' ? { ...before, busy: true } : { status: 'loading', previous } });
+    let out;
+    try { out = await codebasePost(chat, board, { action: 'learn_plan', learn: { ...option, options: planOptions() }, outline: current.outline, outlineRevision: current.revision, draft, edit }); }
+    catch { if (live.current) patch({ plan: { status: 'invalid', rows: planRows(['try_again', 'start_plain']), previous, retry: { option, edit, draft } } }); return; }
+    if (!live.current) return;
+    const learn = { options: planOptions() };
+    if (out.error === 'invalid_plan' || !out.proposal?.ops?.length) { patch({ plan: { status: 'invalid', rows: planRows(out.rows?.length ? out.rows : ['try_again', 'start_plain'], { learn }), previous, retry: { option, edit, draft } } }); return; }
+    if (out.off_plan && before?.status === 'draft') { // a line that is not about the plan: one sentence, the draft is shown again unchanged
+      // The answer's own rows (a nearest topic, a background section) ride under the sentence; Accept and Change something stay on the draft.
+      const extra = planRows(out.rows, { ops: before.ops, learn }).filter(row => row.id.startsWith('learn:') || row.id.startsWith('plan:background:') || row.id === 'plan:plain');
+      patch({ plan: { ...before, busy: false }, planLog: [...st.current.planLog, { ...line('assistant', out.text), ...(extra.length ? { choices: extra } : {}) }] });
+      return;
+    }
+    const proposal = { ops: out.proposal.ops, base: out.proposal.base, source: 'learn-plan' };
+    patch({ plan: { status: 'draft', text: out.text, ops: proposal.ops, base: proposal.base, rows: planRows(out.rows, { ops: proposal.ops, learn }), count: chapterCount(proposal.ops), previous, option } });
+    chat.canvasOps?.proposeOutline?.(proposal); // the same proposal in the contents panel: Apply there is Accept here
+    savePlan({ ops: proposal.ops, revision: proposal.base, acceptedAt: null, text: out.text });
+  };
+  const acceptPlan = () => {
+    const plan = st.current.plan;
+    if (plan?.status !== 'draft') return;
+    const result = chat.canvasOps?.applyLearnPlan?.(plan.ops, plan.base);
+    if (!result?.ok) { patch({ planLog: [...st.current.planLog, line('assistant', result?.message || SENTENCES.planInvalid)] }); return; }
+    patch({ plan: { status: 'accepted', count: plan.count, ops: plan.ops } });
+    savePlan({ ops: plan.ops, revision: plan.base, acceptedAt: new Date().toISOString(), text: plan.text });
+    chat.canvasOps?.planAccepted?.(); // the contents go read-only and 1.1 is the current section
+  };
   const learnOption = id => learnOf(st.current.doc).options.find(option => option.id === id);
 
   choose.current = chooseUse;
   // The router decided the learner asked what they can do here (ask.jsx): the intake is offered again, whatever was chosen before.
   useEffect(() => {
-    const again = event => { if (event.detail?.canvas !== canvas) return; event.detail.handled = true; forgetIntake(canvas); patch({ intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, focus: null, goalChosen: false, elsewhere: false, form: null }); };
+    const again = event => { if (event.detail?.canvas !== canvas) return; event.detail.handled = true; forgetIntake(canvas); patch({ intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, plan: null, planLog: [], focus: null, goalChosen: false, elsewhere: false, form: null }); };
     window.addEventListener(CODEBASE_OPTIONS_EVENT, again);
     return () => window.removeEventListener(CODEBASE_OPTIONS_EVENT, again);
   }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = id => {
     if (/^(use|route|goal|learn):/.test(id) || id === 'mode:run' || id === 'else') rememberIntake(canvas); // asked once: a way is the answer
-    if (id === 'mode:run') chooseUse('use_codebase');
+    if (id === 'plan:accept') acceptPlan();
+    else if (id === 'plan:change') { patch({ planLog: [...st.current.planLog, line('assistant', SENTENCES.planEditPlaceholder)] }); chat.composer?.focus?.(); }
+    else if (id === 'plan:keep') { const previous = st.current.plan?.previous; if (previous) { patch({ plan: { ...previous, previous: null, busy: false } }); chat.canvasOps?.proposeOutline?.({ ops: previous.ops, base: previous.base, source: 'learn-plan' }); savePlan({ ops: previous.ops, revision: previous.base, acceptedAt: null, text: previous.text }); } }
+    else if (id === 'plan:plain') patch({ plan: { status: 'plain' } });
+    else if (id === 'plan:retry') { const retry = st.current.plan?.retry; if (retry) requestPlan(retry.option, retry); }
+    else if (id.startsWith('plan:background:')) { const plan = st.current.plan; if (plan?.status === 'draft') requestPlan(plan.option, { edit: plan.rows.find(row => row.id === id)?.label || '', draft: plan.ops }); }
+    else if (id === 'mode:run') chooseUse('use_codebase');
     else if (id === 'mode:learn') patch({ mode: 'learn' });
-    else if (id.startsWith('learn:')) { const option = learnOption(id.slice(6)); if (option && learnOpen(st.current)) chooseLearn(option); }
-    else if (id === 'retry:learn') { if (st.current.learn) openLearnIntro(st.current.learn); }
+    else if (id.startsWith('learn:')) {
+      const option = learnOption(id.slice(6)), swap = st.current.plan?.status === 'draft' && st.current.learn?.id !== id.slice(6); // another topic offered beside a draft that cannot teach what was asked
+      if (option && swap) { patch({ learn: null, plan: null, planLog: [], learnIntro: null }); chooseLearn(option); }
+      else if (option && learnOpen(st.current)) chooseLearn(option);
+    }
+    else if (id === 'retry:learn') { if (st.current.learn) { openLearnIntro(st.current.learn); if (!st.current.plan) requestPlan(st.current.learn); } }
     else if (id.startsWith('use:')) chooseUse(id.slice(4));
     else if (id.startsWith('goal:')) chooseGoal(id.slice(5));
     else if (id.startsWith('route:')) { patch({ use: 'use_codebase' }); startRoute(id.slice(6), routeTitleOf(id.slice(6))); }
@@ -225,6 +272,13 @@ export default function TutorRehearsalFlow({ chat }) {
       const { canvas: where, text } = event.detail || {};
       const cm = st.current.doc ? catalogueMessage(st.current.doc) : null;
       if (where !== canvas) return;
+      // While a plan draft waits for Accept the line is a reply to the Tutor's open question (no router): a whole new draft comes back (learn-plan-toc-spec.md section 1.5).
+      if (st.current.plan?.status === 'draft' && !st.current.plan.busy) {
+        event.preventDefault();
+        patch({ planLog: [...st.current.planLog, line('user', text)] });
+        requestPlan(st.current.plan.option, { edit: text, draft: st.current.plan.ops });
+        return;
+      }
       // While the Learn options are open the line is a reply to them: the scoped router reads it against the options (and what this codebase cannot teach).
       if (learnOpen(st.current) && st.current.doc) {
         event.preventDefault();
@@ -268,6 +322,19 @@ export default function TutorRehearsalFlow({ chat }) {
     return () => window.removeEventListener(TUTOR_LINE_EVENT, onLine);
   }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A reload on a canvas with a saved Learn goal: the flow comes back at its plan (the pending draft, or the accepted plan), not at the intake.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || !stored || !s.doc || !repository) return;
+    restored.current = true;
+    const option = learnOf(s.doc).options.find(o => o.id === stored.id);
+    if (!option) return;
+    const picked = stored.focus ? { ...option, focus: stored.focus } : option, plan = stored.plan;
+    patch({ mode: 'learn', learn: picked, learnIntro: { status: 'skipped' }, goalChosen: true, intakeDone: true,
+      plan: plan ? { status: plan.acceptedAt ? 'accepted' : 'draft', text: plan.text || '', ops: plan.ops, base: plan.revision, count: chapterCount(plan.ops), rows: planRows(['accept', 'change'], { ops: plan.ops, learn: { options: learnOf(s.doc).options } }), option: picked, previous: null } : null });
+    if (!plan) requestPlan(picked);
+    else if (!plan.acceptedAt) chat.canvasOps?.proposeOutline?.({ ops: plan.ops, base: plan.revision, source: 'learn-plan' });
+  }, [stored?.id, !!s.doc, !!repository]); // eslint-disable-line react-hooks/exhaustive-deps
   const messages = [...(active ? flowMessages(s, { repo: repository.repo }) : []), ...s.lines];
   if (!messages.length) return null;
   return <div data-rehearsal-flow className="flex flex-col">

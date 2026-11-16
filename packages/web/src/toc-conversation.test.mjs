@@ -83,7 +83,7 @@ test('the outline scrolls above and the composer is fixed below, in the contents
   assert.match(tab, /<TableOfContents [^\n]*\n\s+className=\{`mb-3 flex \$\{setupChat \? 'max-h-\[45%\] shrink-0' : 'min-h-0'\} flex-col overflow-y-auto`\} \/>/, 'the outline is the scroller');
   assert.ok(tab.indexOf('<TableOfContents') < tab.indexOf('<TocWorkspace key={app.name}><TocConversation'), 'the conversation comes after the outline');
   assert.ok(tab.indexOf('<TocWorkspace') < tab.indexOf('<ChatPane'), 'inside the contents tab, before Chat');
-  assert.match(tab, /\{!setupChat && \(app\.hosting !== 'aws' \|\| app\.app_chat\) && <TocWorkspace key=\{app\.name\}>/);
+  assert.match(tab, /\{!setupChat && !planDone && \(app\.hosting !== 'aws' \|\| app\.app_chat\) && <TocWorkspace key=\{app\.name\}>/);
   assert.match(tab, /boardContext=\{\{ \.\.\.boardContext, onOutlineProposal: canEditCanvas \?/, 'an outline change the Tutor proposes applies to the contents');
 });
 
