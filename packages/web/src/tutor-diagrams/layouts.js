@@ -6,7 +6,9 @@ import { createLayouts as dataLayouts } from './ml-data-layouts.js';
 import { createLayouts as compositionLayouts } from './ml-composition-layouts.js';
 import { balanceLayouts } from './balance-layouts.js';
 import { layoutFigure } from './figure-layout.js';
-import { box, connector, dot, label, lineHeight, wrap } from './primitives.js';
+import { cloneElement, createElement as h } from 'react';
+import { backEdge, box, connector, dot, label, lineHeight, SURFACE, textWidth, wire, wrap } from './primitives.js';
+import { TEACHING as T, TEACHING_GRID } from './teaching-theme.js';
 import { quantitativeLayouts } from './quantitative-layouts.js';
 import { teachingLayouts } from './teaching-layouts.js';
 import { usesTensorItems } from './illustration-kinds.js';
@@ -15,7 +17,7 @@ import { layoutTokenLinks } from './token-links-layout.js';
 import { layoutBlockStack } from './block-stack-layout.js';
 
 const PAD = 12;
-const TEXT = 14;
+const TEXT = 15;
 const SMALL = 13;
 const HEADER_ROLES = ['process', 'olive', 'coral', 'outcome'];
 
@@ -93,19 +95,29 @@ function timeline(diagram, width) {
   return { width, height: y - 14 + PAD, elements: [rail, ...marks.map(([x, y]) => dot(x, y, 4)), ...elements] };
 }
 
+// Actor fills in order (the lanes are told apart by colour); more than eight cannot occur (the schema allows four).
+const SEQUENCE_FILLS = [T.blueFill, T.tealFill, T.mustardFill, T.lavender, T.coral, T.olive, T.rose, T.slate];
+
 function sequence(diagram, width) {
   const { actors, messages } = diagram;
   const grid = columnsFor(width, actors.length, 92, 16);
-  const heads = actors.map(actor => wrap(actor.label, grid.cell - 14));
-  const headerHeight = rowHeight(heads);
+  const heads = actors.map(actor => wrap(actor.label, grid.cell - 20));
+  const headerHeight = Math.max(48, rowHeight(heads));
   const centers = new Map(actors.map((actor, index) => [actor.id, grid.xAt(index) + grid.cell / 2]));
   const elements = [];
   for (let index = 0; index < actors.length; index++) {
-    elements.push(box(grid.xAt(index), PAD, grid.cell, headerHeight, { role: 'process' }));
-    elements.push(label(heads[index], centers.get(actors[index].id), PAD + headerHeight / 2, { weight: 700, tone: 'onFill' }));
+    elements.push(cloneElement(box(grid.xAt(index), PAD, grid.cell, headerHeight, { radius: 10 }), { fill: SEQUENCE_FILLS[index], stroke: T.outline }));
+    elements.push(label(heads[index], centers.get(actors[index].id), PAD + headerHeight / 2, { tone: 'onFill' }));
   }
-  let y = PAD + headerHeight + 12;
+  let y = PAD + headerHeight + 16;
   const annotations = [];
+  // The message text stands ON its arrow in a ground-coloured gap (no box), centred between the two lifelines.
+  const onArrow = (lines, cx, arrowY) => {
+    const textHeight = lines.length * lineHeight(SMALL);
+    const gap = Math.ceil(Math.max(...lines.map(line => textWidth(line, SMALL)))) + 12;
+    return [h('rect', { x: cx - gap / 2, y: arrowY - textHeight / 2 - 2, width: gap, height: textHeight + 4, fill: SURFACE }),
+      label(lines, cx, arrowY, { size: SMALL })];
+  };
   for (const message of messages) {
     const from = centers.get(message.from);
     const to = centers.get(message.to);
@@ -117,23 +129,32 @@ function sequence(diagram, width) {
       const arrowY = y + textHeight + 5;
       elements.push(label(lines, from + 7 * direction, y + textHeight / 2,
         { size: SMALL, anchor: direction === 1 ? 'start' : 'end' }));
-      elements.push(connector([[from, arrowY], [loopX, arrowY], [loopX, arrowY + 20], [from, arrowY + 20]]));
+      elements.push(wire([[from, arrowY], [loopX, arrowY], [loopX, arrowY + 20], [from, arrowY + 20]]));
       y = arrowY + 36;
       continue;
     }
-    const lines = wrap(message.label, Math.abs(to - from) - 14, SMALL);
+    const lines = wrap(message.label, Math.abs(to - from) - 28, SMALL);
     const textHeight = lines.length * lineHeight(SMALL);
-    const arrowY = y + textHeight + 5;
-    annotations.push({ left: Math.min(from, to), right: Math.max(from, to), start: y, end: y + textHeight });
-    elements.push(label(lines, (from + to) / 2, y + textHeight / 2, { size: SMALL }));
-    elements.push(connector([[from, arrowY], [to, arrowY]]));
-    y = arrowY + 16;
+    const cx = (from + to) / 2;
+    // shortcut: a label that needs more than one line stands above its arrow (a gap would eat the arrow); one line stands on it.
+    if (lines.length > 1) {
+      const arrowY = y + textHeight + 5;
+      annotations.push({ left: Math.min(from, to), right: Math.max(from, to), start: y, end: y + textHeight });
+      elements.push(label(lines, cx, y + textHeight / 2, { size: SMALL }), wire([[from, arrowY], [to, arrowY]]));
+      y = arrowY + 18;
+      continue;
+    }
+    const arrowY = y + textHeight / 2 + 4;
+    const gap = Math.ceil(textWidth(lines[0], SMALL)) + 12;
+    annotations.push({ left: cx - gap / 2, right: cx + gap / 2, start: arrowY - textHeight / 2 - 2, end: arrowY + textHeight / 2 + 2 });
+    elements.push(wire([[from, arrowY], [to, arrowY]]), ...onArrow(lines, cx, arrowY));
+    y = arrowY + textHeight / 2 + 18;
   }
   const lifelines = [];
   for (const x of centers.values()) {
     let top = PAD + headerHeight;
-    const segment = end => connector([[x, top], [x, end]], { arrow: false, dashed: true });
-    // Leave space for annotations on messages that cross an intermediate lifeline.
+    const segment = end => h('line', { x1: x, x2: x, y1: top, y2: end, stroke: TEACHING_GRID, strokeWidth: 1.5, strokeDasharray: '4 4' });
+    // The text gap of a message cuts a lifeline that runs through it.
     for (const annotation of annotations) {
       if (x <= annotation.left || x >= annotation.right) continue;
       lifelines.push(segment(annotation.start));
@@ -192,27 +213,32 @@ function layers(diagram, width) {
   return { width, height: y - 7 + PAD, elements };
 }
 
+// The steps are process nodes of the flow's size (56 high for one line, 72 for two, 24 px padding, at least 180 wide), one under the other, joined by arrows; the return
+// edge runs up the right side with rounded corners and re-enters the first step from the right, its label on the vertical run.
+const LOOP_LABEL = 'repeat';
 function cycle(diagram, width) {
-  const nodeWidth = width - PAD * 2 - 35;
-  const right = PAD + nodeWidth;
-  const centerX = PAD + nodeWidth / 2;
-  const outer = right + 25;
+  const nodeWidth = Math.max(180, Math.min(260, width - 2 * PAD - 160));
+  const loopWidth = Math.ceil(textWidth(LOOP_LABEL, SMALL)) + 12;
+  const total = Math.max(width, nodeWidth + 2 * (40 + loopWidth / 2 + PAD));
+  const left = (total - nodeWidth) / 2, right = left + nodeWidth, centerX = left + nodeWidth / 2, laneX = right + 40;
   const elements = [];
   const centers = [];
   let y = PAD;
   for (const step of diagram.steps) {
-    const lines = wrap(step, nodeWidth - 24);
-    const height = Math.max(40, rowHeight([lines]));
-    if (centers.length) elements.push(connector([[centerX, y - 20], [centerX, y - 4]]));
-    elements.push(box(PAD, y, nodeWidth, height, { role: 'process' }));
-    elements.push(label(lines, centerX, y + height / 2, { weight: 700, tone: 'onFill' }));
+    const lines = wrap(step, nodeWidth - 48);
+    const height = 40 + 16 * lines.length;
+    if (centers.length) elements.push(wire([[centerX, y - 44], [centerX, y]]));
+    elements.push(box(left, y, nodeWidth, height, { role: 'process', radius: 9 }));
+    elements.push(label(lines, centerX, y + height / 2, { tone: 'onFill' }));
     centers.push(y + height / 2);
-    y += height + 20;
+    y += height + 44;
   }
-  const start = centers[0];
-  const end = centers.at(-1);
-  elements.push(connector([[right, end], [outer, end], [outer, start], [right + 4, start]]));
-  return { width, height: y - 20 + PAD, elements };
+  const start = centers[0], end = centers.at(-1);
+  elements.push(backEdge([right, end], [right, start], laneX));
+  const middle = (start + end) / 2, textHeight = lineHeight(SMALL);
+  elements.push(h('rect', { x: laneX - loopWidth / 2, y: middle - textHeight / 2 - 2, width: loopWidth, height: textHeight + 4, fill: SURFACE }),
+    label(LOOP_LABEL, laneX, middle, { size: SMALL }));
+  return { width: total, height: y - 44 + PAD, elements };
 }
 
 const legacy = Object.freeze({

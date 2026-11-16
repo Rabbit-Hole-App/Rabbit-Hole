@@ -7,12 +7,14 @@ export function createShapes({ z, titled, text, id, numeric, node, axes, tensorN
   const endpoint = { from: id, to: id };
   return [
     z.strictObject({
-      ...titled, kind: z.literal('tree'), layout: z.enum(['binary', 'hierarchy', 'dendrogram']).optional(),
+      // title is optional for a tree only so a tree inside panels can leave it to the panel label; spec.js requires it everywhere else.
+      ...titled, title: titled.title.optional(), kind: z.literal('tree'), layout: z.enum(['binary', 'hierarchy', 'dendrogram']).optional(),
       nodes: z.array(z.strictObject({
-        ...node, parent: id.optional(), side: z.enum(['left', 'right']).optional(),
+        ...node, label: text(60).optional(), parent: id.optional(), side: z.enum(['left', 'right']).optional(),
+        role: z.enum(['internal', 'leaf']).optional(), fill: z.enum(TREE_FILLS).optional(),
         edgeLabel: text(30).optional(), count: numeric.int().nonnegative().optional(),
         detail: text(90).optional(), pruned: z.boolean().optional(), height: numeric.nonnegative().optional(),
-      })).min(2).max(12),
+      })).min(2).max(31),
       highlightPath: z.array(id).min(2).max(12).optional(),
       heightAxis: axes.optional(), cutoff: z.strictObject({ value: numeric, label: text(48) }).optional(),
     }),
@@ -31,7 +33,10 @@ export function createShapes({ z, titled, text, id, numeric, node, axes, tensorN
   ];
 }
 
-export const extendedTree = d => d.layout === 'hierarchy' || d.layout === 'dendrogram' || !!d.highlightPath ||
+// The round-and-square tree (a picture of a tree, not labelled boxes): a binary tree where any node has no label, a role or a fill. Other trees keep their layouts.
+export const TREE_FILLS = ['blue', 'teal', 'olive', 'mustard', 'orange', 'coral', 'lavender', 'rose', 'slate'];
+export const isDotTree = d => d.kind === 'tree' && d.layout === 'binary' && d.nodes.some(n => n.label === undefined || n.role !== undefined || n.fill !== undefined);
+export const extendedTree =d => d.layout === 'hierarchy' || d.layout === 'dendrogram' || !!d.highlightPath ||
   d.nodes.some(n => ['edgeLabel', 'count', 'detail', 'pruned', 'height'].some(key => n[key] !== undefined));
 export const extendedFlow = d => d.nodes.some(n => n.role === 'fork' || n.role === 'merge');
 const nodeName = node => node.label ?? node.tensor?.name ?? node.tensor?.dimensions;
@@ -39,6 +44,17 @@ const tensors = d => d.nodes.flatMap(n => n.tensor ? tensorText(n.tensor) : []);
 export const nodeMetadata = node => [node.count !== undefined ? `n = ${node.count}` : null, node.detail, node.pruned ? 'Pruned' : null].filter(Boolean);
 
 function validateTree(d, issue) {
+  const dot = isDotTree(d);
+  if (!dot) d.nodes.forEach((n, i) => {
+    if (n.label === undefined) issue(['nodes', i, 'label'], 'A node without a label needs the binary layout');
+    if (n.role !== undefined || n.fill !== undefined) issue(['nodes', i, n.role !== undefined ? 'role' : 'fill'], 'A node role or fill needs the binary layout');
+  });
+  if (d.nodes.length > 12 && d.nodes.some(n => (n.label ?? '').length > 2)) issue(['nodes'], 'More than 12 tree nodes are allowed only when every label is at most two characters');
+  if (dot) d.nodes.forEach((n, i) => {
+    const leaf = (n.role ?? (d.nodes.some(c => c.parent === n.id) ? 'internal' : 'leaf')) === 'leaf';
+    if (leaf && n.label !== undefined) issue(['nodes', i, 'label'], 'A leaf square carries no label');
+    if (n.label !== undefined && n.label.length > 2) issue(['nodes', i, 'label'], 'A circle carries at most two characters');
+  });
   const byId = new Map(d.nodes.map(n => [n.id, n]));
   const children = new Map(d.nodes.map(n => [n.id, d.nodes.filter(c => c.parent === n.id)]));
   d.nodes.forEach((n, i) => {
@@ -111,6 +127,7 @@ const connections = d => {
 const heightText = (n, d) => `${n.height}${d.heightAxis?.unit ? ` ${d.heightAxis.unit}` : ''}`;
 
 export function describe(d) {
+  if (isDotTree(d)) return [`Binary tree of ${d.nodes.length} nodes: ${d.nodes.filter(n => !d.nodes.some(c => c.parent === n.id)).length} leaves`];
   if (d.kind === 'tree' && extendedTree(d)) {
     const names = new Map(d.nodes.map(n => [n.id, n.label]));
     return [
@@ -134,6 +151,7 @@ export function describe(d) {
 
 export function visibleText(d) {
   const own = [d.title, d.caption].filter(Boolean);
+  if (isDotTree(d)) return [...own, ...d.nodes.map(n => n.label).filter(Boolean)];
   if (d.kind === 'tree' && extendedTree(d)) return [
     ...own, ...d.nodes.flatMap(n => [n.label, n.edgeLabel, ...nodeMetadata(n),
       ...(d.layout === 'dendrogram' ? [`height = ${heightText(n, d)}`] : [])].filter(Boolean)),

@@ -9,7 +9,7 @@ import { lintGeometry } from './geometry-lint.js';
 
 const tall = { kind: 'flow', title: 'Capsule text', nodes: [
   { id: 'train', label: 'Fit on training data', role: 'process' },
-  { id: 'reserve', label: 'Keep validation and test separate', role: 'outcome' },
+  { id: 'reserve', label: 'Keep the validation set and the test set separate from the training data until the final report', role: 'outcome' },
 ], edges: [{ from: 'train', to: 'reserve' }] };
 const short = { ...tall, nodes: [tall.nodes[0], { id: 'reserve', label: 'Done', role: 'outcome' }] };
 const radiusOf = layout => Number(/data-tutor-node="reserve"[^>]*><rect[^>]*? rx="([0-9.]+)"/.exec(renderToStaticMarkup(createElement('svg', null, ...layout.elements)))?.[1]);
@@ -26,6 +26,7 @@ test('RD-4c: no line of an outcome node leaves its capsule, at every card width'
 test('RD-4c: a short outcome keeps the full pill, a tall one gets a smaller radius', () => {
   const pill = layoutFlow(short, 0), roomy = pill.geometry.nodes.find(n => n.id === 'reserve');
   assert.equal(radiusOf(pill), Math.min(roomy.width, roomy.height) / 2);
-  const layout = layoutFlow(tall, 0), node = layout.geometry.nodes.find(n => n.id === 'reserve');
+  // Nodes are at least 180 wide with 24 px padding, so the card width where a tall label stops fitting a full pill is 320.
+  const layout = layoutFlow(tall, 320), node = layout.geometry.nodes.find(n => n.id === 'reserve');
   assert.ok(radiusOf(layout) < Math.min(node.width, node.height) / 2);
 });

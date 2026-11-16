@@ -71,20 +71,23 @@ test('each query has a separate panel, ordered weights, exact arrow endpoints an
   let previousOpacity = 0;
   const center = box => box.x + box.width / 2;
   for (const arrow of arrows) {
-    const [, wire, tip] = arrow.props.children;
+    // a link is the shared wire (a path and a filled head in one group), 1.5 to 6 px by weight
+    const [, line] = arrow.props.children;
+    const [wire, tip] = [line.props.children].flat();
     assert.ok(wire.props.strokeWidth > previousWidth);
     assert.ok(arrow.props.opacity > previousOpacity);
     previousWidth = wire.props.strokeWidth;
     previousOpacity = arrow.props.opacity;
     const target = boxes.get(`target:${arrow.props['data-tutor-token-link'].split(':')[1]}`);
     const source = boxes.get('source:0');
-    const [from, to] = wire.props.points.split(' ').map(pair => pair.split(',').map(Number));
-    assert.equal(wire.props.points.split(' ').length, 2);
+    const [from] = wire.props.d.match(/-?[\d.]+,-?[\d.]+/g).map(pair => pair.split(',').map(Number));
+    assert.equal(wire.props.d.match(/[ML]/g).length, 2);
     assert.equal(from[0], center(source));
     assert.ok(from[1] >= source.y + source.height);
-    assert.equal(to[0], center(target));
-    assert.ok(to[1] <= target.y && to[1] > from[1]);
-    assert.equal(tip.props.points.split(' ')[0], to.join(','));
+    // the wire's line ends at the head's base; the head's tip stops 2 px short of the link's end, which is 3 px above the target's top centre
+    const [point] = tip.props.points.split(' ').map(pair => pair.split(',').map(Number));
+    assert.ok(Math.hypot(point[0] - center(target), point[1] - target.y) <= 5.01);
+    assert.ok(point[1] <= target.y && point[1] > from[1]);
   }
   const svg = render(repeated, 408);
   assert.match(svg, /data-tutor-token-largest-weight="0\.6"/);
@@ -185,7 +188,7 @@ test('compact head panels wrap long labels at the native font size', () => {
   const token = tokensInChild(first).find(element => element.props['data-tutor-token'] === 'target:0');
   const name = token.props.children[1];
   assert.equal(name.type, 'text');
-  assert.equal(name.props.fontSize, 14);
+  assert.equal(name.props.fontSize, 15); // the body label size is 15 px (teaching-theme body text)
   assert.ok(name.props.children.length > 1);
   assert.equal(name.props.children.map(span => span.props.children).join(' '), 'long text here');
 });

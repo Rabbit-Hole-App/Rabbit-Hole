@@ -57,19 +57,21 @@ test('the box grows to hold a formula, which is measured whole, never split, and
   const long = numbers('rect', part(html, 'data-tutor-node="d"'))[0];
   assert.ok(widestFormula(LONG) > 186 - 20 && long.width >= Math.ceil(widestFormula(LONG) + 20), `${long.width}`);
   assert.equal((part(html, 'data-tutor-node="d"').match(/data-tutor-tex=/g) || []).length, 1, 'one formula, one line');
-  // A fraction is taller than a line, so it is set smaller (font-size under the label's 14 px); e^x is not.
+  // A fraction is taller than a line, so it is set smaller (font-size under the label's 15 px); e^x is not.
   assert.match(part(html, 'data-tutor-node="c"'), /data-tutor-tex="[^"]*" style="font-size:(?:[0-9]|1[0-3])(?:\.\d+)?px/);
-  assert.match(part(html, 'data-tutor-node="b"'), /data-tutor-tex="\$e\^x\$" style="font-size:14px/);
+  assert.match(part(html, 'data-tutor-node="b"'), /data-tutor-tex="\$e\^x\$" style="font-size:15px/); // body text is 15 px since the typography change
   // The measurer: a formula is one unit and counts as typeset, not as its TeX.
   assert.ok(textWidth(FRACTION) < textWidth(FRACTION.replaceAll('$', '')) / 2, 'a fraction is measured by its larger part, not by its source');
-  assert.deepEqual(wrap('so $x + y = z$ holds', 45), ['so', '$x + y = z$', 'holds']);
+  // 48, not 45: at the 15 px body size this formula is 47 wide, and 45 steps the font down a size instead (rule 12)
+  assert.deepEqual(wrap('so $x + y = z$ holds', 48), ['so', '$x + y = z$', 'holds']);
   assert.deepEqual(wrap(`a ${FRACTION}-b`, 10).filter(line => line.includes('frac')), [FRACTION], 'never split, not even at a hyphen');
 });
 
 test('TeX KaTeX refuses stays as its source text: no KaTeX markup, no error box, no crash', () => {
   const html = markup(flow([{ id: 'a', label: String.raw`Bad $\frac{1$ here`, role: 'process' }, { id: 'b', label: String.raw`Unknown $\notacommand x$`, role: 'outcome' }], [{ from: 'a', to: 'b' }]));
   assert.doesNotMatch(html, /class="katex|katex-error|foreignObject/);
-  assert.match(html, /<tspan[^>]*>Bad \$\\frac\{1\$ here<\/tspan>/);
+  // the 24 px padding of a flow node (sprint default) wraps this label after the broken formula: it is still its source text, on two lines
+  assert.match(html, /<tspan[^>]*>Bad \$\\frac\{1\$<\/tspan><tspan[^>]*>here<\/tspan>/);
   assert.match(html, /\\notacommand x\$<\/tspan>/);
   assert.match(markup(flow([{ id: 'a', label: 'Costs $5 or $10', role: 'process' }, { id: 'b', label: 'B', role: 'outcome' }], [{ from: 'a', to: 'b' }])), /<tspan[^>]*>Costs \$5 or \$10<\/tspan>/, 'currency is not maths');
 });

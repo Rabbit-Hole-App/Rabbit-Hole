@@ -56,9 +56,10 @@ test('panels render equal-width panels inside the 680 budget, one arrow and a wh
     assert.ok(width <= 680, `${count} panels: ${width}`);
     const markup = renderToStaticMarkup(element);
     assert.equal((markup.match(/data-tutor-composition-child=/g) ?? []).length, count);
-    const frames = [...markup.matchAll(/<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"/g)].filter(m => Number(m[2]) > 100 && Number(m[2]) < 400);
+    const frames = [...markup.matchAll(/<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)"[^>]*>/g)].filter(m => Number(m[2]) > 100 && Number(m[2]) < 400 && !/data-tutor-/.test(m[0]));
     for (const operation of spec.diagram.links.map(link => link.operation)) assert.ok(markup.includes(`>${operation}</`) || markup.includes(operation), operation);
-    assert.ok(frames.length >= count);
+    // plain panels draw no inner border any more (ground only, owner amendment), so there is no panel frame to count; each panel is still one composition child
+    assert.equal(frames.length, 0, `${count} panels: no panel border`);
   }
 });
 

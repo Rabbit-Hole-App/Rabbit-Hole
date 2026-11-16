@@ -149,8 +149,9 @@ for (const id of ['ml-ordinal-encoding', 'ml-value-binning']) {
             assert.ok(Number(bar.getAttribute('height')) > 0);
           });
           const visibleText = [...group.querySelectorAll('text')].map(node => node.textContent).join(' ');
-          assert.match(visibleText, /\[20, 30\): 2/);
-          assert.match(visibleText, /\[30, 40\]: 2/);
+          // Sprint default (r9): the bin-by-bin counts line is no longer drawn (the counts are the bars' data-tutor-bin-mass above); the bin edges are the x tick labels, so the outer edges must read.
+          assert.ok(visibleText.includes(String(diagram.binEdges[0])) && visibleText.includes(String(diagram.binEdges.at(-1))), 'the outer bin edges are labelled');
+          assert.doesNotMatch(visibleText, /\[20, 30\): 2/);
         }
       });
     }

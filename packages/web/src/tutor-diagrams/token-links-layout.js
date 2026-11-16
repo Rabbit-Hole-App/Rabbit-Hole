@@ -1,6 +1,6 @@
-import { cloneElement, createElement as h } from 'react';
-import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
-import { TEACHING, teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
+import { createElement as h } from 'react';
+import { label, lineHeight, textWidth, widestFormula, wire, wrap } from './primitives.js';
+import { TEACHING, TEACHING_SERIES_INK, teachingBox as box } from './teaching-theme.js';
 
 const PAD = 12;
 const INSET = 12;
@@ -11,7 +11,7 @@ const MIN_CELL = 58;
 const PANEL_MIN_CELL = 56;
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 960;
-const SMALL = 12;
+const SMALL = 13;
 
 function tokenMetrics({ source, target }, compact) {
   const count = Math.max(source.length, target.length);
@@ -30,21 +30,20 @@ export function tokenLinksNaturalWidth(diagram, { compact = false } = {}) {
 }
 
 function weightedArrow(from, to, queryIndex, targetIndex, weight, description) {
-  const arrow = connector([from, to], { active: true, arrow: true, dashed: weight === 0 });
-  const [wire, head] = arrow.props.children;
+  // 1.5 px to 6 px and 35% to 100% opacity by weight, in the blue ink; the head is the shared 12 x 8 one.
   return h('g', {
-    'data-tutor-token-link': `${queryIndex}:${targetIndex}`, 'data-tutor-token-weight': weight, opacity: 0.18 + 0.82 * weight,
-  }, h('title', null, description), cloneElement(wire, { strokeWidth: 1 + 4.5 * weight }), head);
+    'data-tutor-token-link': `${queryIndex}:${targetIndex}`, 'data-tutor-token-weight': weight, opacity: 0.35 + 0.65 * weight,
+  }, h('title', null, description), wire([from, to], { color: TEACHING_SERIES_INK[0], width: 1.5 + 4.5 * weight, corner: 0 }));
 }
 
 function weightBadge(from, to, weight) {
   const text = String(weight).length > 6 ? weight.toPrecision(3) : String(weight);
   const x = from[0] + 0.8 * (to[0] - from[0]);
   const y = from[1] + 0.8 * (to[1] - from[1]);
-  const width = textWidth(text, SMALL) + 14;
   return h('g', { 'data-tutor-token-largest-weight': weight },
-    box(x - width / 2, y - 10, width, 20, { role: 'process', active: true }),
-    label(text, x, y, { size: SMALL, weight: 700, fill: TEACHING.blue }));
+    // 24 px tall, a circle until the weight's digits ("0.45") need more room, then a pill.
+    h('rect', { x: x - Math.max(24, textWidth(text, SMALL) + 10) / 2, y: y - 12, width: Math.max(24, textWidth(text, SMALL) + 10), height: 24, rx: 12, fill: TEACHING.surface, stroke: TEACHING.outline, strokeWidth: 1.5 }),
+    label(text, x, y, { size: SMALL, weight: 600, fill: TEACHING.ink }));
 }
 
 export function layoutTokenLinks(diagram, requestedWidth = 408, { compact = false } = {}) {
@@ -63,7 +62,7 @@ export function layoutTokenLinks(diagram, requestedWidth = 408, { compact = fals
   const innerWidth = cellWidth - 2 * CELL_PAD;
   const sourceLabels = source.map(token => wrap(token, innerWidth));
   const targetLabels = target.map(token => wrap(token, innerWidth));
-  const cellHeight = Math.max(...[...sourceLabels, ...targetLabels].map(lines => lines.length * lineHeight() + 24));
+  const cellHeight = Math.max(56, ...[...sourceLabels, ...targetLabels].map(lines => lines.length * lineHeight() + 24)); // token boxes are 56 tall like flow nodes
   const sourceY = INSET + (compact ? 42 : 22);
   const targetY = sourceY + cellHeight + Math.max(86, Math.round(rowWidth * 0.16));
   const sourceLabelY = compact ? sourceY - 11 : sourceY + cellHeight / 2;
