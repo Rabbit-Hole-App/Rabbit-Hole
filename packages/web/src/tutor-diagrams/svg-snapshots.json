@@ -7,17 +7,17 @@
   ],
   "entries": {
     "acf-pacf-stems/320": {
-      "sha256": "1c2dce722af1bd5b39427709c74660089e284a8ac5656c57312ec0c87ae01cbd",
+      "sha256": "ab9368d7fdc3d61b9aa937439ab0e68721c1314e6f918e155d3f8b161ba15b54",
       "width": 408,
       "height": 430.5
     },
     "acf-pacf-stems/408": {
-      "sha256": "1c2dce722af1bd5b39427709c74660089e284a8ac5656c57312ec0c87ae01cbd",
+      "sha256": "ab9368d7fdc3d61b9aa937439ab0e68721c1314e6f918e155d3f8b161ba15b54",
       "width": 408,
       "height": 430.5
     },
     "acf-pacf-stems/720": {
-      "sha256": "abedeec0a16fab616e64fe574d747b7b33c934bc6815b5b57b04a671bd146aa3",
+      "sha256": "cccc60c1a938941c3335c04f2e57b9fffec3ced3bc8f06d412af6950b9ea52e4",
       "width": 720,
       "height": 413.5
     },
@@ -67,17 +67,17 @@
       "height": 324
     },
     "bayes-class-conditional-densities/320": {
-      "sha256": "cb64de353023c9aa84f4382a87afb58402f93bc99a703f0f3dc250d9132e4e38",
+      "sha256": "33f590f9f525dfa666cb691dd5ee92a0deed4306ca6a85ae1fc7d4d44adc84a6",
       "width": 408,
-      "height": 490.5
+      "height": 504.5
     },
     "bayes-class-conditional-densities/408": {
-      "sha256": "cb64de353023c9aa84f4382a87afb58402f93bc99a703f0f3dc250d9132e4e38",
+      "sha256": "33f590f9f525dfa666cb691dd5ee92a0deed4306ca6a85ae1fc7d4d44adc84a6",
       "width": 408,
-      "height": 490.5
+      "height": 504.5
     },
     "bayes-class-conditional-densities/720": {
-      "sha256": "721553115794f9117b129f340dcde7e636e0d0b293242c57d6355e809e527dd8",
+      "sha256": "a3223d0f135514844f8b0d98a0f8d755358ab150d2f1541d15dd5c18a7de4eaa",
       "width": 720,
       "height": 451.5
     },
@@ -1117,14 +1117,14 @@
       "height": 599
     },
     "ml-collective-anomaly-run/320": {
-      "sha256": "07a0b8d8549f3f4dd9f929806f5abd7c5289f4b69d9c1e3ac760911d450e182f",
+      "sha256": "18a284df93daa3bc1b9084d2745605280217b2ae2907a3d49bb7ac15c61c7a22",
       "width": 408,
-      "height": 473.5
+      "height": 487.5
     },
     "ml-collective-anomaly-run/408": {
-      "sha256": "07a0b8d8549f3f4dd9f929806f5abd7c5289f4b69d9c1e3ac760911d450e182f",
+      "sha256": "18a284df93daa3bc1b9084d2745605280217b2ae2907a3d49bb7ac15c61c7a22",
       "width": 408,
-      "height": 473.5
+      "height": 487.5
     },
     "ml-collective-anomaly-run/720": {
       "sha256": "8d611cac5e3e2be8e9316bdb4695c9a7db2a227f7413c7754aa7b8937095fbe9",
@@ -2332,17 +2332,17 @@
       "height": 448
     },
     "ml-time-series-additive-residuals/320": {
-      "sha256": "95b3b2a4fe71df64ec0a979b49726d2b436338526bc276941f534286ecf94e99",
+      "sha256": "26da9a71502601cbe8c0a07ebe82d0b9250e171d301c128eade3e3a3ed1d2c85",
       "width": 432,
-      "height": 1378.5
+      "height": 1406.5
     },
     "ml-time-series-additive-residuals/408": {
-      "sha256": "95b3b2a4fe71df64ec0a979b49726d2b436338526bc276941f534286ecf94e99",
+      "sha256": "26da9a71502601cbe8c0a07ebe82d0b9250e171d301c128eade3e3a3ed1d2c85",
       "width": 432,
-      "height": 1378.5
+      "height": 1406.5
     },
     "ml-time-series-additive-residuals/720": {
-      "sha256": "4492c7e8c786c7d3e49cb87d06364f3ad115788d64fc0d8ec9225e64393c72ae",
+      "sha256": "59d4b1cab04a6efc319d30ef18cf34c4748a5e329de02c0eebaf3653da83fa32",
       "width": 720,
       "height": 1323.5
     },
@@ -2617,14 +2617,14 @@
       "height": 783
     },
     "ml-zscore-distribution-tails/320": {
-      "sha256": "c44a4bcb0b509297ed755a9616ae209987c35bb229fd8e08ef769a78c9195ce0",
+      "sha256": "0a75e76c78b9f51b05b1649a77c9a5d901c05481d102a4b44cf01ca0ce91f70c",
       "width": 408,
-      "height": 447.5
+      "height": 461.5
     },
     "ml-zscore-distribution-tails/408": {
-      "sha256": "c44a4bcb0b509297ed755a9616ae209987c35bb229fd8e08ef769a78c9195ce0",
+      "sha256": "0a75e76c78b9f51b05b1649a77c9a5d901c05481d102a4b44cf01ca0ce91f70c",
       "width": 408,
-      "height": 447.5
+      "height": 461.5
     },
     "ml-zscore-distribution-tails/720": {
       "sha256": "ae056395069760068457c2a2461c5a6b124ff1bb1b9471aecd8b4288d581e640",
@@ -2632,14 +2632,14 @@
       "height": 430.5
     },
     "nearest-centroid-boundary/320": {
-      "sha256": "0a04e5f10ac810bca92bf707e0975ae48c7955e1995b91fcc2ea03ed5417ef8c",
+      "sha256": "2bba0c6cc3b455fa32804fcaa04fbb03375c96794fceea4a855629cd8416d125",
       "width": 408,
-      "height": 468.5
+      "height": 482.5
     },
     "nearest-centroid-boundary/408": {
-      "sha256": "0a04e5f10ac810bca92bf707e0975ae48c7955e1995b91fcc2ea03ed5417ef8c",
+      "sha256": "2bba0c6cc3b455fa32804fcaa04fbb03375c96794fceea4a855629cd8416d125",
       "width": 408,
-      "height": 468.5
+      "height": 482.5
     },
     "nearest-centroid-boundary/720": {
       "sha256": "d47ac847e281808e66578310925a5a0ca5b7c4efc343584e71ac2d30e1a4832e",
@@ -2737,19 +2737,19 @@
       "height": 333
     },
     "persistent-drift-alerts/320": {
-      "sha256": "13c79da22aecb59c8845d583e10d9243f79ecb97e98fd8f1606772d8ca2800c0",
+      "sha256": "7b59c50e64c598085ad699e057a8ebcaa379031a79386ef3492a5065b524d9e1",
       "width": 408,
-      "height": 452.5
+      "height": 466.5
     },
     "persistent-drift-alerts/408": {
-      "sha256": "13c79da22aecb59c8845d583e10d9243f79ecb97e98fd8f1606772d8ca2800c0",
+      "sha256": "7b59c50e64c598085ad699e057a8ebcaa379031a79386ef3492a5065b524d9e1",
       "width": 408,
-      "height": 452.5
+      "height": 466.5
     },
     "persistent-drift-alerts/720": {
-      "sha256": "8a7aab349a2dfcaa855e0efed5f0018adf19acadd70e868743a67f1bd258c8f9",
+      "sha256": "27d0ce505769fcd63fdea86837aca0806b0a4c4299efe3372575ccfcb8469cdb",
       "width": 720,
-      "height": 413.5
+      "height": 427.5
     },
     "point-in-time-created-time/320": {
       "sha256": "8b730680e402d18b9c79f91c78bf3b60baa1e3a4bdb1936f2ebb1616cf6a3731",
@@ -2782,17 +2782,17 @@
       "height": 451.5
     },
     "precision-recall-thresholds/320": {
-      "sha256": "ae580f0d9629376beb823753ac512d44e134e87d61f2f1712c41c517de139bef",
+      "sha256": "48bb4af84aff27699fd568616f766021da53c60cdcb80dc25e59ba99e0aba48f",
       "width": 408,
       "height": 430.5
     },
     "precision-recall-thresholds/408": {
-      "sha256": "ae580f0d9629376beb823753ac512d44e134e87d61f2f1712c41c517de139bef",
+      "sha256": "48bb4af84aff27699fd568616f766021da53c60cdcb80dc25e59ba99e0aba48f",
       "width": 408,
       "height": 430.5
     },
     "precision-recall-thresholds/720": {
-      "sha256": "49fec5b91de0e5c2ec9d4578a5bc69d5dd9bc0c0c5f836556ef2cfb312ad1cac",
+      "sha256": "5debe6d0bdc46d2cd2d8a830aeceba3596dc0d3396bb8b12fb2ac798ef3f11fe",
       "width": 720,
       "height": 413.5
     },
@@ -2857,14 +2857,14 @@
       "height": 451.5
     },
     "regression-tree-steps/320": {
-      "sha256": "60d832b96d97504b1b08872b31aff6077f10bf41a2b8600534e49ddd09a203b3",
+      "sha256": "45f983f5ee17d1dfb39dbe39f89e51c1ce31c14f8f51573839826633f4cf56d1",
       "width": 408,
-      "height": 452.5
+      "height": 466.5
     },
     "regression-tree-steps/408": {
-      "sha256": "60d832b96d97504b1b08872b31aff6077f10bf41a2b8600534e49ddd09a203b3",
+      "sha256": "45f983f5ee17d1dfb39dbe39f89e51c1ce31c14f8f51573839826633f4cf56d1",
       "width": 408,
-      "height": 452.5
+      "height": 466.5
     },
     "regression-tree-steps/720": {
       "sha256": "effd072ccf81260e4d98b62cece8b421e53861ac3104a1b95c17a12a749ecc73",
@@ -3277,17 +3277,17 @@
       "height": 280
     },
     "sigmoid-threshold/320": {
-      "sha256": "ac83e0a008019bf9d0f656e88895134b9a5e97fac57123e9349d0d7bc56577ea",
+      "sha256": "d83570cc5f07645e4e912308d2f37c8027788afc618c194b68c2b587f0e0447f",
       "width": 408,
-      "height": 430.5
+      "height": 444.5
     },
     "sigmoid-threshold/408": {
-      "sha256": "ac83e0a008019bf9d0f656e88895134b9a5e97fac57123e9349d0d7bc56577ea",
+      "sha256": "d83570cc5f07645e4e912308d2f37c8027788afc618c194b68c2b587f0e0447f",
       "width": 408,
-      "height": 430.5
+      "height": 444.5
     },
     "sigmoid-threshold/720": {
-      "sha256": "8b5b1a33380e68fc18d90d3a41dae8b43e4197377771bf6496236a6ba50f1a64",
+      "sha256": "0ccd4236716ef075f309daf322892a3a24702786e41ef970e133ce51423732ed",
       "width": 720,
       "height": 413.5
     },
@@ -3382,19 +3382,19 @@
       "height": 413.5
     },
     "svm-margin-support-slack/320": {
-      "sha256": "65b8559deffd14c93b84161f0373d838f24079af80aad4885f8adbca5e3873ea",
+      "sha256": "702b5ada589468a0e003a50e66b5d70dde133f92cef293e689e9bae48b179dd8",
       "width": 408,
-      "height": 490.5
+      "height": 518.5
     },
     "svm-margin-support-slack/408": {
-      "sha256": "65b8559deffd14c93b84161f0373d838f24079af80aad4885f8adbca5e3873ea",
+      "sha256": "702b5ada589468a0e003a50e66b5d70dde133f92cef293e689e9bae48b179dd8",
       "width": 408,
-      "height": 490.5
+      "height": 518.5
     },
     "svm-margin-support-slack/720": {
-      "sha256": "5492e2c412591abe0fcd27889ac4f38732376324f26a93ea75336daf79399c21",
+      "sha256": "e8a610c5e03d084c367468ddc76355727ad52b13bee95982c7fca31495a7247e",
       "width": 720,
-      "height": 451.5
+      "height": 465.5
     },
     "svr-epsilon-tube/320": {
       "sha256": "d5c65adc0947c2c092a3aeddc02054a439773b1b8ce697af4b6eea2bb47f6844",
@@ -3652,9 +3652,9 @@
       "height": 413.5
     },
     "ml-transformer-qkv-projections/408": {
-      "sha256": "ca3242c43e91821c6e3f64e3efd2e48abab213337ed5f4a8ca9bb31d58c4c2c5",
+      "sha256": "31069828cbda142badaecea769c2923f76ae8c700162dc7ea00839fe1a679bd0",
       "width": 482,
-      "height": 444
+      "height": 442
     },
     "ml-transformer-qkv-projections/960": {
       "sha256": "74548d896b51db6056dfe837df9fcd8bbe788f66ec15ee16c2373346bf68dae4",
@@ -3662,9 +3662,9 @@
       "height": 280
     },
     "ml-transformer-qkv-projections/natural": {
-      "sha256": "ca3242c43e91821c6e3f64e3efd2e48abab213337ed5f4a8ca9bb31d58c4c2c5",
+      "sha256": "31069828cbda142badaecea769c2923f76ae8c700162dc7ea00839fe1a679bd0",
       "width": 482,
-      "height": 444
+      "height": 442
     },
     "ml-transformer-qkv-projections-brief/408": {
       "sha256": "afa322f7c887c38cc1175dad39f1ad5d2b04a931f3bcc2a07f8fadc7bf0c4f5b",
@@ -3682,9 +3682,9 @@
       "height": 280
     },
     "ml-transformer-qkv-projections-detailed/408": {
-      "sha256": "df958dd9d1fdb0974b6053c92cd0f837485b8432ddc60bc3d8994c0debe4edbe",
+      "sha256": "74b67ffe1ff512f9acb967c328fa859e8edfce255033d95765ff878b8ccfd55d",
       "width": 482,
-      "height": 444
+      "height": 442
     },
     "ml-transformer-qkv-projections-detailed/960": {
       "sha256": "7a36d0362362604d35297d8e8dfc55977a41d06530079ed3faff6d5f5dd3053c",
@@ -3692,9 +3692,9 @@
       "height": 280
     },
     "ml-transformer-qkv-projections-detailed/natural": {
-      "sha256": "df958dd9d1fdb0974b6053c92cd0f837485b8432ddc60bc3d8994c0debe4edbe",
+      "sha256": "74b67ffe1ff512f9acb967c328fa859e8edfce255033d95765ff878b8ccfd55d",
       "width": 482,
-      "height": 444
+      "height": 442
     },
     "ml-self-attention-token-links/408": {
       "sha256": "0ccf881ded159c31ea092b4c9159446e7442e0e2f605e05fa17534c9ddbba11c",
