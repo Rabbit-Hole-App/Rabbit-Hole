@@ -17,11 +17,12 @@ const check = ({ command, request, requirements }) => checkToolCall(ENV, 'a@b', 
 const item = (id, beatId, command, over = {}) => ({ id, beatId, command, request: 'Show how the share is computed for three tasks.', requirements: null, lookFor: null, why: 'It is a mechanism to read.', source: null, content: null, after: null, ...over });
 const opts = { sectionId: '1.1', brief, commands, check };
 
-test('directTools in the section flow: the ordinary set minus explain, plus explanation, notebook, document and browser; ordinary chat unchanged (DECISIONS H, N)', () => {
+test('directTools in the section flow: the ordinary set minus explain, quiz and flashcards, plus explanation, notebook, document and browser; ordinary chat unchanged (DECISIONS H, N; Reviewer 10:50)', () => {
   const ordinary = directTools(ENV, 'a@b').map(t => t.command);
   assert.ok(ordinary.includes('explain'));
   for (const command of Object.keys(SECTION_TOOLS)) assert.ok(!ordinary.includes(command), `${command} stays out of ordinary chat`);
-  assert.deepEqual(commands, [...ordinary.filter(c => c !== 'explain'), 'explanation', 'notebook', 'document', 'browser']);
+  assert.ok(ordinary.includes('quiz') && ordinary.includes('flashcards'));
+  assert.deepEqual(commands, [...ordinary.filter(c => !['explain', 'quiz', 'flashcards'].includes(c)), 'explanation', 'notebook', 'document', 'browser']);
   for (const command of ['notebook', 'document', 'browser']) assert.equal(CHAT_CAPABILITIES[command], undefined, 'nothing added to CHAT_CAPABILITIES');
   assert.deepEqual(chatToolDefs(ENV, 'a@b').map(d => d.name), ordinary.map(toolNameOf));
   assert.match(chatToolDefs(ENV, 'a@b', { sectionFlow: true }).find(d => d.name === 'run_document').description, /Limits: Text and equations to read; no code runs, no media\./);
@@ -50,7 +51,8 @@ test('validateComposition: D fields, F caps, pairing, item count and coverage', 
   assert.deepEqual(two([item('i3', 'b2', 'arxiv', { lookFor: 'x' }), item('i4', 'b2', 'browser', { lookFor: 'y' })]), ['found material is at most 1 item in a section for now; this one has 2']);
   assert.deepEqual(two([item('i3', 'b2', 'wikipedia')]), ['item i3: found material carries lookFor: which part and what to notice']);
   assert.deepEqual(two([item('i3', 'b1', 'explanation', { after: 'i1' })]), undefined, 'an explanation made for a document');
-  assert.deepEqual(two([item('i3', 'b1', 'notebook', { content: 'authored', after: 'i1' })]), ['item i3: after names an earlier paper, Wikipedia, document or web page item, and only an explanation is made after one']);
+  assert.deepEqual(two([item('i3', 'b1', 'notebook', { content: 'authored', after: 'i1' })]), undefined, 'a notebook made for a document (Make §7c, Reviewer 10:50)');
+  assert.deepEqual(two([item('i3', 'b1', 'code', { source: 'example', after: 'i1' })]), ['item i3: after names an earlier paper, Wikipedia, document or web page item, and only an explanation or a notebook is made after one']);
   const bgBrief = { ...brief, beats: [brief.beats[0], { ...brief.beats[1], material: null }, { id: 'b3', idea: 'Another background.', shows: 'x', anchors: [], background: true, material: null }] };
   const wiki = (id, beatId) => item(id, beatId, 'wikipedia', { lookFor: 'the definition' });
   assert.equal(validateComposition({ items: [item('i1', 'b1', 'document'), wiki('i2', 'b2'), wiki('i3', 'b3'), item('i4', 'b1', 'youtube', { lookFor: 'z' })] }, { ...opts, brief: bgBrief }).errors, undefined, 'F: two background Wikipedia cards are separate from the one found item');

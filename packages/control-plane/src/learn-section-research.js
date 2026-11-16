@@ -44,7 +44,7 @@ export async function researchTool(name, input = {}, ctx) {
   }
   if (name === 'read_arxiv_paper') {
     const paper = await (deps.readPaper || readArxivPaper)(input.id);
-    turn.papers[paper.id] = { title: paper.title, pages: paper.pages ?? null }; // pages: the per-page text TOOLS adds to read_arxiv_paper (DECISIONS S); null until then
+    turn.papers[paper.id] = { title: paper.title, pageCount: paper.pageCount ?? null }; // page count from the arXiv comment; quotes are checked in the browser on open (Reviewer 10:50)
     return { content: [...text(paper), paperDocument(paper)], turn };
   }
   if (name === 'search_arxiv') {

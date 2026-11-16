@@ -20,6 +20,7 @@ export const SECTION_COMPOSE_FAILED = 'I couldn\'t choose how to teach this sect
 const FOUND = new Set(['youtube', 'arxiv', 'wikipedia', 'image', 'browser']);
 const CODE_REQUESTS = new Set(['code', 'notebook']);
 const PAIR_FROM = new Set(['arxiv', 'wikipedia', 'document', 'browser']); // D: an item made for the text of a paper, an article, a document or a web page
+const AFTER_ON = new Set(['explanation', 'notebook']); // made after one: D, and Make §7c for a notebook (Reviewer 10:50)
 const SOURCES = ['repository', 'example'], CONTENTS = ['source', 'authored', 'buildup'];
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const str = v => (typeof v === 'string' ? v.trim() : '');
@@ -40,7 +41,7 @@ export const submitCompositionTool = commands => ({
         why: { type: 'string', description: 'One sentence: why this medium for this beat.' },
         source: { type: ['string', 'null'], enum: [...SOURCES, null], description: 'Required on code: repository (the source\'s own lines) or example (a made example).' },
         content: { type: ['string', 'null'], enum: [...CONTENTS, null], description: 'Required on notebook: source, authored or buildup.' },
-        after: { type: ['string', 'null'], description: 'The id of an earlier paper, Wikipedia, document or web page item whose text this explanation is made for; else null.' },
+        after: { type: ['string', 'null'], description: 'The id of an earlier paper, Wikipedia, document or web page item whose text this explanation or notebook is made for; else null.' },
       } } },
     },
   },
@@ -65,7 +66,7 @@ export function validateComposition(input, { sectionId, brief, commands, check }
     if (FOUND.has(command) && !lookFor) errors.push(`item ${id}: found material carries lookFor: which part and what to notice`);
     if (after) {
       const earlier = out.find(e => e.id === after);
-      if (!earlier || !PAIR_FROM.has(earlier.command) || command !== 'explanation') errors.push(`item ${id}: after names an earlier paper, Wikipedia, document or web page item, and only an explanation is made after one`);
+      if (!earlier || !PAIR_FROM.has(earlier.command) || !AFTER_ON.has(command)) errors.push(`item ${id}: after names an earlier paper, Wikipedia, document or web page item, and only an explanation or a notebook is made after one`);
     }
     out.push({ id, beatId: str(it.beatId), command, request, requirements, lookFor, why, source: command === 'code' ? it.source : null, content: command === 'notebook' ? it.content : null, after });
   });
