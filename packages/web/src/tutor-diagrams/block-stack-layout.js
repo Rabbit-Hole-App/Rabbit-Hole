@@ -4,7 +4,7 @@ import { layoutFlow } from './flow.js';
 import { connector, label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { skipLanePoints, skipLaneX } from './skip-lanes.js';
 import { TEACHING, teachingBox as box } from './teaching-theme.js';
-import { tensorCellCap, tensorMinimumWidth, tensorRowBudget, withTensorCellCap } from './tensor-layout.js';
+import { tensorMinimumWidth, tensorRowBudget } from './tensor-layout.js';
 
 const PAD = 12;
 const INSET = 10;
@@ -76,13 +76,22 @@ function minimumBlockWidth(block, child) {
 
 function rowMetrics(blocks) {
   const children = blocks.map(fullChild);
-  const widths = blocks.map((block, index) => Math.max(MIN_ROW_BLOCK_WIDTH, minimumBlockWidth(block, children[index])));
+  // A block's heading stands on one line.
+  const widths = blocks.map((block, index) => Math.max(MIN_ROW_BLOCK_WIDTH, minimumBlockWidth(block, children[index]), Math.ceil(textWidth(block.label) * 1.06) + 2 * INSET));
   const width = widths.reduce((sum, tileWidth) => sum + tileWidth, 2 * PAD + (blocks.length - 1) * ROW_GAP);
   return { children, widths, width };
 }
 
-// A horizontal row of blocks is held to the tensor row budget (720 at a narrow request, at most 960): when it would be wider, its tensor cells shrink only as far as needed.
-const rowCap = (blocks, preferredWidth) => tensorCellCap(tensorRowBudget(preferredWidth), cell => withTensorCellCap(cell, () => rowMetrics(blocks).width));
+// A row of blocks past the tensor row budget (720 at a narrow request, at most 960) wraps at block boundaries onto further rows: { indices, width } per row.
+function wrapRows(widths, budget) {
+  const rows = [];
+  for (const [index, tile] of widths.entries()) {
+    const row = rows.at(-1);
+    if (row && row.width + ROW_GAP + tile <= budget) { row.indices.push(index); row.width += ROW_GAP + tile; } else rows.push({ indices: [index], width: 2 * PAD + tile });
+  }
+  return rows;
+}
+
 
 function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
   const order = new Map(blocks.map(({ id }, index) => [id, index]));
@@ -106,7 +115,7 @@ function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
 }
 
 export function blockStackNaturalWidth(diagram) {
-  if (diagram.orientation === 'horizontal') return withTensorCellCap(rowCap(diagram.blocks, 0), () => rowMetrics(diagram.blocks).width);
+  if (diagram.orientation === 'horizontal') return Math.max(...wrapRows(rowMetrics(diagram.blocks).widths, tensorRowBudget(0)).map(row => row.width));
   const { minBlockWidth, leftBand, rightBand, noteMinWidth, ledgerMinWidth } = horizontalMetrics(diagram);
   const noteBand = diagram.callouts?.length ? Math.max(156, noteMinWidth) + NOTE_GAP : 0;
   return Math.min(960, Math.max(ledgerMinWidth, 2 * PAD + Math.max(PREFERRED_BLOCK_WIDTH, minBlockWidth) + leftBand + rightBand + noteBand));
@@ -235,10 +244,10 @@ function drawJoin(operation, x, y) {
     label(operation === 'multiply' ? '⊗' : '⊕', x, y, { size: 22, weight: 700 }));
 }
 
-const layoutBlockRow = (blocks, preferredWidth, renderChild) => withTensorCellCap(rowCap(blocks, preferredWidth), () => layoutBlockRowAt(blocks, preferredWidth, renderChild));
-function layoutBlockRowAt(blocks, preferredWidth, renderChild) {
-  const { children, widths, width: rowWidth } = rowMetrics(blocks);
-  const width = Math.max(preferredWidth, rowWidth);
+function layoutBlockRow(blocks, preferredWidth, renderChild) {
+  const { children, widths } = rowMetrics(blocks);
+  const rows = wrapRows(widths, tensorRowBudget(preferredWidth));
+  const width = Math.max(preferredWidth, ...rows.map(row => row.width));
   const measured = blocks.map((block, index) => {
     const child = children[index];
     return blockContent(block, widths[index], child ? renderChild(child, widths[index] - 2 * INSET) : null);
@@ -250,14 +259,21 @@ function layoutBlockRowAt(blocks, preferredWidth, renderChild) {
     title: { ...content.title, height: titleHeight },
     height: content.height + titleHeight - content.title.height,
   }));
-  const height = Math.max(40, ...contents.map(content => content.height));
-  let x = (width - rowWidth) / 2 + PAD;
-  const elements = blocks.map((block, index) => {
-    const element = drawBlock(block, contents[index], x, PAD, widths[index], height, []);
-    x += widths[index] + ROW_GAP;
-    return element;
+  // Rows start at one left edge (the widest row centred) and read left to right, top to bottom; the blocks of a row share its height, so their strips are top-aligned.
+  const widest = Math.max(...rows.map(row => row.width));
+  let y = PAD;
+  const elements = rows.flatMap(row => {
+    const height = Math.max(40, ...row.indices.map(index => contents[index].height));
+    let x = (width - widest) / 2 + PAD;
+    const drawn = row.indices.map(index => {
+      const element = drawBlock(blocks[index], contents[index], x, y, widths[index], height, []);
+      x += widths[index] + ROW_GAP;
+      return element;
+    });
+    y += height + 2 * ROW_GAP;
+    return drawn;
   });
-  return { width, height: height + 2 * PAD, elements };
+  return { width, height: y - 2 * ROW_GAP + PAD, elements };
 }
 
 export function layoutBlockStack(diagram, preferredWidth, renderChild) {
