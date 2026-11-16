@@ -1,0 +1,67 @@
+[
+  {
+    "id": "ml-trees-decision-regions",
+    "prompt": "how does a decision tree split a two-feature dataset into regions?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-gini-vs-entropy",
+    "prompt": "how does Gini impurity change as the fraction of one class goes from 0 to 1, compared with entropy?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-gini-split",
+    "prompt": "how do I compute the Gini impurity on both sides of a split and the information gain?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-threshold-search",
+    "prompt": "how does a decision tree search for the best threshold on one feature?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-grown-tree",
+    "prompt": "how does a decision tree trace a new point from the root to a prediction?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-depth-overfit",
+    "prompt": "how does held-out error change as a decision tree grows deeper?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-cost-complexity-pruning",
+    "prompt": "how does cost-complexity pruning trade tree size against accuracy as alpha increases?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-regression-step-fit",
+    "prompt": "how does a regression tree fit y = sin(x) with a step function at depth 2 versus depth 5?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-bootstrap-roots",
+    "prompt": "what does a bootstrap sample of the training rows look like, and which rows repeat?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-bootstrap-coverage",
+    "prompt": "why does a bootstrap sample contain only about 63% of the unique training rows?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-majority-vote",
+    "prompt": "how does a random forest combine the predictions of its trees into one answer?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-forest-size-accuracy",
+    "prompt": "how does test accuracy change with 1, 5, 10, 50 and 200 trees in a random forest?",
+    "expect": "fit"
+  },
+  {
+    "id": "ml-trees-feature-importance",
+    "prompt": "compare impurity-based feature importance with permutation importance when one feature is random noise",
+    "expect": "fit"
+  }
+]
