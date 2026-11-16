@@ -1,0 +1,40 @@
+[
+  {
+    "itemId": "i1",
+    "ms": 3842,
+    "op": "slash",
+    "skipped": null,
+    "error": null
+  },
+  {
+    "itemId": "i2",
+    "ms": 6783,
+    "op": "codeCards",
+    "skipped": null,
+    "error": null
+  },
+  {
+    "itemId": "i3",
+    "ms": 5575,
+    "op": "notebook",
+    "skipped": null,
+    "error": null
+  },
+  {
+    "itemId": "i4",
+    "ms": 81,
+    "op": null,
+    "skipped": {
+      "itemId": "i4",
+      "note": "I skipped the quiz for this part."
+    },
+    "error": null
+  },
+  {
+    "itemId": "notes",
+    "ms": 7559,
+    "op": "doc",
+    "skipped": null,
+    "error": null
+  }
+]

@@ -1,0 +1,95 @@
+{
+  "case": "data",
+  "section": "1.1",
+  "sectionId": "1.1",
+  "ms": 12520,
+  "out": {
+    "composition": {
+      "sectionId": "1.1",
+      "items": [
+        {
+          "id": "i1",
+          "beatId": "b1",
+          "command": "explanation",
+          "request": "Walk through the import lines at the top of the main app file of the Datasette repository and group them into families: concurrency, templating, signing, database, views, plugins. For each family, say in one plain sentence what the app uses it for.",
+          "requirements": null,
+          "lookFor": null,
+          "why": "A parts list is a definition to read and group, so a short written card with a table fits.",
+          "source": null,
+          "content": null,
+          "after": null
+        },
+        {
+          "id": "i2",
+          "beatId": "b2",
+          "command": "explanation",
+          "request": "Explain the async and thread imports in the main app file of Datasette, and the default of 3 threads for running SQL. Show that one world runs the request with asyncio while a thread pool runs blocking SQLite work.",
+          "requirements": null,
+          "lookFor": null,
+          "why": "Pairs the imports with the default value in one short reading.",
+          "source": null,
+          "content": null,
+          "after": null
+        },
+        {
+          "id": "i3",
+          "beatId": "b3",
+          "command": "explanation",
+          "request": "Explain the template-related imports in the Datasette main app file: which loaders are imported and why a choice loader exists, so that search order across template folders lets plugins and users override defaults.",
+          "requirements": null,
+          "lookFor": null,
+          "why": "Background idea, best as a brief reading.",
+          "source": null,
+          "content": null,
+          "after": null
+        },
+        {
+          "id": "i4",
+          "beatId": "b4",
+          "command": "quiz",
+          "request": "Ask one multiple-choice question about Datasette's main app file: which imports (a third-party serializer library and the secrets module) back signed values and API tokens, and what is the default of the setting that allows signed tokens? Give feedback.",
+          "requirements": null,
+          "lookFor": null,
+          "why": "A quick check that the learner can find the signing pieces.",
+          "source": null,
+          "content": null,
+          "after": null
+        },
+        {
+          "id": "i5",
+          "beatId": "b5",
+          "command": "diagram",
+          "request": "Draw the Datasette app object as a hub: imported view classes (index, row, table) as routing targets, and the plugin manager dispatching hooks to plugins.",
+          "requirements": null,
+          "lookFor": null,
+          "why": "The hub-and-targets shape is structural and best seen.",
+          "source": null,
+          "content": null,
+          "after": null
+        },
+        {
+          "id": "i6",
+          "beatId": "b6",
+          "command": "code",
+          "request": "Write a small Python example mirroring Datasette's settings table: a namedtuple Setting with name, default and help, entries like default page size 100 and SQL time limit 1000 ms, then print each default.",
+          "requirements": null,
+          "lookFor": null,
+          "why": "Lets the learner see the tuple shape and real default values.",
+          "source": "example",
+          "content": null,
+          "after": null
+        }
+      ]
+    }
+  },
+  "log": [
+    {
+      "event": "learn_section_compose",
+      "section": "1.1",
+      "calls": 2,
+      "usd": 0.026606,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

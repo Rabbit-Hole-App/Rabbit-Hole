@@ -63,7 +63,7 @@ async function step(action, key, refs) {
   if (!s?.planAccepted) throw Error(`${key}: run prepare first`);
   const dir = action === 'learn_section_brief' ? 'brief' : 'compose';
   for (const ref of refs) {
-    const sectionId = sectionKey(s.ops, ref), before = logSize(), t0 = Date.now();
+    const sectionId = ref, before = logSize(), t0 = Date.now();
     let out;
     try { out = await post({ app: s.canvas, board: 'main', action, sectionId, ...(process.env.REDO ? { redo: true } : {}) }); }
     catch (error) { out = { httpError: error.message, body: error.body }; }
@@ -75,7 +75,7 @@ async function step(action, key, refs) {
 }
 
 async function make(key, ref) {
-  const s = state[key], sectionId = sectionKey(s.ops, ref);
+  const s = state[key], sectionId = ref;
   const composition = JSON.parse(readFileSync(`${OUT}/compose/${key}-${ref}.json`, 'utf8')).out.composition;
   let itemId = composition.items[0]?.id;
   const made = [];

@@ -1,0 +1,35 @@
+{
+  "case": "nano",
+  "section": "1.3",
+  "sectionId": "1.3",
+  "itemId": "i1",
+  "preReview": true,
+  "ms": 4619,
+  "out": {
+    "item": {
+      "itemId": "i1",
+      "command": "explanation",
+      "lead": "You have a sorted list of 65 characters. A model can't use a character directly, so each one needs a number.\n\nThe rule is simple: a character's number is its position in that list, counting from 0. Look at the first few entries of the printed list and read their positions.",
+      "follow": "So encoding adds nothing new. The list order is the id: newline is 0, space is 1, '!' is 2, and the rest follow in order. Next, the encoded text gets cut into a training part and a validation part, starting with the ninety percent split."
+    },
+    "perform": {
+      "op": "slash",
+      "line": "/explain How does a character's position in the sorted list of 65 characters become its number, so that the order of the list is the id? Show it as a small table of the first entries of the printed list, counting from 0: newline is 0, space is 1, '!' is 2. The reader already knows: the vocabulary, that the list is sorted by character code, and that its size is 65. Do not cover: how the lookup dictionary is built, or the train/validation split. Afterwards the reader should be able to read an id off a character's position.",
+      "depth": "balanced",
+      "context": "data/shakespeare_char/prepare.py:29-30 @ 3adf61e154c3fe3fca428ad6bc3818b27a3b8291\n29: # create a mapping from characters to integers\n30: stoi = { ch:i for i,ch in enumerate(chars) }\n\ndata/shakespeare_char/prepare.py:64-65 @ 3adf61e154c3fe3fca428ad6bc3818b27a3b8291\n64: # all the unique characters:\n65: #  !$&',-.3:;?ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    },
+    "next": "i2"
+  },
+  "log": [
+    {
+      "event": "learn_section_make",
+      "section": "1.3",
+      "item": "i1",
+      "command": "explanation",
+      "calls": 1,
+      "usd": 0.006396,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}
