@@ -128,7 +128,7 @@ export const idOfTyped = (typed) => entryOfTyped(typed)?.name ?? typed;
 // unavailable). The Tutor's own material tools and its roadmap cards (`internal`) do not read it. Build-time like the other
 // switches: flip a value here and rebuild. slash.test.mjs holds that every command has an entry.
 export const SLASH_FLAGS = {
-  explanation: true, explain: false, practice: true, quiz: true, flashcards: true, goal: false,
+  explanation: true, explain: true, practice: true, quiz: true, flashcards: true, goal: false, // LOCAL ONLY (owner stack 8878, 2026-11-15): /interactive on so the owner can try it; never merge this line to main
   code: true, graph: true, diagram: true, notebook: true, 'generate-image': false, motion: false, cad: false, animation: false,
   'whiteboard-video': false, '3d': true, browser: true,
   image: true, youtube: true, arxiv: true, wikipedia: true,
