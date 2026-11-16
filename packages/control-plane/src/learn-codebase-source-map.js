@@ -28,6 +28,8 @@
 //   POST {action: 'learn_section_brief', app, board, sectionId, redo?} -> {brief} | {error: 'sectionBriefFailed', words}: the beats of one section of the accepted plan (learn-section-brief.js;
 //        docs/features/learn-sections CONTRACT.md; sectionId is the plan's numbering, "1.1"), stored in learn_sections, metered learn_section, capped at US$0.15
 //   POST {action: 'learn_section_compose', app, board, sectionId, redo?} -> {composition} | {error: 'sectionComposeFailed', words}: the medium per beat (learn-section-compose.js), capped at US$0.10
+//   POST {action: 'learn_section_make', app, board, sectionId, itemId} -> {item: {itemId, command, lead, follow}, perform, next} | {skipped: {itemId, note}, next} (learn-section-make.js; one item, capped at US$0.10, a notebook US$0.15)
+//   POST {action: 'learn_section_made', app, board, sectionId, itemId, cardId?, jobId?, highlight?} -> {ok: true}; POST {action: 'learn_section_next', app, board, sectionId} -> {currentSectionId}
 //   POST {action: 'refresh', app, board, activityId, actionId, expectedRevision} -> {state, activityId, drift}: a new activity
 //        at the current commit; the old one keeps its revision, its attempts and its feedback
 //   POST {action: 'another', app, board, activityId, actionId, expectedRevision} -> {state, activityId}: Try another question,
@@ -254,7 +256,7 @@ export async function sourceDrift(sourceRefs, snapshot) {
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
 const ACTION_ID = /^[A-Za-z0-9_-]{8,120}$/;
-const READ_ONLY = new Set(['learn_intro', 'learn_fit', 'learn_plan', 'learn_plan_save', 'learn_section_brief', 'learn_section_compose']); // no actionId or revision from the browser: the model calls write nothing, the save reads the revision itself
+const READ_ONLY = new Set(['learn_intro', 'learn_fit', 'learn_plan', 'learn_plan_save', 'learn_section_brief', 'learn_section_compose', 'learn_section_make', 'learn_section_made', 'learn_section_next']); // no actionId or revision from the browser: the model calls write nothing, the save reads the revision itself
 
 // The canvas's project repository, as projectRepository (canvases.js) reads it: the learner's own import, not in Trash, indexed.
 export async function canvasRepository(env, access) {
@@ -448,6 +450,9 @@ export async function codebaseRoute(path, req, env, deps = {}) {
     if (body.action === 'learn_plan_save') return await learnPlanSave(env, actor, body);
     if (body.action === 'learn_fit') return await metered(env, access, 'learn_fit', scoped => learnFit(scoped, snapshot, body, deps));
     if (body.action === 'learn_section_brief') return await metered(env, access, 'learn_section', async scoped => (await import('./learn-section-brief.js')).runBrief(scoped, { actor, snapshot }, body, deps)); // the section modules load on use: chat-tools.js reaches canvases.js, which imports this file
+    if (body.action === 'learn_section_make') return await metered(env, access, 'learn_section', async scoped => (await import('./learn-section-make.js')).runMake(scoped, { actor, snapshot, repo: { app: repo.app, repo: repo.repo, commit: repo.commit } }, body, deps));
+    if (body.action === 'learn_section_made') return await (await import('./learn-section-make.js')).runMade(env, { actor }, body);
+    if (body.action === 'learn_section_next') return await (await import('./learn-section-make.js')).runNext(env, { actor }, body);
     if (body.action === 'learn_section_compose') return await metered(env, access, 'learn_section', async scoped => (await import('./learn-section-compose.js')).runCompose(scoped, { actor, email: access.email }, body, deps));
     if (body.action === 'start') {
       const goal = goalOf(body.goal);
@@ -505,7 +510,7 @@ export async function codebaseRoute(path, req, env, deps = {}) {
           sourceRefs: old.sourceRefs, checkpoint: { ...kept, codebase: { ...base, questionIndex: next.checkpoint.codebase.questionIndex } } } } });
       return json({ state: out.state, activityId: out.state.activeActivityId });
     }
-    return json({ error: 'action must be start, refresh, another, learn_intro, learn_fit, learn_plan, learn_plan_save, learn_section_brief or learn_section_compose' }, 400);
+    return json({ error: 'action must be start, refresh, another, learn_intro, learn_fit, learn_plan, learn_plan_save, learn_section_brief, learn_section_compose, learn_section_make, learn_section_made or learn_section_next' }, 400);
   } catch (error) {
     if (error instanceof CoachingConflict) {
       if (error.status !== 409) return json({ error: error.code }, error.status);

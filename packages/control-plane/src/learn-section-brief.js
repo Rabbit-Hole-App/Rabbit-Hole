@@ -17,7 +17,10 @@ import { learnPlanOf, readSection, readSections, saveProgress, updateSection, wi
 export const BRIEF_CAP_USD = 0.15, ANCHOR_LINES = 300, BRIEF_SEARCHES = 2;
 export const SECTION_BRIEF_FAILED = 'I couldn\'t plan this section cleanly. Try again, or skip to the next section.'; // A §5
 // A path, a file name, a flag or a code name (backticks, snake_case, calls, camelCase): never in a beat's idea or shows, nor in a request that is not code.
-export const CODE_TOKEN = /`|\b[\w.-]+\/[\w.-]+\/[\w./-]*|\b[\w-]+\/[\w-]+\.\w+|\b[\w-]+\.(?:py|js|mjs|ts|jsx|tsx|json|md|txt|bin|pkl|pt|toml|ya?ml|c|h|cpp|rs|go|ipynb|csv|sh)\b|(?:^|\s)--\w|\b[a-z0-9]+_\w+\b|\b\w+\(\)|\b[a-z]+[A-Z]\w*\b/;
+const PATH_PART = String.raw`\b[\w.-]+\/[\w.-]+\/[\w./-]*|\b[\w-]+\/[\w-]+\.\w+|\b[\w-]+\.(?:py|js|mjs|ts|jsx|tsx|json|md|txt|bin|pkl|pt|toml|ya?ml|c|h|cpp|rs|go|ipynb|csv|sh)\b|(?:^|\s)--\w`;
+export const CODE_TOKEN = new RegExp(String.raw`${'`'}|${PATH_PART}|\b[a-z0-9]+_\w+\b|\b\w+\(\)|\b[a-z]+[A-Z]\w*\b`);
+// A path, a file name or a flag only: never in the words around a card or in a document's prose (code names may appear there as the code uses them).
+export const PROSE_PATH = new RegExp(PATH_PART);
 const MATERIAL_KINDS = ['paper', 'video', 'article'];
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const str = v => (typeof v === 'string' ? v.trim() : '');
