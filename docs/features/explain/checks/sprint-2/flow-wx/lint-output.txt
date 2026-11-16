@@ -1,0 +1,7 @@
+main lint flags: 1
+  {"rule":"a","where":"node senate","detail":"labels of the 2 branches from senate stand at different heights: y = 376, 426 (50 px apart)"}
+before lint flags: 1
+  {"rule":"a","where":"node senate","detail":"labels of the 2 branches from senate stand at different heights: y = 341.5, 390.5 (49 px apart)"}
+after lint flags: 1
+  {"rule":"a","where":"node senate","detail":"labels of the 2 branches from senate stand at different heights: y = 400.5, 425.5 (25 px apart)"}
+optB lint flags: 0

@@ -1,0 +1,124 @@
+diff --git a/packages/web/src/tutor-diagrams/block-stack-layout.js b/packages/web/src/tutor-diagrams/block-stack-layout.js
+index 80381ee14..92846335c 100644
+--- a/packages/web/src/tutor-diagrams/block-stack-layout.js
++++ b/packages/web/src/tutor-diagrams/block-stack-layout.js
+@@ -4,7 +4,7 @@ import { layoutFlow } from './flow.js';
+ import { connector, label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
+ import { skipLanePoints, skipLaneX } from './skip-lanes.js';
+ import { TEACHING, teachingBox as box } from './teaching-theme.js';
+-import { tensorMinimumWidth, withTensorCellCap } from './tensor-layout.js';
++import { tensorCellCap, tensorMinimumWidth, tensorRowBudget, withTensorCellCap } from './tensor-layout.js';
+ 
+ const PAD = 12;
+ const INSET = 10;
+@@ -47,7 +47,7 @@ function fullChild({ label: title, diagram }) {
+     stackRole: typeof step === 'string' ? undefined : step.role,
+   }));
+   const edges = nodes.slice(1).map((node, index) => ({ from: nodes[index].id, to: node.id }));
+-  return { kind: 'flow', title, nodes, edges };
++  return { kind: 'flow', title, nodes, edges, nested: true };
+ }
+ 
+ function childMinimumWidth(child) {
+@@ -81,13 +81,8 @@ function rowMetrics(blocks) {
+   return { children, widths, width };
+ }
+ 
+-// A horizontal row of blocks is at most 960 px: when it would be wider, its tensor cells shrink only as far as needed (tensor-layout.js withTensorCellCap).
+-const ROW_MAX = 960;
+-function rowCap(blocks) {
+-  if (rowMetrics(blocks).width <= ROW_MAX) return Infinity;
+-  for (let cap = 64; cap > 12; cap--) if (withTensorCellCap(cap, () => rowMetrics(blocks).width) <= ROW_MAX) return cap;
+-  return 12;
+-}
++// A horizontal row of blocks is held to the tensor row budget (720 at a narrow request, at most 960): when it would be wider, its tensor cells shrink only as far as needed.
++const rowCap = (blocks, preferredWidth) => tensorCellCap(tensorRowBudget(preferredWidth), cell => withTensorCellCap(cell, () => rowMetrics(blocks).width));
+ 
+ function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
+   const order = new Map(blocks.map(({ id }, index) => [id, index]));
+@@ -111,7 +106,7 @@ function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
+ }
+ 
+ export function blockStackNaturalWidth(diagram) {
+-  if (diagram.orientation === 'horizontal') return withTensorCellCap(rowCap(diagram.blocks), () => rowMetrics(diagram.blocks).width);
++  if (diagram.orientation === 'horizontal') return withTensorCellCap(rowCap(diagram.blocks, 0), () => rowMetrics(diagram.blocks).width);
+   const { minBlockWidth, leftBand, rightBand, noteMinWidth, ledgerMinWidth } = horizontalMetrics(diagram);
+   const noteBand = diagram.callouts?.length ? Math.max(156, noteMinWidth) + NOTE_GAP : 0;
+   return Math.min(960, Math.max(ledgerMinWidth, 2 * PAD + Math.max(PREFERRED_BLOCK_WIDTH, minBlockWidth) + leftBand + rightBand + noteBand));
+@@ -240,7 +235,7 @@ function drawJoin(operation, x, y) {
+     label(operation === 'multiply' ? '⊗' : '⊕', x, y, { size: 22, weight: 700 }));
+ }
+ 
+-const layoutBlockRow = (blocks, preferredWidth, renderChild) => withTensorCellCap(rowCap(blocks), () => layoutBlockRowAt(blocks, preferredWidth, renderChild));
++const layoutBlockRow = (blocks, preferredWidth, renderChild) => withTensorCellCap(rowCap(blocks, preferredWidth), () => layoutBlockRowAt(blocks, preferredWidth, renderChild));
+ function layoutBlockRowAt(blocks, preferredWidth, renderChild) {
+   const { children, widths, width: rowWidth } = rowMetrics(blocks);
+   const width = Math.max(preferredWidth, rowWidth);
+diff --git a/packages/web/src/tutor-diagrams/flow.js b/packages/web/src/tutor-diagrams/flow.js
+index 97490b8ab..a27af8a88 100644
+--- a/packages/web/src/tutor-diagrams/flow.js
++++ b/packages/web/src/tutor-diagrams/flow.js
+@@ -7,6 +7,8 @@ import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
+ const PAD = 14;
+ const NODE_GAP = 18;
+ const NODE_MIN = 180;
++// A flow inside a block stack is a small inset, not a figure: its nodes may be narrower than a standalone flow's and wrap their label. 130 is the widest word of the Gemma reference (82 px, "Sliding-window") plus the node's 48 px padding: below it no node of that reference gets narrower.
++const NODE_MIN_NESTED = 130;
+ const NODE_MAX = 220;
+ const EDGE_TEXT = 13;
+ const EDGE_WRAP = 158;
+@@ -168,7 +170,7 @@ export function layoutFlow(diagram, requestedWidth, paintNode) {
+   }
+ }
+ 
+-function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, unshared) {
++function layoutPass({ nodes, edges, highlightPath, nested }, requestedWidth, paintNode, unshared) {
+   const paths = flowPaths(highlightPath);
+   const onPath = new Set(paths.flat());
+   const pathEdge = ({ from, to }) => paths.some(path => path.some((id, index) => id === from && path[index + 1] === to));
+@@ -186,7 +188,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode,
+   const metrics = rows.map(row => {
+     const space = PARALLEL_WIDTH - 2 * PAD - outer - (row.length - 1) * NODE_GAP;
+     const wordLimit = paths.length === 2 ? Math.min(NODE_MAX, Math.floor(space / row.length)) : NODE_MAX;
+-    const floor = Math.min(NODE_MIN, wordLimit);
++    const floor = Math.min(nested ? NODE_MIN_NESTED : NODE_MIN, wordLimit);
+     return row.map(node => {
+       const text = node.label ?? '';
+       const word = longestWordWidth(text);
+diff --git a/packages/web/src/tutor-diagrams/tensor-layout.js b/packages/web/src/tutor-diagrams/tensor-layout.js
+index 58f038694..f6252ad70 100644
+--- a/packages/web/src/tutor-diagrams/tensor-layout.js
++++ b/packages/web/src/tutor-diagrams/tensor-layout.js
+@@ -25,10 +25,19 @@ export function withTensorCellCap(cap, run) {
+   try { return run(); } finally { cellCap = before; }
+ }
+ 
++// The width a row of strips is held to: the card's 720 when it is asked for less (a narrow request), the request when it asks for more, never above 960. A row wider than that shrinks its
++// cells as far as needed (tensorCellCap), never below their text.
++export const tensorRowBudget = preferredWidth => Math.min(960, Math.max(720, preferredWidth));
++export function tensorCellCap(budget, widthAt) {
++  if (widthAt(Infinity) <= budget) return Infinity;
++  for (let cap = 64; cap > 12; cap--) if (widthAt(cap) <= budget) return cap;
++  return 12;
++}
++
+ function stripMetrics({ columns, dimensions, name, values }) {
+   const numbers = (values ?? []).map(String);
+   const text = Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))));
+-  const cellWidth = Math.max(text + 4, Math.min(Math.max(36, text + 12), cellCap));
++  const cellWidth = Math.max(text + 1.5, Math.min(Math.max(36, text + 12), cellCap));
+   const gridWidth = columns * cellWidth;
+   const nameWidth = name ? longestWordWidth(name, TEXT) : 0;
+   const width = Math.ceil(Math.max(gridWidth, nameWidth, textWidth(dimensions, SMALL))) + 2 * STRIP_PAD;
+@@ -121,6 +130,11 @@ function linkGroups(links) {
+ }
+ 
+ export function layoutTensorTransformation(diagram, preferredWidth = 0) {
++  const cap = tensorCellCap(tensorRowBudget(preferredWidth), cell => withTensorCellCap(cell, () => transformationAt(diagram, 0).width));
++  return withTensorCellCap(cap, () => transformationAt(diagram, preferredWidth));
++}
++
++function transformationAt(diagram, preferredWidth) {
+   const { operation, links = [] } = diagram;
+   const before = section(diagram.before, 'process');
+   const after = section(diagram.after, 'outcome');
