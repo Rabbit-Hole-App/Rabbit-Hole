@@ -57,7 +57,8 @@ export function clampToFrame(object, at, frame) {
 
 export const BODY_SLOTS = Object.freeze(['identity-1', 'identity-2', 'identity-3']);
 const NAMED_BODIES = Object.freeze({ 'ball.toss': 'identity-1', 'ball.drop': 'identity-2' });
-export const isBody =object => kindOf(object) === 'circle' && object.w >= BODY_MIN;
+// A body is a neutral circle: a circle with a role of its own (an operator, an input) keeps that role under the composed theme.
+export const isBody = object => kindOf(object) === 'circle' && object.w >= BODY_MIN && (object.role ?? 'neutral') === 'neutral';
 
 // A callout is the boxes "<id>.l0" .. "<id>.l3" of sdk.callout (stacked, equally wide, each with its own text). They are drawn as ONE white card whose lines take their colours by order (the first blue
 // ink and bold, the second orange, the third green, the fourth muted), and the card is kept inside the lane it sits in. -> Map(box id -> look): the lowest line carries the whole card, the others none.
@@ -90,6 +91,8 @@ const KIND_WORDS = Object.freeze({
 const wordsOf = text => String(text ?? '').split(/[^A-Za-z]+|(?<=[a-z])(?=[A-Z])/).filter(Boolean).map(word => word.toLowerCase());
 export function vectorKind(label, id) {
   for (const source of [label, id]) {
+    // An id names a kind only when it is that one word ('v', 'force'), not any id that starts with one ('v-arrow').
+    if (source === id && wordsOf(source).length !== 1) continue;
     for (const word of wordsOf(source)) for (const [kind, names] of Object.entries(KIND_WORDS)) if (names.includes(word)) return kind;
   }
   return null;
@@ -118,7 +121,8 @@ export function frameLook(objects, frame = null) {
     if (vectors.has(object.id)) return { ...object, look: { part: 'vector', kind: vectors.get(object.id) } };
     if (kindOf(object) === 'text') {
       const home = laneAt(lanes, object.x, object.y), inLane = home ? clampText(object, home) : { x: object.x, y: object.y };
-      const at = frame?.width > 0 && frame?.height > 0 ? clampToFrame(object, inLane, frame) : inLane;
+      // A caption wraps at the frame's width (AnimatedScene), so it is not pulled left as one long line.
+      const at = frame?.width > 0 && frame?.height > 0 && object.typography !== 'caption' ? clampToFrame(object, inLane, frame) : inLane;
       const moved = at.x !== object.x || at.y !== object.y ? { ...object, ...at } : object;
       const owner = object.id.endsWith('L') ? vectors.get(object.id.slice(0, -1)) : null;
       if (object.id.endsWith('.note') && plots.has(object.id.slice(0, -5))) return { ...moved, look: { part: 'plot-note' } };

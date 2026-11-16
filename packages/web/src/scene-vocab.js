@@ -5,7 +5,7 @@
 
 // What an object IS. Authored, stable for the life of the object.
 export const ROLES = Object.freeze([
-  'neutral', 'input', 'output', 'prediction', 'observed',
+  'neutral', 'input', 'output', 'prediction', 'operator', 'observed',
   'learner', 'tutor', 'code', 'warning', 'success',
 ]);
 

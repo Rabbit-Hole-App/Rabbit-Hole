@@ -1,21 +1,18 @@
 import { shapeStyle, textStyle } from './scene-style.js';
 import { FILLED_INK, INK, PALETTE, PATH, SURFACE } from './tutor-diagrams/primitives.js';
 import { LEGIBILITY_FLOORS } from './scene-layout.js';
-import { TEACHING_FONT, TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
+import { TEACHING_FONT, TEACHING_ROLE_FILL, TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
 
 // Every colour comes from the written card's own exports (tutor-diagrams/primitives.js): no literal colour lives here (the drift test pins that).
 const COLORS = PALETTE;
-const ROLES = {
-  input: 'process', output: 'outcome', prediction: 'lavender', observed: 'olive',
-  learner: 'decision', tutor: 'rose', code: 'slate', warning: 'coral', success: 'outcome',
-};
 // The second body of a scene is the decision hue, as the Codex reference cards draw it (the first is process blue); olive is the observed-data role and no body takes it.
 const IDENTITIES = { 'identity-1': 'process', 'identity-2': 'decision', 'identity-3': 'coral' };
 // The teaching font, as TutorDiagram draws a teaching diagram (tutor-diagrams/TutorDiagram.js), so a composed /interactive card reads like the written /explain card.
 export const INTERACT_FONT = TEACHING_FONT;
 export const INTERACT_BOX_RADIUS = 7;
 
-const hueFor = (role, identity) => COLORS[IDENTITIES[identity] ?? ROLES[role]];
+// An identity body keeps its identity hue; otherwise the role's fill from the one table (teaching-theme.js TEACHING_ROLE_FILL); neutral has none (transparent, outlined).
+const hueFor = (role, identity) => (IDENTITIES[identity] ? COLORS[IDENTITIES[identity]] : TEACHING_ROLE_FILL[role]);
 const mix = (hue, percent, base) => `color-mix(in srgb, ${hue} ${percent}%, ${base})`;
 
 // Bare labels and lines blend toward page ink instead of using a light fill
@@ -47,7 +44,7 @@ export const INTERACT_LOOK = Object.freeze({ size: role => interactTextStyle(rol
 export function interactShapeStyle(role, state = {}, tier, identity = null) {
   const { strokeWidth } = shapeStyle(role, state, tier, identity);
   const hue = hueFor(role, identity);
-  if (!hue) return { fill: SURFACE, stroke: INK, onFill: INK, strokeWidth };
+  if (!hue) return { fill: 'none', stroke: INK, onFill: INK, strokeWidth };
   if (state.blocked || state.disabled) {
     return { fill: mix(hue, 10, SURFACE), stroke: interactMarkColor(role, identity), onFill: INK, strokeWidth };
   }
@@ -62,9 +59,10 @@ export function interactDataStyle(role, state = {}, tier, identity = null) {
   const quiet = state.blocked || state.disabled;
   const lit = !quiet && (state.chosen || state.selected || state.highlighted || state.active);
   return {
-    fill: lit ? hue : mix(hue, quiet ? 10 : tier === 'strong' ? 58 : 22, SURFACE),
+    // The role's fill at 100%, no tint (a blocked cell keeps its quiet 10%); the cell's own ink is the outline ink.
+    fill: quiet ? mix(hue, 10, SURFACE) : hue,
     stroke: interactMarkColor(role, identity),
-    onFill: lit ? FILLED_INK : INK,
+    onFill: quiet ? INK : FILLED_INK,
     strokeWidth,
   };
 }

@@ -118,6 +118,8 @@ const objectSchema = z.object({
     rows: z.number().int().positive().max(64).optional(),
     cols: z.number().int().positive().max(64).optional(),
     cell: z.number().positive().max(80).optional(),
+    // A strip's cell height, when it is not square (the composed theme's 32 x 28 cell).
+    cellH: z.number().positive().max(80).optional(),
     // null is a blank cell, not a zero: a masked or not-yet-computed entry
     // must read as absent rather than as a real measurement of nothing.
     values: z.array(z.number().nullable()).max(256).optional(),
@@ -248,7 +250,8 @@ export const animationSchema = z.object({
   title: z.string().max(200).optional(),
   width: z.number().positive().max(4096).default(960),
   height: z.number().positive().max(4096).default(540),
-  duration: z.number().positive().max(120),
+  // 0 is a static scene (an empty timeline); validateScene refuses a timeline on it.
+  duration: z.number().min(0).max(120),
   // At most 60 on screen at once: per part for a paged scene (checked in
   // validateScene), so four sub-cards may carry 60 each.
   objects: z.array(objectSchema).max(240),
@@ -310,6 +313,7 @@ export function validateScene(raw) {
     throw new Error(`Invalid animation at ${issue.path.join('.') || 'root'}: ${issue.message}`);
   }
   const scene = parsed.data;
+  if (scene.duration === 0 && scene.timeline.length) throw new Error('A scene of duration 0 is static: its timeline must be empty');
   const figure = scene.objects.find(object => FIGURE_TYPES.includes(object.type));
   if (figure && !allowFigures) throw new Error(`Object "${figure.id}": a ${figure.type} is drawn only by a program frame`);
   const rasterPixels = scene.objects.filter(object => object.type === 'raster').reduce((sum, object) => sum + object.initialState.rows * object.initialState.cols, 0);
@@ -567,7 +571,7 @@ const sizeOf = object => {
   const state = object.initialState;
   const cell = state.cell ?? GEOMETRY.cellPitch;
   if (object.type === 'grid') return { w: (state.cols || 1) * cell, h: (state.rows || 1) * cell };
-  if (object.type === 'strip') return { w: (state.values?.length || 1) * cell, h: cell };
+  if (object.type === 'strip') return { w: (state.values?.length || 1) * cell, h: state.cellH ?? cell };
   // Bars accept the same per-object `cell` pitch grids and strips already
   // have: the default suits single-character labels, but a bar labelled with
   // a word needs the pitch its own label actually occupies.
@@ -620,6 +624,7 @@ export function getSceneState(scene, time) {
     rows: object.initialState.rows ?? null,
     cols: object.initialState.cols ?? null,
     cell: object.initialState.cell ?? GEOMETRY.cellPitch,
+    cellH: object.initialState.cellH ?? null,
     values: object.initialState.values ? [...object.initialState.values] : null,
     // Read by AnimatedScene.jsx to decide whether a row's DISPLAYED cells
     // need distributeRounding (see scene-derive.js) - without this, "was this

@@ -36,6 +36,12 @@ export const TEACHING_SERIES = Object.freeze([
   TEACHING.blueFill, TEACHING.coral, TEACHING.tealFill, TEACHING.olive, TEACHING.lavender, TEACHING.mustardFill, TEACHING.rose, TEACHING.slate]);
 // The darker weight of each series colour (about 4.6:1 or more on the ground, blue from the approved card): a line is drawn in its ink, its markers in the fill. Same order as TEACHING_SERIES.
 export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936A25', '#B82E56', '#507195']);
+// The role -> fill table of the composed and static scene theme (interact-style.js reads it): the same saturated fills as the written diagrams, at 100%, no tint. A neutral role has no
+// entry: it is transparent with the outline. Tints exist only for the legend pills (mixHex at 0.18).
+export const TEACHING_ROLE_FILL = Object.freeze({
+  input: TEACHING.blueFill, output: TEACHING.tealFill, observed: TEACHING.olive, prediction: TEACHING.lavender, operator: TEACHING.lavender,
+  learner: TEACHING.mustardFill, tutor: TEACHING.rose, code: TEACHING.slate, warning: TEACHING.coral, success: TEACHING_SERIES_INK[2],
+});
 export const TEACHING_GRID = '#D9D3C3';
 // A colour mixed over another: mixHex(fill, ground, 0.18) is the fill at 18% over the ground (the legend pills).
 export const mixHex = (top, under, amount) => '#' + [1, 3, 5].map(i => Math.round(parseInt(under.slice(i, i + 2), 16) * (1 - amount) + parseInt(top.slice(i, i + 2), 16) * amount).toString(16).padStart(2, '0')).join('').toUpperCase();

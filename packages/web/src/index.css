@@ -109,6 +109,7 @@ html {
   --viz-input: #2383e2;
   --viz-output: #2f855a;
   --viz-prediction: #9065b0;
+  --viz-operator: var(--viz-prediction);
   --viz-observed: #37352f;
   --viz-learner: #d9730d;
   --viz-tutor: #0e7490;
@@ -125,6 +126,7 @@ html {
   --viz-input-text: #1b6fc2; /* the app's own --color-accent-hover */
   --viz-output-text: #2e8157;
   --viz-prediction-text: #8c60ad;
+  --viz-operator-text: var(--viz-prediction-text);
   --viz-learner-text: #af5d0a;
   --viz-code-text: var(--color-ink-2);
   --viz-identity-2-text: #867033;
@@ -459,6 +461,7 @@ html {
   --viz-input: #5ba3f5;
   --viz-output: #5fc08a;
   --viz-prediction: #b79ae3;
+  --viz-operator: var(--viz-prediction);
   --viz-observed: #e4e4e4;
   --viz-learner: #f2b06a;
   --viz-tutor: #2fc4b8;
@@ -469,6 +472,7 @@ html {
   --viz-input-text: var(--viz-input);
   --viz-output-text: var(--viz-output);
   --viz-prediction-text: var(--viz-prediction);
+  --viz-operator-text: var(--viz-prediction-text);
   --viz-learner-text: var(--viz-learner);
   --viz-identity-2-text: var(--viz-identity-2);
   --viz-identity-3-text: #9c6aff;
