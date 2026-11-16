@@ -13,6 +13,7 @@ import { CODEBASE_USES, CODEBASE_USE_CAPABILITIES, CODEBASE_USE_GROUPS, useOf } 
 import { ROUTE_THRESHOLDS, readRoute } from './inline-ai-route.js';
 import { SENTENCES } from './tutor-rehearsal-text.js';
 
+export const CODEBASE_OPTIONS_EVENT = 'rh-codebase-options'; // the router decided the learner asked what they can do with the codebase: the Tutor's flow offers the list again
 export const USE_SCOPE = 'codebase_use'; // the body's `scope` on POST /api/learn/chat/route
 export const SOON = 'soon';
 const USE_META = { several: 'More than one of these is asked for at once.', none: 'None of these fits: the person wants something else, or asked a question about something else.' };

@@ -5,7 +5,7 @@ import { ChatMessage } from './ChatMessages.jsx';
 import { CHOICE, startGoal } from './TutorCodebase.jsx';
 import { coachingCanvas } from './learn-coaching-client.js';
 import { SOMETHING_ELSE, goalOf, useOf } from './learn-codebase-goals.js';
-import { INTAKE_TEXT_EVENT, SOON, routeIntakeText } from './codebase-use-route.js';
+import { CODEBASE_OPTIONS_EVENT, INTAKE_TEXT_EVENT, SOON, routeIntakeText } from './codebase-use-route.js';
 import { REHEARSAL_POLL_MS } from './learn-rehearsal-view.js';
 import { ensureRehearsalCards, openRehearsalCard } from './rehearsal-cards.js';
 import { firstSourceFile } from './study-work.js';
@@ -57,6 +57,7 @@ function Intake({ groups, onPick }) {
 // Asked once: once a canvas's intake has been answered (a use chosen, or something else), a reload does not ask again. This device's memory, per canvas.
 const intakeKey = canvas => `rh-intake-done:${canvas}`;
 export const intakeDone = canvas => { try { return localStorage.getItem(intakeKey(canvas)) === '1'; } catch { return false; } };
+export const forgetIntake = canvas => { try { localStorage.removeItem(intakeKey(canvas)); } catch { /* nothing to forget */ } };
 export const rememberIntake = canvas => { try { localStorage.setItem(intakeKey(canvas), '1'); } catch { /* storage off: it is asked again next visit */ } };
 
 // The goal's own clarifying question (the existing goal flow, unchanged): a text field and Start, as the old menu had.
@@ -172,6 +173,12 @@ export default function TutorRehearsalFlow({ chat }) {
   };
 
   choose.current = chooseUse;
+  // The router decided the learner asked what they can do here (ask.jsx): the intake is offered again, whatever was chosen before.
+  useEffect(() => {
+    const again = event => { if (event.detail?.canvas !== canvas) return; event.detail.handled = true; forgetIntake(canvas); patch({ intakeDone: false, use: null, goalChosen: false, elsewhere: false, form: null }); };
+    window.addEventListener(CODEBASE_OPTIONS_EVENT, again);
+    return () => window.removeEventListener(CODEBASE_OPTIONS_EVENT, again);
+  }, [canvas]); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = id => {
     if (id.startsWith('use:') || id === 'else') rememberIntake(canvas); // asked once
     if (id.startsWith('use:')) chooseUse(id.slice(4));
