@@ -36,11 +36,11 @@ test('validateBrief: a missing anchor, more than two background beats, a path in
   assert.deepEqual(validateBrief(good({ beats: good().beats.slice(0, 2) }), opts()).errors, ['a section has 3 to 6 beats; this one has 2']);
   assert.deepEqual(validateBrief(good(), opts({ first: true })).errors, ['from must be empty: this is the first section']);
   assert.deepEqual(validateBrief(good({ to: '' }), opts()).errors, ['to is one sentence handing over to the next section']);
-  // Reviewer 11:00: one idea in one or two short sentences, at most 220 characters.
+  // Reviewer 11:00: one idea in one or two short sentences, at most 260 characters (11:15).
   const withIdea = idea => validateBrief(good({ beats: [beat('b1', { idea }), ...good().beats.slice(1)] }), opts()).errors;
   assert.equal(withIdea('The share counts finished work. It is shown as a whole number.'), undefined);
-  assert.deepEqual(withIdea('The share counts finished work. It is rounded. It is shown.'), ['beat b1: idea is one idea in one or two short sentences, at most 220 characters']);
-  assert.deepEqual(withIdea(`The share ${'counts finished work '.repeat(11)}today.`), ['beat b1: idea is one idea in one or two short sentences, at most 220 characters']);
+  assert.deepEqual(withIdea('The share counts finished work. It is rounded. It is shown.'), ['beat b1: idea is one idea in one or two short sentences, at most 260 characters']);
+  assert.deepEqual(withIdea(`The share ${'counts finished work '.repeat(13)}today.`), ['beat b1: idea is one idea in one or two short sentences, at most 260 characters']);
   const m = { kind: 'video', query: 'how a share is computed', lookFor: 'the division' };
   assert.deepEqual(validateBrief(good({ beats: [beat('b1', { material: m }), beat('b2', { idea: 'Dividing finished by all gives a share.', material: { ...m, kind: 'paper', reason: 'recency' } }), good().beats[2]] }), opts()).errors, ['at most 1 beat with material; this section has 2']);
   assert.equal(validateBrief(good({ beats: [beat('b1', { material: { ...m, kind: 'article', reason: 'recency' } }), ...good().beats.slice(1)] }), opts()).value.beats[0].material.reason, 'recency', 'DECISIONS E');
@@ -51,6 +51,14 @@ test('validateBrief: a missing anchor, more than two background beats, a path in
   assert.deepEqual(idea('The share comes from `get_batch` before it is shown.').errors, ['beat b1: idea names `get_batch`, which the anchored lines do not']);
   assert.deepEqual(idea('The share comes from share_of before it is shown.').errors, ['beat b1: idea must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "share_of")']);
   assert.deepEqual(idea('The share comes from `src/p.js` before it is shown.').errors, ['beat b1: idea must have no path, file name or flag (found "src/p.js")']);
+  // Reviewer 11:15: shows may name what the anchored lines spell, bare or in backticks (settings, flags, functions); other names and paths stay refused.
+  const q = { files: { ...files, 'src/q.py': 'a\nparser.add("--max-iters"); default_page_size = 100\ndef get_batch(split):\n' } };
+  const shows = shows => validateBrief(good({ beats: [beat('b1', { shows, anchors: ['src/q.py:2-3'] }), ...good().beats.slice(1)] }), { ...opts(), anchorsExist: repositoryAnchors(q), anchorText: repositoryAnchorText(q) }).errors;
+  assert.equal(shows('Set default_page_size to 50, pass --max-iters, call get_batch() and `default_page_size` again.'), undefined);
+  assert.deepEqual(shows('Set page_limit to 50.'), ['beat b1: shows must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "page_limit")']);
+  assert.deepEqual(shows('Pass --dry-run.'), ['beat b1: shows must have no path, file name or flag (found "--d")']);
+  assert.deepEqual(shows('Open src/q.py and read it.'), ['beat b1: shows must have no path, file name or flag (found "src/q.py")']);
+  assert.deepEqual(validateBrief(good({ beats: [beat('b1', { idea: 'It reads default_page_size first.', anchors: ['src/q.py:2-3'] }), ...good().beats.slice(1)] }), { ...opts(), anchorsExist: repositoryAnchors(q), anchorText: repositoryAnchorText(q) }).errors, ['beat b1: idea must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "default_page_size")'], 'idea keeps the backtick rule');
   for (const token of ['train.py', 'data/x/y', '--max-iters', 'block_size', 'get_batch()', 'maxIters', '`x`']) assert.ok(CODE_TOKEN.test(`a ${token} b`), token);
   for (const plain of ['input/output pairs', 'e.g. three tasks', 'one-to-one', 'version 3.5']) assert.ok(!CODE_TOKEN.test(plain), plain);
 });

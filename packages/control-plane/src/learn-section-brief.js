@@ -24,7 +24,12 @@ export const PROSE_PATH = new RegExp(PATH_PART);
 // Reviewer 10:50: an identifier that is in the anchored lines may appear in backticks; paths, file names and flags never, and any other code name stays refused.
 // -> null when the text is acceptable, else what is wrong with it.
 const IDENTIFIER = /^[A-Za-z_]\w*(?:\.\w+)*$/;
-export function codeNameError(text, anchored = '') {
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const inLines = (name, anchored) => new RegExp(String.raw`(?<![\w-])${escapeRe(name)}(?!\w)`).test(anchored);
+const SHOWN_NAME = /`([^`\n]{1,80})`|(?<=^|\s)(--\w[\w-]*)|\b([a-z0-9]+_\w+|\w+\(\)|[a-z]+[A-Z]\w*)\b(?:\(\))?/g;
+// names: true for a beat's `shows` (Reviewer 11:15): a setting, flag or function name the anchored lines spell is allowed bare or in backticks; anything left is checked as below.
+export function codeNameError(text, anchored = '', { names = false } = {}) {
+  if (names) text = String(text).replace(SHOWN_NAME, (match, ticked, flag, bare) => (inLines((ticked ?? flag ?? bare).trim().replace(/\(\)$/, ''), anchored) ? ' ' : match));
   const path = PROSE_PATH.exec(text)?.[0]?.trim();
   if (path) return `must have no path, file name or flag (found "${path}")`;
   const unknown = [];
@@ -52,8 +57,8 @@ export const SUBMIT_BRIEF_TOOL = {
       from: { type: 'string', description: 'One sentence: where the previous section left the reader. Empty for the first section.' },
       beats: { type: 'array', minItems: 3, maxItems: 6, items: { type: 'object', additionalProperties: false, required: ['id', 'idea', 'shows', 'anchors', 'background'], properties: {
         id: { type: 'string', description: 'b1, b2, ... in order.' },
-        idea: { type: 'string', maxLength: 220, description: 'One idea in one or two short sentences, plain words; a code name only in backticks, exactly as the anchored lines spell it; no path, file name or flag.' },
-        shows: { type: 'string', description: 'What the learner can see, compute or try at the end of this beat. Plain words; a code name only in backticks, exactly as the anchored lines spell it.' },
+        idea: { type: 'string', maxLength: 260, description: 'One idea in one or two short sentences, plain words; a code name only in backticks, exactly as the anchored lines spell it; no path, file name or flag.' },
+        shows: { type: 'string', description: 'What the learner can see, compute or try at the end of this beat. Names of settings, flags and functions go here, bare or in backticks, spelled as the anchored lines spell them.' },
         anchors: { type: 'array', items: { type: 'string' }, description: 'The source anchors this beat rests on: path or path:start-end from the excerpts. Empty only for a background beat.' },
         background: { type: 'boolean', description: 'True when the beat rests on your own knowledge, not the source.' },
         material: { type: ['object', 'null'], additionalProperties: false, required: ['kind', 'query', 'lookFor'], properties: {
@@ -99,10 +104,10 @@ export function validateBrief(input, { sectionId, first, last, anchorsExist, anc
   beats.forEach((raw, i) => {
     const b = isObject(raw) ? raw : {}, id = str(b.id) || `b${i + 1}`, idea = str(b.idea), shows = str(b.shows);
     const anchors = Array.isArray(b.anchors) ? b.anchors.map(str).filter(Boolean) : [];
-    if (!idea || idea.length > 220 || sentencesOf(idea).length > 2) errors.push(`beat ${id}: idea is one idea in one or two short sentences, at most 220 characters`); // Reviewer 11:00
+    if (!idea || idea.length > 260 || sentencesOf(idea).length > 2) errors.push(`beat ${id}: idea is one idea in one or two short sentences, at most 260 characters`); // Reviewer 11:00, 11:15
     if (!shows) errors.push(`beat ${id}: shows says what the learner can see, compute or try`);
     const anchored = anchors.map(a => anchorText(a)).join('\n');
-    for (const [name, value] of [['idea', idea], ['shows', shows]]) { const wrong = codeNameError(value, anchored); if (wrong) errors.push(`beat ${id}: ${name} ${wrong}`); }
+    for (const [name, value] of [['idea', idea], ['shows', shows]]) { const wrong = codeNameError(value, anchored, { names: name === 'shows' }); if (wrong) errors.push(`beat ${id}: ${name} ${wrong}`); }
     for (const a of anchors) if (!anchorsExist(a)) errors.push(`beat ${id}: anchor ${a} is not in the source`);
     if (!anchors.length && b.background !== true) errors.push(`beat ${id}: a beat with no anchors is background: true`);
     let material = null;
