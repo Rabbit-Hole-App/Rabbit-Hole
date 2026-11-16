@@ -4,7 +4,7 @@ import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import { layouts } from './layouts.js';
 import { isExtendedPlot } from './ml-plot-spec.js';
 import { fitCaption, label, layoutCaption, lineHeight, SURFACE, wrap } from './primitives.js';
-import { describeTutorDiagram, parseTutorDiagram } from './spec.js';
+import { describeTutorDiagram, dropGenericUnits, parseTutorDiagram } from './spec.js';
 import { usesIllustrations } from './illustration-kinds.js';
 
 const DEFAULT_WIDTH = 408;
@@ -14,7 +14,7 @@ const CAPTION_SIZE = 13;
 const CAPTION_GUTTER = 32;
 
 export function renderTutorDiagram(spec, availableWidth = DEFAULT_WIDTH) {
-  const document = parseTutorDiagram(spec);
+  const document = dropGenericUnits(parseTutorDiagram(spec));
   const { diagram } = document;
   const requested = Number.isFinite(availableWidth) ? Math.round(availableWidth) : DEFAULT_WIDTH;
   const illustration = usesIllustrations(diagram);
