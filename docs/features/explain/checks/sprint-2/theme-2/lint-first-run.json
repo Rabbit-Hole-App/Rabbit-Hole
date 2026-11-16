@@ -292,5 +292,26 @@
   "hex": "#E5AA46",
   "group": "in-palette",
   "text": "const object = layout(id, options), { values, color='#E5AA46', opacity=1 } = options;"
+ },
+ {
+  "file": "packages/web/src/IllustrationFigure.jsx",
+  "line": 59,
+  "hex": "#FFFCF0",
+  "group": "in-palette",
+  "text": "<div data-illustration-frame style={{ aspectRatio: String(ratio) }} className=\"relative w-full overflow-hidden"
+ },
+ {
+  "file": "packages/web/src/IllustrationFigure.jsx",
+  "line": 65,
+  "hex": "#1f2937",
+  "group": "non-palette",
+  "text": "{callouts.map((c, i) => <line key={i} x1={c.lx} y1={c.ly} x2={c.px} y2={c.py} stroke=\"#1f2937\" strokeWidth=\"1\""
+ },
+ {
+  "file": "packages/web/src/index.css",
+  "line": 1106,
+  "hex": "#a8bbd0",
+  "group": "in-palette",
+  "text": "[data-explain-table] th { font-weight: 600; background: color-mix(in srgb, #a8bbd0 24%, var(--viz-surface)); }"
  }
 ]

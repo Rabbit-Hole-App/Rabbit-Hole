@@ -1,0 +1,394 @@
+<!doctype html><meta charset="utf-8"><title>The explain theme</title><style>
+body{margin:0;background:#FFFCF0;color:#32211C;font:15px/1.5 Inter,Arial,sans-serif}main{max-width:980px;margin:0 auto;padding:24px 20px}
+h1,h2,h3{line-height:1.2}table{border-collapse:collapse;width:100%;margin:12px 0 22px}th,td{border:1px solid #D9D3C3;padding:6px 9px;text-align:left;vertical-align:top}th{background:#F3EDD9}
+code{font:13px ui-monospace,Menlo,Consolas,monospace;background:#F3EDD9;padding:1px 4px;border-radius:3px}.sw{display:inline-block;width:18px;height:18px;border:1.5px solid #32211C;border-radius:4px;vertical-align:-4px;margin-right:6px}
+</style><main><h1>The explain theme: one palette</h1>
+<p>The colours below are read from <code>packages/web/src/tutor-diagrams/theme/palette.js</code>, the single source. <code>teaching-theme.js</code>, <code>primitives.js</code> <code>PALETTE</code>, <code>TutorDiagram.js</code>, <code>IllustrationFigure.jsx</code>, <code>explain-program/sdk-raster.js</code> and <code>raster-fixtures.js</code> take their colours from it, and the <code>--viz-*</code> block of <code>index.css</code> is written from it by <code>theme/generate-css.mjs</code>. <code>theme/stray-hex-lint.mjs</code> fails when a hex literal appears anywhere else in <code>tutor-diagrams/</code>, <code>explain-program/</code>, <code>interact-style.js</code>, <code>IllustrationFigure.jsx</code> or <code>learn-scene-author.js</code>, or in the <code>[data-explain-table]</code> rules of <code>index.css</code>; <code>theme/palette-guard.test.mjs</code> fails when any reference renders a colour that is not below. The rendered page with swatches is <code>docs/features/explain/checks/sprint-2/theme-2/theme.html</code>.</p>
+<p>Every default in this file is a constant read from the code with its file and line, at the THEME-2 build commit on top of <code>feat/visual-sprint-2</code> <code>c7d9a664d</code>. Paths are under <code>packages/web/src/tutor-diagrams/</code> unless stated. Nothing here comes from session notes.</p>
+<h2>Ground and ink</h2>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>value</th>
+<th>use</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GROUND</td>
+<td><span class="sw" style="background:#FFFCF0"></span><code>#FFFCF0</code></td>
+<td>the cream ground of every figure and card; a shape with no fill shows it (no white anywhere)</td>
+</tr>
+<tr>
+<td>INK</td>
+<td><span class="sw" style="background:#32211C"></span><code>#32211C</code></td>
+<td>outlines, wires, labels, text on any fill (<code>FILLED_INK</code> is the lower-case form)</td>
+</tr>
+<tr>
+<td>MUTED</td>
+<td><span class="sw" style="background:#665951"></span><code>#665951</code></td>
+<td>captions and muted labels</td>
+</tr>
+</tbody></table>
+<h2>The fills (100%, no tint)</h2>
+<p>Nine fills: the eight in series order, and orange.</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>value</th>
+<th>role names it answers to</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>blue</td>
+<td><span class="sw" style="background:#8DBFEF"></span><code>#8DBFEF</code></td>
+<td>process, input</td>
+</tr>
+<tr>
+<td>mustard</td>
+<td><span class="sw" style="background:#E5AA46"></span><code>#E5AA46</code></td>
+<td>decision, learner</td>
+</tr>
+<tr>
+<td>teal</td>
+<td><span class="sw" style="background:#67B9A0"></span><code>#67B9A0</code></td>
+<td>outcome, output</td>
+</tr>
+<tr>
+<td>coral</td>
+<td><span class="sw" style="background:#F58371"></span><code>#F58371</code></td>
+<td>coral, warning</td>
+</tr>
+<tr>
+<td>olive</td>
+<td><span class="sw" style="background:#95A448"></span><code>#95A448</code></td>
+<td>olive, observed</td>
+</tr>
+<tr>
+<td>lavender</td>
+<td><span class="sw" style="background:#B9A4E8"></span><code>#B9A4E8</code></td>
+<td>lavender, prediction, operator</td>
+</tr>
+<tr>
+<td>rose</td>
+<td><span class="sw" style="background:#E8A3B7"></span><code>#E8A3B7</code></td>
+<td>rose, tutor</td>
+</tr>
+<tr>
+<td>slate</td>
+<td><span class="sw" style="background:#A8BBD0"></span><code>#A8BBD0</code></td>
+<td>slate, code</td>
+</tr>
+<tr>
+<td>orange</td>
+<td><span class="sw" style="background:#F89830"></span><code>#F89830</code></td>
+<td>the ramp and tree depth 3 (<code>DEPTH_FILLS</code>); not part of the series order; measured from Wondering&#39;s illustrations, approximate</td>
+</tr>
+</tbody></table>
+<p>Series order (a multi-series plot, a legend): blue, coral, teal, olive, lavender, mustard, rose, slate (<code>SERIES</code>; <code>TEACHING_SERIES</code> is built from it, <code>teaching-theme.js:36</code>).
+Series ink (the darker weight a line&#39;s text is drawn in): <span class="sw" style="background:#375D92"></span><code>#375D92</code>, <span class="sw" style="background:#BB503E"></span><code>#BB503E</code>, <span class="sw" style="background:#3A7E69"></span><code>#3A7E69</code>, <span class="sw" style="background:#6D7835"></span><code>#6D7835</code>, <span class="sw" style="background:#7F5EC9"></span><code>#7F5EC9</code>, <span class="sw" style="background:#936A25"></span><code>#936A25</code>, <span class="sw" style="background:#B82E56"></span><code>#B82E56</code>, <span class="sw" style="background:#507195"></span><code>#507195</code>.
+Tints exist only for legend pills and plot bands: a fill at 0.18 over the ground (<code>TINT</code>).</p>
+<h2>Role to fill (scenes, composed cards)</h2>
+<p><code>ROLE_FILL</code>: input blue, output teal, observed olive, prediction lavender, operator lavender, learner mustard, tutor rose, code slate, warning coral, success series ink 2 (<span class="sw" style="background:#3A7E69"></span><code>#3A7E69</code>; text on it is the ground <span class="sw" style="background:#FFFCF0"></span><code>#FFFCF0</code>). A neutral role has no fill: transparent with the outline. <code>TEACHING_ROLE_FILL</code> is built from it (<code>teaching-theme.js:41</code>).</p>
+<h2>Lines and the pale tokens</h2>
+<p><code>LINES</code>: grid <span class="sw" style="background:#D9D3C3"></span><code>#D9D3C3</code> (dotted guide), zero <span class="sw" style="background:#786860"></span><code>#786860</code> (the one solid line a chart keeps), frame <span class="sw" style="background:#dedad4"></span><code>#dedad4</code>, wire <span class="sw" style="background:#b9c3b9"></span><code>#b9c3b9</code>, hairline <span class="sw" style="background:#e3e7e0"></span><code>#e3e7e0</code>, path <span class="sw" style="background:#2F80D8"></span><code>#2F80D8</code> (the highlighted path). The pale and blue tokens the first written layouts took (<code>inset</code>, <code>blue</code>, <code>blueSoft</code>, <code>warm</code>, <code>warmSoft</code>, <code>green</code>, <code>greenSoft</code>, <code>blueInk</code>, <code>blueBorder</code>) stay under their names in <code>LEGACY</code>.</p>
+<h2>The --viz-* block of index.css</h2>
+<p>The product&#39;s role colours for the legacy scenes, light and dark (<code>VIZ_LIGHT</code>, <code>VIZ_DARK</code> in <code>palette.js</code>). They are app-theme tokens, not the sprint palette. <code>node theme/generate-css.mjs</code> reports drift between <code>index.css</code> and <code>palette.js</code>; <code>--write</code> rewrites the values. The table header rule <code>[data-explain-table] th</code> in <code>index.css</code> mixes the slate fill from <code>--viz-fill-slate</code>, a declaration generated from <code>palette.js</code> like the rest of the block.</p>
+<h2>Per-kind defaults</h2>
+<h3>Wires, text, frame (all kinds)</h3>
+<table>
+<thead>
+<tr>
+<th>default</th>
+<th>value</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>wire width</td>
+<td>2 px, INK; 3 px and the path colour when active</td>
+<td><code>primitives.js:251</code></td>
+</tr>
+<tr>
+<td>elbow radius</td>
+<td>8</td>
+<td><code>primitives.js:247</code> (<code>WIRE_CORNER</code>)</td>
+</tr>
+<tr>
+<td>arrow head</td>
+<td>12 wide, 8 long; the tip stops 2 px short</td>
+<td><code>primitives.js:247</code> (<code>WIRE_HEAD_WIDTH</code>, <code>WIRE_HEAD_LENGTH</code>, <code>WIRE_STOP_SHORT</code>)</td>
+</tr>
+<tr>
+<td>body label</td>
+<td>15 px, weight 500; text on a fill weight 600</td>
+<td><code>primitives.js:139-141</code></td>
+</tr>
+<tr>
+<td>line height</td>
+<td>ceil(size x 1.25)</td>
+<td><code>primitives.js:15</code></td>
+</tr>
+<tr>
+<td>figure frame</td>
+<td>rx 12; title 17 px, weight 700</td>
+<td><code>TutorDiagram.js:41</code>, <code>:43</code></td>
+</tr>
+<tr>
+<td>text classes</td>
+<td>display 17/700, heading 16/600, body 15/500</td>
+<td><code>teaching-theme.js:31-32</code></td>
+</tr>
+<tr>
+<td>box</td>
+<td>rx 9, 1.5 px outline (3 px active)</td>
+<td><code>teaching-theme.js:55</code></td>
+</tr>
+<tr>
+<td>connector widths</td>
+<td>3 active, 1 guide, 1.5 dashed, 2 otherwise</td>
+<td><code>teaching-theme.js:63</code></td>
+</tr>
+</tbody></table>
+<h3>Flow</h3>
+<table>
+<thead>
+<tr>
+<th>default</th>
+<th>value</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>pad, node gap</td>
+<td>14, 18</td>
+<td><code>flow.js:7-8</code></td>
+</tr>
+<tr>
+<td>node width</td>
+<td>minimum 180, maximum 220</td>
+<td><code>flow.js:9</code>, <code>:13</code></td>
+</tr>
+<tr>
+<td>node width of a row of 4 or more that would pass the budget</td>
+<td>down to 120 (FLOW-N)</td>
+<td><code>flow.js:12</code>, <code>:255</code></td>
+</tr>
+<tr>
+<td>tier wrapped onto two rows (FLOW-T): gap between its nodes</td>
+<td>24</td>
+<td><code>flow.js:10</code></td>
+</tr>
+<tr>
+<td>width budget</td>
+<td>the request, at least 720, at most 960</td>
+<td><code>flow.js:16</code>, <code>:231</code></td>
+</tr>
+<tr>
+<td>node height</td>
+<td>40 + 16 x lines (56 for one line, 72 for two)</td>
+<td><code>flow.js:312</code></td>
+</tr>
+<tr>
+<td>edge label</td>
+<td>13 px, wraps at 158</td>
+<td><code>flow.js:14-15</code></td>
+</tr>
+<tr>
+<td>decision one-line width</td>
+<td>ceil((text width + 40) / 0.72)</td>
+<td><code>flow.js:76</code></td>
+</tr>
+<tr>
+<td>capsule</td>
+<td>an outcome or a start node</td>
+<td><code>flow.js:48</code></td>
+</tr>
+</tbody></table>
+<h3>Trees</h3>
+<table>
+<thead>
+<tr>
+<th>default</th>
+<th>value</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>circle, square, gap, level</td>
+<td>24, 20, 6, 56 (leaf pitch = square + gap = 26)</td>
+<td><code>dot-tree-layout.js:7</code></td>
+</tr>
+<tr>
+<td>arrow head</td>
+<td>8 long, 6 half-width</td>
+<td><code>dot-tree-layout.js:7</code></td>
+</tr>
+<tr>
+<td>top-down tree node width (TREE-W)</td>
+<td>cap 150, floor 100</td>
+<td><code>ml-topology-layouts.js:37</code>, <code>:64</code>, <code>:9</code></td>
+</tr>
+</tbody></table>
+<h3>Tensor strips, token links, block stacks</h3>
+<table>
+<thead>
+<tr>
+<th>default</th>
+<th>value</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>tensor cell</td>
+<td>36 high, rx 4, 1.5 px outline; width max(36, text + 12)</td>
+<td><code>tensor-layout.js:7</code>, <code>:25</code>, <code>:56</code></td>
+</tr>
+<tr>
+<td>tensor row budget (TOK-W: a row wider than this wraps at group boundaries)</td>
+<td>the request, at least 720, at most 960</td>
+<td><code>tensor-layout.js:21</code>, <code>:136</code></td>
+</tr>
+<tr>
+<td>token-links chip</td>
+<td>row gap 44, cell pad 8, minimum cell 58, minimum width 320</td>
+<td><code>token-links-layout.js:10-14</code></td>
+</tr>
+<tr>
+<td>token-links wrapped row (TOK-W3): gap between chips</td>
+<td>28</td>
+<td><code>token-links-layout.js:9</code></td>
+</tr>
+<tr>
+<td>block-stack block</td>
+<td>minimum 142 wide (72 in a row), row gap 6</td>
+<td><code>block-stack-layout.js:13-14</code>, <code>:20</code></td>
+</tr>
+</tbody></table>
+<h3>Coordinate plots</h3>
+<table>
+<thead>
+<tr>
+<th>default</th>
+<th>value</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>tick label</td>
+<td>15 px</td>
+<td><code>ml-plot-layouts.js:13</code> (<code>TICK</code>)</td>
+</tr>
+<tr>
+<td>marker</td>
+<td>radius 7 (a 14 px marker)</td>
+<td><code>ml-plot-layouts.js:13</code> (<code>MARKER</code>)</td>
+</tr>
+<tr>
+<td>series line</td>
+<td>4.5 px</td>
+<td><code>ml-plot-layouts.js:13</code> (<code>LINE</code>)</td>
+</tr>
+<tr>
+<td>guide</td>
+<td>1.5 px, dashed <code>4 4</code>; the zero line solid</td>
+<td><code>ml-plot-layouts.js:13</code> (<code>GRID</code>), <code>:258</code></td>
+</tr>
+<tr>
+<td>reference line</td>
+<td>1.8 px, dashed <code>5 4</code></td>
+<td><code>ml-plot-layouts.js:329</code></td>
+</tr>
+<tr>
+<td>caps</td>
+<td>value labels and all-sample markers up to 8 samples; 6 callouts</td>
+<td><code>ml-plot-layouts.js:18</code></td>
+</tr>
+<tr>
+<td>legend pill</td>
+<td>22 px tall, rx 11, the series colour at 0.18 over the ground, 1.5 px outline</td>
+<td><code>ml-plot-layouts.js:83</code>, <code>:100</code></td>
+</tr>
+<tr>
+<td>line smoothing (PLT-5)</td>
+<td>smooth unless <code>smooth: false</code></td>
+<td><code>ml-plot-layouts.js:213</code></td>
+</tr>
+</tbody></table>
+<h2>Sprint 2 defaults (as built; each row names the code it reads)</h2>
+<table>
+<thead>
+<tr>
+<th>item</th>
+<th>default</th>
+<th>file:line</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PLT-2(B) callouts</td>
+<td>an annotation&#39;s label is a callout: its text in a pill (wrapped at 200 px) in the first free cell the placement finds, a 1.5 px leader; at most 6; a label that only restates the point&#39;s coordinates draws none</td>
+<td><code>ml-plot-layouts.js:16</code>, <code>:18</code>, <code>:276-281</code>, <code>:310</code>, <code>:355-356</code></td>
+</tr>
+<tr>
+<td>PLT-2(A), BAND-1</td>
+<td>a band is its colour at 0.18 over the ground, no outline, clipped under a single series&#39; curve</td>
+<td><code>ml-plot-layouts.js:336-340</code></td>
+</tr>
+<tr>
+<td>PLT-4</td>
+<td>a line series draws no marker within 0.5 px of a scatter marker</td>
+<td><code>ml-plot-layouts.js:388-389</code></td>
+</tr>
+<tr>
+<td>PLT-3(A)</td>
+<td>a plot of one to three line series names each curve (15 px, 18 px off the curve, at most 3 series) instead of a legend</td>
+<td><code>ml-plot-layouts.js:114</code>, <code>:134</code>, <code>:401-403</code></td>
+</tr>
+<tr>
+<td>LEG-1</td>
+<td>a legend is drawn only when it has entries (a single series has none)</td>
+<td><code>ml-plot-layouts.js:409-415</code></td>
+</tr>
+<tr>
+<td>BAR-1</td>
+<td>vertical bars with an ink L-axis (2 px), dotted gridlines at value ticks, one fill per category in series order, value above each bar (not above 12 bars), square 2 px outlined bars, gap 40% of the bar width; plot height 210; axis ends at the round tick above the largest value</td>
+<td><code>ml-plot-layouts.js:430-433</code>, <code>:434</code>, <code>:454</code></td>
+</tr>
+<tr>
+<td>BAR-U</td>
+<td>a unit that is only a generic word (value, number, amount, score) is dropped before drawing</td>
+<td><code>spec.js:397-409</code> (<code>GENERIC_UNIT</code>)</td>
+</tr>
+<tr>
+<td>MAT-W</td>
+<td>a matrix column header carries 8 px of padding around its formula (cells keep 18) and wraps after an operator when plain text</td>
+<td><code>ml-data-layouts.js:139</code>, <code>:153-154</code>, <code>:163</code></td>
+</tr>
+<tr>
+<td>VEC-1 (as committed)</td>
+<td>a tuple-shaped formula in a matrix cell (numeric entries only) is measured piece by piece</td>
+<td><code>ml-data-layouts.js:154</code></td>
+</tr>
+<tr>
+<td>TL-1</td>
+<td>numbered steps: a 28 px blue badge per step on a 1.5 px spine, title and detail on the ground, &quot;N steps&quot; muted top right</td>
+<td><code>layouts.js:66-88</code></td>
+</tr>
+<tr>
+<td>SCN-r3, SCN-n1</td>
+<td>a sum-to-1 bar chart is a bell: gap 0, a monotone-cubic envelope through the bar tops, the warm ramp by value, the peak bar coral; operator strokes use <code>SQ</code></td>
+<td><code>packages/web/src/AnimatedScene.jsx:47-52</code>, <code>:329-342</code></td>
+</tr>
+<tr>
+<td>TOK-W, TOK-W3, FLOW-N, FLOW-T, TREE-W</td>
+<td>see the Flow, Trees and Tensor tables above</td>
+<td><code>flow.js</code>, <code>ml-topology-layouts.js</code>, <code>tensor-layout.js</code>, <code>token-links-layout.js</code></td>
+</tr>
+<tr>
+<td>ILL-0 v2</td>
+<td>a picture&#39;s prompt starts with <code>FIGURE_STYLE</code>; Recraft gets the cream background and the palette as controls</td>
+<td><code>packages/control-plane/src/explanation-figures.js:23-26</code>, <code>packages/control-plane/src/image-providers.js:279-282</code></td>
+</tr>
+</tbody></table>
+</main>

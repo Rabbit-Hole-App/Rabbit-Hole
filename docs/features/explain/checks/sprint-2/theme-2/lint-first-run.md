@@ -1,8 +1,8 @@
 # THEME-2 stray-hex lint, first run
 
-Tip: feat/visual-sprint-2 6a28dd722 (worktree feat/visual-sprint-2-theme). Scope: tutor-diagrams/, explain-program/, interact-style.js, learn-scene-author.js; comments and test files skipped; theme/palette.js is the only allowed home. Command: node packages/web/src/tutor-diagrams/theme/stray-hex-lint.mjs
+Tip: feat/visual-sprint-2 6a28dd722 code (worktree feat/visual-sprint-2-theme; scope updated by the owner decision: IllustrationFigure.jsx and the [data-explain-table] rules of index.css added). Scope: tutor-diagrams/, explain-program/, interact-style.js, IllustrationFigure.jsx, learn-scene-author.js, and the [data-explain-table] lines of index.css; comments and test files skipped; theme/palette.js is the only allowed home. Command: node packages/web/src/tutor-diagrams/theme/stray-hex-lint.mjs
 
-## Total: 42 hex literals in 5 files (exit 1)
+## Total: 45 hex literals in 7 files (exit 1)
 
 | file | count | in-palette | near-palette | non-palette |
 |---|---|---|---|---|
@@ -11,8 +11,10 @@ Tip: feat/visual-sprint-2 6a28dd722 (worktree feat/visual-sprint-2-theme). Scope
 | packages/web/src/tutor-diagrams/TutorDiagram.js | 1 | 1 | 0 | 0 |
 | packages/web/src/explain-program/raster-fixtures.js | 1 | 1 | 0 | 0 |
 | packages/web/src/explain-program/sdk-raster.js | 1 | 1 | 0 | 0 |
+| packages/web/src/IllustrationFigure.jsx | 2 | 1 | 0 | 1 |
+| packages/web/src/index.css | 1 | 1 | 0 | 0 |
 
-Grouping: in-palette 42, near-palette 0, non-palette 0. Every first-run violation already is a palette value (they are the palette's own definitions and var() fallbacks); the build step replaces each with an import from theme/palette.js.
+Grouping: in-palette 44, near-palette 0, non-palette 1. The one non-palette literal is #1f2937 in IllustrationFigure.jsx (the stroke of an illustration callout leader): it needs a palette decision at build time (INK is the nearest palette colour). Every other violation already is a palette value (the palette's own definitions and var() fallbacks); the build step replaces each with an import from theme/palette.js.
 
 ## Violations
 
@@ -73,8 +75,16 @@ Grouping: in-palette 42, near-palette 0, non-palette 0. Every first-run violatio
 
 - line 28 #E5AA46 [in-palette] `const object = layout(id, options), { values, color='#E5AA46', opacity=1 } = options;`
 
-## Clean already, and outside the scope
+### packages/web/src/IllustrationFigure.jsx
 
-- interact-style.js: 0 hex literals; control-plane learn-scene-author.js: 0 (both already clean; they only need to keep reading the palette).
-- packages/web/src/index.css: 307 hex literals in the whole app stylesheet (the product theme, not the diagrams). Its --viz-* declarations (35 light, 33 dark) are generated from palette.js (VIZ_LIGHT/VIZ_DARK) and generate-css.mjs reports no drift today; one hex outside them is the slate fill in a color-mix for [data-explain-table] th (#a8bbd0).
-- packages/web/src/IllustrationFigure.jsx: 2 hex literals, outside the four named scopes (listed in case THEME build should include it).
+- line 59 #FFFCF0 [in-palette] `<div data-illustration-frame style={{ aspectRatio: String(ratio) }} className="relative w-full overflow-hidden`
+- line 65 #1f2937 [non-palette] `{callouts.map((c, i) => <line key={i} x1={c.lx} y1={c.ly} x2={c.px} y2={c.py} stroke="#1f2937" strokeWidth="1"`
+
+### packages/web/src/index.css
+
+- line 1106 #a8bbd0 [in-palette] `[data-explain-table] th { font-weight: 600; background: color-mix(in srgb, #a8bbd0 24%, var(--viz-surface)); }`
+
+## Clean already
+
+- interact-style.js: 0 hex literals; control-plane learn-scene-author.js: 0 (both only need to keep reading the palette).
+- The rest of packages/web/src/index.css (307 hex literals in the whole app stylesheet) stays out of scope; its --viz-* declarations are generated from palette.js and generate-css.mjs reports no drift today.
