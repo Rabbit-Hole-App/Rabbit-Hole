@@ -47,9 +47,9 @@ export function openCited(chat, repo, ref, { reader = false } = {}) {
 
 // A goal chosen (the existing goal flow, unchanged; the Tutor's intake chips in TutorRehearsal.jsx start it too): POST /api/learn/codebase, then the first two cited source
 // files go on the canvas as code cards at this commit (LearnPage small:code-card); nothing is sent. -> { ok: true } or { note } in plain words.
-export async function startGoal({ chat, board, repository, goalId, text }) {
+export async function startGoal({ chat, board, repository, goalId, text, learn = null }) {
   try {
-    const out = await codebasePost(chat, board, { action: 'start', goal: goalId, question: text });
+    const out = await codebasePost(chat, board, { action: 'start', goal: goalId, question: text, ...(learn ? { learn } : {}) });
     if (out.route === 'not_found') return { note: `I couldn't find that in ${repository.repo} at ${short(repository.commit)}. Try other words, or open Files and pick the code.` };
     for (const citation of out.map.citations.filter(c => out.map.nodes.find(n => n.path === c.path)?.role === 'source').slice(0, 2)) {
       window.dispatchEvent(new CustomEvent('small:code-card', { detail: { text: citation.text, path: citation.path, start: citation.start, end: citation.end, commit: citation.commit, repo: out.map.repository.repo } }));

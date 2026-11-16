@@ -24,6 +24,8 @@ import { admitCompute, beginCompute, computeUsage, endCompute, endedAtOf, entryF
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
 const HARDWARE = 'cpu', VERSION = 'rehearsal-1', CATALOGUE_VERSION = 'catalogue-1', TIME_BUDGET_MIN = 20;
+// The additive learn job (Intake v2, owner 2026-11-15): a stored catalogue document without `learn` is sent back to the controller under its OWN key (the controller answers a key it already holds as done), and the document it returns replaces the stored one.
+const LEARN_SLOT = 'catalogue-learn';
 const CATALOGUE = 'catalogue', ROUTE_ID = /^[a-z0-9_]+$/; // 'catalogue' is the catalogue's slot in the key space, so it is never a routeId
 const TIMEOUT_MS = 40 * 60 * 1000, CATALOGUE_TIMEOUT_MS = 10 * 60 * 1000, POLL_MS = 5000, MAX_MISSES = 12; // 12 unanswered 5 s ticks: the controller is not there
 const MAX_ZIP = 64 * 1024 * 1024, MAX_RECORD = 2 * 1024 * 1024;
@@ -123,7 +125,7 @@ export class RepositoryRehearsals {
       const request = await req.json();
       if (job && ACTIVE.includes(job.status)) return json(reply(job)); // joins the run in progress
       job = { key: request.key, appId: request.appId, repo: request.repo, commit: request.commit, status: 'queued', started: Date.now(), misses: 0,
-        ...(request.kind === CATALOGUE ? { kind: CATALOGUE } : request.routeId ? { routeId: request.routeId, catalogueRoute: request.catalogueRoute, prerequisiteRoutes: request.prerequisiteRoutes || [] } : {}) };
+        ...(request.kind === CATALOGUE ? { kind: CATALOGUE, ...(request.learn ? { learn: true } : {}) } : request.routeId ? { routeId: request.routeId, catalogueRoute: request.catalogueRoute, prerequisiteRoutes: request.prerequisiteRoutes || [] } : {}) };
       await this.state.storage.put('job', job);
       await this.state.storage.setAlarm(Date.now() + 100);
       return json(reply(job), 202);
@@ -137,7 +139,9 @@ export class RepositoryRehearsals {
       if (Date.now() - job.started > (catalogue ? CATALOGUE_TIMEOUT_MS : TIMEOUT_MS)) throw Error(catalogue ? 'The catalogue timed out after 10 minutes.' : 'The rehearsal timed out after 40 minutes. Retry it.');
       if (job.status === 'queued') {
         const snapshot = await repositorySnapshot(this.env, { id: job.appId }, job.commit);
-        const r = await rehearsalRequest(this.env, base, catalogue ? catalogueJob(job, snapshot) : rehearsalJob(job, snapshot));
+        const stored = catalogue && job.learn ? await storedCatalogue(this.env, { id: job.appId, commit: job.commit }) : null;
+        if (catalogue && job.learn && !stored) throw Error('The catalogue to add learn to is missing');
+        const r = await rehearsalRequest(this.env, base, catalogue ? { ...catalogueJob(job, snapshot), ...(stored ? { catalogue: stored } : {}) } : rehearsalJob(job, snapshot));
         if (r.ok || r.status === 409) job.status = 'running'; // 409: the controller already holds this key
         else if (![429, 502, 503, 504].includes(r.status)) throw Error(rejected(r.status));
       } else {
@@ -222,10 +226,24 @@ export async function startCatalogue(env, repo, { retry = false } = {}) {
   const response = await actor.fetch('https://rehearsal/start', { method: 'POST', body: JSON.stringify({ kind: CATALOGUE, key, appId: repo.id, repo: repo.repo, commit: repo.commit }) });
   return response.json();
 }
+// The additive learn job for a stored document that has no `learn`: its state { status: 'queued' | 'failed' | 'ready' } (queued includes running). Started once when `start`; a failed one waits for `retry`.
+async function learnState(env, repo, { start = false, retry = false } = {}) {
+  if (!env.REPOSITORY_REHEARSALS || !configured(env)) return { status: 'failed' };
+  const key = await rehearsalKey(repo.id, repo.commit, LEARN_SLOT), actor = env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key));
+  const seen = await actor.fetch('https://rehearsal/status');
+  let job = seen.status === 404 ? null : await seen.json();
+  if (!job || (job.status === 'failed' && retry)) {
+    if (!start) return { status: 'queued' };
+    const response = await actor.fetch('https://rehearsal/start', { method: 'POST', body: JSON.stringify({ kind: CATALOGUE, learn: true, key, appId: repo.id, repo: repo.repo, commit: repo.commit }) });
+    job = await response.json();
+  }
+  // ready with a document that still has no `learn` (the call made none): not asked again until the owner retries; the Tutor then says it could not work it out.
+  return { status: job.status === 'failed' || job.status === 'ready' ? 'failed' : 'queued' };
+}
 // The catalogue's state for the Tutor: ready (with the document), queued, or failed with a plain reason. `start` starts it when nothing is running; `retry` also when it failed.
 async function catalogueState(env, repo, { start = false, retry = false } = {}) {
   const doc = await storedCatalogue(env, repo);
-  if (doc) return { state: { status: 'ready', practicalRoutes: doc.routes.filter(r => r.practical).length }, doc };
+  if (doc) return { state: { status: 'ready', practicalRoutes: doc.routes.filter(r => r.practical).length }, doc, learn: doc.learn ? { status: 'ready' } : await learnState(env, repo, { start, retry }) };
   if (!env.REPOSITORY_REHEARSALS || !configured(env)) return { state: { status: 'failed', error: catalogueReason('not configured') } };
   const key = await rehearsalKey(repo.id, repo.commit, CATALOGUE), actor = env.REPOSITORY_REHEARSALS.get(env.REPOSITORY_REHEARSALS.idFromName(key));
   let response = await actor.fetch('https://rehearsal/status');
@@ -351,8 +369,8 @@ export async function rehearsalRoute(path, req, env, deps = {}) {
     if (action === 'start') return repo ? await startRoute(env, repo, routeId, access) : json({ error: 'not_indexed' }, 409);
     if (!repo) return json({ indexing, catalogue: indexing === 'failed' ? { status: 'failed', error: 'The repository could not be indexed.' } : { status: 'queued' } }); // the catalogue waits for the snapshot
     // GET and {action:'catalogue'}: the catalogue state; a ready repository with no catalogue job (an import older than the trigger) starts one here; only the owner's action retries a failed one
-    const { state, doc } = await catalogueState(env, repo, { start: true, retry: action === 'catalogue' });
-    const out = { indexing, catalogue: state, ...(action === 'catalogue' && doc ? { catalogueDoc: doc } : {}), routes: await routeStates(env, repo, doc) };
+    const { state, doc, learn } = await catalogueState(env, repo, { start: true, retry: action === 'catalogue' });
+    const out = { indexing, catalogue: state, ...(learn && learn.status !== 'ready' ? { learn } : {}), ...(action === 'catalogue' && doc ? { catalogueDoc: doc } : {}), routes: await routeStates(env, repo, doc) };
     if (req.method === 'GET' && routeId) {
       const stored = await storedRecord(env, repo, routeId, doc);
       if (stored) out.record = stored.record;
