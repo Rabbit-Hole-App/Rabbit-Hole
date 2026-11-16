@@ -7,6 +7,7 @@ import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 const PAD = 14;
 const NODE_GAP = 18;
 const NODE_MIN = 180;
+const NODE_MIN_ROW = 120; // the node minimum of a row of four or more nodes that would pass the width budget
 const NODE_MAX = 220;
 const EDGE_TEXT = 13;
 const EDGE_WRAP = 158;
@@ -224,18 +225,22 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
     .sort((a, b) => ranks.get(b.from) - ranks.get(a.from));
   const skipOrder = new Map(skips.map((edge, index) => [edge, index]));
   const outer = skips.length ? 16 + skips.length * 9 : 0;
+  // The width the figure is held to: the width asked for, at least 720 and at most 960.
+  const budget = Math.min(PARALLEL_WIDTH, Math.max(720, requestedWidth));
   const metrics = rows.map(row => {
     const space = PARALLEL_WIDTH - 2 * PAD - outer - (row.length - 1) * NODE_GAP;
     const wordLimit = paths.length === 2 ? Math.min(NODE_MAX, Math.floor(space / row.length)) : NODE_MAX;
-    const floor = Math.min(NODE_MIN, wordLimit);
-    return row.map(node => {
+    // FLOW-N: a row of four or more nodes lowers its node minimum, as little as it can, to fit the budget before the figure widens (never below 120; a label never takes more than three lines).
+    const build = base => row.map(node => {
+      const floor = Math.min(base, wordLimit);
       const text = node.label ?? '';
       const word = longestWordWidth(text);
       const decision = node.role === 'decision';
       const pad = decision ? 32 : 48;
       const required = Math.ceil(word + pad);
       // A long word wraps by characters. Unbreakable formulas and tensors can widen their node.
-      const min = Math.max(floor, required <= wordLimit ? required : Math.ceil(widestFormula(text) + pad));
+      let min = Math.max(floor, required <= wordLimit ? required : Math.ceil(widestFormula(text) + pad));
+      if (base < NODE_MIN && !decision && !node.tensor) while (wrap(text, min - pad).length > 3 && min < NODE_MAX) min += 2;
       // A decision is wide enough for its label on one line (the diamond narrows away from its middle), when that stays within 360 px.
       const oneLine = decision && !node.tensor ? oneLineDecision(text) : 0;
       if (!node.tensor) return { word, min: oneLine && oneLine <= 360 ? Math.max(min, oneLine) : min, plain: min, text };
@@ -243,9 +248,15 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
       const tensorWidth = Math.ceil((contentWidth + 2 * TENSOR_PAD) / (decision ? DECISION_BAND : 1));
       return { word, min: Math.max(min, tensorWidth) };
     });
+    const total = nodes => nodes.reduce((sum, node) => sum + node.min, 0) + (row.length - 1) * NODE_GAP;
+    if (row.length < 4) return build(NODE_MIN);
+    for (let base = NODE_MIN; base > NODE_MIN_ROW; base -= 5) {
+      const fitted = build(base);
+      if (2 * PAD + outer + total(fitted) <= budget) return fitted;
+    }
+    return build(NODE_MIN_ROW);
   });
-  // A decision label wraps to two lines when its one-line diamond would push the figure past the card: the width asked for, at least 720 and at most 960.
-  const budget = Math.min(PARALLEL_WIDTH, Math.max(720, requestedWidth));
+  // A decision label wraps to two lines when its one-line diamond would push the figure past the card (the budget above).
   const rowWidth = row => row.reduce((sum, node) => sum + node.min, 0) + (row.length - 1) * NODE_GAP;
   for (const row of metrics) if (2 * PAD + outer + rowWidth(row) > budget) for (const node of row) if (node.plain) Object.assign(node, { min: Math.min(node.min, Math.max(node.plain, twoLineMinimum(node.text, node.word))), twoLine: true }); // never wider than the one-line minimum it replaces
   const rowMinimums = metrics.map(rowWidth);
