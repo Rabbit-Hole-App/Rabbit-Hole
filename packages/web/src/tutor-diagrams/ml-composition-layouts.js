@@ -193,7 +193,7 @@ function panelsKind(diagram, width, renderChild) {
 
 // panels of round-and-square trees (the Wondering look): no panel border, each panel exactly its tree's width (every tree is at the one fixed node size and level
 // spacing, so a smaller tree is drawn smaller), the panel label printed once as the only title, and a thick dark arrow with its operation above it.
-const TREE_LABEL = 16, TREE_ARROW = 4, TREE_HEAD = 12, TREE_OPERATION = 20, TREE_LINK_GAP = 112;
+const TREE_LABEL = 16, TREE_ARROW = 4, TREE_HEAD = 12, TREE_OPERATION = 20, TREE_LINK_GAP = 72;
 function treePanels(diagram, renderChild) {
   const { panels, links = [] } = diagram;
   const scenes = panels.map(panel => renderChild(panel.diagram, 0, { natural: true }));
@@ -204,8 +204,10 @@ function treePanels(diagram, renderChild) {
   let x = PAD, lastGap = GAP;
   panels.forEach((panel, index) => {
     const { width } = scenes[index];
-    if (panel.label) elements.push(label(panel.label, x + width / 2, PAD + lineHeight(TREE_LABEL) / 2, { size: TREE_LABEL, weight: 700 }));
-    elements.push(h('g', { transform: `translate(${x} ${bodyTop})`, 'data-tutor-composition-child': index }, ...scenes[index].elements));
+    // A shorter tree is centred on the taller one, its label with it (the target's pruned tree starts one level down).
+    const drop = (body - scenes[index].height) / 2;
+    if (panel.label) elements.push(label(panel.label, x + width / 2, PAD + drop + lineHeight(TREE_LABEL) / 2, { size: TREE_LABEL, weight: 700 }));
+    elements.push(h('g', { transform: `translate(${x} ${bodyTop + drop})`, 'data-tutor-composition-child': index }, ...scenes[index].elements));
     edges.push([x, x + width]);
     lastGap = links.some(link => link.from === index) ? TREE_LINK_GAP : GAP;
     x += width + lastGap;
