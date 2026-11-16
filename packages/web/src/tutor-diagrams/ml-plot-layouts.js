@@ -2,7 +2,7 @@ import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { closedLinePath, monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
-import { TEACHING as T, TEACHING_GRID, TEACHING_SERIES, TEACHING_SERIES_INK, TEACHING_ZERO, teachingConnector } from './teaching-theme.js';
+import { TEACHING as T, TEACHING_GRID, TEACHING_SERIES, TEACHING_SERIES_INK, TEACHING_ZERO, mixHex, teachingConnector } from './teaching-theme.js';
 import { annotationDescription, axisName, isStackedBar, plotSeriesPoints } from './ml-plot-spec.js';
 
 const PAD = 12;
@@ -78,27 +78,27 @@ export function sharedPlotLabelSpace(diagrams) {
   };
 }
 
-// The legend of a plot or a bar chart: one pill per series (22 px tall, a 9 px marker and the name at 13 px inside a rounded outline), 10 px apart, centred in
-// one row, a second row only when they do not fit. Returns the elements and the height it takes.
+// The legend of a plot or a bar chart: one pill per series (22 px tall, rx 11): the series colour at 18% over the ground, a 1.5 px outline and the name at 12 px / 500 in the
+// series ink, a 9 px marker (series fill, ink ring) at the left; 8 px apart, centred in one row, a second row only when they do not fit. Returns the elements and the height.
 function legendPills(items, width, top) {
   const pills = items.map(({ i, text }) => {
-    const lines = wrap(text, width - 2 * PAD - 52, 13);
-    const text13 = Math.ceil(Math.max(...lines.map(line => textWidth(line, 13)), widestFormula(lines.join(' '), 13)));
-    return { i, lines, height: Math.max(22, lines.length * lineHeight(13) + 6), width: 10 + 9 + 6 + text13 + 10 };
+    const lines = wrap(text, width - 2 * PAD - 52, 12);
+    const text12 = Math.ceil(Math.max(...lines.map(line => textWidth(line, 12)), widestFormula(lines.join(' '), 12)));
+    return { i, lines, height: Math.max(22, lines.length * lineHeight(12) + 6), width: 10 + 9 + 6 + text12 + 10 };
   });
   const elements = [];
   let y = top;
   for (let start = 0; start < pills.length;) {
     let end = start + 1, total = pills[start].width;
-    while (end < pills.length && total + 10 + pills[end].width <= width - 2 * PAD) total += 10 + pills[end++].width;
+    while (end < pills.length && total + 8 + pills[end].width <= width - 2 * PAD) total += 8 + pills[end++].width;
     const row = pills.slice(start, end), rowHeight = Math.max(...row.map(pill => pill.height));
     let px = (width - total) / 2;
     for (const pill of row) {
       const cy = y + rowHeight / 2;
-      elements.push(h('rect', { x: px, y: cy - pill.height / 2, width: pill.width, height: pill.height, rx: Math.min(11, pill.height / 2), fill: T.surface, stroke: T.outline, strokeWidth: 1.5, 'data-tutor-plot-legend': '' }));
-      elements.push(symbol(px + 10 + 4.5, cy, pill.i, {}, undefined, 4.5));
-      elements.push(label(pill.lines, px + 10 + 9 + 6, cy, { anchor: 'start', size: 13, weight: 500 }));
-      px += pill.width + 10;
+      elements.push(h('rect', { x: px, y: cy - pill.height / 2, width: pill.width, height: pill.height, rx: Math.min(11, pill.height / 2), fill: mixHex(COLORS[pill.i], T.ground, 0.18), stroke: INKS[pill.i], strokeWidth: 1.5, 'data-tutor-plot-legend': '' }));
+      elements.push(symbol(px + 10 + 4.5, cy, pill.i, { stroke: INKS[pill.i] }, undefined, 4.5));
+      elements.push(label(pill.lines, px + 10 + 9 + 6, cy, { anchor: 'start', size: 12, weight: 500, fill: INKS[pill.i] }));
+      px += pill.width + 8;
     }
     y += rowHeight + (end < pills.length ? 8 : 0);
     start = end;
@@ -159,7 +159,7 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
   const tickHeight = Math.max(...xTicks.map(tick => tick.lines.length)) * lineHeight(TICK);
   for (const { at, lines, anchor } of xTicks) elements.push(label(lines, at, bottom + 8 + tickHeight / 2, { anchor, size: TICK, fill: T.muted }));
   const xTitle = wrap(titleOf(d.x), right - left, 16);
-  let legendY = bottom + tickHeight + 18;
+  let legendY = bottom + 8 + tickHeight / 2 + 14; // the x title's centre is 24 px under the tick labels'
   elements.push(label(xTitle, (left + right) / 2, legendY + xTitle.length * lineHeight(16) / 2, { weight: 700, size: 16 }));
   legendY += xTitle.length * lineHeight(16) + 12;
   const occupied = [];

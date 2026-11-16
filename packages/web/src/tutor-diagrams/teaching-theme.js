@@ -37,6 +37,8 @@ export const TEACHING_SERIES = Object.freeze([
 // The darker weight of each series colour (about 4.6:1 or more on the ground, blue from the approved card): a line is drawn in its ink, its markers in the fill. Same order as TEACHING_SERIES.
 export const TEACHING_SERIES_INK = Object.freeze(['#375D92', '#BB503E', '#3A7E69', '#6D7835', '#7F5EC9', '#936A25', '#B82E56', '#507195']);
 export const TEACHING_GRID = '#D9D3C3';
+// A colour mixed over another: mixHex(fill, ground, 0.18) is the fill at 18% over the ground (the legend pills).
+export const mixHex = (top, under, amount) => '#' + [1, 3, 5].map(i => Math.round(parseInt(under.slice(i, i + 2), 16) * (1 - amount) + parseInt(top.slice(i, i + 2), 16) * amount).toString(16).padStart(2, '0')).join('').toUpperCase();
 // The zero line of a plot or bar chart: the one solid line a chart keeps (there are no axis lines).
 export const TEACHING_ZERO = '#786860';
 export const TEACHING_STYLE = Object.freeze({

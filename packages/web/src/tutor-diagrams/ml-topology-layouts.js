@@ -1,5 +1,5 @@
 import { cloneElement, createElement as h } from 'react';
-import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
+import { label, lineHeight, textWidth, widestFormula, wire, wrap } from './primitives.js';
 import { TEACHING, teachingBox, teachingConnector } from './teaching-theme.js';
 import { extendedFlow, extendedTree, isDotTree, nodeMetadata } from './ml-topology-spec.js';
 import { dotTree } from './dot-tree-layout.js';
@@ -251,7 +251,7 @@ function graph(d, preferredWidth, hasTensor) {
   const routes = d.edges.map((e, i) => ({ ...e, index: i, side: order.get(e.from) < order.get(e.to) ? 'right' : 'left' }));
   const laneCounts = { left: 0, right: 0 };
   routes.forEach(r => { r.lane = laneCounts[r.side]++; });
-  const nodeW = Math.max(150, ...d.nodes.map(n => nodeWidth(n, 186)));
+  const nodeW = Math.max(180, ...d.nodes.map(n => nodeWidth(n, 186))); // node boxes are 180 x 56 like flow nodes
   const firstLane = 16, laneSpacing = 24, portGap = 2;
   const gutters = Object.fromEntries(Object.entries(laneCounts).map(([side, count]) => [side, count ? firstLane + (count - 1) * laneSpacing + 18 : 0]));
   const names = new Map(d.nodes.map(node => [node.id, nodeName(node)]));
@@ -262,7 +262,7 @@ function graph(d, preferredWidth, hasTensor) {
   const positions = new Map();
   let y = PAD;
   for (const n of d.nodes) {
-    const content = measure(n, nodeW);
+    const measured = measure(n, nodeW), content = { ...measured, height: Math.max(56, measured.height) };
     positions.set(n.id, { x: nodeX, y, width: nodeW, content });
     y += content.height + 48;
   }
@@ -282,15 +282,15 @@ function graph(d, preferredWidth, hasTensor) {
     const upper = positions.get(order.get(r.from) < order.get(r.to) ? r.from : r.to);
     const badgeY = upper.y + upper.content.height + 24;
     elements.push(h('g', { 'data-tutor-edge': `${r.from}:${r.to}`, 'data-tutor-edge-index': r.index },
-      teachingConnector([from, [laneX, from[1]], [laneX, to[1]], to], { arrow: true }),
-      h('circle', { cx: laneX, cy: badgeY, r: 9, fill: TEACHING.surface, stroke: TEACHING.outline, strokeWidth: 1.5 }),
-      label(String(r.index + 1), laneX, badgeY, { size: 12, weight: 700 })));
+      wire([from, [laneX, from[1]], [laneX, to[1]], to]),
+      h('circle', { cx: laneX, cy: badgeY, r: 10, fill: TEACHING.surface, stroke: TEACHING.outline, strokeWidth: 1.5 }),
+      label(String(r.index + 1), laneX, badgeY, { size: 13, weight: 600 })));
   }
   for (const node of d.nodes) elements.push(card(node, positions.get(node.id)));
   y -= 30;
   for (const text of legend) {
     const lines = wrap(text, width - 2 * PAD, SMALL), height = lines.length * lineHeight(SMALL);
-    elements.push(label(lines, PAD, y + height / 2, { size: SMALL, anchor: 'start' }));
+    elements.push(label(lines, PAD, y + height / 2, { size: SMALL, anchor: 'start', fill: TEACHING.muted }));
     y += height + 8;
   }
   return { width, height: y + PAD, elements };

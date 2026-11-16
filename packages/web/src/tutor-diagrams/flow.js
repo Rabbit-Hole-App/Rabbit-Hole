@@ -1,6 +1,6 @@
 import { createElement as h } from 'react';
 import { flowPaths } from './flow-paths.js';
-import { box, diamond, INK, label, lineHeight, longestWordWidth, PATH, SURFACE, textWidth, widestFormula, wrap } from './primitives.js';
+import { box, diamond, label, lineHeight, longestWordWidth, SURFACE, textWidth, wire, widestFormula, wrap } from './primitives.js';
 import { skipLanePoints, skipLaneX } from './skip-lanes.js';
 import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 
@@ -33,32 +33,6 @@ function portOffset(node, edges, edge) {
   const normalSpread = Math.min(20, node.width * 0.18);
   const spread = Math.min(node.width / 2 - 12, Math.max(normalSpread, (edges.length - 1) * 5));
   return edges.length > 1 ? (2 * edges.indexOf(edge) / (edges.length - 1) - 1) * spread : 0;
-}
-
-// A flow wire: 2 px ink (3 px and the path colour on the highlighted route), every elbow a quadratic corner of radius 8, ending in a filled isosceles head 12 wide and 8
-// long whose tip stops 2 px short of the target's edge.
-const CORNER = 8, HEAD_LENGTH = 8, HEAD_WIDTH = 12, STOP_SHORT = 2;
-function flowWire(points, active) {
-  const pts = points.filter((point, i) => i === 0 || point[0] !== points[i - 1][0] || point[1] !== points[i - 1][1]).map(point => [...point]);
-  const color = active ? PATH : INK, strokeWidth = active ? 3 : 2;
-  if (pts.length < 2) return null;
-  const last = pts.length - 1, [px, py] = pts[last - 1];
-  const run = Math.hypot(pts[last][0] - px, pts[last][1] - py), ux = (pts[last][0] - px) / run, uy = (pts[last][1] - py) / run;
-  const head = Math.min(HEAD_LENGTH, Math.max(0, run - STOP_SHORT));
-  const tip = [pts[last][0] - ux * STOP_SHORT, pts[last][1] - uy * STOP_SHORT], base = [tip[0] - ux * head, tip[1] - uy * head];
-  pts[last] = base;
-  let d = `M${pts[0]}`;
-  for (let i = 1; i < pts.length - 1; i++) {
-    const [x, y] = pts[i], before = pts[i - 1], after = pts[i + 1];
-    const inLen = Math.hypot(x - before[0], y - before[1]), outLen = Math.hypot(after[0] - x, after[1] - y);
-    const r = Math.min(CORNER, inLen / 2, outLen / 2);
-    d += `L${x - (x - before[0]) / inLen * r},${y - (y - before[1]) / inLen * r}Q${x},${y} ${x + (after[0] - x) / outLen * r},${y + (after[1] - y) / outLen * r}`;
-  }
-  d += `L${pts[last]}`;
-  const half = HEAD_WIDTH / 2;
-  return h('g', null,
-    h('path', { d, fill: 'none', stroke: color, strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round' }),
-    head > 0 ? h('polygon', { points: `${tip[0]},${tip[1]} ${base[0] - uy * half},${base[1] + ux * half} ${base[0] + uy * half},${base[1] - ux * half}`, fill: color, 'data-tutor-arrowhead': '' }) : null);
 }
 
 // A pill (fully rounded capsule): an outcome, and the start of the flow (the first node, which has no incoming edge) unless it is a decision.
@@ -442,7 +416,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   }
   const wires = routed.map(({ edge, points }) => {
     const active = pathEdge(edge);
-    return { active, element: h('g', { 'data-tutor-edge': `${edge.from}:${edge.to}`, ...(active ? { 'data-tutor-path': '' } : {}) }, flowWire(points, active)) };
+    return { active, element: h('g', { 'data-tutor-edge': `${edge.from}:${edge.to}`, ...(active ? { 'data-tutor-path': '' } : {}) }, wire(points, { active })) };
   })
     .sort((a, b) => a.active - b.active).map(wire => wire.element); // the route is drawn last, over any wire it crosses
   const annotations = [];

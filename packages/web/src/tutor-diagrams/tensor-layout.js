@@ -4,11 +4,11 @@ import { TEACHING, teachingBox, teachingConnector } from './teaching-theme.js';
 
 const PAD = 12;
 const STRIP_PAD = 6;
-const CELL_HEIGHT = 26;
+const CELL_HEIGHT = 36;
 const ITEM_GAP = 16;
 const TEXT = 15;
-const SMALL = 12;
-const VALUE = 13;
+const SMALL = 13;
+const VALUE = 15;
 
 const roleColors = {
   input: [TEACHING.blueFill, TEACHING.outline],
@@ -18,7 +18,7 @@ const roleColors = {
 
 function stripMetrics({ columns, dimensions, name, values }) {
   const numbers = (values ?? []).map(String);
-  const cellWidth = Math.max(24, Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))) + 10));
+  const cellWidth = Math.max(36, Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))) + 12));
   const gridWidth = columns * cellWidth;
   const nameWidth = name ? longestWordWidth(name, TEXT) : 0;
   const width = Math.ceil(Math.max(gridWidth, nameWidth, textWidth(dimensions, SMALL))) + 2 * STRIP_PAD;
@@ -38,17 +38,17 @@ export function layoutTensorStrip(payload, preferredWidth = 0) {
   if (name) {
     const lines = wrap(name, width - 2 * STRIP_PAD, TEXT);
     const height = lines.length * lineHeight(TEXT);
-    elements.push(label(lines, width / 2, top + height / 2, { weight: 700 }));
+    elements.push(label(lines, width / 2, top + height / 2, { weight: 600 }));
     top += height + 5;
   }
-  const [fill, stroke] = roleColors[role] ?? [TEACHING.surface, TEACHING.outline];
+  const [fill, stroke] = roleColors[role] ?? [TEACHING.blueFill, TEACHING.outline];
   const left = (width - gridWidth) / 2;
   for (let i = 0; i < rows * columns; i++) {
     const x = left + (i % columns) * cellWidth;
     const y = top + Math.floor(i / columns) * CELL_HEIGHT;
-    elements.push(h('rect', { x, y, width: cellWidth, height: CELL_HEIGHT, fill, stroke, strokeWidth: 1,
+    elements.push(h('rect', { x, y, width: cellWidth, height: CELL_HEIGHT, rx: 4, fill, stroke, strokeWidth: 1.5,
       'data-tutor-tensor-cell': i }));
-    if (numbers[i] !== undefined) elements.push(label(numbers[i], x + cellWidth / 2, y + CELL_HEIGHT / 2, { size: VALUE }));
+    if (numbers[i] !== undefined) elements.push(label(numbers[i], x + cellWidth / 2, y + CELL_HEIGHT / 2, { size: VALUE, weight: 600 }));
   }
   const dimensionsTop = top + rows * CELL_HEIGHT + 5;
   const height = dimensionsTop + lineHeight(SMALL) + STRIP_PAD;
