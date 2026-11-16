@@ -59,7 +59,7 @@ const api = async (method, path, body) => {
 // A new account is gated on choosing a public @handle (HandleGate); the test identity picks one over the API so the page shows the canvas.
 const me = await api('GET', '/api/profile');
 if (me.data && !me.data.handle) { const set = await api('PUT', '/api/profile', { handle: 'interact_ml_test' }); if (set.status >= 400) fail(`could not set a handle for the test identity (HTTP ${set.status} ${JSON.stringify(set.data)})`); }
-const made = await api('POST', '/api/canvases', { title: `ML stepper ${Date.now().toString(36)}` });
+const made = await api('POST', '/api/canvases', { title: `${opt('title', 'ML stepper')} ${Date.now().toString(36)}` });
 const app = made.data?.name; if (!app) fail(`could not create a canvas (HTTP ${made.status}).`);
 const saved = await api('PUT', `/api/learn/boards/${app}/main`, { state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [] } });
 const boardId = saved.data?.board_id; if (!boardId) fail(`could not save the canvas board (HTTP ${saved.status}).`);
@@ -142,7 +142,10 @@ for (const { id, prompt, expect } of PROMPTS) {
   if (r.jobId) {
     const full = await detailOf(r.jobId), d = full?.diagnostics ?? null, row = d?.ledger ?? null, fast = d?.designFast ?? null;
     r.diagnostics = d ? 'on' : 'off (the stack answers no detail=1: EXPLAIN_DIAGNOSTICS is not true)';
-    r.pick = row ? { family: row.pickFamily ?? null, confidence: row.pickConfidence ?? null, ms: row.msPick ?? null } : null;
+    // the ledger row when the stack writes one, else the fast path's own pick record (brief 29: b27's rows had pick null for that reason); `top` is the most probable of the family ids and none when no family fit
+    const fastPick = fast?.pick, topOf = p => Object.entries(p ?? {}).sort((a, b) => b[1] - a[1])[0] ?? null;
+    r.pick = row ? { family: row.pickFamily ?? null, confidence: row.pickConfidence ?? null, ms: row.msPick ?? null }
+      : fastPick ? { family: fastPick.family ?? null, confidence: fastPick.confidence ?? null, ms: fastPick.ms ?? null, reason: fastPick.reason ?? null, top: topOf(fastPick.probabilities) } : null;
     const fb = row?.designFallback ?? fast?.fallback ?? null, firstProblem = fast?.firstProblem ?? null, lastProblem = fast?.lastProblem ?? null;
     r.fill = row || fast ? { ok: !fb && row?.designKind === 'fast' && end?.stopReason !== 'design_gap', fallback: fb, corrected: !!firstProblem && !fb, firstProblem: firstLine(firstProblem), lastProblem: firstLine(lastProblem), designKind: row?.designKind ?? null }
       : { ok: end?.stopReason !== 'design_gap' && !/design|fill/i.test(String(r.failure ?? '')), line: firstLine(r.failure) };
