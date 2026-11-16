@@ -7,6 +7,8 @@ import { layoutTensorStrip, tensorMinimumWidth } from './tensor-layout.js';
 const PAD = 14;
 const NODE_GAP = 18;
 const NODE_MIN = 180;
+const SPLIT_GAP = 24; // between the nodes of a tier wrapped onto two rows (a wire runs down it)
+const SPLIT_VGAP = 22; // between its two rows
 const NODE_MIN_ROW = 120; // the node minimum of a row of four or more nodes that would pass the width budget
 const NODE_MAX = 220;
 const EDGE_TEXT = 13;
@@ -260,6 +262,15 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   const rowWidth = row => row.reduce((sum, node) => sum + node.min, 0) + (row.length - 1) * NODE_GAP;
   for (const row of metrics) if (2 * PAD + outer + rowWidth(row) > budget) for (const node of row) if (node.plain) Object.assign(node, { min: Math.min(node.min, Math.max(node.plain, twoLineMinimum(node.text, node.word))), twoLine: true }); // never wider than the one-line minimum it replaces
   const rowMinimums = metrics.map(rowWidth);
+  // FLOW-T: a tier of four or more nodes that cannot fit the budget even at its node minimums wraps onto two rows (the first ceil(n / 2) nodes, then the rest), the second row staggered
+  // under the gaps of the first, so a wire to the second row, or from the first one past it, runs down a gap and crosses no node.
+  const splits = new Map();
+  rows.forEach((row, rank) => {
+    if (row.length < 4 || 2 * PAD + outer + rowMinimums[rank] <= budget) return;
+    const a = Math.ceil(row.length / 2), unit = Math.max(...metrics[rank].map(node => node.min)), even = row.length % 2 === 0;
+    splits.set(rank, { a, unit, even });
+    rowMinimums[rank] = a * unit + (a - 1) * SPLIT_GAP + (even ? (unit + SPLIT_GAP) / 2 : 0);
+  });
   const width = Math.max(requestedWidth, 2 * PAD + Math.max(...rowMinimums) + outer);
   const inner = width - 2 * PAD - outer;
   const placements = new Map();
@@ -278,15 +289,19 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   for (const edge of skips) gaps[ranks.get(edge.to) - 1].push(routeByEdge.get(edge).arrive);
 
   const placedRows = rows.map((row, rank) => {
+    const split = splits.get(rank);
+    const splitWidth = split && Math.min(NODE_MAX, Math.max(split.unit, Math.floor(split.even ? (inner - (split.a - 0.5) * SPLIT_GAP) / (split.a + 0.5) : (inner - (split.a - 1) * SPLIT_GAP) / split.a)));
+    const splitStart = split && PAD + (inner - (split.a * splitWidth + (split.a - 1) * SPLIT_GAP + (split.even ? (splitWidth + SPLIT_GAP) / 2 : 0))) / 2;
+    const splitCx = index => splitStart + splitWidth / 2 + (index % split.a) * (splitWidth + SPLIT_GAP) + (index >= split.a ? (splitWidth + SPLIT_GAP) / 2 : 0);
     const share = (inner - rowMinimums[rank]) / row.length;
     const widths = metrics[rank].map(({ min }) => Math.min(Math.max(NODE_MAX, min), min + share));
     const extra = (inner - widths.reduce((sum, w) => sum + w, 0) - (row.length - 1) * NODE_GAP) / row.length;
     let x = PAD + extra / 2;
     const rowNodes = row.map((node, index) => {
-      const w = widths[index];
+      const w = split ? splitWidth : widths[index];
       const previous = incoming.get(node.id);
       const parent = previous.length === 1 ? placements.get(previous[0].from) : null;
-      const ideal = row.length === 1 && parent ? parent.cx : x + w / 2;
+      const ideal = split ? splitCx(index) : row.length === 1 && parent ? parent.cx : x + w / 2;
       x += w + NODE_GAP + extra;
       const cx = Math.max(PAD + w / 2, Math.min(PAD + inner - w / 2, ideal));
       if (node.tensor) return { ...node, width: w, cx, ...measureTensorNode(node, w) };
@@ -297,6 +312,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
         : { height: 40 + 16 * Math.max(1, lines.length), offset: 0 }; // 56 for one line, 72 for two
       return { ...node, width: w, height, cx, lines, offset, start: previous.length === 0 };
     });
+    if (split) rowNodes.forEach((node, index) => { node.sub = index >= split.a ? 1 : 0; });
     for (const node of rowNodes) placements.set(node.id, node);
     return rowNodes;
   });
@@ -458,9 +474,12 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
 
   let y = PAD;
   placedRows.forEach((row, rank) => {
-    const height = Math.max(...row.map(node => node.height));
-    for (const node of row) node.y = y + (height - node.height) / 2;
-    y += height;
+    const upper = splits.has(rank) ? row.filter(node => !node.sub) : row, lower = splits.has(rank) ? row.filter(node => node.sub) : [];
+    const heightOf = nodes => Math.max(0, ...nodes.map(node => node.height));
+    const height = heightOf(upper);
+    for (const node of upper) node.y = y + (height - node.height) / 2;
+    for (const node of lower) node.y = y + height + SPLIT_VGAP + (heightOf(lower) - node.height) / 2;
+    y += height + (lower.length ? SPLIT_VGAP + heightOf(lower) : 0);
     if (rank === placedRows.length - 1) return;
     y += 6;
     for (const lane of gaps[rank]) {
