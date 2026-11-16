@@ -8,7 +8,8 @@
 //   plan: null | { status: 'loading' | 'draft' | 'invalid' | 'accepted' | 'plain', text, ops, base, rows, count, previous } (the Learn plan draft, learn-plan-toc-spec.md); planLog: the typed edits and the Tutor's one-line answers after it.
 //   depthAsk: the Learn topic is chosen and the depth question (Brief / Standard / Detailed) is open.
 //   mode: null | 'run' | 'learn' (Intake v2: the first answer); learn: the chosen option of doc.learn; learnIntro: { status: 'loading' | 'done' | 'failed', text? } the opening paragraph.
-// A message: { key, role: 'assistant' | 'user', text?, pending?, chips?, choices?, form?, actions? }. Chip: { id, label, disabled?, note? } (a pill button: Retry, the plan's actions).
+//   section: null | { id, stage: 'brief' | 'compose' | 'ready' | 'making' | 'failed', failed, words, brief, composition, next, cards, last } (the current Learn section, docs/features/learn-sections).
+// A message: { key, role: 'assistant' | 'user', text?, pending?, chips?, choices?, form?, actions?, section? }. Chip: { id, label, disabled?, note? } (a pill button: Retry, the plan's actions).
 // choices: the clickable rows (ChoiceList.jsx): { id, label, hint?, star?, disabled? }. Options are always rows, never typed or in a dropdown (owner 2026-11-15).
 import { CODEBASE_GOALS } from './learn-codebase-goals.js';
 import { planMessage } from './learn-rehearsal-view.js';
@@ -81,6 +82,16 @@ export function flowMessages(state, { repo }) {
     else if (plan?.status === 'accepted') out.push(note('learn-plan', SENTENCES.planAccepted(plan.count)));
     const liveRows = plan?.status === 'draft' && !plan.busy; // rows under a typed answer act only while a draft waits
     for (const line of state.planLog || []) out.push(line.choices ? { ...line, choices: line.choices.map(choice => ({ ...choice, disabled: !liveRows })) } : line);
+    // 4d. the current section (docs/features/learn-sections, dev build): brief and compose run on Accept for 1.1 and on Next section; the beats and items under a dev disclosure;
+    // the dev rows Next section and Make section; a failure says A section 5's words with Try again and Skip this section.
+    const sec = plan?.status === 'accepted' ? state.section : null;
+    if (sec?.stage === 'brief' || sec?.stage === 'compose') out.push(pending('learn-section', SENTENCES.sectionPlanning));
+    else if (sec?.stage === 'failed') out.push(note('learn-section', sec.words || SENTENCES.sectionBriefFailed, null, [{ id: 'section:retry', label: SENTENCES.sectionTryAgain }, { id: 'section:skip', label: SENTENCES.sectionSkip }]));
+    else if (sec) {
+      const making = sec.stage === 'making';
+      if (making) out.push(pending('learn-section-making', SENTENCES.sectionMaking));
+      out.push({ key: 'learn-section', role: 'assistant', section: sec, choices: [{ id: 'section:next', label: SENTENCES.sectionNext, disabled: making }, { id: 'section:make', label: SENTENCES.sectionMake, disabled: making }] });
+    }
   }
   if (state.elsewhere) return out;
   // 5. "Use the codebase": the route question when more than one route is practical, then the rehearsal

@@ -1112,7 +1112,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         {/* Fix B: the explain-on-canvas roadmap's lines, in this transcript after the thread's messages (RoadmapTranscript.jsx). */}
         {chat && !tocView && roadmap?.on && <RoadmapTranscript roadmap={roadmap} chat={chat} msgs={msgs} />}
         {/* The initial pipeline's Tutor messages after the thread's own (TutorRehearsal.jsx; dev flag VITE_REHEARSAL_TRIGGER=1). */}
-        {chat && !tocView && chat.coaching && REHEARSAL && <Suspense fallback={null}><TutorRehearsalFlow chat={chat} /></Suspense>}
+        {chat && !tocView && chat.coaching && REHEARSAL && <Suspense fallback={null}><TutorRehearsalFlow chat={chat} slash={slashRef} /></Suspense>}
         {choices && (
           <div className="py-2">
             <div className="pb-1.5 text-sm text-ink-2">Which one do you mean?</div>

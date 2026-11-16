@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, GripVertical, Highlighter, Inf
 import { wsHeaders } from './api.js';
 import { Button, Menu, MenuItem as MenuRow, useMenuButton } from './ui.jsx';
 import { paperBytesUrl } from './pdf-source.js';
-import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHighlights } from './learn-wiki-highlights.js';
+import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHighlights, reportLearnHighlight, resolveLearnQuotes } from './learn-wiki-highlights.js';
 import { EXCERPT_LIMIT, rectsFor, regionAnchor, splitText, textAnchor, toViewport } from './pdf-anchor.js';
 import { deleteHighlight, getSource, listHighlights, newId, putHighlight } from './pdf-highlights.js';
 import { EXCERPT_DRAG, EXCERPT_EVENT, excerptDraft, put, sendExcerpt } from './pdf-excerpt-drafts.js';
@@ -153,6 +153,14 @@ export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1,
     const root = text.current, content = root?.textContent || '';
     paintHighlights(paintKey, root ? mine.map(quote => { const span = locateQuote(content, quote); return span && rangeFromOffsets(root, span.start, span.end); }).filter(Boolean) : []);
     return () => paintHighlights(paintKey, []);
+  }, [textDrawn, minesKey, paintKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A Learn section's quote for this page (learn-wiki-highlights.js resolveLearnQuotes, DECISIONS S): resolved once the page's text layer is drawn; one not on the page is reported.
+  useEffect(() => {
+    if (!paintKey || !textDrawn || !onHighlights || !text.current) return;
+    const out = resolveLearnQuotes(highlights, text.current.textContent || '', entry => entry.page === paper.page);
+    if (!out) return;
+    out.missed.forEach(learn => reportLearnHighlight(learn, 'not_found', paintKey));
+    onHighlights(out.next);
   }, [textDrawn, minesKey, paintKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Highlighter mode: a selection becomes a highlight; a click on one removes it.
