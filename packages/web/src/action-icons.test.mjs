@@ -42,10 +42,20 @@ test('the chat strip centres on the whole window: the composer shifts by half th
   assert.match(canvas, /data-canvas-composer [^\n]*style=\{\{ transform: 'translateX\(calc\(var\(--study-pane-w, 0px\) \/ -2\)\)' \}\}/);
 });
 
-// Owner 2026-11-15: the Files X closes the panel Files is in. In Study that is the reference pane on the left (back to the canvas), otherwise the companion column.
-test('the Files X closes its panel: Study goes back to the canvas, else the companion column closes', () => {
-  assert.match(read('CodeReader.jsx'), /onCloseAll\?\.\(\); window\.dispatchEvent\(new CustomEvent\('small:close-files'\)\)/);
-  const page = read('LearnPage.jsx');
-  assert.match(page, /const closeFiles = \(\) => \{ const study = studyNow\.current; if \(study\?\.open\) study\.setMode\('canvas'\); else companionNow\.current\.close\(\); \};/);
-  assert.match(page, /addEventListener\('small:close-files', closeFiles\)[\s\S]*removeEventListener\('small:close-files', closeFiles\)/);
+// Owner 2026-11-15: the Files X closes only the bottom panel, the open file. The tree, its folders and the pane stay.
+test('the Files X closes only the open file', () => {
+  const reader = read('CodeReader.jsx');
+  assert.match(reader, /const closeFile = \(\) => onCloseAll\?\.\(\);/);
+  assert.match(reader, /label: 'Close', onClick: closeFile, title: 'Close: the open file'/);
+  assert.doesNotMatch(reader, /small:close-files|removeAttribute\('open'\)/, 'no folding, no closing the pane');
+  assert.doesNotMatch(read('LearnPage.jsx'), /small:close-files/);
+});
+
+// Owner 2026-11-15, with the screenshot: after the X the bottom panel (the reader) is gone, not an empty "Select a file" box. The tree takes the whole pane.
+test('Files with no file open: the bottom panel and its divider are gone and the tree fills the pane', () => {
+  const reader = read('CodeReader.jsx');
+  assert.match(reader, /const shut = panel && stacked && !open;/);
+  assert.match(reader, /\{stacked && !shut && <div role="separator"/, 'no divider without a bottom panel');
+  assert.match(reader, /\$\{shut \? 'min-h-0 flex-1' : 'shrink-0'\} overflow-y-auto/, 'the tree grows to fill');
+  assert.match(reader, /\{!shut && <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-2"/, 'the reader box is not drawn');
 });

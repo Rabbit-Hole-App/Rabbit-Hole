@@ -32,7 +32,7 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
   const treeNav = useRef(null);
   const resizeTree = next => { const h = Math.round(Math.min(600, Math.max(64, next))); setTreeH(h); try { localStorage.setItem('rh.filesTreeHeight', String(h)); } catch { /* the height holds until a reload */ } };
   const dragTree = event => { event.preventDefault(); const y0 = event.clientY, h0 = treeH; const move = e => resizeTree(h0 + e.clientY - y0), up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); }; window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); };
-  const closeAll = () => { treeNav.current?.querySelectorAll('details[open]').forEach(d => d.removeAttribute('open')); onCloseAll?.(); window.dispatchEvent(new CustomEvent('small:close-files')); };
+  const closeFile = () => onCloseAll?.(); // owner 2026-11-15: X closes only the bottom panel, the open file; the tree and the pane stay
   // Code cards (repo-graph Release 2): beside a canvas, Add to canvas puts the open file, a symbol or the selected lines on it
   // at this snapshot's commit, and a file or symbol row drags onto the canvas as one (code-card.js; the same creation path).
   const chat = useChatWorkspace(), ops = chat?.canvasOps, cards = panel && !!ops?.insertCard;
@@ -72,26 +72,27 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
       {branch(n.children, depth + 1)}
     </details>
     : <Fragment key={n.path}>{fileRow(n.path, n.name, depth)}{n.path === open && symbols.map((s) => symbolRow(s, depth + 1, ':'))}</Fragment>));
+  const shut = panel && stacked && !open; // the Files panel with no file open: the bottom panel is gone and the tree has the whole pane (owner 2026-11-15)
   const crumb = open && [app.repo, ...open.split('/'), here && here.kind !== 'file' ? here.label : null].filter(Boolean).join(' › ');
   return <div className={`flex min-h-0 flex-1 overflow-hidden rounded-lg border border-line ${stacked ? 'flex-col' : 'max-md:flex-col'}`}>
-    <nav ref={treeNav} aria-label="Files" data-file-tree style={stacked ? { height: treeH } : undefined} className={`shrink-0 overflow-y-auto py-1 ${stacked ? '' : 'w-56 border-r border-line max-xl:w-44 max-md:max-h-40 max-md:w-full max-md:border-r-0 max-md:border-b'}`}>
+    <nav ref={treeNav} aria-label="Files" data-file-tree style={shut ? undefined : stacked ? { height: treeH } : undefined} className={`${shut ? 'min-h-0 flex-1' : 'shrink-0'} overflow-y-auto py-1 ${stacked ? '' : 'w-56 border-r border-line max-xl:w-44 max-md:max-h-40 max-md:w-full max-md:border-r-0 max-md:border-b'}`}>
       {query.trim()
         ? <>{found.files.length > 0 && <><p className={HEAD}>Files</p>{found.files.map((p) => fileRow(p, p, 0))}</>}
           {found.symbols.length > 0 && <><p className={HEAD}>Symbols</p>{found.symbols.map((n) => symbolRow(n, 0, `${n.path.split('/').pop()}:`))}</>}
           {!found.files.length && !found.symbols.length && <p className="px-2 py-2 text-xs text-ink-3">No file or symbol matches “{query.trim()}”.</p>}</>
         : branch(tree, 0)}
     </nav>
-    {stacked && <div role="separator" aria-orientation="horizontal" aria-label="Resize the file list" aria-valuenow={treeH} aria-valuemin={64} aria-valuemax={600} tabIndex={0} data-file-tree-resize onPointerDown={dragTree}
+    {stacked && !shut && <div role="separator" aria-orientation="horizontal" aria-label="Resize the file list" aria-valuenow={treeH} aria-valuemin={64} aria-valuemax={600} tabIndex={0} data-file-tree-resize onPointerDown={dragTree}
       onKeyDown={event => { if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); resizeTree(treeH + (event.key === 'ArrowDown' ? 24 : -24)); } }}
       className="h-1.5 shrink-0 cursor-row-resize border-y border-line bg-hover hover:bg-active focus-visible:outline-2 focus-visible:outline-accent/35" />}
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-2" onPointerDown={(e) => { if (!e.target.closest('[data-range-actions]')) setPending(null); }}>
+    {!shut && <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-2" onPointerDown={(e) => { if (!e.target.closest('[data-range-actions]')) setPending(null); }}>
       {open
         ? <SourceSelectionContext.Provider value={{ value: pending, set: setPending }}>
           <RepositorySource appName={app.name} path={open} commit={snapshot.commit} repo={app.repo} title={crumb} lead={(cards || inChat) ? [
               cards && { id: 'canvas', onClick: () => addCard(open), title: 'Add to canvas: this file as a code card', data: { 'data-file-add-card': '' } },
               inChat && { id: 'chat', onClick: () => addInChat(open), title: 'Add to chat: keep this file with the chat', data: { 'data-file-add-chat': '' } },
             ] : null}
-            tail={panel && onCloseAll ? [{ id: 'close', label: 'Close', onClick: closeAll, title: 'Close: the open file, the folders and this panel', data: { 'data-file-close-all': '' } }] : null} pick={pick?.path === open ? pick : null}
+            tail={panel && onCloseAll ? [{ id: 'close', label: 'Close', onClick: closeFile, title: 'Close: the open file', data: { 'data-file-close-all': '' } }] : null} pick={pick?.path === open ? pick : null}
             line={here && here.kind !== 'file' ? here.line : null} lineEnd={here?.end}
             actions={(r) => <div data-range-actions role="toolbar" aria-label={`Selected ${rangeTitle(r)}`} onPointerDown={(e) => e.preventDefault()}
               className="absolute top-full left-12 z-10 mt-1 flex items-center gap-0.5 rounded-md bg-white p-1 font-sans whitespace-nowrap shadow-pop select-none">
@@ -111,6 +112,6 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
             </div>} />
         </SourceSelectionContext.Provider>
         : <p className="py-3 text-sm text-ink-3">Select a file to read it, or a symbol to jump to it.</p>}
-    </div>
+    </div>}
   </div>;
 }
