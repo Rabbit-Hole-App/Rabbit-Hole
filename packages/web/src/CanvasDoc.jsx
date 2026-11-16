@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BlockNoteSchema, defaultBlockSpecs } from '@blocknote/core';
+import { BlockNoteEditor, BlockNoteSchema, defaultBlockSpecs } from '@blocknote/core';
 import { useCreateBlockNote } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/shadcn';
 import '@blocknote/shadcn/style.css';
@@ -10,6 +10,13 @@ import { DOC_BLOCK_TYPES, docEdgeKey } from './canvas-doc.js';
 // Media, file and embed blocks are configured out of this MVP (section 8), so the slash menu never offers an upload that has
 // nowhere durable to go: the schema holds exactly canvas-doc.js's DOC_BLOCK_TYPES. Loaded with the first Document card (DocCard), never with the canvas.
 export const DOC_SCHEMA = BlockNoteSchema.create({ blockSpecs: Object.fromEntries(DOC_BLOCK_TYPES.map(type => [type, defaultBlockSpecs[type]])) });
+
+// Markdown in, this schema's blocks out (the RunbookEditor tryParseMarkdownToBlocks pattern), for a Document card filled from data (learn-section-perform.js). One unmounted editor does the parsing.
+let parser = null;
+export function markdownToDocBlocks(markdown) {
+  parser ||= BlockNoteEditor.create({ schema: DOC_SCHEMA });
+  return parser.tryParseMarkdownToBlocks(String(markdown || ''));
+}
 
 function useDark() {
   const [dark, setDark] = useState(isDark);

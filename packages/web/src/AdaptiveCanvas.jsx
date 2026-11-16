@@ -2425,6 +2425,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         revealAfter(primary.id);
         return primary.id;
       },
+      // Connectors between cards already on the board (learn-section-perform.js: an item made for an earlier item's text, consecutive code cards), the same shape the code-explain
+      // satellites' connectors have; a link id already here is not added twice. -> whether any was added.
+      linkCards: links => {
+        if (!alive.current || readOnlyRef.current || localCopyRef.current) return false;
+        const here = new Set(blocksRef.current.map(block => block.id)), fresh = (links || []).filter(link => link?.id && here.has(link.from) && here.has(link.to));
+        if (!fresh.length) return false;
+        setLinks(previous => [...previous, ...fresh.filter(link => !previous.some(entry => entry.id === link.id))]);
+        return true;
+      },
+      // Whether a card has been drawn and measured (insertCodeExplain's `beside` needs its box).
+      measured: id => !!boundsRef.current[id],
       // An imported .ipynb or .py, as the Add to canvas dialog made it (canvas-file-drop.md): at its drop point - the
       // column slot at that height - or, uploaded, where the learner is looking.
       insertImported: (block, at = null) => {
