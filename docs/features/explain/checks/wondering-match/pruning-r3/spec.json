@@ -8,7 +8,6 @@
         "label": "Large Tree",
         "diagram": {
           "kind": "tree",
-          "title": "Large Tree",
           "layout": "binary",
           "nodes": [
             {
@@ -22,8 +21,7 @@
             {
               "id": "n2",
               "parent": "n0",
-              "side": "right",
-              "fill": "olive"
+              "side": "right"
             },
             {
               "id": "n3",
@@ -172,7 +170,6 @@
         "label": "Pruned Tree",
         "diagram": {
           "kind": "tree",
-          "title": "Pruned Tree",
           "layout": "binary",
           "nodes": [
             {
@@ -186,8 +183,7 @@
             {
               "id": "n2",
               "parent": "n0",
-              "side": "right",
-              "fill": "olive"
+              "side": "right"
             },
             {
               "id": "n3",
