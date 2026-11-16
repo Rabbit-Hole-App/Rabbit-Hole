@@ -25,6 +25,8 @@
 //   POST {action: 'learn_fit', app, board, text, learn: {options, cannot}} -> {text, fits: [option ids], focus: string | null}: whether what the learner typed can be learned here (one model call, nothing saved, capped at US$0.05)
 //   POST {action: 'learn_plan', app, board, learn: {..., options?}, outline, outlineRevision, draft: ops | null, edit: text | null} -> {text, proposal: {ops, base, source}, rows, off_plan, path} (learn-plan.js; one capped, metered generation, nothing saved)
 //   POST {action: 'learn_plan_save', app, board, plan: {ops, revision, acceptedAt, text, current?, done?}} -> {state, activityId}: checkpoint.learn.plan of the active learn activity (no actionId or revision: read here, retried when it moved)
+//   POST {action: 'learn_section_brief', app, board, sectionId, redo?} -> {brief} | {error: 'sectionBriefFailed', words}: the beats of one section of the accepted plan (learn-section-brief.js;
+//        docs/features/learn-sections CONTRACT.md; sectionId is the plan's numbering, "1.1"), stored in learn_sections, metered learn_section, capped at US$0.15
 //   POST {action: 'refresh', app, board, activityId, actionId, expectedRevision} -> {state, activityId, drift}: a new activity
 //        at the current commit; the old one keeps its revision, its attempts and its feedback
 //   POST {action: 'another', app, board, activityId, actionId, expectedRevision} -> {state, activityId}: Try another question,
@@ -46,6 +48,7 @@ import { requestSpendBound } from './learn-spend.js';
 import { PLAN_MAX_OPS, learnPlan } from './learn-plan.js';
 import { validateOutlineOps } from './learn-outline-tool.js';
 import { finishWithResponse, noteUsageIdentity, withUsage } from './learn-usage.js';
+import { runBrief } from './learn-section-brief.js';
 
 const MAX_FILES = 8, CITE_LINES = 30, DOC_LINES = 40, EXCERPT = 12000, MAX_EDGES = 12, MAX_OMISSIONS = 20, MAX_NOT_SHOWN = 6;
 const SUPPORTED = new Set(['EXTRACTED', 'RECORDED']); // read from the code by the indexer (REPOSITORY_SYSTEM); the rest is inferred
@@ -251,7 +254,7 @@ export async function sourceDrift(sourceRefs, snapshot) {
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
 const ACTION_ID = /^[A-Za-z0-9_-]{8,120}$/;
-const READ_ONLY = new Set(['learn_intro', 'learn_fit', 'learn_plan', 'learn_plan_save']); // no actionId or revision from the browser: the model calls write nothing, the save reads the revision itself
+const READ_ONLY = new Set(['learn_intro', 'learn_fit', 'learn_plan', 'learn_plan_save', 'learn_section_brief']); // no actionId or revision from the browser: the model calls write nothing, the save reads the revision itself
 
 // The canvas's project repository, as projectRepository (canvases.js) reads it: the learner's own import, not in Trash, indexed.
 export async function canvasRepository(env, access) {
@@ -444,6 +447,7 @@ export async function codebaseRoute(path, req, env, deps = {}) {
     if (body.action === 'learn_plan') return await metered(env, access, 'learn_plan', scoped => learnPlanAction(scoped, snapshot, body, deps, actor));
     if (body.action === 'learn_plan_save') return await learnPlanSave(env, actor, body);
     if (body.action === 'learn_fit') return await metered(env, access, 'learn_fit', scoped => learnFit(scoped, snapshot, body, deps));
+    if (body.action === 'learn_section_brief') return await metered(env, access, 'learn_section', scoped => runBrief(scoped, { actor, snapshot }, body, deps));
     if (body.action === 'start') {
       const goal = goalOf(body.goal);
       if (!goal) return json({ error: `goal must be one of ${CODEBASE_GOALS.map(g => g.id).join('|')}` }, 400);
@@ -500,7 +504,7 @@ export async function codebaseRoute(path, req, env, deps = {}) {
           sourceRefs: old.sourceRefs, checkpoint: { ...kept, codebase: { ...base, questionIndex: next.checkpoint.codebase.questionIndex } } } } });
       return json({ state: out.state, activityId: out.state.activeActivityId });
     }
-    return json({ error: 'action must be start, refresh, another, learn_intro, learn_fit, learn_plan or learn_plan_save' }, 400);
+    return json({ error: 'action must be start, refresh, another, learn_intro, learn_fit, learn_plan, learn_plan_save or learn_section_brief' }, 400);
   } catch (error) {
     if (error instanceof CoachingConflict) {
       if (error.status !== 409) return json({ error: error.code }, error.status);
