@@ -124,6 +124,7 @@ export function useStudy(canvasKey, board, canvasApi, { repository = false } = {
     setReferenceTab: tab => apply([{ type: 'setReferenceTab', tab }]),
     // Files reopens where it was: the file and line the repository's Files view shows while studying (LearnPage), kept with the arrangement.
     filesAt: place => { const at = live.current.value.filesPlace; if (place?.path && (at?.path !== place.path || at?.line !== place.line)) apply([{ type: 'filesAt', path: place.path, line: place.line }]); },
+    filesShut: () => { if (live.current.value.filesPlace) apply([{ type: 'filesShut' }]); },
     // The right panel Study closed, held until Study ends (spec 2b).
     holdPanel: open => apply([{ type: 'panelWas', open }]),
     // Study these (spec 2g): the three existing actions at once, then the Focus on the Run card when Study was already open.

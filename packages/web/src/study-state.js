@@ -145,6 +145,7 @@ export function studyReducer(state, action) {
     // The pin goes, not the tab: a Pinned tab with no pin falls back to Files where one was open, else the graph.
     case 'unpin': return { ...s, mode: 'canvas', pin: null, reader: null, referenceTab: s.referenceTab === 'pin' ? (s.filesPlace ? 'files' : 'graph') : s.referenceTab };
     case 'setReferenceTab': return REFERENCE_TABS.includes(action.tab) && (action.tab !== 'pin' || s.pin) ? { ...s, referenceTab: action.tab } : s;
+    case 'filesShut': return s.filesPlace ? { ...s, filesPlace: null } : s; // the learner closed the open file: Files does not reopen it
     case 'filesAt': { const filesPlace = cleanPlace(action); return filesPlace ? { ...s, filesPlace } : s; }
     case 'panelWas': return { ...s, panelWas: typeof action.open === 'boolean' ? action.open : null };
     case 'setMode': return { ...s, mode: action.mode === 'study' ? 'study' : 'canvas' };

@@ -59,3 +59,16 @@ test('Files with no file open: the bottom panel and its divider are gone and the
   assert.match(reader, /\$\{shut \? 'min-h-0 flex-1' : 'shrink-0'\} overflow-y-auto/, 'the tree grows to fill');
   assert.match(reader, /\{!shut && <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-2"/, 'the reader box is not drawn');
 });
+
+// Owner 2026-11-15: tooltips consistent and above everything. <Tip>, the Sidebar's tip and one layer for every native `title` all draw in the browser's top layer (popover).
+test('tooltips: one look, in the top layer, so no panel or dialog covers them', () => {
+  const ui = read('ui.jsx'), layer = read('TooltipLayer.jsx'), main = read('main.jsx');
+  assert.match(ui, /export const TIP_BOX = '[^']*bg-ink[^']*\[&:popover-open\]:flex'/);
+  assert.match(ui, /<span ref=\{pop\} popover="manual" role="tooltip" className=\{TIP_BOX\}>/, 'Tip is a popover, not an absolutely placed box');
+  assert.doesNotMatch(ui, /group-hover\/tip:flex/);
+  assert.match(layer, /<span ref=\{box\} popover="manual" role="tooltip" data-tooltip-layer className=\{`\$\{TIP_BOX\}/, 'the title layer wears the same look');
+  assert.match(layer, /removeAttribute\('title'\)/, 'the native bubble is replaced, not doubled');
+  assert.match(layer, /setAttribute\('title', target\.dataset\.tipTitle\)/, 'and the title comes back when the pointer leaves');
+  assert.match(main, /<TooltipLayer \/>/, 'mounted once for every page');
+  assert.match(read('Sidebar.jsx'), /data-sidebar-tip popover="manual"/, 'the Sidebar tip is in the top layer too');
+});
