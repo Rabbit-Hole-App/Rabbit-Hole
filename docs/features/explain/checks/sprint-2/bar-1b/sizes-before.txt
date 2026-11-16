@@ -1,0 +1,8 @@
+binomial-408 before 408x332
+binomial-720 before 720x332
+grouped-408 before 408x366
+grouped-720 before 720x366
+softmax-408 before 408x302
+softmax-720 before 720x302
+twelve-408 before 408x293
+twelve-720 before 720x293

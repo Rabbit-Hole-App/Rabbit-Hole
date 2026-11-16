@@ -1,0 +1,81 @@
+diff --git a/packages/web/src/tutor-diagrams/layouts.js b/packages/web/src/tutor-diagrams/layouts.js
+index f92c7a21d..908734660 100644
+--- a/packages/web/src/tutor-diagrams/layouts.js
++++ b/packages/web/src/tutor-diagrams/layouts.js
+@@ -10,6 +10,7 @@ import { cloneElement, createElement as h } from 'react';
+ import { backEdge, box, connector, dot, label, lineHeight, SURFACE, textWidth, wire, wrap } from './primitives.js';
+ import { TEACHING as T, TEACHING_GRID } from './teaching-theme.js';
+ import { quantitativeLayouts } from './quantitative-layouts.js';
++import { tuplePieceWidth, tuplePlainText } from './matrix-tuple.js';
+ import { teachingLayouts } from './teaching-layouts.js';
+ import { usesTensorItems } from './illustration-kinds.js';
+ import { layoutTensor, layoutTensorTransformation } from './tensor-layout.js';
+@@ -193,7 +194,9 @@ function sequence(diagram, width) {
+ }
+ 
+ function matrix(diagram, width) {
+-  const grid = columnsFor(width, diagram.columns.length + 1, 72, 7);
++  // A tuple cell is plain text that wraps at its comma: the column holds its widest piece (the other cells keep the 72 px minimum).
++  const tupleCell = Math.ceil(Math.max(0, ...diagram.rows.flatMap(row => row.cells).map(cell => tuplePieceWidth(cell, text => textWidth(text, TEXT))))) + 14;
++  const grid = columnsFor(width, diagram.columns.length + 1, Math.max(72, tupleCell), 7);
+   const elements = [];
+   const headings = diagram.columns.map(heading => wrap(heading, grid.cell - 12));
+   const headerHeight = rowHeight(headings);
+@@ -204,7 +207,7 @@ function matrix(diagram, width) {
+   }
+   let y = PAD + headerHeight + 7;
+   for (const row of diagram.rows) {
+-    const cells = [row.heading, ...row.cells].map(cell => wrap(cell, grid.cell - 12));
++    const cells = [row.heading, ...row.cells].map(cell => wrap(tuplePlainText(cell), grid.cell - 12));
+     const height = rowHeight(cells);
+     for (let index = 0; index < cells.length; index++) {
+       const x = grid.xAt(index);
+diff --git a/packages/web/src/tutor-diagrams/matrix-tuple.js b/packages/web/src/tutor-diagrams/matrix-tuple.js
+new file mode 100644
+index 000000000..08ad714a9
+--- /dev/null
++++ b/packages/web/src/tutor-diagrams/matrix-tuple.js
+@@ -0,0 +1,14 @@
++// VEC-1: a tuple-shaped formula in a matrix cell, $(0.12,-0.06)$ with numeric entries only, is drawn as plain text, "(0.12, −0.06)": the same characters as the formula's own rendering, but text
++// can wrap after its comma where a formula never wraps, so the cell no longer has to be as wide as the whole tuple. Any other cell text is returned as it is.
++const TUPLE = /^\$\(\s*([-+−]?\d+(?:\.\d+)?(?:\s*,\s*[-+−]?\d+(?:\.\d+)?)+)\s*\)\$$/u;
++
++export function tuplePlainText(text) {
++  const match = TUPLE.exec(String(text).trim());
++  return match ? `(${match[1].split(',').map(entry => entry.trim().replace('-', '−')).join(', ')})` : text;
++}
++
++// The widest piece a tuple cell has to hold (a piece is what is left of the text after a break at a comma: "(0.12," and "−0.06)"); 0 for any cell that is not a tuple.
++export function tuplePieceWidth(text, measure) {
++  const plain = tuplePlainText(text);
++  return plain === text ? 0 : Math.max(...plain.split(' ').map(piece => measure(piece)));
++}
+diff --git a/packages/web/src/tutor-diagrams/ml-data-layouts.js b/packages/web/src/tutor-diagrams/ml-data-layouts.js
+index 45d9eaa54..d2b158da1 100644
+--- a/packages/web/src/tutor-diagrams/ml-data-layouts.js
++++ b/packages/web/src/tutor-diagrams/ml-data-layouts.js
+@@ -1,5 +1,6 @@
+ import { cloneElement, createElement as h } from 'react';
+ import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
++import { tuplePieceWidth, tuplePlainText } from './matrix-tuple.js';
+ import { TEACHING, teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
+ 
+ const PAD = 12;
+@@ -150,7 +151,7 @@ function wrapHeader(name, width) {
+ function matrix(d, requestedWidth) {
+   const count = d.columns.length + 1, gap = 7;
+   // A column header carries 8 px of padding around its formula (the cells keep 18).
+-  const minimumCell = Math.ceil(Math.max(84, ...d.columns.map(value => widestFormula(value, 15) + 8), ...d.rows.flatMap(row => [row.heading, ...row.cells]).map(value => widestFormula(value, 15) + 18))); // measured at the size the cell text is drawn (15), not the 14 default
++  const minimumCell = Math.ceil(Math.max(84, ...d.columns.map(value => widestFormula(value, 15) + 8), ...d.rows.flatMap(row => [row.heading, ...row.cells]).map(value => (tuplePlainText(value) === value ? widestFormula(value, 15) : tuplePieceWidth(value, text => textWidth(text, 15))) + 18))); // measured at the size the cell text is drawn (15), not the 14 default
+   const width = Math.max(requestedWidth, PAD * 2 + count * minimumCell + (count - 1) * gap);
+   const cellWidth = (width - PAD * 2 - (count - 1) * gap) / count;
+   const xAt = index => PAD + index * (cellWidth + gap);
+@@ -167,7 +168,7 @@ function matrix(d, requestedWidth) {
+   });
+   let y = PAD + headerHeight + gap;
+   for (const row of d.rows) {
+-    const lines = [row.heading, ...row.cells].map(cell => wrap(cell, cellWidth - 14));
++    const lines = [row.heading, ...row.cells].map(cell => wrap(tuplePlainText(cell), cellWidth - 14));
+     const contentHeights = lines.map((cell, i) => cell.length * lineHeight() + (i && states.has(`${row.id}:${i - 1}`) ? lineHeight(SMALL) + 5 : 0));
+     const height = Math.max(36, ...contentHeights.map(value => value + 14));
+     lines.forEach((cell, i) => {
