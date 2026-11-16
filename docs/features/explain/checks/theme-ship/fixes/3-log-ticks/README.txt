@@ -1,0 +1,3 @@
+Defect: with a narrow log domain the min label "999999999.9999999" (169 px at 15 px) printed over the "Midpoint" label; the sampled-tick filter compared label centres and ignored the start and end anchors.
+Change: tick extents follow the anchor (tickSpan); a decade label that touches a sampled one is dropped, but when fewer than 3 labels would remain the plot is laid out wider (up to 4 passes, 2 x the overlap) until no two labels touch; endpoints always stay labelled.
+Tests: ml-plot.test.mjs 'very narrow positive log domains retain finite, distinct endpoints' passes unrewritten (width becomes 550 for that domain).

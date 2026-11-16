@@ -1,0 +1,3 @@
+Fix 6 (ml-data-layouts.js, matrix): the minimum cell width measured a formula with widestFormula(value) at its 14 px default, but the cell text is drawn at 15 px, so the formula's box overflowed the cell (x 954 width 484 in a cell x 962 width 468).
+Now widestFormula(value, 15) + 18: the cell is wide enough at the drawn size (the matrix grows 1442 to 1538 px at a 320 request in this deliberately extreme example). The overflow was a bounding-box overflow of the formula object, so before.png and after.png look alike: the text is centred and shorter than its box.
+ml-data.test.mjs passes unrewritten, with ml-batch2a-encoding, ml-batch2c-imbalance and diagram-math.

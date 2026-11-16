@@ -1,0 +1,3 @@
+Defect: every plain coordinate-plot (now drawn by the themed plot layout) had a 420 px minimum width, 12 px over the 408 px content of the narrowest card (440 px less 32 of chrome, CV-1), so it scrolled there.
+Change: the floor is 408 (bodyWidth). Checked on all 118 coordinate-plot references at a 320 and a 408 request: no x tick label touches another or leaves the figure, no y tick clips; the tightest (big-o-growth-rates, 5 x labels) keeps 10.9 px between labels, rendered in after.png at 408 (before.png is the 420 floor).
+Tests: explanation-diagram.test.mjs passes (11 of 11) unrewritten; one reference (ml-trees-cost-complexity-pruning) is label-driven at 457 px as it was at 459 before.

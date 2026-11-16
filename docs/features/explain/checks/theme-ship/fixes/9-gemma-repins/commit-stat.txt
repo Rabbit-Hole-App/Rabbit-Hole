@@ -1,0 +1,189 @@
+4797fa0b3 tests: re-pin 10 expectations moved by the nine fixes and the owner calls (the cream on-fill for success, the Gemma widths drawn with scroll allowed, GEM-1 recorded), tests only
+
+---
+ packages/web/src/explanation-card-width.test.mjs                  | 14 +++++++-------
+ packages/web/src/interact-style.test.mjs                          |  5 +++--
+ packages/web/src/tutor-diagrams/TutorDiagram.test.mjs             |  7 +++++--
+ packages/web/src/tutor-diagrams/illustration-integration.test.mjs |  7 ++++---
+ packages/web/src/tutor-diagrams/ml-batch2b-tuning.test.mjs        |  5 +++--
+ packages/web/src/tutor-diagrams/ml-composition.test.mjs           |  2 +-
+ scripts/topic-pipeline/test/geometry-lint.test.mjs                |  7 ++++---
+ 7 files changed, 27 insertions(+), 20 deletions(-)
+
+diff --git a/packages/web/src/explanation-card-width.test.mjs b/packages/web/src/explanation-card-width.test.mjs
+index a0eb40dd2..751ec1a4a 100644
+--- a/packages/web/src/explanation-card-width.test.mjs
++++ b/packages/web/src/explanation-card-width.test.mjs
+@@ -11,7 +11,7 @@ import examples from './tutor-diagrams/examples.json' with { type: 'json' };
+ const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
+ const fence = spec => `\`\`\`rh-diagram\n${JSON.stringify(spec)}\n\`\`\``;
+ const PROSE = 'A short paragraph of prose.\n\nAnother short paragraph.';
+-const WIDE = dataRefs.find(r => r.id === 'bayes-class-token-counts').spec; // a teaching matrix: 707 px wide at the card's usual room
++const WIDE = dataRefs.find(r => r.id === 'bayes-class-token-counts').spec; // a teaching matrix: 747 px wide at the card's usual room
+ const ordinary = examples.find(e => (e.spec || e).diagram?.kind === 'flow');
+ const card = (body, extra = {}) => ({ id: 'c1', type: 'explanation', title: 'T', body, ...extra });
+ const picture = { id: 'p1', status: 'ready' };
+@@ -19,7 +19,7 @@ const PICTURE_FENCE = '```rh-illustration\n{"version":1,"id":"p1","prompt":"a vo
+ 
+ test('a diagram reports its natural width; an ordinary one is 408, a dense one is wider; an invalid spec asks for no room', () => {
+   assert.equal(diagramWidth(JSON.stringify(ordinary.spec || ordinary)), 408);
+-  assert.equal(diagramWidth(WIDE), 707);
++  assert.equal(diagramWidth(WIDE), 747);
+   assert.equal(diagramWidth('{"not":"a diagram"}'), 0);
+   assert.equal(diagramWidth('not json'), 0);
+ });
+@@ -28,7 +28,7 @@ test('width rule: prose-only stays at the card\'s 440 (408 of room), a 700 px di
+   assert.equal(explanationCardWidth(card(PROSE)), CARD_FLOOR, 'prose only');
+   assert.equal(explanationCardWidth(card(`${PROSE}\n\n${fence(ordinary.spec || ordinary)}\n\nMore.`)), CARD_FLOOR, 'an ordinary diagram fits the usual room');
+   const wide = explanationCardWidth(card(`${PROSE}\n\n${fence(WIDE)}\n\nMore.`));
+-  assert.equal(wide, 707 + CARD_CHROME);
++  assert.equal(wide, 747 + CARD_CHROME);
+   assert.ok(wide - CARD_CHROME >= diagramWidth(WIDE), 'the room inside the card holds the whole diagram: no horizontal scroll');
+   assert.equal(widthFor(700), 700 + CARD_CHROME);
+   const huge = widthFor(1200);
+@@ -61,17 +61,17 @@ test('a picture is displayed at 512 px: the card and its tile widen to fit it (5
+   assert.equal(explanationCardWidth(withPicture), PICTURE_DISPLAY_WIDTH + CARD_CHROME, 'room for the picture at 512 plus the card\'s chrome');
+   assert.equal(explanationCardWidth(card(`${PROSE}\n\n${PICTURE_FENCE}`, { figures: { p1: { id: 'p1', status: 'failed' } } })), CARD_FLOOR, 'a picture that failed draws nothing and asks for nothing');
+   const both = card(`${PICTURE_FENCE}\n\n${fence(WIDE)}`, { figures: { p1: picture } });
+-  assert.equal(explanationCardWidth(both), 707 + CARD_CHROME, 'a picture and a wider diagram: the wider');
++  assert.equal(explanationCardWidth(both), 747 + CARD_CHROME, 'a picture and a wider diagram: the wider');
+   assert.equal(tileWidthFor({ kind: 'picture' }), PICTURE_DISPLAY_WIDTH + CARD_CHROME, 'its tile is the same width, the picture at 512');
+   const src = read('./IllustrationFigure.jsx');
+   assert.match(src, /style=\{\{ maxWidth: PICTURE_DISPLAY_WIDTH \}\} className=\{`mx-auto /, 'square at 512 and centred in any wider card');
+ });
+ 
+-test('the tile uses the same rule on its one visual and never scales it: a 707 px diagram is a 741 px tile, a picture tile is as wide as the picture card, Open restores the card at the same width', () => {
++test('the tile uses the same rule on its one visual and never scales it: a 747 px diagram is a 781 px tile, a picture tile is as wide as the picture card, Open restores the card at the same width', () => {
+   const diagramCard = card(`${PROSE}\n\n${fence(WIDE)}\n\nMore.`, { w: 300, h: 500 });
+   const tile = { ...diagramCard, minimized: true };
+   assert.equal(isMinimized(tile), true);
+-  assert.equal(tileWidth(tile), 707 + CARD_CHROME, 'the diagram at its natural width inside the tile');
++  assert.equal(tileWidth(tile), 747 + CARD_CHROME, 'the diagram at its natural width inside the tile');
+   assert.equal(tileWidth(tile), explanationCardWidth(diagramCard), 'the same function as the card');
+   const pictureCard = card(`${PROSE}\n\n${PICTURE_FENCE}`, { figures: { p1: picture } });
+   assert.equal(tileWidth({ ...pictureCard, minimized: true }), explanationCardWidth(pictureCard));
+@@ -91,7 +91,7 @@ test('the canvas takes the derived width: wider than its 560 column the card is
+   assert.match(canvas, /const displayWidth = full \? [^;]*size\.w \|\| width;/, 'a saved (dragged) width wins over the derived one');
+   assert.match(canvas, /<div ref=\{column\}[^>]*className=\{`absolute top-0 left-0 flex flex-col gap-5/, 'cards are stacked in one column: a wider card never lies over the cards above or below it');
+   // The centred extents of a stack of cards at the derived widths never overlap horizontally with a neighbour's vertical band: stacked cards are separated by the 20 px gap in y.
+-  const COLUMN = 560, widths = [CARD_FLOOR, 707 + CARD_CHROME, PICTURE_DISPLAY_WIDTH + CARD_CHROME], heights = [300, 420, 380];
++  const COLUMN = 560, widths = [CARD_FLOOR, 747 + CARD_CHROME, PICTURE_DISPLAY_WIDTH + CARD_CHROME], heights = [300, 420, 380];
+   let y = 0; const boxes = widths.map((w, i) => { const box = { x: (COLUMN - w) / 2, y, w, h: heights[i] }; y += heights[i] + 20; return box; });
+   for (let i = 1; i < boxes.length; i++) assert.ok(boxes[i].y >= boxes[i - 1].y + boxes[i - 1].h, `card ${i} starts below card ${i - 1}`);
+ });
+diff --git a/packages/web/src/interact-style.test.mjs b/packages/web/src/interact-style.test.mjs
+index 502254590..11cabcc21 100644
+--- a/packages/web/src/interact-style.test.mjs
++++ b/packages/web/src/interact-style.test.mjs
+@@ -71,10 +71,11 @@ test('line and data cues keep contrast and preserve selection while interactive
+     const markPercent = Number(interactMarkColor(role).match(/ (\d+)%/)?.[1]);
+     const rest = interactDataStyle(role);
+     const selected = interactDataStyle(role, { selected: true });
+-    assert.equal(rest.onFill, '#32211c', 'a cell is the role fill at 100% with the outline ink on it');
++    const onFill = role === 'success' ? '#FFFCF0' : '#32211c'; // text on a success fill is the cream ground (4.68:1 on the dark teal), on any other role the outline ink
++    assert.equal(rest.onFill, onFill, 'a cell is the role fill at 100% with its on-fill ink on it');
+     assert.equal(rest.fill, hue, 'no 22% or 58% tint');
+     assert.equal(selected.fill, hue);
+-    assert.equal(selected.onFill, '#32211c');
++    assert.equal(selected.onFill, onFill);
+     for (const [background, ink] of [['#FFFCF0', '#37352f'], ['#1f1f1f', '#d4d4d4']]) {
+       assert.ok(contrast(mix(rgb(hue), rgb(ink), markPercent), rgb(background)) >= 4.5, role + ' line ' + background);
+     }
+diff --git a/packages/web/src/tutor-diagrams/TutorDiagram.test.mjs b/packages/web/src/tutor-diagrams/TutorDiagram.test.mjs
+index cd32dd868..12965bbb0 100644
+--- a/packages/web/src/tutor-diagrams/TutorDiagram.test.mjs
++++ b/packages/web/src/tutor-diagrams/TutorDiagram.test.mjs
+@@ -129,10 +129,13 @@ test('an unbreakable formula in a caption fits the SVG bounds, including in comp
+   }
+ });
+ 
+-test('the exact local:global component label still fits the minimized Gemma diagram', () => {
++// GEM-1: the nested-flow node minimum (180) is below what the Gemma stack needs, so the diagram is wider than a card and scrolls; owner accepted that for this release (18:55), the node minimum is recorded for after it.
++test('the exact local:global component label is drawn whole in the minimized Gemma diagram, which scrolls inside the 440 card (408 of room)', () => {
+   const reference = illustrationReferences.find(({ id }) => id === 'ml-gemma-decoder-stack');
+   const spec = structuredClone(reference.depths.deep.spec);
+   spec.diagram.blocks.find(({ id }) => id === 'att').diagram.steps[1].label =
+     'Sliding-window + GQA attention (5:1 local:global)';
+-  assert.equal(renderTutorDiagram(spec, 320).width, 320);
++  const drawn = renderTutorDiagram(spec, 408).width;
++  assert.equal(drawn, 598, 'the drawn width at the 408 of room of a card');
++  assert.ok(drawn > 408, 'wider than the room: the figure scrolls, it does not fit');
+ });
+diff --git a/packages/web/src/tutor-diagrams/illustration-integration.test.mjs b/packages/web/src/tutor-diagrams/illustration-integration.test.mjs
+index ca9370a42..8df11570a 100644
+--- a/packages/web/src/tutor-diagrams/illustration-integration.test.mjs
++++ b/packages/web/src/tutor-diagrams/illustration-integration.test.mjs
+@@ -112,15 +112,16 @@ test('the walkthrough token, value and vocabulary sequences use one row at every
+   }
+ });
+ 
+-test('the detailed Gemma uses numbered notes at 320 and four margin leaders at 960', () => {
++// GEM-1: the nested-flow node minimum (180) is below what the Gemma stack needs, so the diagram is wider than a card and scrolls; owner accepted that for this release (18:55), the node minimum is recorded for after it.
++test('the detailed Gemma uses numbered notes at 320 and four margin leaders at 960; in the 440 card (408 of room) it is 598 wide and scrolls', () => {
+   const gemma = illustrationReferences.find(ref => ref.id === 'ml-gemma-decoder-stack').depths.deep;
+   const small = renderTutorDiagram(gemma.spec, 320);
+-  assert.equal(small.width, 320);
++  assert.equal(small.width, 418, 'drawn at 418 for a 320 room: it scrolls');
+   const ledger = renderToStaticMarkup(small.element);
+   assert.equal((ledger.match(/data-block-stack-callout-row=/g) ?? []).length, 4);
+   assert.doesNotMatch(ledger, /data-block-stack-callout-leader/);
+   const card = renderTutorDiagram(gemma.spec, 408);
+-  assert.ok(card.width > 408 && card.width <= 960);
++  assert.equal(card.width, 598, 'the drawn width at the 408 of room of a card: wider than the room, so it scrolls');
+   assert.equal((renderToStaticMarkup(card.element).match(/data-block-stack-callout-leader=/g) ?? []).length, 4);
+   const wide = renderTutorDiagram(gemma.spec, 960);
+   assert.equal(wide.width, 960);
+diff --git a/packages/web/src/tutor-diagrams/ml-batch2b-tuning.test.mjs b/packages/web/src/tutor-diagrams/ml-batch2b-tuning.test.mjs
+index 8b5d1681b..1431a83fc 100644
+--- a/packages/web/src/tutor-diagrams/ml-batch2b-tuning.test.mjs
++++ b/packages/web/src/tutor-diagrams/ml-batch2b-tuning.test.mjs
+@@ -78,7 +78,7 @@ test('lesson 12 tuning references round-trip and render every numeric label at 3
+     ['ml-bayesian-acquisition-choice', ['How does Bayesian optimization decide which setting to try next?']],
+     ['ml-successive-halving-rounds', ['How does successive halving decide which trials get more training?']],
+   ]);
+-  for (const { lessons, keywords, useWhen, spec } of references) {
++  for (const { id, lessons, keywords, useWhen, spec } of references) {
+     assert.deepEqual(lessons, ['12']);
+     assert.ok(keywords.length >= 4 && useWhen.length > 40);
+     assert.equal(spec.version, 1);
+@@ -93,7 +93,8 @@ test('lesson 12 tuning references round-trip and render every numeric label at 3
+     ]));
+     for (const width of [320, 408, 720]) {
+       const rendered = renderTutorDiagram(saved, width);
+-      assert.equal(rendered.width, width);
++      // Formulas in matrix cells are measured at 15 px (sprint default), so the Bayesian matrix needs 335 px and is drawn that wide at 320 (it scrolls there); every other width is drawn as asked.
++      assert.equal(rendered.width, id === 'ml-bayesian-acquisition-choice' && width === 320 ? 335 : width);
+       assert.ok(Number.isFinite(rendered.height) && rendered.height > 0);
+       const svg = renderToStaticMarkup(rendered.element);
+       assert.match(svg, /^<svg .*role="img"/);
+diff --git a/packages/web/src/tutor-diagrams/ml-composition.test.mjs b/packages/web/src/tutor-diagrams/ml-composition.test.mjs
+index 304cd6474..64bf2a116 100644
+--- a/packages/web/src/tutor-diagrams/ml-composition.test.mjs
++++ b/packages/web/src/tutor-diagrams/ml-composition.test.mjs
+@@ -175,7 +175,7 @@ test('narrow comparisons stack full real panels instead of creating a multi-char
+   input.panels.push({ heading: 'Third', diagram: plot('Third fit') });
+   const scene = realLayouts.comparison(input, 408);
+   const children = groups(scene).map(translation);
+-  assert.equal(scene.width, 444, '420px native plot plus panel padding; panels stack rather than shrink text');
++  assert.equal(scene.width, 432, '408px native plot (the themed minimum) plus panel padding; panels stack rather than shrink text');
+   assert.equal(children.length, 3);
+   assert.equal(children[0][0], children[1][0]);
+   assert.equal(children[1][0], children[2][0]);
+diff --git a/scripts/topic-pipeline/test/geometry-lint.test.mjs b/scripts/topic-pipeline/test/geometry-lint.test.mjs
+index df634342c..db79473e2 100644
+--- a/scripts/topic-pipeline/test/geometry-lint.test.mjs
++++ b/scripts/topic-pipeline/test/geometry-lint.test.mjs
+@@ -24,9 +24,10 @@ test('a violation is one error flag in the linter\'s format with a one-line fix;
+ test('against the real renderer: a flow whose sibling labels cannot share a height fails under a new id and passes under a baseline id; a clean flow passes', async () => {
+   const check = await geometryChecker(load, root);
+   assert.ok(check, 'the worktree has the geometry lint');
+-  // Three long labels from one node cannot stand side by side at one height, so the node keeps its own lanes (rule a).
+-  const long = ['Resample with replacement from the training rows', 'Resample with replacement from a different seed', 'Resample the rows with replacement once more'];
+-  const violating = { version: 1, diagram: { kind: 'flow', title: 'Fork', nodes: [{ id: 'boot', label: 'Draw a bootstrap sample', role: 'process' }, ...long.map((_, index) => ({ id: `m${index}`, label: `Fit model ${index + 1}`, role: 'process' }))], edges: long.map((label, index) => ({ from: 'boot', to: `m${index}`, label })) } };
++  // Labelled branches from one node whose targets also take a labelled arrival from a sibling cannot stand at one height, so the node keeps its own lanes (rule a).
++  // The old fixture (three long labels from one node) now stands side by side: the sprint's flow nodes are 180 px wide at least (natural width 406). This one still breaks rule a at the natural width.
++  const violating = { version: 1, diagram: { kind: 'flow', title: 'Fork', nodes: [{ id: 'split', label: 'Is the sample balanced?', role: 'decision' }, { id: 'draw', label: 'Resample the rows', role: 'process' }, { id: 'fit', label: 'Fit the model', role: 'process' }, { id: 'score', label: 'Score the held-out rows', role: 'outcome' }],
++    edges: [{ from: 'split', to: 'draw', label: 'No, resample' }, { from: 'draw', to: 'fit', label: 'Fit with a new seed' }, { from: 'split', to: 'score', label: 'Yes, score it now' }, { from: 'draw', to: 'score', label: 'Score without refitting' }] } };
+   const flagsFor = (id, baseline) => geometryFlags({ ...check, baseline }, { id, depth: 'standard', field: 'spec', spec: violating });
+   const fresh = flagsFor('ml-brand-new-reference', {});
+   assert.ok(fresh.length > 0 && fresh.every(flag => flag.severity === 'error' && flag.rule.startsWith('geometry-lint:')));

@@ -1,0 +1,75 @@
+f17e8af18 token row: a row of blocks wider than 960 px shrinks its tensor cells only as far as needed, below 36 px if it must, never below their text (the widest token row 1110 to 960 px)
+
+
+diff --git a/packages/web/src/tutor-diagrams/block-stack-layout.js b/packages/web/src/tutor-diagrams/block-stack-layout.js
+index ceed64509..80381ee14 100644
+--- a/packages/web/src/tutor-diagrams/block-stack-layout.js
++++ b/packages/web/src/tutor-diagrams/block-stack-layout.js
+@@ -4,7 +4,7 @@ import { layoutFlow } from './flow.js';
+ import { connector, label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
+ import { skipLanePoints, skipLaneX } from './skip-lanes.js';
+ import { TEACHING, teachingBox as box } from './teaching-theme.js';
+-import { tensorMinimumWidth } from './tensor-layout.js';
++import { tensorMinimumWidth, withTensorCellCap } from './tensor-layout.js';
+ 
+ const PAD = 12;
+ const INSET = 10;
+@@ -81,6 +81,14 @@ function rowMetrics(blocks) {
+   return { children, widths, width };
+ }
+ 
++// A horizontal row of blocks is at most 960 px: when it would be wider, its tensor cells shrink only as far as needed (tensor-layout.js withTensorCellCap).
++const ROW_MAX = 960;
++function rowCap(blocks) {
++  if (rowMetrics(blocks).width <= ROW_MAX) return Infinity;
++  for (let cap = 64; cap > 12; cap--) if (withTensorCellCap(cap, () => rowMetrics(blocks).width) <= ROW_MAX) return cap;
++  return 12;
++}
++
+ function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
+   const order = new Map(blocks.map(({ id }, index) => [id, index]));
+   const groups = blocks.flatMap(({ id, repeat, repeatTo }, start) => repeatTo ? [{ id, repeat, repeatTo, start, end: order.get(repeatTo), lane: 0 }] : []);
+@@ -103,7 +111,7 @@ function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
+ }
+ 
+ export function blockStackNaturalWidth(diagram) {
+-  if (diagram.orientation === 'horizontal') return rowMetrics(diagram.blocks).width;
++  if (diagram.orientation === 'horizontal') return withTensorCellCap(rowCap(diagram.blocks), () => rowMetrics(diagram.blocks).width);
+   const { minBlockWidth, leftBand, rightBand, noteMinWidth, ledgerMinWidth } = horizontalMetrics(diagram);
+   const noteBand = diagram.callouts?.length ? Math.max(156, noteMinWidth) + NOTE_GAP : 0;
+   return Math.min(960, Math.max(ledgerMinWidth, 2 * PAD + Math.max(PREFERRED_BLOCK_WIDTH, minBlockWidth) + leftBand + rightBand + noteBand));
+@@ -232,7 +240,8 @@ function drawJoin(operation, x, y) {
+     label(operation === 'multiply' ? '⊗' : '⊕', x, y, { size: 22, weight: 700 }));
+ }
+ 
+-function layoutBlockRow(blocks, preferredWidth, renderChild) {
++const layoutBlockRow = (blocks, preferredWidth, renderChild) => withTensorCellCap(rowCap(blocks), () => layoutBlockRowAt(blocks, preferredWidth, renderChild));
++function layoutBlockRowAt(blocks, preferredWidth, renderChild) {
+   const { children, widths, width: rowWidth } = rowMetrics(blocks);
+   const width = Math.max(preferredWidth, rowWidth);
+   const measured = blocks.map((block, index) => {
+diff --git a/packages/web/src/tutor-diagrams/tensor-layout.js b/packages/web/src/tutor-diagrams/tensor-layout.js
+index b616b5e6f..58f038694 100644
+--- a/packages/web/src/tutor-diagrams/tensor-layout.js
++++ b/packages/web/src/tutor-diagrams/tensor-layout.js
+@@ -16,9 +16,19 @@ const roleColors = {
+   output: [TEACHING.tealFill, TEACHING.outline],
+ };
+ 
++// A row of strips that would pass its width budget (block-stack-layout.js rowCap) asks for a cap on the cell width while it is laid out: cells shrink, below 36 px if they must,
++// as far as needed and never below their own text.
++let cellCap = Infinity;
++export function withTensorCellCap(cap, run) {
++  const before = cellCap;
++  cellCap = cap;
++  try { return run(); } finally { cellCap = before; }
++}
++
+ function stripMetrics({ columns, dimensions, name, values }) {
+   const numbers = (values ?? []).map(String);
+-  const cellWidth = Math.max(36, Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))) + 12));
++  const text = Math.ceil(Math.max(0, ...numbers.map(value => textWidth(value, VALUE))));
++  const cellWidth = Math.max(text + 4, Math.min(Math.max(36, text + 12), cellCap));
+   const gridWidth = columns * cellWidth;
+   const nameWidth = name ? longestWordWidth(name, TEXT) : 0;
+   const width = Math.ceil(Math.max(gridWidth, nameWidth, textWidth(dimensions, SMALL))) + 2 * STRIP_PAD;

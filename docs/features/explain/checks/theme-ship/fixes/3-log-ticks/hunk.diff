@@ -1,0 +1,63 @@
+a86573aa9 plot: x tick labels never touch: extents follow the anchor, a decade label that touches a sampled one is dropped, the plot widens until three labels fit
+
+
+diff --git a/packages/web/src/tutor-diagrams/ml-plot-layouts.js b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+index c318a954e..4cd542e31 100644
+--- a/packages/web/src/tutor-diagrams/ml-plot-layouts.js
++++ b/packages/web/src/tutor-diagrams/ml-plot-layouts.js
+@@ -109,7 +109,25 @@ function legendPills(items, width, top) {
+ // An axis title on the figure: the label and unit. axisName (ml-plot-spec.js) also adds "log scale" for the written description; the sampled ticks already say it here.
+ const titleOf = axis => `${axis.label}${axis.unit ? ` (${axis.unit})` : ''}`;
+ 
+-function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
++// A tick label's horizontal extent, from its anchor (start, middle or end).
++const tickSpan = ({ at, lines, anchor }) => {
++  const w = Math.max(...lines.map(line => textWidth(line, TICK)));
++  return anchor === 'start' ? [at, at + w] : anchor === 'end' ? [at - w, at] : [at - w / 2, at + w / 2];
++};
++
++// The plot is laid out wider until no two x tick labels touch (a label such as 999999999.9999999 is 169 px wide at 15 px; the endpoints always stay labelled).
++function coordinatePlot(diagram, requested, options) {
++  let layout;
++  for (let pass = 0, asked = requested; pass < 4; pass++) {
++    layout = plotLayout(diagram, asked, options);
++    if (!layout.crowded) break;
++    asked = layout.width + 2 * layout.crowded; // moving the right edge by d moves each gap by d / 2
++  }
++  const { crowded, ...drawn } = layout;
++  return drawn;
++}
++
++function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
+   const d = diagram.series.some(series => series.samples) ? { ...diagram,
+     series: diagram.series.map(series => series.samples ? { ...series, points: plotSeriesPoints(series) } : series),
+   } : diagram;
+@@ -137,13 +155,14 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
+     elements.push(label(yTitle, PAD, PAD + yTitle.length * lineHeight(16) / 2, { anchor: 'start', weight: 700, size: 16 }));
+   }
+   let xTicks = plotTicks(d.x, x, { horizontal: true });
+-  // A log axis labels every sampled x; a decade label that would touch one of them is dropped.
++  // A log axis labels every sampled x; a decade label whose text would touch one of them is dropped.
+   if (d.x.scale === 'log' && d.series.every(s => s.points.length <= 8)) {
+-    const wide = lines => Math.max(...lines.map(line => textWidth(line, TICK)));
++    const touches = (a, b) => tickSpan(a)[0] < tickSpan(b)[1] + 8 && tickSpan(b)[0] < tickSpan(a)[1] + 8;
+     const sampled = [...new Set(d.series.flatMap(s => s.points.map(p => p.x)))].sort((a, b) => a - b)
+       .map(value => ({ at: x(value), lines: [String(value)], anchor: value <= d.x.min ? 'start' : value >= d.x.max ? 'end' : 'middle' }));
+-    xTicks = [...sampled, ...xTicks.filter(tick => !sampled.some(s => s.at === tick.at)
+-      && sampled.every(s => Math.abs(s.at - tick.at) >= (wide(tick.lines) + wide(s.lines)) / 2 + 8))].sort((a, b) => a.at - b.at);
++    const decades = xTicks.filter(tick => !sampled.some(s => s.at === tick.at)), apart = decades.filter(tick => !sampled.some(s => touches(s, tick)));
++    // Fewer than three labels would leave the axis unreadable: then the decades stay and the plot is laid out wider (coordinatePlot) until none touch.
++    xTicks = [...sampled, ...(sampled.length + apart.length < 3 ? decades : apart)].sort((a, b) => a.at - b.at);
+   }
+   // No axis lines: horizontal dashed guides (one at every y tick, so the minimum marks the bottom of the plot) and the tick numerals are the frame.
+   // When the y range crosses 0 the guide at 0 is solid and muted: the one line a plot keeps.
+@@ -301,7 +320,8 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
+     nextLabelTop = rowTop + height + 4;
+     remainingLabels -= height + 4;
+   }
+-  return { width, height: legendY, plotBounds: bounds, elements: [...elements, ...geometry, ...marks, ...foreground] };
++  const crowded = Math.max(0, ...xTicks.slice(1).map((tick, i) => tickSpan(xTicks[i])[1] + 4 - tickSpan(tick)[0]));
++  return { width, height: legendY, plotBounds: bounds, crowded, elements: [...elements, ...geometry, ...marks, ...foreground] };
+ }
+ 
+ function barChart(d, requested) {
