@@ -47,7 +47,7 @@ function fullChild({ label: title, diagram }) {
     stackRole: typeof step === 'string' ? undefined : step.role,
   }));
   const edges = nodes.slice(1).map((node, index) => ({ from: nodes[index].id, to: node.id }));
-  return { kind: 'flow', title, nodes, edges, nested: true };
+  return { kind: 'flow', title, nodes, edges };
 }
 
 function childMinimumWidth(child) {
