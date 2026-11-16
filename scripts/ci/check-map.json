@@ -97,6 +97,8 @@
     "packages/web/src/tutor-diagrams/dot-tree-layout.js": ["packages/web/src/tutor-diagrams/layouts.test.mjs"],
     "packages/web/src/tutor-diagrams/test-wire-points.mjs": ["packages/web/src/tutor-diagrams/layouts.test.mjs"],
     "packages/control-plane/src/learn-code-explain.js": ["packages/control-plane/test/learn-code-explain.test.js"],
+    "packages/control-plane/src/learn-section-*.js": ["packages/control-plane/test/learn-section-store.test.js","packages/control-plane/test/learn-section-brief.test.js","packages/control-plane/test/learn-section-compose.test.js","packages/control-plane/test/learn-section-make.test.js"],
+    "packages/control-plane/src/learn-section-make/*.js": ["packages/control-plane/test/learn-section-make.test.js"],
     "packages/control-plane/scripts/code-explain-calibration.mjs": ["packages/control-plane/test/code-explain-calibration.test.js"],
     "packages/web/src/tutor-diagrams/block-stack-spec.js": ["packages/web/src/tutor-diagrams/block-stack.test.mjs"],
     "packages/web/src/tutor-diagrams/flow-paths.js": ["packages/web/src/tutor-diagrams/flow-paths.test.mjs"],
