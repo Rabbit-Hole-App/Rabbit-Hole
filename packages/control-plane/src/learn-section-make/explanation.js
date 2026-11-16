@@ -57,9 +57,9 @@ export async function validate(input, ctx) {
   const anchored = blocks.filter(b => !b.pair).map(b => b.lines.join('\n')).join('\n');
   const wrong = codeNameError(prompt, anchored);
   if (wrong) return { error: `prompt ${wrong}: the source lines travel with it separately` };
-  const allowed = new Set(`${blocks.map(b => b.lines.join('\n')).join('\n')}\n${JSON.stringify(ctx.brief)}\n${ctx.item.request}`.match(NUMBER) || []);
+  const allowed = new Set(`${blocks.map(b => b.lines.join('\n')).join('\n')}\n${JSON.stringify(ctx.brief)}\n${ctx.item.request}\n${ctx.record || ''}`.match(NUMBER) || []);
   const invented = (prompt.match(NUMBER) || []).filter(n => !allowed.has(n));
-  if (invented.length) return { error: `prompt uses ${invented.join(', ')}, which the source lines and the brief do not: use only their numbers` };
+  if (invented.length) return { error: `prompt uses ${invented.join(', ')}, which the source lines, the brief and the recorded run do not: use only their numbers` };
   const depth = ctx.beat?.background ? 'brief' : validDepth(ctx.depth) || 'balanced';
   const built = buildContext(blocks);
   return { perform: { op: 'slash', line: `/explain ${prompt}`, depth, ...(built.context ? { context: built.context } : {}) }, record: { depth, contextChars: built.context.length, cutLines: built.cutLines, blocks: built.blocks } };

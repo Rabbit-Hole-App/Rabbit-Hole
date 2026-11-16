@@ -55,3 +55,8 @@ Where a spec and this file disagree, this file wins. Specs: `learn-section-brief
 7. `after` is allowed on a notebook item too (Make §7c).
 8. `purgeTutorRows`: delete `learn_sections` rows, guarded by table existence, before any prod migration is ever discussed.
 9. Nothing to main. The owner's click-through on 8878 is the gate.
+
+## Reviewer, 11:00 (on 754a29bbe)
+1. One-sentence rule loosened. A beat idea is one idea in one or two short sentences, at most 220 characters. The overlay's sentence 2 of paragraph 2 becomes exactly: "A beat is one idea, said in one or two short sentences, in the order a reader needs them, and each beat ends in something the learner can see, compute or try." `validateBrief`: at most 2 sentences and 220 characters. Re-run the datasette 1.2 brief, then compose it.
+2. Numbers in explanation prompts: the rehearsal record's values (vocabulary size 65, token counts, losses, step times) are the source's own facts and are allowed. The Make context gains RECORDED RUN lines from the record, and the explanation validator accepts a number present in the anchors, the brief or the record. The `tasks/learn-section-make.md` paragraph 3 sentence becomes: "A number you write is one that appears in the source lines, the brief or the recorded run." Re-run nanoGPT 2.1 i1.
+3. The three pre-existing explain-suite failures are listed in BLOCKERS with their failing assertions. Nothing to main.

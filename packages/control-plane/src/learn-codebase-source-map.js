@@ -450,7 +450,7 @@ export async function codebaseRoute(path, req, env, deps = {}) {
     if (body.action === 'learn_plan_save') return await learnPlanSave(env, actor, body);
     if (body.action === 'learn_fit') return await metered(env, access, 'learn_fit', scoped => learnFit(scoped, snapshot, body, deps));
     if (body.action === 'learn_section_brief') return await metered(env, access, 'learn_section', async scoped => (await import('./learn-section-brief.js')).runBrief(scoped, { actor, snapshot }, body, deps)); // the section modules load on use: chat-tools.js reaches canvases.js, which imports this file
-    if (body.action === 'learn_section_make') return await metered(env, access, 'learn_section', async scoped => (await import('./learn-section-make.js')).runMake(scoped, { actor, snapshot, repo: { app: repo.app, repo: repo.repo, commit: repo.commit } }, body, deps));
+    if (body.action === 'learn_section_make') return await metered(env, access, 'learn_section', async scoped => (await import('./learn-section-make.js')).runMake(scoped, { actor, snapshot, repo: { id: repo.id, app: repo.app, repo: repo.repo, commit: repo.commit } }, body, deps));
     if (body.action === 'learn_section_made') return await (await import('./learn-section-make.js')).runMade(env, { actor }, body);
     if (body.action === 'learn_section_next') return await (await import('./learn-section-make.js')).runNext(env, { actor }, body);
     if (body.action === 'learn_section_compose') return await metered(env, access, 'learn_section', async scoped => (await import('./learn-section-compose.js')).runCompose(scoped, { actor, email: access.email }, body, deps));

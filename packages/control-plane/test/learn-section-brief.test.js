@@ -36,6 +36,11 @@ test('validateBrief: a missing anchor, more than two background beats, a path in
   assert.deepEqual(validateBrief(good({ beats: good().beats.slice(0, 2) }), opts()).errors, ['a section has 3 to 6 beats; this one has 2']);
   assert.deepEqual(validateBrief(good(), opts({ first: true })).errors, ['from must be empty: this is the first section']);
   assert.deepEqual(validateBrief(good({ to: '' }), opts()).errors, ['to is one sentence handing over to the next section']);
+  // Reviewer 11:00: one idea in one or two short sentences, at most 220 characters.
+  const withIdea = idea => validateBrief(good({ beats: [beat('b1', { idea }), ...good().beats.slice(1)] }), opts()).errors;
+  assert.equal(withIdea('The share counts finished work. It is shown as a whole number.'), undefined);
+  assert.deepEqual(withIdea('The share counts finished work. It is rounded. It is shown.'), ['beat b1: idea is one idea in one or two short sentences, at most 220 characters']);
+  assert.deepEqual(withIdea(`The share ${'counts finished work '.repeat(11)}today.`), ['beat b1: idea is one idea in one or two short sentences, at most 220 characters']);
   const m = { kind: 'video', query: 'how a share is computed', lookFor: 'the division' };
   assert.deepEqual(validateBrief(good({ beats: [beat('b1', { material: m }), beat('b2', { idea: 'Dividing finished by all gives a share.', material: { ...m, kind: 'paper', reason: 'recency' } }), good().beats[2]] }), opts()).errors, ['at most 1 beat with material; this section has 2']);
   assert.equal(validateBrief(good({ beats: [beat('b1', { material: { ...m, kind: 'article', reason: 'recency' } }), ...good().beats.slice(1)] }), opts()).value.beats[0].material.reason, 'recency', 'DECISIONS E');

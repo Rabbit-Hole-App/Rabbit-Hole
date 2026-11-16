@@ -52,7 +52,7 @@ export const SUBMIT_BRIEF_TOOL = {
       from: { type: 'string', description: 'One sentence: where the previous section left the reader. Empty for the first section.' },
       beats: { type: 'array', minItems: 3, maxItems: 6, items: { type: 'object', additionalProperties: false, required: ['id', 'idea', 'shows', 'anchors', 'background'], properties: {
         id: { type: 'string', description: 'b1, b2, ... in order.' },
-        idea: { type: 'string', maxLength: 200, description: 'One sentence in plain words; a code name only in backticks, exactly as the anchored lines spell it; no path, file name or flag.' },
+        idea: { type: 'string', maxLength: 220, description: 'One idea in one or two short sentences, plain words; a code name only in backticks, exactly as the anchored lines spell it; no path, file name or flag.' },
         shows: { type: 'string', description: 'What the learner can see, compute or try at the end of this beat. Plain words; a code name only in backticks, exactly as the anchored lines spell it.' },
         anchors: { type: 'array', items: { type: 'string' }, description: 'The source anchors this beat rests on: path or path:start-end from the excerpts. Empty only for a background beat.' },
         background: { type: 'boolean', description: 'True when the beat rests on your own knowledge, not the source.' },
@@ -99,7 +99,7 @@ export function validateBrief(input, { sectionId, first, last, anchorsExist, anc
   beats.forEach((raw, i) => {
     const b = isObject(raw) ? raw : {}, id = str(b.id) || `b${i + 1}`, idea = str(b.idea), shows = str(b.shows);
     const anchors = Array.isArray(b.anchors) ? b.anchors.map(str).filter(Boolean) : [];
-    if (!idea || idea.length > 200 || sentencesOf(idea).length !== 1) errors.push(`beat ${id}: idea is one sentence of at most 200 characters`);
+    if (!idea || idea.length > 220 || sentencesOf(idea).length > 2) errors.push(`beat ${id}: idea is one idea in one or two short sentences, at most 220 characters`); // Reviewer 11:00
     if (!shows) errors.push(`beat ${id}: shows says what the learner can see, compute or try`);
     const anchored = anchors.map(a => anchorText(a)).join('\n');
     for (const [name, value] of [['idea', idea], ['shows', shows]]) { const wrong = codeNameError(value, anchored); if (wrong) errors.push(`beat ${id}: ${name} ${wrong}`); }
