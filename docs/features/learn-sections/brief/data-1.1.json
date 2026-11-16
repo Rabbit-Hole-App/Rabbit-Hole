@@ -1,0 +1,92 @@
+{
+  "case": "data",
+  "section": "1.1",
+  "sectionId": "1.1",
+  "ms": 14149,
+  "out": {
+    "brief": {
+      "sectionId": "1.1",
+      "from": "",
+      "beats": [
+        {
+          "id": "b1",
+          "idea": "The top of the file is a parts list: the app is a hub that pulls in concurrency, templating, signing, database, view and plugin pieces.",
+          "shows": "The learner can group the import lines into families and say what each family is for.",
+          "anchors": [
+            "datasette/app.py:1-171"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b2",
+          "idea": "Async and thread imports show two worlds: asyncio runs the request, while a thread pool runs blocking SQLite work.",
+          "shows": "The learner can point at the asyncio, threading and futures imports and at the default of 3 SQL threads.",
+          "anchors": [
+            "datasette/app.py:3-27",
+            "datasette/app.py:228-232"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b3",
+          "idea": "The template imports show that HTML pages come from templates that plugins and users can layer over the defaults.",
+          "shows": "The learner can name the loaders imported and guess why a choice loader exists: search order across template folders.",
+          "anchors": [
+            "datasette/app.py:32-41"
+          ],
+          "background": true,
+          "material": null
+        },
+        {
+          "id": "b4",
+          "idea": "Signing comes from a third-party serializer library plus the secrets module; these back signed values and API tokens.",
+          "shows": "The learner can find those imports and the setting that allows signed tokens, which defaults to on.",
+          "anchors": [
+            "datasette/app.py:21",
+            "datasette/app.py:31",
+            "datasette/app.py:253-257",
+            "datasette/app.py:62"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b5",
+          "idea": "The view and plugin-manager imports show the app owns the routing targets: each view class is a page or endpoint, and the plugin manager dispatches hooks.",
+          "shows": "The learner can list a few imported views (index, row, table) and the plugin manager import.",
+          "anchors": [
+            "datasette/app.py:49",
+            "datasette/app.py:118-165"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b6",
+          "idea": "The settings table of named tuples is the first shared configuration defined in the module.",
+          "shows": "The learner can read the tuple shape and a few entries, such as page size 100 and query time limit 1000 ms.",
+          "anchors": [
+            "datasette/app.py:210-237"
+          ],
+          "background": false,
+          "material": null
+        }
+      ],
+      "to": "Next, we look at how the app turns these settings into configuration, databases and shared state.",
+      "searches": []
+    }
+  },
+  "log": [
+    {
+      "event": "learn_section_brief",
+      "section": "1.1",
+      "calls": 2,
+      "usd": 0.037238,
+      "cap_usd": 0.15,
+      "searches": 0,
+      "outcome": "ok"
+    }
+  ]
+}

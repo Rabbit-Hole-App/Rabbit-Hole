@@ -1,0 +1,67 @@
+{
+  "case": "nano",
+  "section": "1.1",
+  "sectionId": "1.1",
+  "ms": 9055,
+  "out": {
+    "brief": {
+      "sectionId": "1.1",
+      "from": "",
+      "beats": [
+        {
+          "id": "b1",
+          "idea": "Character-level modeling maps characters to ints instead of GPT-2 BPE tokens, so the script first needs the whole corpus as text.",
+          "shows": "The learner can say in one sentence what the script produces and why getting text comes first.",
+          "anchors": [
+            "data/shakespeare_char/prepare.py:1-6"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b2",
+          "idea": "The download is guarded: the path is built next to the script, and the file is fetched only if it does not already exist, so it happens once.",
+          "shows": "The learner can point at the existence check on line 14 and predict that a second run skips the request.",
+          "anchors": [
+            "data/shakespeare_char/prepare.py:13-17"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b3",
+          "idea": "The file is then opened and read in full into a single string, with no splitting by line or word.",
+          "shows": "The learner can point at the read call on line 20 and see the result is one long string whose length counts characters.",
+          "anchors": [
+            "data/shakespeare_char/prepare.py:19-21"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b4",
+          "idea": "The recorded run says the string is 1,115,394 characters; every later count works from that number.",
+          "shows": "The learner can check that 1,003,854 + 111,540 = 1,115,394, previewing that the later split loses nothing.",
+          "anchors": [
+            "data/shakespeare_char/prepare.py:63-68"
+          ],
+          "background": false,
+          "material": null
+        }
+      ],
+      "to": "Now that the text sits in one string, the next step is finding which distinct characters it contains.",
+      "searches": []
+    }
+  },
+  "log": [
+    {
+      "event": "learn_section_brief",
+      "section": "1.1",
+      "calls": 2,
+      "usd": 0.026678,
+      "cap_usd": 0.15,
+      "searches": 0,
+      "outcome": "ok"
+    }
+  ]
+}

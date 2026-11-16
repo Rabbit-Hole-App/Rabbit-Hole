@@ -1,0 +1,24 @@
+{
+  "request": {
+    "app": "canvas-0634b48d",
+    "command": "code",
+    "args": "Write a Python example that splits a string at one index into a first piece and a second piece. Use these sizes and values: data = 'abcdefghij', n = len(data), cut = int(n*0.9), train = data[:int(n*0.9)], val = data[int(n*0.9):]. Standard library and numpy only; nothing imported from the source. One comment per step, in the words the reader already knows: string, characters, index, slice, train piece, held-back piece. Steps: set the string and its length; slice the first piece up to the index; slice the second piece from the same index; print both pieces; print that train + val equals data and that the lengths add up to n, so no character is shared or missing. Do not print or state any output.",
+    "selection": null,
+    "context": "87 characters",
+    "board": "main",
+    "madeBy": "learn-section"
+  },
+  "status": 200,
+  "ms": 5262,
+  "response": {
+    "result": "artifact",
+    "primitive": "code_sample",
+    "block": {
+      "type": "snippet",
+      "title": "Splitting a string at one index",
+      "brief": "One index cuts a string into a train piece and a held-back piece that together rebuild the original.",
+      "code": "# the string of characters we want to split, and how many characters it has\ndata = 'abcdefghij'\nn = len(data)\n\n# the index where we cut: 90% of the way along the string\ncut = int(n * 0.9)\n\n# the train piece: slice from the start up to (not including) the index\ntrain = data[:int(n * 0.9)]\n\n# the held-back piece: slice from that same index to the end\nval = data[int(n * 0.9):]\n\n# look at the two pieces\nprint('train piece:', train)\nprint('held-back piece:', val)\n\n# the pieces joined back together are the original string\nprint('train + val == data:', train + val == data)\n\n# their lengths add up to n, so no character is shared or missing\nprint('len(train) + len(val) == n:', len(train) + len(val) == n)\nprint('cut index:', cut, '| sizes:', len(train), len(val))\n"
+    },
+    "repaired": false
+  }
+}

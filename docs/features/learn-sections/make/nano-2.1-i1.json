@@ -1,0 +1,30 @@
+{
+  "case": "nano",
+  "section": "2.1",
+  "sectionId": "2.1",
+  "itemId": "i1",
+  "preReview": true,
+  "ms": 6535,
+  "out": {
+    "skipped": {
+      "itemId": "i1",
+      "note": "I skipped the explanation for this part."
+    },
+    "next": "i2"
+  },
+  "log": [
+    {
+      "event": "learn_section_make",
+      "section": "2.1",
+      "item": "i1",
+      "command": "explanation",
+      "calls": 2,
+      "usd": 0.015328,
+      "cap_usd": 0.1,
+      "outcome": "invalid",
+      "errors": [
+        "prompt must have no file names, paths, flags or code names: the source lines travel with it separately"
+      ]
+    }
+  ]
+}

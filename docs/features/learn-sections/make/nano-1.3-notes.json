@@ -1,0 +1,33 @@
+{
+  "case": "nano",
+  "section": "1.3",
+  "sectionId": "1.3",
+  "itemId": "notes",
+  "preReview": true,
+  "ms": 8511,
+  "out": {
+    "item": {
+      "itemId": "notes",
+      "command": "document",
+      "lead": "You now have a way to turn text into numbers and back. These notes gather what the section built, so you can re-read it before the next step.",
+      "follow": ""
+    },
+    "perform": {
+      "op": "doc",
+      "markdown": "**What this section built.** The sorted list of 65 characters is the vocabulary. This section turned that list into a two-way lookup.\n\n**Encoding** gives each character the number of its position in the sorted list. The list order becomes the id. From the start of the printed list, newline is 0, space is 1 and '!' is 2.\n\n**stoi** is a dictionary built from `enumerate(chars)`. That call yields (position, character) pairs, and stoi flips each pair into character:position. So `stoi['!']` looks up 2, and `stoi['a']` looks up the position of 'a' in the sorted list.\n\n**itos** uses the same pairs but keeps them as position:character. It is the exact reverse table. In the two comprehensions, only the order of `ch` and `i` differs.\n\n**encode** looks up every character of a string in stoi and returns a list of ints. **decode** looks up every id in itos and joins the results into a string. Run `encode('hi')` and you get two ids, and `decode` on those ids gives back `'hi'`. The round trip returns the original string.\n\n**Edge:** the mapping covers only the 65 characters seen in the text. Encoding an unseen character such as 'é' fails with an error, because stoi has no key for it. Both dictionaries are saved in the meta file, so later code can reuse them.\n\n**Terms introduced:**\n- encoding / decoding\n- stoi (character to id)\n- itos (id to character)\n- round trip\n\n**Hand-over.** With encode ready, the whole text can become one long list of ids. The next section cuts that list into a training part and a validation part, starting with the ninety percent split."
+    },
+    "next": null
+  },
+  "log": [
+    {
+      "event": "learn_section_make",
+      "section": "1.3",
+      "item": "notes",
+      "command": "document",
+      "calls": 2,
+      "usd": 0.01894,
+      "cap_usd": 0.1,
+      "outcome": "ok"
+    }
+  ]
+}

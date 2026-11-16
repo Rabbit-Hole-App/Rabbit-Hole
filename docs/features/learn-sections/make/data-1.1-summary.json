@@ -1,0 +1,57 @@
+[
+  {
+    "itemId": "i1",
+    "ms": 6824,
+    "op": "slash",
+    "skipped": null,
+    "error": null
+  },
+  {
+    "itemId": "i2",
+    "ms": 6666,
+    "op": "slash",
+    "skipped": null,
+    "error": null
+  },
+  {
+    "itemId": "i3",
+    "ms": 8571,
+    "op": "slash",
+    "skipped": null,
+    "error": null
+  },
+  {
+    "itemId": "i4",
+    "ms": 107,
+    "op": null,
+    "skipped": {
+      "itemId": "i4",
+      "note": "I skipped the quiz for this part."
+    },
+    "error": null
+  },
+  {
+    "itemId": "i5",
+    "ms": 11129,
+    "op": null,
+    "skipped": {
+      "itemId": "i5",
+      "note": "I skipped the diagram for this part."
+    },
+    "error": null
+  },
+  {
+    "itemId": "i6",
+    "ms": 4122,
+    "op": "slash",
+    "skipped": null,
+    "error": null
+  },
+  {
+    "itemId": "notes",
+    "ms": 10659,
+    "op": "doc",
+    "skipped": null,
+    "error": null
+  }
+]

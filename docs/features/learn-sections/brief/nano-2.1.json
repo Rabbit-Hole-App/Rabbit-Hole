@@ -1,0 +1,78 @@
+{
+  "case": "nano",
+  "section": "2.1",
+  "sectionId": "2.1",
+  "ms": 11616,
+  "out": {
+    "brief": {
+      "sectionId": "2.1",
+      "from": "The previous section finished encode and decode, so any string can become a list of ids and back.",
+      "beats": [
+        {
+          "id": "b1",
+          "idea": "A language model is checked on text it was not trained on, so the single string is cut into two pieces: a large one to learn from and a small one held back.",
+          "shows": "The learner can state the cut in plain words: first 90% of characters train, last 10% validate.",
+          "anchors": [
+            "data/shakespeare_char/prepare.py:37-40"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b2",
+          "idea": "The cut is plain string slicing at one index; the same index ends the first piece and starts the second, so the pieces share no character and miss none.",
+          "shows": "The learner points at the two slicing lines and sees the same int(n*0.9) used as end and start.",
+          "anchors": [
+            "data/shakespeare_char/prepare.py:38-40"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b3",
+          "idea": "Worked example with the real numbers: n is 1,115,394, so n*0.9 is 1,003,854.6 and int drops it to 1,003,854.",
+          "shows": "The learner computes 1,003,854 train characters and 1,115,394 − 1,003,854 = 111,540 validation characters, matching the comments.",
+          "anchors": [
+            "data/shakespeare_char/prepare.py:63-68"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b4",
+          "idea": "The cut is made on the raw text before encoding, then each piece is encoded; for characters, id counts equal slice lengths.",
+          "shows": "The learner sees the encode lines produce 1,003,854 and 111,540 ids.",
+          "anchors": [
+            "data/shakespeare_char/prepare.py:42-46"
+          ],
+          "background": false,
+          "material": null
+        },
+        {
+          "id": "b5",
+          "idea": "The GPT-2 BPE script uses the same two-line split; only the encoder differs, so token counts differ (301,966 and 36,059) while the 90/10 cut is the same.",
+          "shows": "The learner compares the two scripts' slicing lines side by side.",
+          "anchors": [
+            "data/shakespeare/prepare.py:15-22",
+            "data/shakespeare/prepare.py:32-33"
+          ],
+          "background": false,
+          "material": null
+        }
+      ],
+      "to": "Next: why the held-back tenth must never be seen during training.",
+      "searches": []
+    }
+  },
+  "log": [
+    {
+      "event": "learn_section_brief",
+      "section": "2.1",
+      "calls": 2,
+      "usd": 0.028214,
+      "cap_usd": 0.15,
+      "searches": 0,
+      "outcome": "ok"
+    }
+  ]
+}
