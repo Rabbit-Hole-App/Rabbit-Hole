@@ -107,6 +107,8 @@
     }
   ],
   "vars": {
+    // The code-explain chat route: on in the local and CI stack, as in dev (production keeps it off, Reviewer 2026-11-16 12:10).
+    "CODE_EXPLAIN_ENABLED": "true",
     "LEARN_VIDEO_PROVIDER": "fal-seedance-lite",
     "LEARN_VIDEO_RESOLUTION": "480p",
     "SUBSCRIPTION_ONLY": "false",

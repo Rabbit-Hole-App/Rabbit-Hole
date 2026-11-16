@@ -157,7 +157,7 @@ export const SENTENCES = {
   sectionPlanning: 'Planning this section',
   sectionMaking: 'Making this section',
   sectionNext: 'Next section',
-  sectionMake: 'Make section',
+  sectionMake: 'Build this section', // Reviewer 2026-11-16 12:10: the row ships to users
 };
 
 // Indexing failed: too big when the plain reason says so (a number of files or the limit), else the connect-time line.

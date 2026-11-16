@@ -32,9 +32,8 @@ const bindingOf = (email, f) => sha256(canon([String(email).toLowerCase(), f.app
 // Whether this capability can run here now. Never enables anything: a build flag only the browser knows must be in its
 // enabled list, Motion also needs the server's own gate (orchestrator configured, not paused), image generation is off.
 export function availability(env, cap, enabled, email = null) {
-  // code-explain ships dark (Reviewer 2026-11-16 11:55): only for a browser built with the rehearsal flag (VITE_REHEARSAL_TRIGGER, sent as rehearsal: true),
-  // until its calibration run 4 passes (at least 11 of 13). A production build never sends it.
-  if (Object.hasOwn(CODE_CAPABILITIES, cap.name)) return cap.rehearsal === true;
+  // code-explain has its own server switch (Reviewer 2026-11-16 12:10): CODE_EXPLAIN_ENABLED, off in production until its calibration run 4 passes (at least 11 of 13).
+  if (Object.hasOwn(CODE_CAPABILITIES, cap.name)) return env.CODE_EXPLAIN_ENABLED === 'true';
   if (Array.isArray(enabled) && !enabled.includes(cap.name)) return false;
   if (cap.name === 'motion') return motionOffered(env, email);
   if (cap.needs === 'image_generation') return imageAllowed(env, email); // the server decides per caller (public flag, else the listed operator)
@@ -54,7 +53,7 @@ export const answerToolsOn = (env, mode) => {
 // code-explain (docs tutor-prompts-and-routing.md section 1b) is offered only while the chat holds at least one code ref (context_refs kind 'code', ids code:<repo>@<commit>:<path>):
 // with none it is not a route, so a code question stays an ordinary chat answer.
 export const hasCodeRef = refs => Array.isArray(refs) && refs.some(ref => ref?.kind === 'code' || /^code:/.test(String(ref?.sourceId ?? '')));
-const offeredRoutes = (env, fields = {}) => chatRoutesWith([...(env.EXPLAIN_V2_ENABLED === 'true' ? ['explain'] : []), ...(hasCodeRef(fields.source_refs) ? Object.keys(CODE_CAPABILITIES).filter(name => availability(env, { name, rehearsal: fields.rehearsal }, null)) : [])]);
+const offeredRoutes = (env, fields = {}) => chatRoutesWith([...(env.EXPLAIN_V2_ENABLED === 'true' ? ['explain'] : []), ...(hasCodeRef(fields.source_refs) ? Object.keys(CODE_CAPABILITIES).filter(name => availability(env, { name }, null)) : [])]);
 const unavailable = (env, name, email = null) => (name === 'motion' && motionPaused(env, email) ? MOTION_PAUSED : name === 'motion' ? 'Video explainers (Motion) are not available on this canvas.' : `${commandLabel(name)} isn't available here.`);
 
 // One chat line's decision. deps.ask is the JEV call (counted in tests). Returns the response body.
@@ -69,11 +68,11 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
     const removed = unavailableCommand(typedOf(name), { imageGeneration: imageAllowed(env, email), whiteboard: env.WHITEBOARD_ENABLED === 'true' }); // name is a stable id; unavailableCommand takes what was typed
     if (removed) return refuse(via, removed);
     const codeRoute = CODE_CAPABILITIES[name] ?? null; // a route with no slash command: only while the chat holds a code ref, whoever asked for it
-    if (codeRoute && (!hasCodeRef(fields.source_refs) || !availability(env, { name, rehearsal: fields.rehearsal }, enabled, email))) return answer(via); // dark: a code question stays an ordinary answer
+    if (codeRoute && (!hasCodeRef(fields.source_refs) || !availability(env, { name }, enabled, email))) return answer(via); // dark: a code question stays an ordinary answer
     const declared = chatCapability(name) ?? codeRoute;
     const entry = codeRoute ? { needs: null } : SLASH.find(command => command.name === name && command.places.includes('learn')) ?? (declared?.standalone ? { needs: null } : null); // standalone: a router-only capability the browser runs (Create a course, owner 2026-11-14)
     if (!entry) return refuse(via, `/${name} is not a Learn command.`);
-    if (!availability(env, { name, needs: entry.needs || null, rehearsal: fields.rehearsal }, enabled, email)) return { ...refuse(via, unavailable(env, name, email)), ...extra };
+    if (!availability(env, { name, needs: entry.needs || null }, enabled, email)) return { ...refuse(via, unavailable(env, name, email)), ...extra };
     const flow = declared?.flow === 'proposal' && reviewRequired(name) ? 'proposal' : 'direct';
     const token = await sign({ t: 'chat-route', cap: name, flow, c: Number.isFinite(extra.confidence) ? extra.confidence : null, h: await bindingOf(email, fields), exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_S }, await signingKey(env));
     return { ...base, ...extra, route: `capability:${name}`, via, capability: name, flow, args, paid: paidOf(name), settings: flow === 'proposal' && declared?.settings?.length ? declared.settings : null, token };
@@ -158,7 +157,7 @@ export async function chatRouteFetch(req, env, { authorize = authorizedBoardApp,
   try { body = JSON.parse(raw); } catch { return json({ error: 'Invalid JSON' }, 400); }
   const bad = !body || typeof body !== 'object' || !REQUEST_ID.test(String(body.request_id)) || typeof body.text !== 'string' || body.text.length > TEXT_MAX
     || !MODES.includes(body.mode) || (body.capability != null && (typeof body.capability !== 'string' || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(body.capability)))
-    || (body.enabled != null && (!Array.isArray(body.enabled) || body.enabled.some(id => typeof id !== 'string'))) || (body.rehearsal != null && typeof body.rehearsal !== 'boolean')
+    || (body.enabled != null && (!Array.isArray(body.enabled) || body.enabled.some(id => typeof id !== 'string')))
     || [body.selection, body.motion].some(v => v != null && (typeof v !== 'object' || Array.isArray(v))) || (body.source_refs != null && !Array.isArray(body.source_refs));
   if (bad) return json({ error: 'Invalid chat route request' }, 400);
   if (!body.text.trim() && !body.capability) return json({ error: 'Type a message first.' }, 400);
@@ -172,6 +171,6 @@ export async function chatRouteFetch(req, env, { authorize = authorizedBoardApp,
     if (!routes) return json({ error: 'Invalid learn routes' }, 400);
     return json(await decideScoped(env, { requestId: body.request_id, text: body.text, scope: LEARN_SCOPE, routes }, deps));
   }
-  const fields = { app: body.app, text: body.text, mode: body.mode, selection: body.selection, source_refs: body.source_refs, motion: body.motion, history: body.history, rehearsal: body.rehearsal === true };
+  const fields = { app: body.app, text: body.text, mode: body.mode, selection: body.selection, source_refs: body.source_refs, motion: body.motion, history: body.history };
   return json(await decideChat(env, { email: allowed.email, app: body.app, requestId: body.request_id, fields, capability: body.capability ?? null, enabled: body.enabled ?? null }, deps));
 }
