@@ -89,5 +89,7 @@ test('wiring: the contents go read-only with no composer after Accept; the draft
   assert.match(flow, /action: 'learn_plan', learn: \{ \.\.\.option, options: planOptions\(\) \}/);
   assert.match(flow, /action: 'learn_plan_save', plan/);
   assert.doesNotMatch(flow, /Change the plan/, 'an accepted plan is final: no edit path afterwards');
+  assert.match(flow, /savePlan\(\{ ops: previous\.ops, revision: previous\.base, acceptedAt: null, text: previous\.text \}\)/, 'Keep the previous draft is saved too, so a reload shows the kept one');
+  assert.match(flow, /\.\.\.\(extra\.length \? \{ choices: extra \} : \{\}\)/, 'an off-plan answer keeps its nearest-topic rows');
   for (const file of ['learn-plan.js', 'rehearsal-flow.js', 'TutorRehearsal.jsx']) assert.doesNotMatch(read(file), /nanoGPT|datasette|shakespeare|attention|tokens|word2vec/i, file);
 });

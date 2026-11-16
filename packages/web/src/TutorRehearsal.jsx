@@ -197,7 +197,9 @@ export default function TutorRehearsalFlow({ chat }) {
     const learn = { options: planOptions() };
     if (out.error === 'invalid_plan' || !out.proposal?.ops?.length) { patch({ plan: { status: 'invalid', rows: planRows(out.rows?.length ? out.rows : ['try_again', 'start_plain'], { learn }), previous, retry: { option, edit, draft } } }); return; }
     if (out.off_plan && before?.status === 'draft') { // a line that is not about the plan: one sentence, the draft is shown again unchanged
-      patch({ plan: { ...before, busy: false }, planLog: [...st.current.planLog, line('assistant', out.text)] });
+      // The answer's own rows (a nearest topic, a background section) ride under the sentence; Accept and Change something stay on the draft.
+      const extra = planRows(out.rows, { ops: before.ops, learn }).filter(row => row.id.startsWith('learn:') || row.id.startsWith('plan:background:') || row.id === 'plan:plain');
+      patch({ plan: { ...before, busy: false }, planLog: [...st.current.planLog, { ...line('assistant', out.text), ...(extra.length ? { choices: extra } : {}) }] });
       return;
     }
     const proposal = { ops: out.proposal.ops, base: out.proposal.base, source: 'learn-plan' };
@@ -227,7 +229,7 @@ export default function TutorRehearsalFlow({ chat }) {
     if (/^(use|route|goal|learn):/.test(id) || id === 'mode:run' || id === 'else') rememberIntake(canvas); // asked once: a way is the answer
     if (id === 'plan:accept') acceptPlan();
     else if (id === 'plan:change') { patch({ planLog: [...st.current.planLog, line('assistant', SENTENCES.planEditPlaceholder)] }); chat.composer?.focus?.(); }
-    else if (id === 'plan:keep') { const previous = st.current.plan?.previous; if (previous) { patch({ plan: { ...previous, previous: null, busy: false } }); chat.canvasOps?.proposeOutline?.({ ops: previous.ops, base: previous.base, source: 'learn-plan' }); } }
+    else if (id === 'plan:keep') { const previous = st.current.plan?.previous; if (previous) { patch({ plan: { ...previous, previous: null, busy: false } }); chat.canvasOps?.proposeOutline?.({ ops: previous.ops, base: previous.base, source: 'learn-plan' }); savePlan({ ops: previous.ops, revision: previous.base, acceptedAt: null, text: previous.text }); } }
     else if (id === 'plan:plain') patch({ plan: { status: 'plain' } });
     else if (id === 'plan:retry') { const retry = st.current.plan?.retry; if (retry) requestPlan(retry.option, retry); }
     else if (id.startsWith('plan:background:')) { const plan = st.current.plan; if (plan?.status === 'draft') requestPlan(plan.option, { edit: plan.rows.find(row => row.id === id)?.label || '', draft: plan.ops }); }
