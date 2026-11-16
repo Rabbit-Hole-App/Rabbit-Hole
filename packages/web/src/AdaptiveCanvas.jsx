@@ -6930,7 +6930,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {/* Hide the composer (owner brief 2 item 5): it stays mounted - draft, attachments, the selected card's context and
             a running answer all carry on - and only leaves the view, so it frees its room (fit and reveal stop above the
             small Show button instead). The hooks card's minimized state is its own. */}
-        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} className={`${DOCK_WIDTH} relative min-w-0 md:col-start-2 md:mx-0 max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
+        {composer && <div data-canvas-composer data-composer-hidden={composerHidden ? '' : undefined} style={{ transform: 'translateX(calc(var(--study-pane-w, 0px) / -2))' }} className={`${DOCK_WIDTH} relative min-w-0 md:col-start-2 md:mx-0 max-md:order-2 ${composerHidden ? 'hidden' : ''}`}>
           {/* The chat window (owner 2026-11-13): sending from the strip opens the conversation here, above the suggestions and the composer. */}
           {chatWindow}
           {/* Curious (owner 2026-11-13): the three suggestions are small pills in a row right above the strip, so they leave with it. */}
