@@ -1,0 +1,277 @@
+{
+  "title": "Merge Sort Algorithm",
+  "story": "How does a large list get sorted efficiently? Imagine splitting a shuffled deck of cards in half repeatedly until every pile has just one card. Then, merge pairs of piles back together in sorted order by comparing their top cards until you have one single sorted deck. This divide-and-conquer strategy is merge sort. We can trace its steps to see how breaking a problem down makes it simple to solve.",
+  "cardDescription": "Explore how merge sort divides a collection into single elements and merges them back in order. Follow each step to see the divide-and-conquer strategy in action.",
+  "instructions": "Use the step slider to move through the sorting states. Click reset to start over.",
+  "composition": {
+    "schemaVersion": 1,
+    "status": "reference-proposal",
+    "id": "merge_sort",
+    "family": "stepper-states",
+    "depth": "brief",
+    "canonical": "algorithm-over-collection",
+    "story": "Merge sort divides a collection into halves, recursively sorts them, and merges the sorted halves.",
+    "aha": {
+      "stateId": "merge",
+      "observation": "Merging two sorted halves takes linear time because we always pick the smaller front element."
+    },
+    "layout": {
+      "preset": "algorithm-over-collection",
+      "width": 640
+    },
+    "parts": [
+      {
+        "id": "rail",
+        "kind": "step-rail",
+        "bind": {
+          "items": "variant.states",
+          "active": "inputs.step"
+        }
+      },
+      {
+        "id": "picture",
+        "kind": "fixed-picture",
+        "bind": {
+          "regions": "variant.regions",
+          "links": "variant.links",
+          "active": "state.active"
+        }
+      },
+      {
+        "id": "callout",
+        "kind": "active-callout",
+        "bind": {
+          "target": "state.calloutRegion",
+          "text": "state.sentence"
+        }
+      }
+    ],
+    "controls": [
+      {
+        "id": "step",
+        "kind": "index",
+        "presentation": "slider",
+        "items": "variant.states",
+        "default": 0
+      },
+      {
+        "id": "reset",
+        "kind": "reset"
+      }
+    ],
+    "data": {
+      "variants": [
+        {
+          "label": "Standard",
+          "regions": [
+            {
+              "id": "r1",
+              "label": "Unsorted",
+              "values": [
+                38,
+                27,
+                43,
+                3
+              ]
+            },
+            {
+              "id": "r2",
+              "label": "Divided",
+              "values": [
+                38,
+                27
+              ]
+            },
+            {
+              "id": "r3",
+              "label": "Sorted",
+              "values": [
+                3,
+                27,
+                38,
+                43
+              ]
+            }
+          ],
+          "links": [
+            {
+              "from": "r1",
+              "to": "r2"
+            },
+            {
+              "from": "r2",
+              "to": "r3"
+            }
+          ],
+          "states": [
+            {
+              "id": "start",
+              "label": "Initial",
+              "short": "Start",
+              "sentence": "Start with an unsorted array of numbers.",
+              "why": "Beginning state of the collection.",
+              "active": [
+                "r1"
+              ],
+              "calloutRegion": "r1",
+              "status": {
+                "id": "s1",
+                "text": "Unsorted array loaded",
+                "source": "r1"
+              },
+              "readouts": [
+                {
+                  "id": "rd1",
+                  "label": "Progress",
+                  "value": "0 / 4"
+                }
+              ],
+              "comparison": {
+                "left": 38,
+                "right": 27,
+                "chosen": 27,
+                "result": [
+                  27,
+                  38
+                ]
+              }
+            },
+            {
+              "id": "divide",
+              "label": "Divide",
+              "short": "Divide",
+              "sentence": "Split the array into smaller sub-arrays.",
+              "why": "Divide step isolates elements.",
+              "active": [
+                "r2"
+              ],
+              "calloutRegion": "r2",
+              "status": {
+                "id": "s2",
+                "text": "Array divided in half",
+                "source": "r2"
+              },
+              "readouts": [
+                {
+                  "id": "rd2",
+                  "label": "Progress",
+                  "value": "2 / 4"
+                }
+              ],
+              "comparison": {
+                "left": 38,
+                "right": 27,
+                "chosen": 27,
+                "result": [
+                  27,
+                  38
+                ]
+              }
+            },
+            {
+              "id": "merge",
+              "label": "Merge",
+              "short": "Merge",
+              "sentence": "Merge sorted halves back together.",
+              "why": "Merging builds the final sorted order.",
+              "active": [
+                "r3"
+              ],
+              "calloutRegion": "r3",
+              "status": {
+                "id": "s3",
+                "text": "Halves merged",
+                "source": "r3"
+              },
+              "readouts": [
+                {
+                  "id": "rd3",
+                  "label": "Progress",
+                  "value": "4 / 4"
+                }
+              ],
+              "comparison": {
+                "left": 38,
+                "right": 27,
+                "chosen": 27,
+                "result": [
+                  3,
+                  27,
+                  38,
+                  43
+                ]
+              }
+            }
+          ],
+          "calculations": {
+            "left": {
+              "result": [
+                27,
+                38
+              ],
+              "comparisons": 1,
+              "decisions": [
+                {
+                  "left": 38,
+                  "right": 27,
+                  "chosen": 27,
+                  "result": [
+                    27,
+                    38
+                  ]
+                }
+              ]
+            },
+            "right": {
+              "result": [
+                3,
+                43
+              ],
+              "comparisons": 1,
+              "decisions": [
+                {
+                  "left": 43,
+                  "right": 3,
+                  "chosen": 3,
+                  "result": [
+                    3,
+                    43
+                  ]
+                }
+              ]
+            },
+            "final": {
+              "result": [
+                3,
+                27,
+                38,
+                43
+              ],
+              "comparisons": 2,
+              "decisions": [
+                {
+                  "left": 27,
+                  "right": 3,
+                  "chosen": 3,
+                  "result": [
+                    3,
+                    27,
+                    38,
+                    43
+                  ]
+                }
+              ]
+            },
+            "total": 4
+          }
+        }
+      ]
+    }
+  },
+  "words": {
+    "heading": "Merge Sort Steps",
+    "current": "Current",
+    "previous": "Previous",
+    "completed": "Completed"
+  }
+}
