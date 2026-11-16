@@ -351,16 +351,9 @@ function validateDiagram(diagram, issue) {
       break;
   }
   for (const domain of domains) domain.validate(diagram, issue);
-  // A child's title may be left out only inside panels of round-and-square trees: the panel label is their title.
-  const labelledTrees = diagram.kind === 'panels' && diagram.panels.every(panel => topology.isDotTree(panel.diagram));
-  for (const child of childDiagrams(diagram)) {
-    const at = (path, message) => issue([...child.path, ...path], message);
-    if (child.diagram.title === undefined && !labelledTrees) at(['title'], 'A diagram needs a title');
-    validateDiagram(child.diagram, at);
-  }
+  for (const child of childDiagrams(diagram)) validateDiagram(child.diagram, (path, message) => issue([...child.path, ...path], message));
 }
 export const tutorDiagramSchema = shape.superRefine(({ diagram }, ctx) => {
-  if (diagram.title === undefined) ctx.addIssue({ code: 'custom', path: ['diagram', 'title'], message: 'A diagram needs a title' });
   validateDiagram(diagram, (path, message) => ctx.addIssue({ code: 'custom', path: ['diagram', ...path], message }));
 });
 

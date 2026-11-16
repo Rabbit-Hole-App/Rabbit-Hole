@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { sequenceBoundarySelfMessages, sequenceSelfMessage } from '../../scripts/batch-1-followup-fixtures.mjs';
 import { layouts } from './layouts.js';
 import { parseTutorDiagram } from './spec.js';
-import { wirePoints } from './test-wire-points.mjs';
 
 const cases = {
   comparison: {
@@ -52,9 +51,9 @@ function render(layout) {
   return renderToStaticMarkup(h('svg', { viewBox: `0 0 ${layout.width} ${layout.height}` }, ...layout.elements));
 }
 
-// A message arrow is the shared wire (a path with 8 px corners and a filled head); a lifeline is a dashed line.
-const lifelinePoints = line => [[line.props.x1, line.props.y1], [line.props.x2, line.props.y2]];
-const sequenceArrows = layout => layout.elements.filter(element => element.type === 'g').map(wirePoints);
+const coordinates = wire => wire.props.points.split(' ').map(point => point.split(',').map(Number));
+const sequenceArrows = layout => layout.elements.filter(element => element.type === 'g')
+  .map(element => coordinates(element.props.children[0]));
 
 test('a sequence self-message leaves and returns to the same lifeline between messages', () => {
   const { diagram } = parseTutorDiagram(sequenceSelfMessage);
@@ -82,8 +81,8 @@ test('sequence boundary loops follow the headers and extend the last lifeline', 
     const [senderX, transferY] = transfer[0];
     const [receiverX] = transfer[1];
     const header = layout.elements.find(element => element.type === 'rect').props;
-    const receiverLifeline = layout.elements.filter(element => element.type === 'line')
-      .map(lifelinePoints).find(points => points[0][0] === receiverX);
+    const receiverLifeline = layout.elements.filter(element => element.type === 'polyline')
+      .map(coordinates).find(points => points[0][0] === receiverX);
     assert.deepEqual([leading[0][0], leading.at(-1)[0]], [senderX, senderX]);
     assert.deepEqual([trailing[0][0], trailing.at(-1)[0]], [receiverX, receiverX]);
     assert.ok(leading[0][1] > header.y + header.height);

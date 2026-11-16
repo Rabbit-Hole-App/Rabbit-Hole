@@ -78,7 +78,7 @@ test('lesson 12 tuning references round-trip and render every numeric label at 3
     ['ml-bayesian-acquisition-choice', ['How does Bayesian optimization decide which setting to try next?']],
     ['ml-successive-halving-rounds', ['How does successive halving decide which trials get more training?']],
   ]);
-  for (const { id, lessons, keywords, useWhen, spec } of references) {
+  for (const { lessons, keywords, useWhen, spec } of references) {
     assert.deepEqual(lessons, ['12']);
     assert.ok(keywords.length >= 4 && useWhen.length > 40);
     assert.equal(spec.version, 1);
@@ -93,8 +93,7 @@ test('lesson 12 tuning references round-trip and render every numeric label at 3
     ]));
     for (const width of [320, 408, 720]) {
       const rendered = renderTutorDiagram(saved, width);
-      // Formulas in matrix cells are measured at 15 px (sprint default), so the Bayesian matrix needs 335 px and is drawn that wide at 320 (it scrolls there); every other width is drawn as asked.
-      assert.equal(rendered.width, id === 'ml-bayesian-acquisition-choice' && width === 320 ? 335 : width);
+      assert.equal(rendered.width, width);
       assert.ok(Number.isFinite(rendered.height) && rendered.height > 0);
       const svg = renderToStaticMarkup(rendered.element);
       assert.match(svg, /^<svg .*role="img"/);

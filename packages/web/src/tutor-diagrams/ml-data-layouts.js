@@ -5,10 +5,10 @@ import { TEACHING, teachingBox as box, teachingConnector as connector } from './
 const PAD = 12;
 const SMALL = 13;
 const COLORS = {
-  train: [TEACHING.blueFill, TEACHING.outline], validation: [TEACHING.mustardFill, TEACHING.outline],
-  test: [TEACHING.tealFill, TEACHING.outline], gap: [TEACHING.surface, TEACHING.muted],
-  window: [TEACHING.blueFill, TEACHING.outline], available: [TEACHING.tealFill, TEACHING.outline],
-  excluded: [TEACHING.coral, TEACHING.outline],
+  train: [TEACHING.blueSoft, TEACHING.blue], validation: [TEACHING.warmSoft, TEACHING.warm],
+  test: [TEACHING.greenSoft, TEACHING.green], gap: [TEACHING.inset, TEACHING.muted],
+  window: [TEACHING.blueSoft, TEACHING.blue], available: [TEACHING.greenSoft, TEACHING.green],
+  excluded: [TEACHING.warmSoft, TEACHING.warm],
 };
 
 function scale(min, max, start, end) {
@@ -119,7 +119,7 @@ function timeline(d, requestedWidth) {
         }));
       } else {
         elements.push(h('circle', {
-          cx: start, cy: markerY, r: 5, fill: TEACHING.blueFill, stroke: TEACHING.outline, strokeWidth: 1.5,
+          cx: start, cy: markerY, r: 5, fill: TEACHING.blueSoft, stroke: TEACHING.blue, strokeWidth: 1.5,
           'data-tutor-timeline-event': entry.id,
         }));
       }
@@ -129,7 +129,7 @@ function timeline(d, requestedWidth) {
   }
   const guides = cutoffs.map(item => h('line', {
     x1: item.start, x2: item.start, y1: item.top + item.labelHeight + 3, y2: y - 12,
-    stroke: TEACHING.outline, strokeWidth: 1.5, strokeDasharray: '4 4', 'data-tutor-timeline-cutoff': item.entry.id,
+    stroke: TEACHING.warm, strokeWidth: 1.5, strokeDasharray: '4 4', 'data-tutor-timeline-cutoff': item.entry.id,
   }));
   for (const item of cutoffs) drawAnnotation(item, item.top, elements);
   return { width, height: y + PAD, elements: [...guides, ...elements] };
@@ -137,7 +137,7 @@ function timeline(d, requestedWidth) {
 
 function matrix(d, requestedWidth) {
   const count = d.columns.length + 1, gap = 7;
-  const minimumCell = Math.ceil(Math.max(84, ...[...d.columns, ...d.rows.flatMap(row => [row.heading, ...row.cells])].map(value => widestFormula(value, 15) + 18))); // measured at the size the cell text is drawn (15), not the 14 default
+  const minimumCell = Math.ceil(Math.max(84, ...[...d.columns, ...d.rows.flatMap(row => [row.heading, ...row.cells])].map(value => widestFormula(value) + 18)));
   const width = Math.max(requestedWidth, PAD * 2 + count * minimumCell + (count - 1) * gap);
   const cellWidth = (width - PAD * 2 - (count - 1) * gap) / count;
   const xAt = index => PAD + index * (cellWidth + gap);
@@ -162,7 +162,7 @@ function matrix(d, requestedWidth) {
       const active = selectedRows.has(row.id) || !isHeading && (selectedColumns.has(i - 1) || selectedCells.has(key));
       const rect = box(x, y, cellWidth, height, { role: isHeading ? 'outcome' : state === 'changed' ? 'decision' : 'plain', active });
       const attrs = isHeading ? { 'data-tutor-matrix-row': row.id } : { 'data-tutor-matrix-cell': key, 'data-state': state };
-      if (state === 'missing') { attrs.fill = TEACHING.surface; attrs.strokeDasharray = '3 2'; }
+      if (state === 'missing') { attrs.fill = TEACHING.inset; attrs.strokeDasharray = '3 2'; }
       elements.push(cloneElement(rect, { ...attrs, 'data-emphasis': active || undefined }));
       const contentTop = y + (height - contentHeights[i]) / 2;
       elements.push(label(cell, x + cellWidth / 2, contentTop + cell.length * lineHeight() / 2, { weight: isHeading ? 700 : 400 }));

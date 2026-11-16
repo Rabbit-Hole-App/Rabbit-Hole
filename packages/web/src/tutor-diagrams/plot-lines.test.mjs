@@ -70,8 +70,7 @@ test('the line stays inside a narrow linear uncertainty band', () => {
   }
 });
 
-// Sprint default: a line is straight between samples unless `smooth: true` (or 20 samples or more), and a line of up to 8 samples marks every sample.
-test('basic and Phase 02 plots draw straight segments by default and smooth on opt-in', () => {
+test('basic and Phase 02 plots smooth lines by default and preserve straight segments on opt-out', () => {
   for (const extended of [false, true]) {
     const points = [0, 0.1, 0.4, 0.9, 0.7, 0.3, 0].map((y, x) => ({ x, y,
       ...(extended && x === 3 ? { label: 'Peak' } : {}),
@@ -81,14 +80,10 @@ test('basic and Phase 02 plots draw straight segments by default and smooth on o
       x: { label: 'X', min: 0, max: 6 }, y: { label: 'Y', min: 0, max: 1 }, series: [series],
     } };
     const render = () => renderToStaticMarkup(renderTutorDiagram(spec, 408).element);
-    const plain = render();
-    assert.doesNotMatch(plain, /<path d="M[^"]+C[^"]+"/);
-    assert.match(plain, /<polyline points="(?:[\d.,]+ ){6}[\d.,]+"/);
-    series.smooth = true;
     const svg = render();
     assert.match(svg, /<path d="M[^"]+C[^"]+"/);
     assert.deepEqual([...svg.matchAll(/data-tutor-coordinate-point="([^"]+)"/g)].map(match => match[1]),
-      ['0,0', '1,0.1', '2,0.4', '3,0.9', '4,0.7', '5,0.3', '6,0']);
+      extended ? ['0,0', '3,0.9', '6,0'] : ['0,0', '6,0']);
     series.smooth = false;
     const straight = render();
     assert.doesNotMatch(straight, /<path d="M[^"]+C[^"]+"/);
@@ -177,9 +172,7 @@ test('smooth closed lines have matching cubic tangents at every sample including
     const svg = renderToStaticMarkup(renderTutorDiagram(contourPlot(series), 408).element);
     return svg.match(/<path[^>]*data-tutor-plot-series="Loss level"[^>]*>/)[0].match(/\bd="([^"]+)"/)[1];
   };
-  // Sprint default: a contour is a straight closed polygon unless `smooth: true`, so the smooth closure opts in.
-  const smoothed = { ...periodic, smooth: true };
-  const geometry = path(smoothed);
+  const geometry = path(periodic);
   assert.match(geometry, /^M[^L]+Z$/);
   const cubics = segments(geometry.slice(0, -1));
   assert.equal(cubics.length, periodic.points.length);
@@ -192,7 +185,7 @@ test('smooth closed lines have matching cubic tangents at every sample including
     assert.ok(outgoing.every((value, axis) => Math.abs(value - incoming[axis]) < 1e-9));
   }
   const { x, y } = periodic.points[0];
-  assert.equal(path({ ...smoothed, points: [...periodic.points, { x, y }] }), geometry);
+  assert.equal(path({ ...periodic, points: [...periodic.points, { x, y }] }), geometry);
 });
 
 test('closed lines reject ambiguous geometry and the explicit false option keeps an open line', () => {

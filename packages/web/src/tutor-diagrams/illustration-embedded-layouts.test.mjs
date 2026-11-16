@@ -3,8 +3,6 @@ import test from 'node:test';
 import { layouts } from './layouts.js';
 import { textWidth } from './primitives.js';
 import { TEACHING } from './teaching-theme.js';
-import { INK, PATH } from './primitives.js';
-import { wirePoints } from './test-wire-points.mjs';
 
 const edge = (from, to) => ({ from, to });
 const walk = items => items.flatMap(item => item?.props ? [item, ...walk([item.props.children].flat())] : []);
@@ -77,7 +75,7 @@ test('relationship embeds tensors in measured graph nodes and names unlabeled en
   }
   for (const item of scene.elements.filter(item => item.props['data-tutor-edge'])) {
     const ids = item.props['data-tutor-edge'].split(':');
-    const route = wirePoints(item);
+    const route = points(walk([item]).find(child => child.type === 'polyline').props.points);
     [route[0], route.at(-1)].forEach(([x, y], index) => {
       const box = cards.get(ids[index]);
       assert.ok(x === box.x || x === box.x + box.width);
@@ -95,12 +93,11 @@ test('paired flow paths style only traversed edges and preserve the embedded ten
   assert.deepEqual(renderedEdges.filter(item => item.props['data-tutor-path'] !== undefined)
     .map(item => item.props['data-tutor-edge']), ['f:a', 'f:b', 'a:m', 'b:m', 'm:end']);
   for (const item of renderedEdges) {
-    // The shared wire draws a route in ink, and a traversed one in the path colour.
-    const wire = walk([item]).find(child => child.type === 'path');
-    assert.equal(wire.props.stroke, item.props['data-tutor-edge'] === 'a:b' ? INK : PATH);
+    const wire = walk([item]).find(child => child.type === 'polyline');
+    assert.equal(wire.props.stroke, item.props['data-tutor-edge'] === 'a:b' ? TEACHING.wire : TEACHING.blue);
   }
   for (const { id } of nodes) assert.equal(nodeFor(scene, id).props['data-tutor-path'], '');
-  assert.equal(walk([nodeFor(scene, 'f')]).find(item => item.props['data-tutor-tensor-cell'] === 0).props.fill, TEACHING.tealFill);
+  assert.equal(walk([nodeFor(scene, 'f')]).find(item => item.props['data-tutor-tensor-cell'] === 0).props.fill, TEACHING.greenSoft);
 });
 
 test('a nine-box parallel tier fits within 960 pixels without dropping labels', () => {

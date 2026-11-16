@@ -1,6 +1,6 @@
 import { lineHeight, textWidth, wrap } from './primitives.js';
 
-const SIZE = 15;
+const SIZE = 12;
 const GAP = 6;
 
 function regularValues({ min, max }) {

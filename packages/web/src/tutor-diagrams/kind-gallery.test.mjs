@@ -44,7 +44,7 @@ for (const spec of gallery) {
       assert.ok(svg.includes(`data-tutor-diagram="${kind}"`));
       assert.ok(svg.includes(`<title>${title}</title>`));
       assert.match(svg, /role="img"/);
-      assert.match(svg, /fill="var\(--viz-surface, #FFFCF0\)"/);
+      assert.match(svg, /fill="var\(--viz-surface, #fbfbfa\)"/);
       assert.doesNotMatch(svg, /NaN|Infinity|undefined/);
     }
   });

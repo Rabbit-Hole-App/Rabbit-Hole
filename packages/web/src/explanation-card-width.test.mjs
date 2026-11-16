@@ -11,7 +11,7 @@ import examples from './tutor-diagrams/examples.json' with { type: 'json' };
 const read = name => readFileSync(new URL(name, import.meta.url), 'utf8');
 const fence = spec => `\`\`\`rh-diagram\n${JSON.stringify(spec)}\n\`\`\``;
 const PROSE = 'A short paragraph of prose.\n\nAnother short paragraph.';
-const WIDE = dataRefs.find(r => r.id === 'bayes-class-token-counts').spec; // a teaching matrix: 747 px wide at the card's usual room
+const WIDE = dataRefs.find(r => r.id === 'bayes-class-token-counts').spec; // a teaching matrix: 707 px wide at the card's usual room
 const ordinary = examples.find(e => (e.spec || e).diagram?.kind === 'flow');
 const card = (body, extra = {}) => ({ id: 'c1', type: 'explanation', title: 'T', body, ...extra });
 const picture = { id: 'p1', status: 'ready' };
@@ -19,7 +19,7 @@ const PICTURE_FENCE = '```rh-illustration\n{"version":1,"id":"p1","prompt":"a vo
 
 test('a diagram reports its natural width; an ordinary one is 408, a dense one is wider; an invalid spec asks for no room', () => {
   assert.equal(diagramWidth(JSON.stringify(ordinary.spec || ordinary)), 408);
-  assert.equal(diagramWidth(WIDE), 747);
+  assert.equal(diagramWidth(WIDE), 707);
   assert.equal(diagramWidth('{"not":"a diagram"}'), 0);
   assert.equal(diagramWidth('not json'), 0);
 });
@@ -28,7 +28,7 @@ test('width rule: prose-only stays at the card\'s 440 (408 of room), a 700 px di
   assert.equal(explanationCardWidth(card(PROSE)), CARD_FLOOR, 'prose only');
   assert.equal(explanationCardWidth(card(`${PROSE}\n\n${fence(ordinary.spec || ordinary)}\n\nMore.`)), CARD_FLOOR, 'an ordinary diagram fits the usual room');
   const wide = explanationCardWidth(card(`${PROSE}\n\n${fence(WIDE)}\n\nMore.`));
-  assert.equal(wide, 747 + CARD_CHROME);
+  assert.equal(wide, 707 + CARD_CHROME);
   assert.ok(wide - CARD_CHROME >= diagramWidth(WIDE), 'the room inside the card holds the whole diagram: no horizontal scroll');
   assert.equal(widthFor(700), 700 + CARD_CHROME);
   const huge = widthFor(1200);
@@ -61,17 +61,17 @@ test('a picture is displayed at 512 px: the card and its tile widen to fit it (5
   assert.equal(explanationCardWidth(withPicture), PICTURE_DISPLAY_WIDTH + CARD_CHROME, 'room for the picture at 512 plus the card\'s chrome');
   assert.equal(explanationCardWidth(card(`${PROSE}\n\n${PICTURE_FENCE}`, { figures: { p1: { id: 'p1', status: 'failed' } } })), CARD_FLOOR, 'a picture that failed draws nothing and asks for nothing');
   const both = card(`${PICTURE_FENCE}\n\n${fence(WIDE)}`, { figures: { p1: picture } });
-  assert.equal(explanationCardWidth(both), 747 + CARD_CHROME, 'a picture and a wider diagram: the wider');
+  assert.equal(explanationCardWidth(both), 707 + CARD_CHROME, 'a picture and a wider diagram: the wider');
   assert.equal(tileWidthFor({ kind: 'picture' }), PICTURE_DISPLAY_WIDTH + CARD_CHROME, 'its tile is the same width, the picture at 512');
   const src = read('./IllustrationFigure.jsx');
   assert.match(src, /style=\{\{ maxWidth: PICTURE_DISPLAY_WIDTH \}\} className=\{`mx-auto /, 'square at 512 and centred in any wider card');
 });
 
-test('the tile uses the same rule on its one visual and never scales it: a 747 px diagram is a 781 px tile, a picture tile is as wide as the picture card, Open restores the card at the same width', () => {
+test('the tile uses the same rule on its one visual and never scales it: a 707 px diagram is a 741 px tile, a picture tile is as wide as the picture card, Open restores the card at the same width', () => {
   const diagramCard = card(`${PROSE}\n\n${fence(WIDE)}\n\nMore.`, { w: 300, h: 500 });
   const tile = { ...diagramCard, minimized: true };
   assert.equal(isMinimized(tile), true);
-  assert.equal(tileWidth(tile), 747 + CARD_CHROME, 'the diagram at its natural width inside the tile');
+  assert.equal(tileWidth(tile), 707 + CARD_CHROME, 'the diagram at its natural width inside the tile');
   assert.equal(tileWidth(tile), explanationCardWidth(diagramCard), 'the same function as the card');
   const pictureCard = card(`${PROSE}\n\n${PICTURE_FENCE}`, { figures: { p1: picture } });
   assert.equal(tileWidth({ ...pictureCard, minimized: true }), explanationCardWidth(pictureCard));
@@ -91,7 +91,7 @@ test('the canvas takes the derived width: wider than its 560 column the card is 
   assert.match(canvas, /const displayWidth = full \? [^;]*size\.w \|\| width;/, 'a saved (dragged) width wins over the derived one');
   assert.match(canvas, /<div ref=\{column\}[^>]*className=\{`absolute top-0 left-0 flex flex-col gap-5/, 'cards are stacked in one column: a wider card never lies over the cards above or below it');
   // The centred extents of a stack of cards at the derived widths never overlap horizontally with a neighbour's vertical band: stacked cards are separated by the 20 px gap in y.
-  const COLUMN = 560, widths = [CARD_FLOOR, 747 + CARD_CHROME, PICTURE_DISPLAY_WIDTH + CARD_CHROME], heights = [300, 420, 380];
+  const COLUMN = 560, widths = [CARD_FLOOR, 707 + CARD_CHROME, PICTURE_DISPLAY_WIDTH + CARD_CHROME], heights = [300, 420, 380];
   let y = 0; const boxes = widths.map((w, i) => { const box = { x: (COLUMN - w) / 2, y, w, h: heights[i] }; y += heights[i] + 20; return box; });
   for (let i = 1; i < boxes.length; i++) assert.ok(boxes[i].y >= boxes[i - 1].y + boxes[i - 1].h, `card ${i} starts below card ${i - 1}`);
 });

@@ -48,7 +48,7 @@ test('an rh-diagram fence in the body and in a More section is drawn as a TutorD
 test('card widths: the diagram fits 688 px exactly and stays within a scroll region at 320 px, with a viewBox that matches its size', () => {
   for (const sample of EXAMPLES) {
     const spec = sample.spec ?? sample;
-    for (const [asked, most] of [[688, 688], [320, 408]]) {
+    for (const [asked, most] of [[688, 688], [320, 400]]) {
       const { width, height, element } = renderTutorDiagram(spec, asked);
       assert.ok(width <= most && width >= 320, `${spec.diagram.kind} at ${asked}: ${width}`);
       assert.equal(element.props.viewBox, `0 0 ${width} ${height}`, spec.diagram.kind);
@@ -112,10 +112,10 @@ test('22 examples: each draws from a saved block after a JSON round trip, in the
   }
 });
 
-test('19 examples at the card widths: the svg is as wide as its viewBox at 688 and fits a 408 px scroll window at 320 (the narrowest card content: 440 px less 32 of chrome, CV-1)', () => {
+test('19 examples at the card widths: the svg is as wide as its viewBox at 688 and fits a 400 px scroll window at 320', () => {
   for (const [i, sample] of EXAMPLES.entries()) {
     const spec = specOf(sample), name = `${i + 1}. ${spec.diagram.kind}`;
-    for (const [asked, most] of [[688, 688], [320, 408]]) {
+    for (const [asked, most] of [[688, 688], [320, 400]]) {
       const { width, height, element } = renderTutorDiagram(spec, asked);
       assert.equal(element.props.viewBox, `0 0 ${width} ${height}`, `${name} at ${asked}`);
       assert.equal(element.props.width, width, `${name} at ${asked}`);

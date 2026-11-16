@@ -133,13 +133,12 @@ test('explicit block and inset roles change paint without moving the geometry', 
   const rects = (scene, key) => findAll(scene.elements, key).map(element => element.props.children[0].props);
   const outer = rects(styled, 'data-block-stack-node');
   const inner = rects(styled, 'data-tutor-node');
-  // role fills are the saturated fills at 100% (a norm block is transparent with the outline); output keeps the outline ink at 2.5 px, a changed block the blue stroke at 3 px
-  assert.deepEqual(outer.map(({ fill }) => fill), ['none', TEACHING.blueFill, TEACHING.mustardFill,
-    TEACHING.tealFill, TEACHING.tealFill, TEACHING.blueFill]);
-  assert.equal(outer[4].stroke, TEACHING.outline);
+  assert.deepEqual(outer.map(({ fill }) => fill), [TEACHING.inset, TEACHING.blueSoft, TEACHING.warmSoft,
+    TEACHING.greenSoft, TEACHING.greenSoft, TEACHING.blueSoft]);
+  assert.equal(outer[4].stroke, TEACHING.green);
   assert.equal(outer[5].stroke, TEACHING.blue);
-  assert.equal(outer[5].strokeWidth, 3);
-  assert.deepEqual(inner.map(({ fill }) => fill), [PALETTE.process, TEACHING.blueFill, TEACHING.mustardFill, 'none']);
+  assert.equal(outer[5].strokeWidth, 2);
+  assert.deepEqual(inner.map(({ fill }) => fill), [PALETTE.process, TEACHING.blueSoft, TEACHING.warmSoft, TEACHING.inset]);
   const geometry = ({ x, y, width, height, rx }) => ({ x, y, width, height, rx });
   assert.deepEqual(outer.map(geometry), rects(original, 'data-block-stack-node').map(geometry));
   assert.deepEqual(inner.map(geometry), rects(original, 'data-tutor-node').map(geometry));

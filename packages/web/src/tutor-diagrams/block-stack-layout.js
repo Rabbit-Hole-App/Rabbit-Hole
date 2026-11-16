@@ -4,7 +4,7 @@ import { layoutFlow } from './flow.js';
 import { connector, label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
 import { skipLanePoints, skipLaneX } from './skip-lanes.js';
 import { TEACHING, teachingBox as box } from './teaching-theme.js';
-import { tensorMinimumWidth, withTensorCellCap } from './tensor-layout.js';
+import { tensorMinimumWidth } from './tensor-layout.js';
 
 const PAD = 12;
 const INSET = 10;
@@ -22,12 +22,12 @@ const REPEAT_LANE = 50;
 const JOIN_RADIUS = 10;
 const BADGE_RADIUS = 9;
 const STACK_PAINT = {
-  norm: { fill: 'none', stroke: TEACHING.outline, strokeWidth: 1.5 },
-  attention: { fill: TEACHING.blueFill, stroke: TEACHING.outline, strokeWidth: 1.5 },
-  feedforward: { fill: TEACHING.mustardFill, stroke: TEACHING.outline, strokeWidth: 1.5 },
-  embedding: { fill: TEACHING.tealFill, stroke: TEACHING.outline, strokeWidth: 1.5 },
-  output: { fill: TEACHING.tealFill, stroke: TEACHING.outline, strokeWidth: 2.5 },
-  changed: { fill: TEACHING.blueFill, stroke: TEACHING.blue, strokeWidth: 3 },
+  norm: { fill: TEACHING.inset, stroke: TEACHING.line, strokeWidth: 1 },
+  attention: { fill: TEACHING.blueSoft, stroke: TEACHING.line, strokeWidth: 1 },
+  feedforward: { fill: TEACHING.warmSoft, stroke: TEACHING.line, strokeWidth: 1 },
+  embedding: { fill: TEACHING.greenSoft, stroke: TEACHING.line, strokeWidth: 1 },
+  output: { fill: TEACHING.greenSoft, stroke: TEACHING.green, strokeWidth: 1.5 },
+  changed: { fill: TEACHING.blueSoft, stroke: TEACHING.blue, strokeWidth: 2 },
 };
 
 const paintBlock = (shape, role) => role ? cloneElement(shape, STACK_PAINT[role]) : shape;
@@ -81,14 +81,6 @@ function rowMetrics(blocks) {
   return { children, widths, width };
 }
 
-// A horizontal row of blocks is at most 960 px: when it would be wider, its tensor cells shrink only as far as needed (tensor-layout.js withTensorCellCap).
-const ROW_MAX = 960;
-function rowCap(blocks) {
-  if (rowMetrics(blocks).width <= ROW_MAX) return Infinity;
-  for (let cap = 64; cap > 12; cap--) if (withTensorCellCap(cap, () => rowMetrics(blocks).width) <= ROW_MAX) return cap;
-  return 12;
-}
-
 function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
   const order = new Map(blocks.map(({ id }, index) => [id, index]));
   const groups = blocks.flatMap(({ id, repeat, repeatTo }, start) => repeatTo ? [{ id, repeat, repeatTo, start, end: order.get(repeatTo), lane: 0 }] : []);
@@ -111,7 +103,7 @@ function horizontalMetrics({ blocks, edges = [], callouts = [] }) {
 }
 
 export function blockStackNaturalWidth(diagram) {
-  if (diagram.orientation === 'horizontal') return withTensorCellCap(rowCap(diagram.blocks), () => rowMetrics(diagram.blocks).width);
+  if (diagram.orientation === 'horizontal') return rowMetrics(diagram.blocks).width;
   const { minBlockWidth, leftBand, rightBand, noteMinWidth, ledgerMinWidth } = horizontalMetrics(diagram);
   const noteBand = diagram.callouts?.length ? Math.max(156, noteMinWidth) + NOTE_GAP : 0;
   return Math.min(960, Math.max(ledgerMinWidth, 2 * PAD + Math.max(PREFERRED_BLOCK_WIDTH, minBlockWidth) + leftBand + rightBand + noteBand));
@@ -124,7 +116,7 @@ function pill(text, width) {
 
 function drawPill({ lines, height, width }, x, y, role = 'plain') {
   return [box(x, y, width, height, { role }), label(lines, x + width / 2, y + height / 2, {
-    size: SMALL, weight: 700, fill: role === 'process' ? TEACHING.outline : undefined,
+    size: SMALL, weight: 700, fill: role === 'process' ? TEACHING.blue : undefined,
   })];
 }
 
@@ -148,7 +140,7 @@ function blockContent(block, width, child) {
 }
 
 function numberedBadge(number, x, y) {
-  return [h('circle', { cx: x, cy: y, r: BADGE_RADIUS, fill: TEACHING.blueFill, stroke: TEACHING.outline, strokeWidth: 1.5 }),
+  return [h('circle', { cx: x, cy: y, r: BADGE_RADIUS, fill: TEACHING.blueSoft, stroke: TEACHING.blue, strokeWidth: 1.4 }),
     label(String(number), x, y, { size: SMALL, weight: 700 })];
 }
 
@@ -240,8 +232,7 @@ function drawJoin(operation, x, y) {
     label(operation === 'multiply' ? '⊗' : '⊕', x, y, { size: 22, weight: 700 }));
 }
 
-const layoutBlockRow = (blocks, preferredWidth, renderChild) => withTensorCellCap(rowCap(blocks), () => layoutBlockRowAt(blocks, preferredWidth, renderChild));
-function layoutBlockRowAt(blocks, preferredWidth, renderChild) {
+function layoutBlockRow(blocks, preferredWidth, renderChild) {
   const { children, widths, width: rowWidth } = rowMetrics(blocks);
   const width = Math.max(preferredWidth, rowWidth);
   const measured = blocks.map((block, index) => {

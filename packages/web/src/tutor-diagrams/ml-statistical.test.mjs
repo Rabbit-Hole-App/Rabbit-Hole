@@ -76,10 +76,10 @@ test('heatmap displays exact values, signed endpoint colors, a neutral zero and 
   const rendered = svg(heatmap).svg;
   const cells = marks(rendered, 'data-tutor-heatmap-cell');
   assert.equal(cells.length, 6);
-  assert.match(cells[0].tag, new RegExp(`fill="${TEACHING.coral}"`)); // a negative end is the coral fill (heatColor)
+  assert.match(cells[0].tag, new RegExp(`fill="${TEACHING.warm}"`));
   assert.equal(num(cells[0].tag, 'fill-opacity'), 1);
   assert.equal(num(cells[1].tag, 'fill-opacity'), 0);
-  assert.match(cells[2].tag, new RegExp(`fill="${TEACHING.blueFill}"`)); // a positive end is the blue fill
+  assert.match(cells[2].tag, new RegExp(`fill="${TEACHING.blue}"`));
   assert.match(cells[3].tag, new RegExp(`stroke="${TEACHING.blue}"`));
   assert.match(cells[4].tag, /data-tutor-masked="true"/);
   assert.match(rendered, />0\.125</);
@@ -103,9 +103,7 @@ test('sample-set preserves identity, class, sample weights and replacement multi
   const members = marks(rendered, 'data-tutor-sample-member');
   assert.deepEqual(members.map(v => v.value), ['draw:a', 'draw:b', 'oob:c']);
   assert.deepEqual(members.map(v => num(v.tag, 'data-tutor-multiplicity')), [2, 1, 1]);
-  // the letter (15 px / 600) and its multiplicity (13 px / 500) are two texts since the chip restyle
-  assert.match(rendered, />a</);
-  assert.match(rendered, />× 2</);
+  assert.match(rendered, /a × 2/);
   assert.match(rendered, /weight 3/);
   assert.match(rendered, /Omitted: c/);
   assert.match(rendered, /Out of bag for Bootstrap draw/);
@@ -146,9 +144,8 @@ test('unequal-width histogram bars preserve area, aligned bins and common vertic
   const threshold = marks(rendered, 'data-tutor-histogram-marker');
   close(num(threshold[0].tag, 'x1'), a.x + a.width * 1.5);
   assert.match(rendered, /Count density/);
-  // the counts line is gone: the bin masses stay on the bars and the bin edges are the x tick labels
-  assert.deepEqual(bars.map(({ tag }) => num(tag, 'data-tutor-bin-mass')), [4, 4, 2, 8]);
-  for (const edge of [0, 1, 3]) assert.match(rendered, new RegExp(`>${edge}<`));
+  assert.match(rendered, /\[0, 1\): 4/);
+  assert.match(rendered, /\[1, 3\]: 4/);
 });
 
 test('proportion density normalizes by width without replacing the declared bin masses', () => {
@@ -246,12 +243,6 @@ test('statistical layouts preserve native fonts and finite bounded geometry at n
       for (const [tag] of frame.svg.matchAll(/<text\b[^>]*>/g)) assert.ok(num(tag, 'font-size') >= 12, tag);
       function checkText(element) {
         if (!element?.props) return;
-        // A title rotated along the axis (rotate(-90 cx cy), the plot rules): its horizontal extent is its line height around cx, not its text width.
-        if (element.type === 'g' && /^rotate\(-90 /.test(element.props.transform ?? '')) {
-          const cx = Number(element.props.transform.match(/-?[\d.]+/g)[1]);
-          assert.ok(cx - lineHeight(16) / 2 >= -0.01 && cx + lineHeight(16) / 2 <= frame.width + 0.01, `${d.kind}: a rotated title is outside the horizontal frame`);
-          return;
-        }
         const children = [element.props.children].flat(Infinity);
         if (element.type === 'text') {
           const { fontSize: size, textAnchor } = element.props;

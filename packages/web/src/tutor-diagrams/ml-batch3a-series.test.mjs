@@ -81,7 +81,7 @@ function renderSaved(id, width, edit = spec => spec) {
   const result = renderTutorDiagram(saved, width);
   const svg = renderToStaticMarkup(result.element);
   assert.match(svg, /^<svg .*role="img"/);
-  assert.ok(svg.includes(TEACHING.blue) || svg.includes(TEACHING.blueFill));
+  assert.ok(svg.includes(TEACHING.blue));
   assert.doesNotMatch(svg, /NaN|Infinity|undefined|katex-error/);
   assert.equal(svg, renderToStaticMarkup(renderTutorDiagram(spec, width).element));
   assert.ok(Number.isFinite(result.height) && result.height > 0);
@@ -96,7 +96,7 @@ function renderSaved(id, width, edit = spec => spec) {
 
 test('the saved additive comparison keeps the three Day 4 guides aligned at 320, 408 and 720 px', () => {
   for (const width of widths) {
-    // Sprint default: a line series of up to 8 samples marks every sample (it used to thin to the first, last and labelled points from seven); the Day 4 point is still labelled so its marker is checked against the guide.
+    // A line series of more than six points draws markers only at its first and last point and at labelled points (owner 2026-11-08): the Day 4 point is labelled here so its marker is checked against the guide.
     const labelDayFour = spec => { for (const panel of spec.diagram.panels) for (const series of panel.diagram.series ?? []) if (series.kind === 'line') series.points[3].label = 'Day 4'; return spec; };
     const { elements, width: renderedWidth } = renderSaved(additiveId, width, labelDayFour);
     assert.ok(renderedWidth >= width);
@@ -108,7 +108,7 @@ test('the saved additive comparison keeps the three Day 4 guides aligned at 320,
       const guide = marks.find(element => element.props['data-tutor-plot-reference'] === 'x:4');
       assert.ok(area && guide, 'each panel renders its day axis and Day 4 guide');
       const points = marks.filter(element => element.props['data-tutor-coordinate-point']);
-      assert.equal(points.length, [16, 8, 8][i]); // every sample of each line (2 series x 8, 1 series x 8), then the eight residual stems' markers
+      assert.equal(points.length, [6, 3, 8][i]); // first, last and the labelled Day 4 point of each line (2 series, 1 series), then the eight residual stems' markers
       if (i < 2) assert.ok(points.some(element => element.props.cx === guide.props.x1), 'the Day 4 marker sits on the guide');
       assert.equal(marks.filter(element => element.props['data-tutor-plot-stem']).length, i === 2 ? 8 : 0);
 

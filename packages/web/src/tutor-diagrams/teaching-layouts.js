@@ -1,10 +1,9 @@
 import { cloneElement, createElement as h } from 'react';
-import { TEACHING } from './teaching-theme.js';
 import { box, connector, label, lineHeight, textWidth, widestFormula, words, wrap } from './primitives.js';
 
 const PAD = 12;
 const GAP = 8;
-const TEXT = 15;
+const TEXT = 14;
 const SMALL = 13;
 const TEXT_PAD = 10;
 
@@ -85,12 +84,12 @@ function binaryTree({ nodes }, preferredWidth) {
       const parent = positions.get(node.parent);
       const elbow = y - ROW_GAP / 2;
       wires.push(cloneElement(connector([[parent.x, parent.y + parent.content.height], [parent.x, elbow],
-        [x, elbow], [x, y]], { arrow: false }), { stroke: TEACHING.outline, strokeWidth: 2 }));
+        [x, elbow], [x, y]], { arrow: false }), { stroke: '#a9b89b', strokeWidth: 1.6 }));
     }
     const [background, ...labels] = card(x - width / 2, y, width, content);
-    cards.push(cloneElement(background, { rx: 9, fill: 'none', stroke: TEACHING.outline, strokeWidth: 1.5 }), ...labels);
+    cards.push(cloneElement(background, { rx: 9, fill: '#fffefa', stroke: '#e3e7e0', strokeWidth: 1 }), ...labels);
   }
-  return { width, height: y - ROW_GAP + PAD, elements: [...wires, h('g', { style: { '--color-ink': TEACHING.ink } }, ...cards)] };
+  return { width, height: y - ROW_GAP + PAD, elements: [...wires, h('g', { style: { '--color-ink': '#202723' } }, ...cards)] };
 }
 
 function tree(diagram, width) {

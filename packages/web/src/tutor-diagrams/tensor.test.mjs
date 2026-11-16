@@ -44,7 +44,7 @@ test('the local strip fits all value labels and uses renderer-owned colors', () 
   const cells = scene.elements.filter(element => element.props['data-tutor-tensor-cell'] !== undefined);
   assert.equal(cells.length, 4);
   assert.deepEqual(cells.map(element => element.props['data-tutor-tensor-cell']), [0, 1, 2, 3]);
-  assert.deepEqual(cells.map(element => element.props.fill), Array(4).fill(TEACHING.mustardFill));
+  assert.deepEqual(cells.map(element => element.props.fill), Array(4).fill(TEACHING.warmSoft));
   for (const { props: { x, y, width, height } } of cells) {
     assert.ok(x > 0 && y > 0 && x + width < scene.width && y + height < scene.height);
   }
@@ -108,8 +108,7 @@ test('tensor transformations keep mixed text items and respect explicit mapping 
     operation: 'Map the items', links: [{ from: 1, to: 1, label: 'Use this pair' }],
   }, 408);
   const markup = svg(scene);
-  // a label may wrap onto lines at the 15 px body size, so each word must be drawn
-  for (const value of ['Plain input', 'Selected tensor', 'Mapped output', 'Use this pair']) assert.ok(value.split(' ').every(word => markup.includes(word)), value);
+  for (const value of ['Plain input', 'Selected tensor', 'Mapped output', 'Use this pair']) assert.ok(markup.includes(value), value);
   assert.match(markup, /data-tutor-tensor-link="1:1"/);
   assert.equal([...markup.matchAll(/data-tutor-arrowhead/g)].length, 1);
 });

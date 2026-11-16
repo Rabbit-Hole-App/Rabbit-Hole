@@ -1,11 +1,10 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
-import { TEACHING, TEACHING_GRID, TEACHING_SERIES, TEACHING_ZERO, teachingBox, teachingConnector } from './teaching-theme.js';
+import { TEACHING, TEACHING_SERIES, teachingBox, teachingConnector } from './teaching-theme.js';
 import { boxSummary, histogramBinLabel, histogramHeights, histogramMeasureLabel, sampleMemberships } from './ml-statistical-spec.js';
 
 const PAD = 12;
 const SMALL = 12;
-const NOTE = 13, TICK = 15; // readouts and counts 13 px muted; tick labels 15 px / 500 muted (the coordinate plot's sizes)
 const scale = (min, max, start, end) => value => start + (value - min) / (max - min) * (end - start);
 const axisName = (label, unit) => unit ? `${label} (${unit})` : label;
 const formulaWidth = values => Math.max(0, ...values.filter(Boolean).map(value => widestFormula(value)));
@@ -20,9 +19,9 @@ function textBlock(elements, text, x, top, width, options = {}) {
 
 function heatColor(value, range) {
   const { min, max } = range;
-  if (min < 0 && max > 0) return { fill: value < 0 ? TEACHING.coral : TEACHING.blueFill, opacity: value < 0 ? value / min : value / max };
-  if (max <= 0) return { fill: TEACHING.coral, opacity: (max - value) / (max - min) };
-  return { fill: TEACHING.blueFill, opacity: (value - min) / (max - min) };
+  if (min < 0 && max > 0) return { fill: value < 0 ? TEACHING.warm : TEACHING.blue, opacity: value < 0 ? value / min : value / max };
+  if (max <= 0) return { fill: TEACHING.warm, opacity: (max - value) / (max - min) };
+  return { fill: TEACHING.blue, opacity: (value - min) / (max - min) };
 }
 
 function heatmap(d, requested) {
@@ -51,16 +50,16 @@ function heatmap(d, requested) {
     elements.push(label(rowLines, PAD + 6, top + height / 2, { anchor: 'start', weight: 700 }));
     row.cells.forEach((value, column) => {
       const x = left + column * cellWidth;
-      const { fill, opacity } = value === null ? { fill: 'none', opacity: 1 } : heatColor(value, d.range);
+      const { fill, opacity } = value === null ? { fill: TEACHING.inset, opacity: 1 } : heatColor(value, d.range);
       const active = highlighted.has(`${rowIndex}:${column}`);
       elements.push(h('rect', { x, y: top, width: cellWidth, height, fill: TEACHING.surface }));
       elements.push(h('rect', {
         x, y: top, width: cellWidth, height, fill, fillOpacity: opacity,
-        stroke: active ? TEACHING.blue : TEACHING.outline, strokeWidth: active ? 3 : 1.5,
+        stroke: active ? TEACHING.blue : TEACHING.line, strokeWidth: active ? 3 : 1,
         strokeDasharray: value === null ? '4 3' : undefined,
         'data-tutor-heatmap-cell': `${rowIndex}:${column}`, 'data-tutor-masked': value === null ? 'true' : undefined,
       }));
-      const ink = TEACHING.outline;
+      const ink = value !== null && opacity > 0.6 ? TEACHING.surface : TEACHING.ink;
       elements.push(cloneElement(label(cellLines[column], x + cellWidth / 2, top + height / 2, { weight: active ? 700 : 400 }), { fill: ink }));
     });
     top += height;
@@ -97,50 +96,39 @@ function sampleSet(d, requested) {
   const role = sample => sample.class ? roles[classes.indexOf(sample.class) % roles.length] : 'plain';
   const byId = new Map(d.samples.map(sample => [sample.id, sample]));
   let y = textBlock(elements, `Samples: ${d.samples.length}`, PAD, PAD, width - PAD * 2, { weight: 700 }) + 8;
-  // A chip: the letter (the sample id) at 15 px / 600, then its details at 13 px / 500 (stacked under it, or { rest: string } inline after it).
-  const cards = (items, minWidth, getChip, getBox) => {
-    const chips = items.map(getChip);
-    const minimum = Math.max(minWidth, formulaWidth(chips.flatMap(chip => [chip.main, ...[].concat(chip.rest)])) + 16);
+  const cards = (items, minWidth, getLines, getBox) => {
+    const minimum = Math.max(minWidth, formulaWidth(items.flatMap(getLines)) + 16);
     const columns = Math.max(1, Math.floor((width - PAD * 2 + 8) / (minimum + 8)));
     const cellWidth = (width - PAD * 2 - (columns - 1) * 8) / columns;
     for (let start = 0; start < items.length; start += columns) {
       const row = items.slice(start, start + columns);
-      const parts = row.map((_, i) => {
-        const { main, rest } = chips[start + i];
-        const mainLines = wrap(main, cellWidth - 16, 15);
-        const restLines = typeof rest === 'string' ? [] : rest.flatMap(text => wrap(text, cellWidth - 16, NOTE));
-        return { mainLines, restLines, inline: typeof rest === 'string' ? rest : '' };
-      });
-      const height = Math.max(34, ...parts.map(part => part.mainLines.length * lineHeight(15) + part.restLines.length * lineHeight(NOTE) + 16));
+      const lines = row.map(item => getLines(item).flatMap(text => wrap(text, cellWidth - 16, SMALL)));
+      const height = Math.max(34, ...lines.map(lines => lines.length * lineHeight(SMALL) + 16));
       row.forEach((item, i) => {
-        const x = PAD + i * (cellWidth + 8), { mainLines, restLines, inline } = parts[i];
-        const mainHeight = mainLines.length * lineHeight(15), restHeight = restLines.length * lineHeight(NOTE);
-        const top = y + (height - mainHeight - restHeight) / 2;
+        const x = PAD + i * (cellWidth + 8);
         elements.push(getBox(item, x, y, cellWidth, height));
-        elements.push(label(mainLines, x + 8, top + mainHeight / 2, { anchor: 'start', size: 15, weight: 600 }));
-        if (inline) elements.push(label(inline.trim(), x + 14 + Math.max(...mainLines.map(line => textWidth(line, 15))), top + mainHeight / 2, { anchor: 'start', size: NOTE, weight: 500 }));
-        if (restLines.length) elements.push(label(restLines, x + 8, top + mainHeight + restHeight / 2, { anchor: 'start', size: NOTE, weight: 500 }));
+        elements.push(label(lines[i], x + 8, y + height / 2, { anchor: 'start', size: SMALL }));
       });
       y += height + 8;
     }
   };
-  cards(d.samples, 120, sample => ({
-    main: sample.label && sample.label !== sample.id ? `${sample.id}: ${sample.label}` : sample.id,
-    rest: [...(sample.class ? [sample.class] : []), ...(sample.weight !== undefined ? [`weight ${sample.weight}`] : [])],
-  }), (sample, x, y, w, height) => cloneElement(teachingBox(x, y, w, height, { role: role(sample) }), { 'data-tutor-sample': sample.id }));
+  cards(d.samples, 120, sample => [
+    sample.label && sample.label !== sample.id ? `${sample.id}: ${sample.label}` : sample.id,
+    ...(sample.class ? [sample.class] : []), ...(sample.weight !== undefined ? [`weight ${sample.weight}`] : []),
+  ], (sample, x, y, w, height) => cloneElement(teachingBox(x, y, w, height, { role: role(sample) }), { 'data-tutor-sample': sample.id }));
   d.groups.forEach(group => {
     y += 10;
     y = textBlock(elements, group.label, PAD, y, width - PAD * 2, { weight: 700 }) + 4;
     const count = `${group.members.length} draws · ${new Set(group.members).size} unique${group.replacement ? ' · with replacement' : ''}`;
-    y = textBlock(elements, count, PAD, y, width - PAD * 2, { size: NOTE, weight: 500, tone: 'muted' }) + 8;
-    if (group.outOfBagFor) y = textBlock(elements, `Out of bag for ${d.groups.find(source => source.id === group.outOfBagFor).label}`, PAD, y, width - PAD * 2, { size: NOTE, weight: 500, tone: 'muted' }) + 8;
+    y = textBlock(elements, count, PAD, y, width - PAD * 2, { size: SMALL, tone: 'muted' }) + 8;
+    if (group.outOfBagFor) y = textBlock(elements, `Out of bag for ${d.groups.find(source => source.id === group.outOfBagFor).label}`, PAD, y, width - PAD * 2, { size: SMALL }) + 8;
     const memberships = sampleMemberships(group);
-    if (!memberships.length) y = textBlock(elements, 'Empty set', PAD, y, width - PAD * 2, { size: NOTE, weight: 500, tone: 'muted' }) + 8;
-    cards(memberships, 86, member => ({ main: member.id, rest: member.text.slice(member.id.length) }), (member, x, y, w, height) =>
+    if (!memberships.length) y = textBlock(elements, 'Empty set', PAD, y, width - PAD * 2, { size: SMALL, tone: 'muted' }) + 8;
+    cards(memberships, 86, member => [member.text], (member, x, y, w, height) =>
       cloneElement(teachingBox(x, y, w, height, { role: role(byId.get(member.id)) }), {
         'data-tutor-sample-member': `${group.id}:${member.id}`, 'data-tutor-multiplicity': member.count,
       }));
-    if (group.omitted) y = textBlock(elements, `Omitted: ${group.omitted.join(', ') || 'none'}`, PAD, y, width - PAD * 2, { size: NOTE, weight: 500, tone: 'muted' }) + 8;
+    if (group.omitted) y = textBlock(elements, `Omitted: ${group.omitted.join(', ') || 'none'}`, PAD, y, width - PAD * 2, { size: SMALL, tone: 'muted' }) + 8;
   });
   return { width, height: y + PAD, elements };
 }
@@ -151,76 +139,47 @@ function histogram(d, requested) {
   ]) + 124), elements = [];
   const seriesHeights = d.series.map(series => histogramHeights(d, series));
   const maximum = Math.max(...seriesHeights.flat());
-  // The plot rules of the coordinate plot: no axis lines, a dashed guide at the top value and a solid zero line the bars sit on, tick numerals 15 px / 500 muted,
-  // the measure title rotated along the plot when it fits (else above it) and the x title centred under the ticks, bold 16.
-  const yTitle = histogramMeasureLabel(d), plotHeight = 132;
-  const rotate = widestFormula(yTitle) === 0 && textWidth(yTitle, 16) * 1.1 <= plotHeight;
-  const tickWidth = Math.min(88, Math.max(26, textWidth(String(maximum), TICK)));
-  const left = PAD + (rotate ? 26 : 0) + tickWidth + 10, right = width - PAD - 10;
+  const tickWidth = Math.min(88, Math.max(26, textWidth(String(maximum), SMALL)));
+  const left = PAD + tickWidth + 10, right = width - PAD - 10;
   const position = scale(d.binEdges[0], d.binEdges.at(-1), left, right);
-  const maxLines = wrap(String(maximum), tickWidth, TICK);
-  const tickHeight = maxLines.length * lineHeight(TICK);
-  // Bin edges are the x tick labels; an interior edge that would touch the one before it is dropped.
-  const edges = [];
-  d.binEdges.forEach((edge, i) => {
-    const at = position(edge), half = textWidth(String(edge), TICK) / 2;
-    const previous = edges.at(-1);
-    if (!previous || at - half >= previous.at + previous.half + 8) edges.push({ edge, at, half });
-  });
-  const last = d.binEdges.at(-1);
-  if (edges.at(-1).edge !== last) {
-    const at = position(last), half = textWidth(String(last), TICK) / 2;
-    while (edges.length > 1 && at - half < edges.at(-1).at + edges.at(-1).half + 8) edges.pop();
-    edges.push({ edge: last, at, half });
-  }
-  const edgeHeight = lineHeight(TICK);
-  let y = PAD, tickCenter = y;
-  if (!rotate) {
-    const lines = wrap(yTitle, width - PAD * 2, 16);
-    elements.push(label(lines, width / 2, y + lines.length * lineHeight(16) / 2, { weight: 700, size: 16 }));
-    y += lines.length * lineHeight(16) + 10;
-  }
+  const maxLines = wrap(String(maximum), tickWidth, SMALL);
+  const tickHeight = maxLines.length * lineHeight(SMALL);
+  const edgeLines = [d.binEdges[0], d.binEdges.at(-1)].map(value => wrap(String(value), (right - left) / 2 - 8, SMALL));
+  const edgeHeight = Math.max(...edgeLines.map(lines => lines.length)) * lineHeight(SMALL);
+  let y = textBlock(elements, histogramMeasureLabel(d), PAD, PAD, width - PAD * 2, { weight: 700 }) + 10;
   for (const [index, series] of d.series.entries()) {
     y = textBlock(elements, series.label, left, y, right - left, { weight: 700 }) + 6;
     const markerTop = y + 10;
     const top = y + Math.max(12, tickHeight / 2 + 4) + (d.markers?.length || 0) * 20;
-    const bottom = top + plotHeight;
+    const bottom = top + 132;
     const height = value => value / maximum * (bottom - top);
-    elements.push(h('line', { x1: left, x2: right, y1: top, y2: top, stroke: TEACHING_GRID, strokeWidth: 1.5, strokeDasharray: '4 4', 'data-tutor-plot-grid': '' }));
-    elements.push(label(maxLines, left - 8, top, { anchor: 'end', size: TICK, fill: TEACHING.muted }));
-    elements.push(label('0', left - 8, bottom, { anchor: 'end', size: TICK, fill: TEACHING.muted }));
-    if (rotate) {
-      const cx = PAD + 10, cy = (top + bottom) / 2;
-      elements.push(h('g', { transform: `rotate(-90 ${cx} ${cy})`, 'data-tutor-plot-y-title': '' }, label(yTitle, cx, cy, { size: 16, weight: 700 })));
-    }
+    elements.push(teachingConnector([[left, top], [right, top]], { dashed: true }));
+    elements.push(label(maxLines, left - 8, top, { anchor: 'end', size: SMALL }));
+    elements.push(label('0', left - 8, bottom, { anchor: 'end', size: SMALL }));
     series.values.forEach((value, bin) => {
       const x = position(d.binEdges[bin]), barWidth = position(d.binEdges[bin + 1]) - x;
       const barHeight = height(seriesHeights[index][bin]);
       elements.push(h('rect', {
         x, y: bottom - barHeight, width: barWidth, height: barHeight,
-        fill: TEACHING_SERIES[index], stroke: TEACHING.outline, strokeWidth: 1.5,
+        fill: [TEACHING.blueSoft, TEACHING.warmSoft, TEACHING.greenSoft][index], stroke: TEACHING_SERIES[index], strokeWidth: 1.3,
         'data-tutor-histogram-bin': `${index}:${bin}`, 'data-tutor-bin-mass': value, 'data-tutor-bin-height': seriesHeights[index][bin],
       }));
     });
     (d.markers ?? []).forEach((marker, markerIndex) => {
       const x = position(marker.value), my = markerTop + markerIndex * 20;
-      elements.push(h('line', { x1: x, x2: x, y1: my + 8, y2: bottom, stroke: TEACHING.outline, strokeWidth: 1.5, strokeDasharray: '4 3', 'data-tutor-histogram-marker': marker.value }));
+      elements.push(h('line', { x1: x, x2: x, y1: my + 8, y2: bottom, stroke: TEACHING.warm, strokeWidth: 1.4, strokeDasharray: '4 3', 'data-tutor-histogram-marker': marker.value }));
       elements.push(label(String(markerIndex + 1), x, my, { size: SMALL, weight: 700 }));
     });
-    // The zero line, solid, over the bars' feet: the one line a plot keeps.
-    elements.push(h('line', { x1: left, x2: right, y1: bottom, y2: bottom, stroke: TEACHING_ZERO, strokeWidth: 1.5, 'data-tutor-plot-zero': '' }));
-    tickCenter = bottom + 8 + edgeHeight / 2;
-    for (const { edge, at } of edges) elements.push(label(String(edge), at, tickCenter, { size: TICK, fill: TEACHING.muted }));
-    y = bottom + 8 + edgeHeight + 10;
-    // The bin-by-bin counts line is dropped: the bars and their edge labels carry it, and the written description still lists it.
+    elements.push(teachingConnector([[left, top], [left, bottom], [right, bottom]]));
+    elements.push(label(edgeLines[0], left, bottom + 8 + edgeHeight / 2, { size: SMALL, anchor: 'start' }));
+    elements.push(label(edgeLines[1], right, bottom + 8 + edgeHeight / 2, { size: SMALL, anchor: 'end' }));
+    y = bottom + 18 + edgeHeight;
+    const values = series.values.map((value, bin) => `${histogramBinLabel(d, bin)}: ${value}`).join('; ');
+    y = textBlock(elements, values, PAD, y, width - PAD * 2, { size: SMALL }) + 18;
   }
-  const xTitle = wrap(axisName(d.xLabel, d.unit), right - left, 16);
-  const xTitleHeight = xTitle.length * lineHeight(16);
-  const xTitleCenter = tickCenter + 24;
-  elements.push(label(xTitle, (left + right) / 2, xTitleCenter, { weight: 700, size: 16 }));
-  y = Math.max(y, xTitleCenter + xTitleHeight / 2) + 8;
+  y = textBlock(elements, axisName(d.xLabel, d.unit), PAD, y, width - PAD * 2, { weight: 700 }) + 6;
   (d.markers ?? []).forEach((marker, i) => {
-    y = textBlock(elements, `${i + 1}. ${marker.label}: ${marker.value}`, PAD, y, width - PAD * 2, { size: NOTE, tone: 'muted' }) + 4;
+    y = textBlock(elements, `${i + 1}. ${marker.label}: ${marker.value}`, PAD, y, width - PAD * 2, { size: SMALL }) + 4;
   });
   return { width, height: y + PAD, elements };
 }
@@ -234,46 +193,42 @@ function boxPlot(d, requested) {
     top = textBlock(elements, box.label, PAD, top, width - PAD * 2, { weight: 700 }) + 10;
     const center = top + 26;
     const color = TEACHING_SERIES[index % TEACHING_SERIES.length];
-    // Whiskers 2 px ink, the box and median as before (median 3 px), fences 1.5 px dashed muted brown, outliers a 12 px coral circle with a 2 px ring.
     elements.push(h('line', { x1: x(box.whiskerLow), x2: x(box.whiskerHigh), y1: center, y2: center,
-      stroke: TEACHING.outline, strokeWidth: 2, 'data-tutor-box-whisker': index }));
-    for (const value of [box.whiskerLow, box.whiskerHigh]) elements.push(h('line', { x1: x(value), x2: x(value), y1: center - 9, y2: center + 9, stroke: TEACHING.outline, strokeWidth: 2 }));
-    elements.push(h('rect', { x: x(box.q1), y: center - 14, width: x(box.q3) - x(box.q1), height: 28, fill: color, stroke: TEACHING.outline, strokeWidth: 1.5, 'data-tutor-box': index }));
+      stroke: color, strokeWidth: 1.8, 'data-tutor-box-whisker': index }));
+    for (const value of [box.whiskerLow, box.whiskerHigh]) elements.push(h('line', { x1: x(value), x2: x(value), y1: center - 9, y2: center + 9, stroke: color, strokeWidth: 1.8 }));
+    elements.push(h('rect', { x: x(box.q1), y: center - 14, width: x(box.q3) - x(box.q1), height: 28, fill: TEACHING.inset, stroke: color, strokeWidth: 1.8, 'data-tutor-box': index }));
     elements.push(h('line', { x1: x(box.median), x2: x(box.median), y1: center - 14, y2: center + 14,
-      stroke: TEACHING.outline, strokeWidth: 3, 'data-tutor-box-median': box.median }));
+      stroke: color, strokeWidth: 3, 'data-tutor-box-median': box.median }));
     if (box.fences) {
       for (const value of [box.fences.lower, box.fences.upper]) elements.push(h('line', {
         x1: x(value), x2: x(value), y1: center - 24, y2: center + 24,
-        stroke: TEACHING_ZERO, strokeWidth: 1.5, strokeDasharray: '4 3', 'data-tutor-box-fence': value,
+        stroke: TEACHING.warm, strokeWidth: 1.5, strokeDasharray: '4 3', 'data-tutor-box-fence': value,
       }));
     }
     const lanes = [];
     (box.outliers ?? []).forEach(point => {
       const px = x(point.value);
-      let row = lanes.findIndex(values => values.every(other => Math.abs(px - other) >= 16));
+      let row = lanes.findIndex(values => values.every(other => Math.abs(px - other) >= 14));
       if (row < 0) { row = lanes.length; lanes.push([]); }
       lanes[row].push(px);
-      elements.push(h('circle', { cx: px, cy: center + row * 16, r: 6, fill: TEACHING.coral,
-        stroke: TEACHING.outline, strokeWidth: 2, 'data-tutor-box-outlier': point.value }));
+      elements.push(h('circle', { cx: px, cy: center + row * 14, r: 4.5, fill: TEACHING.warmSoft,
+        stroke: TEACHING.warm, strokeWidth: 1.5, 'data-tutor-box-outlier': point.value }));
     });
-    top = center + Math.max(34, lanes.length * 16 + 8);
-    top = textBlock(elements, boxSummary(box), PAD, top, width - PAD * 2, { size: NOTE, tone: 'muted' }) + 6;
-    if (box.fences) top = textBlock(elements, `Lower fence: ${box.fences.lower}; Upper fence: ${box.fences.upper}`, PAD, top, width - PAD * 2, { size: NOTE, tone: 'muted' }) + 6;
+    top = center + Math.max(34, lanes.length * 14 + 6);
+    top = textBlock(elements, boxSummary(box), PAD, top, width - PAD * 2, { size: SMALL }) + 6;
+    if (box.fences) top = textBlock(elements, `Lower fence: ${box.fences.lower}; Upper fence: ${box.fences.upper}`, PAD, top, width - PAD * 2, { size: SMALL }) + 6;
     (box.outliers ?? []).forEach(point => {
-      top = textBlock(elements, `${point.label}: ${point.value}`, PAD, top, width - PAD * 2, { size: NOTE, tone: 'muted' }) + 4;
+      top = textBlock(elements, `${point.label}: ${point.value}`, PAD, top, width - PAD * 2, { size: SMALL }) + 4;
     });
     top += 18;
   });
-  // The reading axis follows the plot rules: no axis line, a dashed guide marks it, tick numerals 15 px / 500 muted, the title centred and bold 16 below.
-  elements.push(h('line', { x1: left, x2: right, y1: top, y2: top, stroke: TEACHING_GRID, strokeWidth: 1.5, strokeDasharray: '4 4', 'data-tutor-plot-grid': '' }));
-  const edgeLines = [d.x.min, d.x.max].map(value => wrap(String(value), (right - left) / 2 - 8, TICK));
-  const edgeHeight = Math.max(...edgeLines.map(lines => lines.length)) * lineHeight(TICK);
-  elements.push(label(edgeLines[0], left, top + 8 + edgeHeight / 2, { size: TICK, anchor: 'start', fill: TEACHING.muted }));
-  elements.push(label(edgeLines[1], right, top + 8 + edgeHeight / 2, { size: TICK, anchor: 'end', fill: TEACHING.muted }));
-  const xTitle = wrap(axisName(d.x.label, d.x.unit), right - left, 16);
-  const titleCenter = top + 8 + edgeHeight / 2 + 24;
-  elements.push(label(xTitle, (left + right) / 2, titleCenter, { weight: 700, size: 16 }));
-  top = titleCenter + xTitle.length * lineHeight(16) / 2;
+  elements.push(teachingConnector([[left, top], [right, top]]));
+  for (const value of [d.x.min, d.x.max]) elements.push(teachingConnector([[x(value), top - 4], [x(value), top + 4]]));
+  const edgeLines = [d.x.min, d.x.max].map(value => wrap(String(value), (right - left) / 2 - 8, SMALL));
+  const edgeHeight = Math.max(...edgeLines.map(lines => lines.length)) * lineHeight(SMALL);
+  elements.push(label(edgeLines[0], left, top + 8 + edgeHeight / 2, { size: SMALL, anchor: 'start' }));
+  elements.push(label(edgeLines[1], right, top + 8 + edgeHeight / 2, { size: SMALL, anchor: 'end' }));
+  top = textBlock(elements, axisName(d.x.label, d.x.unit), PAD, top + 18 + edgeHeight, width - PAD * 2, { weight: 700 });
   return { width, height: top + PAD, elements };
 }
 

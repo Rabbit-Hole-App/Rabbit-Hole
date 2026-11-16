@@ -87,7 +87,7 @@ The registry includes their reference prompts and keywords. `explanation-referen
 
 | Role | Value |
 | --- | --- |
-| Surface (the cream ground) / inset | `#FFFCF0` / `#f6f8f4` |
+| Surface / inset | `#fffefa` / `#f6f8f4` |
 | Ink / muted | `#202723` / `#5d675f` |
 | Primary blue / soft blue | `#426db2` / `#eaf1fb` |
 | Secondary warm accent / soft warm | `#b86232` / `#f8ece3` |

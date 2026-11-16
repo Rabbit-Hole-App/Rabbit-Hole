@@ -64,15 +64,13 @@ test('the saved reference passes content lint and draws the two distinguishable 
     assert.equal(svg, renderToStaticMarkup(renderTutorDiagram(spec, width).element));
     assert.doesNotMatch(svg, /NaN|Infinity|undefined|katex-error/);
     assert.equal(svg.match(/data-tutor-plot-area=""/g)?.length, 1);
-    // a short series is straight segments (a polyline); smooth paths are for 20 or more samples
-    const lines = svg.match(/<(?:path|polyline) [^>]*data-tutor-plot-series="[^"\n]+"[^>]*>/g);
+    const lines = svg.match(/<path [^>]*data-tutor-plot-series="[^"\n]+"[^>]*>/g);
     assert.equal(lines?.length, 2);
     assert.doesNotMatch(lines[0], /stroke-dasharray/);
     assert.match(lines[1], /stroke-dasharray/);
     assert.match(svg, /data-tutor-plot-point="3.5,3"/);
     assert.ok(svg.includes(String.raw`data-tutor-tex="$x+y=6$"`));
     assert.ok(svg.includes(String.raw`data-tutor-tex="$x+y=6+\ln 3$"`));
-    // the numbered note list under the figure was removed, so the probe's text is no longer typeset there; it stays in the point's tooltip and the description
-    assert.ok(svg.includes(String.raw`$p\approx62.2\%$ · Pass at 50% · Not pass at 75%`));
+    assert.ok(svg.includes(String.raw`data-tutor-tex="$p\approx62.2\%$"`));
   }
 });

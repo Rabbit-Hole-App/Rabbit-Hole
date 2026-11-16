@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { lintDiagramContent } from '../../scripts/explanation-content-contract.mjs';
 import { references } from './ml-batch3b-anomaly-density-references.js';
-import { parseTutorDiagram, tutorDiagramVisibleText } from './spec.js';
+import { parseTutorDiagram } from './spec.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
 
 const lofFormulas = [String.raw`$\mathrm{LOF}=(2/3)\div(2/9)=3$`, String.raw`$\mathrm{LOF}=(1/4)\div(1/4)=1$`];
@@ -105,12 +105,7 @@ test('both lesson references round-trip, pass the content contract and render as
         assert.equal(svg.match(/data-tutor-plot-segment="segment"/g)?.length, 2);
         assert.equal(svg.match(/data-tutor-plot-point=/g)?.length, 2);
         assert.equal(svg.match(/data-tutor-coordinate-point=/g)?.length, 12);
-        // Sprint default (r6): no numbered note list under the figure, so a note's formula is not drawn on it; it stays in the diagram's written text (the card prose).
-        const written = tutorDiagramVisibleText(spec).join(' ');
-        for (const formula of lofFormulas) {
-          assert.ok(written.includes(formula), 'the formula stays in the written text');
-          assert.ok(!svg.includes(`data-tutor-tex="${formula}"`), 'the note text is not drawn on the figure');
-        }
+        for (const formula of lofFormulas) assert.ok(svg.includes(`data-tutor-tex="${formula}"`));
       }
     }
   }

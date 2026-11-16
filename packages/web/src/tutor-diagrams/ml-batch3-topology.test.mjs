@@ -5,7 +5,6 @@ import { tokenizeMath } from '../math-tokens.js';
 import { renderTutorDiagram } from './TutorDiagram.js';
 import { references } from './ml-batch3-topology-references.js';
 import { parseTutorDiagram, tutorDiagramVisibleText } from './spec.js';
-import { pathVertices } from './test-wire-points.mjs';
 
 const kinds = {
   'ml-backpropagation': 'flow',
@@ -88,11 +87,10 @@ test('RLHF uses human rankings and leads back to sampling with the tuned policy'
   ]);
   assert.match(spec.diagram.caption, /pretrained model.*next round.*tuned model/);
   const svg = renderToStaticMarkup(renderTutorDiagram(spec, 320).element);
-  // A route is the shared wire, a path with 8 px corners: the return connector is the one with an elbow up the side (four vertices).
-  const routes = [...svg.matchAll(/<path d="([^"]+)"/g)].map(([, d]) => pathVertices(d));
+  const routes = [...svg.matchAll(/<polyline points="([^"]+)"/g)].map(([, points]) => points.split(' '));
   const returning = routes.find(points => points.length === 4);
   assert.ok(returning, 'Draw a return connector from policy tuning to sampling');
-  assert.ok(returning[0][1] > returning[3][1]);
+  assert.ok(Number(returning[0].split(',')[1]) > Number(returning[3].split(',')[1]));
 });
 
 test('beam search prunes to the global top two at each depth and highlights the winning sequence', () => {

@@ -7,7 +7,6 @@ import { layouts as oldLayouts } from './layouts.js';
 import { layoutFlow } from './flow.js';
 import { textWidth } from './primitives.js';
 import { TEACHING } from './teaching-theme.js';
-import { wirePoints } from './test-wire-points.mjs';
 
 let specModule, layoutModule, referenceModule;
 try {
@@ -213,8 +212,7 @@ test('connected relationship graph draws every node once and reciprocal links on
   const s = scene(parse(graph));
   assert.deepEqual(marked(s, 'data-tutor-node').map(e => e.props['data-tutor-node']).sort(), ['a', 'b', 'c']);
   const routes = marked(s, 'data-tutor-edge');
-  // A route is the shared wire: a path with rounded corners and a filled head.
-  const route = pair => walk([routes.find(e => e.props['data-tutor-edge'] === pair)]).find(e => e.type === 'path').props.d;
+  const route = pair => walk([routes.find(e => e.props['data-tutor-edge'] === pair)]).find(e => e.type === 'polyline').props.points;
   assert.notEqual(route('a:b'), route('b:a'));
   assert.equal(marked(s, 'data-tutor-arrowhead').length, graph.edges.length);
   for (const edge of graph.edges) assert.ok(allText(s).includes(edge.label));
@@ -229,10 +227,9 @@ test('relationship graph brings outside routes closer while clearing node boxes 
       const [fromId, toId] = edge.props['data-tutor-edge'].split(':');
       const from = rectFor(s, fromId), to = rectFor(s, toId);
       const parts = walk([edge]);
-      const [start, bend, , end] = wirePoints(edge);
+      const [start, bend, , end] = points(parts.find(e => e.type === 'polyline').props.points);
       const arrow = parts.find(e => e.props['data-tutor-arrowhead'] !== undefined);
-      const tip = points(arrow.props.points)[0];
-      assert.ok(Math.abs(Math.hypot(tip[0] - end[0], tip[1] - end[1]) - 2) < 0.01, 'the arrowhead tip stops 2 px short of the wire end');
+      assert.deepEqual(points(arrow.props.points)[0], end);
       const badge = parts.find(e => e.type === 'circle').props;
       const side = bend[0] < from.x ? 'left' : 'right';
       const nodeEdge = rect => side === 'left' ? rect.x : rect.x + rect.width;

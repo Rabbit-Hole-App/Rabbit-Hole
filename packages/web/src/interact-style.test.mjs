@@ -13,7 +13,7 @@ import { legibleFrame } from './explain-program/frame.js';
 import { LEGIBILITY_FLOORS, sceneLegibility } from './scene-layout.js';
 import { inkOver, selectionStyle, shapeStyle, textStyle } from './scene-style.js';
 import { INK, PALETTE, PATH, SURFACE } from './tutor-diagrams/primitives.js';
-import { TEACHING_FONT, TEACHING_ROLE_FILL, TEACHING_SERIES_INK, TEACHING_STYLE, TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
+import { TEACHING_FONT, TEACHING_STYLE, TEACHING_TEXT } from './tutor-diagrams/teaching-theme.js';
 
 const SWATCHES = {
   input: PALETTE.process,
@@ -24,8 +24,7 @@ const SWATCHES = {
   tutor: PALETTE.rose,
   code: PALETTE.slate,
   warning: PALETTE.coral,
-  operator: PALETTE.lavender,
-  success: TEACHING_SERIES_INK[2], // teal-dark: the one role whose fill is not a PALETTE colour (teaching-theme.js TEACHING_ROLE_FILL)
+  success: PALETTE.outcome,
 };
 const rgb = hex => hex.slice(1).match(/../g).map(part => parseInt(part, 16));
 const mix = (a, b, percent) => a.map((channel, index) => (channel * percent + b[index] * (100 - percent)) / 100);
@@ -49,7 +48,7 @@ test('filled interactive shapes share the written palette and geometry while ord
     assert.ok(contrast(rgb(node.fill), rgb(node.onFill)) >= 4.5, role);
     assert.notEqual(shapeStyle(role).fill, hue);
   }
-  assert.equal(interactShapeStyle('neutral').fill, 'none', 'a neutral shape is transparent with the outline: no tint, no white');
+  assert.equal(interactShapeStyle('neutral').fill, 'var(--viz-surface, #fbfbfa)');
   assert.equal(interactShapeStyle('input', {}, undefined, 'identity-1').fill, PALETTE.process);
   assert.equal(interactShapeStyle('input', {}, undefined, 'identity-2').fill, PALETTE.decision, 'the second body is the decision hue; olive is the observed role only');
   assert.equal(interactShapeStyle('input', {}, undefined, 'identity-3').fill, PALETTE.coral);
@@ -71,16 +70,14 @@ test('line and data cues keep contrast and preserve selection while interactive 
     const markPercent = Number(interactMarkColor(role).match(/ (\d+)%/)?.[1]);
     const rest = interactDataStyle(role);
     const selected = interactDataStyle(role, { selected: true });
-    const onFill = role === 'success' ? '#FFFCF0' : '#32211c'; // text on a success fill is the cream ground (4.68:1 on the dark teal), on any other role the outline ink
-    assert.equal(rest.onFill, onFill, 'a cell is the role fill at 100% with its on-fill ink on it');
-    assert.equal(rest.fill, hue, 'no 22% or 58% tint');
+    const restPercent = Number(rest.fill.match(/ (\d+)%/)?.[1]);
+    assert.equal(rest.onFill, 'var(--color-ink, #32211c)');
     assert.equal(selected.fill, hue);
-    assert.equal(selected.onFill, onFill);
-    for (const [background, ink] of [['#FFFCF0', '#37352f'], ['#1f1f1f', '#d4d4d4']]) {
+    assert.equal(selected.onFill, '#32211c');
+    for (const [background, ink] of [['#fbfbfa', '#37352f'], ['#1f1f1f', '#d4d4d4']]) {
       assert.ok(contrast(mix(rgb(hue), rgb(ink), markPercent), rgb(background)) >= 4.5, role + ' line ' + background);
+      assert.ok(contrast(mix(rgb(hue), rgb(background), restPercent), rgb(ink)) >= 4.5, role + ' cell ' + background);
     }
-    // a cell is the role fill at 100% with the fixed outline ink on it, in either page theme
-    assert.ok(contrast(rgb(hue), rgb(rest.onFill)) >= 4.5, role + ' cell');
   }
 });
 
@@ -187,7 +184,7 @@ test('interact mode draws line and arrow as the written connector: INK by defaul
   const themed = render(true), group = id => { const at = themed.indexOf(`data-animation-object="${id}"`); const next = themed.indexOf('data-animation-object=', at + 1); return at < 0 ? '' : themed.slice(at, next < 0 ? undefined : next); };
   assert.match(themed, /data-tutor-arrowhead/, 'the arrowhead is the written connector polygon');
   assert.match(group('plain'), /stroke="var\(--color-ink, #32211c\)"/); assert.match(group('plain'), /fill="var\(--color-ink, #32211c\)"/);
-  assert.match(group('picked'), new RegExp(`stroke="${PATH}"`)); assert.match(group('picked'), /stroke-width="2.5"/, 'a composed connector is the shared wire at 2.5 px');
+  assert.match(group('picked'), new RegExp(`stroke="${PATH}"`)); assert.match(group('picked'), /stroke-width="3"/);
   assert.match(group('watch'), /stroke="color-mix\(in srgb, #F58371 33%/); assert.match(group('watch'), /fill="color-mix\(in srgb, #F58371 33%/);
   assert.doesNotMatch(group('bare'), /data-tutor-arrowhead/, 'a line has no head');
   assert.doesNotMatch(render(false), /data-tutor-arrowhead/, 'the /animation frame keeps its marker arrows');
@@ -205,12 +202,12 @@ test('interact mode draws the frame on the teaching surface with the written dia
   assert.match(read('./InteractSupportPanels.jsx'), /background: TEACHING\.inset/);
 });
 
-test('interact text classes ARE the written cards (17/16/15/13) and its floors are those sizes; legacy sizes and floors are untouched', () => {
+test('interact text classes ARE the written cards (17/14/14/13) and its floors are those sizes; legacy sizes and floors are untouched', () => {
   for (const [role, text] of Object.entries(TEACHING_TEXT)) {
     assert.equal(interactTextStyle(role).fontSize, text.size, `${role} size`); assert.equal(interactTextStyle(role).fontWeight, text.weight, `${role} weight`);
     assert.equal(INTERACT_FLOORS[role], text.size, `${role} floor is the written card's size`); assert.ok(interactTextStyle(role).fontSize >= INTERACT_FLOORS[role]);
   }
-  assert.deepEqual([INTERACT_FLOORS.display, INTERACT_FLOORS.heading, INTERACT_FLOORS.body, INTERACT_FLOORS.caption], [17, 16, 15, 13]);
+  assert.deepEqual([INTERACT_FLOORS.display, INTERACT_FLOORS.heading, INTERACT_FLOORS.body, INTERACT_FLOORS.caption], [17, 14, 14, 13]);
   assert.equal(INTERACT_FLOORS.metadata, LEGIBILITY_FLOORS.metadata, 'the smallest floor is unchanged');
   assert.equal(interactTextStyle('code').fontFamily, 'var(--font-mono)');
   assert.match(read('./tutor-diagrams/TutorDiagram.js'), /size: 17, weight: 700/, 'the written card draws its title at TEACHING_TEXT.display');
@@ -218,12 +215,12 @@ test('interact text classes ARE the written cards (17/16/15/13) and its floors a
   assert.equal(textStyle('body').fontSize, 15, 'a legacy scene still draws body text at 15 px');
 });
 
-test('a composed frame is sized by the written cards sizes: body text at 15 px reaches its floor at the declared size, where the legacy floors would not', () => {
+test('a composed frame is sized by the written cards sizes: body text at 14 px reaches its floor at the declared size, where the legacy floors would not', () => {
   const frame = normalizeFrame({ width: 640, height: 420, objects: [{ kind: 'text', id: 't', x: 20, y: 40, text: 'hello', role: 'neutral' }] });
   assert.equal(frame.ok, true, frame.issue);
   assert.deepEqual(legibleFrame(frame.scene, INTERACT_LOOK), { w: 640, h: 420 }, 'drawn at its declared size');
   const report = sceneLegibility(frame.scene, null, INTERACT_LOOK);
-  assert.deepEqual([report.effective.body.authored, report.effective.body.floor], [15, 15]);
+  assert.deepEqual([report.effective.body.authored, report.effective.body.floor], [14, 14]);
   assert.deepEqual(legibleFrame(frame.scene), legibleFrame(frame.scene, null), 'no look: the legacy result');
 });
 
@@ -234,9 +231,7 @@ test('R2 drift pin: interact-style.js and the interact branches of AnimatedScene
   const scene = read('./AnimatedScene.jsx').split('\n').filter(line => /interact|Interact/.test(line) && !line.trim().startsWith('//') && !line.trim().startsWith('{/*'));
   for (const line of scene) { assert.doesNotMatch(line, hex, `an interact line of AnimatedScene.jsx has a literal colour: ${line.trim()}`); assert.doesNotMatch(line, font, `an interact line of AnimatedScene.jsx has a literal font: ${line.trim()}`); }
   for (const [role, swatch] of Object.entries(SWATCHES)) assert.equal(interactShapeStyle(role).fill, swatch, `${role} resolves to a PALETTE colour`);
-  for (const [role, fill] of Object.entries(TEACHING_ROLE_FILL)) assert.equal(SWATCHES[role], fill, `${role} is the one role-to-fill table (teaching-theme.js TEACHING_ROLE_FILL)`);
-  assert.deepEqual(Object.keys(SWATCHES).sort(), Object.keys(TEACHING_ROLE_FILL).sort());
-  assert.equal(interactShapeStyle('neutral').fill, 'none'); assert.equal(interactStrokeColor('input'), INK); assert.equal(interactStrokeColor('input', null, { chosen: true }), PATH);
+  assert.equal(interactShapeStyle('neutral').fill, SURFACE); assert.equal(interactStrokeColor('input'), INK); assert.equal(interactStrokeColor('input', null, { chosen: true }), PATH);
   assert.equal(INTERACT_FONT, TEACHING_FONT);
 });
 
