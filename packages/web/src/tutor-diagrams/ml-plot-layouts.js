@@ -294,7 +294,9 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
     // A point whose label only restates its coordinates (PL-1) draws no callout: its ring carries it.
     if (!(a.kind === 'point' && restatesPoint(a.label, a))) callout(anchor, a.label, a.kind === 'point' ? 7 : 0);
   }
-  const marks = [], legend = [];
+  // A line series draws no marker where a scatter series has a point (within 0.5 px): the scatter's marker stays, drawn last (on top).
+  const scatterAt = d.series.flatMap((series, k) => series.kind === 'scatter' ? curves[k] : []);
+  const marks = [], scatterMarks = [], legend = [];
   for (const [i, series] of d.series.entries()) {
     const hasUncertainty = series.points[0].low !== undefined;
     if (hasUncertainty && ['line', 'step'].includes(series.kind)) {
@@ -322,7 +324,8 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
       const n = series.points.length;
       const marked = series.kind === 'line' && !series.closed
         ? n <= PLOT_MARKER_ALL_MAX_SAMPLES || showPlotMarker(series, j) || Boolean(p.id) : showPlotMarker(series, j);
-      if (marked) marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`, MARKER));
+      const covered = series.kind === 'line' && scatterAt.some(([sx, sy]) => Math.hypot(sx - cx, sy - cy) <= 0.5);
+      if (marked && !covered) (series.kind === 'scatter' ? scatterMarks : marks).push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`, MARKER));
       // A single short series prints each value above its marker.
       if (d.series.length === 1 && series.points.length <= PLOT_VALUE_LABEL_MAX_SAMPLES) {
         // Kept clear of the y axis and inside the card, so a sample on the axis does not print over the tick labels.
@@ -352,7 +355,7 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
     remainingLabels -= height + 4;
   }
   const crowded = Math.max(0, ...xTicks.slice(1).map((tick, i) => tickSpan(xTicks[i])[1] + 4 - tickSpan(tick)[0]));
-  return { width, height: legendY, plotBounds: bounds, crowded, elements: [...elements, ...geometry, ...marks, ...foreground] };
+  return { width, height: legendY, plotBounds: bounds, crowded, elements: [...elements, ...geometry, ...marks, ...scatterMarks, ...foreground] };
 }
 
 function barChart(d, requested) {
