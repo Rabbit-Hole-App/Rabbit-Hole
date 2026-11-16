@@ -17,7 +17,7 @@ import { READ_WIKIPEDIA_TOOL, SEARCH_WIKIPEDIA_TOOL, readWikipedia, searchWikipe
 import { FIND_VIDEO_MOMENTS_TOOL, findVideoMoments } from './learn-youtube.js';
 import { discoverSources, searchCanvasSource } from './learn-search.js';
 import { LEARN_TASKS, costUsd, modelRequest } from './learn-models.js';
-import { requestSpendBound } from './learn-spend.js';
+import { estimatedSpendBound } from './learn-spend.js';
 import { logTutorCall, tutorRecord } from './tutor-prompt.js';
 
 const MATERIAL_SOURCE = { paper: 'arxiv', video: 'youtube', article: 'wikipedia' };
@@ -103,7 +103,7 @@ export async function sectionTurn(env, { composed, user, submit, research = [], 
   for (;;) {
     const tools = [...researchToolDefs(research), submit]; // kept after the step limit: earlier tool_use blocks name them; a call past the limit is answered 'not run'
     const body = modelRequest(system, messages, task.maxTokens, { output_config: { effort: task.effort }, tools, tool_choice: { type: 'auto' } });
-    const bound = requestSpendBound(body, model) == null ? null : costUsd({ model, input_tokens: Math.ceil(new TextEncoder().encode(JSON.stringify(body)).length / 3) + 1000, output_tokens: body.max_tokens }) * 1.25; // input at 3 bytes a token (real is about 4): requestSpendBound's byte-per-token bound left room for two calls under a section cap (BLOCKERS.md)
+    const bound = estimatedSpendBound(body, model); // input at 3 request bytes a unit, still above the real rate (BLOCKERS.md)
     if (bound == null || usage.usd + bound > capUsd) return { failed: 'over_cap', errors: errors.length ? errors : ['the cost limit for this item did not allow another call'], usage };
     logTutorCall({ ...record, call: usage.calls + 1 });
     let result;
