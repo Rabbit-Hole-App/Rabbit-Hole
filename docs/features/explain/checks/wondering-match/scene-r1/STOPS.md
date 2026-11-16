@@ -1,0 +1,21 @@
+# SCN-r1: the attention scene, static, hand-written (no model call)
+
+`scene.json` is a scene in the animation vocabulary (strip, circle, arrow, line, text, bars), no timeline, no inputs, 560 x 420. `natural.svg` / `natural-2x.png` render it with the Frame in the composed-card theme (`interact`, the sprint look: cream ground, Tutor palette, outline #32211C). `standard-theme.*` is the same scene in the app's own scene theme, for comparison. Both were drawn by the real `Frame` (AnimatedScene.jsx) mounted in headless Chrome at time 0; the target picture was read from the owner's message.
+
+## Roles used (the vocabulary has ten: neutral, input, output, prediction, observed, learner, tutor, code, warning, success)
+Query strip input (blue); Key strip output (teal); Value strip observed (olive); both circles neutral; bars prediction (lavender); arrows and text neutral. The brief asked Key = observed and Value = output; in the composed palette observed is olive and output is teal, so the two are swapped to land on the target's hues (Key teal, Value olive).
+
+## Stops (nearest thing used)
+1. `duration` must be positive in the scene schema (`z.number().positive()`): duration 1 with an empty timeline (a static scene, `isStaticScene`).
+2. A strip prints numbers; there is no cells-only option: values are eight `null` (blank cells). The cell fill is the role's 22% tint over the ground (the soft data tier), pale next to the target's saturated cells; no per-strip strength control.
+3. Circle: neutral would be a plain surface circle, but in the composed theme `frameLook` turns the circles into "bodies" with identity hues (x blue, sigma mustard); the target's lavender operator cannot be asked for, and neither circle's symbol size can be set (the label uses the small equation scale, 15 px; the target's symbols are large).
+4. Arrows are straight only: the Query-to-x elbow is a `line` plus an `arrow` (two objects, a sharp corner, not rounded).
+5. The Value-to-sigma arrow is drawn in the path blue (the composed theme's highlight colour) while its siblings are ink; I did not find why (the other two plain arrows are ink).
+6. `bars`: one flat role fill (pale lavender), no colour by value, no warm ramp; its label "weights" sits above and left of the bars, not centred beneath; the baseline is a full-width line. The six values 0.04, 0.09, 0.19, 0.38, 0.19, 0.11 sum to 1.
+7. A text object does not wrap: the caption is two text objects.
+8. Server-side static rendering (`renderToStaticMarkup`) draws the bars black, because their fill is a motion animation value that only a browser applies; the render therefore runs in a real browser. A server-side export of a scene would need that fixed.
+9. Strips position by x, y (top left) and circles by centre: the three strip rows are at y = 60, 120, 260 as asked; the x and the circle at (470, 138) and (470, 278) are mine.
+
+## Routing (read-only)
+(a) Can an explanation block carry a scene today? A written Explanation's body (Markdown) draws only two fences: `rh-diagram` (a TutorDiagram, Md.jsx `fenceOf`, DIAGRAM_FENCE in diagram-fence.js) and `rh-illustration` (a Recraft figure from `block.figures`, ILLUSTRATION_FENCE); any other fence is shown as code. The animation scene is a separate block kind (AnimatedScene reads `block.scene`), and the interactive program card draws a Frame from a running program's frame, not from saved scene JSON in the body. So no, not from the block's text.
+(b) Smallest change: a third fence `rh-scene` whose body is the scene JSON. Files: `packages/web/src/diagram-fence.js` (the fence name and test), `packages/web/src/Md.jsx` (`fenceOf`: a branch drawing a new small `SceneFence.jsx` that does `validateScene` + `getSceneState(scene, 0)` and renders the exported `Frame` with `interact`, not ProgramScene, which needs a program host), `packages/web/src/explanation-card-width.js` (its FENCE regex, so the card width counts the scene), `packages/web/src/explanation-minimize.js` and `inline-highlight.js` (they also know the fence names), and on the server `packages/control-plane/src/learn-primitives.js` (fence validation and the `visuals` path that writes `rh-diagram` / `rh-illustration`) so a saved card must hold a scene that passes `validateScene`.

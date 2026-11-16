@@ -1,0 +1,258 @@
+{
+  "id": "wondering-attention-static",
+  "title": "Attention: queries and keys weight the values",
+  "width": 560,
+  "height": 420,
+  "duration": 1,
+  "objects": [
+    {
+      "id": "q-label",
+      "type": "text",
+      "initialState": {
+        "text": "Query",
+        "x": 24,
+        "y": 78,
+        "typography": "heading",
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "k-label",
+      "type": "text",
+      "initialState": {
+        "text": "Key",
+        "x": 24,
+        "y": 138,
+        "typography": "heading",
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "v-label",
+      "type": "text",
+      "initialState": {
+        "text": "Value",
+        "x": 24,
+        "y": 278,
+        "typography": "heading",
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "q",
+      "type": "strip",
+      "initialState": {
+        "x": 110,
+        "y": 60,
+        "cell": 36,
+        "role": "input",
+        "values": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      }
+    },
+    {
+      "id": "k",
+      "type": "strip",
+      "initialState": {
+        "x": 110,
+        "y": 120,
+        "cell": 36,
+        "role": "output",
+        "values": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      }
+    },
+    {
+      "id": "v",
+      "type": "strip",
+      "initialState": {
+        "x": 110,
+        "y": 260,
+        "cell": 36,
+        "role": "observed",
+        "values": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      }
+    },
+    {
+      "id": "times",
+      "type": "circle",
+      "initialState": {
+        "text": "×",
+        "x": 470,
+        "y": 138,
+        "w": 44,
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "sigma",
+      "type": "circle",
+      "initialState": {
+        "text": "Σ",
+        "x": 470,
+        "y": 278,
+        "w": 44,
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "q-run",
+      "type": "line",
+      "initialState": {
+        "from": {
+          "x": 398,
+          "y": 78
+        },
+        "to": {
+          "x": 470,
+          "y": 78
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "q-drop",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 470,
+          "y": 78
+        },
+        "to": {
+          "x": 470,
+          "y": 114
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "k-arrow",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 398,
+          "y": 138
+        },
+        "to": {
+          "x": 446,
+          "y": 138
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "times-down",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 470,
+          "y": 162
+        },
+        "to": {
+          "x": 470,
+          "y": 182
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "weights",
+      "type": "bars",
+      "initialState": {
+        "label": "weights",
+        "x": 386,
+        "y": 186,
+        "w": 168,
+        "h": 50,
+        "cell": 28,
+        "role": "prediction",
+        "values": [
+          0.04,
+          0.09,
+          0.19,
+          0.38,
+          0.19,
+          0.11
+        ]
+      }
+    },
+    {
+      "id": "weights-down",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 470,
+          "y": 240
+        },
+        "to": {
+          "x": 470,
+          "y": 254
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "v-arrow",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 398,
+          "y": 278
+        },
+        "to": {
+          "x": 446,
+          "y": 278
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "caption-1",
+      "type": "text",
+      "initialState": {
+        "text": "Queries and keys score each position; the weights scale",
+        "x": 24,
+        "y": 352,
+        "typography": "caption",
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "caption-2",
+      "type": "text",
+      "initialState": {
+        "text": "how much of each value flows to the output.",
+        "x": 24,
+        "y": 372,
+        "typography": "caption",
+        "role": "neutral"
+      }
+    }
+  ],
+  "timeline": []
+}
