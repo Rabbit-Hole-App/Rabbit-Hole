@@ -1,0 +1,28 @@
+step prepare_data: python data/shakespeare_char/prepare.py (exit 0, 0.76 s)
+  file data/shakespeare_char/input.txt: 1115394 bytes
+  file data/shakespeare_char/meta.pkl: 703 bytes
+  file data/shakespeare_char/train.bin: 2007708 bytes
+  file data/shakespeare_char/val.bin: 223080 bytes
+  length of dataset in characters: 1,115,394
+  !$&',-.3:;?ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+  vocab size: 65
+  train has 1,003,854 tokens
+  val has 111,540 tokens
+step train_cpu: python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0 (exit 0, 107.54 s)
+  file out-shakespeare-char/ckpt.pt: 9678732 bytes
+  Overriding: eval_iters = 20
+  Overriding: log_interval = 1
+  Overriding: block_size = 64
+  Overriding: batch_size = 12
+  Overriding: n_layer = 4
+  Overriding: n_head = 4
+  ...
+  iter 1996: loss 1.8214, time 54.93ms, mfu 0.03%
+  iter 1997: loss 1.7120, time 54.22ms, mfu 0.02%
+  iter 1998: loss 1.8759, time 57.98ms, mfu 0.02%
+  iter 1999: loss 1.9002, time 53.43ms, mfu 0.02%
+  step 2000: train loss 1.7648, val loss 1.8857
+  iter 2000: loss 1.6958, time 568.17ms, mfu 0.02%
+step sample_text: python sample.py --out_dir=out-shakespeare-char --device=cpu (exit 0, 13.52 s)
+  number of parameters: 0.80M
+  The sie, art what a carse so forgelied3 this the kning,

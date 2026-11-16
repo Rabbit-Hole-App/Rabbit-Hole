@@ -2,7 +2,7 @@
   "case": "data",
   "section": "1.2",
   "sectionId": "1.2",
-  "ms": 15251,
+  "ms": 14900,
   "out": {
     "error": "sectionBriefFailed",
     "words": "I couldn't plan this section cleanly. Try again, or skip to the next section."
@@ -12,19 +12,68 @@
       "event": "learn_section_brief",
       "section": "1.2",
       "calls": 4,
-      "usd": 0.091603,
+      "usd": 0.065031,
       "cap_usd": 0.15,
       "searches": 0,
       "outcome": "invalid",
       "errors": [
-        "beat b1: shows names `DEFAULT_SETTINGS[\"num_sql_threads\"]`, `DEFAULT_SETTINGS[\"sql_time_limit_ms\"]`, which the anchored lines do not",
-        "beat b2: idea must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found \"config_dir\")",
-        "beat b3: idea must have no path, file name or flag (found \"inspect-data.json\")",
-        "beat b3: shows names `files=[\"a.db\"]`, `immutables=[\"b.db\"]`, which the anchored lines do not",
-        "beat b4: idea is one idea in one or two short sentences, at most 260 characters",
-        "beat b5: idea is one idea in one or two short sentences, at most 260 characters",
-        "beat b6: shows names `if config_dir and ...`, which the anchored lines do not"
-      ]
+        "beat b2: idea is one idea in one or two short sentences, at most 260 characters",
+        "beat b3: idea is one idea in one or two short sentences, at most 260 characters",
+        "beat b3: shows names `self.`, `SETTINGS`, which the anchored lines do not",
+        "beat b4: idea is one idea in one or two short sentences, at most 260 characters"
+      ],
+      "submitted": {
+        "from": "The previous section listed the parts the app pulls in and ended on the SETTINGS table of named tuples; this one shows how that table becomes live configuration and what the app holds for the server's lifetime.",
+        "beats": [
+          {
+            "id": "b1",
+            "idea": "A setting is a name, a default and a help string, and nothing more. The table is plain data, so one tuple of them can drive defaults, help output and validation.",
+            "shows": "Read `Setting` and `SETTINGS`. Find `default_page_size` (100), `sql_time_limit_ms` (1000) and `num_sql_threads` (3), and say what each controls.",
+            "anchors": [
+              "datasette/app.py:210-233"
+            ],
+            "background": false
+          },
+          {
+            "id": "b2",
+            "idea": "Some settings are limits and some are switches. Numeric limits bound work, such as rows returned or query time. Booleans turn features on or off, such as downloads or signed tokens.",
+            "shows": "Sort about six settings from lines 211-300 into limits and switches. Note that 0 disables some limits, such as `max_csv_mb`, and means 'use the SQLite default' for `cache_size_kb`.",
+            "anchors": [
+              "datasette/app.py:223-299"
+            ],
+            "background": false
+          },
+          {
+            "id": "b3",
+            "idea": "The Datasette class is where these defaults meet the user's choices. Its constructor builds the state the server keeps for its whole life. Defaults come first, user overrides are layered on top, and the result is kept on the object.",
+            "shows": "Open the `__init__` of Datasette at line 410. List the `self.` attributes it assigns, and mark which ones come from `SETTINGS`. I have not read these lines yet, so check them yourself.",
+            "anchors": [
+              "datasette/app.py:410"
+            ],
+            "background": false
+          },
+          {
+            "id": "b4",
+            "idea": "Databases are registered on the app in a dict keyed by name. Each is a `Database` object, and a separate internal database named by `INTERNAL_DB_NAME` holds Datasette's own data. Views later look databases up by name.",
+            "shows": "Find `INTERNAL_DB_NAME` and the `Database` import. Then search the constructor for where databases are added.",
+            "anchors": [
+              "datasette/app.py:208",
+              "datasette/app.py:47"
+            ],
+            "background": false
+          },
+          {
+            "id": "b5",
+            "idea": "Shared state means that every request sees the same app object, so anything stored on it is global to the server. This is why the thread pool, plugin manager and settings live there rather than in a view.",
+            "shows": "Name three things stored on the app that a request could read, and say why each is shared rather than per-request.",
+            "anchors": [
+              "datasette/app.py:410"
+            ],
+            "background": true
+          }
+        ],
+        "to": "Since the app holds all this shared state, the next section asks why views and plugins are handed the app itself."
+      }
     }
   ]
 }
