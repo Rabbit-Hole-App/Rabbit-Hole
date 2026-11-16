@@ -88,7 +88,7 @@ function binaryTree({ nodes }, preferredWidth) {
         [x, elbow], [x, y]], { arrow: false }), { stroke: TEACHING.outline, strokeWidth: 2 }));
     }
     const [background, ...labels] = card(x - width / 2, y, width, content);
-    cards.push(cloneElement(background, { rx: 9, fill: TEACHING.surface, stroke: TEACHING.outline, strokeWidth: 1.5 }), ...labels);
+    cards.push(cloneElement(background, { rx: 9, fill: 'none', stroke: TEACHING.outline, strokeWidth: 1.5 }), ...labels);
   }
   return { width, height: y - ROW_GAP + PAD, elements: [...wires, h('g', { style: { '--color-ink': TEACHING.ink } }, ...cards)] };
 }

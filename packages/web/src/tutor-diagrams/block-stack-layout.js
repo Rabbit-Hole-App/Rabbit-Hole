@@ -22,7 +22,7 @@ const REPEAT_LANE = 50;
 const JOIN_RADIUS = 10;
 const BADGE_RADIUS = 9;
 const STACK_PAINT = {
-  norm: { fill: TEACHING.surface, stroke: TEACHING.outline, strokeWidth: 1.5 },
+  norm: { fill: 'none', stroke: TEACHING.outline, strokeWidth: 1.5 },
   attention: { fill: TEACHING.blueFill, stroke: TEACHING.outline, strokeWidth: 1.5 },
   feedforward: { fill: TEACHING.mustardFill, stroke: TEACHING.outline, strokeWidth: 1.5 },
   embedding: { fill: TEACHING.tealFill, stroke: TEACHING.outline, strokeWidth: 1.5 },

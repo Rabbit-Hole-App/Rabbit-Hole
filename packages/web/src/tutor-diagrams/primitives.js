@@ -231,7 +231,7 @@ export function layoutCaption(text, width, size = 13) {
 export function box(x, y, width, height, { role = 'plain', radius = 7, active = false } = {}) {
   return h('rect', {
     x, y, width, height, rx: radius,
-    fill: PALETTE[role] ?? SURFACE,
+    fill: PALETTE[role] ?? 'none', // no role fill: transparent, the ground shows through
     stroke: active ? PATH : role === 'plain' ? INK : FILLED_INK, strokeWidth: active ? 3.5 : 1.5,
   });
 }
@@ -246,7 +246,7 @@ export function diamond(x, y, width, height, { active = false } = {}) {
 }
 
 export function dot(x, y, r, role = 'outcome') {
-  return h('circle', { cx: x, cy: y, r, fill: PALETTE[role] ?? SURFACE, stroke: FILLED_INK, strokeWidth: 1.3 });
+  return h('circle', { cx: x, cy: y, r, fill: PALETTE[role] ?? 'none', stroke: FILLED_INK, strokeWidth: 1.3 });
 }
 
 // The wire every kind uses for a route: 2 px ink (3 px and the path colour when active), each elbow a quadratic corner of radius 8, ending in a filled isosceles head

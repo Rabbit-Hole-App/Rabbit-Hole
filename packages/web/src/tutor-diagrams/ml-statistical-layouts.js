@@ -51,7 +51,7 @@ function heatmap(d, requested) {
     elements.push(label(rowLines, PAD + 6, top + height / 2, { anchor: 'start', weight: 700 }));
     row.cells.forEach((value, column) => {
       const x = left + column * cellWidth;
-      const { fill, opacity } = value === null ? { fill: TEACHING.surface, opacity: 1 } : heatColor(value, d.range);
+      const { fill, opacity } = value === null ? { fill: 'none', opacity: 1 } : heatColor(value, d.range);
       const active = highlighted.has(`${rowIndex}:${column}`);
       elements.push(h('rect', { x, y: top, width: cellWidth, height, fill: TEACHING.surface }));
       elements.push(h('rect', {

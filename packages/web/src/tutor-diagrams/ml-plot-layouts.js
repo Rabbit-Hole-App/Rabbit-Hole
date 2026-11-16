@@ -127,7 +127,7 @@ function coordinatePlot(diagram, requested, { sharedLabelSpace } = {}) {
   const x = scale(d.x, left, right), y = scale(d.y, bottom, top);
   const xy = p => [x(p.x), y(p.y)];
   const elements = [h('rect', { x: left, y: top, width: right - left, height: bottom - top,
-    fill: T.surface, 'data-tutor-plot-area': '' })];
+    fill: 'none', 'data-tutor-plot-area': '' })];
   const geometry = [], foreground = [], notes = [];
   if (rotateY) {
     const cx = PAD + 10, cy = (top + bottom) / 2;

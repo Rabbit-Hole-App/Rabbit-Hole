@@ -860,7 +860,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       {pager && <CardPager declaration={pager} value={evaluated.inputs[pager.name]} data={block.scene.exampleData} onInput={setInput} />}
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-[var(--viz-surface)]">
         <Frame scene={scene} interact={interact} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
           onInputPick={interactive ? setInput : null} lockedInputs={lockedInputs}
           onPick={semanticId => (semanticId ? (onChangeQuiet || onChange)({ ...latest.current, selectedObject: semanticId }) : clearMark())}

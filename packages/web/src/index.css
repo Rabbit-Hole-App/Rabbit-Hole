@@ -128,7 +128,7 @@ html {
   --viz-learner-text: #af5d0a;
   --viz-code-text: var(--color-ink-2);
   --viz-identity-2-text: #867033;
-  --viz-surface: #fbfbfa;
+  --viz-surface: #FFFCF0;
   /* A solid-filled role carries its own readable ink, because the fill is the
      background at that point and which ink reads on it flips with the theme:
      observed is near-black in light and near-white in dark. */
