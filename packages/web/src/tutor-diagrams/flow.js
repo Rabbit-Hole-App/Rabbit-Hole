@@ -212,7 +212,7 @@ function layoutPass({ nodes, edges, highlightPath }, requestedWidth, paintNode, 
   // A decision label wraps to two lines when its one-line diamond would push the figure past the card: the width asked for, at least 720 and at most 960.
   const budget = Math.min(PARALLEL_WIDTH, Math.max(720, requestedWidth));
   const rowWidth = row => row.reduce((sum, node) => sum + node.min, 0) + (row.length - 1) * NODE_GAP;
-  for (const row of metrics) if (2 * PAD + outer + rowWidth(row) > budget) for (const node of row) if (node.plain) Object.assign(node, { min: Math.max(node.plain, twoLineMinimum(node.text, node.word)), twoLine: true });
+  for (const row of metrics) if (2 * PAD + outer + rowWidth(row) > budget) for (const node of row) if (node.plain) Object.assign(node, { min: Math.min(node.min, Math.max(node.plain, twoLineMinimum(node.text, node.word))), twoLine: true }); // never wider than the one-line minimum it replaces
   const rowMinimums = metrics.map(rowWidth);
   const width = Math.max(requestedWidth, 2 * PAD + Math.max(...rowMinimums) + outer);
   const inner = width - 2 * PAD - outer;
