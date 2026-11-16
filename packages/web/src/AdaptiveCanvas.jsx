@@ -2387,9 +2387,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         snapshot();
         return insertAtView({ id: crypto.randomUUID(), type: 'paper', dx: 0, dy: 0, title: title || `arXiv ${id}`, paper: { id, page } }, into);
       },
-      insertNotebook: () => {
+      // block (DECISIONS Q, Learn sections): a notebook built elsewhere (learn-notebook.js newNotebookBlock with its files), else an empty one.
+      insertNotebook: (block = null) => {
         snapshot();
-        return insertAtView(newNotebookBlock());
+        return insertAtView(block?.type === 'notebook' ? { ...block, dx: 0, dy: 0 } : newNotebookBlock());
       },
       // Insert > Document: an empty BlockNote document card (DocCard.jsx), beside the one selected card or object in free space, else where the learner is looking.
       insertDocument: () => {

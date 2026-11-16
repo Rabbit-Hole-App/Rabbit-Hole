@@ -534,7 +534,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     canEdit: () => canEditRef.current,
     // Tutor Task 07 (learn-coaching-materials.js applyTutorAction): the live canvas, and the one seam that makes Tutor material -
     // its own material tools on the existing Learn command path (internal; /api/learn/artifact), never a second generator.
-    tutorCanvas: () => canvasApi.current && { ...canvasApi.current, startExplain: explainLatest },
+    // addVideo, addPaper, addWiki (DECISIONS R): the page's own inserts of a video, paper and article card (they register the source and make it the next question's context).
+    tutorCanvas: () => canvasApi.current && { ...canvasApi.current, startExplain: explainLatest, addVideo: video => addVideo(video), addPaper: paper => addPaper(paper), addWiki: wiki => addWiki(wiki) },
     makeTutorMaterial: explainMaterial(runLearnCommand, { app: app.name, openSearch: () => {}, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }) }),
     canvasContext, selection: () => canvasApi.current?.selection?.() || [],
     // A card from the companion (repo graph R2, C:/s/spec/repo-graph-r2-plan.md): an equivalent card already here (`same`) is
