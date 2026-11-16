@@ -109,16 +109,17 @@ The product's role colours for the legacy scenes, light and dark (`VIZ_LIGHT`, `
 
 | item | default | file:line |
 |---|---|---|
-| PLT-2(B) callouts | an annotation's label is a callout: its text in a pill (wrapped at 200 px) in the first free cell the placement finds, a 1.5 px leader; at most 6; a label that only restates the point's coordinates draws none | `ml-plot-layouts.js:16`, `:18`, `:276-281`, `:310`, `:355-356` |
+| PLT-2(B) point callouts | a point annotation's label is a callout: its text in a pill (wrapped at 200 px) in the first free cell that touches no label, series path, marker or stem (first choice also a leader that crosses no label), a 1.5 px leader; at most 6; placed after every other label; a label that only restates the point's coordinates draws none | `ml-plot-layouts.js:18`, `:284` (`freeCell`), `:312` (`callout`) |
+| PLT-2(B) plain labels | a reference line's label is 12 px muted text on a ground halo at the top end of its line (the free side, else stacked), a band's label sits inside the band along its top edge, any other shape's label beside it; none has a pill or a leader; text wraps to the room the plot leaves | `ml-plot-layouts.js:335` (`plainLabel`), `:351` (`shapeLabel`) |
 | PLT-2(A), BAND-1 | a band is its colour at 0.18 over the ground, no outline, clipped under a single series' curve | `ml-plot-layouts.js:336-340` |
-| PLT-4 | a line series draws no marker within 0.5 px of a scatter marker | `ml-plot-layouts.js:388-389` |
+| PLT-4 | a line series beside a scatter series draws no markers unless it says `markers: true` (an optional boolean on the series schema); a line marker within 0.5 px of a scatter marker is never drawn twice | `ml-plot-layouts.js:451`, `ml-plot-spec.js:32` |
 | PLT-3(A) | a plot of one to three line series names each curve (15 px, 18 px off the curve, at most 3 series) instead of a legend | `ml-plot-layouts.js:114`, `:134`, `:401-403` |
-| LEG-1 | a legend is drawn only when it has entries (a single series has none) | `ml-plot-layouts.js:409-415` |
+| LEG-1 | a plot of one series draws no legend pill (its title and axes name it); two or more series keep theirs | `ml-plot-layouts.js:463` |
 | BAR-1 | vertical bars with an ink L-axis (2 px), dotted gridlines at value ticks, one fill per category in series order, value above each bar (not above 12 bars), square 2 px outlined bars, gap 40% of the bar width; plot height 210; axis ends at the round tick above the largest value | `ml-plot-layouts.js:430-433`, `:434`, `:454` |
 | BAR-U | a unit that is only a generic word (value, number, amount, score) is dropped before drawing | `spec.js:397-409` (`GENERIC_UNIT`) |
 | MAT-W | a matrix column header carries 8 px of padding around its formula (cells keep 18) and wraps after an operator when plain text | `ml-data-layouts.js:139`, `:153-154`, `:163` |
-| VEC-1 (as committed) | a tuple-shaped formula in a matrix cell (numeric entries only) is measured piece by piece | `ml-data-layouts.js:154` |
+| VEC-1 | a tuple-shaped formula in a matrix cell (numeric entries only) is drawn as plain text that may wrap after its comma; its column is as wide as the widest piece; any other formula is unchanged | `matrix-tuple.js:1-2`, `ml-data-layouts.js:154`, `:171` |
 | TL-1 | numbered steps: a 28 px blue badge per step on a 1.5 px spine, title and detail on the ground, "N steps" muted top right | `layouts.js:66-88` |
-| SCN-r3, SCN-n1 | a sum-to-1 bar chart is a bell: gap 0, a monotone-cubic envelope through the bar tops, the warm ramp by value, the peak bar coral; operator strokes use `SQ` | `packages/web/src/AnimatedScene.jsx:47-52`, `:329-342` |
+| SCN-r3, SCN-n1 | a sum-to-1 bar chart is a bell: gap 0, a monotone-cubic envelope through the bar tops, the warm ramp by value, the peak bar coral; operator strokes use `SQ` | `packages/web/src/AnimatedScene.jsx:47-52`, `:329-342`, `:372-374` |
 | TOK-W, TOK-W3, FLOW-N, FLOW-T, TREE-W | see the Flow, Trees and Tensor tables above | `flow.js`, `ml-topology-layouts.js`, `tensor-layout.js`, `token-links-layout.js` |
 | ILL-0 v2 | a picture's prompt starts with `FIGURE_STYLE`; Recraft gets the cream background and the palette as controls | `packages/control-plane/src/explanation-figures.js:23-26`, `packages/control-plane/src/image-providers.js:279-282` |
