@@ -6,6 +6,7 @@
 // state: { get, doc, docError, use, mode, learn, learnIntro, goalChosen, elsewhere, log[], routeId, routeTitle, run, startError }
 //   get: the last GET /api/learn/rehearsal (schemas/learn-rehearsal-get.json); doc: the catalogue document; use: the chosen use id; run: { status, step, attempt, error, record } of routeId.
 //   plan: null | { status: 'loading' | 'draft' | 'invalid' | 'accepted' | 'plain', text, ops, base, rows, count, previous } (the Learn plan draft, learn-plan-toc-spec.md); planLog: the typed edits and the Tutor's one-line answers after it.
+//   depthAsk: the Learn topic is chosen and the depth question (Brief / Standard / Detailed) is open.
 //   mode: null | 'run' | 'learn' (Intake v2: the first answer); learn: the chosen option of doc.learn; learnIntro: { status: 'loading' | 'done' | 'failed', text? } the opening paragraph.
 // A message: { key, role: 'assistant' | 'user', text?, pending?, chips?, choices?, form?, actions? }. Chip: { id, label, disabled?, note? } (a pill button: Retry, the plan's actions).
 // choices: the clickable rows (ChoiceList.jsx): { id, label, hint?, star?, disabled? }. Options are always rows, never typed or in a dropdown (owner 2026-11-15).
@@ -63,7 +64,10 @@ export function flowMessages(state, { repo }) {
   // 4. what was typed, what the Tutor answered (rows in a typed reply are live only while the Learn options are open), the goal's own question
   for (const line of state.log) out.push(line.learnRows ? { ...line, choices: line.choices.map(choice => ({ ...choice, disabled: !openLearn })) } : line);
   // 4b. the chosen topic's opening paragraph
-  if (state.learn) {
+  if (state.learn && state.depthAsk) {
+    // the topic is confirmed; how deep comes next, as three rows (the goal, the opening paragraph and the plan wait for the answer)
+    out.push(note('learn-depth', SENTENCES.depthQuestion, null, [{ id: 'depth:brief', label: SENTENCES.depthBrief }, { id: 'depth:balanced', label: SENTENCES.depthStandard }, { id: 'depth:detailed', label: SENTENCES.depthDetailed }]));
+  } else if (state.learn) {
     const intro = state.learnIntro;
     if (intro?.status === 'skipped') { /* a reload: the opening paragraph was said before */ }
     else if (!intro || intro.status === 'loading') out.push(pending('learn-intro', 'Reading the code for it'));
@@ -75,7 +79,8 @@ export function flowMessages(state, { repo }) {
     else if (plan?.status === 'draft') out.push(note('learn-plan', draftText(plan.text, plan.ops), null, plan.rows.map(row => ({ ...row, disabled: !!plan.busy }))));
     else if (plan?.status === 'invalid') out.push(note('learn-plan', SENTENCES.planInvalid, null, plan.rows));
     else if (plan?.status === 'accepted') out.push(note('learn-plan', SENTENCES.planAccepted(plan.count)));
-    for (const line of state.planLog || []) out.push(line);
+    const liveRows = plan?.status === 'draft' && !plan.busy; // rows under a typed answer act only while a draft waits
+    for (const line of state.planLog || []) out.push(line.choices ? { ...line, choices: line.choices.map(choice => ({ ...choice, disabled: !liveRows })) } : line);
   }
   if (state.elsewhere) return out;
   // 5. "Use the codebase": the route question when more than one route is practical, then the rehearsal

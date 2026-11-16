@@ -2,7 +2,11 @@
 // The Learn plan as the Tutor shows it (learn-plan-toc-spec.md, owner 2026-11-15): the server's draft (ops from propose_lesson_outline, validated there) becomes a numbered nested list in the Tutor's
 // message and, on Accept, the Table of contents. Everything here is the document's and the model's words; nothing is a word of one repository.
 // Pure: no React, no network, no storage.
-import { SENTENCES } from './tutor-rehearsal-text.js';
+import { SENTENCES, internal } from './tutor-rehearsal-text.js';
+
+// A title that carries its own number ("1. The Big Picture", "2.1 Plugins") would be numbered twice, in the list and in the contents: the model's number is dropped (a live draft did this, 2026-11-15).
+export const cleanTitle = text => String(text || '').replace(/^\s*(?:\d+(?:\.\d+)+[.)]?|\d+[.)])\s+/, '').trim();
+export const cleanOps = ops => (Array.isArray(ops) ? ops : []).map(op => (op && typeof op.text === 'string' ? { ...op, text: cleanTitle(op.text) } : op));
 
 // A trailing "[files: a, b]" rides in a description for the contents; the list shows titles only (spec section 2).
 export const stripFiles = text => String(text || '').replace(/\s*\[files:[^\]]*\]\s*$/i, '').trim();
@@ -13,8 +17,8 @@ export function planTree(ops) {
   for (const op of Array.isArray(ops) ? ops : []) {
     if (op?.op !== 'add' || typeof op.text !== 'string') continue;
     const level = Number(op.level) || (op.parent ? 2 : 1), background = /\(background\)/i.test(String(op.description || ''));
-    if (level === 1 && !op.parent) { const chapter = { key: op.key ?? null, title: op.text.trim(), sections: [] }; chapters.push(chapter); if (op.key) byKey.set(op.key, chapter); }
-    else { const chapter = byKey.get(op.parent) ?? chapters.at(-1); chapter?.sections.push({ key: op.key ?? null, title: op.text.trim(), background }); }
+    if (level === 1 && !op.parent) { const chapter = { key: op.key ?? null, title: cleanTitle(op.text), sections: [] }; chapters.push(chapter); if (op.key) byKey.set(op.key, chapter); }
+    else { const chapter = byKey.get(op.parent) ?? chapters.at(-1); chapter?.sections.push({ key: op.key ?? null, title: cleanTitle(op.text), background }); }
   }
   return chapters;
 }
@@ -26,7 +30,7 @@ export const planList = ops => planTree(ops).map((chapter, i) => [`${i + 1}. ${c
 // The Tutor's message for a draft: the book title (the first line of the model's words), the list, then the rest of the words (at most three sentences).
 export function draftText(text, ops) {
   const lines = String(text || '').trim().split('\n'), title = (lines.shift() || '').replace(/^#+\s*/, '').trim();
-  const words = lines.join('\n').trim();
+  const said = lines.join('\n').trim(), words = internal(said) ? '' : said; // a dollar figure or a stack trace never reaches the chat
   return [title ? `**${title}**` : '', planList(ops), words].filter(Boolean).join('\n\n');
 }
 
@@ -51,7 +55,7 @@ export function planRows(ids, { ops = [], learn = { options: [] } } = {}) {
 export function storedLearn(coachingState) {
   const activity = coachingState?.activities?.find(a => a.activityId === coachingState.activeActivityId) || null;
   const learn = activity?.checkpoint?.learn;
-  return learn && typeof learn.id === 'string' ? { id: learn.id, kind: learn.kind ?? null, focus: learn.focus ?? null, plan: learn.plan && Array.isArray(learn.plan.ops) ? learn.plan : null } : null;
+  return learn && typeof learn.id === 'string' ? { id: learn.id, kind: learn.kind ?? null, focus: learn.focus ?? null, depth: learn.depth ?? null, plan: learn.plan && Array.isArray(learn.plan.ops) ? learn.plan : null } : null;
 }
 // The accepted plan of the canvas, if any (the contents go read-only and lose their composer): { current } or null.
 export const acceptedPlan = coachingState => { const plan = storedLearn(coachingState)?.plan; return plan?.acceptedAt ? plan : null; };

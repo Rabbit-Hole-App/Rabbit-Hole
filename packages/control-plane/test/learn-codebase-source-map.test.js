@@ -393,7 +393,7 @@ test('learn start: a chosen option needs no question, labels the goal from the o
   assert.equal(done.body.route, 'started');
   const goal = done.body.state.goals[0], activity = activityOf(done.body.state);
   assert.deepEqual([goal.label, goal.outcome], [LEARN.label, LEARN.what]);
-  assert.deepEqual(activity.checkpoint.learn, { id: 'derived-state', kind: 'concept', focus: null });
+  assert.deepEqual(activity.checkpoint.learn, { id: 'derived-state', kind: 'concept', focus: null, depth: null });
   assert.ok(paths(activity).includes('src/progress.js') && paths(activity).includes('src/TaskList.jsx'), 'the anchors are the sources');
   assert.ok(!paths(activity).includes('src/missing.js'), 'an anchor that is not in the snapshot is dropped');
   assert.ok(done.body.map.citations.every(c => c.start === 1), 'whole-file citations start at the first line');
@@ -553,7 +553,7 @@ test('focus: start saves learn.focus on the checkpoint and uses it as the activi
   const done = await f.start('learn_concept', undefined, { learn: { ...LEARN, focus: '  the cap of one hundred percent  ' } });
   assert.equal(done.status, 200);
   const activity = activityOf(done.body.state);
-  assert.deepEqual(activity.checkpoint.learn, { id: 'derived-state', kind: 'concept', focus: 'the cap of one hundred percent' });
+  assert.deepEqual(activity.checkpoint.learn, { id: 'derived-state', kind: 'concept', focus: 'the cap of one hundred percent', depth: null });
   assert.equal(activity.checkpoint.codebase.focus, 'the cap of one hundred percent');
   assert.equal(done.body.state.goals[0].label, LEARN.label, 'the goal is still the option');
   for (const bad of [{ focus: 5 }, { focus: 'x'.repeat(301) }, { focus: '  ' }]) assert.equal((await f.start('learn_concept', undefined, { learn: { ...LEARN, ...bad } })).status, 400, JSON.stringify(bad).slice(0, 40));
@@ -739,4 +739,14 @@ test('learn_plan_save: the draft is saved on checkpoint.learn.plan of the active
   }
   const g = setup(t);
   assert.equal((await g.route('POST', { app: CANVAS, action: 'learn_plan_save', plan })).status, 409, 'no active learn activity');
+});
+
+// Review 2026-11-15: a catalogue option may anchor on a directory; the handler reads the files under it instead of 404ing the Learn path.
+test('learnOf: a directory anchor stands for the files under it (shallowest first, at most 3 per directory); a missing path is still dropped', async () => {
+  const { learnOf } = await import('../src/learn-codebase-source-map.js');
+  const snapshot = { files: { 'src/a.py': 'x', 'src/b.py': 'x', 'src/deep/c.py': 'x', 'src/deep/d.py': 'x', 'README.md': 'x' } };
+  const option = { id: 'core', label: 'How it starts', what: 'how the entry works', kind: 'structure' };
+  assert.deepEqual(learnOf({ ...option, anchors: ['src'] }, snapshot).anchors, ['src/a.py', 'src/b.py', 'src/deep/c.py']);
+  assert.deepEqual(learnOf({ ...option, anchors: ['README.md', 'nope', 'src/'] }, snapshot).anchors, ['README.md', 'src/a.py', 'src/b.py', 'src/deep/c.py']);
+  assert.deepEqual(learnOf({ ...option, anchors: ['nope'] }, snapshot).anchors, []);
 });

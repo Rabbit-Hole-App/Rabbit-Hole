@@ -81,3 +81,16 @@ test('planRows: the fixed set, background keys of the new draft, learn ids of th
   assert.deepEqual(ids({ rows: ['accept', 'background:c1s1'], cannot: true }), ['accept', 'background:c1s1'], 'already offered');
   assert.deepEqual(ids({ rows: ['accept'], cannot: true }, { catalogue: ['alpha'] }), ['accept'], 'no other topic to offer');
 });
+
+// Depth (Reviewer 2026-11-15 23:32): the plan's shape follows the depth the learner chose after the topic.
+test('planProblem enforces the shape of each depth: brief 4-5 chapters of 2-3 sections with no background; detailed 6-8 of 3-5; "Min-Max" is not a duration', () => {
+  const shaped = (chapters, sections, background = false) => checked(plan(chapters, sections).map(op => (op.level === 2 && background ? { ...op, description: '(background)' } : op)));
+  assert.ok(planProblem(shaped(4, 2), FILES, 'brief').ops, 'brief: 4 chapters of 2 sections');
+  assert.match(planProblem(shaped(6, 2), FILES, 'brief').error, /4 to 5 chapters; this one has 6/);
+  assert.match(planProblem(shaped(4, 4), FILES, 'brief').error, /has 4 sections; each chapter has 2 to 3/);
+  assert.match(planProblem(shaped(4, 2, true), FILES, 'brief').error, /brief plan has no "\(background\)"/);
+  assert.match(planProblem(shaped(5, 3), FILES, 'detailed').error, /6 to 8 chapters; this one has 5/);
+  assert.match(planProblem(shaped(6, 2), FILES, 'detailed').error, /each chapter has 3 to 5/);
+  assert.ok(planProblem(shaped(6, 3), FILES, 'detailed').ops);
+  assert.ok(planProblem(shaped(5, 3), FILES).ops, 'no depth is balanced');
+});

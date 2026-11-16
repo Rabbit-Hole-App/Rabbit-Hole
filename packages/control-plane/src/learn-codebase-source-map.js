@@ -37,6 +37,8 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { CoachingConflict, applyCoachingAction, readCoachingState } from './learn-coaching-store.js';
 import { NOT_TRASHED } from './library-trash.js';
+import { validDepth } from './chat-depth.js';
+import { readDepth } from './learn-user-settings.js';
 import { composeTutorPrompt, logTutorCall, tutorRecord } from './tutor-prompt.js';
 import { anthropic } from './ask.js';
 import { LEARN_TASKS, MODEL_NOT_CONFIGURED, loggedModel } from './learn-models.js';
@@ -271,6 +273,8 @@ const goalCriteria = (state, goalId) => (state.goals.find(goal => goal.goalId ==
 const LEARN_SHAPE = 'learn must be { id, label (up to 200 characters), what (up to 500), anchors (up to 6 file paths), kind, focus (optional, up to 300) }';
 const LEARN_ID = /^[a-z0-9_-]{1,40}$/;
 const FOCUS_MAX = 300;
+// A catalogue option may anchor on a directory; the files under it (shallowest first, up to 3) stand in for it, so the opening paragraph and the plan have code to read.
+const expandAnchor = files => p => (Object.hasOwn(files, p) ? [p] : Object.keys(files).filter(f => f.startsWith(`${p.replace(/\/$/, '')}/`) && !excludedReason(f, files[f])).sort((a, c) => a.split('/').length - c.split('/').length || a.localeCompare(c)).slice(0, 3));
 export function learnOf(value, snapshot) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const words = (v, max) => (typeof v === 'string' && v.trim() && v.length <= max ? v.trim() : null);
@@ -278,7 +282,8 @@ export function learnOf(value, snapshot) {
   if (!LEARN_ID.test(value.id) || !label || !what || !Array.isArray(value.anchors) || value.anchors.length > 6 || value.anchors.some(p => typeof p !== 'string' || p.length > 300)) return null;
   if (value.kind != null && (typeof value.kind !== 'string' || value.kind.length > 40)) return null;
   if (value.focus != null && !words(value.focus, FOCUS_MAX)) return null;
-  return { id: value.id, label, what, kind: value.kind ?? '', focus: value.focus == null ? null : value.focus.trim(), anchors: [...new Set(value.anchors)].filter(p => Object.hasOwn(files, p) && !excludedReason(p, files[p])) };
+  if (value.depth != null && !validDepth(value.depth)) return null; // the depth the learner chose after the topic (brief | balanced | detailed; standard is balanced)
+  return { depth: validDepth(value.depth) ?? null, id: value.id, label, what, kind: value.kind ?? '', focus: value.focus == null ? null : value.focus.trim(), anchors: [...new Set(value.anchors.flatMap(expandAnchor(files)))].filter(p => Object.hasOwn(files, p) && !excludedReason(p, files[p])).slice(0, 6) };
 }
 
 // The two read-only model actions run under their own usage context (learn-usage.js: one action per user action, the signed-in session user the payer, its attempts recorded
@@ -362,13 +367,14 @@ async function learnFit(env, snapshot, body, { callModel = loggedModel('home_ask
 // The learn plan (learn-plan.js): validate the body, then one metered generation. Read-only. outline: the table of contents as the browser holds it (id, level; may be empty);
 // draft + edit travel together (an edit of the draft the learner was shown); learn.options: the catalogue's topics, for the learn:<id> rows.
 const PLAN_ITEM = o => o && typeof o === 'object' && typeof o.id === 'string' && o.id.length >= 1 && o.id.length <= 80 && [1, 2, 3].includes(o.level);
-async function learnPlanAction(env, snapshot, body, deps) {
+async function learnPlanAction(env, snapshot, body, deps, actor) {
   const learn = learnOf(body.learn, snapshot);
   const options = body.learn && body.learn.options != null ? body.learn.options : [];
   const outline = body.outline == null ? [] : body.outline;
   const revision = body.outlineRevision;
   const bad = text => json({ error: text }, 400);
   if (!learn) return bad(LEARN_SHAPE);
+  if (body.depth != null && !validDepth(body.depth)) return bad('depth must be brief, balanced or detailed');
   if (!learn.anchors.length) return json({ error: 'anchors_not_found' }, 404);
   if (!Array.isArray(options) || options.length > 4 || options.some(o => !o || typeof o !== 'object' || !LEARN_ID.test(o.id))) return bad('learn.options must be at most 4 topics with an id');
   if (!Array.isArray(outline) || outline.length > 120 || !outline.every(PLAN_ITEM)) return bad('outline must be at most 120 items of { id, level }');
@@ -381,7 +387,7 @@ async function learnPlanAction(env, snapshot, body, deps) {
   if (body.draft != null) {
     try { draft = validateOutlineOps(body.draft, outline, { maxOps: PLAN_MAX_OPS }); } catch { return bad('draft must be the outline operations of the draft you were shown'); }
   }
-  return learnPlan(env, snapshot, { learn, catalogue: options.map(o => o.id), outline, outlineRevision: revision ?? null, draft, edit }, { ...deps, callModel: deps.callModel || loggedModel('home_ask', anthropic) }); // the same default as learn_intro and learn_fit: the unit tests inject theirs
+  return learnPlan(env, snapshot, { learn, catalogue: options.map(o => o.id), outline, outlineRevision: revision ?? null, draft, edit, depth: validDepth(body.depth) || learn.depth || await readDepth(env, actor) }, { ...deps, callModel: deps.callModel || loggedModel('home_ask', anthropic) }); // the same default as learn_intro and learn_fit: the unit tests inject theirs
 }
 
 // Save the draft (or its acceptance) on the active learn activity: checkpoint.learn.plan = { ops, revision, acceptedAt, text, current?, done? }, through the coaching write path.
@@ -435,7 +441,7 @@ export async function codebaseRoute(path, req, env, deps = {}) {
     let snapshot;
     try { snapshot = await loadSnapshot(env, repo); } catch { return json({ error: 'repository_unavailable' }, 503); }
     if (body.action === 'learn_intro') return await metered(env, access, 'learn_intro', scoped => learnIntro(scoped, snapshot, body.learn, deps));
-    if (body.action === 'learn_plan') return await metered(env, access, 'learn_plan', scoped => learnPlanAction(scoped, snapshot, body, deps));
+    if (body.action === 'learn_plan') return await metered(env, access, 'learn_plan', scoped => learnPlanAction(scoped, snapshot, body, deps, actor));
     if (body.action === 'learn_plan_save') return await learnPlanSave(env, actor, body);
     if (body.action === 'learn_fit') return await metered(env, access, 'learn_fit', scoped => learnFit(scoped, snapshot, body, deps));
     if (body.action === 'start') {
@@ -455,7 +461,7 @@ export async function codebaseRoute(path, req, env, deps = {}) {
         payload: { label: learn ? learn.label : clip(focus ? `${goal.label}: ${focus}` : `${goal.label} in ${repo.repo}`, 200), outcome: learn ? learn.what : goal.completion, criteria: goal.criteria } });
       const goalId = made.state.activeGoalId, activity = codebaseActivity(goal, map, { focus, app: repo.app });
       const out = await applyCoachingAction(env, actor, { actionId: `${body.actionId}.activity`, expectedRevision: made.state.revision, action: 'activate_activity',
-        payload: { activity: { goalId, objective: activity.objective, prompt: activity.prompt, responseKind: activity.responseKind, criterionRefs: goalCriteria(made.state, goalId), sourceRefs: activity.sourceRefs, checkpoint: learn ? { ...activity.checkpoint, learn: { id: learn.id, kind: learn.kind, focus: learn.focus } } : activity.checkpoint } } });
+        payload: { activity: { goalId, objective: activity.objective, prompt: activity.prompt, responseKind: activity.responseKind, criterionRefs: goalCriteria(made.state, goalId), sourceRefs: activity.sourceRefs, checkpoint: learn ? { ...activity.checkpoint, learn: { id: learn.id, kind: learn.kind, focus: learn.focus, depth: learn.depth } } : activity.checkpoint } } });
       return json({ route: 'started', state: out.state, activityId: out.state.activeActivityId, map });
     }
     if (body.action === 'refresh') {
