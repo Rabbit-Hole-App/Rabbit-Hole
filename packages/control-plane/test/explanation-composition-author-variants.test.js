@@ -8,6 +8,12 @@ const IDS = [
   'ml-neural-networks-hidden-layer',
   'ml-regularization-regularized-objective',
   'ml-regularization-dropout-mask',
+  'ml-attention-scaled-score-normalization',
+  'ml-model-evaluation-training-diagnostics',
+  'ml-model-evaluation-schedule-run-diagnostics',
+  'ml-time-series-recursive-rollout',
+  'ml-distribution-shift-input-distribution-shift',
+  'ml-distribution-shift-concept-shift',
 ];
 for (const id of IDS) {
   test(`${id} reaches the real author request as its supported single-diagram variant`, () => {

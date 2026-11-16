@@ -1,5 +1,7 @@
 # C02 — distribution-shift tranche
 
+Latest release133 correctness fix: [ten linked author variants, strict equality, green suites and replay](fix-133/REPORT.md). This supersedes the open assertions in the earlier rebase receipt.
+
 Current rebase: `explain/composition-c02-r1` on release 133; [fresh checks and open assertions](rebase-133.md). Counts and previews below are the original pinned-1944 receipts.
 
 Branch `explain/composition-c02`, stacked on approved C01 `767ba06c4`; schema remains `1944b48cf`. Content-first commit: **343d91f8a378c5b2200276624ffb8ec952be1e70**. One C02 data release covers the six approved ids; each keeps its subject/lesson metadata.

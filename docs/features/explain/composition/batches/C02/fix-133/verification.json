@@ -1,0 +1,71 @@
+{
+  "base": "a8ef11d64995c1e1bd1784ec9c8840b1af0b6a36",
+  "previousC02": "5b5f54a6e4795042dc1dddbfdb3974c55869f1d9",
+  "fixedC01": "bb5cc476c91033d4a469a0c98a360eb41e691119",
+  "tests": {
+    "command": "node --test packages/web/src/tutor-diagrams/*.test.mjs packages/control-plane/test/explanation-reference*.test.js packages/control-plane/test/explanation-plan-kind-from-reference.test.js packages/control-plane/test/explanation-composition-author-variants.test.js",
+    "passed": 1349,
+    "failed": 0,
+    "skipped": 0
+  },
+  "singleVariants": {
+    "parents": 43,
+    "linkedSingles": 43,
+    "addedC02": 6,
+    "addedC01AndC02": 10,
+    "tokens": {
+      "ml-attention-scaled-score-normalization-single": 117,
+      "ml-model-evaluation-training-diagnostics-single": 142,
+      "ml-model-evaluation-schedule-run-diagnostics-single": 147,
+      "ml-time-series-recursive-rollout-single": 196,
+      "ml-distribution-shift-input-distribution-shift-single": 75,
+      "ml-distribution-shift-concept-shift-single": 71
+    },
+    "strictSetEqualityRetained": true,
+    "priorPairReceiptEntriesPreserved": 43
+  },
+  "authorRouteRegression": {
+    "C02MissingVariantsRed": 6,
+    "allTenGreen": 10
+  },
+  "actualAuthorSchemas": {
+    "defaultSourceDepthCases": 183,
+    "passed": 183,
+    "plannedSourceCases": 21,
+    "plannedPassed": 21
+  },
+  "snapshotRefresh": {
+    "base": "a8ef11d64",
+    "changed": [
+      "ml-attention-scaled-score-normalization/320",
+      "ml-attention-scaled-score-normalization/408",
+      "ml-attention-scaled-score-normalization/720"
+    ],
+    "removed": [],
+    "added": [],
+    "cumulativeFromReceivedC02": [
+      "ml-attention-scaled-score-normalization/320",
+      "ml-attention-scaled-score-normalization/408",
+      "ml-attention-scaled-score-normalization/720",
+      "ml-regularization-regularized-objective/320",
+      "ml-regularization-regularized-objective/408",
+      "ml-regularization-regularized-objective/720"
+    ],
+    "cumulativeRemoved": []
+  },
+  "replay": {
+    "priorCases": 2937,
+    "exactMoved": 0,
+    "sourceFamilyHits": 21,
+    "sourceFamilyCases": 21,
+    "sourceIdentityRule": "Prior picks compared by exact original emitted identity. New source cases compared to approved parent id through the library-declared panelReferenceId link; raw author ids retained. Explicit comparison plans keep supported comparisons; panels always use their single."
+  },
+  "review": {
+    "importantFindings": 2,
+    "fixed": 2,
+    "remainingImportantOrCritical": 0,
+    "fixEvidence": "RED->GREEN visible dropout/attention context regressions plus green full suites"
+  },
+  "rendererSchemaToolOrAuthorPromptChanges": false,
+  "historicalBroadLoads": "Remain separately documented and outside fix scope"
+}

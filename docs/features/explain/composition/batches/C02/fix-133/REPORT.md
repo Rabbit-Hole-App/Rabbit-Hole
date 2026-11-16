@@ -1,0 +1,11 @@
+# C02 — release133 correctness fix
+
+C02 contains fixed C01 **bb5cc476c** and adds six linked author singles. **43 eligible parents = 43 linked singles**; strict parent-id set equality remains intact. All original keywords, prompts, lessons and computed data are reused. [Single token receipts](../single-token-budgets.json): attention117, training loss142, schedule accuracy147, rollout196, input shift75, concept shift71; all≤300. All43 existing panel/single pair receipts remain unchanged.
+
+[Full affected suites](full-tests.txt): **1,349 passed, 0 failed, 0 skipped**, including every tutor-diagram test and all reference-author suites. Actual author requests have regression coverage for all10 new variants; missing-six case was observed RED before the fix. [Actual prepared schema checks](actual-author-schemas.json): **183/183** documented source-prompt/depth cases pass. The attention single visibly retains computed query/key inputs, head width, division and softmax; its optional author-unsupported total is omitted without changing bars. Concept shift states both rules for the same fixed input.
+
+[Replay](selector-replay.json): **2,937 exact prior cases, 0 moved; 21/21 new source-family checks**. An explicit comparison plan retains a supported full comparison; default requests use their linked singles. New-source identity is checked against approved parent ids through the library's declared links, with raw emitted ids preserved. The21 corresponding planned author requests also validate against the actual tool schema. No production selector/tool code was changed to obtain parity.
+
+[Snapshots](snapshot-refresh.json): **3 C02 attention entries refreshed**, plus the3 inherited C01 objective entries = **6 total changed** from the received C02-r1; **0 added, 0 removed**, all outside entries unchanged. Both use the **a8ef11d64** renderer. No renderer/schema/tooling/prompt changes.
+
+Independent review found missing visible mechanism context in two singles; both were corrected with source-data captions and RED→GREEN regressions. No additional Important/Critical issues were found. Historical dependency/fixture-load failures remain separately [documented](../broad-suite-failures.md). `ponytail:` no full application suite, provider call, stack run, smoke, build or deployment was part of this data fix; Claude Code owns release gating.
