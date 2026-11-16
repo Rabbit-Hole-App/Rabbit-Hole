@@ -137,7 +137,7 @@ function timeline(d, requestedWidth) {
 
 function matrix(d, requestedWidth) {
   const count = d.columns.length + 1, gap = 7;
-  const minimumCell = Math.ceil(Math.max(84, ...[...d.columns, ...d.rows.flatMap(row => [row.heading, ...row.cells])].map(value => widestFormula(value) + 18)));
+  const minimumCell = Math.ceil(Math.max(84, ...[...d.columns, ...d.rows.flatMap(row => [row.heading, ...row.cells])].map(value => widestFormula(value, 15) + 18))); // measured at the size the cell text is drawn (15), not the 14 default
   const width = Math.max(requestedWidth, PAD * 2 + count * minimumCell + (count - 1) * gap);
   const cellWidth = (width - PAD * 2 - (count - 1) * gap) / count;
   const xAt = index => PAD + index * (cellWidth + gap);
