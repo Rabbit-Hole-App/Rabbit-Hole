@@ -31,7 +31,7 @@ test('validateBrief: a missing anchor, more than two background beats, a path in
   assert.deepEqual(validateBrief(good({ beats: [beat('b1', { anchors: ['src/progress.js:5-9'] }), ...good().beats.slice(1)] }), opts()).errors, ['beat b1: anchor src/progress.js:5-9 is not in the source'], 'a range past the end of the file');
   const bg = { anchors: [], background: true };
   assert.deepEqual(validateBrief(good({ beats: [beat('b1', bg), beat('b2', { ...bg, idea: 'A second idea from what you already know.' }), beat('b3', { ...bg, idea: 'A third idea from general knowledge here.' })] }), opts()).errors, ['at most 2 background beats; this section has 3']);
-  assert.deepEqual(validateBrief(good({ beats: [beat('b1', { idea: 'The share is computed in src/progress.js before it is shown.' }), ...good().beats.slice(1)] }), opts()).errors, ['beat b1: idea must have no path, file name or flag']);
+  assert.deepEqual(validateBrief(good({ beats: [beat('b1', { idea: 'The share is computed in src/progress.js before it is shown.' }), ...good().beats.slice(1)] }), opts()).errors, ['beat b1: idea must have no path, file name or flag (found "src/progress.js")']);
   assert.deepEqual(validateBrief(good({ beats: [beat('b1', { anchors: [], background: false }), ...good().beats.slice(1)] }), opts()).errors, ['beat b1: a beat with no anchors is background: true']);
   assert.deepEqual(validateBrief(good({ beats: good().beats.slice(0, 2) }), opts()).errors, ['a section has 3 to 6 beats; this one has 2']);
   assert.deepEqual(validateBrief(good(), opts({ first: true })).errors, ['from must be empty: this is the first section']);
@@ -44,8 +44,8 @@ test('validateBrief: a missing anchor, more than two background beats, a path in
   const idea = idea => validateBrief(good({ beats: [beat('b1', { idea, anchors: ['src/p.js:2'] }), ...good().beats.slice(1)] }), { ...opts(), anchorsExist: repositoryAnchors(p), anchorText: repositoryAnchorText(p) });
   assert.equal(idea('The share comes from `share_of` before it is shown.').errors, undefined);
   assert.deepEqual(idea('The share comes from `get_batch` before it is shown.').errors, ['beat b1: idea names `get_batch`, which the anchored lines do not']);
-  assert.deepEqual(idea('The share comes from share_of before it is shown.').errors, ['beat b1: idea must be plain words; a code name only in backticks, exactly as the anchored lines spell it']);
-  assert.deepEqual(idea('The share comes from `src/p.js` before it is shown.').errors, ['beat b1: idea must have no path, file name or flag']);
+  assert.deepEqual(idea('The share comes from share_of before it is shown.').errors, ['beat b1: idea must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "share_of")']);
+  assert.deepEqual(idea('The share comes from `src/p.js` before it is shown.').errors, ['beat b1: idea must have no path, file name or flag (found "src/p.js")']);
   for (const token of ['train.py', 'data/x/y', '--max-iters', 'block_size', 'get_batch()', 'maxIters', '`x`']) assert.ok(CODE_TOKEN.test(`a ${token} b`), token);
   for (const plain of ['input/output pairs', 'e.g. three tasks', 'one-to-one', 'version 3.5']) assert.ok(!CODE_TOKEN.test(plain), plain);
 });

@@ -92,7 +92,7 @@ async function make(key, ref, only = null) { // only: remake that one item and s
     if (out.perform || out.skipped) await post({ app: s.canvas, board: 'main', action: 'learn_section_made', sectionId, itemId, jobId: `api-level-${itemId}` }).catch(error => console.log(`made ${itemId}: ${error.message}`));
     itemId = only ? null : out.next ?? null;
   }
-  write('make', `${key}-${ref}-summary.json`, made.map(m => ({ itemId: m.itemId, ms: m.ms, op: m.out.perform?.op ?? null, skipped: m.out.skipped ?? null, error: m.out.httpError || m.out.error || null })));
+  if (!only) write('make', `${key}-${ref}-summary.json`, made.map(m => ({ itemId: m.itemId, ms: m.ms, op: m.out.perform?.op ?? null, skipped: m.out.skipped ?? null, error: m.out.httpError || m.out.error || null })));
 }
 
 const [cmd, key, ...refs] = process.argv.slice(2);
