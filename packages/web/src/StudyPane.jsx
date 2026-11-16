@@ -196,9 +196,11 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready, f
     if (!frame || !place) return;
     frame.style.marginLeft = place.marginLeft ? `${place.marginLeft}px` : '';
     frame.style.marginTop = `${place.marginTop}px`;
-    // The chat strip is the canvas's own, unchanged (owner 2026-11-15): it sits where it does on the canvas, in the work pane (the frame).
+    // The chat strip is centred on the whole window, not on the work pane (owner 2026-11-15, "in the middle of the whole screen"): the pane's width is
+    // the one CSS variable the canvas's composer shifts by (half of it, leftward), so it sits over the reference pane's edge when the two are side by side.
+    frame.style.setProperty('--study-pane-w', `${place.marginLeft || 0}px`);
   }, [place?.marginLeft, place?.marginTop]); // eslint-disable-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => () => { const frame = canvasFrame.current; if (frame) { frame.style.marginLeft = ''; frame.style.marginTop = ''; } }, [canvasFrame]);
+  useLayoutEffect(() => () => { const frame = canvasFrame.current; if (frame) { frame.style.marginLeft = ''; frame.style.marginTop = ''; frame.style.removeProperty('--study-pane-w'); } }, [canvasFrame]);
 
   // Study opened with a card as the work (the notebook, Run or Runbook): frame it once the canvas has its cards. Only for the work the pane opened
   // with, so a press inside Study never captures the camera a second time.

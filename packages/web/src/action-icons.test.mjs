@@ -32,3 +32,12 @@ test('action icons draw the shared Tip, never a native title', () => {
   assert.doesNotMatch(bar, /\btitle=\{/, 'the name rides the Tip, so no native title is drawn');
   assert.match(read('GraphPanel.jsx'), /<ActionBar side="top" actions/, 'the Graph row sits at the panel bottom, so its tips open upward');
 });
+
+// Owner 2026-11-15: the chat strip is centred on the whole window. Study side by side sets the pane's width as --study-pane-w on the canvas frame, and the composer shifts left by half of it:
+// the frame's centre is (pane + canvas) / 2 from the window's left edge, so minus pane / 2 lands on the window's centre. Stacked, the pane's width is 0 and nothing moves.
+test('the chat strip centres on the whole window: the composer shifts by half the Study pane width', () => {
+  const pane = read('StudyPane.jsx'), canvas = read('AdaptiveCanvas.jsx');
+  assert.match(pane, /frame\.style\.setProperty\('--study-pane-w', `\$\{place\.marginLeft \|\| 0\}px`\)/);
+  assert.match(pane, /frame\.style\.removeProperty\('--study-pane-w'\)/, 'leaving Study puts the strip back');
+  assert.match(canvas, /data-canvas-composer [^\n]*style=\{\{ transform: 'translateX\(calc\(var\(--study-pane-w, 0px\) \/ -2\)\)' \}\}/);
+});
