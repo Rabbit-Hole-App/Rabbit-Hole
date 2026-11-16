@@ -1,5 +1,6 @@
 import { cloneElement, createElement as h } from 'react';
 import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
+import { tuplePieceWidth, tuplePlainText } from './matrix-tuple.js';
 import { TEACHING, teachingBox as box, teachingConnector as connector } from './teaching-theme.js';
 
 const PAD = 12;
@@ -135,9 +136,22 @@ function timeline(d, requestedWidth) {
   return { width, height: y + PAD, elements: [...guides, ...elements] };
 }
 
+// A column header that is plain text with operators (a + b, a = b) may also wrap after an operator when no space is there to wrap at.
+function wrapHeader(name, width) {
+  const lines = wrap(name, width);
+  if (widestFormula(name, 15) > 0 || lines.every(line => textWidth(line) <= width)) return lines;
+  const lines2 = [];
+  for (const piece of name.match(/[^+\-−×÷=|/]+[+\-−×÷=|/]?|[+\-−×÷=|/]/gu) ?? [name]) {
+    const last = lines2.at(-1);
+    if (last !== undefined && textWidth(last + piece) <= width) lines2[lines2.length - 1] = last + piece; else lines2.push(piece);
+  }
+  return lines2;
+}
+
 function matrix(d, requestedWidth) {
   const count = d.columns.length + 1, gap = 7;
-  const minimumCell = Math.ceil(Math.max(84, ...[...d.columns, ...d.rows.flatMap(row => [row.heading, ...row.cells])].map(value => widestFormula(value, 15) + 18))); // measured at the size the cell text is drawn (15), not the 14 default
+  // A column header carries 8 px of padding around its formula (the cells keep 18).
+  const minimumCell = Math.ceil(Math.max(84, ...d.columns.map(value => widestFormula(value, 15) + 8), ...d.rows.flatMap(row => [row.heading, ...row.cells]).map(value => (tuplePlainText(value) === value ? widestFormula(value, 15) : tuplePieceWidth(value, text => textWidth(text, 15))) + 18))); // measured at the size the cell text is drawn (15), not the 14 default
   const width = Math.max(requestedWidth, PAD * 2 + count * minimumCell + (count - 1) * gap);
   const cellWidth = (width - PAD * 2 - (count - 1) * gap) / count;
   const xAt = index => PAD + index * (cellWidth + gap);
@@ -146,7 +160,7 @@ function matrix(d, requestedWidth) {
   const selectedCells = new Set((emphasis.cells ?? []).map(entry => `${entry.row}:${entry.column}`));
   const states = new Map((d.states ?? []).map(entry => [`${entry.row}:${entry.column}`, entry.state]));
   const elements = [];
-  const headings = d.columns.map(name => wrap(name, cellWidth - 14));
+  const headings = d.columns.map(name => wrapHeader(name, cellWidth - 8));
   const headerHeight = Math.max(36, ...headings.map(lines => lines.length * lineHeight() + 14));
   headings.forEach((lines, i) => {
     elements.push(cloneElement(box(xAt(i + 1), PAD, cellWidth, headerHeight, { role: 'process', active: selectedColumns.has(i) }), { 'data-tutor-matrix-column': i }));
@@ -154,7 +168,7 @@ function matrix(d, requestedWidth) {
   });
   let y = PAD + headerHeight + gap;
   for (const row of d.rows) {
-    const lines = [row.heading, ...row.cells].map(cell => wrap(cell, cellWidth - 14));
+    const lines = [row.heading, ...row.cells].map(cell => wrap(tuplePlainText(cell), cellWidth - 14));
     const contentHeights = lines.map((cell, i) => cell.length * lineHeight() + (i && states.has(`${row.id}:${i - 1}`) ? lineHeight(SMALL) + 5 : 0));
     const height = Math.max(36, ...contentHeights.map(value => value + 14));
     lines.forEach((cell, i) => {

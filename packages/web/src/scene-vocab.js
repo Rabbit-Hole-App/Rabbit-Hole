@@ -8,6 +8,9 @@ export const ROLES = Object.freeze([
   'neutral', 'input', 'output', 'prediction', 'operator', 'observed',
   'learner', 'tutor', 'code', 'warning', 'success',
 ]);
+// The roles a saved SDK program may name. The SDK sources embed this list, and the saved-SDK fingerprints in explain-program/stamps.js hash those bytes, so it stays the list the SDK had
+// before the composed theme added the operator role: add to ROLES for scenes, never to this list (a new list is a new SDK version).
+export const SDK_ROLES = Object.freeze(ROLES.filter(role => role !== 'operator'));
 
 // What is HAPPENING to an object. Orthogonal to role: a state never changes
 // which role's colour is shown, only weight, fill strength and ring.

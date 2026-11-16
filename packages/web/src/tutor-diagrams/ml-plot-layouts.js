@@ -1,9 +1,9 @@
 import { cloneElement, createElement as h } from 'react';
-import { label, lineHeight, textWidth, widestFormula, wrap } from './primitives.js';
+import { label, lineHeight, textWidth, widestFormula, wire, wrap } from './primitives.js';
 import { closedLinePath, monotoneLinePath, showPlotMarker } from './plot-lines.js';
 import { plotTicks } from './plot-ticks.js';
 import { TEACHING as T, TEACHING_GRID, TEACHING_SERIES, TEACHING_SERIES_INK, TEACHING_ZERO, mixHex, teachingConnector } from './teaching-theme.js';
-import { annotationDescription, axisName, isStackedBar, plotSeriesPoints } from './ml-plot-spec.js';
+import { axisName, isStackedBar, plotSeriesPoints, restatesPoint } from './ml-plot-spec.js';
 
 const PAD = 12;
 const SMALL = 12;
@@ -12,8 +12,8 @@ const INKS = [...TEACHING_SERIES_INK, T.ink, T.muted]; // the darker weight of a
 // Weights, heavy to light: the series line 4.5 (in the series fill colour), the marker ring 2 (a 14 px marker), guides and outlines 1.5.
 const TICK = 15, MARKER = 7, LINE = 4.5, GRID = 1.5;
 // The caps of a coordinate plot (the author's constraints sheet reads these): value labels only on a plot of ONE series with at most this many samples;
-// a marker on every sample of a line series up to PLOT_MARKER_ALL_MAX_SAMPLES, on every other sample up to PLOT_MARKER_LINE_ONLY_FROM_SAMPLES (the line alone from there; labelled samples keep theirs);
-// at most PLOT_NOTES_MAX numbered notes.
+// a marker on every sample of a line series up to PLOT_MARKER_ALL_MAX_SAMPLES, only the first, the last and the labelled samples of a longer one (PLOT_MARKER_LINE_ONLY_FROM_SAMPLES is no longer read);
+// at most PLOT_NOTES_MAX callouts (an annotation's label in a pill; no number is drawn).
 // A note never restates a sample's own coordinates (PL-1): a labelled sample draws no badge and no list line.
 export const PLOT_VALUE_LABEL_MAX_SAMPLES = 8, PLOT_MARKER_ALL_MAX_SAMPLES = 8, PLOT_MARKER_LINE_ONLY_FROM_SAMPLES = 20, PLOT_NOTES_MAX = 6;
 export const PLOT_CAPS = Object.freeze({ valueLabelMaxSamples: PLOT_VALUE_LABEL_MAX_SAMPLES, markerAllMaxSamples: PLOT_MARKER_ALL_MAX_SAMPLES,
@@ -49,6 +49,8 @@ function curve(points, colorIndex, attributes = {}, path) {
 function stepPoints(points) {
   return points.flatMap((p, i) => i ? [[p[0], points[i - 1][1]], p] : [p]);
 }
+// A short stable id for a clip path (two plots on one page share an id only when their clip shapes are the same).
+const hashOf = text => [...text].reduce((sum, ch) => (Math.imul(sum, 31) + ch.charCodeAt(0)) >>> 0, 7).toString(36);
 function bodyWidth(d, requested) {
   const text = [d.x?.label, d.y?.label, ...(d.series ?? []).map(s => s.label),
     ...(d.annotations ?? []).map(a => a.label), ...(d.categories ?? [])];
@@ -106,6 +108,67 @@ function legendPills(items, width, top) {
   return { elements, height: y - top };
 }
 
+// PLT-3(A): a plot of one to three line series names its curves on the figure instead of in a legend. Each name stands in its series ink (700), 18 px off its curve at the sample
+// farthest from every other series (ties: the rightmost; when its name does not fit there, the next farthest that fits), on the side away from them, with a 1.5 px leader in the series colour whose arrowhead lands on the curve. A name that would
+// overlap a curve, a badge or another name, or leave the plot area, sends the whole plot back to its legend pills; four or more series (or any other kind of series) keep the legend.
+const CURVE_LABEL_SIZE = 15, CURVE_LABEL_OFFSET = 18, CURVE_LABEL_MAX_SERIES = 3;
+function nearestOnPolyline(p, line) {
+  let best = { distance: Infinity, at: null };
+  for (let i = 1; i < line.length; i++) {
+    const [ax, ay] = line[i - 1], [bx, by] = line[i], dx = bx - ax, dy = by - ay, run = dx * dx + dy * dy;
+    const t = run ? Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / run)) : 0, at = [ax + dx * t, ay + dy * t];
+    const distance = Math.hypot(p[0] - at[0], p[1] - at[1]);
+    if (distance < best.distance) best = { distance, at };
+  }
+  return best;
+}
+function segmentHitsBox([ax, ay], [bx, by], box) {
+  let t0 = 0, t1 = 1;
+  for (const [p, q] of [[-(bx - ax), ax - box.x], [bx - ax, box.x + box.width - ax], [-(by - ay), ay - box.y], [by - ay, box.y + box.height - ay]]) {
+    if (p === 0) { if (q < 0) return false; continue; }
+    const t = q / p;
+    if (p < 0) { if (t > t1) return false; t0 = Math.max(t0, t); } else { if (t < t0) return false; t1 = Math.min(t1, t); }
+  }
+  return true;
+}
+function curveLabels(series, lines, bounds, occupied) {
+  if (series.length > CURVE_LABEL_MAX_SERIES || !series.every(s => s.kind === 'line' && !s.closed && !s.endLabel && s.points[0].low === undefined)) return null;
+  const boxes = [], labels = [];
+  for (const [i, s] of series.entries()) {
+    // Candidate samples, the one farthest from every other curve first (ties: the rightmost); the first whose name fits is used.
+    const candidates = lines[i].map((p, j) => {
+      const others = lines.flatMap((line, k) => k === i ? [] : [nearestOnPolyline(p, line)]).sort((x, y) => x.distance - y.distance);
+      return { j, p, distance: others.length ? others[0].distance : Infinity, from: others[0]?.at };
+    }).sort((x, y) => (Math.abs(x.distance - y.distance) <= 0.5 ? 0 : y.distance - x.distance) || y.p[0] - x.p[0]);
+    const text = s.label, w = Math.ceil(Math.max(textWidth(text, CURVE_LABEL_SIZE), widestFormula(text, CURVE_LABEL_SIZE))), hgt = lineHeight(CURVE_LABEL_SIZE);
+    let placed = null;
+    for (const { p: [px, py], from } of candidates) {
+      // Outward is away from the nearest other curve (straight up when there is none).
+      let ox = 0, oy = -1;
+      if (from) { const run = Math.hypot(px - from[0], py - from[1]); if (run > 1) { ox = (px - from[0]) / run; oy = (py - from[1]) / run; } }
+      const vertical = Math.abs(oy) >= Math.abs(ox);
+      const free = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      // The name is 18 px off the curve along the outward axis and slides along the edge of the plot area when it would stick out, the leader staying on the sample.
+      const box = vertical
+        ? { x: free(px - w / 2, bounds.left + 2, bounds.right - 2 - w), y: py + oy * (CURVE_LABEL_OFFSET + hgt / 2) - hgt / 2, width: w, height: hgt }
+        : { x: px + ox * (CURVE_LABEL_OFFSET + w / 2) - w / 2, y: free(py - hgt / 2, bounds.top + 2, bounds.bottom - 2 - hgt), width: w, height: hgt };
+      const center = [box.x + w / 2, box.y + hgt / 2];
+      const padded = { x: box.x - 3, y: box.y - 3, width: w + 6, height: hgt + 6 };
+      const inside = box.x >= bounds.left + 2 && box.x + w <= bounds.right - 2 && box.y >= bounds.top + 2 && box.y + hgt <= bounds.bottom - 2;
+      if (!inside) continue;
+      if (lines.some(line => line.some((q, k) => k && segmentHitsBox(line[k - 1], q, padded)))) continue;
+      if ([...boxes, ...occupied].some(o => padded.x < o.x + o.width && o.x < padded.x + padded.width && padded.y < o.y + o.height && o.y < padded.y + padded.height)) continue;
+      const start = vertical ? [free(px, box.x + 6, box.x + w - 6), oy < 0 ? box.y + hgt : box.y] : [ox < 0 ? box.x + w : box.x, free(py, box.y + 4, box.y + hgt - 4)];
+      placed = { padded, label: { i, text, center, start, end: [px, py] } };
+      break;
+    }
+    if (!placed) return null;
+    boxes.push(placed.padded);
+    labels.push(placed.label);
+  }
+  return labels;
+}
+
 // An axis title on the figure: the label and unit. axisName (ml-plot-spec.js) also adds "log scale" for the written description; the sampled ticks already say it here.
 const titleOf = axis => `${axis.label}${axis.unit ? ` (${axis.unit})` : ''}`;
 
@@ -144,9 +207,30 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
   const { left, right, top, bottom } = bounds;
   const x = scale(d.x, left, right), y = scale(d.y, bottom, top);
   const xy = p => [x(p.x), y(p.y)];
+  const curves = d.series.map(series => series.points.map(xy));
+  // The d of a series' path (undefined: the series is drawn as a straight polyline).
+  const drawnPath = (series, values) => {
+    const smooth = series.smooth !== false;
+    if (series.closed) return closedLinePath(values, smooth);
+    if (series.kind === 'line' && smooth) return monotoneLinePath(values, series.points[0].low !== undefined ? series.points.map(p => [y(p.high), y(p.low)]) : undefined);
+    return undefined;
+  };
+  // A plot of exactly one line series and an x-band: the band is the area under the curve (clip = the series path closed to the baseline); several series keep a full-height band.
+  const sole = d.series.length === 1 && d.series[0].kind === 'line' && !d.series[0].closed ? d.series[0] : null;
+  const underPath = sole && (() => {
+    const values = curves[0], base = y(Math.min(d.y.max, Math.max(d.y.min, 0)));
+    return `${drawnPath(sole, values) ?? `M${values.join('L')}`}L${values.at(-1)[0]},${base}L${values[0][0]},${base}Z`;
+  })();
+  const clipId = underPath ? `plot-under-${hashOf(underPath)}` : null;
+  // The colour a point's ring takes: the x-band that holds it (the narrowest), else the nearest one; no band: the ground.
+  const xBands = (d.annotations ?? []).flatMap((a, k) => a.kind === 'band' && a.axis === 'x' ? [{ from: a.from, to: a.to, fill: SOFT[k % 3] }] : []);
+  const bandFill = value => {
+    const reach = band => Math.max(band.from - value, value - band.to, 0);
+    return [...xBands].sort((a, b) => reach(a) - reach(b) || (a.to - a.from) - (b.to - b.from))[0]?.fill ?? T.surface;
+  };
   const elements = [h('rect', { x: left, y: top, width: right - left, height: bottom - top,
     fill: 'none', 'data-tutor-plot-area': '' })];
-  const geometry = [], foreground = [], notes = [];
+  const geometry = [], foreground = [];
   if (rotateY) {
     const cx = PAD + 10, cy = (top + bottom) / 2;
     elements.push(h('g', { transform: `rotate(-90 ${cx} ${cy})`, 'data-tutor-plot-y-title': '' }, label(yName, cx, cy, { size: 16, weight: 700 })));
@@ -182,48 +266,111 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
   elements.push(label(xTitle, (left + right) / 2, legendY + xTitle.length * lineHeight(16) / 2, { weight: 700, size: 16 }));
   legendY += xTitle.length * lineHeight(16) + 12;
   const occupied = [];
-  function note(anchor, text) {
-    if (notes.length >= PLOT_NOTES_MAX) return;
-    const number = notes.length + 1;
-    notes.push({ number, text });
-    const size = number > 9 ? 22 : 18;
-    let box;
-    for (let radius = 0; radius <= 7 && !box; radius++) {
-      // The first choice is 14 px up and to the right of the point (the badge's lower left corner), clear of the marker ring.
-      for (const [dx, dy] of [[14 + 22 * radius, -14 - 18 - 22 * radius], [-size - 10 - 22 * radius, -24], [10, 10 + 22 * radius], [-size - 10, 10 + 22 * radius], [10, -24 - 22 * radius]]) {
-        const candidate = { x: Math.max(left + 2, Math.min(right - size - 2, anchor[0] + dx)),
-          y: Math.max(top + 2, Math.min(bottom - 20, anchor[1] + dy)), width: size, height: 18 };
-        if (occupied.every(other => candidate.x + size + 3 < other.x || other.x + other.width + 3 < candidate.x ||
-            candidate.y + 21 < other.y || other.y + 21 < candidate.y)) { box = candidate; break; }
+  // True when a box (grown by `margin`) holds a point of any curve: a label placed there would sit on a line.
+  const onCurve = (box, margin = 4) => curves.some(values => values.slice(1).some(([x2, y2], k) => {
+    const [x1, y1] = values[k], steps = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 3));
+    return Array.from({ length: steps + 1 }, (_, s) => [x1 + (x2 - x1) * s / steps, y1 + (y2 - y1) * s / steps])
+      .some(([px, py]) => px > box.x - margin && px < box.x + box.width + margin && py > box.y - margin && py < box.y + box.height + margin);
+  }));
+  const apart = (a, b) => a.x + a.width + 3 < b.x || b.x + b.width + 3 < a.x || a.y + a.height + 3 < b.y || b.y + b.height + 3 < a.y;
+  // Marks a label must not cover: every sample of every series (a marker is 7 px of radius) and every point annotation's ring, and the stems of a stem series.
+  const markPoints = [...curves.flat(), ...(d.annotations ?? []).flatMap(a => a.kind === 'point' ? [xy(a)] : [])];
+  const stems = d.series.flatMap((series, k) => series.kind === 'stem' ? curves[k].map(([sx, sy]) => ({ x: sx, y1: Math.min(sy, y(0)), y2: Math.max(sy, y(0)) })) : []);
+  const onMark = (box, pad = 11) => markPoints.some(([px, py]) => px > box.x - pad && px < box.x + box.width + pad && py > box.y - pad && py < box.y + box.height + pad)
+    || stems.some(stem => stem.x > box.x - 4 && stem.x < box.x + box.width + 4 && stem.y2 > box.y && stem.y1 < box.y + box.height);
+  // The first free cell for a box of size x tall near an anchor (gap: how far from it the first choice stands): none of the other labels, no series path, no mark; when there is none, a cell that
+  // only crosses a path, and last any cell not on another label.
+  // withLeader: the cell's leader (from its nearest corner to the anchor) must also pass over no other label (tier 0).
+  function freeCell(anchor, size, tall, gap, withLeader = false) {
+    const crossesLabel = candidate => {
+      const corner = [Math.max(candidate.x, Math.min(candidate.x + candidate.width, anchor[0])), Math.max(candidate.y, Math.min(candidate.y + candidate.height, anchor[1]))];
+      return Array.from({ length: 21 }, (_, k) => [corner[0] + (anchor[0] - corner[0]) * k / 20, corner[1] + (anchor[1] - corner[1]) * k / 20])
+        .some(([px, py]) => occupied.some(other => px > other.x && px < other.x + other.width && py > other.y && py < other.y + other.height));
+    };
+    const free = (candidate, tier) => occupied.every(other => apart(candidate, other)) && (tier === 2 || (!onMark(candidate) && (tier === 1 || !onCurve(candidate)) && !(withLeader && tier === 0 && crossesLabel(candidate))));
+    for (const tier of [0, 1, 2]) {
+      for (let radius = 0; radius <= 9; radius++) {
+        // The first choice is up and to the right of the mark, clear of its ring.
+        for (const [dx, dy] of [[gap + 22 * radius, -gap - tall - 22 * radius], [-size - gap + 4 - 22 * radius, -gap - tall - 22 * radius], [gap + 22 * radius, gap + 22 * radius], [-size - gap + 4 - 22 * radius, gap + 22 * radius], [-size / 2, -gap - tall - 22 * radius], [-size / 2, gap + 22 * radius]]) {
+          const candidate = { x: Math.max(left + 2, Math.min(right - size - 2, anchor[0] + dx)), y: Math.max(top + 2, Math.min(bottom - tall - 2, anchor[1] + dy)), width: size, height: tall };
+          if (free(candidate, tier)) return candidate;
+        }
       }
-    }
-    // Dense repeated coordinates use a free row in the chart; their data marks
-    // remain exact and a leader preserves the relationship to the label.
-    if (!box) {
-      for (let row = top + 2; row < bottom - 18 && !box; row += 22) {
-        for (let col = left + 2; col < right - size - 2; col += 26) {
-          if (occupied.every(other => col + size + 3 < other.x || other.x + other.width + 3 < col || row + 21 < other.y || other.y + 21 < row)) {
-            box = { x: col, y: row, width: size, height: 18 }; break;
-          }
+      // A free row anywhere in the plot, when the cells around the mark are all taken.
+      for (let row = top + 2; row < bottom - tall; row += 6) {
+        for (let col = left + 2; col < right - size - 2; col += 10) {
+          const candidate = { x: col, y: row, width: size, height: tall };
+          if (free(candidate, tier)) return candidate;
         }
       }
     }
-    if (!box) return; // Schema-bounded marks fit the chart's available badge cells.
-    occupied.push(box);
-    // A 1 px leader from the edge of the point's marker to the nearest corner of the badge.
-    const corner = [Math.max(box.x, Math.min(box.x + size, anchor[0])), Math.max(box.y, Math.min(box.y + 18, anchor[1]))];
-    const run = Math.hypot(corner[0] - anchor[0], corner[1] - anchor[1]) || 1, reach = Math.min(MARKER + 1, run);
-    foreground.push(h('line', { x1: anchor[0] + (corner[0] - anchor[0]) * reach / run, y1: anchor[1] + (corner[1] - anchor[1]) * reach / run, x2: corner[0], y2: corner[1], stroke: T.outline, strokeWidth: 1, 'data-tutor-plot-leader': number }));
-    foreground.push(h('rect', { ...box, rx: 4, fill: T.surface, stroke: T.outline, strokeWidth: 1.5, 'data-tutor-plot-badge': number }));
-    foreground.push(label(String(number), box.x + size / 2, box.y + 9, { size: SMALL, weight: 700 }));
+    return null;
   }
+  // A point annotation's label is a callout: its text in a pill (wrapped at 200 px) in the first free cell the placement finds, and a 1.5 px leader with the standard head ending at its ring.
+  // A free cell touches no other label, no series path and no mark; when there is none, a cell that only crosses a path, and last any cell not on another label. No numbered badge is drawn.
+  let calloutCount = 0;
+  function callout(anchor, text, stop = 0) {
+    if (calloutCount >= PLOT_NOTES_MAX) return;
+    calloutCount++;
+    const lines = wrap(text, 200, SMALL);
+    const size = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))) + 20, tall = Math.max(22, lines.length * lineHeight(SMALL) + 8);
+    // A callout is never dropped: with no free cell left inside the plot it takes the margin above the plot area at its point's x (shifted sideways past other callouts there); its leader runs to the ring.
+    const marginCell = () => {
+      const y0 = top - tall - 4;
+      for (let k = 0; k < 8; k++) {
+        const candidate = { x: Math.max(2, Math.min(width - size - 2, anchor[0] - size / 2 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (size + 6))), y: y0, width: size, height: tall };
+        if (occupied.every(other => apart(candidate, other))) return candidate;
+      }
+      return { x: Math.max(2, Math.min(width - size - 2, anchor[0] - size / 2)), y: y0, width: size, height: tall };
+    };
+    const box = freeCell(anchor, size, tall, 14, true) ?? marginCell();
+    occupied.push(box);
+    const corner = [Math.max(box.x, Math.min(box.x + size, anchor[0])), Math.max(box.y, Math.min(box.y + tall, anchor[1]))];
+    const away = Math.hypot(anchor[0] - corner[0], anchor[1] - corner[1]) || 1;
+    const stopAt = [anchor[0] - (anchor[0] - corner[0]) * stop / away, anchor[1] - (anchor[1] - corner[1]) * stop / away];
+    foreground.push(h('g', { 'data-tutor-plot-leader': text }, wire([corner, stopAt], { width: 1.5 })));
+    foreground.push(h('rect', { ...box, rx: Math.min(11, tall / 2), fill: T.surface, stroke: T.outline, strokeWidth: 1.5, 'data-tutor-plot-callout': text }));
+    foreground.push(label(lines, box.x + size / 2, box.y + tall / 2, { size: SMALL, weight: 700 }));
+  }
+  // The label of a reference line, a band or another shape is plain text: 12 px, muted ink, on a ground-coloured halo, no pill and no leader. It stands at the top end of its line, inside its
+  // band along the band's top edge, or at the middle of another shape; its box is reserved so a callout keeps clear of it. at: [x, y] of the text's anchor point, side: 'start' | 'middle' | 'end'.
+  const yOnCurve = px => {
+    const values = curves[0] ?? [], k = values.findIndex(([vx], j) => j && vx >= px && values[j - 1][0] <= px);
+    if (k < 1) return null;
+    const [x1, y1] = values[k - 1], [x2, y2] = values[k];
+    return x2 === x1 ? y2 : y1 + (y2 - y1) * (px - x1) / (x2 - x1);
+  };
+  function plainLabel(text, at, side, maxWidth = 180, stack = false, other = null) {
+    // The text wraps to the room the plot leaves on its side of the anchor, and never stands outside the plot.
+    const room = side === 'start' ? right - at[0] - 2 : side === 'end' ? at[0] - left - 2 : maxWidth;
+    const lines = wrap(text, Math.max(50, Math.min(maxWidth, room)), SMALL), w = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))), tall = lines.length * lineHeight(SMALL);
+    const boxAt = (point, edge) => ({ x: Math.max(left + 2, Math.min(right - w - 2, edge === 'start' ? point[0] : edge === 'end' ? point[0] - w : point[0] - w / 2)), y: Math.min(bottom - tall / 2 - 2, Math.max(top + tall / 2 + 2, point[1])) - tall / 2, width: w, height: tall });
+    const free = box => occupied.every(taken => apart(box, taken));
+    // A line's label: the side beside its line that is free at the top end; when neither is, it stands under the other labels there.
+    if (other && !free(boxAt(at, side)) && free(boxAt(other.at, other.side))) { at = other.at; side = other.side; }
+    const x0 = boxAt(at, side).x;
+    let cy = boxAt(at, side).y + tall / 2;
+    // Labels that meet along one edge (two bands around the same centre) stack downward, one under the other.
+    while (stack && cy + tall < bottom && occupied.some(taken => !apart({ x: x0, y: cy - tall / 2, width: w, height: tall }, taken))) cy += tall + 2;
+    occupied.push({ x: x0, y: cy - tall / 2, width: w, height: tall });
+    foreground.push(h('g', { stroke: T.ground, strokeWidth: 3, strokeLinejoin: 'round', paintOrder: 'stroke', 'data-tutor-plot-label': text }, label(lines, side === 'start' ? x0 : side === 'end' ? x0 + w : x0 + w / 2, cy, { anchor: side, size: SMALL, weight: 500, fill: T.muted })));
+  }
+  // A shape's label (segment, vector, rectangle, polygon, circle, ellipse) stands in the first free cell beside the shape's anchor.
+  function shapeLabel(text, anchor) {
+    const lines = wrap(text, 160, SMALL), w = Math.ceil(Math.max(...lines.map(line => Math.max(textWidth(line, SMALL), widestFormula(line, SMALL))))), tall = lines.length * lineHeight(SMALL);
+    const box = freeCell(anchor, w, tall, 6);
+    if (!box) return;
+    occupied.push(box);
+    foreground.push(h('g', { stroke: T.ground, strokeWidth: 3, strokeLinejoin: 'round', paintOrder: 'stroke', 'data-tutor-plot-label': text }, label(lines, box.x + w / 2, box.y + tall / 2, { size: SMALL, weight: 500, fill: T.muted })));
+  }
+  const pointCallouts = [];
   for (const [i, a] of (d.annotations ?? []).entries()) {
     const color = COLORS[i % 3], fill = SOFT[i % 3];
     const props = { fill, stroke: T.outline, strokeWidth: 1.5 };
     let anchor;
     if (a.kind === 'point') {
       anchor = xy(a);
-      foreground.push(h('circle', { cx: anchor[0], cy: anchor[1], r: 6, fill: T.surface, stroke: T.outline, strokeWidth: 2, 'data-tutor-plot-point': `${a.x},${a.y}` }));
+      foreground.push(h('circle', { cx: anchor[0], cy: anchor[1], r: 6, fill: bandFill(a.x), stroke: T.outline, strokeWidth: 2, 'data-tutor-plot-point': `${a.x},${a.y}` }));
     } else if (a.kind === 'segment' || a.kind === 'vector') {
       const start = xy(a.from), end = xy(a.to);
       anchor = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
@@ -240,8 +387,11 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
       const yMin = a.kind === 'rectangle' ? a.yMin : a.axis === 'y' ? a.from : d.y.min;
       const yMax = a.kind === 'rectangle' ? a.yMax : a.axis === 'y' ? a.to : d.y.max;
       anchor = [(x(xMin) + x(xMax)) / 2, (y(yMin) + y(yMax)) / 2];
+      // A band is a pale wash: its colour at 0.18 over the ground (the legend pills' tint), no outline, so the curve, the stems and the points on it read through it.
+      const under = a.kind === 'band' && a.axis === 'x' && clipId;
+      if (under && !geometry.some(item => item.props?.id === clipId)) geometry.push(h('clipPath', { id: clipId }, h('path', { d: underPath })));
       geometry.push(h('rect', { x: x(xMin), y: y(yMax), width: x(xMax) - x(xMin), height: y(yMin) - y(yMax),
-        ...props, [`data-tutor-plot-${a.kind}`]: a.label }));
+        ...(a.kind === 'band' ? { fill: mixHex(fill, T.ground, 0.18), stroke: 'none' } : props), ...(under ? { clipPath: `url(#${clipId})` } : {}), [`data-tutor-plot-${a.kind}`]: a.label }));
     } else if (a.kind === 'polygon') {
       const vertices = a.points.map(xy);
       anchor = vertices.reduce((sum, p) => [sum[0] + p[0] / vertices.length, sum[1] + p[1] / vertices.length], [0, 0]);
@@ -256,27 +406,40 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
       } else geometry.push(h('ellipse', { cx: anchor[0], cy: anchor[1], rx: x(a.center.x + rx) - anchor[0], ry: anchor[1] - y(a.center.y + ry),
         ...props, [`data-tutor-plot-${a.kind}`]: a.label }));
     }
-    note(anchor, annotationDescription(a));
+    if (a.kind === 'point') {
+      // A point whose label only restates its coordinates (PL-1) draws no callout: its ring carries it. The callouts are placed after every other label, so they keep clear of them.
+      if (!restatesPoint(a.label, a)) pointCallouts.push([anchor, a.label]);
+    } else if (a.kind === 'reference-line') {
+      if (a.axis === 'x') {
+        const lineX = x(a.value), w = Math.ceil(Math.max(textWidth(a.label, SMALL), widestFormula(a.label, SMALL)));
+        const beside = { at: [lineX + 5, top + 9], side: 'start' }, before = { at: [lineX - 5, top + 9], side: 'end' };
+        if (lineX + 5 + w <= right - 2) plainLabel(a.label, beside.at, beside.side, 180, true, before);
+        else plainLabel(a.label, before.at, before.side, 180, true, beside);
+      } else plainLabel(a.label, [right - 4, y(a.value) - 8], 'end');
+    } else if (a.kind === 'band') {
+      if (a.axis === 'x') {
+        const centre = (x(a.from) + x(a.to)) / 2, edge = clipId ? yOnCurve(centre) : null;
+        plainLabel(a.label, [centre, (edge === null ? top : Math.max(top, edge)) + 18], 'middle', Math.max(60, Math.abs(x(a.to) - x(a.from)) - 8), true);
+      } else plainLabel(a.label, [left + 6, Math.min(y(a.from), y(a.to)) + 10], 'start');
+    } else shapeLabel(a.label, anchor);
   }
-  const marks = [], legend = [];
+  for (const [anchor, text] of pointCallouts) callout(anchor, text, 7);
+  // A line series draws no marker where a scatter series has a point (within 0.5 px): the scatter's marker stays, drawn last (on top).
+  const scatterAt = d.series.flatMap((series, k) => series.kind === 'scatter' ? curves[k] : []);
+  const marks = [], scatterMarks = [], legend = [];
   for (const [i, series] of d.series.entries()) {
     const hasUncertainty = series.points[0].low !== undefined;
-    let band;
     if (hasUncertainty && ['line', 'step'].includes(series.kind)) {
       const high = series.points.map(p => [x(p.x), y(p.high)]);
       const low = series.points.map(p => [x(p.x), y(p.low)]);
-      if (series.kind === 'line') band = high.map((point, j) => [point[1], low[j][1]]);
       const project = values => series.kind === 'step' ? stepPoints(values) : values;
       geometry.push(h('polygon', { points: pointString([...project(high), ...project(low).reverse()]), fill: SOFT[i], fillOpacity: 0.4, stroke: COLORS[i], strokeWidth: 0.8,
         'data-tutor-plot-uncertainty': series.label }));
     }
     const values = series.points.map(xy);
     if (series.kind === 'line' || series.kind === 'step') {
-      // Straight segments between samples; the smooth curve only for a dense series (20 samples or more) or when the author asks for it.
-      const smooth = series.smooth ?? series.points.length >= 20;
-      let path;
-      if (series.closed) path = closedLinePath(values, smooth);
-      else if (series.kind === 'line' && smooth) path = monotoneLinePath(values, band);
+      // A line is the smooth curve through its samples (monotone cubic; a closed contour a smooth closed curve) unless the author says smooth: false: then straight segments.
+      const path = drawnPath(series, values);
       geometry.push(curve(series.kind === 'step' ? stepPoints(values) : values, i, { 'data-tutor-plot-series': series.label }, path));
     }
     series.points.forEach((p, j) => {
@@ -290,8 +453,11 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
       // A curve is thinned so its markers do not read as noise: every sample up to 8, every other one from 9 to 19, the line alone from 20 (labelled samples keep theirs).
       const n = series.points.length;
       const marked = series.kind === 'line' && !series.closed
-        ? n <= PLOT_MARKER_ALL_MAX_SAMPLES || (n < PLOT_MARKER_LINE_ONLY_FROM_SAMPLES && j % 2 === 0) || Boolean(p.label || p.id) : showPlotMarker(series, j);
-      if (marked) marks.push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`, MARKER));
+        ? n <= PLOT_MARKER_ALL_MAX_SAMPLES || showPlotMarker(series, j) || Boolean(p.id) : showPlotMarker(series, j);
+      const covered = series.kind === 'line' && scatterAt.some(([sx, sy]) => Math.hypot(sx - cx, sy - cy) <= 0.5);
+      // A line series beside a scatter series is the fit through the points: it draws no markers unless the author says markers: true.
+      const bare = series.kind === 'line' && series.markers !== true && scatterAt.length > 0;
+      if (marked && !covered && !bare) (series.kind === 'scatter' ? scatterMarks : marks).push(symbol(cx, cy, i, { 'data-tutor-coordinate-point': `${p.x},${p.y}`, 'data-tutor-sample-id': p.id }, `${series.label}: (${p.x}, ${p.y})${p.label ? ` · ${p.label}` : ''}`, MARKER));
       // A single short series prints each value above its marker.
       if (d.series.length === 1 && series.points.length <= PLOT_VALUE_LABEL_MAX_SAMPLES) {
         // Kept clear of the y axis and inside the card, so a sample on the axis does not print over the tick labels.
@@ -301,7 +467,16 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
         foreground.push(cloneElement(label(String(p.y), onAxis ? cx + MARKER + 5 + half : Math.min(width - PAD - half, cx), onAxis ? cy : cy - MARKER - 11, { size: 15, weight: 700 }), { 'data-tutor-plot-value': `${p.x},${p.y}` }));
       }
     });
-    legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
+    // A plot of one series has no legend: its title and axes name it (a legend pill is for telling two or more series apart).
+    if (d.series.length > 1) legend.push({ i, text: `${series.label}${hasUncertainty ? ' · low/high interval' : ''}` });
+  }
+  const callouts = curveLabels(d.series, d.series.map(series => series.points.map(xy)), bounds, occupied);
+  if (callouts) {
+    legend.length = 0;
+    for (const { i, text, center, start, end } of callouts) {
+      foreground.push(wire([start, end], { color: COLORS[i], width: GRID }));
+      foreground.push(cloneElement(label(text, center[0], center[1], { size: CURVE_LABEL_SIZE, weight: 700, fill: INKS[i] }), { 'data-tutor-plot-curve-label': text }));
+    }
   }
   if (legend.length) {
     const drawn = legendPills(legend, width, legendY);
@@ -321,10 +496,80 @@ function plotLayout(diagram, requested, { sharedLabelSpace } = {}) {
     remainingLabels -= height + 4;
   }
   const crowded = Math.max(0, ...xTicks.slice(1).map((tick, i) => tickSpan(xTicks[i])[1] + 4 - tickSpan(tick)[0]));
-  return { width, height: legendY, plotBounds: bounds, crowded, elements: [...elements, ...geometry, ...marks, ...foreground] };
+  return { width, height: legendY, plotBounds: bounds, crowded, elements: [...elements, ...geometry, ...marks, ...scatterMarks, ...foreground] };
 }
 
-function barChart(d, requested) {
+// BAR-1: the bar chart as the written diagrams draw it: vertical bars, an L-axis in ink (2 px, the value axis on the left and the category baseline at zero, no top or right line, no box),
+// dotted gridlines at the value ticks, one fill per category in TEACHING_SERIES order (a grouped chart: one fill per series, as its legend pills, the same order), the value above each bar (not with more than
+// 12 bars, or on a bar narrower than the label), square 2 px outlined bars with a gap of 40% of the bar width. A single series has no legend. A plain bars chart is one series of one bar per category.
+// The value axis ends at the round tick above the largest value (the largest value is not itself a tick): the next 1, 2, 2.5, 5 or 10 times a power of ten that leaves at most five steps.
+function roundedUp(value) {
+  if (value <= 0) return value;
+  const magnitude = 10 ** Math.floor(Math.log10(value / 4));
+  for (const multiplier of [1, 2, 2.5, 5, 10]) {
+    const step = multiplier * magnitude;
+    if (Math.ceil(value / step) <= 5) return Number((Math.ceil(value / step) * step).toPrecision(15));
+  }
+  return value;
+}
+function verticalBars(d, requested, options) {
+  const grouped = d.variant === 'grouped';
+  const categories = grouped ? d.categories : d.bars.map(bar => bar.label);
+  const series = grouped ? d.series : [{ label: d.title ?? '', values: d.bars.map(bar => bar.value) }];
+  const n = categories.length, k = series.length;
+  const width = bodyWidth(d, requested);
+  const values = series.flatMap(entry => entry.values);
+  let min = Math.min(0, ...values), max = Math.max(0, ...values);
+  if (min === max) { min = -1; max = 1; }
+  max = roundedUp(max);
+  min = -roundedUp(-min);
+  const PLOT = 210, top = PAD + 24, bottom = top + PLOT;
+  const y = scale({ min, max }, bottom, top);
+  const ticks = plotTicks({ min, max }, y, { horizontal: false });
+  const tickWidth = Math.ceil(Math.max(...ticks.map(tick => Math.max(...tick.lines.map(line => textWidth(line, TICK))))));
+  const left = PAD + tickWidth + 10, right = width - PAD - 10;
+  const slot = (right - left) / n, inner = 2; // 2 px between the bars of one cluster
+  const barWidth = (slot - inner * (k - 1)) / (k + 0.4);
+  const cluster = k * barWidth + (k - 1) * inner;
+  const elements = [];
+  // Dotted gridlines behind everything, at the value ticks (the baseline stands at zero).
+  for (const tick of ticks) {
+    elements.push(h('line', { x1: left, x2: right, y1: tick.at, y2: tick.at, stroke: T.outline, strokeOpacity: 0.3, strokeWidth: GRID, strokeDasharray: '1.5 4', strokeLinecap: 'round', 'data-tutor-plot-grid': '' }));
+    elements.push(label(tick.lines, left - 8, tick.at, { anchor: 'end', size: TICK }));
+  }
+  const showValues = n * k <= 12;
+  const bars = [], labels = [];
+  categories.forEach((category, i) => {
+    const start = left + slot * i + (slot - cluster) / 2;
+    const name = wrap(category, slot - 4, SMALL + 1);
+    labels.push(label(name, left + slot * (i + 0.5), bottom + 10 + name.length * lineHeight(SMALL + 1) / 2, { size: SMALL + 1 }));
+    series.forEach((entry, j) => {
+      const value = entry.values[i], x = start + j * (barWidth + inner), cx = x + barWidth / 2, zero = y(0), end = y(value);
+      const fill = grouped ? COLORS[j] : options?.labelColors?.get(category) ?? TEACHING_SERIES[i % TEACHING_SERIES.length];
+      const attrs = grouped ? { 'data-tutor-grouped-bar': value, 'data-tutor-bar-category': category, 'data-tutor-bar-series': entry.label, 'data-tutor-stack-from': 0, 'data-tutor-stack-to': value }
+        : { 'data-tutor-bar': value };
+      if (value !== 0) bars.push(h('rect', { x, y: Math.min(zero, end), width: barWidth, height: Math.abs(zero - end), fill, stroke: T.outline, strokeWidth: 2, ...attrs }));
+      else bars.push(h('line', { x1: x, x2: x + barWidth, y1: zero, y2: zero, stroke: T.outline, strokeWidth: 2, ...attrs }));
+      const text = amount(value, d.unit);
+      if (showValues && textWidth(text, TICK) <= barWidth + inner + 0.4 * barWidth) labels.push(label(text, cx, value < 0 ? end + 12 : end - 12, { size: TICK, weight: 600 }));
+    });
+  });
+  elements.push(...bars);
+  // The L-axis over the bars' feet: the value axis, and the category baseline at zero.
+  elements.push(h('line', { x1: left, x2: left, y1: top - 6, y2: bottom, stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-axis': '' }),
+    h('line', { x1: left, x2: right, y1: y(0), y2: y(0), stroke: T.outline, strokeWidth: 2, strokeLinecap: 'round', 'data-tutor-bar-baseline': '' }), ...labels);
+  const labelsHeight = Math.max(1, ...categories.map(category => wrap(category, slot - 4, SMALL + 1).length)) * lineHeight(SMALL + 1);
+  let bottomOfLabels = bottom + 10 + labelsHeight + 8;
+  if (grouped) {
+    const drawn = legendPills(series.map((entry, i) => ({ i, text: entry.label })), width, bottomOfLabels + 4);
+    elements.push(...drawn.elements);
+    bottomOfLabels += 4 + drawn.height + 8;
+  }
+  return { width, height: bottomOfLabels + PAD, elements };
+}
+
+function barChart(d, requested, options) {
+  if (d.variant !== 'stacked') return verticalBars(d, requested, options);
   const width = bodyWidth(d, requested);
   const left = 120, right = width - 86;
   const groups = d.categories.map((category, i) => {
@@ -413,6 +658,6 @@ export function createLayouts({ legacy }) {
   return {
     // Every coordinate plot, plain or extended, is drawn by this layout: a plain spec gets the theme defaults with no styling field (the legacy plot layout is no longer used).
     'coordinate-plot': (d, width, options) => coordinatePlot(d, width, options),
-    'bar-chart': (d, width, options) => isStackedBar(d) ? stackedBar(d, width, options) : d.variant ? barChart(d, width) : legacy['bar-chart'](d, width, options),
+    'bar-chart': (d, width, options) => isStackedBar(d) ? stackedBar(d, width, options) : d.variant || !options?.compact ? barChart(d, width, options) : legacy['bar-chart'](d, width, options),
   };
 }

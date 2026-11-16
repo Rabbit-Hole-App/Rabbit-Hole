@@ -1,7 +1,7 @@
 // IMG-01 provider adapters and quote (image-providers.js). Fixture transports only: no request leaves this process.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { IMAGE_MODELS, imageSettings, imageQuote, measuredCostUsd, usageCost, imageCost, openaiImageAdapter, geminiImageAdapter, imageAdapter, providerConfigured } from '../src/image-providers.js';
+import { IMAGE_MODELS, imageSettings, imageQuote, measuredCostUsd, usageCost, imageCost, openaiImageAdapter, geminiImageAdapter, imageAdapter, providerConfigured, RECRAFT_CONTROLS } from '../src/image-providers.js';
 
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 const KEY = 'fixture-key-not-real';
@@ -260,7 +260,7 @@ test('Recraft: one generation request (1024x1024, url output), then one download
   assert.equal(calls.length, 2, 'the request and the download');
   assert.equal(calls[0].url, 'https://external.api.recraft.ai/v1/images/generations');
   assert.equal(calls[0].init.headers.Authorization, `Bearer ${KEY}`);
-  assert.deepEqual(JSON.parse(calls[0].init.body), { prompt: 'A lighthouse at dusk.', model: 'recraftv4_1_flash', size: '1024x1024', n: 1, response_format: 'url' });
+  assert.deepEqual(JSON.parse(calls[0].init.body), { prompt: 'A lighthouse at dusk.', model: 'recraftv4_1_flash', size: '1024x1024', n: 1, response_format: 'url', controls: RECRAFT_CONTROLS });
   assert.equal(calls[1].url, 'https://img.recraft.ai/abc/image.webp');
   assert.equal(calls[1].init.headers, undefined, 'the key never goes to the picture host');
   assert.equal(out.mimeType, 'image/webp');

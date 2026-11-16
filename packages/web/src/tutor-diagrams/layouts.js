@@ -10,6 +10,7 @@ import { cloneElement, createElement as h } from 'react';
 import { backEdge, box, connector, dot, label, lineHeight, SURFACE, textWidth, wire, wrap } from './primitives.js';
 import { TEACHING as T, TEACHING_GRID } from './teaching-theme.js';
 import { quantitativeLayouts } from './quantitative-layouts.js';
+import { tuplePieceWidth, tuplePlainText } from './matrix-tuple.js';
 import { teachingLayouts } from './teaching-layouts.js';
 import { usesTensorItems } from './illustration-kinds.js';
 import { layoutTensor, layoutTensorTransformation } from './tensor-layout.js';
@@ -62,7 +63,34 @@ function comparison(diagram, width) {
   return { width: grid.width, height: y - 8 + PAD, elements: [...dividers, ...elements] };
 }
 
+// Numbered steps (every time a one- or two-digit number): a 28 px blue badge per step on a 1.5 px spine, the title and its detail on the ground beside it, "N steps" muted at the top right.
+// Dates and words keep the pill form below.
+function timelineSteps(diagram, width) {
+  const BADGE = 28, textX = PAD + BADGE + 12, contentWidth = width - PAD - textX, rowGap = 16, headerHeight = 22;
+  const step = lineHeight(TEXT), small = lineHeight(SMALL);
+  const elements = [];
+  const centres = [];
+  let y = PAD + headerHeight;
+  for (const event of diagram.events) {
+    const title = wrap(event.label, contentWidth);
+    const detail = event.detail ? wrap(event.detail, contentWidth, SMALL) : [];
+    const centre = y + BADGE / 2;
+    const titleTop = centre - step / 2;
+    centres.push([PAD + BADGE / 2, centre]);
+    elements.push(h('circle', { cx: PAD + BADGE / 2, cy: centre, r: BADGE / 2, fill: T.blueFill, stroke: T.outline, strokeWidth: 1.5 }));
+    elements.push(label([event.time], PAD + BADGE / 2, centre, { weight: 700, tone: 'onFill' }));
+    elements.push(label(title, textX, titleTop + title.length * step / 2, { anchor: 'start', weight: 700 }));
+    const bottom = titleTop + title.length * step;
+    if (detail.length) elements.push(label(detail, textX, bottom + 4 + detail.length * small / 2, { anchor: 'start', size: SMALL, tone: 'muted' }));
+    y = Math.max(y + BADGE, bottom + (detail.length ? 4 + detail.length * small : 0)) + rowGap;
+  }
+  const spine = h('line', { x1: centres[0][0], y1: centres[0][1], x2: centres.at(-1)[0], y2: centres.at(-1)[1], stroke: T.outline, strokeWidth: 1.5 });
+  const count = label([`${diagram.events.length} ${diagram.events.length === 1 ? 'step' : 'steps'}`], width - PAD, PAD + headerHeight / 2 - 2, { anchor: 'end', size: SMALL, tone: 'muted' });
+  return { width, height: y - rowGap + PAD, elements: [count, spine, ...elements] };
+}
+
 function timeline(diagram, width) {
+  if (diagram.events.every(event => /^[0-9]{1,2}$/.test(event.time))) return timelineSteps(diagram, width);
   const timeWidth = 80;
   const railX = PAD + timeWidth + 17;
   const contentX = railX + 16;
@@ -166,7 +194,9 @@ function sequence(diagram, width) {
 }
 
 function matrix(diagram, width) {
-  const grid = columnsFor(width, diagram.columns.length + 1, 72, 7);
+  // A tuple cell is plain text that wraps at its comma: the column holds its widest piece (the other cells keep the 72 px minimum).
+  const tupleCell = Math.ceil(Math.max(0, ...diagram.rows.flatMap(row => row.cells).map(cell => tuplePieceWidth(cell, text => textWidth(text, TEXT))))) + 14;
+  const grid = columnsFor(width, diagram.columns.length + 1, Math.max(72, tupleCell), 7);
   const elements = [];
   const headings = diagram.columns.map(heading => wrap(heading, grid.cell - 12));
   const headerHeight = rowHeight(headings);
@@ -177,7 +207,7 @@ function matrix(diagram, width) {
   }
   let y = PAD + headerHeight + 7;
   for (const row of diagram.rows) {
-    const cells = [row.heading, ...row.cells].map(cell => wrap(cell, grid.cell - 12));
+    const cells = [row.heading, ...row.cells].map(cell => wrap(tuplePlainText(cell), grid.cell - 12));
     const height = rowHeight(cells);
     for (let index = 0; index < cells.length; index++) {
       const x = grid.xAt(index);

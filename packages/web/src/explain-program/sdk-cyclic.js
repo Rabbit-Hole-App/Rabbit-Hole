@@ -1,4 +1,4 @@
-import { ROLES } from '../scene-vocab.js';
+import { SDK_ROLES } from '../scene-vocab.js';
 
 // A bounded directed network, including feedback, reciprocal edges and self-loops.
 // Positions are explicit local pixel centers so a teaching layout is deterministic.
@@ -6,7 +6,7 @@ import { ROLES } from '../scene-vocab.js';
 // Optional via and labelAt are also local coordinates. Selection never changes geometry.
 export const CYCLIC_GRAPH_SOURCE = String.raw`
 (function () {
-  const ROLES = ${JSON.stringify(ROLES)};
+  const ROLES = ${JSON.stringify(SDK_ROLES)};
   const fail = message => { throw new RangeError('sdk.cyclicGraph: ' + message); };
   const safeId = /^[A-Za-z0-9_-]{1,16}$/;
   const labelOK = (s, max) => typeof s === 'string' && s.trim().length > 0 && s.length <= max

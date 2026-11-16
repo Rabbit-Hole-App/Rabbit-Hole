@@ -1,4 +1,5 @@
 import { RASTER_CAPABILITY } from './stamps.js';
+import { FILLS } from '../tutor-diagrams/theme/palette.js';
 
 const choice = (id,label,options) => ({id,label,type:'select',default:options[0][0],options:options.map(([value,label])=>({value,label}))});
 const synthetic = `
@@ -33,7 +34,7 @@ export function evaluate({inputs}) {
     sdk.text('mask-title',312,24,'Selected mask'),
     sdk.raster('source',{x:24,y:44,w:240,h:240,rows,cols,pixels}),
     sdk.raster('underlay',{x:312,y:44,w:240,h:240,rows,cols,pixels}),
-    sdk.mask('mask',{x:312,y:44,w:240,h:240,rows,cols,values,color:'#E5AA46',opacity:0.7}),
+    sdk.mask('mask',{x:312,y:44,w:240,h:240,rows,cols,values,color:'${FILLS.mustard}',opacity:0.7}),
   ],{width:576,height:308}),quantities:{}};
 }`,
 };

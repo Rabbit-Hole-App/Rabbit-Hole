@@ -48,6 +48,24 @@ const INTERACT_BAR_GAP = 6; // the composed theme's bars: 18 wide on a 24 pitch
 // Bars that are one distribution (the values sum to 1, within 0.01) take the warm sequential ramp by value, mustard to orange to coral.
 const isDistribution = values => values.length > 1 && values.every(value => value != null && value >= 0) && Math.abs(values.reduce((sum, value) => sum + value, 0) - 1) <= 0.01;
 const warmRamp = t => t < 0.5 ? mixHex(TEACHING.orange, TEACHING.mustardFill, t * 2) : mixHex(TEACHING.coral, TEACHING.orange, (t - 0.5) * 2);
+// An operator circle draws these symbols as ink strokes, not text: each stroke is 0.55 of the circle's diameter long, 3 px, round caps. Every other symbol (a sigma, a letter) stays text.
+const SQ = Math.SQRT1_2; // a diagonal arm is as long as a straight one
+const OPERATOR_STROKES = { '×': [[-SQ, -SQ, SQ, SQ], [-SQ, SQ, SQ, -SQ]], '+': [[-1, 0, 1, 0], [0, -1, 0, 1]], '−': [[-1, 0, 1, 0]], '-': [[-1, 0, 1, 0]], '·': [[0, 0, 0, 0]], '⋅': [[0, 0, 0, 0]] };
+// A monotone cubic through points (Fritsch-Carlson tangents): never overshoots, flat at a peak. Returns an SVG path from the first point.
+function monotonePath(points) {
+  const n = points.length, h = [], d = [];
+  for (let i = 0; i < n - 1; i++) { h.push(points[i + 1][0] - points[i][0]); d.push((points[i + 1][1] - points[i][1]) / h[i]); }
+  const m = points.map((_, i) => (i === 0 ? d[0] : i === n - 1 ? d[n - 2] : d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2));
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i + 1] / d[i], s = a * a + b * b;
+    if (s > 9) { const t = 3 / Math.sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+  }
+  return points.slice(1).reduce((path, [x, y], i) => {
+    const [x0, y0] = points[i];
+    return path + ` C ${x0 + h[i] / 3} ${y0 + m[i] * h[i] / 3} ${x - h[i] / 3} ${y - m[i + 1] * h[i] / 3} ${x} ${y}`;
+  }, `M ${points[0][0]} ${points[0][1]}`);
+}
 const fromCentre = { transformBox: 'fill-box', transformOrigin: 'center' };
 // Motion places an SVG element's transform origin itself, from originX/originY
 // (fractions of the element's own box) - a CSS transformOrigin is overwritten.
@@ -308,18 +326,25 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
     // Same per-object pitch sizeOf froze (animation-scene.js): word-labelled
     // bars author a wider cell so neighbouring labels never run together.
     const pitch = object.cell ?? GEOMETRY.barWidth;
-    const gap = interact ? INTERACT_BAR_GAP : BAR_GAP;
     const ramp = interact && isDistribution(values);
+    // One distribution is a bell: its bars touch (gap 0) under a smooth envelope.
+    const gap = ramp ? 0 : interact ? INTERACT_BAR_GAP : BAR_GAP;
     // An authored peak pins the axis. Without it the scale is recomputed from
     // the tweening values, so bars that never changed visibly shrink while a
     // neighbour grows - the learner watches their own answer move.
     const peak = object.peak ?? Math.max(...values.map(entry => Math.abs(entry ?? 0)), 0.0001);
     const height = object.h || GEOMETRY.barHeight;
+    const tallOf = value => (value == null ? 0 : Math.min(height - 4, Math.max(1, (Math.abs(value) / peak) * (height - 4))));
+    const baseY = object.y + height, endX = object.x + values.length * pitch;
+    // The peak bar is coral; every other bar takes the warm ramp by value.
+    const rampFill = value => (value != null && Math.abs(value) === peak ? TEACHING.coral : warmRamp(Math.abs(value ?? 0) / peak));
+    // The envelope runs through the bar-top centres and lands on the baseline half a bar past the first and the last of them (the outer edges of the end bars).
+    const envelope = ramp && monotonePath([[object.x, baseY], ...values.map((value, index) => [object.x + index * pitch + pitch / 2, baseY - tallOf(value)]), [endX, baseY]]);
     return (
       <g>
         <line x1={object.x} y1={object.y + height} x2={object.x + (object.w || 0)} y2={object.y + height} style={{ stroke: interact ? FILLED_INK : hue }} strokeWidth="1.5" />
         {values.map((value, index) => {
-          const tall = value == null ? 0 : Math.min(height - 4, Math.max(1, (Math.abs(value) / peak) * (height - 4)));
+          const tall = tallOf(value);
           const lit = marked(object, 0, index, index) || (object.cellHighlight === 'max' && value != null && value === Math.max(...values.map(entry => entry ?? -Infinity)));
           // Categorical, not value-encoded - a bar's height already carries
           // the number, so its fill is state (is this the one being pointed
@@ -334,8 +359,8 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
             // or not, stands on the same baseline and its label stays put.
             <g key={index}>
               <motion.rect x={object.x + index * pitch + gap / 2} y={object.y + height - tall} width={pitch - gap} height={tall}
-                rx={4} initial={false} animate={{ fill: ramp && value != null ? warmRamp(Math.abs(value) / peak) : look.fill, scale: lit ? 1.06 : 1 }} transition={pop}
-                style={interact ? { ...fromBaseline, stroke: FILLED_INK, strokeWidth: 1.5 } : fromBaseline} />
+                rx={ramp ? 0 : 4} initial={false} animate={{ fill: ramp && value != null ? rampFill(value) : look.fill, scale: lit ? 1.06 : 1 }} transition={pop}
+                style={interact && !ramp ? { ...fromBaseline, stroke: FILLED_INK, strokeWidth: 1.5 } : fromBaseline} />
               {object.labels?.[index] && (
                 <text x={object.x + index * pitch + pitch / 2} y={object.y + height + 12} textAnchor="middle"
                   fontSize={numeral.fontSize} fontWeight={numeral.fontWeight}
@@ -344,6 +369,10 @@ function DataShape({ object, role, pop, chosen, onInputPick, inkAt, interact }) 
             </g>
           );
         })}
+        {envelope && (
+          // The envelope is an outline only: the stepped bars keep their own ramp fills beneath it.
+          <path d={envelope} fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ stroke: FILLED_INK }} />
+        )}
         {chosen && <SelectionMark geometry={{ kind: 'rect', x: object.x, y: object.y, width: object.w || (values.length * pitch), height }} />}
       </g>
     );
@@ -591,6 +620,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
           const isCode = object.type === 'code';
           const isEquation = object.type === 'equation';
           const isCircle = object.type === 'circle';
+          const operatorStrokes = interact && isCircle && role === 'operator' ? OPERATOR_STROKES[object.label] : undefined;
           const isData = DATA_TYPES.includes(object.type);
           const isStroke = object.type === 'arrow' || object.type === 'line';
           const isPolyline = object.type === 'polyline';
@@ -622,7 +652,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
             : isCode ? styleOf('code')
             : isEquation ? styleOf('equation')
             : object.type === 'text' ? styleOf(object.typography)
-            : interact && isCircle && role === 'operator' ? { ...styleOf('body'), fontSize: 22, fontWeight: 700, fontFamily: 'inherit' }
+            : interact && isCircle && role === 'operator' ? { ...styleOf('body'), fontSize: 0.6 * (object.w || 60), fontWeight: 800, fontFamily: 'inherit' }
             : styleOf('body');
           // Colour comes from role alone (scene-style.js): a text object with a
           // real role keeps that role's colour (its text-safe variant), and
@@ -691,7 +721,11 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                     strokeLinecap="round" style={{ stroke: wireInk, strokeWidth: look.strokeWidth }}
                     markerEnd={object.type === 'arrow' ? 'url(#animation-arrow-tinted)' : undefined} />
                 : isCircle
-                ? <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2} filter={shadow} style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />
+                ? (<>
+                    <circle cx={centre.x} cy={centre.y} r={(object.w || 60) / 2} filter={shadow} style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />
+                    {operatorStrokes && <path d={operatorStrokes.map(([x1, y1, x2, y2]) => `M ${centre.x + x1 * 0.275 * (object.w || 60)} ${centre.y + y1 * 0.275 * (object.w || 60)} L ${centre.x + x2 * 0.275 * (object.w || 60)} ${centre.y + y2 * 0.275 * (object.w || 60)}`).join(' ')}
+                      fill="none" strokeWidth="3" strokeLinecap="round" style={{ stroke: FILLED_INK }} />}
+                  </>)
                 : isText ? null
                   : <rect x={object.x} y={object.y} width={object.w} height={object.h} rx={radius}
                       filter={shadow} style={{ fill: look.fill, stroke: look.stroke, strokeWidth: look.strokeWidth }} />}
@@ -720,7 +754,7 @@ export function Frame({ scene, state, selecting, marked, onRegion, onPick, picke
                 <RunsLabel runs={object.runs} text={object.label} x={label.x} y={label.y} anchor={label.anchor} baseline={label.baseline}
                   type={{ ...type, fontFamily: type.fontFamily ?? (isCircle ? MONO : undefined) }} fill={labelFill} />
               )}
-              {!maths && !isFigure && !object.look && !(object.runs && object.textProgress >= 1) && (
+              {!maths && !isFigure && !object.look && !operatorStrokes && !(object.runs && object.textProgress >= 1) && (
                 <text
                   x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}
                   fontSize={type.fontSize}

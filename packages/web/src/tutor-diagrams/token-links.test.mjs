@@ -120,13 +120,14 @@ test('the attention reference keeps exact positions, an exact unit sum and the c
   assert.match(accessible, /cat.*target position 2.*0\.45/);
 });
 
-test('natural token widths keep the full rows and bound long labels at 960 px', () => {
+test('natural token widths keep the full rows; chip rows wrap at chip boundaries, so long labels stay within 960 px', () => {
   const [{ spec: { diagram } }] = tokenLinksReferences;
   const long = { ...repeated, source: Array(8).fill('W'.repeat(24)), target: Array(8).fill('W'.repeat(24)),
     queries: [{ index: 7, weights: [0.2, 0, 0.3, 0, 0.4, 0, 0.1, 0] }] };
   const natural = tokenLinksNaturalWidth(diagram);
   assert.ok(natural > 408 && natural < 960);
-  assert.equal(tokenLinksNaturalWidth(long), 960);
+  // TOK-W3: the row budget is the request (at least 720, at most 960); a 355 px chip pair does not fit 720, so the natural width is one chip column (471), two columns from 960.
+  assert.equal(tokenLinksNaturalWidth(long), 471);
   for (const specimen of [diagram, long]) for (const width of [408, tokenLinksNaturalWidth(specimen), 960]) {
     const svg = render(specimen, width);
     assert.equal(svg, render(specimen, width));
@@ -139,8 +140,12 @@ test('natural token widths keep the full rows and bound long labels at 960 px', 
   const target = tokens.filter(element => element?.props['data-tutor-token'].startsWith('target:'));
   assert.equal(target.length, 8);
   const boxes = target.map(element => element.props.children[0].props);
-  assert.ok(boxes.every((box, index) => box.x >= 0 && box.x + box.width <= 960 &&
-    (index === 0 || boxes[index - 1].x + boxes[index - 1].width < box.x)));
+  assert.deepEqual([...new Set(boxes.map(box => box.y))].map(y => boxes.filter(box => box.y === y).length), [2, 2, 2, 2], 'rows of two chips');
+  assert.ok(boxes.every((box, index) => box.x >= 0 && box.x + box.width <= 960 && (index === 0 ? true : box.y === boxes[index - 1].y
+    ? boxes[index - 1].x + boxes[index - 1].width < box.x : box.y > boxes[index - 1].y && box.x < boxes[index - 1].x)));
+  // At the 408 request the same chips stand one to a row (the 720 budget holds one 355 px chip).
+  const narrow = layoutTokenLinks(long, 408).elements[0].props.children.filter(element => element?.props['data-tutor-token']?.startsWith('target:'));
+  assert.equal(new Set(narrow.map(element => element.props.children[0].props.y)).size, 8);
 });
 
 function sixTokenComparison() {
