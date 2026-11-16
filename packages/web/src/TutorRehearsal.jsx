@@ -18,6 +18,7 @@ import { TUTOR_LINE_EVENT } from './tutor-lines.js';
 import ChoiceList from './ChoiceList.jsx';
 import { toast } from './ui.jsx';
 import { performItem } from './learn-section-perform.js';
+import { LEARN_HIGHLIGHT_EVENT } from './learn-wiki-highlights.js';
 
 // The initial pipeline as the Tutor's own conversation in the Chat transcript (initial-pipeline-spec.md section 1; owner: everything lives inside the AI tutor's chat as Tutor
 // messages, no card above it). Dev builds only (VITE_REHEARSAL_TRIGGER=1, ask.jsx mounts it). The messages are built by rehearsal-flow.js from this component's state; they are
@@ -329,6 +330,12 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     }
     sectionPatch({ stage: 'ready', next: null });
   };
+  // A quote of a made card that was not on its page or article when the learner opened it (LearnPaper, LearnWiki, WebpageCard): recorded on the item (DECISIONS S).
+  useEffect(() => {
+    const onMissed = event => { const { sectionId, itemId, cardId, highlight } = event.detail || {}; if (sectionId && itemId && highlight) sectionPost({ action: 'learn_section_made', sectionId, itemId, ...(cardId ? { cardId } : {}), highlight }); };
+    window.addEventListener(LEARN_HIGHLIGHT_EVENT, onMissed);
+    return () => window.removeEventListener(LEARN_HIGHLIGHT_EVENT, onMissed);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const retrySection = () => {
     const sec = st.current.section;
     if (!sec?.id) return;

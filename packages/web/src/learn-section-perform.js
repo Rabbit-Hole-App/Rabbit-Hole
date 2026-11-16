@@ -80,6 +80,39 @@ async function makeCard({ canvasApi, slash, perform, ctx, beside }) {
     if (!id) throw new Error('no_card');
     return { cardId: id };
   }
+  // Found material (C sections 5-7): the page's own inserts (DECISIONS R). A quote rides on the card as a highlight entry carrying `learn`; LearnPaper / LearnWiki resolve it when
+  // the learner opens that page or article and report one that is not there (learn-wiki-highlights.js resolveLearnQuotes, DECISIONS S).
+  const quoteOf = (exact, where) => (String(exact || '').trim() ? [{ ...where, exact: String(exact).trim(), prefix: '', suffix: '', learn: { sectionId: ctx.sectionId, itemId: ctx.itemId } }] : []);
+  const addQuotes = (id, quotes) => { if (id && quotes.length) canvasApi.updateBlock?.(id, block => ({ ...block, highlights: [...(block.highlights || []), ...quotes] })); };
+  if (op === 'video') {
+    if (!perform.videoId || !canvasApi.addVideo) throw new Error('no_video');
+    const id = canvasApi.addVideo({ videoId: perform.videoId, title: perform.title || null, channel: perform.channel || null, start: Number(perform.start) || 0, end: perform.end ?? null });
+    if (!id) throw new Error('no_card');
+    return { cardId: id };
+  }
+  // One paper card per page in reading order (C section 6b): the first through the page's addPaper (the paper becomes a source and the next question's context), each later page
+  // a new card of the same paper beside the previous one (addPaper keeps one card per paper and would only turn its page).
+  // ponytail: a page's `figure` (the crop beside the card, learn-paper-figures.js) is not drawn yet.
+  if (op === 'paper') {
+    const pages = (Array.isArray(perform.pages) ? perform.pages : []).filter(entry => Number.isInteger(entry?.page) && entry.page > 0);
+    if (!perform.id || !pages.length || !canvasApi.addPaper) throw new Error('no_paper');
+    const ids = [];
+    for (const [index, entry] of pages.entries()) {
+      const quotes = quoteOf(entry.quote, { page: entry.page });
+      if (index === 0) { const id = canvasApi.addPaper({ id: perform.id, title: perform.title, page: entry.page }); addQuotes(id, quotes); if (id) ids.push(id); continue; }
+      const id = await placeBlocks(canvasApi, [{ id: crypto.randomUUID(), type: 'paper', dx: 0, dy: 0, title: perform.title || `arXiv ${perform.id}`, paper: { id: perform.id, page: entry.page }, highlights: quotes, learn: learnTag(ctx, 'card') }], { beside: ids.at(-1) || beside, sizes: [{ w: 620, h: 560 }] });
+      if (id) ids.push(id);
+    }
+    if (!ids.length) throw new Error('no_card');
+    return { cardId: ids[0], last: ids.at(-1) };
+  }
+  if (op === 'wiki') {
+    if (!perform.title || !canvasApi.addWiki) throw new Error('no_article');
+    const id = canvasApi.addWiki({ title: perform.title, section: perform.section ?? 0 });
+    if (!id) throw new Error('no_card');
+    addQuotes(id, quoteOf(perform.quote, { title: perform.title }));
+    return { cardId: id };
+  }
   if (op === 'doc') return { cardId: await placeDoc(canvasApi, perform.markdown, ctx, 'card', beside) }; // a pure text beat has no card: only its lead
   throw new Error(`unknown_op:${op}`);
 }
