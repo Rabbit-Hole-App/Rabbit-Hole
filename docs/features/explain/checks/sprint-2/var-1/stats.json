@@ -1,0 +1,85 @@
+{
+  "byKind": {
+    "sample-set": {
+      "n": 9,
+      "yes": 0,
+      "cited": 1,
+      "derived": 3,
+      "closed": 0,
+      "structural": 9,
+      "compact": 0,
+      "derivedKinds": {
+        "omitted": 3,
+        "outOfBagFor": 1
+      },
+      "computed": 1
+    },
+    "histogram": {
+      "n": 5,
+      "yes": 0,
+      "cited": 2,
+      "derived": 3,
+      "closed": 0,
+      "structural": 0,
+      "compact": 0,
+      "derivedKinds": {
+        "sum-constraint": 2,
+        "markers": 2
+      },
+      "proseOnly": 2
+    },
+    "box-plot": {
+      "n": 1,
+      "yes": 0,
+      "cited": 1,
+      "derived": 1,
+      "closed": 0,
+      "structural": 0,
+      "compact": 0,
+      "derivedKinds": {
+        "fences": 1,
+        "outliers": 1
+      },
+      "proseOnly": 1
+    },
+    "coordinate-plot": {
+      "n": 118,
+      "yes": 16,
+      "cited": 35,
+      "derived": 52,
+      "closed": 14,
+      "structural": 0,
+      "compact": 21,
+      "derivedKinds": {
+        "point centroid": 5,
+        "segment endpoint-on-series": 6,
+        "reference-line stat": 15,
+        "vector chained": 5,
+        "mirror-series": 4,
+        "point on-series": 24,
+        "vector endpoint-on-series": 4,
+        "segment chained": 2
+      },
+      "named": 28,
+      "proseOnly": 10,
+      "computed": 26
+    },
+    "bar-chart": {
+      "n": 19,
+      "yes": 10,
+      "cited": 1,
+      "derived": 4,
+      "closed": 0,
+      "structural": 0,
+      "compact": 0,
+      "derivedKinds": {
+        "sum-constraint": 3,
+        "additive": 1
+      },
+      "proseOnly": 4,
+      "computed": 4
+    }
+  },
+  "total": 152,
+  "yes": 26
+}
