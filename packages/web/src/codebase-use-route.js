@@ -20,10 +20,12 @@ export const USE_ROUTES = Object.freeze(Object.fromEntries(Object.entries(CODEBA
 
 // ---- the intake model --------------------------------------------------------------------------------------------------
 // The 14 uses under their five group headings, every one shown: the enabled ones as chips, the others disabled with `soon` (never hidden).
+// Owner 2026-11-15: no "soon" entries; only the uses listed in INTAKE_VISIBLE are offered for now (one), and a group with none is not drawn. The other uses stay in CODEBASE_USES and the router.
+export const INTAKE_VISIBLE = Object.freeze(['use_codebase']);
 export const intakeModel = () => CODEBASE_USE_GROUPS.map(group => ({
   group,
-  uses: CODEBASE_USES.filter(use => use.group === group).map(use => ({ id: use.id, label: use.label, enabled: use.enabled, ...(use.enabled ? {} : { note: SOON }) })),
-}));
+  uses: CODEBASE_USES.filter(use => use.group === group && use.enabled && INTAKE_VISIBLE.includes(use.id)).map(use => ({ id: use.id, label: use.label, enabled: true })),
+})).filter(group => group.uses.length > 0);
 
 // ---- the JEV request and its reading (control plane and tests) ---------------------------------------------------------
 export function codebaseUseRequest({ text }, model) {

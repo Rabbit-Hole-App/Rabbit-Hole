@@ -21,7 +21,7 @@ export const RETRY_CATALOGUE = { id: 'retry:catalogue', label: 'Retry' };
 export const RETRY_ROUTE = { id: 'retry:route', label: 'Retry' };
 
 // Whether the intake question is open: the catalogue says it can run, and nothing has been chosen or set aside.
-export const intakeOpen = (state, cm) => !!cm && ['one', 'choose'].includes(cm.kind) && !state.use && !state.goalChosen && !state.elsewhere;
+export const intakeOpen = (state, cm) => !!cm && ['one', 'choose'].includes(cm.kind) && !state.use && !state.goalChosen && !state.elsewhere && !state.intakeDone;
 // The route the pipeline runs once "Use the codebase" is chosen with exactly one practical route.
 export const onlyRoute = doc => { const practical = (doc?.routes || []).filter(route => route.practical); return practical.length === 1 ? practical[0] : null; };
 
@@ -37,7 +37,8 @@ export function flowMessages(state, { repo }) {
   const cm = catalogueMessage(doc), set = state.goalChosen || state.elsewhere;
   out.push(note('catalogue', cm.text, ['none', 'zero'].includes(cm.kind) && !set ? cm.chips : null));
   // 3. the intake question, its chips while it is open
-  if (['one', 'choose'].includes(cm.kind)) out.push({ key: 'intake', role: 'assistant', text: SENTENCES.intake, ...(intakeOpen(state, cm) ? { groups: intakeModel() } : {}) });
+  // Asked once (owner 2026-11-15): a canvas whose intake was answered before does not show the question again unless something is chosen now.
+  if (['one', 'choose'].includes(cm.kind) && !(state.intakeDone && !state.use && !state.goalChosen && !state.elsewhere)) out.push({ key: 'intake', role: 'assistant', text: SENTENCES.intake, ...(intakeOpen(state, cm) ? { groups: intakeModel() } : {}) });
   // 4. what was typed, what the Tutor answered, the goal's own question
   for (const line of state.log) out.push(line);
   if (state.elsewhere) return out;

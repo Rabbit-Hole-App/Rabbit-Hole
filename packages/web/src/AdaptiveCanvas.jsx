@@ -6367,7 +6367,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ask: async ({ id, revision, question, destination, actionId }, { onAdmitted } = {}) => {
       const card = blocksRef.current.find(entry => entry.id === id);
       if (!card || !chatWorkspace?.ask) return false;
-      chatWorkspace.panels?.openChat?.();
+      // Ask in a new card (and a follow-up or explore card) makes a card: the right panel stays as it is (owner 2026-11-15). Only Ask in chat opens the Chat.
+      if (destination === 'here') chatWorkspace.panels?.openChat?.();
       const text = [card.title, card.body, ...(card.more || []).map(section => section.text)].filter(Boolean).join('\n\n').slice(0, 8000);
       // The card is the turn's subject, captured now. parentLink asks the written /explain to join its child card to this one (learn-slash.js insertBlock parent).
       const selection = { id, title: String(card.title || '').slice(0, 200), text, explanation: { revision, actionId }, ...(destination === 'card' ? { parentLink: { revision, actionId } } : {}), ...(destination === 'card' || destination === 'follow-up' || destination === 'explore' ? { beside: true } : {}) }; // 'follow-up' (the bottom field) and 'explore' (a term's new card, owner 2026-11-09) run the same /explain with no parentLink, so no connector joins the new card (owner 2026-11-08)

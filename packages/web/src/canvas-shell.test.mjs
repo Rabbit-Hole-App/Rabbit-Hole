@@ -95,7 +95,7 @@ test('the chat strip: the Chat\'s own composer as a pill, a small round Minimize
   assert.match(ask, /stacked=\{!!chat && !stripMode\} pill=\{stripMode\}/, 'a pill with the same tools, not the stacked box');
   // Owner 2026-11-13: Send from the strip no longer opens the panel; a small fixed-height window above the strip holds the conversation.
   assert.doesNotMatch(ask, /if \(stripMode\) chat\.panels\.openChat\(\);/, 'Send leaves the panel closed');
-  assert.match(ask, /if \(stripMode\) \{ setWindowSeen\(true\); setWinState\(state => \(state === 'min' \? 'normal' : state\)\); \}/, 'Send opens the window (and restores a minimized one)');
+  assert.match(ask, /if \(stripMode && !commandName && !command\) \{ setWindowSeen\(true\); setWinState\(state => \(state === 'min' \? 'normal' : state\)\); \}/, 'a chat question opens the window (and restores a minimized one); a slash command does not (owner 2026-11-15)');
   assert.match(ask, /const windowMode = stripMode && !!windowHost && windowSeen;/);
   assert.match(ask, /where\.appendChild\(convHost\)/);
   assert.match(ask, /\{createPortal\(conversationRegion, convHost\)\}/, 'the conversation moves into the window without remounting');

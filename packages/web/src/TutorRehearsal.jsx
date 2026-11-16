@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import { api } from './api.js';
 import { ChatMessage } from './ChatMessages.jsx';
 import { CHOICE, startGoal } from './TutorCodebase.jsx';
@@ -12,7 +12,7 @@ import { firstSourceFile } from './study-work.js';
 import { flowMessages, goalForm, intakeOpen, onlyRoute } from './rehearsal-flow.js';
 import { catalogueMessage } from './tutor-rehearsal-text.js';
 import { TUTOR_LINE_EVENT } from './tutor-lines.js';
-import { toast } from './ui.jsx';
+import { Menu, MenuItem, toast, useMenuButton } from './ui.jsx';
 
 // The initial pipeline as the Tutor's own conversation in the Chat transcript (initial-pipeline-spec.md section 1; owner: everything lives inside the AI tutor's chat as Tutor
 // messages, no card above it). Dev builds only (VITE_REHEARSAL_TRIGGER=1, ask.jsx mounts it). The messages are built by rehearsal-flow.js from this component's state; they are
@@ -23,7 +23,7 @@ import { toast } from './ui.jsx';
 const FAILS = 3; // consecutive failed reads of the state before the Tutor says so
 let counter = 0;
 const line = (role, text) => ({ key: `line-${++counter}`, role, text });
-const INITIAL = { get: null, doc: null, docError: false, use: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
+const INITIAL = { intakeDone: false, get: null, doc: null, docError: false, use: null, goalChosen: false, elsewhere: false, log: [], lines: [], routeId: null, routeTitle: '', run: null, startError: false };
 
 function Pending({ text }) {
   return <span role="status" data-rehearsal-pending className="flex items-center gap-2 pb-1.5 text-xs text-ink-2"><Loader2 size={16} aria-hidden="true" className="animate-spin text-claude" /><span className="shimmer">{text}</span></span>;
@@ -35,19 +35,29 @@ function Chips({ chips, onPick }) {
   </div>;
 }
 
-// The 14 uses under their five headings: every one shown, the unbuilt ones disabled with "soon" (never hidden). The headings wrap with the chips, so a narrow Chat keeps them readable.
+// The intake: ONE dropdown, the uses under their category headings (owner 2026-11-15; no chips, no "soon" entries). It is asked once per canvas (rememberIntake), and the Tutor can offer it again when asked in chat.
 function Intake({ groups, onPick }) {
+  const menu = useMenuButton();
   return <div data-rehearsal-intake className="flex flex-col gap-1.5 pb-1.5">
-    {groups.map(group => <div key={group.group}>
-      <p className="pb-1 text-xs text-ink-2">{group.group}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {group.uses.map(use => <button key={use.id} type="button" data-codebase-use={use.id} disabled={!use.enabled} onClick={() => onPick(`use:${use.id}`)} className={CHOICE}>
-          {use.label}{use.note === SOON && <span className="ml-1 text-ink-3">{SOON}</span>}</button>)}
-      </div>
-    </div>)}
-    <div><button type="button" data-codebase-other onClick={() => onPick('else')} className={CHOICE}>{SOMETHING_ELSE}</button></div>
+    <div>
+      <button type="button" data-rehearsal-intake-menu className={CHOICE} {...menu.buttonProps}>Choose what to do<ChevronDown size={12} aria-hidden="true" className="ml-1 inline" /></button>
+      <Menu portal anchor={menu.button.current} open={menu.open} onClose={menu.onClose} style={menu.style} className="max-h-96 w-72 overflow-y-auto">
+        <div data-menu-button-open role="menu">
+          {groups.map(group => <div key={group.group} role="group" aria-label={group.group}>
+            <p className="px-2 pt-2 pb-1 text-xs text-ink-3">{group.group}</p>
+            {group.uses.map(use => <MenuItem key={use.id} role="menuitem" data-codebase-use={use.id} disabled={!use.enabled} onClick={() => { menu.close(false); onPick(`use:${use.id}`); }}>{use.label}</MenuItem>)}
+          </div>)}
+          <MenuItem role="menuitem" data-codebase-other onClick={() => { menu.close(false); onPick('else'); }}>{SOMETHING_ELSE}</MenuItem>
+        </div>
+      </Menu>
+    </div>
   </div>;
 }
+
+// Asked once: once a canvas's intake has been answered (a use chosen, or something else), a reload does not ask again. This device's memory, per canvas.
+const intakeKey = canvas => `rh-intake-done:${canvas}`;
+export const intakeDone = canvas => { try { return localStorage.getItem(intakeKey(canvas)) === '1'; } catch { return false; } };
+export const rememberIntake = canvas => { try { localStorage.setItem(intakeKey(canvas), '1'); } catch { /* storage off: it is asked again next visit */ } };
 
 // The goal's own clarifying question (the existing goal flow, unchanged): a text field and Start, as the old menu had.
 function GoalForm({ goalId, busy, onSubmit }) {
@@ -72,7 +82,7 @@ export default function TutorRehearsalFlow({ chat }) {
 
   // The canvas's repository (repo and commit): the same read the codebase goals use. A canvas with a saved codebase activity does not start the pipeline again.
   useEffect(() => {
-    live.current = true; setS(INITIAL); route.current = null; cards.current = new Set(); kicked.current = false;
+    live.current = true; setS({ ...INITIAL, intakeDone: intakeDone(canvas) }); route.current = null; cards.current = new Set(); kicked.current = false;
     if (!eligible) return undefined;
     let on = true;
     api(`/api/learn/codebase?app=${encodeURIComponent(canvas)}&board=${encodeURIComponent(board)}`)
@@ -163,6 +173,7 @@ export default function TutorRehearsalFlow({ chat }) {
 
   choose.current = chooseUse;
   const pick = id => {
+    if (id.startsWith('use:') || id === 'else') rememberIntake(canvas); // asked once
     if (id.startsWith('use:')) chooseUse(id.slice(4));
     else if (id.startsWith('goal:')) chooseGoal(id.slice(5));
     else if (id.startsWith('route:')) { patch({ use: 'use_codebase' }); startRoute(id.slice(6), routeTitleOf(id.slice(6))); }
