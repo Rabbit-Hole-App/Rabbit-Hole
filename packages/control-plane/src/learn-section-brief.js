@@ -25,7 +25,8 @@ export const PROSE_PATH = new RegExp(PATH_PART);
 // -> null when the text is acceptable, else what is wrong with it.
 const IDENTIFIER = /^[A-Za-z_]\w*(?:\.\w+)*$/;
 export function codeNameError(text, anchored = '') {
-  if (PROSE_PATH.test(text)) return 'must have no path, file name or flag';
+  const path = PROSE_PATH.exec(text)?.[0]?.trim();
+  if (path) return `must have no path, file name or flag (found "${path}")`;
   const unknown = [];
   const rest = String(text).replace(/`([^`\n]{1,80})`/g, (_, name) => {
     const bare = name.trim().replace(/\(\)$/, '');
@@ -33,7 +34,8 @@ export function codeNameError(text, anchored = '') {
     return ' ';
   });
   if (unknown.length) return `names ${unknown.map(n => `\`${n}\``).join(', ')}, which the anchored lines do not`;
-  return CODE_TOKEN.test(rest) ? 'must be plain words; a code name only in backticks, exactly as the anchored lines spell it' : null;
+  const code = CODE_TOKEN.exec(rest)?.[0];
+  return code ? `must be plain words; a code name only in backticks, exactly as the anchored lines spell it (found "${code}")` : null;
 }
 const MATERIAL_KINDS = ['paper', 'video', 'article'];
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -50,8 +52,8 @@ export const SUBMIT_BRIEF_TOOL = {
       from: { type: 'string', description: 'One sentence: where the previous section left the reader. Empty for the first section.' },
       beats: { type: 'array', minItems: 3, maxItems: 6, items: { type: 'object', additionalProperties: false, required: ['id', 'idea', 'shows', 'anchors', 'background'], properties: {
         id: { type: 'string', description: 'b1, b2, ... in order.' },
-        idea: { type: 'string', maxLength: 200, description: 'One sentence.' },
-        shows: { type: 'string', description: 'What the learner can see, compute or try at the end of this beat.' },
+        idea: { type: 'string', maxLength: 200, description: 'One sentence in plain words; a code name only in backticks, exactly as the anchored lines spell it; no path, file name or flag.' },
+        shows: { type: 'string', description: 'What the learner can see, compute or try at the end of this beat. Plain words; a code name only in backticks, exactly as the anchored lines spell it.' },
         anchors: { type: 'array', items: { type: 'string' }, description: 'The source anchors this beat rests on: path or path:start-end from the excerpts. Empty only for a background beat.' },
         background: { type: 'boolean', description: 'True when the beat rests on your own knowledge, not the source.' },
         material: { type: ['object', 'null'], additionalProperties: false, required: ['kind', 'query', 'lookFor'], properties: {
