@@ -6,6 +6,7 @@ import { commandDefinition, fieldsFor } from './generation-confirmation-schema.j
 import { imageGenerationOn } from './generate-image.js';
 import { isBriefCommand } from './material-brief.js';
 import { isSmallTalk } from './inline-ai-route.js';
+import { REHEARSAL } from './rehearsal-flag.js';
 import { startTiming } from './client-timing.js';
 import { INTERACT_REVIEW_HEADING, isInteractProposal } from './interact-stage.js';
 
@@ -155,7 +156,7 @@ export const madeFrom = proposalId => block => (block?.operation?.proposal?.prop
 // route endpoint is not deployed (the turn is sent as today).
 async function routeDecision(fetcher, payload, { capability = null, requestId = crypto.randomUUID(), history = null } = {}) {
   const body = { request_id: requestId, app: payload.scope?.app, pending: payload.scope?.pending ?? null, text: payload.message, capability, ...(history?.length ? { history } : {}),
-    mode: payload.mode ?? 'auto', selection: payload.canvas_target ?? null, source_refs: payload.context_refs ?? null, motion: payload.generation?.motion ?? null };
+    mode: payload.mode ?? 'auto', selection: payload.canvas_target ?? null, source_refs: payload.context_refs ?? null, motion: payload.generation?.motion ?? null, ...(REHEARSAL ? { rehearsal: true } : {}) }; // rehearsal: the build flag the server's code-explain gate reads (chat-capability-route.js availability)
   // A bare greeting is never a tool request: decided here with no route request at all (the server's decideChat does the same for a direct caller).
   if (!capability && isSmallTalk(payload.message)) return { route: 'answer', via: 'default', local: true, capability: null, flow: null, token: null, retryable: false, code: null, message: null };
   let response;

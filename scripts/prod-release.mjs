@@ -42,6 +42,9 @@ export const NEVER_ON_PRODUCTION = ['TEST_BYPASS_SECRET', 'SMALL_TEST_BYPASS', '
 // The production build (rabbit-hole-production.md): never the dev/review tools or BYOC.
 export const BUILD_ENV = {
   VITE_RABBIT_HOLE: 'true',
+  // The rehearsal feature (Tutor rehearsal flow, Run card, code-explain card, Learn section dev rows) is pinned OFF in production (Reviewer 2026-11-16 11:55):
+  // rehearsal-flag.js builds it in only for '1'.
+  VITE_REHEARSAL_TRIGGER: '0',
   // /motion (owner activation GO, 2026-10-21): the production orchestrator and renderer serve it.
   VITE_MOTION: 'true',
   // Explain-back durable attempts, voice notes, Sketch panel and Tutor review (owner GO required to release; plan 2026-10-30).

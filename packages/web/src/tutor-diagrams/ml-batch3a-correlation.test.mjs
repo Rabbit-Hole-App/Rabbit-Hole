@@ -35,8 +35,10 @@ test('saved plots preserve matching frames, visible zero markers and the worked 
     const svg = renderToStaticMarkup(rendered.element);
     assert.equal(svg, renderToStaticMarkup(renderTutorDiagram(spec, width).element));
     assert.doesNotMatch(svg, /NaN|Infinity|undefined|katex-error/);
-    assert.match(svg, /<tspan [^>]*>Population ACF<\/tspan>/);
-    assert.match(svg, /<tspan [^>]*>Population PACF<\/tspan>/);
+    // LEG-1: a one-series plot has no legend pill; the series name stays in each mark's title and in the figure's description.
+    assert.equal(svg.match(/<title>Population ACF: \(/g)?.length, 4);
+    assert.equal(svg.match(/<title>Population PACF: \(/g)?.length, 4);
+    assert.match(svg, /aria-label="[^"]*Population ACF \(stem\)[^"]*Population PACF \(stem\)/);
     assert.match(svg, /white-noise innovations/);
     assert.ok(svg.includes(String.raw`data-tutor-tex="$X_t=0.6X_{t-1}+\varepsilon_t$"`));
     assert.ok(svg.includes(String.raw`data-tutor-tex="$\frac{0.36-0.6^2}{1-0.6^2}=0$"`));

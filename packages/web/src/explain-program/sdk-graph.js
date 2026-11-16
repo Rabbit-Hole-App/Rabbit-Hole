@@ -1,10 +1,10 @@
-import { ROLES } from '../scene-vocab.js';
+import { SDK_ROLES } from '../scene-vocab.js';
 
 // A small layered DAG for sandbox scenes. The caller supplies the topology;
 // this helper only places it and highlights the selected path.
 export const GRAPH_SOURCE = String.raw`
 (function () {
-  const ROLES = ${JSON.stringify(ROLES)};
+  const ROLES = ${JSON.stringify(SDK_ROLES)};
   const NODE_HEIGHT = 42, PAD = 12, COLUMN_GAP = 18, LANE_GAP = 22;
   const fail = message => { throw new RangeError('sdk.graph: ' + message); };
   const nodeId = /^[A-Za-z0-9_-]{1,16}$/;

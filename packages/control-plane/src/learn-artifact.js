@@ -31,7 +31,7 @@ import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } fr
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
 import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
 import { DEFAULT_DEPTH, DEPTH_COMMANDS, depthInstruction, explanationTarget, validDepth } from './chat-depth.js';
-import { illustrateExplanation } from './explanation-figures.js';
+import { FIGURE_STYLE_ID, illustrateExplanation } from './explanation-figures.js';
 import { readDepth } from './learn-user-settings.js';
 import { VERIFY_SYSTEM, VERIFY_TOOL, falseItems, verifyMessage } from './agents/learn-scene-verify.js';
 
@@ -435,7 +435,8 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   // Card archive: one record per request that reaches the author, success or failure (learn-storage.js archiveExplanation: logged, never thrown). No email, only the user id.
   const trace = {}, started = Date.now();
   const archive = (outcome, extra = {}) => archiveExplanation(env, { id: crypto.randomUUID(), at: new Date(started).toISOString(), ms: Date.now() - started, release: env.RELEASE_SHA ?? null, userId: access.user_id ?? null, app: body.app, board: typeof body.board === 'string' ? body.board : null,
-    request: { command: body.command, args: body.args || '', selection: body.selection || null, hasContext: Boolean(body.context), depth, sourceRefId: body.sourceRefId ?? null }, ...trace, outcome, ...extra });
+    request: { command: body.command, args: body.args || '', selection: body.selection || null, hasContext: Boolean(body.context), depth, sourceRefId: body.sourceRefId ?? null }, ...trace, outcome, ...extra,
+    ...(extra.returned?.figures ? { stylePreamble: FIGURE_STYLE_ID } : {}) }); // ILL-0 v2: a card with pictures records the style they were made with
   let celeris = null; // DEV ONLY (explain-celeris-dev.js): declared outside the try so a refused request can still report what the route saw
   try {
     // E1: what the learner explicitly asked the written card to contain, read from their own words on the server; a picture the library does not draw is told now, before any call.

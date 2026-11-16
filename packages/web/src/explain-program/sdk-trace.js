@@ -1,9 +1,9 @@
-import { ROLES } from '../scene-vocab.js';
+import { SDK_ROLES } from '../scene-vocab.js';
 
 // Interval traces use ordinary scene objects. The caller owns selection, playback and trace data.
 export const TRACE_SOURCE = String.raw`
 (function () {
-  const roles = ${JSON.stringify(ROLES)};
+  const roles = ${JSON.stringify(SDK_ROLES)};
   const safeId = /^[A-Za-z0-9_.-]{1,16}$/;
   const fail = message => { throw new RangeError('sdk.trace: ' + message); };
   const isId = id => typeof id === 'string' && safeId.test(id);
