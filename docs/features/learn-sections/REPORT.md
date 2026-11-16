@@ -109,3 +109,24 @@ PASS = met; FAIL = run and not met; UNRUN = not run tonight. Unit cases are list
 - Document anchors (headings) for non-repository sources.
 - The "already knows" term check and the "no output claim" check in prose (no term list exists).
 - No browser check of any kind (main's CLAUDE.md); no screenshots.
+
+## Follow-up on the Reviewer's 10:50 rulings (2026-11-16, 10:40-11:00 PT)
+Commits:
+- 2bf5e00cd: the rulings.
+- 8d1c3e0b0 and later on this branch: the brief schema states the backtick rule, and each refusal names the token it found.
+
+8878 is rebuilt with them (`owner/local` 6cdd6f127, `/library` 200). Rulings 1 to 8 are listed in BLOCKERS.md under "Resolved by the Reviewer, 10:50".
+
+| Re-run | Result | Spend, US$ |
+|---|---|---|
+| datasette 1.2 brief, try 1 (rule in the validator only) | FAIL: bare code names in 5 beats, ideas over one sentence | 0.089 |
+| datasette 1.2 brief, try 2 (same build) | FAIL: the same kinds of errors | 0.058 |
+| datasette 1.2 brief, try 3 (rule in the schema, token named in the refusal) | FAIL on one error only: `beat b5: idea is one sentence of at most 200 characters`. No code-name errors. | 0.083 |
+| nanoGPT 2.1 i1, rerun 1 | PASS: `/explain` slash made, balanced, 206 characters of context, lead present (`make/nano-2.1-i1-rerun1.json`) | 0.023 |
+| nanoGPT 2.1 i1, rerun 2 | skipped: "prompt uses 65". The vocabulary size is computed at run time and is not in the anchored lines, so the number rule refused it. This is not a code-name refusal. (`make/nano-2.1-i1.json`) | 0.015 |
+
+- Spend for the follow-up: about US$0.27. Running total: about US$1.57 of US$5.00.
+- Acceptance changes:
+  - C §1d.2 still PASS.
+  - The datasette 1.2 brief stays FAIL, now on the one-sentence rule only.
+  - Compose of datasette 1.2 was not run (no brief).

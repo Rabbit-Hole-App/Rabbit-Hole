@@ -44,3 +44,14 @@ Where a spec and this file disagree, this file wins. Specs: `learn-section-brief
 - The notebook package list comes from the notebook site if it publishes one; otherwise the Pyodide list as data.
 - `learn_section_*` actions get `learn_plan`'s refund and 429 handling.
 - `checkpoint.learn` keeps only `currentSectionId` and the section ids with status; briefs, compositions and made lists live in the new `learn_sections` table (`MAX_CHECKPOINT` is 16000 today, still too small for them).
+
+## Reviewer, 10:50 (rehearsal/sections 18831c15 reviewed)
+1. `tasks/learn-section-make.md` is accepted as v1 unchanged; the "pre-review" labels can go.
+2. An identifier present in the anchored lines may appear in backticks in beat ideas, explanation prompts and leads. Paths, file names and flags are still refused. Update `validateBrief` and `explanation.js`; re-run the datasette 1.2 brief and nanoGPT 2.1 i1.
+3. quiz, flashcards and practice are OUT of the section tool set (practice is a later slice).
+4. Cost: the 3 bytes a token section estimate and 2 research reads per turn are accepted as is.
+5. pdf.js in the Worker: no. Remove the 3.7 MB bundle. Paper quotes resolve in the browser on open (S); the server records `highlight: 'unverified'`; the page count comes from arXiv metadata.
+6. Words accepted: the compose-failed sentence, `LEAD_DEFAULT`, the skip note.
+7. `after` is allowed on a notebook item too (Make §7c).
+8. `purgeTutorRows`: delete `learn_sections` rows, guarded by table existence, before any prod migration is ever discussed.
+9. Nothing to main. The owner's click-through on 8878 is the gate.

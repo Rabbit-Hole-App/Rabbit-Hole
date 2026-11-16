@@ -3,8 +3,7 @@
   "section": "2.1",
   "sectionId": "2.1",
   "itemId": "i1",
-  "preReview": true,
-  "ms": 6535,
+  "ms": 7518,
   "out": {
     "skipped": {
       "itemId": "i1",
@@ -19,11 +18,11 @@
       "item": "i1",
       "command": "explanation",
       "calls": 2,
-      "usd": 0.015328,
+      "usd": 0.01451,
       "cap_usd": 0.1,
       "outcome": "invalid",
       "errors": [
-        "prompt must have no file names, paths, flags or code names: the source lines travel with it separately"
+        "prompt uses 65, which the source lines and the brief do not: use only their numbers"
       ]
     }
   ]
