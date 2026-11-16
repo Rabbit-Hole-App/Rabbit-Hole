@@ -480,7 +480,8 @@ test('held commands: the dock holds a /command Enter while busy and sends it whe
   const release = run => new RegExp(String.raw`useEffect\(\(\) => \{\n\s+if \(busy \|\| held\.current == null\) return;\n\s+const line = releaseLine\(held\.current, input\);\n\s+held\.current = null;\n\s+if \(line\) ${run}\(line\);\n\s+\}, \[busy\]\);`);
   assert.match(ask, /if \(busy && !event\.defaultPrevented && composerKey\(event\.nativeEvent, chatSendKey\(\)\) === 'send' && holdsLine\(input\)\) \{ event\.preventDefault\(\); held\.current = input; \}/);
   assert.match(ask, release('send'));
-  assert.match(picker, /intercept: raw => \{ if \(busy\) \{ held\.current = raw; return true; \} exec\(raw\); return true; \}/);
+  // A Learn section item's line (learn-section-perform.js) is refused while busy instead of held; a typed line is held as before.
+  assert.match(picker, /intercept: \(raw, section = null\) => \{ if \(busy\) \{ if \(section\) section\.onDone\?\.\(\{ notice: \{ tone: 'error', text: 'busy' \} \}\); else held\.current = raw; return true; \} exec\(raw, null, section\); return true; \}/);
   assert.match(picker, release('exec'));
 });
 
