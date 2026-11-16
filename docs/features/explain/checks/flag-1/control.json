@@ -1,0 +1,48 @@
+{
+  "google": {
+    "model": "gemini-3.5-flash-lite",
+    "planned_kind": "coordinate-plot",
+    "flag_on_has_formula_string": true,
+    "flag_on_series_items_has_anyOf": true,
+    "flag_on_series_items_keys": [
+      "anyOf"
+    ],
+    "flag_off_series_items_plain_object": true,
+    "flag_off_series_items_keys": [
+      "type",
+      "properties",
+      "required",
+      "additionalProperties"
+    ],
+    "property_count_flag_on": 315,
+    "property_count_flag_off": 308,
+    "gemini_limit": 362,
+    "flag_off_has_formula_string": false,
+    "body_bytes": 38433,
+    "original_max_tokens": 3000,
+    "stream": false
+  },
+  "cerebras": {
+    "model": "gpt-oss-120b",
+    "planned_kind": "coordinate-plot",
+    "flag_on_has_formula_string": true,
+    "flag_on_series_items_has_anyOf": true,
+    "flag_on_series_items_keys": [
+      "anyOf"
+    ],
+    "flag_off_series_items_plain_object": true,
+    "flag_off_series_items_keys": [
+      "type",
+      "properties",
+      "required",
+      "additionalProperties"
+    ],
+    "property_count_flag_on": 315,
+    "property_count_flag_off": 308,
+    "gemini_limit": 362,
+    "flag_off_has_formula_string": false,
+    "body_bytes": 42144,
+    "original_max_tokens": 3000,
+    "stream": false
+  }
+}

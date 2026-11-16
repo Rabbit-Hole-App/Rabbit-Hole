@@ -1,0 +1,83 @@
+{
+  "date": "2026-11-16",
+  "approved_cap_usd": 0.05,
+  "calls_per_provider": 1,
+  "retries": 0,
+  "flag": "EXPLANATION_FORMULA_SAMPLER=on",
+  "commit": "72a6bf353",
+  "results": [
+    {
+      "provider": "google",
+      "model": "gemini-3.5-flash-lite",
+      "key_name": "GEMINI_API_KEY",
+      "url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "max_tokens_sent": 400,
+      "http_status": 429,
+      "accepted": "no",
+      "error_text": "[{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"Your project has exceeded its monthly spending cap. Please go to AI Studio at https://ai.studio/spend to manage your project spend cap. Learn more at https://ai.google.dev/gemini-api/docs/billing#project-spend-caps. \",\n    \"status\": \"RESOURCE_EXHAUSTED\"\n  }\n}\n]"
+    },
+    {
+      "provider": "cerebras",
+      "model": "gpt-oss-120b",
+      "key_name": "CEREBRAS_API_KEY",
+      "url": "https://api.cerebras.ai/v1/chat/completions",
+      "max_tokens_sent": 400,
+      "http_status": 200,
+      "accepted": "yes",
+      "finish_reason": "length",
+      "input_tokens": 13199,
+      "output_tokens": 400,
+      "total_tokens": 13599,
+      "content_head": "{\"title\":\"Heavier‑tailed curves vs the normal curve\",\"visuals\":[{\"k\":\"diagram\",\"spec\":{\"version\":1,\"diagram\":{\"title\":\"Heavier‑tailed vs normal density\",\"caption\":\"Illustrative comparison of a normal density (",
+      "estimated_usd": 0.00492
+    }
+  ],
+  "control": {
+    "google": {
+      "model": "gemini-3.5-flash-lite",
+      "planned_kind": "coordinate-plot",
+      "flag_on_has_formula_string": true,
+      "flag_on_series_items_has_anyOf": true,
+      "flag_on_series_items_keys": [
+        "anyOf"
+      ],
+      "flag_off_series_items_plain_object": true,
+      "flag_off_series_items_keys": [
+        "type",
+        "properties",
+        "required",
+        "additionalProperties"
+      ],
+      "property_count_flag_on": 315,
+      "property_count_flag_off": 308,
+      "gemini_limit": 362,
+      "flag_off_has_formula_string": false,
+      "body_bytes": 38433,
+      "original_max_tokens": 3000,
+      "stream": false
+    },
+    "cerebras": {
+      "model": "gpt-oss-120b",
+      "planned_kind": "coordinate-plot",
+      "flag_on_has_formula_string": true,
+      "flag_on_series_items_has_anyOf": true,
+      "flag_on_series_items_keys": [
+        "anyOf"
+      ],
+      "flag_off_series_items_plain_object": true,
+      "flag_off_series_items_keys": [
+        "type",
+        "properties",
+        "required",
+        "additionalProperties"
+      ],
+      "property_count_flag_on": 315,
+      "property_count_flag_off": 308,
+      "gemini_limit": 362,
+      "flag_off_has_formula_string": false,
+      "body_bytes": 42144,
+      "original_max_tokens": 3000,
+      "stream": false
+    }
+  }
+}
