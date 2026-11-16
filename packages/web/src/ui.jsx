@@ -907,15 +907,30 @@ export function SettingsRow({ title, desc, children }) {
   );
 }
 
+// The one tooltip look (owner 2026-11-15): inverted chrome, in the browser's top layer (popover) so nothing - a panel, a card, a dialog - can cover it.
+// `hidden` until the popover is open; the UA's own popover padding, border and centring are reset here.
+export const TIP_BOX = 'pointer-events-none fixed inset-auto m-0 hidden w-max max-w-60 flex-col overflow-visible rounded-md border-0 bg-ink px-2.5 py-1.5 text-left whitespace-normal shadow-pop [&:popover-open]:flex';
+// Puts an open tooltip beside its trigger: below (side 'top': above), centred or (align 'end') on the trigger's right edge, kept 8px inside the window, flipped when it would leave it.
+export function placeTip(pop, trigger, { side = 'bottom', align = 'center' } = {}) {
+  const t = trigger.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight, gap = 6, edge = 8;
+  const wantTop = side === 'top' ? t.top - h - gap : t.bottom + gap;
+  const top = wantTop < edge || wantTop + h > window.innerHeight - edge ? (side === 'top' ? t.bottom + gap : t.top - h - gap) : wantTop;
+  const left = align === 'end' ? t.right - w : t.left + t.width / 2 - w / 2;
+  pop.style.top = `${Math.max(edge, top)}px`;
+  pop.style.left = `${Math.max(edge, Math.min(left, window.innerWidth - w - edge))}px`;
+}
+
 // Hover/focus tooltip, Notion-style inverted chrome: bold label line, plain info under it.
-// align 'end' pins the tooltip to the trigger's right edge, for triggers at the screen's right edge.
-// side 'top' opens it above the trigger, for triggers at the bottom of a panel.
+// align 'end' pins the tooltip to the trigger's right edge, for triggers at the screen's right edge. side 'top' opens it above the trigger.
 // off: no tooltip for now, with the same element tree, so the wrapped control keeps its DOM node (and its focus).
 export function Tip({ label, info, children, align = 'center', side = 'bottom', off = false }) {
+  const wrap = useRef(null), pop = useRef(null);
+  const show = () => { const p = pop.current; if (!p || typeof p.showPopover !== 'function') return; try { p.showPopover(); } catch { return; } placeTip(p, wrap.current, { side, align }); };
+  const hide = () => { try { pop.current?.hidePopover(); } catch { /* not shown */ } };
   return (
-    <span className="group/tip relative inline-flex min-w-0 max-w-full">
+    <span ref={wrap} className="group/tip relative inline-flex min-w-0 max-w-full" onMouseEnter={off ? undefined : show} onMouseLeave={off ? undefined : hide} onFocus={off ? undefined : event => { if (event.target.matches?.(':focus-visible')) show(); }} onBlur={off ? undefined : hide} onMouseDown={off ? undefined : hide}>
       {children}
-      {!off && <span role="tooltip" className={`pointer-events-none absolute ${side === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} z-50 hidden w-max max-w-60 flex-col ${align === 'end' ? 'right-0' : 'left-1/2 -translate-x-1/2'} rounded-md bg-ink px-2.5 py-1.5 text-left whitespace-normal shadow-pop group-hover/tip:flex group-focus-within/tip:flex`}>
+      {!off && <span ref={pop} popover="manual" role="tooltip" className={TIP_BOX}>
         <span className="text-xs font-semibold text-white">{label}</span>
         {info && <span className="pt-0.5 text-xs font-normal text-white/75">{info}</span>}
       </span>}

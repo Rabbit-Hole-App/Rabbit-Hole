@@ -1567,11 +1567,18 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // Files reopens where it was (spec 2a filesPlace): the file and line the repository's Files view shows while studying are kept, and a reload in Study
   // opens that file again once the snapshot is there.
   const studyFiles = repository?.files, studyPlace = study.state.filesPlace;
+  // Closing the open file (the Files X) must stick: the place is dropped when the file goes from open to closed, and the reopen below runs only when Study or the snapshot arrives, never on that close.
+  const lastFile = useRef(null);
   useEffect(() => {
     if (!study.repository || !studyFiles) return;
     if (studyFiles.open) study.filesAt({ path: studyFiles.open, line: studyFiles.jump?.path === studyFiles.open ? studyFiles.jump.start : undefined });
-    else if (study.open && studyPlace && repository.snapshot) { studyFiles.setOpen(studyPlace.path); if (studyPlace.line) studyFiles.setJump({ path: studyPlace.path, start: studyPlace.line, end: studyPlace.line, at: Date.now() }); }
-  }, [study.open, studyFiles?.open, studyFiles?.jump, !!repository?.snapshot]); // eslint-disable-line react-hooks/exhaustive-deps
+    else if (lastFile.current) study.filesShut();
+    lastFile.current = studyFiles.open;
+  }, [studyFiles?.open, studyFiles?.jump]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!study.repository || !studyFiles || studyFiles.open) return;
+    if (study.open && studyPlace && repository.snapshot) { studyFiles.setOpen(studyPlace.path); if (studyPlace.line) studyFiles.setJump({ path: studyPlace.path, start: studyPlace.line, end: studyPlace.line, at: Date.now() }); }
+  }, [study.open, !!repository?.snapshot]); // eslint-disable-line react-hooks/exhaustive-deps
   const [saveState, setSaveState] = useState(null);
   useEffect(() => {
     if (saveState?.state !== 'saved') return;
