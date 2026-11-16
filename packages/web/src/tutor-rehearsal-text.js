@@ -133,6 +133,16 @@ export const SENTENCES = {
   learnCannot: (thing, why) => `This codebase doesn't have ${thing} to learn from — ${why}. I can teach:`,
   learnCannotPlain: "This codebase doesn't have that to learn from. I can teach:",
   learnNone: "I couldn't work out what to teach from this codebase just now. Tell me what you'd like to learn.",
+  // Learn plan (learn-plan-toc-spec.md section 6, owner 2026-11-15): no repository word anywhere.
+  planAccept: 'Accept',
+  planChange: 'Change something',
+  planKeep: 'Keep the previous draft',
+  planTryAgain: 'Try again',
+  planPlain: 'Start without a plan',
+  planAccepted: n => `Plan accepted · ${n} ${n === 1 ? 'chapter' : 'chapters'}`,
+  planEditPlaceholder: 'Tell me what to change',
+  planInvalid: "I couldn't make a clean plan for this. Try again, or start without one.",
+  planDrafting: 'Drafting a plan',
   learnIntroFailed: "I couldn't open that topic just now. Try again; nothing was lost.",
 };
 

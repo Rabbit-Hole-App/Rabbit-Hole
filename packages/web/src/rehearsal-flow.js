@@ -5,6 +5,7 @@
 //
 // state: { get, doc, docError, use, mode, learn, learnIntro, goalChosen, elsewhere, log[], routeId, routeTitle, run, startError }
 //   get: the last GET /api/learn/rehearsal (schemas/learn-rehearsal-get.json); doc: the catalogue document; use: the chosen use id; run: { status, step, attempt, error, record } of routeId.
+//   plan: null | { status: 'loading' | 'draft' | 'invalid' | 'accepted' | 'plain', text, ops, base, rows, count, previous } (the Learn plan draft, learn-plan-toc-spec.md); planLog: the typed edits and the Tutor's one-line answers after it.
 //   mode: null | 'run' | 'learn' (Intake v2: the first answer); learn: the chosen option of doc.learn; learnIntro: { status: 'loading' | 'done' | 'failed', text? } the opening paragraph.
 // A message: { key, role: 'assistant' | 'user', text?, pending?, chips?, choices?, form?, actions? }. Chip: { id, label, disabled?, note? } (a pill button: Retry, the plan's actions).
 // choices: the clickable rows (ChoiceList.jsx): { id, label, hint?, star?, disabled? }. Options are always rows, never typed or in a dropdown (owner 2026-11-15).
@@ -12,6 +13,7 @@ import { CODEBASE_GOALS } from './learn-codebase-goals.js';
 import { planMessage } from './learn-rehearsal-view.js';
 import { SENTENCES, catalogueMessage, factsMessage, indexingFailure, rehearsalFailure, repoName, routeQuestion } from './tutor-rehearsal-text.js';
 import { learnOf, optionRows } from './learn-intake.js';
+import { draftText } from './learn-plan.js';
 
 // Plain words for the rehearsal's status (no status code, no machine or provider term).
 const STATUS_WORDS = { queued: 'Getting ready to try it', discovering: 'Reading how it is meant to run', provisioning: 'Setting up a place to run it', running: 'Running the steps', repairing: 'Fixing a step that did not work', planning: 'Writing up the plan' };
@@ -63,9 +65,17 @@ export function flowMessages(state, { repo }) {
   // 4b. the chosen topic's opening paragraph
   if (state.learn) {
     const intro = state.learnIntro;
-    if (!intro || intro.status === 'loading') out.push(pending('learn-intro', 'Reading the code for it'));
+    if (intro?.status === 'skipped') { /* a reload: the opening paragraph was said before */ }
+    else if (!intro || intro.status === 'loading') out.push(pending('learn-intro', 'Reading the code for it'));
     else if (intro.status === 'failed') out.push(note('learn-intro-failed', SENTENCES.learnIntroFailed, [RETRY_LEARN]));
     else out.push(note('learn-intro', intro.text));
+    // 4c. the plan: a draft of the table of contents with Accept / Change something, edited in plain words until Accept (learn-plan-toc-spec.md section 1)
+    const plan = state.plan;
+    if (plan?.status === 'loading') out.push(pending('learn-plan', SENTENCES.planDrafting));
+    else if (plan?.status === 'draft') out.push(note('learn-plan', draftText(plan.text, plan.ops), null, plan.rows.map(row => ({ ...row, disabled: !!plan.busy }))));
+    else if (plan?.status === 'invalid') out.push(note('learn-plan', SENTENCES.planInvalid, null, plan.rows));
+    else if (plan?.status === 'accepted') out.push(note('learn-plan', SENTENCES.planAccepted(plan.count)));
+    for (const line of state.planLog || []) out.push(line);
   }
   if (state.elsewhere) return out;
   // 5. "Use the codebase": the route question when more than one route is practical, then the rehearsal

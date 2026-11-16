@@ -20,6 +20,6 @@ test('a decided codebase-options turn asks the Tutor flow to offer the list agai
   assert.match(ask, /new CustomEvent\(CODEBASE_OPTIONS_EVENT, \{ detail: offer \}\)/);
   assert.match(ask, /if \(offer\.handled\) \{ setMsgs\(m => m\.slice\(0, -2\)\); return; \}\n\s+Object\.assign\(outcome, \{ send: true, token: null, answerOnly: true, direct: null \}\);/, 'unhandled: sent as an answer-only turn');
   assert.match(flow, /window\.addEventListener\(CODEBASE_OPTIONS_EVENT, again\)/);
-  assert.match(flow, /event\.detail\.handled = true; forgetIntake\(canvas\); patch\(\{ intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, focus: null, goalChosen: false, elsewhere: false, form: null \}\)/);
+  assert.match(flow, /event\.detail\.handled = true; forgetIntake\(canvas\); patch\(\{ intakeDone: false, use: null, mode: null, learn: null, learnIntro: null, plan: null, planLog: \[\], focus: null, goalChosen: false, elsewhere: false, form: null \}\)/);
   assert.equal(CODEBASE_OPTIONS_EVENT, 'rh-codebase-options');
 });
