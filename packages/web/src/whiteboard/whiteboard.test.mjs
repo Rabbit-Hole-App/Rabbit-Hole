@@ -123,7 +123,7 @@ test('the review card: Generate approves the job, the heading and cost line are 
   const p = { command: 'whiteboard-video', proposal_id: 'p1', version: 2, input: { job: 'wj_1' }, settings: { duration_seconds: 30 }, usage: { max_credits: 391 } };
   assert.equal(approvesJob(p), true);
   assert.equal(startAdapter(p, { approveExplain() {} }), 'job');
-  assert.deepEqual(jobReviewCopy(p), { eyebrow: 'Review your whiteboard', note: 'up to 391 credits' });
+  assert.deepEqual(jobReviewCopy(p), { eyebrow: 'Review your whiteboard', note: 'up to 391 AI units' });
   assert.deepEqual(jobReviewCopy({ ...p, usage: null }), { eyebrow: 'Review your whiteboard' }, 'no server figure, no cost line');
   assert.equal(durationRefinement({ settings: { duration_seconds: 60 } }, p), 'duration: 30');
   assert.equal(durationRefinement({ settings: { duration_seconds: 30 } }, p), null);
