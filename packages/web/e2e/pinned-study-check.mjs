@@ -476,15 +476,13 @@ await check('10 a narrow space stacks the reference above the work, from the rea
 
 await check('11 a failed preference save says Not saved, never Saved; the arrangement survives a reload when storage works', async () => {
   const before = counts();
-  await page.getByText('Saved on this browser', { exact: true }).waitFor();
   await page.evaluate(() => { const real = Storage.prototype.setItem; window.__realSet = real; Storage.prototype.setItem = function (key, value) { if (String(key).endsWith(':study')) throw new DOMException('blocked', 'QuotaExceededError'); return real.call(this, key, value); }; });
   await page.getByRole('separator', { name: 'Resize pinned reference' }).focus();
   await page.keyboard.press('ArrowLeft');
   await page.getByText('Not saved: this browser is not allowing Rabbit Hole to store this. It applies until you reload.', { exact: true }).waitFor({ timeout: 5000 });
-  assert.equal(await page.getByText('Saved on this browser', { exact: true }).count(), 0, 'never reported as saved');
   await page.evaluate(() => { Storage.prototype.setItem = window.__realSet; });
   await page.keyboard.press('ArrowRight');
-  await page.getByText('Saved on this browser', { exact: true }).waitFor({ timeout: 5000 });
+  await page.getByText('Not saved: this browser is not allowing Rabbit Hole to store this. It applies until you reload.', { exact: true }).waitFor({ state: 'detached', timeout: 5000 });
   const stored = await page.evaluate(key => JSON.parse(localStorage.getItem(key)), STUDY);
   assert.equal(stored.pin.cardId, 'ex');
   assert.equal(stored.mode, 'study');
@@ -500,7 +498,6 @@ await check('12 a reload restores Study: the same pin, split and working view, s
   assert.equal(await page.getByRole('separator', { name: 'Resize pinned reference' }).getAttribute('aria-valuenow'), split);
   assert.equal(await page.locator('[data-study-work]').getAttribute('data-study-work'), 'canvas');
   assert.deepEqual(await viewChecked(), [['Canvas', 'false'], ['Study', 'true']]);
-  await page.getByText('Saved on this browser', { exact: true }).waitFor();
   // The reload is a new page: mark its frame again for the steps after.
   await page.locator('[data-notebook-frame]').waitFor();
   await until(async () => loads.length === 2, 'the reload loads the notebook once');

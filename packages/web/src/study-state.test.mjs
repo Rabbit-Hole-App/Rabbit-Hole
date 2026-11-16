@@ -140,7 +140,7 @@ test('persistence status: durable storage is Saved; blocked, throwing or memory-
   const pinned = studyReducer(defaultStudy(), { type: 'pin', cardId: 'pdf1', kind: 'pdf', ref: PDF_REF });
   const durable = writeStudy(memory(), KEY, pinned);
   assert.deepEqual(durable, { ok: true, durable: true });
-  assert.equal(studyStatusText(durable.ok ? 'saved' : 'error'), 'Saved on this browser');
+  assert.equal(studyStatusText(durable.ok ? 'saved' : 'error'), '', 'a good save says nothing');
   for (const storage of [null, { getItem: () => null, setItem: () => { throw Error('SecurityError'); } }]) {
     const result = writeStudy(storage, KEY, pinned);
     assert.equal(result.ok, false);

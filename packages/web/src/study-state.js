@@ -103,9 +103,9 @@ export function writeStudy(storage, scope, state) {
     return { ok: false, durable: false, error: String(error?.message || error) };
   }
 }
-// The pane's status line for the last write (or the value read at open): saved only when the browser keeps it.
+// The pane's status line for the last write: only a failure is said (owner 2026-11-15: no "Saved on this browser" line); a good save shows nothing.
 export const NOT_SAVED = 'Not saved: this browser is not allowing Rabbit Hole to store this. It applies until you reload.';
-export const studyStatusText = status => (status === 'saved' ? 'Saved on this browser' : status === 'error' ? NOT_SAVED : '');
+export const studyStatusText = status => (status === 'error' ? NOT_SAVED : '');
 
 // The reader's Pin for study (the Context reader): the one PDF card on this canvas whose ref is the source being read.
 // Two cards of one source are ambiguous, so neither is guessed: null, and the reader offers no pin.

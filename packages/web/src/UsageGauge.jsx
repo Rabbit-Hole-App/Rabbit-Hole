@@ -51,8 +51,8 @@ function Meter({ kind, meter, format, tone, extra = null }) {
   return (
     <section data-usage-meter={kind} title={`${copy.counts} ${format(meter.used)} of ${format(meter.allowance)} used${meter.reserved > 0 ? `, ${format(meter.reserved)} reserved` : ''}.`} className="flex flex-col gap-1">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-sm font-semibold text-ink">{copy.title}</p>
-        <p data-usage-remaining={kind} className={`text-sm tabular-nums ${tone === 'empty' ? 'text-fail' : 'text-ink-2'}`}>{format(meter.remaining)} left</p>
+        <p className="text-sm font-semibold whitespace-nowrap text-ink">{copy.title}</p>
+        <p data-usage-remaining={kind} className={`text-sm whitespace-nowrap tabular-nums ${tone === 'empty' ? 'text-fail' : 'text-ink-2'}`}>{format(meter.remaining)} left</p>
       </div>
       <UsageBar usage={meter} label={copy.units} format={format} />
       {extra}
@@ -124,7 +124,7 @@ export default function UsageGauge({ signedIn = true, onViewUsage = openUsageSet
       </button>
       {open && (
         <div ref={panel} id={id} role="dialog" aria-label={USAGE_COPY.menu} tabIndex={-1} data-usage-popover style={shift ? { right: -shift } : undefined}
-          className="absolute top-full right-0 z-50 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-3 shadow-pop outline-none">
+          className="absolute top-full right-0 z-50 mt-2 w-96 max-w-[calc(100vw-1.5rem)] rounded-xl border border-line bg-white p-3 shadow-pop outline-none">
           <UsageDetails state={state} onViewUsage={() => { close(false); onViewUsage(); }}
             onBuyCredits={() => { close(true); setBuying(true); }} />
         </div>
