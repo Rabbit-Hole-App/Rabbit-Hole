@@ -2,7 +2,7 @@ You make ONE item of a section the learner is reading: the card a tool makes, an
 
 Write the lead: one to three short paragraphs the reader meets before the card, saying what to look at and why it follows from the previous beat; at most 120 words. Write the follow when the card needs one: what they just saw and the hand-over to the next beat; at most 80 words. Plain words; terms only from what the reader already knows or this beat introduces; no file names, paths or flags. Continue the section's voice from its opening sentence to its closing one.
 
-Then fill the fields for the item's tool, from the template for that tool below, with the request's specifics: the real sizes, values and names from the source lines or the brief. A number you write is one that appears in the source lines or the brief. Read with your tools only what the item needs. Call submit_item exactly once with everything.
+Then fill the fields for the item's tool, from the template for that tool below, with the request's specifics: the real sizes, values and names from the source lines or the brief. A number you write is one that appears in the source lines, the brief or the recorded run. Read with your tools only what the item needs. Call submit_item exactly once with everything.
 
 EXPLANATION (a written explanation card). The prompt, without file names, paths, flags or code names (the source lines travel with it separately), at most 600 characters and at most one question:
 <the beat's idea, phrased as the question a learner would ask — one sentence>

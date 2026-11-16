@@ -81,3 +81,20 @@ The entries below keep their overnight text; these rulings close them.
 ## Deviations from the specs
 
 - **No screenshots.** The overnight brief asks for screenshots where a card is made. Main's CLAUDE.md (Browser verification) forbids Claude browser checks unless the owner authorizes an exception, so the evidence is API-level only: the requests, the server's returned `perform` and the stored records. What is needed: the owner clicks **Make section** on 8878 to see the cards.
+
+## Reviewer 11:00 rulings
+- **Beat ideas:** a beat idea is one idea in one or two short sentences, at most 220 characters.
+  - The overlay sentence, in `tasks/learn-section-brief.md` and in the spec's copy, is replaced exactly as ruled.
+  - `validateBrief` allows at most 2 sentences and 220 characters, and the schema's `maxLength` is now 220.
+- **Recorded run:** this was not wired before. Make's `ctx.record` was never set (TOOLS' entry above), so graph.js traced against nothing. It is wired now:
+  - `learn-section-record.js recordedRun(env, repo)` reads every rehearsal record of the canvas's repository version from R2, the same keys `learn-rehearsal.js` writes.
+  - From each record it renders RECORDED RUN lines: per step, the command, exit code and seconds, its files with their byte counts, and the short lines of its log that carry a number. It reads the log from the record's artifacts zip, drops stderr and drops config assignments.
+  - The text is capped at 4000 characters and cached per isolate.
+  - It goes into the Make message and onto `ctx.record`. The explanation validator accepts a number found there, and graph.js already reads `ctx.record`.
+  - The route now passes `repo.id` to `runMake`.
+  - The overlay sentence in `tasks/learn-section-make.md`, paragraph 3, is replaced exactly as ruled. The spec carries no copy of that sentence.
+
+## Pre-existing test failures (fail on 18831c150 too; not section code)
+- `test/explain-heat-grid.test.js:62`, "a saved spectrogram can switch windows and reload with the same dB scale and axes": the `programSdkSource` sha256 is `d401a602…`, while the artifact's `fingerprints.sdk` is `db982cd2…`.
+- `test/explain-program-budget.test.js:69`, "the author request with the program route": `assert.ok(fixed < 44000)` fails at 44007 bytes.
+- `test/explanation-gemini-illustration-bundles.test.js:49`, "the unsteered bundle is unchanged by the three illustration kinds": `props(s) === 134` or the length `9832` fails for "how does the water cycle work?".

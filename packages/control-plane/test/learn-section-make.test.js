@@ -113,7 +113,8 @@ test('explanation: a planted prompt naming train.py is refused (C §1d.3); a sec
   assert.match((await explanation.validate({ prompt: 'How does completionPercent work?' }, exCtx())).error, /^prompt must be plain words; a code name only in backticks/);
   assert.equal((await explanation.validate({ prompt: 'Why? And how?' }, exCtx())).error, 'prompt asks one question at most');
   assert.match((await explanation.validate({ prompt: 'x'.repeat(601) }, exCtx())).error, /^prompt is at most 600 characters/);
-  assert.match((await explanation.validate({ prompt: 'Show it on a list of 7 tasks.' }, exCtx())).error, /^prompt uses 7, which the source lines and the brief do not/);
+  assert.match((await explanation.validate({ prompt: 'Show it on a list of 7 tasks.' }, exCtx())).error, /^prompt uses 7, which the source lines, the brief and the recorded run do not/);
+  assert.equal((await explanation.validate({ prompt: 'Show it on a list of 7 tasks.' }, exCtx({ record: 'step prepare: python prepare.py (exit 0, 0.85 s)\n  vocab size: 7' }))).error, undefined, 'a number from the recorded run (Reviewer 11:00)');
   assert.equal((await explanation.validate({ prompt: 'Show it on a list of 3 tasks with 100 as the top.' }, exCtx())).error, undefined, 'numbers from the request and the lines');
 });
 
