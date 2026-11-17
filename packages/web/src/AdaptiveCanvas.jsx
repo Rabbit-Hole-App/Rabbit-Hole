@@ -42,6 +42,7 @@ import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objec
 import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { usePlayingCard } from './audio-playing.js';
+import TranscriptWindow from './TranscriptWindow.jsx';
 import { activeSection, presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
 import { outlineFrom, applyTocAction, moveTocSection, toggleTocDone, removeTocEntry, linkTocHeading, tocHeading, tocEntryFor } from './learn-outline-model.js';
@@ -525,6 +526,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       {full && !locked && edit.selectionCount <= 1 && ['left','right'].map(side => <button key={side} type="button" role="slider" aria-orientation="horizontal" aria-label={`Resize card width from ${side}`} aria-valuemin={limits.min} aria-valuemax={limits.max} aria-valuenow={Math.round(displayWidth)} data-node-tool className={`absolute top-6 bottom-2 z-20 w-2 cursor-ew-resize focus-visible:bg-accent/30 ${side === 'left' ? '-left-1' : '-right-1'}`} onPointerDown={event => resizeWidth(event, side)} onKeyDown={event => resizeWidthKey(event, side)} />)}
       {!locked && resizable && <button type="button" aria-label="Resize chat block" title="Resize block" className="absolute right-0 bottom-0 z-10 cursor-nwse-resize p-1 text-ink-3 opacity-0 group-hover:opacity-100 hover:text-ink-2 focus:opacity-100"
         data-node-tool onPointerDown={resize}><svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 4 4 10 M10 8 8 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" /></svg></button>}
+      <TranscriptWindow id={id} />
     </div>
   );
   return footprint ? <div data-card-slot={id} className={`relative mx-auto shrink-0 overflow-visible ${selected ? 'z-[5]' : ''}`} style={{ width: footprint.w, height: footprint.h, marginTop: space || undefined }}>{node}</div> : node;

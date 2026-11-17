@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, Pause, Play, RotateCcw } from 'lucide-react';
 import { followSource } from './IllustrationFigure.jsx';
-import { clearPlayingCard, setPlayingCard } from './audio-playing.js';
+import { clearPlayingCard, closeTranscript, openTranscript, restartTranscript, setPlayingCard, updateTranscript } from './audio-playing.js';
 
 let playing = null; // the audio element that is playing now; starting another pauses it
 
@@ -19,15 +19,17 @@ function AudioPill({ narration, cardId }) {
   const [phase, setPhase] = useState('idle'); // idle | loading | playing | paused
   const [failed, setFailed] = useState(false), [url, setUrl] = useState(''), [wanted, setWanted] = useState(false);
   const audio = () => ref.current || (ref.current = new Audio());
-  const fail = () => { want.current = null; halted.current = true; audio().pause(); setPhase('idle'); setFailed(true); };
+  const live = useRef({}); live.current = { cardId, script: narration.script }; // the transcript window's owner and text (audio-playing.js), read by the element's events
+  const fail = () => { want.current = null; halted.current = true; audio().pause(); setPhase('idle'); setFailed(true); if (cardId) closeTranscript(cardId); };
   const failRef = useRef(fail); failRef.current = fail;
 
   useEffect(() => {
     const a = audio();
     const on = {
-      play: () => setPhase('playing'),
+      play: () => { setPhase('playing'); const { cardId: id, script } = live.current; if (id) { openTranscript(id, script); if (a.currentTime < 0.05) restartTranscript(id); } },
+      timeupdate: () => { const { cardId: id } = live.current; if (id) updateTranscript(id, a.currentTime, a.duration); },
       pause: () => { if (!a.ended && !halted.current) setPhase('paused'); },
-      ended: () => { a.currentTime = 0; setPhase('idle'); },
+      ended: () => { const { cardId: id } = live.current, length = a.duration; a.currentTime = 0; setPhase('idle'); if (id && length > 0) updateTranscript(id, length, length); }, // the window stays open with the full text
       error: () => failRef.current(), stalled: () => failRef.current(),
     };
     for (const [name, fn] of Object.entries(on)) a.addEventListener(name, fn);
@@ -57,7 +59,7 @@ function AudioPill({ narration, cardId }) {
   const active = phase === 'playing', loading = phase === 'loading';
   // The canvas card's green frame and the minimap's mark follow `phase === 'playing'` (audio-playing.js); a pause, the end, a failure or unmounting clears it.
   useEffect(() => { if (cardId) { if (active) setPlayingCard(cardId); else clearPlayingCard(cardId); } }, [active, cardId]);
-  useEffect(() => () => { if (cardId) clearPlayingCard(cardId); }, [cardId]);
+  useEffect(() => () => { if (cardId) { clearPlayingCard(cardId); closeTranscript(cardId); } }, [cardId]);
   const label = failed ? 'Audio could not play. Try again.' : active ? 'Pause explanation' : 'Play explanation';
   return (
     <span data-explanation-audio data-audio-state={failed ? 'failed' : phase} onPointerDown={stop} className={PILL}>

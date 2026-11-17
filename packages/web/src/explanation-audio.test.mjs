@@ -35,7 +35,7 @@ globalThis.URL.revokeObjectURL = () => {};
 
 const dir = mkdtempSync(join(tmpdir(), 'explanation-audio-')), outfile = join(dir, 'explanation.cjs');
 await esbuild.build({
-  stdin: { contents: "export { LearningBlockBody } from './LearningBlocks.jsx'; export { getPlayingCard } from './audio-playing.js'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { LearningBlockBody } from './LearningBlocks.jsx'; export { getPlayingCard, getTranscript, closeTranscript } from './audio-playing.js'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'error',
   loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'stubs', setup(build) {
@@ -259,4 +259,36 @@ test('the playing card id follows audible playback: set on play, cleared on paus
   await B.act(async () => root.unmount());
   root = null;
   assert.equal(B.getPlayingCard(), null, 'unmounting');
+});
+
+test('the transcript window data follows the audio: opens on play with the script, t and d from timeupdate, stays on pause and at the end, replaces on another card, closes on failure and unmount', async () => {
+  reset(); B.closeTranscript('a'); B.closeTranscript('b');
+  await mount(card('a', { narration: ready('fs_a', { script: 'First card words.' }) }), card('b', { narration: ready('fs_b', { script: 'Second card words.' }) }), card('c', { narration: ready('fs_c', { script: '' }) }));
+  const [first, second, third] = $$('[data-explanation-audio]');
+  assert.equal(B.getTranscript(), null, 'idle: no window');
+  await click(first.querySelector('[data-audio-play]'));
+  assert.deepEqual(B.getTranscript(), { cardId: 'a', script: 'First card words.', t: 0, d: 0 });
+  await raise(audios[0], 'timeupdate', { currentTime: 3, duration: 10 });
+  assert.equal(B.getTranscript().t, 3); assert.equal(B.getTranscript().d, 10);
+  await click(first.querySelector('[data-audio-play]'));
+  assert.equal(B.getTranscript()?.cardId, 'a', 'paused: the window stays, frozen');
+  await click(first.querySelector('[data-audio-play]'));
+  assert.equal(B.getTranscript().t, 3, 'a resume keeps the position');
+  await click(second.querySelector('[data-audio-play]'));
+  assert.equal(B.getTranscript().cardId, 'b', 'another card starting takes the window');
+  await raise(audios[1], 'timeupdate', { currentTime: 4, duration: 8 });
+  await raise(audios[1], 'ended', { ended: true, paused: true });
+  assert.equal(B.getTranscript().t, 8, 'the end keeps the window with the full text'); assert.equal(B.getTranscript().d, 8);
+  await click(second.querySelector('[data-audio-replay]'));
+  assert.equal(B.getTranscript().t, 0, 'a replay starts the window again');
+  await click(third.querySelector('[data-audio-play]'));
+  assert.equal(B.getTranscript(), null, 'a card with no script has no window');
+  await click(first.querySelector('[data-audio-replay]'));
+  assert.equal(B.getTranscript().cardId, 'a');
+  await raise(audios[0], 'error');
+  assert.equal(B.getTranscript(), null, 'a failure closes it');
+  await click(second.querySelector('[data-audio-replay]'));
+  await B.act(async () => root.unmount());
+  root = null;
+  assert.equal(B.getTranscript(), null, 'unmounting closes it');
 });
