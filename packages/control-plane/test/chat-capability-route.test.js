@@ -190,8 +190,8 @@ test('the signed decision keeps the canvas, words, mode, selection, refs and Mot
   const motion = { concept: 'Photosynthesis', context: { kind: 'card' } };
   const out = await decideWith(counted(jev('motion', 0.95)), 'Make this into a video', { over: { selection, source_refs: refs, motion } });
   const ask = { scope: { app: 'canvas-0a1b2c3d' }, message: 'Make this into a video', mode: 'auto', canvas_target: selection, context_refs: refs, generation: { motion }, route_token: out.token };
-  assert.deepEqual(await verifyChatRoute(ENV, ask, EMAIL), { cap: 'motion', flow: 'proposal' });
-  assert.deepEqual(await verifyChatRoute(ENV, { ...ask, canvas_target: { text: 'Light reactions', title: 'Photosynthesis', kind: 'card', id: 'k-card' } }, EMAIL), { cap: 'motion', flow: 'proposal' }, 'key order is not part of it');
+  assert.deepEqual(await verifyChatRoute(ENV, ask, EMAIL), { cap: 'motion', flow: 'proposal', confidence: 0.9 });
+  assert.deepEqual(await verifyChatRoute(ENV, { ...ask, canvas_target: { text: 'Light reactions', title: 'Photosynthesis', kind: 'card', id: 'k-card' } }, EMAIL), { cap: 'motion', flow: 'proposal', confidence: 0.9 }, 'key order is not part of it');
   for (const changed of [{ scope: { app: 'canvas-ffffffff' } }, { message: 'Make this into a long video' }, { mode: 'ask' }, { canvas_target: { ...selection, id: 'k-other' } }, { canvas_target: undefined }, { context_refs: [] }, { generation: { motion: { concept: 'Respiration' } } }, { route_token: tamper(out.token) }]) {
     assert.equal(await verifyChatRoute(ENV, { ...ask, ...changed }, EMAIL), null, JSON.stringify(Object.keys(changed)));
   }

@@ -1,0 +1,685 @@
+{
+ "version": "rehearsal-1",
+ "routeId": "shakespeare_char_cpu",
+ "repo": "karpathy/nanoGPT",
+ "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+ "hardware": "cpu",
+ "provider": "modal",
+ "sandboxId": "sb-01M7GDXF84BS9K49GB3C8TX0WP",
+ "terminated": true,
+ "sandboxesLeftAfter": 0,
+ "image": {
+  "ref": "modal:im-8VpybE4cwE9oblPPZlmrdr (python:3.12-slim)",
+  "digest": "sha256:03b891cb7412bb76303f343d744a4c4bb150d7267840e9371122d21ac8f66d84"
+ },
+ "model": "claude-sonnet-5-5",
+ "startedUtc": "2026-11-15T20:20:54Z",
+ "finishedUtc": "2026-11-15T20:23:50Z",
+ "wallSec": 175.8,
+ "environment": {
+  "python": "3.12.16",
+  "cpu": 2,
+  "memGiB": 4,
+  "packagesAfter": {
+   "certifi": "2026.10.23",
+   "charset-normalizer": "3.5.2",
+   "filelock": "4.2.4",
+   "fsspec": "2026.9.0",
+   "idna": "3.20",
+   "Jinja2": "3.1.6",
+   "MarkupSafe": "3.0.3",
+   "mpmath": "1.3.0",
+   "networkx": "3.7",
+   "numpy": "2.5.4",
+   "pip": "25.0.1",
+   "regex": "2026.11.15",
+   "requests": "2.34.2",
+   "setuptools": "78.1.0",
+   "sympy": "1.14.0",
+   "tiktoken": "0.14.0",
+   "torch": "2.15.0+cpu",
+   "typing_extensions": "4.16.0",
+   "urllib3": "2.8.0"
+  }
+ },
+ "route": {
+  "routeId": "shakespeare_char_cpu",
+  "title": "Train a tiny Shakespeare model on CPU and read what it writes",
+  "whyChosen": "These are the README's own four quick-start commands for a CPU-only machine (README.md:22, 40, 85, 91), run verbatim. The repository has no pyproject.toml, so nothing is installed from the checkout and the README's pip line is used as is. No `uv run` prefix was involved.",
+  "prerequisites": [],
+  "install": [
+   {
+    "cmd": "pip install torch numpy tiktoken requests",
+    "source": "README.md:22",
+    "trimmedFrom": "pip install torch numpy transformers datasets tiktoken wandb tqdm"
+   }
+  ],
+  "steps": [
+   {
+    "id": "prepare_data",
+    "cmd": "python data/shakespeare_char/prepare.py",
+    "source": "README.md:40",
+    "timeoutSec": 120,
+    "checks": [
+     {
+      "type": "exit_zero"
+     },
+     {
+      "type": "files_exist",
+      "paths": [
+       "data/shakespeare_char/train.bin",
+       "data/shakespeare_char/val.bin",
+       "data/shakespeare_char/meta.pkl"
+      ]
+     },
+     {
+      "type": "stdout_matches",
+      "pattern": "vocab size: 65"
+     }
+    ]
+   },
+   {
+    "id": "train_cpu",
+    "cmd": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+    "source": "README.md:85",
+    "timeoutSec": 1200,
+    "checks": [
+     {
+      "type": "exit_zero"
+     },
+     {
+      "type": "files_exist",
+      "paths": [
+       "out-shakespeare-char/ckpt.pt"
+      ]
+     },
+     {
+      "type": "metric_decreased",
+      "pattern": "^iter \\d+: loss (\\d+\\.\\d+)"
+     },
+     {
+      "type": "stdout_matches",
+      "pattern": "^iter 1999: loss"
+     }
+    ]
+   },
+   {
+    "id": "sample_text",
+    "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu",
+    "source": "README.md:91",
+    "timeoutSec": 300,
+    "checks": [
+     {
+      "type": "exit_zero"
+     },
+     {
+      "type": "stdout_matches",
+      "pattern": "Loading meta from data/shakespeare_char/meta.pkl"
+     },
+     {
+      "type": "stdout_matches",
+      "pattern": "^---------------$"
+     }
+    ]
+   }
+  ],
+  "knobs": [
+   {
+    "step": "train_cpu",
+    "flag": "--max_iters",
+    "default": "600000",
+    "type": "int",
+    "source": "train.py:59",
+    "safeValue": "300"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--n_layer",
+    "default": "12",
+    "type": "int",
+    "source": "train.py:52",
+    "safeValue": "2"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--n_embd",
+    "default": "768",
+    "type": "int",
+    "source": "train.py:54",
+    "safeValue": "64"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--block_size",
+    "default": "1024",
+    "type": "int",
+    "source": "train.py:50",
+    "safeValue": "32"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--batch_size",
+    "default": "12",
+    "type": "int",
+    "source": "train.py:49",
+    "safeValue": "8"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--dropout",
+    "default": "0.0",
+    "type": "float",
+    "source": "train.py:55",
+    "safeValue": "0.1"
+   },
+   {
+    "step": "sample_text",
+    "flag": "--temperature",
+    "default": "0.8",
+    "type": "float",
+    "source": "sample.py:17",
+    "safeValue": "0.5"
+   },
+   {
+    "step": "sample_text",
+    "flag": "--max_new_tokens",
+    "default": "500",
+    "type": "int",
+    "source": "sample.py:16",
+    "safeValue": "200"
+   },
+   {
+    "step": "sample_text",
+    "flag": "--num_samples",
+    "default": "10",
+    "type": "int",
+    "source": "sample.py:15",
+    "safeValue": "2"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--out_dir",
+    "default": "out",
+    "type": "string",
+    "source": "train.py:35"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--eval_interval",
+    "default": "2000",
+    "type": "int",
+    "source": "train.py:36"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--eval_only",
+    "default": "False",
+    "type": "bool",
+    "source": "train.py:39"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--always_save_checkpoint",
+    "default": "True",
+    "type": "bool",
+    "source": "train.py:40"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--init_from",
+    "default": "scratch",
+    "type": "string",
+    "source": "train.py:41"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--wandb_log",
+    "default": "False",
+    "type": "bool",
+    "source": "train.py:43"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--wandb_project",
+    "default": "owt",
+    "type": "string",
+    "source": "train.py:44"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--wandb_run_name",
+    "default": "gpt2",
+    "type": "string",
+    "source": "train.py:45"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--dataset",
+    "default": "openwebtext",
+    "type": "string",
+    "source": "train.py:47"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--bias",
+    "default": "False",
+    "type": "bool",
+    "source": "train.py:56"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--learning_rate",
+    "default": "6e-4",
+    "type": "float",
+    "source": "train.py:58"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--weight_decay",
+    "default": "1e-1",
+    "type": "float",
+    "source": "train.py:60"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--beta1",
+    "default": "0.9",
+    "type": "float",
+    "source": "train.py:61"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--beta2",
+    "default": "0.95",
+    "type": "float",
+    "source": "train.py:62"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--grad_clip",
+    "default": "1.0",
+    "type": "float",
+    "source": "train.py:63"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--decay_lr",
+    "default": "True",
+    "type": "bool",
+    "source": "train.py:65"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--warmup_iters",
+    "default": "2000",
+    "type": "int",
+    "source": "train.py:66"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--min_lr",
+    "default": "6e-5",
+    "type": "float",
+    "source": "train.py:68"
+   },
+   {
+    "step": "train_cpu",
+    "flag": "--backend",
+    "default": "nccl",
+    "type": "string",
+    "source": "train.py:70"
+   },
+   {
+    "step": "sample_text",
+    "flag": "--init_from",
+    "default": "resume",
+    "type": "string",
+    "source": "sample.py:12"
+   },
+   {
+    "step": "sample_text",
+    "flag": "--start",
+    "default": "\\n",
+    "type": "string",
+    "source": "sample.py:14"
+   },
+   {
+    "step": "sample_text",
+    "flag": "--top_k",
+    "default": "200",
+    "type": "int",
+    "source": "sample.py:18"
+   },
+   {
+    "step": "sample_text",
+    "flag": "--seed",
+    "default": "1337",
+    "type": "int",
+    "source": "sample.py:19"
+   },
+   {
+    "step": "sample_text",
+    "flag": "--compile",
+    "default": "False",
+    "type": "bool",
+    "source": "sample.py:22"
+   }
+  ]
+ },
+ "attempts": [
+  {
+   "step": "install",
+   "n": 1,
+   "cmd": "pip install torch numpy tiktoken requests",
+   "rc": 0,
+   "sec": 2.26,
+   "stderrTail": "\n[notice] A new release of pip is available: 25.0.1 -> 26.3\n[notice] To update, run: pip install --upgrade pip",
+   "log": "logs/install-1.log"
+  },
+  {
+   "step": "prepare_data",
+   "n": 1,
+   "cmd": "python data/shakespeare_char/prepare.py",
+   "rc": 0,
+   "sec": 0.85,
+   "stderrTail": "length of dataset in characters: 1,115,394\nall the unique characters: \n !$&',-.3:;?ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\nvocab size: 65\ntrain has 1,003,854 tokens\nval has 111,540 tokens",
+   "log": "logs/prepare_data-1.log"
+  },
+  {
+   "step": "train_cpu",
+   "n": 1,
+   "cmd": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+   "rc": 0,
+   "sec": 108.39,
+   "stderrTail": "/work/repo/train.py:196: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.\n  scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))\n/usr/local/lib/python3.12/site-packages/torch/cuda/amp/grad_scaler.py:31: UserWarning: torch.cuda.amp.GradScaler is enabled, but CUDA is not available.  Disabling.\n  super().__init__(",
+   "log": "logs/train_cpu-1.log"
+  },
+  {
+   "step": "sample_text",
+   "n": 1,
+   "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu",
+   "rc": 0,
+   "sec": 14.72,
+   "stderrTail": "\nRomest and the facll by lords him,\nNot that lop, thou are frien when,\nWhich nought ye fair safy same, wrow you,\nwhat not the do con the sunry coursel\nThe ill hims urn this one arme our too?\n\nLADO:\nYou beand our king upor teept more put thein;\nYou do mile spord of unfent all of death lied,\nAs a that he beck his not with tie my ret our\nThan with the wommer not lonks consomes'd?\n\nMORCUSE:\nThat you have bod love mort are sead the how.\n\nKING RIC& Eymewing:\nAway hat baine whem ske fall be thee leath,\n\n---------------",
+   "log": "logs/sample_text-1.log"
+  }
+ ],
+ "fixes": [],
+ "steps": [
+  {
+   "id": "prepare_data",
+   "cmd": "python data/shakespeare_char/prepare.py",
+   "rc": 0,
+   "sec": 0.85,
+   "checks": [
+    {
+     "type": "exit_zero",
+     "passed": true
+    },
+    {
+     "type": "files_exist",
+     "passed": true
+    },
+    {
+     "type": "stdout_matches",
+     "passed": true
+    }
+   ],
+   "files": {
+    "data/shakespeare_char/input.txt": {
+     "bytes": 1115394,
+     "sha256": "86c4e6aa9db7c042ec79f339dcb96d42b0075e16b8fc2e86bf0ca57e2dc565ed"
+    },
+    "data/shakespeare_char/meta.pkl": {
+     "bytes": 703,
+     "sha256": "6ee5a37533af83b67fcbe6b93705fde9e15e78bafe895f54b2cb2cb32534526c"
+    },
+    "data/shakespeare_char/train.bin": {
+     "bytes": 2007708,
+     "sha256": "6ec305602a99ac2802745a134e1f5e33e2231b4855525b00b9aebb730ac2626f"
+    },
+    "data/shakespeare_char/val.bin": {
+     "bytes": 223080,
+     "sha256": "d37d30cc0c8327c270d493299c3dca54135f6d5f1c9ef60cda78076e311204b1"
+    }
+   },
+   "log": "logs/prepare_data-1.log",
+   "warnings": [],
+   "stdoutHead": "length of dataset in characters: 1,115,394\nall the unique characters: \n !$&',-.3:;?ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\nvocab size: 65\ntrain has 1,003,854 tokens\nval has 111,540 tokens",
+   "stdoutTail": "length of dataset in characters: 1,115,394\nall the unique characters: \n !$&',-.3:;?ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz\nvocab size: 65\ntrain has 1,003,854 tokens\nval has 111,540 tokens"
+  },
+  {
+   "id": "train_cpu",
+   "cmd": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+   "rc": 0,
+   "sec": 108.39,
+   "checks": [
+    {
+     "type": "exit_zero",
+     "passed": true
+    },
+    {
+     "type": "files_exist",
+     "passed": true
+    },
+    {
+     "type": "metric_decreased",
+     "passed": true,
+     "last": 1.6958,
+     "first": 4.1828
+    },
+    {
+     "type": "stdout_matches",
+     "passed": true
+    }
+   ],
+   "files": {
+    "out-shakespeare-char/ckpt.pt": {
+     "bytes": 9678732,
+     "sha256": "f7d576d0f87446f3b83ef0f48d4852198464b4c369f74e729dd506815b4fc6fb"
+    }
+   },
+   "log": "logs/train_cpu-1.log",
+   "warnings": [
+    "/work/repo/train.py:196: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.",
+    "/usr/local/lib/python3.12/site-packages/torch/cuda/amp/grad_scaler.py:31: UserWarning: torch.cuda.amp.GradScaler is enabled, but CUDA is not available.  Disabling."
+   ],
+   "stdoutHead": "Overriding config with config/train_shakespeare_char.py:\n# train a miniature character-level shakespeare model\n# good for debugging and playing on macbooks and such\n\nout_dir = 'out-shakespeare-char'\neval_interval = 250 # keep frequent because we'll overfit\neval_iters = 200\nlog_interval = 10 # don't print too too often\n\n# we expect to overfit on this small dataset, so only save when val improves\nalways_save_checkpoint = False\n\nwandb_log = False # override via command line if you like\nwandb_project = 'shakespeare-char'\nwandb_run_name = 'mini-gpt'\n\ndataset = 'shakespeare_char'\ngradient_accumulation_steps = 1\nbatch_size = 64\nblock_size = 256 # context of up to 256 previous characters\n\n# baby GPT model :)\nn_layer = 6\nn_head = 6\nn_embd = 384\ndropout = 0.2\n\nlearning_rate = 1e-3 # with baby networks can afford to go a bit higher\nmax_iters = 5000\nlr_decay_iters = 5000 # make equal to max_iters usually\nmin_lr = 1e-4 # learning_rate / 10 usually\nbeta2 = 0.99 # make a bit bigger because number of tokens per iter is small\n\nwarmup_iters = 100 # not super necessary potentially\n\n# on macbook also add\n# device = 'cpu'  # run on cpu only\n# compile = False # do not torch compile the model\n\nOverriding: device = cpu\nOverriding: compile = False\nOverriding: eval_iters = 20\nOverriding: log_interval = 1\nOverriding: block_size = 64\nOverriding: batch_size = 12\nOverriding: n_layer = 4\nOverriding: n_head = 4\nOverriding: n_embd = 128\nOverriding: max_iters = 2000\nOverriding: lr_decay_iters = 2000\nOverriding: dropout = 0.0\ntokens per iteration will be: 768\nfound vocab_size = 65 (inside data/shakespeare_char/meta.pkl)\nInitializing a new model from scratch\nnumber of parameters: 0.80M\nnum decayed parameter tensors: 18, with 802,944 parameters\nnum non-decayed parameter tensors: 9, with 1,152 parameters\nusing fused AdamW: False\nstep 0: train loss 4.1676, val loss 4.1649\niter 0: loss 4.1828, time 871.01ms, mfu -100.00%\niter 1: loss 4.1373, time 58.57ms, mfu -100.00%",
+   "stdoutTail": "iter 1962: loss 1.8752, time 42.01ms, mfu 0.03%\niter 1963: loss 1.6606, time 41.88ms, mfu 0.03%\niter 1964: loss 1.7129, time 47.12ms, mfu 0.03%\niter 1965: loss 1.8167, time 47.75ms, mfu 0.03%\niter 1966: loss 1.8038, time 52.63ms, mfu 0.03%\niter 1967: loss 1.9572, time 44.57ms, mfu 0.03%\niter 1968: loss 1.6740, time 49.10ms, mfu 0.03%\niter 1969: loss 1.7750, time 45.21ms, mfu 0.03%\niter 1970: loss 1.8327, time 42.62ms, mfu 0.03%\niter 1971: loss 1.7521, time 46.04ms, mfu 0.03%\niter 1972: loss 1.7338, time 57.38ms, mfu 0.03%\niter 1973: loss 1.7306, time 52.92ms, mfu 0.03%\niter 1974: loss 1.6931, time 44.82ms, mfu 0.03%\niter 1975: loss 1.7289, time 40.96ms, mfu 0.03%\niter 1976: loss 1.6929, time 44.09ms, mfu 0.03%\niter 1977: loss 1.8865, time 41.22ms, mfu 0.03%\niter 1978: loss 1.7603, time 47.59ms, mfu 0.03%\niter 1979: loss 1.7862, time 50.87ms, mfu 0.03%\niter 1980: loss 1.7613, time 51.95ms, mfu 0.03%\niter 1981: loss 1.7781, time 52.61ms, mfu 0.03%\niter 1982: loss 1.7722, time 50.66ms, mfu 0.03%\niter 1983: loss 1.7677, time 49.36ms, mfu 0.03%\niter 1984: loss 1.6993, time 47.17ms, mfu 0.03%\niter 1985: loss 1.7417, time 49.11ms, mfu 0.03%\niter 1986: loss 1.6848, time 49.10ms, mfu 0.03%\niter 1987: loss 1.7071, time 48.06ms, mfu 0.03%\niter 1988: loss 1.7093, time 49.67ms, mfu 0.03%\niter 1989: loss 1.6852, time 55.09ms, mfu 0.03%\niter 1990: loss 1.7025, time 57.98ms, mfu 0.03%\niter 1991: loss 1.7723, time 56.11ms, mfu 0.03%\niter 1992: loss 1.6626, time 55.57ms, mfu 0.03%\niter 1993: loss 1.8213, time 59.57ms, mfu 0.02%\niter 1994: loss 1.7564, time 53.45ms, mfu 0.02%\niter 1995: loss 1.7688, time 52.39ms, mfu 0.02%\niter 1996: loss 1.8214, time 53.93ms, mfu 0.02%\niter 1997: loss 1.7120, time 53.59ms, mfu 0.02%\niter 1998: loss 1.8759, time 55.05ms, mfu 0.02%\niter 1999: loss 1.9002, time 52.48ms, mfu 0.02%\nstep 2000: train loss 1.7648, val loss 1.8857\nsaving checkpoint to out-shakespeare-char\niter 2000: loss 1.6958, time 563.87ms, mfu 0.02%"
+  },
+  {
+   "id": "sample_text",
+   "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu",
+   "rc": 0,
+   "sec": 14.72,
+   "checks": [
+    {
+     "type": "exit_zero",
+     "passed": true
+    },
+    {
+     "type": "stdout_matches",
+     "passed": true
+    },
+    {
+     "type": "stdout_matches",
+     "passed": true
+    }
+   ],
+   "files": {},
+   "log": "logs/sample_text-1.log",
+   "warnings": [],
+   "stdoutHead": "Overriding: out_dir = out-shakespeare-char\nOverriding: device = cpu\nnumber of parameters: 0.80M\nLoading meta from data/shakespeare_char/meta.pkl...\n\nI by done what leave death,\nAnd aproposely beef the are and sors blate though wat our fort\nThine the aftior than whating bods farse dowed\nAnd nears and thou stand murs's consel.\n\nMEOF:\nSir, should and then thee.\n\nGRICHARD one, enceling:\nOr house\nYour to do the all in despery I parve porge,\nAnd shall not aple bralance the my plife friend.\nWhy should not seed liSian be me,\nA light strought weart a king here shall\nAnd so arttion I breatio:\nTrale time him the witHer's bout thing thy a moy\nA to therr\n---------------\n\nTo furd of sonce on it my lord my prove.\n\nICIRIIA:\nHe had and I clann what would sy pile.\n\nMYUKE MIOF OYCE:\nShall\nPule are wen way bane and thought I a the thems\nThet me staing and ous the broted a well.\n\nMUDINE:\nHave was he sir, tye as tor thee o, the beod\nAnd I sto be in to do bun a go.\n\nBORWARDch:\nThat a heaven my cournamants, wo that art is way.\n\nQUEEN CARWIUS:\nFor dight erge masters: lold the had in but sway faulter\nthing miring conserly.\nWhy thouf than souch low the kings, bot here,\n'I tha\n---------------\n\nTo lack evice in spray.\n\nPORIOLEN:\nCome?\n\nJULIET:\nYou ! it dother?\n\nThat lo, that sur, Securtion; as and I that in\nA call in a world intree hous parcious thought the\nless lordy this high stater own for of dight;\nBut twith she have shoul pray wave to to spice here such;\nThe be the to done do infelf anate.\n\nJULIET:\nIf you speak:\nThoug you heart my outh be.\n\nBUTHOK:\nI powel, tor you leath a it thought helf;\nAnd not take waul us like! Would I have never?\nThere and fuar souring stay frear in clifest,\n---------------\n\nThire trech theirssing fily with good a be Romate\nstanted I all swand you garely faten!\nThy onse lidy for hibe.\n\nSISABELLA:\nIf we it deay is word wherepak.\n\nLLEO:\nBut deeds murige have you should you shoulds detle,\nSo would he are recuren forth heir of,",
+   "stdoutTail": "\nLUCIO:\nThe sie, art what a carse so forgelied3 this the kning,\nThue in he are amewaring of that fort you Wast in create,\nThat beet he's shanged ward the exty\nBut seand shand and Nupe abuly, I wartice so vee\nThe counsed word mophe hold own so inde the under:\nHe should my grief pouns the lade this I know,\nAll me, are would couses to with me ere's sone;\nOff a infeared with in the when we repories,\nThat\n---------------\n\nAnd yeat shall which hath good deefing arm gull that the heave fach\nThat the made this be low mard,\nThat his all he be me oun toought pardunges not\nA Commoned heir by the whom is proud,\nI sill and and for in she were the had.\n\nCARIO:\nShould and perven hy herser named.\nWhat I will me shall I do hopse net of your cout\nHat hus face the worse popes the lie\nThe done brow hous infeer in manes him not:\nWhich with should in dies you:\nWith Varrent your not you wardand,\nAnd he not han worging dight nor th\n---------------\n\nMENIO:\nI would it gear; and my hands wome\nThin, he hadse as may beed the beatt be that of\nMy sorder agant nempone him be I sujuse ofse\nThat sway be rest, no he proppur and be of shall go\nOnge, onry house hemon the course,\nThe is a fiend to shall Levoule quores'd onsel\nThat I comed a my kid not angead of treant\nthe fail the of coursier groam'dly\nThe a look him the provereds you him the Prase.\n\nCOLUS:\nVord:\nThen sir, not whom ame lest there pastarm'd doge and\nThat here had for peast. I sain, the t\n---------------\n\nRomest and the facll by lords him,\nNot that lop, thou are frien when,\nWhich nought ye fair safy same, wrow you,\nwhat not the do con the sunry coursel\nThe ill hims urn this one arme our too?\n\nLADO:\nYou beand our king upor teept more put thein;\nYou do mile spord of unfent all of death lied,\nAs a that he beck his not with tie my ret our\nThan with the wommer not lonks consomes'd?\n\nMORCUSE:\nThat you have bod love mort are sead the how.\n\nKING RIC& Eymewing:\nAway hat baine whem ske fall be thee leath,\n\n---------------"
+  }
+ ],
+ "traps": [
+  {
+   "id": "max_new_tokens_not_an_integer",
+   "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --max_new_tokens=abc --num_samples=1 --top_k=1 --seed=1",
+   "kind": "wrong_type",
+   "knob": "--max_new_tokens",
+   "rc": 1,
+   "sec": 1.77,
+   "stderrTail": "Traceback (most recent call last):\n  File \"/work/repo/sample.py\", line 23, in <module>\n    exec(open('configurator.py').read()) # overrides from command line or config file\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 42, in <module>\nAssertionError",
+   "failsAsExpected": true,
+   "log": "logs/trap-max_new_tokens_not_an_integer.log"
+  },
+  {
+   "id": "temperature_int_not_float",
+   "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --temperature=1 --max_new_tokens=5 --num_samples=1 --top_k=1 --seed=1",
+   "kind": "wrong_type",
+   "knob": "--temperature",
+   "rc": 1,
+   "sec": 1.87,
+   "stderrTail": "Traceback (most recent call last):\n  File \"/work/repo/sample.py\", line 23, in <module>\n    exec(open('configurator.py').read()) # overrides from command line or config file\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 42, in <module>\nAssertionError",
+   "failsAsExpected": true,
+   "log": "logs/trap-temperature_int_not_float.log"
+  },
+  {
+   "id": "init_from_with_equals_sign",
+   "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --init_from=A=B --max_new_tokens=5 --num_samples=1 --top_k=1 --seed=1",
+   "kind": "string_equals",
+   "knob": "--init_from",
+   "rc": 1,
+   "sec": 1.82,
+   "stderrTail": "Traceback (most recent call last):\n  File \"/work/repo/sample.py\", line 23, in <module>\n    exec(open('configurator.py').read()) # overrides from command line or config file\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 32, in <module>\nValueError: too many values to unpack (expected 2)",
+   "failsAsExpected": true,
+   "log": "logs/trap-init_from_with_equals_sign.log"
+  },
+  {
+   "id": "unknown_key",
+   "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --temprature=0.5 --max_new_tokens=5 --num_samples=1 --top_k=1 --seed=1",
+   "kind": "unknown_flag",
+   "knob": "--temperature",
+   "rc": 1,
+   "sec": 1.8,
+   "stderrTail": "Traceback (most recent call last):\n  File \"/work/repo/sample.py\", line 23, in <module>\n    exec(open('configurator.py').read()) # overrides from command line or config file\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 47, in <module>\nValueError: Unknown config key: temprature",
+   "failsAsExpected": true,
+   "log": "logs/trap-unknown_key.log"
+  }
+ ],
+ "knobsVerified": [
+  {
+   "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --temperature=0.5 --max_new_tokens=200 --num_samples=2 --start=hello --top_k=1 --seed=1",
+   "rc": 0,
+   "sec": 3.35,
+   "startsWithPrompt": true,
+   "separators": 2
+  }
+ ],
+ "knobsFailed": [],
+ "allChecksPassed": true,
+ "network": {
+  "outboundDomainAllowlist": [
+   "pypi.org",
+   "files.pythonhosted.org",
+   "download.pytorch.org",
+   "github.com",
+   "*.github.com",
+   "codeload.github.com",
+   "raw.githubusercontent.com",
+   "objects.githubusercontent.com",
+   "*.githubusercontent.com"
+  ],
+  "outboundCidrAllowlist": [],
+  "allowDomainFixes": []
+ },
+ "modelCalls": [
+  {
+   "role": "discovery",
+   "model": "claude-sonnet-5-5",
+   "inputTokens": 22127,
+   "outputTokens": 1895,
+   "usd": 0.063204
+  },
+  {
+   "role": "plan",
+   "model": "claude-sonnet-5-5",
+   "inputTokens": 7151,
+   "outputTokens": 1002,
+   "usd": 0.024322
+  }
+ ],
+ "modelSpendUsd": 0.087526,
+ "sandboxSpendNote": "not yet visible (billing report returned 6 items at 2026-11-15T20:23:49Z; job cost not in an hourly bucket yet)",
+ "draftPlan": {
+  "repo": "karpathy/nanoGPT",
+  "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+  "hardware": "cpu",
+  "timeBudgetMin": 20,
+  "totalMin": 10,
+  "steps": [
+   {
+    "n": 1,
+    "pattern": "see",
+    "title": "See the map: prepare.py builds the data, train.py trains on it, sample.py reads the checkpoint. The README chains them in that order",
+    "minutes": 2,
+    "check": null
+   },
+   {
+    "n": 2,
+    "pattern": "run",
+    "title": "Prepare the character-level Shakespeare data",
+    "minutes": 1,
+    "cmd": "python data/shakespeare_char/prepare.py",
+    "measuredSec": 0.85,
+    "check": {
+     "type": "files_exist",
+     "paths": [
+      "data/shakespeare_char/train.bin",
+      "data/shakespeare_char/val.bin",
+      "data/shakespeare_char/meta.pkl"
+     ]
+    }
+   },
+   {
+    "n": 3,
+    "pattern": "run",
+    "title": "Train a tiny GPT on CPU",
+    "minutes": 3,
+    "cmd": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+    "measuredSec": 108.39,
+    "check": {
+     "type": "metric_decreased",
+     "pattern": "^iter \\d+: loss (\\d+\\.\\d+)"
+    }
+   },
+   {
+    "n": 4,
+    "pattern": "run",
+    "title": "Generate text from the trained model",
+    "minutes": 1,
+    "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu",
+    "measuredSec": 14.72,
+    "check": {
+     "type": "stdout_matches",
+     "pattern": "^---------------$"
+    }
+   },
+   {
+    "n": 5,
+    "pattern": "change",
+    "title": "Change the sampling: a prompt, cooler temperature, fewer tokens",
+    "minutes": 3,
+    "cmd": "python sample.py --out_dir=out-shakespeare-char --device=cpu --temperature=0.5 --max_new_tokens=200 --num_samples=2 --start=hello --top_k=1 --seed=1",
+    "check": {
+     "type": "stdout_matches",
+     "pattern": "^---------------$"
+    }
+   }
+  ],
+  "install": [
+   "pip install torch numpy tiktoken requests"
+  ],
+  "trapsToWarn": [
+   "The README's pip line installs more than this route needs (transformers, datasets, wandb, tqdm); torch, numpy, tiktoken and requests are enough for the Shakespeare quick start.",
+   "--max_new_tokens must be an integer: abc fails with an AssertionError, because the config override checks the type against the default.",
+   "--temperature must be a float: write 1.0, not 1, or the type assertion fails.",
+   "A value cannot contain an equals sign: --init_from=A=B fails with 'too many values to unpack'.",
+   "Flag names must match exactly: a misspelling like --temprature stops with 'Unknown config key'."
+  ]
+ },
+ "gaveUp": null,
+ "snapshotImage": "im-01M7GE2D5NMZ387YPF51EEYMKB"
+}

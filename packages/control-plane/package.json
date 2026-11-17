@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prompts:build": "node scripts/build-tutor-prompts.mjs"
   },
   "keywords": [],
   "author": "",

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ExternalLink, Highlighter, Lock, LockOpen, X } from 'lucide-react';
 import { wsHeaders } from './api.js';
 import { sanitizeArticle, sectionInView } from './learn-wiki-html.js';
-import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHighlights } from './learn-wiki-highlights.js';
+import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHighlights, reportLearnHighlight, resolveLearnQuotes } from './learn-wiki-highlights.js';
 
 // One article, scrolled. Used twice: as the right-hand reader and as a canvas
 // card, the way LearnPaper is.
@@ -128,6 +128,15 @@ export default function LearnWiki({ app, article, openAt = 0, onNavigate, onSect
     const observer = root ? new MutationObserver(paint) : null;
     observer?.observe(root, { childList: true, subtree: true, characterData: true });
     return () => { observer?.disconnect(); paintHighlights(paintKey, []); };
+  }, [page, minesKey, paintKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A Learn section's quote for this article (learn-wiki-highlights.js resolveLearnQuotes, DECISIONS S): resolved once the article is on screen; one not in it is reported.
+  useEffect(() => {
+    const root = articleRoot();
+    if (!paintKey || !page || !onHighlights || !root) return;
+    const out = resolveLearnQuotes(highlights, root.textContent || '', entry => entry.title === current.title);
+    if (!out) return;
+    out.missed.forEach(learn => reportLearnHighlight(learn, 'not_found', paintKey));
+    onHighlights(out.next);
   }, [page, minesKey, paintKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Highlighter mode: a selection becomes a highlight; a click on one removes it.

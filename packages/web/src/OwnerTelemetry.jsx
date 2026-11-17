@@ -8,7 +8,7 @@ import Shell from './Shell.jsx';
 import { Button, ExpandedPageFrame, Input } from './ui.jsx';
 
 const API = '/api/owner/telemetry';
-const STATES = { settled: 'Measured', estimated: 'Estimated', unknown: 'Unknown provider cost, learner not charged', reserved: 'Running, learner credits reserved' };
+const STATES = { settled: 'Measured', estimated: 'Estimated', unknown: 'Unknown provider cost, learner not charged', reserved: 'Running, learner AI units reserved' };
 // Provider spend (the platform ledger) has its own states: its unknown and reserved rows carry a bound, never a cost.
 const PROVIDER_STATES = { settled: 'Provider cost measured', estimated: 'Provider cost estimated', unknown: 'Provider cost unknown', reserved: 'Running, reservation only' };
 const usd = micros => (micros == null ? 'none' : `$${(micros / 1e6).toFixed(4)}`);

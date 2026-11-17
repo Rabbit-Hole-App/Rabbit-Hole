@@ -14,7 +14,7 @@ import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
 import { canEditCourse, learnPreview, reviewTools } from './flags.js';
 import { AskPanel, NextStepsCard } from './ask.jsx';
-import { Button, IconBtn, ConfirmDialog, toast } from './ui.jsx';
+import { Button, IconBtn, ConfirmDialog, Tabs, TabsList, TabsTrigger, toast } from './ui.jsx';
 import SharePanel from './SharePanel.jsx';
 import { ChooseHandle } from './HandleGate.jsx';
 import { assetKeysOf, requestWorkspaceExports, setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
@@ -83,13 +83,17 @@ import { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-workspace.jsx';
 import TocConversation from './TocConversation.jsx';
+import { outlineRevision } from './learn-outline-model.js';
+import { acceptedPlan } from './learn-plan.js';
 import { effectiveControls } from './learn-coaching-client.js';
 import { canSuggest } from './learn-coaching-contract.js';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
+import { rehearsalOn } from './learn-rehearsal-view.js';
 import { canvasContextNow } from './chat-canvas-context.js';
 import { MessageCircle, RotateCw } from 'lucide-react';
-import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
+import { boardSizeWarning, BOARD_LIMIT, docCardId } from './canvas-doc.js';
 import { StudyPane, useStudy } from './StudyPane.jsx';
+import { studyPill } from './study-work.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { badgeText, useCanvasComments } from './comments/useCanvasComments.js';
@@ -130,7 +134,7 @@ import { editorClosed, editorOpened } from './chunk-reload.js';
 import { chatSaving } from './chat-persist.js';
 import { blockedStorage } from './storage-fallback.js';
 import { canvasThumbnail } from './card-thumbnail.js';
-import { boardFromText, boardPending, boardText, conflictBaseKey, conflictDoc, serial, sharingOf, withPendingWork } from './canvas-persist.js';
+import { boardFromText, boardPending, boardText, conflictBaseKey, serial, sharingOf, withPendingWork } from './canvas-persist.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { typingIn } from './canvas-equation.js';
 import { pageKeyAllowed } from './shortcut-owner.js';
@@ -208,7 +212,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // reference clicked in an answer (small:open-files; repository-browser.md "Code references") opens Files on it, and
   // small:open-graph opens Graph, the right side too when it was hidden. openViewer (an old ?tab=code or ?tab=graph link) opens
   // that view once on arrival. Files and Graph mount on their first show and stay mounted (the graph code loads only then).
-  const { companion } = panels;
+  const studyNow = useRef(null); // the page's Study (useStudy below), for callbacks that outlive a render
+  // Study (pinned-study-codebase-spec.md 2b): Files and Graph show in the reference pane's tabs, so showing either (a code reference, small:open-files,
+  // small:open-graph) picks that tab, and while studying the right panel stays closed. The file and line are the repository's own Files state, which
+  // Study keeps as filesPlace. Outside Study the panel opens as before, the tab being what Study then opens on.
+  const companion = { ...panels.companion, show: view => {
+    const study = studyNow.current;
+    if (study?.repository && (view === 'files' || view === 'graph')) { study.setReferenceTab(view); if (study.open) return; }
+    panels.companion.show(view);
+  } };
   const companionViews = COMPANION_VIEWS.filter(entry => (entry.id === 'files' ? files : entry.id === 'graph' ? graph : true));
   const companionView = companionViews.some(entry => entry.id === companion.view) ? companion.view : 'context';
   const shown = useRef(new Set());
@@ -233,6 +245,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     if (graph) window.addEventListener('small:open-graph', showGraph);
     return () => { window.removeEventListener('small:open-files', showFiles); window.removeEventListener('small:open-graph', showGraph); };
   }, [!!files, !!graph]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Initial pipeline (dev flag): a repository canvas opens its right panel on Files the first time it arrives, once per canvas (remembered on this device), never on a reload or a later visit.
+  useEffect(() => {
+    if (!rehearsalOn() || !files) return;
+    try { const key = `rh.repository-panel-shown.${app.name}`; if (localStorage.getItem(key)) return; localStorage.setItem(key, '1'); } catch { return; } // storage blocked: the panel is not forced open every time
+    companionNow.current.show('files');
+  }, [!!files, app.name]); // eslint-disable-line react-hooks/exhaustive-deps
   const [panelPinned, setPanelPinned] = useState(() => readPanelPin(() => localStorage));
   const pinPanel = value => { setPanelPinned(value); savePanelPin(() => localStorage, value); };
   const findInput = useRef(null);
@@ -245,6 +263,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // A proposal from the tutor. It sits here until the learner applies or
   // discards it; nothing reaches the canvas on its own.
   const [proposal, setProposal] = useState(null);
+  // The Learn plan (learn-plan-toc-spec.md): once accepted the contents are read-only with no composer under them, and the Tutor sets the section the learner is on (never a tick).
+  const [planAcceptedNow, setPlanAcceptedNow] = useState(false), [planCurrent, setPlanCurrent] = useState(null);
+  const outlineRef = useRef([]);
   // The source finder (SearchBar), opened only through openSourceFinder (source-finder.js; Release B, B3): Chat's and Ctrl+K's
   // /youtube /arxiv /wikipedia, a typed /paper <topic>, the Insert menu and the + palette's YouTube moment. finder:
   // { source, query, origin, from, done } while it is open, else null; done settles the opener's promise once ({ added }).
@@ -513,7 +534,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     canEdit: () => canEditRef.current,
     // Tutor Task 07 (learn-coaching-materials.js applyTutorAction): the live canvas, and the one seam that makes Tutor material -
     // its own material tools on the existing Learn command path (internal; /api/learn/artifact), never a second generator.
-    tutorCanvas: () => canvasApi.current && { ...canvasApi.current, startExplain: explainLatest },
+    // addVideo, addPaper, addWiki (DECISIONS R): the page's own inserts of a video, paper and article card (they register the source and make it the next question's context).
+    tutorCanvas: () => canvasApi.current && { ...canvasApi.current, startExplain: explainLatest, addVideo: video => addVideo(video), addPaper: paper => addPaper(paper), addWiki: wiki => addWiki(wiki) },
     makeTutorMaterial: explainMaterial(runLearnCommand, { app: app.name, openSearch: () => {}, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }) }),
     canvasContext, selection: () => canvasApi.current?.selection?.() || [],
     // A card from the companion (repo graph R2, C:/s/spec/repo-graph-r2-plan.md): an equivalent card already here (`same`) is
@@ -575,6 +597,24 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return job;
     },
     removeCard: id => canvasApi.current?.removeBlock(id),
+    // The Learn plan's draft (TutorRehearsal.jsx): the contents as the draft sees them, the draft as the contents' own pending proposal (the one path a chat turn's proposal takes too), Accept, and what Accept leaves behind.
+    outlineNow: () => ({ outline: outlineRef.current, revision: outlineRevision(outlineRef.current) }),
+    proposeOutline: proposal => setProposal(proposal),
+    applyLearnPlan: (ops, base) => { const result = canvasApi.current?.applyOutline(ops, { base, source: 'learn-plan' }); if (result?.ok) setProposal(null); return result; },
+    planAccepted: () => setPlanAcceptedNow(true),
+    // The plan message's Study these (rehearsal-flow.js, spec 2g): Files at the route's first source file, the Run card as the work, Study open.
+    studyThese: place => {
+      const files = heldRepository.current?.files;
+      if (place?.path && files) { files.setOpen(place.path); if (place.line) files.setJump({ path: place.path, start: place.line, end: place.line, at: Date.now() }); }
+      studyNow.current?.studyThese(place);
+    },
+    // The rehearsal flow's cards (rehearsal-cards.js openRehearsalCard): a new generated card beside its sibling, and the Runbook's regeneration in place.
+    insertGenerated: (block, options) => canvasApi.current?.insertGenerated(block, options),
+    // A code-explain answer's Add as card (code-explain-insert.js addCodeExplain): the primary, its satellites and connectors in one undo step; and the open repository's own app, commit and file line counts,
+    // which the answer's payload is checked against when it is at that same commit (null when no repository is open here).
+    insertCodeExplain: input => canvasApi.current?.insertCodeExplain(input) ?? null,
+    repositoryContext: () => { const held = heldRepository.current, snap = held?.snapshot; return snap && held.app ? { app: held.app.name, repo: held.app.repo, commit: snap.commit, lines: path => snap.files?.find(file => file.path === path)?.lines } : null; },
+    updateCard: (id, change) => canvasApi.current?.updateBlock(id, change),
     // The canvas card a reviewed plan is the skeleton of (explain-client.js skeletonJobOf), or null.
     skeletonCardId: jobId => canvasApi.current?.blocks?.().find(block => skeletonJobOf(block)?.id === jobId)?.id ?? null,
     // A Chat turn while that brief waits (EXP-T20 slice 3, ask.jsx): the job prepares its next version (Lane C refine); the
@@ -1025,13 +1065,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // turn (ask.jsx recordCommand): { onCard }, the sink each card this command inserts is reported to, so the Chat keeps it
     // under the command's saved message (chat-output-refs.js withCardSink).
     // handoff (Ctrl+K's line, LearnSlash exec): its own selection is the target, never the composer's armed card.
-    run: (text, _target, turn = null, handoff = null) => {
+    // section: a Learn section item's line (LearnSlash exec): about no selected card, with its own depth, context and madeBy (learn-slash.js runLearnCommand).
+    run: (text, _target, turn = null, handoff = null, section = null) => {
       const sink = turn?.onCard || null;
       // /deeper, /simplify, /ask and /teach no longer reach the Tutor as a turn's slash (owner, 2026-10-20): they are removed
       // commands, and runLearnCommand says so; the same words without the slash are an ordinary Tutor turn.
       return runLearnCommand(text, {
         app: app.name,
-        target: handoff ? heldPassageTarget(handoff.target, text, passageRef) : askTarget,
+        target: section ? null : handoff ? heldPassageTarget(handoff.target, text, passageRef) : askTarget,
+        section,
         // The composer's attached image (its uploaded media id), as a question carries it (ask.jsx image_context); never a handoff's.
         attachedImage: !handoff && imageAttached && imageContext?.id ? imageContext.id : null,
         // withSlotSink: the Chat's line shows its waiting row while this canvas holds the command's skeleton (ask.jsx recordCommand onSlot).
@@ -1522,15 +1564,38 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const conflictBase = useRef(null), recoveries = useRef(0);
   // Settles once this canvas's board GET has answered (or failed); the last PUT refusal, so a caller can say why it failed.
   const boardReady = useRef(null), saveError = useRef(null);
-  // The canvas's document (docs/features/blocknote-canvas.md). Canvas or Editor, this browser's choice for this person and
-  // canvas (owner decision B1); the save status of the board that holds it (Saving / Saved / Couldn't save, the server's
-  // answer, never assumed); its size against the server's 1.9 MB; a 409 (this canvas changed elsewhere) and a document a
-  // newer server copy replaced on open, both kept and offered back, never dropped.
-  const [docView, setDocViewState] = useState(() => readDocView(browserStorage(), canvasKey));
-  useEffect(() => { setDocViewState(readDocView(browserStorage(), canvasKey)); }, [canvasKey]);
-  const setDocView = view => { writeDocView(browserStorage(), canvasKey, view); setDocViewState(view === 'editor' ? 'editor' : 'canvas'); };
+  // Document cards (docs/features/blocknote-canvas.md): the save status of the board that holds them (Saving / Saved / Couldn't save, the
+  // server's answer, never assumed), shown while one has the focus, and the board's size against the server's 1.9 MB. A 409 (this canvas
+  // changed elsewhere) goes through the one conflict path (Load, withPendingWork): both versions of a card are kept, never dropped.
   // Pinned Study (UI-27, StudyPane.jsx): this canvas's Canvas / Study layout and its pinned reference, this browser only.
-  const study = useStudy(canvasKey, board, canvasApi);
+  const study = useStudy(canvasKey, board, canvasApi, { repository: !!(files || graph) });
+  studyNow.current = study;
+  // A repository canvas in Study (spec 2b): the right panel closes (its Files and Graph are the reference pane's, Chat is the centred bar) and is put back,
+  // open or not, when Study ends. panelWas is kept with the arrangement, so a reload in Study still returns it.
+  const wasStudying = useRef(study.open);
+  useEffect(() => {
+    if (!study.repository) return;
+    const was = study.state.panelWas;
+    if (study.open) {
+      if (panelOpen) { study.holdPanel(true); setPanelOpen(false); } else if (was == null) study.holdPanel(false);
+    } else if (wasStudying.current && was != null) { if (was) setPanelOpen(true); study.holdPanel(null); }
+    wasStudying.current = study.open;
+  }, [study.open]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Files reopens where it was (spec 2a filesPlace): the file and line the repository's Files view shows while studying are kept, and a reload in Study
+  // opens that file again once the snapshot is there.
+  const studyFiles = repository?.files, studyPlace = study.state.filesPlace;
+  // Closing the open file (the Files X) must stick: the place is dropped when the file goes from open to closed, and the reopen below runs only when Study or the snapshot arrives, never on that close.
+  const lastFile = useRef(null);
+  useEffect(() => {
+    if (!study.repository || !studyFiles) return;
+    if (studyFiles.open) study.filesAt({ path: studyFiles.open, line: studyFiles.jump?.path === studyFiles.open ? studyFiles.jump.start : undefined });
+    else if (lastFile.current) study.filesShut();
+    lastFile.current = studyFiles.open;
+  }, [studyFiles?.open, studyFiles?.jump]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!study.repository || !studyFiles || studyFiles.open) return;
+    if (study.open && studyPlace && repository.snapshot) { studyFiles.setOpen(studyPlace.path); if (studyPlace.line) studyFiles.setJump({ path: studyPlace.path, start: studyPlace.line, end: studyPlace.line, at: Date.now() }); }
+  }, [study.open, !!repository?.snapshot]); // eslint-disable-line react-hooks/exhaustive-deps
   const [saveState, setSaveState] = useState(null);
   useEffect(() => {
     if (saveState?.state !== 'saved') return;
@@ -1539,10 +1604,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     savedRefs.current = now;
   }, [saveState]); // eslint-disable-line react-hooks/exhaustive-deps
   const [boardChars, setBoardChars] = useState(0);
-  const [docConflict, setDocConflict] = useState(false);
-  const [docRestore, setDocRestore] = useState(null);
-  const docKeepKey = `${boardStorageKey}:doc-keep`;
-  useEffect(() => { setSaveState(null); setBoardChars(0); setDocConflict(false); setDocRestore(null); }, [boardPath]);
+  useEffect(() => { setSaveState(null); setBoardChars(0); }, [boardPath]);
+  const [docFocused, setDocFocused] = useState(false);
+  useEffect(() => {
+    const track = event => setDocFocused(!!(event.type === 'focusout' ? event.relatedTarget : event.target)?.closest?.('[data-doc-card]'));
+    document.addEventListener('focusin', track); document.addEventListener('focusout', track);
+    return () => { document.removeEventListener('focusin', track); document.removeEventListener('focusout', track); };
+  }, []);
   const exchangesRef = useRef(exchanges);
   exchangesRef.current = exchanges;
   const sourcesRef = useRef(sources);
@@ -1640,7 +1708,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       boardSynced.current = boardText(data.state);
       const mine = readBoardVersion(storage, versionKey);
       if (!unreadable && mine !== null && data.version <= mine) {
-        try { localStorage.removeItem(docKeepKey); localStorage.removeItem(conflictBaseKey(boardStorageKey)); } catch { /* nothing to keep: this browser's copy is the newest */ }
+        try { localStorage.removeItem(conflictBaseKey(boardStorageKey)); } catch { /* nothing to keep: this browser's copy is the newest */ }
         conflictBase.current = null;
         if (boardText(boardSnapshot()) !== boardSynced.current) pushBoard();
         return;
@@ -1658,38 +1726,22 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       }
       try {
         // ponytail: what the server copy replaces is kept under :replaced when it held other content, so content that never
-        // reached the server is recoverable by hand; only its document has a restore action (below), the rest has no UI.
+        // reached the server is recoverable by hand; there is no UI for it.
         const copy = readBoardCopy(storage, boardStorageKey);
         // The canvas on screen is about to be remounted on the server's copy: retired, nothing it still has pending may write
-        // over that copy or push it; it answers what was made on it since mount, the document as typed included
-        // (board-empty-report). Its board work goes onto the server's copy below; its document is this browser's document
-        // that the server's replaces, so docOnServerCopy keeps it aside and offers it back (Restore my unsaved document).
+        // over that copy or push it; it answers what was made on it since mount (board-empty-report). That work goes onto the
+        // server's copy below; what this browser's copy held that the server's replaces is kept under :replaced.
         const mine = canvas()?.retire?.(base) || {};
         const local = hasLocal && copy && boardText(boardSnapshot()) !== boardSynced.current ? boardSnapshot() : null;
-        // After Reload and keep my document, the document kept at that press goes over the server's board; words typed while
-        // that reload ran are newer still, so the canvas's live document is the one kept. Otherwise it is the document the
-        // server's replaces, kept aside and offered back.
-        const keptAtPress = JSON.parse(localStorage.getItem(docKeepKey) || 'null');
-        // After a 409, a document only this browser changed since the base goes up as the newer edit (conflictDoc).
-        const ownDoc = base ? conflictDoc({ base, server: state, mine: mine.doc }) : null;
-        const replaced = mine.doc && !keptAtPress && !ownDoc ? { ...(local || {}), doc: mine.doc } : local;
-        // The document (blocknote-canvas.md): Reload and keep my document (after a 409) puts this browser's document over
-        // the newer server copy as the newer edit, pushed below. Whatever document loses - the server's then, this
-        // browser's on a plain open - is kept under :replaced and offered back (docOnServerCopy).
-        const kept = keptAtPress && mine.doc ? mine.doc : keptAtPress || ownDoc;
-        const next = docOnServerCopy(state, { kept, replaced });
-        if (next.replaced) localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify(next.replaced));
+        if (local) localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify(local));
         // What was made on the canvas while the board loaded is added to the server's copy and pushed, so neither the server's
         // content nor that work is lost.
-        const work = withPendingWork(next.state, mine);
+        const work = withPendingWork(state, mine);
         localStorage.setItem(boardStorageKey, JSON.stringify(work.state)); localStorage.setItem(versionKey, String(data.version));
         localStorage.removeItem(conflictBaseKey(boardStorageKey));
         if (work.count) setTimeout(() => pushBoard(), 0);
         const where = base ? 'here' : 'while this board loaded';
         if (work.conflicts) toast(`${work.conflicts === 1 ? `A card you changed ${where} was` : `${work.conflicts} cards you changed ${where} were`} also changed elsewhere. Both versions are on the canvas.`);
-        localStorage.removeItem(docKeepKey);
-        if (next.push) setTimeout(() => pushBoard(), 0);
-        if (next.offer) setDocRestore(next.offer);
       } catch { /* keep the local copy */ }
       if (Array.isArray(chats)) setExchanges(chats);
       if (!board && Array.isArray(list)) setSources(list);
@@ -1709,7 +1761,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     return()=>{live=false;};
   },[restoredBoard,boardPath]);
   // card=<objectId>, a backlink's origin card (C:/s/spec/references-plan.md, URLs): once the final board is on the canvas
-  // (as above), that card is shown - in Canvas view, the document kept - or, gone, a toast and nothing selected; the param
+  // (as above), that card is shown or, gone, a toast and nothing selected; the param
   // is dropped either way.
   const cardFocus = useRef(cardParam(window.location.search));
   useEffect(() => {
@@ -1718,9 +1770,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     cardFocus.current = null;
     window.history.replaceState(window.history.state, '', withoutCardParam(window.location.href));
     if (!api.blocks().some(block => block.id === id)) { api.deselect(); toast(CARD_GONE); return; }
-    if (docView !== 'editor') { api.focusBlock(id); return; }
-    setDocView('canvas');
-    requestAnimationFrame(() => requestAnimationFrame(() => canvasApi.current?.focusBlock(id)));
+    api.focusBlock(id);
   }, [restoredBoard, boardPath, canvasState]); // eslint-disable-line react-hooks/exhaustive-deps
   // Card thumbnails (card-thumbnails.md): the main board's picture for its cards, drawn after its saves pause, never by AI.
   // A board with none yet (made before thumbnails, a fork) gets one shortly after it opens.
@@ -1762,6 +1812,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       boardVersion.current = saved.version;
       if (saved.board_id) { setCommentBoard(saved.board_id); commentBoardRef.current = saved.board_id; }
       boardSynced.current = text;
+      // A legacy document migrated into a card (canvas-doc.js migrateDocToCard) is kept in this browser until a save that holds the card
+      // has landed; the PUT replaced the server's whole state, so the server's old document went with it.
+      // ponytail: a card deleted before that save leaves the backup in place; nothing reads it, there is no restore UI.
+      try {
+        const key = `${boardStorageKey}:doc-premigration`, backup = JSON.parse(localStorage.getItem(key) || 'null');
+        if (backup && (state.blocks || []).some(block => block?.id === docCardId(backup.blocks))) localStorage.removeItem(key);
+      } catch { /* a backup nobody reads stays */ }
       // The comments follow the saved board (owner decision 2026-10-23): useCanvasComments knows the server now has it.
       window.dispatchEvent(new Event('rh:board-saved'));
       recoveries.current = 0;
@@ -1771,10 +1828,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     }
     boardUnsynced.current = false;
     boardRefused.current = null;
-    // Saved only when this answer covers the document as shown: words not in the snapshot keep Saving… until the PUT that
-    // carries them answers (the editor's pause always ends in setDoc, the canvas's save, then pushBoard and another saveBoard).
-    const shown = canvas()?.liveBoard?.();
-    setSaveState(!shown || docSaved(state.doc, shown.doc) ? { state: 'saved' } : { state: 'saving' });
+    setSaveState({ state: 'saved' });
     try { localStorage.removeItem(unsavedKey({ ink: boardStorageKey })); } catch { /* the cards read it as unsaved */ }
   };
   // A refused PUT keeps this browser's copy and says why (canvas-persistence.md). No status: offline, so it waits for the
@@ -1782,15 +1836,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // server's own words, once, and the next edit tries again; Home and the Library keep calling it browser-only (step 8).
   const refused = error => {
     // 409 (owner 2026-10-22: a conflicting save never loses either device's edits): the server's newer copy loads, this
-    // browser's edits since the copy it had go onto it (Load, conflictBaseKey) and that board is pushed. The document is one
-    // object, so a document changed here goes to the person as before (decision 3: [data-doc-conflict], Reload and keep my
-    // document), as does a fourth 409 without a save in between; the base is kept for that reload too.
+    // browser's edits since the copy it had go onto it (Load, conflictBaseKey) and that board is pushed; a fourth 409 without a
+    // save in between goes to the person, the base kept for the reload.
     if (error.status === 409) {
       conflictBase.current = boardSynced.current ?? boardText({});
       try { localStorage.setItem(conflictBaseKey(boardStorageKey), conflictBase.current); } catch { /* kept in memory for this page */ }
     }
-    const docChanged = error.status === 409 && JSON.stringify(boardSnapshot().doc ?? null) !== JSON.stringify(boardFromText(conflictBase.current).doc ?? null);
-    if (error.status === 409 && !docChanged && recoveries.current < 3) {
+    if (error.status === 409 && recoveries.current < 3) {
       recoveries.current += 1;
       boardStopped.current = true;
       setSaveState({ state: 'saving' });
@@ -1799,7 +1851,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     }
     boardUnsynced.current = true;
     setSaveState({ state: 'error', status: error.status || 0, unreadable: !!error.unreadable, message: error.status === 413 ? 'Not saved: this canvas is over the 1.9 MB limit. Remove large images or long content, then retry.' : error.status === 409 ? 'Not saved: this canvas changed elsewhere.' : error.status || error.unreadable ? error.message : 'Not saved yet: offline. It saves when you are back online.' });
-    if (error.status === 409) setDocConflict(true);
     if (!error.status && !error.unreadable) return;
     if (error.status === 413) try { localStorage.setItem(unsavedKey({ ink: boardStorageKey }), '1'); } catch { /* not kept */ }
     if (error.status === 409) {
@@ -1838,15 +1889,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     try { savedBlocks = boardFromText(boardSynced.current).blocks || []; } catch { return; }
     for (const { blockId, key } of readyMarkdownSources({ pending: droppedMarkdown.current, blocks: canvasApi.current?.blocks?.() || [], savedBlocks })) { droppedMarkdown.current.delete(blockId); markEnd('dropready:' + blockId); markMove('drop:' + blockId, 'drop:' + key); roadmap.sourceReady(key); }
   }, [saveState]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Reload and keep my document (a 409, blocknote-canvas.md): this browser's document - its unsaved words written first -
-  // is put aside, the server's newer board loads (the board GET), and the kept document goes over it as the newer edit.
-  const keepMyDoc = () => {
-    canvas()?.flushDoc?.();
-    try { const local = JSON.parse(localStorage.getItem(boardStorageKey) || '{}'); if (local.doc) localStorage.setItem(docKeepKey, JSON.stringify(local.doc)); } catch { /* the doc stays in this browser's copy, kept under :replaced */ }
-    setDocConflict(false);
-    setSaveState(null);
-    setBoardLoad(load => load + 1);
-  };
   // Offline queue: edits keep going to this browser; on reconnect the latest copy goes up through the same queue.
   // ponytail: a board whose GET failed offline waits for its next open (Load, above); re-ask on reconnect if that matters.
   useEffect(() => {
@@ -1943,7 +1985,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     shown: panelOpen && panelTab === 'find', commentsBase: comments.active ? memberBase(commentBoard) : null,
     links, linkResults: true, onOpenLink: href => refLinks.go(href), children: dive.navigator?.tree?.children,
     onComment: result => { setSearchThread({ scope: searchScope, id: result.target.id }); comments.openPin(result.target.id); },
-    revealDocument: () => setDocView('editor'), canInsert: canEditCanvas });
+    canInsert: canEditCanvas });
   const openSearchAction = (result, action) => {
     if (action.kind === 'rabbit-hole') return dive.portals.enter(action.rabbitHole.name);
     if (action.kind === 'link-card') return canvasApi.current?.focusBlock(action.objectId);
@@ -2392,9 +2434,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const canvasMenus = [
     { title: 'Insert', items: ownerInsertItems({ canvas, onUpload: () => filePicker.current?.click(), onSearchSources: () => openSourceFinder({}), onLinkToCanvas: () => setAddLink({}),
       onCreateCourse: canEditCanvas && roadmap.on ? Object.assign(() => { const done = chat.canvasOps?.startCourse?.(''); if (done?.notice?.text) toast(done.notice.text); }, { disabled: !!roadmap.state.view?.course?.running }) : null }) },
-    ...canvasEditMenus({ canvas, canvasState, inlineAi, quickEdit: true, comments, docView, setDocView, panel: { open: panelOpen, setOpen: setPanelOpen }, study, onShortcuts: () => setShortcutsOpen(true), onSlashCommands: () => setSlashHelpOpen(true) }),
+    ...canvasEditMenus({ canvas, canvasState, inlineAi, quickEdit: true, comments, panel: { open: panelOpen, setOpen: setPanelOpen }, study, onShortcuts: () => setShortcutsOpen(true), onSlashCommands: () => setSlashHelpOpen(true) }),
   ];
   const canvasOutline = canvasState.outline || [];
+  outlineRef.current = canvasOutline;
+  const planDone = !!repository && (planAcceptedNow || !!acceptedPlan(chat?.coaching?.state));
+  // On Accept (or a reload of an accepted plan) the first section is current; the Tutor moves it on as it closes sections (the lesson slice).
+  useEffect(() => {
+    if (!planDone || planCurrent) return;
+    const first = canvasOutline.find(entry => entry.level >= 2) || canvasOutline[0];
+    if (first) setPlanCurrent(first.id);
+  }, [planDone, planCurrent, canvasOutline]);
   const outlineDisabled = !editor || answering || !!noteEditing;
   const coursePanel = <CoursePanel state={course} app={app} onPreview={previewLesson} onDeleted={() => {
           if (lesson.current?.lessonId?.startsWith('course-')) {
@@ -2433,6 +2483,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {/* Over the canvas (headerOver) it is an opaque band that takes the pointer (owner, 2026-10-29: no card shows between
             the title and the menus; supersedes 2026-10-22's see-through row). */}
         {!canvasState.presenting && <div data-canvas-header className={`${headerOver ? OWNER_HEADER_OVER : 'relative shrink-0'} ${OWNER_HEADER}`}>
+          {/* Study | Canvas (pinned-study-codebase-spec.md 2f, owner 2026-11-15): small, at the far right end of the header row (the header is positioned), not in the centred group. Only when this
+              canvas has a generated Run card or Runbook, or a pinned card. Drives the same mode View > Canvas / Study set. */}
+          {studyPill(canvasApi.current?.blocks?.() || [], study.state.pin) && <Tabs value={study.mode === 'study' ? 'study' : 'canvas'} onValueChange={study.setMode}>
+            <TabsList square data-study-toggle aria-label="Study or Canvas" className="absolute top-4 right-3 h-6 max-md:top-3 max-md:right-2">
+              <TabsTrigger square value="study" data-study-toggle-option="study" className="h-5 px-2.5 text-xs">Run</TabsTrigger>
+              <TabsTrigger square value="canvas" data-study-toggle-option="canvas" className="h-5 px-2.5 text-xs">Canvas</TabsTrigger>
+            </TabsList>
+          </Tabs>}
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
@@ -2474,33 +2532,16 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           <TitleHoles {...dive.titleHoles} /></>}
           </div>
           <CanvasMenubar menus={canvasMenus} />
-          {/* The document's save status and the board's size (blocknote-canvas.md): Saved only once the server has it. A 409 or
-              a document a newer server copy replaced are offered back here, never dropped. */}
-          {docView === 'editor' && saveState && (
+          {/* The save status while a Document card has the focus, and the board's size (blocknote-canvas.md): Saved only once the server has it. */}
+          {docFocused && saveState && (
             <span data-doc-save-status data-state={saveState.state} className={`flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs ${saveState.state === 'error' ? 'text-red-700' : 'text-ink-3'}`} title={saveState.message || undefined}>
               {saveState.state === 'saving' ? 'Saving' : saveState.state === 'saved' ? 'Saved' : <>Couldn&apos;t save{saveState.status === 413 ? ' - Not saved: over 1.9 MB' : saveState.status || saveState.unreadable ? '' : ' - offline'}
-                <button type="button" onClick={() => (saveState.status === 409 ? keepMyDoc() : pushBoard(null, { now: true }))} className="ml-1 flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCw size={12} aria-hidden />Retry</button></>}
+                <button type="button" onClick={() => { if (saveState.status === 409) { setSaveState(null); setBoardLoad(load => load + 1); } else pushBoard(null, { now: true }); }} className="ml-1 flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-ink hover:bg-hover"><RotateCw size={12} aria-hidden />Retry</button></>}
             </span>
           )}
           {boardSizeWarning(boardChars) && (
             <span data-board-size-warning role="status" className="flex h-8 shrink-0 items-center rounded-lg px-2 text-xs text-amber-700" title={`${(boardChars / 1e6).toFixed(2)} MB of ${(BOARD_LIMIT / 1e6).toFixed(1)} MB`}>
               Close to the 1.9 MB limit ({Math.round((boardChars / BOARD_LIMIT) * 100)}%)
-            </span>
-          )}
-          {docConflict && (
-            <span data-doc-conflict role="alert" className="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs text-ink-2">
-              This canvas changed elsewhere.
-              <button type="button" onClick={keepMyDoc} className="rounded-md border border-line px-1.5 py-0.5 text-ink hover:bg-hover">Reload and keep my document</button>
-            </span>
-          )}
-          {docRestore && (
-            <span data-doc-restore role="status" className="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs text-ink-2">
-              Another version of this document was kept aside.
-              {/* Restoring keeps the document it replaces under :replaced in turn, so neither version is ever lost. */}
-              <button type="button" onClick={() => {
-                try { const aside = JSON.parse(localStorage.getItem(`${boardStorageKey}:replaced`) || '{}'); localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify({ ...aside, doc: canvas()?.liveBoard?.().doc ?? null })); } catch { /* the restore still runs */ }
-                canvas()?.replaceDoc(docRestore); setDocRestore(null);
-              }} className="rounded-md border border-line px-1.5 py-0.5 text-ink hover:bg-hover">Restore my unsaved document</button>
             </span>
           )}
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
@@ -2552,9 +2593,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {reviewTools && board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
         {/* Study's reference pane: a sibling placed beside the frame (the frame only gets a margin), so the canvas and its notebook
             iframe never move to another parent. */}
-        {study.open && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} />}
+        {study.open && <StudyPane study={study} canvasApi={canvasApi} canvasFrame={canvasFrame} canvasState={canvasState} ready={restoredBoard === boardPath} files={files} graph={graph} />}
         <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} study={study} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere && !roadmap.active} coaching={hooksCoaching} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} liveTitle={dive.tree?.path?.at(-1)?.title ?? app.title ?? null} recordPending={/^canvas-[a-f0-9]{8}$/.test(app.name) && !dive.tree} access={askScope} title={app.title || ''} graded={graded} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <ExplainBackService.Provider value={explainBack}><AnimationBoard.Provider value={animationBoard}><CardFeedbackScope.Provider value={feedbackScope}><AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} /> : null}
-          composer={panelOpen ? null : <div ref={setStripHost} data-canvas-chat-strip />} chatWindow={panelOpen ? null : <div ref={setWindowHost} data-canvas-chat-window className="empty:hidden" />} hooks={steps && !panelOpen ? <NextStepsCard steps={steps} minimized={curiousMin} onMinimizedChange={setCuriousMin} onPick={(step, hook) => nextStepSend.current?.(step, hook.hook)} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setAddLink} onPinForStudy={study.pinCard} study={study} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onSkeletonsDropped={dropSkeletons} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} roadmap={roadmapCanvas} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></CardFeedbackScope.Provider></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{dive.emptyHint}{dive.confirmDialog}{addLink && <AddLinkChooser onClose={() => setAddLink(null)} returnFocus={() => (addLink.blockId ? document.querySelector(`[data-block-id="${CSS.escape(addLink.blockId)}"]`) : null)}
+          composer={panelOpen ? null : <div ref={setStripHost} data-canvas-chat-strip />} chatWindow={panelOpen ? null : <div ref={setWindowHost} data-canvas-chat-window className="empty:hidden" />} hooks={steps && !panelOpen ? <NextStepsCard steps={steps} minimized={curiousMin} onMinimizedChange={setCuriousMin} onPick={(step, hook) => nextStepSend.current?.(step, hook.hook)} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setAddLink} onPinForStudy={study.pinCard} study={study} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onSkeletonsDropped={dropSkeletons} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={!panelOpen && canvasOutline.length ? 52 : 0} storageKey={boardStorageKey} roadmap={roadmapCanvas} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} /></CardFeedbackScope.Provider></AnimationBoard.Provider></ExplainBackService.Provider>}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{dive.emptyHint}{dive.confirmDialog}{addLink && <AddLinkChooser onClose={() => setAddLink(null)} returnFocus={() => (addLink.blockId ? document.querySelector(`[data-block-id="${CSS.escape(addLink.blockId)}"]`) : null)}
   onChoose={kind => { const arg = addLink; setAddLink(null); if (kind === 'canvas') setRefPick(arg); else setTocPick(arg); }} />}
 {tocPick && <ItemPicker title="Link to TOC" searchLabel="Search sections" items={canvasApi.current?.tocSections?.() || []} emptyText="No sections in the table of contents yet."
   linked={tocPick.blockId ? (canvasApi.current?.linkableCards?.().find(card => card.id === tocPick.blockId)?.tocLinks || []) : []} onClose={() => setTocPick(null)}
@@ -2632,7 +2673,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
-      <TableOfContents tocLinks={canvasState.tocLinks} onAddLink={entryId => setCardPick({ entryId })} flash={tocFlash} roadmap={roadmap} onAddToChat={ref => { chat.toc.context.attach(ref); chat.toc.composer.focus?.(); }} subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
+      <TableOfContents tocLinks={canvasState.tocLinks} onAddLink={entryId => setCardPick({ entryId })} flash={tocFlash} roadmap={roadmap} onAddToChat={planDone ? null : ref => { chat.toc.context.attach(ref); chat.toc.composer.focus?.(); }} subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={planDone && planCurrent ? planCurrent : canvasState.activeSection ?? null} readOnly={!canEditCanvas || planDone} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
         className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
       {setupChat && <CourseInterview state={course} app={app} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
@@ -2640,7 +2681,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       </div>
       {/* The contents' own conversation (owner approved 2026-11-07, over checklist UI.02): the outline above scrolls, the composer stays fixed below it; its thread,
           draft and context pills are the contents', never Chat's. A change the Tutor proposes here applies to the contents at once; one that cannot apply waits as the Apply/Discard card. */}
-      {!setupChat && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline"
+      {!setupChat && !planDone && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline"
         codebase={repository} repositoryExcerpt={repositoryExcerpt} repositoryContext={!repoAttached ? null : repositoryContext} onClearRepository={onClearRepository}
         boardContext={{ ...boardContext, onOutlineProposal: canEditCanvas ? proposal => { const result = canvasApi.current?.applyOutline(proposal.ops, { base: proposal.base, source: proposal.source }); if (!result?.ok) setProposal(proposal); } : undefined }} /></TocWorkspace>}
       </div>

@@ -82,6 +82,17 @@ export function createJob(deps) {
 
   // ---- the destination, once -----------------------------------------------------------------------------------
   const goTo = (slug) => { if (!String(deps.here()).startsWith(`/apps/${slug}`)) deps.navigate(`/apps/${slug}`); };
+  // Owner 2026-11-15 (initial pipeline): a rabbit hole started from a GitHub URL opens a CANVAS inside the project, because the Tutor (coaching,
+  // the intake, the rehearsal) works on canvases (canvas-xxxxxxxx), not on the project's own Main canvas. deps.canvasInProject(slug, title) is
+  // given only in the dev build (VITE_REHEARSAL_TRIGGER=1, start-run.js); absent, the destination is the project as before.
+  async function intoCanvas(slug, repository, ctx, existing = false) {
+    if (!deps.canvasInProject) { if (existing) goTo(slug); return slug; }
+    const title = String(repository.meta?.connect?.url || repository.label || slug).replace(/[?#].*$/, '').replace(/\/+$/, '').split('/').pop() || slug;
+    const canvas = await deps.canvasInProject(slug, title, ctx);
+    if (!canvas?.data?.name) throw Error('The canvas was not created.');
+    dispatch({ type: 'destination', kind: 'canvas', slug: canvas.data.name });
+    return canvas.data.name;
+  }
   async function destination(plan, ctx) {
     if (draft.destination) { goTo(draft.destination.slug); return draft.destination.slug; }
     const repository = draft.rows.find((row) => row.kind === 'repository' && row.status !== 'ready');
@@ -90,8 +101,7 @@ export function createJob(deps) {
       if (existing) {
         dispatch({ type: 'destination', kind: 'repository', slug: existing.slug, existing: true });
         move(repository.id, { done: { context: true } });
-        goTo(existing.slug);
-        return existing.slug;
+        return await intoCanvas(existing.slug, repository, ctx, true);
       }
       move(repository.id, { status: 'checking' });
       let made;
@@ -102,7 +112,7 @@ export function createJob(deps) {
       } catch (error) { fail(repository.id, message(error)); throw error; }
       dispatch({ type: 'destination', kind: 'repository', slug: made.data.name, existing: !!made.data.existing });
       move(repository.id, { done: { context: true } });
-      return made.data.name;
+      return await intoCanvas(made.data.name, repository, ctx);
     }
     const made = await deps.command('create_canvas', { title: UNTITLED, open: true }, ctx);
     if (!made?.data?.name) throw Error('The canvas was not created.');

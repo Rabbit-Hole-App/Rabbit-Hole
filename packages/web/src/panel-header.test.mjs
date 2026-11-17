@@ -97,7 +97,7 @@ test('Progress: a tab of the panel (after the Table of contents), its tabpanel i
   const pane = readFileSync(new URL('./ChatPane.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.doesNotMatch(pane, /data-chat-progress|ChartColumnIncreasing/, 'not in the Chat header');
   assert.doesNotMatch(page + header, /data-chat-progress|ChartColumnIncreasing size/, 'no separate Progress toggle anywhere');
-  assert.match(header, /\{ id: 'toc', label: 'Table of contents', Icon: ListTree \},\n[^\n]*\n\s+\{ id: 'progress', label: 'Progress', Icon: Gauge \},/, 'right after the Table of contents, a descriptive icon');
+  assert.match(header, /\{ id: 'toc', label: 'Table of contents', Icon: ListTree \},\n[^\n]*\n\s+\{ id: 'progress', label: 'Progress', Icon: TrendingUp \},/, 'right after the Table of contents, a descriptive icon');
   assert.doesNotMatch(header, /progress = null|progress\.onToggle/, 'no Progress toggle prop');
   assert.doesNotMatch(page, /companionView === 'progress'|companion\.show\('progress'\)|panels\.progress/, 'the companion column never shows Progress');
   assert.match(page, /if \(panelOpen && panelTab === 'progress'\) shown\.current\.add\('progress'\);/);

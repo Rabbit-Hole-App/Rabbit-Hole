@@ -1,0 +1,10 @@
+Overriding: out_dir = out-shakespeare-char
+Overriding: device = cpu
+
+--- stderr ---
+Traceback (most recent call last):
+  File "/work/repo/sample.py", line 23, in <module>
+    exec(open('configurator.py').read()) # overrides from command line or config file
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 42, in <module>
+AssertionError

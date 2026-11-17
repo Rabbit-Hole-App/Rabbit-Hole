@@ -3,9 +3,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { TRACKING_NOTE, USAGE_PATH, barParts, checkoutCredits, createUsageStore, creditCount, formatCredits, formatReset, purchaseAmount, readUsage, unknownLine, usageView } from './account-usage.js';
+import { TRACKING_NOTE, USAGE_PATH, barParts, checkoutCredits, createUsageStore, creditCount, formatComputeUnits, formatCredits, formatReset, purchaseAmount, readUsage, unknownLine, usageView } from './account-usage.js';
 
-// The server's answer: AI credits only (no dollars, micros or currency on the wire).
+// The server's answer: AI units only (no dollars, micros or currency on the wire).
 const body = (over = {}) => ({ enforced: false, period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z',
   allowanceCredits: 5000, usedCredits: 1740, reservedCredits: 0, estimatedCredits: 0, remainingCredits: 3260, ...over });
 const reply = (status, json) => ({ status, json: async () => (json instanceof Error ? Promise.reject(json) : json) });
@@ -21,11 +21,11 @@ test('positive: allowance left is green, says how much, and says it is not enfor
   const { store } = storeWith(reply(200, body()));
   const state = await settle(store);
   assert.equal(state.status, 'ready');
-  assert.deepEqual(state.usage, { allowance: 50_000_000, used: 17_400_000, reserved: 0, remaining: 32_600_000, resetsAt: '2026-11-01T00:00:00.000Z', period: '2026-10', enforced: false, unknownAttempts: 0 });
+  assert.deepEqual(state.usage, { allowance: 50_000_000, used: 17_400_000, reserved: 0, remaining: 32_600_000, resetsAt: '2026-11-01T00:00:00.000Z', period: '2026-10', enforced: false, unknownAttempts: 0, compute: null });
   const view = usageView(state);
   assert.equal(view.tone, 'ok');
-  assert.equal(view.label, 'AI credits: 3,260 credits remaining');
-  assert.equal(view.title, `AI credits: 3,260 credits remaining. ${TRACKING_NOTE}`);
+  assert.equal(view.label, 'Usage limit: 3,260 AI units remaining');
+  assert.equal(view.title, `Usage limit: 3,260 AI units remaining. ${TRACKING_NOTE}`);
   assert.equal(TRACKING_NOTE, 'Tracking only - limits are not enforced yet.');
 });
 
@@ -33,12 +33,12 @@ test('exhausted: red only when the server reports remaining 0', async () => {
   const { store } = storeWith(reply(200, body({ usedCredits: 5000, remainingCredits: 0 })));
   const view = usageView(await settle(store));
   assert.equal(view.tone, 'empty');
-  assert.equal(view.label, 'No AI credits remaining');
+  assert.equal(view.label, 'No AI units remaining');
   assert.match(view.title, /not enforced yet/);
   // A tiny balance is still a balance: green, and never shown as 0 credits.
   const tiny = usageView(readUsage(200, body({ remainingCredits: 0.3 })));
   assert.equal(tiny.tone, 'ok');
-  assert.equal(tiny.label, 'AI credits: less than 1 credit remaining');
+  assert.equal(tiny.label, 'Usage limit: less than 1 AI unit remaining');
 });
 
 test('reserved: running work is held apart from what is used, and the remaining figure is the server\'s', async () => {
@@ -46,7 +46,7 @@ test('reserved: running work is held apart from what is used, and the remaining 
   const state = await settle(store);
   assert.equal(state.usage.reserved, 500_000);
   assert.equal(state.usage.used, 17_400_000, 'a reservation is never reported as spend');
-  assert.equal(usageView(state).label, 'AI credits: 3,210 credits remaining');
+  assert.equal(usageView(state).label, 'Usage limit: 3,210 AI units remaining');
 });
 
 test('unavailable and errors are neutral, never red or a zero balance', async () => {
@@ -68,7 +68,7 @@ test('unavailable and errors are neutral, never red or a zero balance', async ()
     const { store } = storeWith(answer);
     const view = usageView(await settle(store));
     assert.equal(view.tone, 'neutral', name);
-    assert.equal(view.label, 'AI usage unavailable', name);
+    assert.equal(view.label, 'Usage limit unavailable', name);
     assert.equal(view.usage, null, name);
   }
 });
@@ -79,7 +79,7 @@ test('signed out (401): no personal allowance, and no redirect to sign-in from a
   assert.deepEqual(state, { status: 'signed_out' });
   const view = usageView(state);
   assert.equal(view.tone, 'neutral');
-  assert.equal(view.label, 'Sign in to see your AI credits');
+  assert.equal(view.label, 'Sign in to see your usage limit');
   assert.equal(view.usage, null);
   // The store reads with fetch, not api(): api() sends any 401 to /login, which would yank a signed-out link viewer away.
   const source = readFileSync(new URL('./account-usage.js', import.meta.url), 'utf8');
@@ -89,7 +89,7 @@ test('signed out (401): no personal allowance, and no redirect to sign-in from a
 
 test('loading is neutral; a refresh keeps the last numbers until it answers; a failed refresh goes neutral, not red', async () => {
   assert.equal(usageView({ status: 'idle' }).tone, 'neutral');
-  assert.equal(usageView({ status: 'loading' }).label, 'Loading AI usage');
+  assert.equal(usageView({ status: 'loading' }).label, 'Loading usage limit');
   const { store } = storeWith(reply(200, body()), new Error('offline'));
   await settle(store);
   const pending = store.refresh();
@@ -139,18 +139,18 @@ test('requests that ended without a confirmed cost: a count, never an amount; a 
 });
 
 test('credits from integer micros (owner messages 32-33): 1 credit = $0.01, nearest credit, never 0 for nonzero usage', () => {
-  assert.equal(formatCredits(46_440_000), '4,644 credits');
-  assert.equal(formatCredits(3_560_000), '356 credits');
+  assert.equal(formatCredits(46_440_000), '4,644 AI units');
+  assert.equal(formatCredits(3_560_000), '356 AI units');
   assert.equal(creditCount(50_000_000), '5,000');
-  assert.equal(formatCredits(50_000_000), '5,000 credits');
-  assert.equal(formatCredits(10_000), '1 credit');
-  assert.equal(formatCredits(14_999), '1 credit');
-  assert.equal(formatCredits(15_000), '2 credits', 'half a credit rounds up');
-  assert.equal(formatCredits(0), '0 credits', 'exactly 0 is the only 0');
-  for (const tiny of [1, 4_000, 4_999]) assert.equal(formatCredits(tiny), 'less than 1 credit', String(tiny));
-  assert.equal(formatCredits(5_000), '1 credit');
-  assert.equal(formatCredits(100_000 + 200_000), '30 credits', '0.1 + 0.2 in micros is exactly 30');
-  assert.equal(formatCredits(1_234_567_890), '123,457 credits');
+  assert.equal(formatCredits(50_000_000), '5,000 AI units');
+  assert.equal(formatCredits(10_000), '1 AI unit');
+  assert.equal(formatCredits(14_999), '1 AI unit');
+  assert.equal(formatCredits(15_000), '2 AI units', 'half a credit rounds up');
+  assert.equal(formatCredits(0), '0 AI units', 'exactly 0 is the only 0');
+  for (const tiny of [1, 4_000, 4_999]) assert.equal(formatCredits(tiny), 'less than 1 AI unit', String(tiny));
+  assert.equal(formatCredits(5_000), '1 AI unit');
+  assert.equal(formatCredits(100_000 + 200_000), '30 AI units', '0.1 + 0.2 in micros is exactly 30');
+  assert.equal(formatCredits(1_234_567_890), '123,457 AI units');
 });
 
 test('the reset instant is one wording everywhere, in the viewer zone with the zone named, pinned at the Nov 1 cutover and at a month and year boundary', () => {
@@ -171,7 +171,7 @@ test('the usage bar: used then reserved, in whole percents of the allowance, nev
 
 test('the allowance comes only from the server: no dollar amount is written into the client', () => {
   const changed = usageView(readUsage(200, body({ allowanceCredits: 7500, usedCredits: 0, remainingCredits: 7500 })));
-  assert.equal(changed.label, 'AI credits: 7,500 credits remaining');
+  assert.equal(changed.label, 'Usage limit: 7,500 AI units remaining');
   for (const file of ['./account-usage.js', './UsageGauge.jsx']) {
     const source = readFileSync(new URL(file, import.meta.url), 'utf8');
     // A bare 50 (not a class like z-50), $50, or 50 dollars in micros.
@@ -200,7 +200,7 @@ test('by feature: well-formed rows pass through with learner names, same names a
   assert.equal('byFeature' in readUsage(200, body()).usage, false, 'a server before the field');
 });
 
-test('Buy credits (owner, 2026-10-29): Other amount is a positive USD number with up to two decimals; checkout only says coming soon', () => {
+test('Add units (owner, 2026-10-29): Other amount is a positive USD number with up to two decimals; checkout only says coming soon', () => {
   for (const [text, amount] of [['20', 20], ['0.5', 0.5], ['12.34', 12.34], [' 7 ', 7]]) assert.equal(purchaseAmount(text), amount, JSON.stringify(text));
   for (const text of ['', '0', '-1', '1.234', 'abc', '1e3', ' ', 'Infinity', '0.00', '12.', '+5', '1,000', 'NaN'])
     assert.equal(purchaseAmount(text), null, JSON.stringify(text));
@@ -209,4 +209,22 @@ test('Buy credits (owner, 2026-10-29): Other amount is a positive USD number wit
   assert.equal(Number('9'.repeat(400)), Infinity);
   assert.equal(purchaseAmount('9'.repeat(400)), null);
   assert.equal(checkoutCredits(50), 'Credit purchases are coming soon.');
+});
+
+// Usage limits (usage-limits-spec.md, owner 2026-11-15): the same body answers both meters, in units; an older server has no compute and the screen says it is not metered.
+test('the compute meter is read in units; the gauge shows both and the lower share; an old server reads null; a bad one reads unavailable', () => {
+  const compute = { allowanceUnits: 1000, usedUnits: 18, reservedUnits: 5, remainingUnits: 977, minutesLeft: 9400, resetsAt: '2026-11-01T00:00:00.000Z', byMachine: [{ kind: 'session', repo: 'owner/name', commit: 'aaaaaaa', routeTitle: 'Serve it', startedAt: 1, minutes: 12, usedUnits: 18, running: false }] };
+  const ready = readUsage(200, body({ compute }));
+  assert.deepEqual([ready.usage.compute.allowance, ready.usage.compute.used, ready.usage.compute.reserved, ready.usage.compute.remaining], [10_000_000, 180_000, 50_000, 9_770_000]);
+  assert.equal(ready.usage.compute.byMachine[0].routeTitle, 'Serve it');
+  const view = usageView(ready);
+  assert.match(view.label, /^Usage limit: .* AI units?, 977 Compute units remaining$/);
+  assert.ok(view.lowest > 0 && view.lowest <= 1);
+  assert.equal(readUsage(200, body({ compute: { allowanceUnits: 1000, usedUnits: 1000, reservedUnits: 0, remainingUnits: 0 } })).usage.compute.remaining, 0);
+  assert.equal(usageView(readUsage(200, body({ compute: { allowanceUnits: 1000, usedUnits: 1000, reservedUnits: 0, remainingUnits: 0 } }))).label, 'No Compute units remaining');
+  assert.equal(readUsage(200, body()).usage.compute, null, 'a server before the meter');
+  assert.deepEqual(readUsage(200, body({ compute: { unavailable: 'accounting' } })).usage.compute, { unavailable: 'accounting' });
+  assert.deepEqual(readUsage(200, body({ compute: { allowanceUnits: 0 } })).usage.compute, { unavailable: 'malformed' });
+  assert.equal(formatComputeUnits(10_000), '1 Compute unit');
+  assert.doesNotMatch(JSON.stringify(view), /credit/i, 'the word credit is not on screen');
 });

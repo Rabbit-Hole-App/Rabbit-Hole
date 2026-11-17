@@ -1,0 +1,30 @@
+{
+  "case": "nano",
+  "section": "2.1",
+  "sectionId": "2.1",
+  "itemId": "i4",
+  "preReview": true,
+  "ms": 6567,
+  "out": {
+    "skipped": {
+      "itemId": "i4",
+      "note": "I skipped the explanation for this part."
+    },
+    "next": "i5"
+  },
+  "log": [
+    {
+      "event": "learn_section_make",
+      "section": "2.1",
+      "item": "i4",
+      "command": "explanation",
+      "calls": 2,
+      "usd": 0.015932,
+      "cap_usd": 0.1,
+      "outcome": "invalid",
+      "errors": [
+        "prompt uses 65, which the source lines and the brief do not: use only their numbers"
+      ]
+    }
+  ]
+}

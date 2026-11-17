@@ -24,6 +24,10 @@
       {
         "name": "REPOSITORY_IMPORTS",
         "class_name": "RepositoryImports"
+      },
+      {
+        "name": "REPOSITORY_REHEARSALS",
+        "class_name": "RepositoryRehearsals"
       }
     ]
   },
@@ -44,6 +48,12 @@
       "tag": "repository-imports-1",
       "new_sqlite_classes": [
         "RepositoryImports"
+      ]
+    },
+    {
+      "tag": "repository-rehearsals-1",
+      "new_sqlite_classes": [
+        "RepositoryRehearsals"
       ]
     }
   ],
@@ -97,6 +107,8 @@
     }
   ],
   "vars": {
+    // The code-explain chat route: on in the local and CI stack, as in dev (production keeps it off, Reviewer 2026-11-16 12:10).
+    "CODE_EXPLAIN_ENABLED": "true",
     "LEARN_VIDEO_PROVIDER": "fal-seedance-lite",
     "LEARN_VIDEO_RESOLUTION": "480p",
     "SUBSCRIPTION_ONLY": "false",

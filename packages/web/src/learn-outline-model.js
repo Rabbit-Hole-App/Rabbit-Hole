@@ -13,7 +13,7 @@ export const DESCRIPTION_MAX = 240;
 const TITLE_MAX = 200;
 // At most this many ops per proposal (contract C7b): 96 when adopting a validated Tutor syllabus (12 topics x (1 + 6
 // subtopics) + 12 describes), 24 for anything else.
-const MAX_OPS = 24, MAX_SYLLABUS_OPS = 96;
+const MAX_OPS = 24, MAX_SYLLABUS_OPS = 96, MAX_PLAN_OPS = 48; // 48: a Learn plan, 4-8 chapters of 2-5 sections (learn-plan-toc-spec.md, Reviewer 2026-11-15)
 // The most headings the contents hold for the Tutor (owner decision, Release A3 item 1): a proposal (a Tutor change or a
 // syllabus adoption) may not take the total past it, and chat sends the headings only up to it. The learner's own edits
 // in the panel are never capped. The control plane imports this same constant (learn-context.js).
@@ -126,7 +126,7 @@ export const STALE_PROPOSAL = 'The contents changed since this proposal. Ask the
 // applies unconditionally, as before. Either way an invalid op refuses the whole list. source: 'syllabus' | 'tutor'.
 export function applyOutlineProposal(blocks, ops, { base = null, source = null, newId } = {}) {
   if (base != null && outlineRevision(outlineFrom(blocks)) !== base) return { ok: false, reason: 'stale', message: STALE_PROPOSAL };
-  const plan = planOutline(blocks, ops, { newId, strict: true, dedupe: base != null, max: source === 'syllabus' ? MAX_SYLLABUS_OPS : MAX_OPS });
+  const plan = planOutline(blocks, ops, { newId, strict: true, dedupe: base != null, max: source === 'syllabus' ? MAX_SYLLABUS_OPS : source === 'learn-plan' ? MAX_PLAN_OPS : MAX_OPS });
   // Checked against the resulting total, existing headings included; over the limit the whole proposal is refused and
   // nothing applies, never a partial or truncated one.
   if (!plan.error && source) {

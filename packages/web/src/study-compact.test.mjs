@@ -60,7 +60,7 @@ test('Reference options details: an upload or a context document says Your uploa
 
 test('StudyPane: one header row, the pane name kept, Add to chat on the same addPinned press, failures outside the options', () => {
   const pane = readFileSync(new URL('./StudyPane.jsx', import.meta.url), 'utf8');
-  assert.match(pane, /<aside ref=\{box\} aria-label="Pinned reference" data-study-pane/);
+  assert.match(pane, /<aside ref=\{box\} aria-label=\{tabs\.length \? 'Reference' : 'Pinned reference'\} data-study-pane/);
   assert.doesNotMatch(pane, /uppercase/, 'no uppercase Pinned reference row');
   assert.match(pane, /data-study-header className="@container flex h-\[42px\] shrink-0 /);
   assert.match(pane, /<SourceReader presentation="study" /);

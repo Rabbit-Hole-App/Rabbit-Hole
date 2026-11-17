@@ -1,0 +1,33 @@
+catalogue ../../docs/features/rehearsal/evidence/2026-11-15/rerun-s1-s5/catalogues/ds-cat-v4-1.json
+fixture datasette-e9d45fe
+
+PASS    [catalogue.commit] commit e9d45fe40060 is the fixture's e9d45fe40060
+PASS    [summary mentions] summary mentions 'SQLite'
+INFO    [summary should mention] 'web' present
+INFO    [summary should mention] 'command' present
+PASS    [route A (serve a database and open it in the browser (http)) found by source overlap or sketch commands] serve_database
+INFO    [route A match] serve_database by source overlap ['docs/contributing.rst:146']
+PASS    [route A practical, resultKind http] serve_database practical, http
+PASS    [route B (ask it a question without starting a server (stdout via --get) or inspect a database) found by source overlap or sketch commands] get_json_oneshot
+INFO    [route B match] get_json_oneshot by source overlap ['datasette/cli.py:449']
+PASS    [route B practical, resultKind stdout] get_json_oneshot practical, stdout
+PASS    [route C (run the automated test suite (tests)) found by source overlap or sketch commands] run_tests
+INFO    [route C match] run_tests by sketch commands only (no stepsSketch source equals the fixture citation ['Justfile:12', 'docs/contributing.rst:55', 'docs/contributing.rst:59', 'pyproject.toml:61']: line numbers drift)
+PASS    [route C practical, resultKind tests] run_tests practical, tests
+PASS    [recommended: exactly one] one recommended (serve_database)
+PASS    [recommended is route A or B] serve_database is route A
+PASS    [every practical route has effort 'Quick — just Python'] 5 practical routes
+PASS    [titles and descriptions contain no command, path or file:line] 11 routes
+PASS    [titles at most 70 chars] longest title 58
+INFO    [impractical publish to Heroku / Cloud Run] publish_cloudrun by source overlap
+PASS    [impractical publish to Heroku / Cloud Run: reason mentions one of ['account']] publish_cloudrun: Docker isn't available in the sandbox yet; needs an account or API key (Google Cloud account)
+INFO    [impractical build a Docker image (datasette package)] apache_proxy_demo by a mention of ['Docker'], no source overlap (a different command)
+PASS    [impractical build a Docker image (datasette package): reason mentions one of ['Docker']] apache_proxy_demo: Docker isn't available in the sandbox yet
+INFO    [impractical Playwright browser tests] playwright_tests by a mention of ['browser'], no source overlap (a different command)
+PASS    [impractical Playwright browser tests: reason mentions one of ['browser']] playwright_tests: needs to download a browser from cdn.playwright.dev, which the sandbox blocks
+INFO    [impractical brew install (macOS only)] brew_main by source overlap
+PASS    [impractical brew install (macOS only): has a reason] needs macOS (Homebrew), which the sandbox is not
+SKIPPED [chatWording] about the rendered choice message, not the catalogue document
+INFO    [routes not in the fixture] create_api_token, list_plugins, publish_heroku, deploy_main
+
+SUMMARY 17 PASS, 0 FAIL, 1 SKIPPED (not scored)

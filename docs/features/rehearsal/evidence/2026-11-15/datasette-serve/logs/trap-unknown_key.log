@@ -1,0 +1,6 @@
+
+--- stderr ---
+Usage: fixtures.py [OPTIONS] [DB_FILENAME] [CONFIG] [METADATA] [PLUGINS_PATH]
+Try 'fixtures.py --help' for help.
+
+Error: No such option '--recrate'. Did you mean '--recreate'?

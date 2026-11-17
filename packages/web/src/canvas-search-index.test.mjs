@@ -41,12 +41,14 @@ test('empty browsing classifies text, code, references and real Rabbit Holes wit
   assert.equal(query(value, '', 'code').results[0].objectId, 'c');
   assert.equal(query(value, 'global').results.length, 0);
 });
-test('unbudgeted live content includes late objects, shape labels, equations, notebook and hidden document blocks', () => {
+test('unbudgeted live content includes late objects, shape labels, equations, notebook and Document cards (a card result, under the Document filter)', () => {
   const blocks = Array.from({ length: 120 }, (_, i) => ({ id: `b${i}`, type: 'text', text: i === 119 ? 'late needle' : 'x'.repeat(100) }));
   blocks.push({ id: 'nb', type: 'notebook', ipynb: { cells: [{ id: 'cell', cell_type: 'code', source: ['stored ', 'needle'] }] } });
-  const value = index({ blocks, shapes: [{ id: 's', text: 'shape needle' }], items: [{ id: 'e', kind: 'equation', latex: '\\frac{needle}{2}' }], doc: { blocks: [{ id: 'doc-a', type: 'paragraph', content: [{ type: 'text', text: 'hidden needle' }], children: [{ id: 'doc-b', type: 'paragraph', content: [{ type: 'text', text: 'nested needle' }] }] }] } });
-  assert.equal(query(value, 'needle').results.length, 6);
-  assert.equal(query(value, 'nested').results[0].target.docBlockId, 'doc-b');
+  blocks.push({ id: 'doc1', type: 'doc', blocks: [{ id: 'doc-a', type: 'paragraph', content: [{ type: 'text', text: 'hidden needle' }], children: [{ id: 'doc-b', type: 'paragraph', content: [{ type: 'text', text: 'nested needle' }] }] }] });
+  const value = index({ blocks, shapes: [{ id: 's', text: 'shape needle' }], items: [{ id: 'e', kind: 'equation', latex: '\\frac{needle}{2}' }] });
+  assert.equal(query(value, 'needle').results.length, 5);
+  assert.equal(query(value, 'nested').results[0].objectId, 'doc1');
+  assert.equal(query(value, 'nested', 'document').results[0].objectId, 'doc1', 'a Document card is in the Document filter');
   assert.equal(query(value, 'stored').results[0].location.cell, 'cell');
 });
 test('references dedup per object and permission denials never expose stale source names', () => {
@@ -111,8 +113,9 @@ test('PDF pages and paper cards qualify through structured identity, never arbit
   assert.equal(query(value, 'page 7', 'references').results[0].objectId, 'page');
   assert.equal(query(value, 'page 4', 'references').results[0].objectId, 'paper');
 });
-test('an empty native document does not create a phantom search result', () => {
+test('the legacy single document is not indexed here: it becomes a Document card at load (migrateDocToCard), so there is no phantom result', () => {
   assert.equal(query(index({ doc: { blocks: [{ id: 'empty', type: 'paragraph', content: [] }] } })).results.length, 0);
+  assert.equal(query(index({ doc: { blocks: [{ id: 'p', type: 'paragraph', content: [{ type: 'text', text: 'needle' }] }] } }), 'needle').results.length, 0);
 });
 
 test('comment summary and complete messages are not counted twice', () => {

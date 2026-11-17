@@ -5,7 +5,6 @@
 // canvas Find (which still finds), while inside Chat, Ctrl+K and the BlockNote document "/" is typed as before.
 // Search answers come from a route in this check: no Exa call, no model call, nothing sent to the Tutor.
 // usage: BASE=http://127.0.0.1:<app> SMALL_CP=http://127.0.0.1:<cp> TEST_BYPASS_SECRET=<that stack's> node e2e/source-finder-check.mjs [outDir]
-import { chooseWorkspace } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
@@ -209,11 +208,10 @@ if (await quick.count()) {
   await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
 } else ok('Ctrl+K opens on the selected card', false);
 
-// 9. Inside the BlockNote document "/" stays in the document.
+// 9. Inside a Document card (the :28 seed's legacy `doc` is migrated into one at load) "/" stays in the document.
 await blank();
-await chooseWorkspace(page, 'Editor'); // Owner brief 2026-10-22: View > Workspace > Editor
-await page.locator('[data-canvas-doc][data-doc-state="ready"]').waitFor({ timeout: 20000 }).catch(() => {});
-const doc = page.locator('[data-canvas-doc-editor] .bn-editor');
+await page.locator('[data-doc-card] .bn-editor').waitFor({ timeout: 20000 }).catch(() => {});
+const doc = page.locator('[data-doc-card] .bn-editor');
 await doc.getByText('Notes on attention').click();
 await page.keyboard.press('End');
 await page.keyboard.type('/');
