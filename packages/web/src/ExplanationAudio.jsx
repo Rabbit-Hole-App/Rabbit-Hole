@@ -11,7 +11,7 @@ import { clearPlayingCard, setPlayingCard } from './audio-playing.js';
 let playing = null; // the audio element that is playing now; starting another pauses it
 
 const PILL = 'inline-flex h-7 items-center rounded-full border border-line-strong bg-surface text-ink-2';
-const BUTTON = 'grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent p-0 text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-45';
+const BUTTON = 'grid h-7 w-7 shrink-0 cursor-pointer place-items-center rounded-full border-0 p-0 text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-45';
 const stop = event => event.stopPropagation(); // a press on the control never drags or selects the card
 
 function AudioPill({ narration, cardId }) {

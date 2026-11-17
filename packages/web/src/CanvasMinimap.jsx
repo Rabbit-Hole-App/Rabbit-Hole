@@ -52,7 +52,7 @@ export default function CanvasMinimap({ boxes, view, surface, onView, onFit }) {
           // The canvas document (blocknote-layers-minimap.md): its page, a light sheet with a thin outline, first so the card
           // marks draw above it as cards do on the canvas; never its text.
           box.doc ? <rect key={index} data-minimap-doc x={box.x} y={box.y} width={Math.max(3, box.w)} height={Math.max(3, box.h)} rx={1} className="fill-hover stroke-ink-3" strokeWidth={1} />
-            : <rect key={index} x={box.x} y={box.y} width={Math.max(2, box.w)} height={Math.max(2, box.h)} rx={1} {...(box.id && box.id === playingId ? { 'data-minimap-playing': '', className: 'fill-success/35 stroke-success', strokeWidth: 1.5 } : box.hole ? { 'data-minimap-hole': '', className: 'fill-hole' } : { className: 'fill-ink-3/35' })} />
+            : <rect key={index} x={box.x} y={box.y} width={Math.max(2, box.w)} height={Math.max(2, box.h)} rx={1} {...(box.id && box.id === playingId ? { 'data-minimap-playing': '', className: 'fill-[color-mix(in_srgb,var(--viz-playing)_35%,transparent)] stroke-[var(--viz-playing)]', strokeWidth: 1.5 } : box.hole ? { 'data-minimap-hole': '', className: 'fill-hole' } : { className: 'fill-ink-3/35' })} />
         ))}
         <rect x={layout.view.x} y={layout.view.y} width={Math.max(4, layout.view.w)} height={Math.max(4, layout.view.h)}
           rx={2} fill="none" stroke="#2383e2" strokeWidth={1.5} />

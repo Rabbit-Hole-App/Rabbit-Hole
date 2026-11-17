@@ -52,22 +52,22 @@ test('the minimap marks the playing card green and no other, and follows the sto
   B.setPlayingCard('b');
   const marked = html();
   assert.equal((marked.match(/data-minimap-playing/g) || []).length, 1);
-  assert.match(marked, /<rect[^>]*data-minimap-playing[^>]*stroke-success/, 'the green token as the stroke');
-  assert.match(marked, /fill-success\/35/, 'and a light tint of it');
+  assert.match(marked, /<rect[^>]*data-minimap-playing[^>]*stroke-\[var\(--viz-playing\)\]/, 'the green token as the stroke');
+  assert.match(marked, /fill-\[color-mix\(in_srgb,var\(--viz-playing\)_35%,transparent\)\]/, 'and a light tint of it');
   B.setPlayingCard(null);
   assert.doesNotMatch(html(), /data-minimap-playing/);
 });
 
-test('the canvas card carries data-audio-playing from the store, and index.css frames it in --color-success without a ring or a thicker border', () => {
+test('the canvas card carries data-audio-playing from the store, and index.css frames it in the palette green --viz-playing without a ring or a thicker border', () => {
   const canvas = read('AdaptiveCanvas.jsx'), css = read('index.css');
   assert.match(canvas, /const audioPlaying = usePlayingCard\(id\);/);
   assert.match(canvas, /data-audio-playing=\{audioPlaying \|\| undefined\}/);
   assert.match(canvas, /\.\.\.box, id, hole: true \} : \{ \.\.\.box, id \}/, 'the minimap boxes carry the card id');
   const rule = css.match(/\[data-block\]\[data-audio-playing\] \{([^}]*)\}/)?.[1] ?? '';
-  assert.match(rule, /border-color: var\(--color-success\)/);
-  assert.match(rule, /outline: 3px solid color-mix\(in srgb, var\(--color-success\) 25%, transparent\)/);
+  assert.match(rule, /border-color: var\(--viz-playing\)/);
+  assert.match(rule, /outline: 3px solid color-mix\(in srgb, var\(--viz-playing\) 25%, transparent\)/);
   assert.match(rule, /outline-offset: 0/);
   assert.doesNotMatch(rule, /ring|border-width|border:|animation/);
   assert.match(css, /\[data-block\]\[data-block-id\] \{ transition-property: box-shadow, border-color; \}/, 'the colour fades over the card 150 ms');
-  assert.match(css, /--color-success: #[0-9a-f]{6};/, 'the token exists (one value, both themes)');
+  assert.match(css, /--viz-playing: #3A7E69;/, 'the palette variable exists (generated from palette.js, one value in both themes)');
 });
