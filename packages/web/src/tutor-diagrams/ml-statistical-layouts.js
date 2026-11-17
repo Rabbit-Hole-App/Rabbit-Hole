@@ -228,7 +228,7 @@ function histogram(d, requested) {
 function boxPlot(d, requested) {
   const width = Math.max(360, requested, formulaWidth([d.x.label, ...d.boxes.flatMap(box => [box.label, ...(box.outliers ?? []).map(point => point.label)])]) + PAD * 2);
   const left = PAD + 10, right = width - PAD - 10;
-  // The axis widens (outward, to whole numbers) to hold every drawn value: a computed fence or a far outlier can lie past the author's x.min and x.max.
+  // The axis widens (outward, to whole numbers) to hold every drawn value: a computed fence can lie past the author's x.min and x.max.
   const drawn = d.boxes.flatMap(box => [box.whiskerLow, box.q1, box.q3, box.whiskerHigh, ...(box.fences ? [box.fences.lower, box.fences.upper] : []), ...(box.outliers ?? []).map(point => point.value)]);
   const axisMin = Math.min(...drawn) < d.x.min ? Math.floor(Math.min(...drawn)) : d.x.min;
   const axisMax = Math.max(...drawn) > d.x.max ? Math.ceil(Math.max(...drawn)) : d.x.max;

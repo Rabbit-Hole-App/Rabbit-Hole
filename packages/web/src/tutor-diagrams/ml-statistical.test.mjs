@@ -201,8 +201,8 @@ test('box plots reject unordered summaries, invalid fences, false outliers and a
     d => { d.boxes[0].q1 = 4; }, d => { d.boxes[0].median = 5; },
     d => { d.boxes[0].whiskerLow = 3; }, d => { d.boxes[0].whiskerHigh = 3; },
     d => { d.boxes[0].fences.lower = 1; }, d => { d.boxes[0].fences.upper = 5; },
-    d => { d.boxes[0].outliers[0].value = 7; },
-    d => { d.x.max = d.x.min; },
+    d => { d.boxes[0].outliers[0].value = 7; }, d => { d.boxes[0].outliers[0].value = 13; },
+    d => { d.x.min = 2; }, d => { d.x.max = d.x.min; },
     d => { d.boxes[0].median = NaN; },
   ];
   for (const change of invalid) { const d = copy(boxes); change(d); assert.equal(schema.safeParse(d).success, false); }
@@ -231,7 +231,7 @@ test('box plot fences that are not Q1 - 1.5 IQR and Q3 + 1.5 IQR are rejected wi
 test('box plot with the true fences passes, with or without an outlier beyond them', () => {
   const fences = { lower: -3, upper: 21 };
   assert.deepEqual(problems(fenceCard({ ...trial, fences })), []);
-  assert.equal(schema.safeParse(fenceCard({ ...trial, fences, outliers: [{ label: 'High', value: 25 }] }, { label: 'Reading', min: 0, max: 20 })).success, true);
+  assert.equal(schema.safeParse(fenceCard({ ...trial, fences, outliers: [{ label: 'High', value: 25 }] }, { label: 'Reading', min: 0, max: 25 })).success, true);
 });
 
 test('box plot without fences is unaffected by the fence arithmetic', () => {
@@ -249,15 +249,15 @@ test('box plot fence arithmetic keeps fractions exact and allows half a unit of 
   assert.deepEqual(problems(fenceCard({ ...rounded, fences: { lower: -3.37, upper: 11.09 } })).map(i => i.params), [{ code: 'arithmetic' }]);
 });
 
-test('box plot axis widens to hold a computed fence and a far outlier instead of clipping or failing', () => {
-  const d = fenceCard({ ...trial, fences: { lower: -3, upper: 21 }, outliers: [{ label: 'Far reading', value: 25 }] });
+test('box plot axis widens to hold a computed fence below x.min instead of clipping or failing', () => {
+  const d = fenceCard({ ...trial, fences: { lower: -3, upper: 21 }, outliers: [{ label: 'Far reading', value: 25 }] }, { label: 'Reading', min: 0, max: 25 });
   assert.equal(schema.safeParse(d).success, true);
   const { width, svg: rendered } = svg(d);
   const fence = marks(rendered, 'data-tutor-box-fence'), outlier = marks(rendered, 'data-tutor-box-outlier');
   const xs = [...fence.map(m => num(m.tag, 'x1')), ...outlier.map(m => num(m.tag, 'cx')), ...marks(rendered, 'data-tutor-box-whisker').flatMap(m => [num(m.tag, 'x1'), num(m.tag, 'x2')])];
   const left = 12 + 10, right = width - 12 - 10; // PAD 12 plus the 10 px inset
   for (const value of xs) assert.ok(value >= left - 1e-6 && value <= right + 1e-6, `${value} is outside the plot ${left} to ${right}`);
-  // The widened axis runs -3 to 25: the lower fence sits at the left edge and the outlier at the right.
+  // The widened axis runs -3 (the fence, below the author's x.min) to 25 (the outlier, at the author's x.max).
   close(num(fence[0].tag, 'x1'), left);
   close(num(outlier[0].tag, 'cx'), right);
   assert.match(rendered, /Lower fence: -3; Upper fence: 21/);

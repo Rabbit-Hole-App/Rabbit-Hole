@@ -128,12 +128,13 @@ function checkBoxes(d, issue) {
   d.boxes.forEach((box, i) => {
     const fields = ['whiskerLow', 'q1', 'median', 'q3', 'whiskerHigh'];
     fields.forEach((field, j) => {
+      if (!within(box[field], d.x.min, d.x.max)) issue(['boxes', i, field], 'Summary is outside the shared axis domain');
       if (j && box[field] < box[fields[j - 1]]) issue(['boxes', i, field], 'Require whiskerLow ≤ q1 ≤ median ≤ q3 ≤ whiskerHigh');
     });
     if (box.fences) {
       const { lower, upper } = box.fences;
       if (lower > box.whiskerLow || upper < box.whiskerHigh) issue(['boxes', i, 'fences'], 'Fences must enclose both whiskers');
-      // The renderer widens the axis to hold fences, whiskers and outliers, so none of them has to fit the author's x range.
+      // Fences may fall outside the author's x range (the renderer widens the axis to hold them); summary values and outliers may not.
       const places = Math.max(0, ...[box.q1, box.q3, lower, upper].map(value => (String(value).split('.')[1] ?? '').length));
       const spread = 1.5 * (box.q3 - box.q1), low = box.q1 - spread, high = box.q3 + spread, round = value => Number(value.toFixed(places + 1));
       // Same rounding allowance as the waterfall total: half a unit of the last decimal written.
@@ -142,6 +143,7 @@ function checkBoxes(d, issue) {
       }
     }
     (box.outliers ?? []).forEach(({ value }, j) => {
+      if (!within(value, d.x.min, d.x.max)) issue(['boxes', i, 'outliers', j, 'value'], 'Outlier is outside the shared axis domain');
       const lower = box.fences?.lower ?? box.whiskerLow, upper = box.fences?.upper ?? box.whiskerHigh;
       if (within(value, lower, upper)) issue(['boxes', i, 'outliers', j, 'value'], 'An outlier must lie strictly outside the fences, or whiskers when no fences are supplied');
     });
