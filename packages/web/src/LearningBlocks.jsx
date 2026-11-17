@@ -7,9 +7,8 @@ import { cadContext } from './cad-client.js';
 import { dropView, publishView } from './cad-viewer-store.js';
 import { holdViewerGestures } from './content-gestures.js';
 import { createContext, Suspense, useContext, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { PassageHeader, SourceRefHeader } from './SourceRefChip.jsx';
-import { Check, ChevronLeft, ChevronRight, ChevronsUpDown, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Square, Trash2, Volume2, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Code, Loader2, PanelRightOpen, Play, RotateCcw, Search, Square, Trash2, Volume2, X } from 'lucide-react';
 import { fullContent } from './card-layout.js';
 import { Md } from './ask.jsx';
 import { diagramsAsText } from './diagram-fence.js';
@@ -18,8 +17,6 @@ import IllustrationFigure from './IllustrationFigure.jsx';
 import { ExplanationAudio } from './ExplanationAudio.jsx';
 import { FollowUp, HighlightMenu, PassageIcon, SelectionBar, Suggestions, TermNote, useExplanationLayer, wrapField } from './ExplanationInteractions.jsx';
 import { splitLead } from './explanation-lead.js';
-import { isMinimized, minimizedVisual, tileSummary } from './explanation-minimize.js';
-import TutorDiagram from './tutor-diagrams/TutorDiagram.js';
 import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { loadAsset } from './learn-board-assets.js';
@@ -943,13 +940,10 @@ function Progress({ seconds, expected, label }) {
 // hidden at rest, drawn on hover, focus or touch selection in a slot reserved beside the actions so nothing jumps) and, only for
 // a card with a real source badge (tutor, learner, PDF), that badge on hover as before. The generic "course" pill is gone
 // (owner correction 2026-10-23): a card by default has no top-right label at all.
-function Kicker({ block = null, author = null, action = null, hidePrompt = false, size = 'sm', sticky = true, className = '-mx-4 -mt-3 mb-2 px-4 pt-3 pb-1', icon = null, children }) {
-  const slot = useContext(PromptSlot);
-  useLayoutEffect(() => { slot?.claim(true); return () => slot?.claim(false); }, [slot?.claim]);
+function Kicker({ block = null, author = null, action = null, size = 'sm', sticky = true, className = '-mx-4 -mt-3 mb-2 px-4 pt-3 pb-1', icon = null, children }) {
   const trailing = (
     <>
       {action}
-      {slot?.text && !hidePrompt && <span className="relative inline-block h-[17px] w-[3.25rem]"><CardPromptControl text={slot.text} selected={slot.selected} className="absolute top-1/2 right-0 -translate-y-1/2" /></span>}
       {author && <span className="rounded-full bg-ink px-2 py-px text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{author}</span>}
     </>
   );
@@ -2071,7 +2065,7 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
       <div data-explanation-head data-focus-hide className="shrink-0">
         {block.anchor
           ? <CardHeader block={block} size="xs" className="px-4 pt-3 pb-2" />
-          : <Kicker block={block} size="lg" sticky={false} icon={false} hidePrompt className="px-4 pt-3 pb-2" action={<>{headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : block.fromPassage ? <PassageHeader block={block} /> : null}<ExplanationAudio narration={block.narration} canEdit={!readOnly} /></>}>Explanation</Kicker>}
+          : <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2" action={<>{headerSource(block) ? <SourceRefHeader block={block} app={appName} /> : block.fromPassage ? <PassageHeader block={block} /> : null}<ExplanationAudio narration={block.narration} canEdit={!readOnly} /></>}>Explanation</Kicker>}
       </div>
       {/* E1 (approved card 07): one continuous reading flow. The body, its visuals and the supplementary sections all scroll together under the pinned head. */}
       <div ref={layer?.flowRef} data-scroll data-explanation-flow {...layer?.flowProps} className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 text-sm">
@@ -2090,24 +2084,6 @@ function ExplanationBody({ block, onFile, appName, onExpandHeight, onChange, onC
         {layer && <Suggestions layer={layer} />}
       </div>
       {layer && <><TermNote layer={layer} /><SelectionBar layer={layer} /><HighlightMenu layer={layer} /><PassageIcon layer={layer} /><FollowUp layer={layer} /></>}
-    </div>
-  );
-}
-
-// The minimized Explanation (explanation-minimize.js): the title, a summary of at most three lines, the card's one visual (the first picture, else the first
-// diagram, else none; computed each time, nothing stored) and Open, which restores the full card where it is. The card's saved size is untouched, so Open brings it back.
-function ExplanationTile({ block, onChange, readOnly = false }) {
-  const visual = minimizedVisual(block), summary = tileSummary(block);
-  return (
-    <div data-explanation-tile className="flex min-h-0 flex-1 flex-col">
-      <div data-explanation-head className="shrink-0">
-        <Kicker block={block} size="lg" sticky={false} icon={false} className="px-4 pt-3 pb-2">Explanation</Kicker>
-      </div>
-      <div className="flex flex-col gap-2.5 px-4 pb-3">
-        {summary && <p data-tile-summary className="m-0 text-sm text-ink-2">{summary}</p>}
-        {visual && <div data-tile-visual={visual.kind}>{visual.kind === 'picture' ? <IllustrationFigure illustration={visual.illustration} /> : <TutorDiagram spec={visual.spec} fallback={null} />}</div>}
-        {!readOnly && <Button variant="secondary" size="sm" data-explanation-open aria-label="Expand card" className="gap-1.5 self-center border! border-ink/50! text-[13px]" onPointerDown={event => event.stopPropagation()} onClick={() => onChange({ ...block, minimized: false })}><ChevronsUpDown size={16} aria-hidden="true" />Expand</Button>}
-      </div>
     </div>
   );
 }
@@ -2382,7 +2358,6 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'code') return <CodeBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'snippet') return <SnippetBody block={block} onFile={onFile} />;
   if (block.type === 'explanation' && isExcerpt(block)) return <ExcerptBody block={block} onChange={onChange} appName={appName} readOnly={readOnly} />;
-  if (isMinimized(block)) return <SurfaceBoundary artifact="explanation_card" fallback={<p className="m-0 whitespace-pre-wrap text-sm text-ink">{String(block.title ?? '')}</p>}><ExplanationTile block={block} onChange={onChange} readOnly={readOnly} /></SurfaceBoundary>;
   if (block.type === 'explanation') return <SurfaceBoundary artifact="explanation_card" fallback={<p className="m-0 whitespace-pre-wrap text-sm text-ink">{String(block.text ?? block.body ?? '')}</p>}><ExplanationBody block={block} onFile={onFile} appName={appName} onExpandHeight={onExpandHeight} onChange={onChange} onChangeQuiet={onChangeQuiet} readOnly={readOnly} /></SurfaceBoundary>;
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
   if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} account={cadAccount} />;

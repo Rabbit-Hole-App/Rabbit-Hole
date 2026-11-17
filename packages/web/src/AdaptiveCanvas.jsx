@@ -22,7 +22,7 @@ import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
-import { goodSummary, isMinimized, landSummary, minimizable, requestSummary, tileWidth } from './explanation-minimize.js';
+import { goodSummary, landSummary, requestSummary } from './explanation-minimize.js';
 import { explanationCardWidth, openedExplanation } from './explanation-card-width.js';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { skeletonJobOf, skeletonThreadOf } from './explain-client.js';
@@ -54,7 +54,6 @@ import { objectKind, objectName, selectionName, selectionRef } from './selection
 import LearnWiki from './LearnWiki.jsx';
 import WebpageCard, { askCapture } from './WebpageCard.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
-import CardPrompt, { PromptSlot } from './CardPrompt.jsx';
 import { CardFeedback } from './CardFeedback.jsx';
 import SourceRefChip, { useSourceRefIndex } from './SourceRefChip.jsx';
 import { emphasizePassage, measurePassage, publishPending, toWorld, viewPassage } from './source-refs.js';
@@ -584,8 +583,6 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
           <div className="text-sm">{turn.answer ? <Md text={turn.answer} onFile={onFile} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : <span className="shimmer">Thinking</span>}</span>}</div>
         </div>)}
       </div>
-      {/* A chat card's prompt is its question (docs/features/card-prompt.md). */}
-      {exchange.status === 'done' && <CardPrompt text={exchange.question} selected={selected} />}
       {started && <div data-block-composer className={`shrink-0 border-t border-line px-3 pb-3 ${replyOpen ? '' : 'hidden'}`} onPointerDown={e => e.stopPropagation()}>
         <div className="flex items-center justify-between py-1 text-xs text-ink-2"><span>This conversation</span><button type="button" aria-label="Close block composer" onClick={() => setReplyOpen(false)} className="rounded p-1 hover:bg-hover"><X size={13} /></button></div>
         {renderComposer(exchange, receive)}
@@ -940,9 +937,6 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   const [sourcesHeight, setSourcesHeight] = useState(0);
   const [sourceRefHeight, setSourceRefHeight] = useState(0);
   const [expandHeight, setExpandHeight] = useState(0); // an Explanation's opened sections under its rail: the frame grows down by them (CORE.09)
-  // The stored prompt's Prompt control sits in the card's own top-right pill when its body draws one (Kicker claims the slot), else in the card's top strip.
-  const [slotted, setSlotted] = useState(false);
-  const promptSlot = useMemo(() => block.promptUsed ? { text: block.promptUsed, selected, claim: setSlotted } : null, [block.promptUsed, selected]);
   const [practiceHeight, setPracticeHeight] = useState(0);
   const [controlsHeight, setControlsHeight] = useState(0);
   const [programFrame, setProgramFrame] = useState(null); // a program card's legible frame box (ProgramScene, once per artifact)
@@ -972,39 +966,33 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph</p>}><GraphCard block={block} selected={selected} /></Suspense></CanvasNode>;
   // A size whose height is undefined (a pending Explanation) means the content's height, not the type's fixed one.
   const sized = BLOCK_TYPES[block.type]?.sizeFor?.(block, programFrame);
-  // A minimized Explanation is a tile: its own narrow width and the content's height; its saved size and card layout stay on the block, so Open restores them (explanation-minimize.js).
-  const tile = isMinimized(block);
   // An Explanation's width follows its widest visual (explanation-card-width.js), derived here on every render and never stored; a width the learner dragged (saved w) still wins in CanvasNode.
-  const cardWidth = tile ? tileWidth(block) : sized?.width ?? explanationCardWidth(block) ?? BLOCK_TYPES[block.type]?.width;
+  const cardWidth = sized?.width ?? explanationCardWidth(block) ?? BLOCK_TYPES[block.type]?.width;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       inputPort={isExplainBack(block)}
       fitContent={!!BLOCK_TYPES[block.type]?.fitContent}
-      autoMax={tile ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
-      width={cardWidth} wide={cardWidth > COLUMN} resizable={!tile}
+      autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
+      width={cardWidth} wide={cardWidth > COLUMN}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
-      placing={placing} extraHeight={tile ? 0 : sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={tile ? 0 : expandHeight} cardLayout={supportsCardLayout(block) && !tile ? block.cardLayout : null} saved={tile ? null : { w: block.w, h: block.h }}
+      placing={placing} extraHeight={sourcesHeight + practiceHeight + controlsHeight + sourceRefHeight} grow={expandHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       hoverTools={!selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
         <NotebookButton entry={block} onNotebook={onNotebook} className="h-8 w-8 rounded-none text-ink hover:bg-hover" />
-        <HoverActions id={block.id} select={onSelect} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} minimizable={block.type === 'explanation' && !block.anchor && !block.excerpt && !block.minimized} />
+        <HoverActions id={block.id} select={onSelect} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
         <NotebookButton entry={block} onNotebook={onNotebook} className="h-8 w-8 rounded-none text-ink hover:bg-hover" />
         <SelectionActionsHost id={block.id} joined divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}>
-      <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
+      <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} onProgramFrame={setProgramFrame} onExpandHeight={setExpandHeight} />
-      </PromptSlot.Provider></PerfContext.Provider>
-      {/* A tile shows none of the rows under a card's body: its sources, source chip, prompt and rating. */}
-      {!tile && <>
+      </PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
       {block.sourceRef && !headerSource(block) && <SourceRefChip block={block} app={appName} onHeight={setSourceRefHeight} />}
-      {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
       {!cadPermissions.readOnly && !cadPermissions.localCopy && <CardFeedback block={block} />}
-      </>}
     </CanvasNode>
   );
 }
@@ -4090,8 +4078,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return;
       }
       if (presentingRef.current === null && plain) {
-        // A minimized Explanation tile: Enter or Space on the tile itself (the focused element is the card, not its Prompt pill or Expand button) expands it, as the Expand button does.
-        if ((event.key === 'Enter' || event.key === ' ') && focusedCard && !readOnlyRef.current && isMinimized(blocksRef.current.find(entry => entry.id === focusedCard))) { event.preventDefault(); expandTileRef.current?.(focusedCard); return; }
         if (event.key === ' ' && focusedCard) { event.preventDefault(); if (!selectedRef.current.includes(focusedCard)) selectRef.current(focusedCard); return; }
         // Space held over a canvas that owns the keyboard: a drag pans (never a space typed into anything, never a
         // focused button's own Space).
@@ -4470,7 +4456,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const cardOpen = { single: readOnly ? null : selected, can: opensFor, open: openCard };
   const openCardRef = useRef(cardOpen);
-  const expandTileRef = useRef(null); // Enter or Space on a focused minimized tile expands it (explanation-minimize.js)
   openCardRef.current = cardOpen;
   // Keep the armed chip's label honest while the learner keeps experimenting:
   // a changed input re-arms the same target with its fresh description, and a
@@ -5453,9 +5438,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!quiet) { if (readOnly || lockedRef.current.has(id)) return; snapshot(); }
     setBlocks(previous => patchBlock(previous, id, patch));
   };
-  // Minimize (explanation-minimize.js): the card collapses to a tile where it is; one undo step, saved with the card. A card with no summary asks for one in the background.
-  const minimizeCard = id => { patchBlockNow(id, { minimized: true }); fillSummary(id); };
-  expandTileRef.current = id => patchBlockNow(id, { minimized: false });
   // The collapsed preview's summary (control plane explanation-summary.js): requested once per card, never blocks, never raises a notice. It lands on the card as a quiet update
   // of just that field on the latest blocks (landSummary): a card deleted meanwhile, or one that got a summary, is left alone, and nothing else on it is overwritten.
   const summaryAsked = useRef(new Set());
@@ -6241,7 +6223,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       zoomToSelection,
       // Focus (canvas-actions-types.js card.focus): the same enterFocus as the card toolbar's button; only where an adapter claims it.
       focus: id => commandsRef.current.enterFocus(id),
-      focusable: object => !!object && object.id !== focusRef.current?.id && !isMinimized(object) && !!adapterFor(object, { view: viewRef.current, readOnly }),
+      focusable: object => !!object && object.id !== focusRef.current?.id && !!adapterFor(object, { view: viewRef.current, readOnly }),
       supportsCardLayout: object => !!object && supportsCardLayout(object),
       fullContent: object => object?.cardLayout?.mode === 'full',
       setCardLayout: (id, mode) => setCardLayout(id, mode),
@@ -6368,9 +6350,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ...(canQuick ? { quickAsk: () => openInlineRef.current() } : {}),
   }), [canAsk, canNote, canQuick]);
   const soleObject = selection.length === 1 && !focus ? objectById(selection[0]) : null;
-  // An Explanation card has Minimize in the toolbar where other cards have Focus (its Focus is in its context menu); a minimized one has neither.
-  const soleFocus = soleObject && !minimizable(soleObject) ? adapterFor(soleObject, { view, readOnly }) : null;
-  const soleMinimize = soleObject && minimizable(soleObject) && !soleObject.minimized && !readOnly && !localCopy && !lockedRef.current.has(soleObject.id) ? () => minimizeCard(soleObject.id) : null;
+  // A written Explanation card keeps Focus in its context menu, not in the toolbar (the toolbar's Minimize that stood there is gone, owner 2026-11-17).
+  const soleFocus = soleObject && !(soleObject.type === 'explanation' && !soleObject.anchor && !soleObject.excerpt) ? adapterFor(soleObject, { view, readOnly }) : null;
   // On a shared page (view-only or a local copy), a card whose own row would sit past the surface's right edge (under a side panel such as Chat) or above its top: its actions
   // take the floating bar, which stays inside the view (usesHost).
   const barCut = id => { if (!permissions?.shared) return false; const box = boxesOf([id])[0], width = surface.current?.clientWidth; return !!box && !!width && (view.x + (box.x + box.w) * view.z > width || view.y + box.y * view.z < 40); };
@@ -6386,7 +6367,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, inFrame: id => framedIds.has(id), resizeCard, slotOf: id => blocksRef.current.find(block => block.id === id)?.slot ?? null, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <ExplanationHost.Provider value={explanationHost}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} onMinimize={soleMinimize} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} cut={barCut} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null} promptOf={id => blocksRef.current.find(block => block.id === id)?.promptUsed}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       // A link in a card's Markdown (Md.jsx data-web-link) asks first, the same popup a pasted link gets: Open in new tab or Add webpage card.
       // Ctrl, Cmd, Shift, Alt and middle clicks, and a canvas that cannot add cards, keep the browser's own new tab (owner 2026-11-14).

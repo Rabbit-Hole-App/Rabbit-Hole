@@ -129,15 +129,15 @@ test('connectorsOf: ask (parentCard with actionId, solid), explain (parentCard d
   assert.deepEqual(connectorsOf(blocks), [{ id: 'arrow:a', from: 's', to: 'a', kind: 'ask' }, { id: 'arrow:e', from: 's', to: 'e', kind: 'explain', dy: 240 }]);
 });
 
-test('drawConnector: hidden when an end is missing, minimized or unmeasured; dy puts the tail on the highlighted line; a measured passage wins', () => {
+test('drawConnector: hidden when an end is missing or unmeasured (a card saved as minimized still draws: minimize was removed 2026-11-17); dy puts the tail on the highlighted line; a measured passage wins', () => {
   const blocks = [{ id: 's' }, { id: 'e', parentCard: { id: 's', dy: 240 } }];
   const boxes = { s: SRC, e: box(1800, 100, 440, 300) };
   const [c] = connectorsOf(blocks);
   assert.equal(drawConnector(c, blocks, boxes).geometry.tail.y, 240);
   assert.equal(drawConnector(c, blocks, boxes, { e: 610 }).geometry.tail.y, 610);
   assert.equal(drawConnector(c, blocks, { s: SRC }), null);
-  assert.equal(drawConnector(c, [{ id: 's', minimized: true }, blocks[1]], boxes), null);
-  assert.equal(drawConnector(c, [blocks[0], { ...blocks[1], minimized: true }], boxes), null);
+  assert.equal(drawConnector(c, [{ id: 's', minimized: true }, blocks[1]], boxes).kind, 'explain');
+  assert.equal(drawConnector(c, [blocks[0], { ...blocks[1], minimized: true }], boxes).kind, 'explain');
   assert.equal(drawConnector(c, blocks, boxes).kind, 'explain');
 });
 
