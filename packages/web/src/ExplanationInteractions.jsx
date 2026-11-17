@@ -293,7 +293,7 @@ export function Suggestions({ layer }) {
   if (!suggestions.length || !host?.ask || !canEdit) return null;
   const busy = !!pending;
   return (
-    <ul data-explanation-suggestions aria-label="Suggested next questions" className="m-0 mt-4 -mx-3 grid list-none gap-2.5 p-0">
+    <ul data-explanation-suggestions aria-label="Suggested next questions" className="m-0 mt-4 grid list-none gap-2.5 p-0">
       {suggestions.map(question => (
         <li key={question.id} data-explanation-suggestion={question.id} className="m-0 p-0">
           <button type="button" title="Answer in a card" disabled={busy} aria-busy={pending?.qid === question.id && pending.destination === 'card' ? 'true' : undefined}
