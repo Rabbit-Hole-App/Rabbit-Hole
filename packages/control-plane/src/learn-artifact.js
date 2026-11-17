@@ -344,7 +344,7 @@ export async function generateArtifact(env, input, { callModel: injected = null,
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
       if (error.cause === VERIFIER) throw error; // the check could not run: nothing for the model to repair
       // The same-model second repair: only for an arithmetic issue, only when a repair was allowed at all (the roadmap's 0 stays 0) and the next provider cannot write that kind.
-      if (error.numbers && repairs > 0 && attempt === limit && limit < ARITHMETIC_REPAIRS_SAME_MODEL && nextCanWrite && !nextCanWrite(error.numbers.kind)) limit = ARITHMETIC_REPAIRS_SAME_MODEL;
+      if (error.numbers && repairs > 0 && attempt === limit && limit < ARITHMETIC_REPAIRS_SAME_MODEL && nextCanWrite && error.numbers.kinds.some(kind => !nextCanWrite(kind))) limit = ARITHMETIC_REPAIRS_SAME_MODEL;
       if (input.imageSource || attempt >= limit) return { result: 'validation_error', primitive: id || null, error: error.message, repairs: attempt, ...(error.numbers ? { numbers: true, issue: error.numbers.issue } : { issue: String(error.message).slice(0, 300) }) };
       const rewrite = /explanation_bad_numbers/.test(error.message) ? 'Rewrite every sentence that states these numbers. ' : ''; // an arithmetic issue: the prose that states the wrong number goes with it
       ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. ${rewrite}Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));

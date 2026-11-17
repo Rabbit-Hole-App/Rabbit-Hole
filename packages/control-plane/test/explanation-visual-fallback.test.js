@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { simplifiedDiagram, markdownVisuals } from '../src/learn-primitives.js';
+import { simplifiedDiagram, markdownVisuals, numbersIssue } from '../src/learn-primitives.js';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { planFromAnswers } from '../src/explanation-planner.js';
 
@@ -68,4 +68,26 @@ test('a diagram with an arithmetic issue fails the step (explanation_bad_numbers
   const other = { version: 1, diagram: { kind: 'matrix', title: 'Fences', columns: [{ heading: 'A' }] } };
   const dropped = await asked({ title: 'Fences', body: prose(other) }, 0);
   assert.equal([dropped.result, dropped.block?.visualFallback].join(), 'artifact,dropped');
+});
+
+// Item 1 (Reviewer 2026-11-17): every arithmetic issue of the card is in ONE repair message, so one repair fixes them together.
+test('numbersIssue names every wrong diagram in one message ("Diagram N:" each with its own correct numbers); one wrong diagram keeps the single-diagram text', async () => {
+  const box = (title, q1, q3, lower, upper, whiskerLow, whiskerHigh) => ({ version: 1, diagram: { kind: 'box-plot', title, x: { label: 'Reading', min: 0, max: 40 }, boxes: [{ label: 'Trial', whiskerLow, q1, median: (q1 + q3) / 2, q3, whiskerHigh, fences: { lower, upper } }] } });
+  const wrong1 = box('First fences', 6, 12, 2, 16, 4, 14), right = box('Right fences', 6, 12, -3, 21, 4, 14), wrong2 = box('Second fences', 10, 20, 0, 30, 8, 28);
+  const md = specs => specs.map(fence).join('\n\nText between.\n\n');
+  const both = numbersIssue({ body: md([wrong1, right]), more: [{ text: md([wrong2]) }] });
+  assert.match(both.problem, /^explanation_bad_numbers: the rh-diagram specs state wrong numbers\. Diagram 1: .*not 2 and 16. | Diagram 3: \| Diagram 3: .*that is -5 and 35, not 0 and 30/);
+  assert.doesNotMatch(both.problem, /Diagram 2/);
+  assert.deepEqual(both.kinds, ['box-plot', 'box-plot']);
+  const one = numbersIssue({ body: md([wrong1, right]) });
+  assert.match(one.problem, /^explanation_bad_numbers: the rh-diagram spec states wrong numbers \(.*not 2 and 16\.\)$/);
+  assert.doesNotMatch(one.problem, /Diagram \d/);
+  assert.equal(numbersIssue({ body: md([right]) }), null);
+  // End to end: the one repair message carries both diagrams and the rewrite sentence once.
+  const sent = [], recorded = async (e, b) => { sent.push(b); return model({ title: 'Fences', body: `The fences from the quartiles mark where an outlier begins.\n\n${md([wrong1, wrong2])}\n\nA reading beyond a fence is an outlier, so the quartiles decide the fences.` })(); };
+  const out = (await quiet(() => generateArtifact(FAST, { command: 'explanation', args: 'box plot fences', planned: true, plan: null }, { callModel: recorded, repairs: 1 }))).value;
+  assert.equal(out.result, 'validation_error');
+  const message = sent[1].messages.at(-1).content[0].content;
+  assert.match(message, /Diagram 1: .*not 2 and 16\. \| Diagram 2: .*not 0 and 30/);
+  assert.equal(message.split('Rewrite every sentence that states these numbers.').length - 1, 1);
 });

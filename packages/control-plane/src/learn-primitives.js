@@ -435,22 +435,33 @@ export function diagramProblem(md) {
 // An issue the diagram validator tagged params { code: 'arithmetic' } (spec.js issue callback; today the box-plot fence check) means a number in the diagram is wrong: the
 // problem is named explanation_bad_numbers, its tagged issue first, and learn-artifact.js never drops or simplifies such a diagram (the card fails or is repaired instead).
 const arithmeticOf = error => (Array.isArray(error?.issues) ? error.issues : []).filter(i => i.params?.code === 'arithmetic');
-function fenceProblem(error) {
+// The issues of one failed diagram as one string: its arithmetic-tagged issues first, then the others, three at most.
+function issuesText(error) {
   const all = Array.isArray(error?.issues) ? error.issues : [], numbers = arithmeticOf(error);
-  const issues = all.length ? [...numbers, ...all.filter(i => !numbers.includes(i))].slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
-  return numbers.length ? `explanation_bad_numbers: the rh-diagram spec states wrong numbers (${issues.slice(0, 280)})` : `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
+  return all.length ? [...numbers, ...all.filter(i => !numbers.includes(i))].slice(0, 3).map(i => `${i.path.join('.') || 'diagram'}: ${i.message}`).join('; ') : String(error?.message || 'invalid');
 }
-// -> null, or { problem, issue, kind } for the first closed rh-diagram fence of the card (body or folded sections) that carries an arithmetic-tagged issue:
-// the problem text (explanation_bad_numbers: ...), the tagged issue's own message, and the diagram's kind.
+function fenceProblem(error) {
+  const issues = issuesText(error);
+  return arithmeticOf(error).length ? `explanation_bad_numbers: the rh-diagram spec states wrong numbers (${issues.slice(0, 280)})` : `explanation_bad_diagram: the rh-diagram spec is not valid (${issues.slice(0, 280)})`;
+}
+// -> null, or { problem, issue, kind, kinds } for the closed rh-diagram fences of the card (body or folded sections) that carry an arithmetic-tagged issue. ONE problem text names every
+// such diagram (a card with two wrong diagrams is repaired once, not once per diagram): explanation_bad_numbers: ..., and with more than one diagram each one's own correct numbers after its
+// "Diagram N:" prefix (N counts the card's closed rh-diagram fences in order). `issue` is the first tagged issue's message, `kind` the first failing diagram's kind, `kinds` every failing diagram's.
 export function numbersIssue(block) {
+  const hits = [];
+  let n = 0;
   for (const md of [block?.body, ...(block?.more || []).map(s => s?.text)]) for (const f of split(md).fences) {
     if (f.lang !== DIAGRAM || !f.closed) continue;
+    n++;
     try { parseTutorDiagram(f.lines.join('\n')); } catch (error) {
       const [first] = arithmeticOf(error);
-      if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } return { problem: fenceProblem(error), issue: first.message, kind }; }
+      if (first) { let kind = null; try { kind = JSON.parse(f.lines.join('\n'))?.diagram?.kind ?? null; } catch { /* the kind stays unknown */ } hits.push({ n, error, issue: first.message, kind }); }
     }
   }
-  return null;
+  if (!hits.length) return null;
+  const problem = hits.length === 1 ? fenceProblem(hits[0].error)
+    : `explanation_bad_numbers: the rh-diagram specs state wrong numbers. ${hits.map(h => `Diagram ${h.n}: ${issuesText(h.error).slice(0, 280)}`).join(' | ')}`;
+  return { problem, issue: hits[0].issue, kind: hits[0].kind, kinds: hits.map(h => h.kind) };
 }
 
 // -> { ok: true, spec: { version, id, prompt, alt, caption } } | { ok: false, problem }. The renderer and the server read the same parse.
@@ -1184,7 +1195,9 @@ export function explanationLayoutProblem(block, question = '') {
 // depth: kept for the callers; EXP-13 has one budget for every Depth (asked for 600, refused above 700).
 export function explanationProblem(block, depth, question = '') {
   const cap = EXPLANATION_BUDGET.hard, used = explanationProseChars(block);
-  const diagrams = [block?.body, ...(block?.more || []).map(s => s?.text)].map(diagramProblem).filter(Boolean);
+  // Every wrong-numbers diagram in ONE message (numbersIssue), so the single repair fixes them together; diagramProblem alone names only the first failing fence of each section.
+  const numbers = numbersIssue(block);
+  const diagrams = [...(numbers ? [numbers.problem] : []), ...[block?.body, ...(block?.more || []).map(s => s?.text)].map(diagramProblem).filter(p => p && !(numbers && p.startsWith('explanation_bad_numbers')))];
   const pictures = markdownIllustrations(block?.body), ids = pictures.filter(p => p.ok).map(p => p.spec.id);
   const problems = [];
   if (used > cap) problems.push(`explanation_over_budget: the card has ${used} characters of prose (paragraph, heading and list text), the limit is ${cap} (aim for ${EXPLANATION_BUDGET.target}); the title, tables, diagrams and illustrations do not count; shorten the prose.`);
