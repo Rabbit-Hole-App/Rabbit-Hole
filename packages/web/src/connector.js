@@ -100,11 +100,11 @@ export function connectorsOf(blocks) {
   return out;
 }
 
-// One connector's drawing, or null when either end is missing, minimized (a tile) or not measured. boxes: { id: { x, y, w, h } } (world units); passageY: { [targetId]: world y } measured passage lines.
+// One connector's drawing, or null when either end is missing or not measured. boxes: { id: { x, y, w, h } } (world units); passageY: { [targetId]: world y } measured passage lines.
 export function drawConnector(connector, blocks, boxes, passageY = {}) {
   const source = boxes[connector.from], target = boxes[connector.to];
   const from = blocks.find(block => block.id === connector.from), to = blocks.find(block => block.id === connector.to);
-  if (!source || !target || !from || !to || from.minimized || to.minimized) return null;
+  if (!source || !target || !from || !to) return null;
   const anchorY = Number.isFinite(passageY[connector.to]) ? passageY[connector.to] : connector.kind === 'explain' && Number.isFinite(connector.dy) ? source.y + connector.dy : null;
   const geometry = connectorGeometry({ source, target, anchorY });
   return { id: connector.id, kind: connector.kind, geometry, head: arrowhead(geometry), colors: connectorColors(connector.to, to.parentCard?.color) };
