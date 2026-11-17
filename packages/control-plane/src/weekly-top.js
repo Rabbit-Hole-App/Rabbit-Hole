@@ -12,8 +12,9 @@ const TOP = 5, MAX_AGE_SECONDS = 60;
 const EMPTY = { canvases: 'No canvases have earned stars or forks yet this week.', creators: 'No creators have earned stars or forks yet this week.' };
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
-const zoneParts = new Intl.DateTimeFormat('en-US', { timeZone: ZONE, hourCycle: 'h23', weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
-const partsOf = ms => Object.fromEntries(zoneParts.formatToParts(ms).map(p => [p.type, p.value]));
+// Built on first use: a module-level Intl.DateTimeFormat with a time zone costs startup CPU in the Worker (release 151 was refused for startup time).
+let zoneParts;
+const partsOf = ms => Object.fromEntries((zoneParts ??= new Intl.DateTimeFormat('en-US', { timeZone: ZONE, hourCycle: 'h23', weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })).formatToParts(ms).map(p => [p.type, p.value]));
 // The zone's offset from UTC at an instant, in ms (negative west of Greenwich).
 const offsetAt = ms => { const p = partsOf(ms); return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(ms / 1000) * 1000; };
 // The UTC instant at which the Los Angeles wall clock reads 00:00 on calendar day (y, m, d). Two passes settle the offset; a
