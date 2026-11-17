@@ -61,7 +61,7 @@ export function orderKey(learn) {
   const [chapter = 0, section = 0] = numbers(learn?.sectionId);
   return [chapter || 0, learn?.role === 'chapter' ? -1 : section || 0, learn?.role === 'chapter' ? -1 : Number.isFinite(learn?.order) ? learn.order : 1e6, RANK[learn?.role] ?? 1, learn?.part || 0];
 }
-export const byKey = (a, b) => { const x = orderKey(a.learn), y = orderKey(b.learn); for (let k = 0; k < x.length; k += 1) if (x[k] !== y[k]) return x[k] - y[k]; return 0; };
+const byKey = (a, b) => { const x = orderKey(a.learn), y = orderKey(b.learn); for (let k = 0; k < x.length; k += 1) if (x[k] !== y[k]) return x[k] - y[k]; return 0; };
 const chapterOf = learn => numbers(learn?.sectionId)[0] || 0;
 export const union = boxes => {
   const list = boxes.filter(Boolean);

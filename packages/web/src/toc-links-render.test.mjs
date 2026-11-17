@@ -15,7 +15,7 @@ const tmp = mkdtempSync(join(tmpdir(), 'toc-links-'));
 after(() => rmSync(tmp, { recursive: true, force: true }));
 const outfile = join(tmp, 'bundle.cjs');
 await esbuild.build({
-  stdin: { contents: "export { default as CanvasRefChips, CanvasRefs } from './CanvasRefChips.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { default as ItemPicker, AddLinkChooser } from './LinkPickers.jsx'; export { tocLinkRows, linkedCards } from './toc-links.js'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as CanvasRefChips, CanvasRefs } from './CanvasRefChips.jsx'; export { default as TableOfContents } from './TableOfContents.jsx'; export { default as ItemPicker, AddLinkChooser } from './LinkPickers.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent',
   plugins: [{ name: 'asset-url-stub', setup(build) { build.onResolve({ filter: /[?](url|raw|worker)$/ }, args => ({ path: args.path, namespace: 'asset-stub' })); build.onLoad({ filter: /.*/, namespace: 'asset-stub' }, () => ({ contents: 'export default ""', loader: 'js' })); } }],
   loader: { '.css': 'empty', '.woff2': 'empty', '.woff': 'empty', '.ttf': 'empty', '.svg': 'empty', '.png': 'empty', '.wasm': 'empty', '.py': 'text', '.md': 'text', '.txt': 'text', '.html': 'text' },
@@ -81,34 +81,6 @@ test('more than two linked cards collapse to +N more; a viewer sees the cards bu
   assert.match(viewer, /data-toc-linked-card="c1"/);
   assert.doesNotMatch(viewer, /data-toc-unlink|data-toc-add-link/);
   assert.doesNotMatch(toc({ tocLinks: many }), /data-toc-add-link/, 'no picker to open: no icon');
-});
-
-test('a chip is one button: the card type\'s icon, its type in words, its title; a notes Document reads Notes; an unknown type has no label', () => {
-  const markup = toc({ readOnly: true, tocLinks: [['c1', 'makemore.ipynb', ['h2'], 'notebook', 'card'], ['c2', 'Section notes', ['h2'], 'doc', 'notes'], ['c3', 'Thing', ['h1'], 'mystery', null]] });
-  const chip = id => markup.split(`data-toc-linked-card="${id}"`)[1].split('</button></span>')[0] + '</button>';
-  const notebook = chip('c1');
-  assert.equal(count(notebook, '<button'), 1, 'no inner button: one tab stop');
-  assert.match(notebook, /<button[^>]*data-toc-linked-card-open[^>]*title="Go to makemore.ipynb"[^>]*><svg[^>]*lucide-book-text/);
-  assert.match(notebook, /data-toc-card-type[^>]*>Notebook ·</);
-  assert.match(notebook, />makemore.ipynb</);
-  assert.match(chip('c2'), /data-toc-card-type[^>]*>Notes ·</);
-  assert.doesNotMatch(chip('c3'), /data-toc-card-type/);
-  assert.match(chip('c3'), /lucide-shapes/);
-});
-
-test('rows: a chapter heading card has no chip; plan cards read in plan order (learn.order, then lead, card, follow), others after in board order', () => {
-  const blocks = [
-    { id: 'manual', type: 'wiki', tocLinks: ['s'] },
-    { id: 'b-card', type: 'snippet', tocLinks: ['s'], learn: { sectionId: '1.1', itemId: 'b', role: 'card', order: 1 } },
-    { id: 'chap', type: 'doc', tocLinks: ['c'], learn: { sectionId: '1', itemId: null, role: 'chapter' } },
-    { id: 'notes', type: 'doc', tocLinks: ['s'], learn: { sectionId: '1.1', itemId: 'notes', role: 'card', order: 2 } },
-    { id: 'a-follow', type: 'doc', tocLinks: ['s'], learn: { sectionId: '1.1', itemId: 'a', role: 'follow', order: 0 } },
-    { id: 'a-lead', type: 'doc', tocLinks: ['s'], learn: { sectionId: '1.1', itemId: 'a', role: 'lead', order: 0 } },
-  ];
-  const rows = lib.tocLinkRows(blocks, block => block.id);
-  assert.deepEqual(rows.map(row => row[0]), ['a-lead', 'a-follow', 'b-card', 'notes', 'manual']);
-  assert.deepEqual(lib.linkedCards(rows, 'c'), [], 'the chapter title is its link');
-  assert.deepEqual(lib.linkedCards(rows, 's').find(card => card.id === 'notes'), { id: 'notes', title: 'notes', type: 'doc', role: 'notes' });
 });
 
 test('Add a link opens a chooser with Link to canvas and Link to TOC; the section picker lists numbered sections and marks the linked one', () => {

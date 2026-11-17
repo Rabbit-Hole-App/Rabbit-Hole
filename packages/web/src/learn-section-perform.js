@@ -50,9 +50,8 @@ export async function changeCard(canvasApi, id, change) {
 }
 // A card made by its own insert: tagged and linked afterwards. fresh: the canvas did not hold it before this item, so the column may place it.
 export const tagCard = (canvasApi, id, ctx, role = 'card', fresh = true) => changeCard(canvasApi, id, block => (block.learn ? block : { ...block, learn: { ...learnTag(ctx, role), slot: fresh }, ...linkTo(ctx, block.tocLinks) }));
-// A chapter's heading card (spec 1, 9): one Document card "n · title" above the chapter's first section. Not linked (spec 4, owner 2026-11-17 14:28): the chapter's
-// contents title is its link (AdaptiveCanvas showSection finds the card by learn.sectionId), and a chip under the title would repeat it.
-export const placeChapter = (canvasApi, { chapter, title }) => placeDoc(canvasApi, `# ${chapter} · ${title}`, { sectionId: String(chapter), itemId: null }, 'chapter', null);
+// A chapter's heading card (spec 1, 9): one Document card "n · title" above the chapter's first section, linked to the chapter's contents entry. ctx: { chapter, title, entry }.
+export const placeChapter = (canvasApi, { chapter, title, entry = null }) => placeDoc(canvasApi, `# ${chapter} · ${title}`, { sectionId: String(chapter), itemId: null, entry }, 'chapter', null);
 // A connector from one card to another once both are drawn (the code-explain satellites' shape).
 export async function linkCards(canvasApi, from, to, id = `learn-${from}-${to}`) {
   if (!from || !to || from === to || !(await drawn(canvasApi, from)) || !(await drawn(canvasApi, to))) return false;

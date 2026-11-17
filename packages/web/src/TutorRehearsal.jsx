@@ -318,7 +318,7 @@ export default function TutorRehearsalFlow({ chat, slash = null }) {
     let first = true, previous = st.current.section.last || null;
     if (canvasApi && !(canvasApi.blocks?.() || []).some(block => block.learn?.role === 'chapter' && block.learn.sectionId === chapter)) {
       const title = planTree(ops)[Number(chapter) - 1]?.title;
-      if (title) { const id = await placeChapter(canvasApi, { chapter, title }); if (id) { previous = id; sectionPatch({ last: id }); } }
+      if (title) { const id = await placeChapter(canvasApi, { chapter, title, entry: entries[chapter] || null }); if (id) { previous = id; sectionPatch({ last: id }); } }
       if (!alive()) return;
     }
     while (itemId) {

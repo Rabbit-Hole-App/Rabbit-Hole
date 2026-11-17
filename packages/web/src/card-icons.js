@@ -22,14 +22,6 @@ export const TYPE_ICONS = {
 };
 export const FILE_KIND_ICONS = { text: FileText, markdown: FileText, table: Table2, workbook: FileSpreadsheet, document: FileText, presentation: Presentation, image: Image, audio: AudioLines, video: Film, model: Box };
 
-// A card's type in words, for a contents chip (owner 2026-11-17 15:40): the type the icon shows. A type not here shows its icon (Shapes when unknown) and no label.
-export const TYPE_LABELS = {
-  explanation: 'Explain', snippet: 'Code', code: 'Code', 'repo-code': 'Code', notebook: 'Notebook', video: 'YouTube', paper: 'Paper', wiki: 'Wikipedia', webpage: 'Web page',
-  flow: 'Diagram', mermaid: 'Diagram', graph: 'Graph', plot: 'Graph', doc: 'Document',
-};
-// role: the Learn role a contents row carries (toc-links.js tocLinkRows); a section's notes card is a Document that reads "Notes".
-export const cardLabelOf = (type, role = null) => (role === 'notes' ? 'Notes' : TYPE_LABELS[type] || null);
-
 export function cardIconOf(block) {
   if (block?.type === 'explanation' && block.excerpt && (block.excerpt.kind === 'text' || block.excerpt.kind === 'region')) return TYPE_ICONS.excerpt; // a PDF excerpt is an explanation block (pdf-excerpt.js isExcerpt)
   if (block?.type === 'file') return FILE_KIND_ICONS[block.kind] || FileText;
