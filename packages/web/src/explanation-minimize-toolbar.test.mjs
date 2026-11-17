@@ -27,7 +27,7 @@ test('the selected card\'s Open pill reads Enter; its title and name still say w
 // Owner 2026-11-13 (replaces 2026-11-08's three matching pills): Enter, Add to chat, Quick Edit and Minimize are ONE pill above the card, one border, one fixed place, shown together.
 test('the card actions are one component: one pill holding Enter, Add to chat, Quick Edit and Prompt, shown by one condition', () => {
   const bar = read('./SelectionActions.jsx'), canvas = read('./AdaptiveCanvas.jsx');
-  const pill = canvas.indexOf('data-card-actions className="pointer-events-auto flex w-max max-w-full items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md"');
+  const pill = canvas.indexOf('data-card-actions className="pointer-events-auto flex w-max max-w-none shrink-0 items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md"');
   assert.ok(pill > 0, 'one container with one border');
   const enter = canvas.indexOf('data-card-open={opens.kind}'), tools = canvas.indexOf('{selected ? tools : hoverTools}');
   assert.ok(pill < enter && enter < tools, 'Enter and the actions are inside it, Enter first');
