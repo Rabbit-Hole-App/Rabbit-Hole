@@ -31,7 +31,7 @@ Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { us
 
 const dir = mkdtempSync(join(tmpdir(), 'card-prompt-')), outfile = join(dir, 'prompt.cjs');
 await esbuild.build({
-  stdin: { contents: "export { PromptControl, placePrompt } from './CardPrompt.jsx'; export { HoverActions, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx'; export { GenerationIndicator } from './ChatOutputs.jsx'; export { LearningBlockBody } from './LearningBlocks.jsx'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { PromptControl, PromptHold, placePrompt } from './CardPrompt.jsx'; export { HoverActions, SelectionActionBar, SelectionActionsHost, SelectionActionsProvider } from './SelectionActions.jsx'; export { GenerationIndicator } from './ChatOutputs.jsx'; export { LearningBlockBody } from './LearningBlocks.jsx'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'error',
   loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'stubs', setup(build) {
@@ -239,7 +239,45 @@ test('the pill draws Prompt as its last action, after Quick Edit, in the sibling
   await withPill({ promptOf: null });
   assert.equal(action(), null);
   await withPill({ onAddToChat: null, onQuickEdit: null });
-  assert.equal(action(), null, 'where its siblings are absent (a view-only board) it is absent too');
+  assert.equal(action()?.textContent, 'Prompt', 'on a view-only or shared board (no Add to chat, no Quick Edit) it is still there, alone');
+  assert.equal(query('[data-add-to-chat]'), null);
+  assert.equal(query('[data-quick-edit]'), null, 'its siblings stay absent');
+  await withPill({ onAddToChat: null, onQuickEdit: null, promptOf: () => undefined });
+  assert.equal(query('[data-selection-bar]'), null, 'view-only with no prompt: nothing at all');
+  await withPill({ sole: 'c2', onAddToChat: null, onQuickEdit: null }, 'hover', 'c1');
+  assert.equal(action()?.textContent, 'Prompt', 'a hovered card on a view-only board shows it too');
+  await withPill({ sole: 'c2', onAddToChat: null, onQuickEdit: null, promptOf: () => undefined }, 'hover', 'c1');
+  assert.equal(query('[data-selection-bar]'), null, 'and nothing without a prompt');
+});
+
+test('the floating selection bar offers Prompt alone on a view-only board, and nothing without a prompt', async () => {
+  const bar = (ctx) => mount(B.createElement('div', { id: 'card', 'data-block': '' }, B.createElement(B.SelectionActionsProvider, { sole: 'c1', promptOf: id => (id === 'c1' ? WORDS : undefined), ...ctx }, B.createElement(B.SelectionActionBar, { anchor: { left: 100, top: 100, right: 300, bottom: 200 }, box: { w: 800, h: 600 } }))));
+  await bar({});
+  assert.equal(action()?.textContent, 'Prompt');
+  assert.equal(query('[data-selection-bar]').getAttribute('data-selection-bar'), 'floating');
+  await bar({ promptOf: () => undefined });
+  assert.equal(query('[data-selection-bar]'), null);
+});
+
+test('while the popover is open its action row is held (PromptHold) so the popover outlives the pointer leaving the card; closing releases it', async () => {
+  const holds = [];
+  await mount(B.createElement(B.PromptHold.Provider, { value: open => holds.push(open) }, B.createElement('div', { id: 'card', 'data-block': '' },
+    B.createElement(B.SelectionActionsProvider, { sole: 'c1', promptOf: () => WORDS }, B.createElement(B.SelectionActionsHost, { id: 'c1', joined: true })))));
+  assert.deepEqual(holds.at(-1), false, 'closed: not held');
+  await click(action());
+  assert.equal(holds.at(-1), true, 'open: the row is held');
+  await fire(card(), 'pointerleave');
+  assert.ok(dialog(), 'the pointer leaving the card does not close it');
+  await escape(dialog());
+  assert.equal(dialog(), null);
+  assert.equal(holds.at(-1), false, 'Escape releases the row');
+  await click(action());
+  await fire(document, 'pointerdown');
+  assert.equal(dialog(), null, 'an outside press closes it');
+  assert.equal(holds.at(-1), false, 'and releases the row');
+  await click(action());
+  await fire(document, 'wheel');
+  assert.equal(dialog(), null, 'a pan or zoom (wheel) closes it: it never stays behind a card that moved');
 });
 
 test('clicking Prompt opens the popover and copies the words at that moment: Copied, one copy per opening, none on closing; the button is pressed while it is open; Escape closes', async () => {
@@ -380,5 +418,5 @@ test('the old header Prompt is gone everywhere: no CardPrompt, CardPromptControl
   }
   const canvas = read('AdaptiveCanvas.jsx');
   assert.match(canvas, /promptOf=\{id => blocksRef\.current\.find\(block => block\.id === id\)\?\.promptUsed\}/, 'the pill reads the stored prompt of the block, the words the card was made from');
-  assert.match(read('SelectionActions.jsx'), /\(ctx\.onAddToChat \|\| ctx\.onQuickEdit\) && prompt && <PromptControl text=\{prompt\} action=\{actionClass\(joined\)\} \/>/, 'only with a prompt, and only where Add to chat or Quick Edit are');
+  assert.match(read('SelectionActions.jsx'), /prompt && <PromptControl text=\{prompt\} action=\{actionClass\(joined\)\} \/>/, 'only with a prompt, alone on a view-only board');
 });

@@ -31,7 +31,7 @@ test('the card actions are one component: one pill holding Enter, Add to chat, Q
   assert.ok(pill > 0, 'one container with one border');
   const enter = canvas.indexOf('data-card-open={opens.kind}'), tools = canvas.indexOf('{selected ? tools : hoverTools}');
   assert.ok(pill < enter && enter < tools, 'Enter and the actions are inside it, Enter first');
-  assert.match(canvas, /const rowShown = selected \|\| hovered;/, 'one condition');
+  assert.match(canvas, /const rowShown = selected \|\| hovered \|\| promptOpen;/, 'one condition (the open Prompt popover keeps the row)');
   assert.match(canvas, /const showEnter = rowShown && !!opens/);
   assert.match(canvas, /const showTools = rowShown && !!\(selected \? tools : hoverTools\);/);
   assert.match(bar, /joined \? 'pointer-events-auto flex w-max items-stretch' : `pointer-events-auto flex h-\[34px\]/, 'joined bar has no border or fill of its own');

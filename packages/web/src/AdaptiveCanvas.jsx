@@ -22,7 +22,6 @@ import { boardAsk } from './board-ask.js';
 import { api, wsHeaders } from './api.js';
 import { isFileDrag, pressKeepsDocFocus, unknownDocBlock } from './canvas-doc.js';
 import { BLOCK_TYPES, EXPLAIN_PENDING_SIZE, LearningBlockBody, SketchHost, describeBlock, headerSource } from './LearningBlocks.jsx';
-import { goodSummary, landSummary, requestSummary } from './explanation-minimize.js';
 import { explanationCardWidth, openedExplanation } from './explanation-card-width.js';
 import { SKETCH_HEIGHT, roundPoint } from './explain-sketch.js';
 import { skeletonJobOf, skeletonThreadOf } from './explain-client.js';
@@ -67,6 +66,7 @@ import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeEl
 import { publicExplainBack } from './explain-back-private.js';
 import { INPUT_PROBLEMS, INPUT_SIDE, addInput, describeSource, inputEvidence, inputPills, inputProblem, inputSubmission, isExplainBack, isInputLink } from './explain-inputs.js';
 import { DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
+import { PromptHold } from './CardPrompt.jsx';
 import { PerfContext, perfMark, usePaintedMarks } from './learn-perf.js';
 import LaserPointer from './LaserPointer.jsx';
 import { DivePortals } from './Dive.jsx';
@@ -337,6 +337,8 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   // Hover (owner 2026-11-13): the action row shows 150 ms after the pointer rests on the card and leaves 120 ms after it goes, only while no button is down, so it never gets in the way of a drag.
   // It is this card's own state: a hover change re-renders this card only, never the canvas.
   const [hovered, setHovered] = useState(false), hoverTimer = useRef(null);
+  // The Prompt action's popover being open keeps the row (so the popover, which lives in it) until Escape or an outside press (CardPrompt.jsx PromptHold).
+  const [promptOpen, setPromptOpen] = useState(false);
   // The highlight over the top of the card (index.css) is as tall as the grip strip and the header together.
   const measureTop = root => { const header = root.querySelector('[data-card-header]'), base = root.getBoundingClientRect().top; root.style.setProperty('--top-h', `${Math.max(24, ((header ? header.getBoundingClientRect().bottom : base + 24 * (zoom || 1)) - base) / (zoom || 1))}px`); };
   // A press alone changes nothing (the row must not jump when a card is clicked); it hides only once the card is being dragged (a move with a button down).
@@ -352,7 +354,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   // The row above a card (owner 2026-11-13): Enter shows on a hovered card and stays on the selected one; the action buttons (Add to chat, Quick Edit, Minimize) show on hover, or on a
   // touch screen for the selected card. Hover is off while a button is down, so a click that selects keeps Enter even before the pointer moves again.
   // ONE condition for the whole row (owner 2026-11-13: Enter, Add to chat, Quick Edit and Minimize are seen together or not at all): the card is selected or the pointer is on it.
-  const rowShown = selected || hovered;
+  const rowShown = selected || hovered || promptOpen;
   const showEnter = rowShown && !!opens && (!selected || opener.single === id);
   // The selected card keeps its buttons whether or not the pointer is on it (owner 2026-11-13: nothing may disappear from it); a card that is only hovered shows its row while the pointer is on it.
   const showTools = rowShown && !!(selected ? tools : hoverTools);
@@ -466,7 +468,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       {/* ONE component (owner 2026-11-13): Enter, Add to chat, Quick Edit and Minimize are one pill in one fixed place above the card's left edge, seen and not seen together. */}
       {(showEnter || showTools) && (
         <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex items-end justify-center after:pointer-events-auto after:absolute after:inset-x-0 after:top-full after:h-2 after:content-['']">
-          <div data-card-actions className="pointer-events-auto flex w-max max-w-full items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md">
+          <PromptHold.Provider value={setPromptOpen}><div data-card-actions className="pointer-events-auto flex w-max max-w-full items-stretch overflow-hidden rounded-full border border-line bg-white shadow-md">
             {showEnter && (
               <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
                 onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
@@ -476,7 +478,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
             )}
             {showEnter && showTools && <span aria-hidden="true" className="w-px shrink-0 self-stretch bg-line" />}
             {showTools && <div className="flex items-stretch">{selected ? tools : hoverTools}</div>}
-          </div>
+          </div></PromptHold.Provider>
         </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
@@ -2362,7 +2364,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         }
         added = openedExplanation(added); // CV-1/CV-8: a new Explanation opens whole, at the width its visual asks for (not the type's fixed 440), from every origin
         if (added.cardLayout?.mode === 'full') whole = true;
-        if (added.type === 'explanation') fillSummary(added.id, added);
         if (after == null) return framed(insertAtView(added, into));
         perfMark(added.id, 'insert');
         setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });
@@ -5437,14 +5438,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const patchBlockNow = (id, patch, quiet = false) => {
     if (!quiet) { if (readOnly || lockedRef.current.has(id)) return; snapshot(); }
     setBlocks(previous => patchBlock(previous, id, patch));
-  };
-  // The collapsed preview's summary (control plane explanation-summary.js): requested once per card, never blocks, never raises a notice. It lands on the card as a quiet update
-  // of just that field on the latest blocks (landSummary): a card deleted meanwhile, or one that got a summary, is left alone, and nothing else on it is overwritten.
-  const summaryAsked = useRef(new Set());
-  const fillSummary = (id, card = blocksRef.current.find(entry => entry.id === id)) => {
-    if (!card || goodSummary(card.summary) || summaryAsked.current.has(id) || readOnlyRef.current || localCopyRef.current) return;
-    summaryAsked.current.add(id);
-    requestSummary(api, { app: appName, block: card }).then(summary => { if (summary) setBlocks(previous => landSummary(previous, id, summary)); else summaryAsked.current.delete(id); });
   };
   // A style press sets the default for the next thing drawn, and restyles
   // whatever is selected. Connectors only carry a colour.

@@ -16,8 +16,8 @@
 //   8. a corner resize keeps the height the card had at release;
 //   9. the server's board holds both prompts; a card made before this (no prompt) has no control; a chat card has none (its question is drawn in the card);
 //  10. a fresh browser shows no prompt at rest and the same two prompts when asked;
-//  11. a share-link viewer (a view-only board has no Add to chat or Quick Edit, so no Prompt beside them) is offered no Prompt, and no
-//      never-accepted CAD words reach the board or the page;
+//  11. a share-link viewer (a view-only board has no Add to chat or Quick Edit; Prompt still shows, alone, owner 2026-11-17) sees Copy and no chat
+//      action, and only the accepted CAD prompt while an edit waits; no never-accepted CAD words reach the board or the page;
 //  12. the popover sits right of the card with room and stays inside a narrow window (flipped left or clamped), a long prompt scrolls
 //      inside it, and no card shows the word "course".
 // Before this change step 1 fails: the Prompt is in the card's header, not in the hover pill.
@@ -322,18 +322,22 @@ await step('a fresh browser shows no prompt at rest and the same two prompts whe
 
 const shared = await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: await board() }) });
 const viewer = await open({ signedIn: false, path: `/b/${shared.sharing.view}` });
-await step('a share-link viewer is offered no Prompt (its siblings, Add to chat and Quick Edit, are absent on a view-only board), and no never-accepted CAD words reach the board or the page', async () => {
-  await cardOf(viewer.page, explainId).waitFor({ timeout: 60000 });
-  assert.equal(await rowOf(viewer.page).count(), 0, 'closed at rest for a viewer too');
-  for (const id of [explainId, cadBlock.id]) {
-    await cardOf(viewer.page, id).hover();
-    await viewer.page.waitForTimeout(400);
-    assert.equal(await showOf(viewer.page, id).count(), 0, `${id}: no Prompt for a viewer, hovered`);
-    const box = await cardOf(viewer.page, id).boundingBox();
-    await viewer.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    await viewer.page.waitForTimeout(300);
-    assert.equal(await showOf(viewer.page, id).count(), 0, `${id}: no Prompt for a viewer, selected`);
+await step('a share-link viewer, with the pointer on the card (a view-only board has no Add to chat or Quick Edit), is offered Prompt alone: Copy and no chat action, and only the accepted CAD prompt', async () => {
+  const p = viewer.page, button = p.locator('[data-card-prompt-button]');
+  await cardOf(p, explainId).waitFor({ timeout: 60000 });
+  assert.equal(await rowOf(p).count(), 0, 'closed at rest for a viewer too');
+  for (const [id, words] of [[explainId, EXPLAIN_LINE], [cadBlock.id, RELOAD_WORDS]]) {
+    await hide(p);
+    await cardOf(p, id).hover();
+    await button.first().waitFor({ timeout: 5000 }); // the pill (or the floating bar on a narrow or cut-off view)
+    assert.equal(await p.locator('[data-add-to-chat], [data-quick-edit]').count(), 0, 'a viewer has no Add to chat or Quick Edit');
+    await button.first().click();
+    await rowOf(p).waitFor();
+    assert.equal(await rowOf(p).locator('[data-card-prompt-copy]').count(), 1);
+    assert.equal(await rowOf(p).locator('[data-card-prompt-chat], [aria-label="Put prompt in chat"]').count(), 0, 'a viewer has no Chat action');
+    assert.equal(await rowOf(p).locator('[data-card-prompt-text]').innerText(), words, id === cadBlock.id ? 'the viewer sees the accepted CAD prompt' : undefined);
   }
+  await hide(p);
   const seen = JSON.stringify(await board()) + await viewer.page.content();
   for (const words of [PENDING_WORDS, CARD_REJECT, REJECTED_WORDS]) assert.ok(!seen.includes(words), `"${words}" (never accepted) reaches neither the board nor the viewer`);
   await viewer.page.screenshot({ path: `${OUT}/8-shared.png` });

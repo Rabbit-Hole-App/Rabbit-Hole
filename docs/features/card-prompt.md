@@ -23,7 +23,7 @@ One shared component, `PromptControl` in `CardPrompt.jsx`, for cards and the Cha
   the pointer rests on the card, or the card is selected; on a narrow view or a card with a comment pin the same action is in the floating selection
   bar, as its siblings are). It is drawn only for a card that has a stored prompt (`promptOf(id)` of `SelectionActionsProvider`, which reads the
   block's `promptUsed` in `AdaptiveCanvas.jsx`): no prompt, no button, no empty slot. Where Add to chat and Quick Edit are absent (a view-only board, a
-  shared page) Prompt is absent too. It is pressed (`bg-hover`) while its popover is open. It acts without selecting the card. A chat card has no
+  shared page) Prompt still shows, alone. It is pressed (`bg-hover`) while its popover is open. It acts without selecting the card. A chat card has no
   Prompt control: its question is drawn in the card.
 - **Copy on open:** clicking Prompt opens the popover and copies the words in that same click, and the popover's status line says **Copied** (**Copy failed**
   in the danger colour when the clipboard refuses). Only opening copies; closing and re-rendering do not, and opening again copies again. The Copy
@@ -32,7 +32,9 @@ One shared component, `PromptControl` in `CardPrompt.jsx`, for cards and the Cha
   window's right edge it flips to the left of the card, and when neither side fits it overlays the card's edge kept inside the
   window; it is always clamped vertically so it stays visible (`placePrompt`, a pure function). A long prompt scrolls inside it
   (`data-scroll`, so the wheel scrolls the popover, not the canvas).
-- **Stays open** when the pointer leaves the card, so the words can be read, selected and copied. It closes on an outside press,
+- **Stays open** when the pointer leaves the card, so the words can be read, selected and copied: while it is open the card's action row is held
+  drawn (`PromptHold`, `CanvasNode`'s `promptOpen` joins the one row condition), so the popover stays where it opened. It does not follow a card:
+  a press on the card (a drag starts with one), a wheel (pan or zoom) or a window resize closes it. It closes on an outside press,
   Escape (focus returns to Prompt), Tab out of it, or a wheel or window resize elsewhere (the canvas pans or zooms, so a popover
   left behind would be detached). It is closed on every load.
 - **Canvas zoom and clipping:** the popover is portalled to `document.body` and positioned from `getBoundingClientRect`, so the
@@ -40,8 +42,8 @@ One shared component, `PromptControl` in `CardPrompt.jsx`, for cards and the Cha
   open).
 - **Copy:** writes the complete prompt, unchanged, and says **Copied**; if the clipboard refuses it says **Copy failed**.
 - **Read only:** opening and Copy generate nothing, change nothing on the card and do not open or fill the Chat. There is no
-  "put in chat" action. A share-link viewer has no Add to chat or Quick Edit, so, like them, no Prompt action (owner 2026-11-17 rule: follow the
-  siblings).
+  "put in chat" action. A share-link viewer or a view-only board has no Add to chat or Quick Edit, but keeps Prompt, alone in the pill (or the
+  floating bar) for a card that has a prompt (owner 2026-11-17: shared canvases keep every feature).
 - **Popover placement from the pill:** beside the card (right, else left, else over its edge, `placePrompt`), starting at the pill's bottom edge so
   it never covers the pill.
 - **No stored prompt:** no control at all.
@@ -82,7 +84,7 @@ A copied, duplicated or Alt-dragged card keeps its prompt. A fork keeps it.
 ## Verification (2026-10-20; Prompt control 2026-10-23; moved into the pill 2026-11-17)
 
 - Unit (2026-11-17): `card-prompt-reveal.test.mjs` also renders the real `SelectionActions` pill: Prompt last after Quick Edit in Quick Edit's classes, absent
-  without a prompt or without its siblings, opens and copies once per opening (`Copied`, `Copy failed`), closing copies nothing, pressed while open,
+  without a prompt, alone on a view-only board (pill, hover pill and floating bar), the row held while open, opens and copies once per opening (`Copied`, `Copy failed`), closing copies nothing, pressed while open,
   Escape closes, a hovered card's press selects nothing, the popover starts at the pill's bottom edge; the card bodies draw no header Prompt.
 - Unit: `card-prompt-reveal.test.mjs`: rest, hover/focus/touch selection (before 2026-11-17), the popover (portalled, exact text, stays open, outside
   press, Escape, wheel), no event reaches the card and no request is made, full Copy and Copy failed, no prompt means no control,

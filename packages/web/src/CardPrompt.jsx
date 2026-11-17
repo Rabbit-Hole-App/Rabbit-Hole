@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Copy, Quote } from 'lucide-react';
 import { copyAnswer } from './AnswerFooter.jsx';
@@ -14,6 +14,11 @@ export function placePrompt(anchor, size, view, gap = 8, margin = 8) {
   }
   return { left, top: Math.max(margin, Math.min(anchor.top, view.h - margin - size.h)), side };
 }
+
+// A card's action row gives the Prompt action this setter: while the popover is open the row stays drawn (it holds the popover), so the popover outlives the pointer
+// leaving the card, until Escape or an outside press. A wheel (pan or zoom), a window resize or a press on the card (a drag starts with one) close it, so it never
+// stays behind a card that moved; it does not follow a card, it closes.
+export const PromptHold = createContext(null);
 
 const rect = element => element?.getBoundingClientRect?.() ?? { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 };
 const pill = 'pointer-events-auto cursor-pointer rounded-full bg-ink text-white select-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
@@ -34,6 +39,8 @@ export function PromptControl({ text, copy = text, active = false, anchor = null
   const [back, setBack] = useState(false); // focus is returning to the control, so it stays drawn until it has the focus
   const [status, setStatus] = useState(null);
   const [place, setPlace] = useState(null);
+  const hold = useContext(PromptHold);
+  useEffect(() => { if (!action || !hold) return undefined; hold(open); return () => hold(false); }, [action, hold, open]);
   useEffect(() => { if (back && !open) button.current?.focus(); }, [back, open]);
   // The opened popover takes focus, so Escape and Tab work from the keyboard. Only once it is placed: until then it is visibility:hidden,
   // which a browser cannot focus (focus() does nothing), and Escape would go to the control and leave the popover open.

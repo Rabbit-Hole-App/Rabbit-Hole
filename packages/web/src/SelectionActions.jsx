@@ -11,7 +11,7 @@ import { placeBar, usesHost } from './selection-bar-place.js';
 //   Quick Edit   opens the existing inline editor in Edit selection mode (the canvas does it: openInline).
 //   Prompt       (owner 2026-11-17, replacing the pill in each card's header) opens the words the card was made from, only for a card that has them
 //                (promptOf(id): the card's stored promptUsed), after Quick Edit, the last of the row; no shortcut. Like its siblings it is in the hover pill, the selected
-//                card's pill and the floating bar, and absent where they are.
+//                card's pill and the floating bar; unlike them it is also on a view-only or shared board (owner 2026-11-17: shared canvases keep every feature), alone.
 // One bar per selection. A card, a chat card, a slide, an image, or a text box already shows a row of controls above it:
 // there the two actions join that row (SelectionActionsHost, a trailing segment) and nothing else is drawn. Everything else
 // - a shape, a group, several objects, a card with no such row - gets the floating bar (SelectionActionBar), which stays
@@ -64,7 +64,7 @@ function Actions({ ctx, mode, id = null, className = '', style, joined = false }
       </button>}
       {ctx.onAddToChat && <Action label={ctx.added ? 'Added to chat' : 'Add to chat'} chord="add-to-chat" Icon={ctx.added ? Check : MessageSquarePlus} mac={ctx.mac} onClick={ctx.onAddToChat} joined={joined} data-add-to-chat data-added={ctx.added || undefined} />}
       {ctx.onQuickEdit && <Action label="Quick Edit" chord="quick-edit" Icon={Wand} mac={ctx.mac} onClick={ctx.onQuickEdit} joined={joined} data-quick-edit />}
-      {(ctx.onAddToChat || ctx.onQuickEdit) && prompt && <PromptControl text={prompt} action={actionClass(joined)} />}
+      {prompt && <PromptControl text={prompt} action={actionClass(joined)} />}
     </div>
   );
   return bar(className, style);
@@ -74,7 +74,7 @@ function Actions({ ctx, mode, id = null, className = '', style, joined = false }
 // and then runs the action, which acts on the selection as ever (the handler is read after the selection has re-rendered).
 export function HoverActions({ id, select, divider = false, joined = false }) {
   const ctx = useContext(Ctx);
-  if (!ctx || ctx.hidden || ctx.sole === id || (!ctx.onAddToChat && !ctx.onQuickEdit)) return null;
+  if (!ctx || ctx.hidden || ctx.sole === id || (!ctx.onAddToChat && !ctx.onQuickEdit && !ctx.promptOf?.(id))) return null;
   // Select this card, let the canvas re-render with it selected, then run the action from the NEWEST context: the action reads the selection, and the copy this row holds was made before it.
   const act = name => { select(id); requestAnimationFrame(() => requestAnimationFrame(() => freshest?.[name]?.())); };
   // The very same Actions the selected card's row draws (owner 2026-11-13: hover and click must look and sit the same), with this card's presses.
@@ -92,7 +92,7 @@ export function SelectionActionsHost({ id, className = '', style, divider = fals
   const here = !!ctx && usesHost(ctx, id);
   const register = ctx?.register;
   useLayoutEffect(() => (here ? register() : undefined), [here, register]);
-  if (!here || !hasActions(ctx)) return null;
+  if (!here || !(hasActions(ctx) || (!ctx.hidden && ctx.promptOf?.(id)))) return null;
   const actions = <Actions ctx={ctx} mode="host" id={id} className={className} style={style} joined={joined} />;
   // The rule and the segment stay together when the row they sit in wraps (CanvasNode's tools row).
   return divider ? <div className={joined ? 'flex items-stretch' : 'flex items-stretch gap-1.5'}><span aria-hidden="true" className={joined ? 'w-px shrink-0 self-stretch bg-line' : 'h-5 w-px shrink-0 self-center bg-line-strong'} />{actions}</div> : actions;
@@ -134,7 +134,7 @@ export function SelectionActionBar({ anchor, box }) {
   const ctx = useContext(Ctx);
   const ref = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const show = !!ctx && !!anchor && hasActions(ctx) && ctx.hosted === 0;
+  const show = !!ctx && !!anchor && (hasActions(ctx) || (!ctx.hidden && !!ctx.promptOf?.(ctx.sole))) && ctx.hosted === 0;
   useLayoutEffect(() => {
     const node = ref.current;
     if (node && (node.offsetWidth !== size.w || node.offsetHeight !== size.h)) setSize({ w: node.offsetWidth, h: node.offsetHeight });
