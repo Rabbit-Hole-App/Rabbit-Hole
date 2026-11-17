@@ -151,3 +151,11 @@ test('stepExcerpt: asks resolve with excerpt once per ref, caches it, and answer
   assert.equal(calls.length, 4);
   assert.match(readFileSync(new URL('./SlotCard.jsx', import.meta.url), 'utf8'), /useStepExcerpt\(card\?\.sourceRef, actions\?\.app/, 'the slot reads it from the reference, in every state');
 });
+
+test('a skeleton that has an arrow (a card made from a card) shows after the arrow draws; every other skeleton is unchanged', () => {
+  const slot = extra => ({ id: 'slot:a', w: 440, h: 360, at: { x: 1, y: 2 }, started: 0, label: 'Creating /explain', ...extra });
+  const plain = lib.renderToStaticMarkup(lib.createElement(lib.SlotCard, { slot: slot({}) }));
+  const joined = lib.renderToStaticMarkup(lib.createElement(lib.SlotCard, { slot: slot({ arrow: { from: 's', color: 'teal' } }) }));
+  assert.doesNotMatch(plain, /slot-after-arrow/);
+  assert.match(joined, /data-slot-after-arrow="" style="width:440px;height:360px;position:absolute;left:1px;top:2px" class="[^"]*slot-after-arrow"/, 'same place, same size: it only fades in late');
+});

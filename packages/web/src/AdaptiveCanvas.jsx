@@ -87,7 +87,7 @@ import { keepsSpot, liveCards, planSlots, slotIdOf, sourceBlockOf } from './road
 import { deliveredSpot, proposalAnchor } from './roadmap-placement.js';
 import { BESIDE_ASSUMED_H, BESIDE_ASSUMED_W, followPlace } from './beside-placement.js';
 import { placeSourced } from './place-sourced.js';
-import { ARROW, arrowhead, connectorsOf, drawConnector } from './connector.js';
+import { ARROW, arrowhead, connectorsOf, drawConnector, nextArrowColor, slotConnector } from './connector.js';
 import { centerOnBox, clusterBox, fitBoxes, firstViewTarget, framesAnyBlock, passageZoom, topView } from './canvas-view.js';
 import { dragged, holdAnchors } from './card-anchor.js';
 import { cameraForWords, pickedHighlight } from './inline-highlight.js';
@@ -343,7 +343,7 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // so it never flashes at the default place (UI.06).
 const PLACING = { visibility: 'hidden' };
 const grown = (height, grow) => (height == null ? height : height + grow);
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hoverTools = null, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, inputPort = false, autoMax = 420, width = 380, height = undefined, extraHeight = 0, grow = 0, placing = false, saved = null, cardLayout = null, fitContent = false, fitCeiling = false, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, hoverTools = null, children }) {
   const [lifted, setLifted] = useState(false);
   const audioPlaying = usePlayingCard(id); // this card's explanation audio is playing: the green frame (index.css [data-audio-playing])
   // Hover (owner 2026-11-13): the action row shows 150 ms after the pointer rests on the card and leaves 120 ms after it goes, only while no button is down, so it never gets in the way of a drag.
@@ -467,7 +467,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
         opener.open(id, 'learner_dblclick');
       } : undefined}
-      style={{ ...(placing ? PLACING : null), transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(footprint ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : grown((cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), grow), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight + grow, fit, !!(cornerDrag?.h || size.h)) }}
+      style={{ ...(placing ? PLACING : null), transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(footprint ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, ...fitFrame(full ? undefined : grown((cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), grow), full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight + grow, fit, !fitCeiling && !!(cornerDrag?.h || size.h)) }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 outline-none ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
           Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
@@ -1070,7 +1070,7 @@ function LessonBlockCard({ placing = false, block, zoom, selected, viewSelected 
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       inputPort={isExplainBack(block)}
-      fitContent={!!BLOCK_TYPES[block.type]?.fitContent}
+      fitContent={!!BLOCK_TYPES[block.type]?.fitContent} fitCeiling={!!BLOCK_TYPES[block.type]?.fitCeiling}
       autoMax={tile ? null : BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={cardWidth} wide={cardWidth > COLUMN} resizable={!tile}
       height={sized ? sized.height : BLOCK_TYPES[block.type]?.height}
@@ -2478,7 +2478,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         let whole = fit; // a new Explanation is framed whole whichever way it arrives (CV-8), as a typed one always was
         const framed = id => { if (whole && revealRef.current?.id === id) revealRef.current.fit = { moves: revealRef.current.moves, h: null }; return id; };
         // A confirmed /motion card lands with its press's request id (withPressId), so a reload can never start a second job.
-        let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}), ...(Number.isFinite(parent.dy) ? { dy: parent.dy } : {}) } } : {}) });
+        let added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0, ...(parent?.id ? { parentCard: { id: parent.id, color: slotsRef.current.find(slot => slot.id === into)?.arrow?.color ?? nextArrowColor(blocksRef.current, parent.id), ...(parent.revision ? { revision: parent.revision } : {}), ...(parent.actionId ? { actionId: parent.actionId } : {}), ...(Number.isFinite(parent.dy) ? { dy: parent.dy } : {}) } } : {}) });
         if (link && parent?.id && blocksRef.current.some(entry => entry.id === parent.id)) { // link: false = a card placed beside its source, no connector (owner 2026-11-08)
           const linkId = parent.actionId ? `explain-child-${parent.actionId}` : crypto.randomUUID();
           setLinks(previous => (previous.some(entry => entry.id === linkId) ? previous : [...previous, { id: linkId, from: parent.id, fromSide: 'bottom', to: added.id, toSide: 'top', color: '#6b7280', route: 'curved', bow: true, head: true }]));
@@ -2520,7 +2520,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const source = near && blocksRef.current.find(block => block.id === near.cardId), box = source && boundsRef.current[source.id];
         // AR-C1: the card names its source card and the passage line (the connector's tail), so the arrow survives a reload without measuring the passage again.
         const line = box ? (near.world ? near.world.y + near.world.h / 2 : Number.isFinite(near.alignY) ? box.y + near.alignY : null) : null;
-        const added = { ...card, dx: 0, dy: 0, ...(box && line != null ? { parentCard: { id: source.id, dy: Math.round(line - box.y) } } : {}) };
+        const added = { ...card, dx: 0, dy: 0, ...(box && line != null ? { parentCard: { id: source.id, color: nextArrowColor(blocksRef.current, source.id), dy: Math.round(line - box.y) } } : {}) };
         if (box) {
           const slot = { w: EXPLAIN_PENDING_SIZE.width, h: 360 };
           const siblings = blocksRef.current.filter(entry => entry.parentCard?.id === source.id && boundsRef.current[entry.id]).map(entry => ({ box: boundsRef.current[entry.id], anchorY: boundsRef.current[entry.id].y + boundsRef.current[entry.id].h / 2 }));
@@ -2569,7 +2569,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
       // `at` { x, y } (world units): the slot stands there instead of in the column, and `quiet` leaves the camera where it is; both default off, so every
       // other caller reserves exactly as before. `state` is the slot's own word for what it shows ('generating' unless a roadmap card says otherwise).
-      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = null, follow = false }) => {
+      reserve: ({ label, card = null, samples = [], at: given = null, quiet = false, state = 'generating', beside = null, besideDy = null, follow = false, arrow = false }) => {
         const id = `slot:${crypto.randomUUID()}`;
         let size = slotSize(card, BLOCK_TYPES, samples);
         // `beside` (a card id): the slot stands to the right of that card, level with its top and as tall as it (besideSpot); no free place there: the column, as before.
@@ -2588,7 +2588,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const place = at ? { at: null, top: 0 } : freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN, fixed: anchoredBoxes(slotsRef.current) });
         const before = at ? null : blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.
-        setSlots(previous => [...previous, { id, before, top: place.top, label, ...size, started: performance.now(), moves: manualMoves.current, ...(at ? { at } : {}), ...(state !== 'generating' ? { state } : {}) }]);
+        // arrow (a card made from this one, Ask in a new card): the connector from the source to this slot is drawn first and the skeleton shows after it; its colour is the card's (insertBlock).
+        const joined = arrow && anchor && at && !given ? { arrow: { from: anchor, color: nextArrowColor(blocksRef.current, anchor) } } : null;
+        setSlots(previous => [...previous, { id, before, top: place.top, label, ...size, started: performance.now(), moves: manualMoves.current, ...(at ? { at } : {}), ...joined, ...(state !== 'generating' ? { state } : {}) }]);
         if (!quiet) cameraRef.current = { id, smooth: true, centre: true };
         return id;
       },
@@ -3315,7 +3317,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   boundsRef.current = bounds;
   // AR-C1: the connectors the cards imply, recomputed only when the cards or their measured boxes change (the same state the links follow): no per-frame state, no layout reads.
-  const arrows = useMemo(() => connectorsOf(blocks).map(connector => drawConnector(connector, blocks, bounds)).filter(Boolean), [blocks, bounds]);
+  // A skeleton on its way to a card made from a card (slot.arrow) has its arrow already: drawn in first, the skeleton shows after it (index.css .arrow-draw, .slot-after-arrow).
+  const arrows = useMemo(() => [...connectorsOf(blocks).map(connector => drawConnector(connector, blocks, bounds)), ...slots.map(slot => slotConnector(slot, bounds))].filter(Boolean), [blocks, bounds, slots]);
   // CK-4: a focus move (a card just made, Go to card, View passage) puts the card in the middle of the visible area; never the zoom.
   const bringIntoView = id => showBox(boundsRef.current[id], false, true);
   // zoom: a new zoom to show the box at (revealOnCanvas zooming out to fit); otherwise the zoom stays.
@@ -6547,9 +6550,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {arrows.length > 0 && (
           <svg width="1" height="1" aria-hidden="true" data-card-arrows className="pointer-events-none absolute top-0 left-0 overflow-visible">
             {arrows.map(arrow => (
-              <g key={arrow.id} data-card-arrow={arrow.id} data-arrow-kind={arrow.kind} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth={ARROW.width / view.z} className="[stroke:var(--arc-l)] dark:[stroke:var(--arc-d)]" style={{ '--arc-l': arrow.colors.light, '--arc-d': arrow.colors.dark }}>
-                <path d={arrow.geometry.d} strokeDasharray={arrow.kind === 'explain' ? ARROW.dash.split(' ').map(n => Number(n) / view.z).join(' ') : undefined} />
-                <path d={arrowhead(arrow.geometry, 1 / view.z)} />
+              <g key={arrow.id} data-card-arrow={arrow.id} data-arrow-kind={arrow.kind} data-arrow-draw={arrow.drawIn ? '' : undefined} fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth={ARROW.width / view.z} className="[stroke:var(--arc-l)] dark:[stroke:var(--arc-d)]" style={{ '--arc-l': arrow.colors.light, '--arc-d': arrow.colors.dark }}>
+                <path d={arrow.geometry.d} pathLength={arrow.drawIn ? 1 : undefined} className={arrow.drawIn ? 'arrow-draw' : undefined} strokeDasharray={arrow.kind === 'explain' ? ARROW.dash.split(' ').map(n => Number(n) / view.z).join(' ') : undefined} />
+                <path d={arrowhead(arrow.geometry, 1 / view.z)} className={arrow.drawIn ? 'arrow-head-in' : undefined} />
               </g>
             ))}
           </svg>
