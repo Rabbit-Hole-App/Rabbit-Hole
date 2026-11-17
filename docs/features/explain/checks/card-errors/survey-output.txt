@@ -1,0 +1,46 @@
+unique cards 5269 with a numeric diagram 1784 flagged (any) 14 0.8%
+flagged on all cards (incl no numeric diagram, prose arithmetic only) 15
+[
+  [ 'softmax-recompute', 11 ],
+  [ 'arithmetic-statement', 1 ],
+  [ 'plot-point-off-formula', 1 ],
+  [ 'bootstrap-draw-count-not-n', 1 ],
+  [ 'box-fence-arithmetic', 1 ],
+  [ 'box-outlier-inside-correct-fence', 1 ]
+]
+┌─────────────────┬─────┬─────────┬─────────┐
+│ (index)         │ n   │ flagged │ anyflag │
+├─────────────────┼─────┼─────────┼─────────┤
+│ coordinate-plot │ 997 │ 1       │ 1       │
+│ bar-chart       │ 58  │ 0       │ 0       │
+│ timeline        │ 151 │ 0       │ 0       │
+│ transformation  │ 179 │ 11      │ 11      │
+│ histogram       │ 27  │ 0       │ 0       │
+│ matrix          │ 62  │ 0       │ 0       │
+│ token-links     │ 160 │ 0       │ 0       │
+│ tensor          │ 6   │ 0       │ 0       │
+│ sample-set      │ 7   │ 1       │ 1       │
+│ heatmap         │ 57  │ 0       │ 0       │
+│ box-plot        │ 7   │ 1       │ 1       │
+│ t-account       │ 26  │ 0       │ 0       │
+│ waterfall       │ 26  │ 0       │ 0       │
+│ number-line     │ 21  │ 0       │ 0       │
+└─────────────────┴─────┴─────────┴─────────┘
+coverage per check (cards the check could actually examine)
+┌──────────────────────┬──────────┬─────────┐
+│ (index)              │ examined │ flagged │
+├──────────────────────┼──────────┼─────────┤
+│ arithmetic-statement │ 65       │ 1       │
+│ plot-recompute       │ 270      │ 1       │
+│ bars-sum             │ 26       │ 0       │
+│ timeline-order       │ 147      │ 0       │
+│ histogram-counts     │ 26       │ 0       │
+│ probabilities-sum    │ 129      │ 0       │
+│ softmax-recompute    │ 84       │ 11      │
+│ label-value-vs-prose │ 60       │ 0       │
+│ loss-monotone        │ 2        │ 0       │
+│ bootstrap-draw-count │ 7        │ 1       │
+│ heatmap-sum          │ 5        │ 0       │
+│ box-fence-arithmetic │ 7        │ 2       │
+│ waterfall-closing    │ 1        │ 0       │
+└──────────────────────┴──────────┴─────────┘

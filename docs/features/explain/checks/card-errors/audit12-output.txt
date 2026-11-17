@@ -1,0 +1,28 @@
+card 3 | timeline order 509 BCE, 27 BCE, 476 CE | stated 509 BCE | 27 BCE | 476 CE | expected 509 BCE < 27 BCE < 476 CE (historical dates standard) | OK
+card 4 | plot y values (caption "worked example", prose states no formula) | stated 10,6,3,1,2 | expected no formula in the prose to recompute from: unverifiable; final point rises (1 -> 2) while the prose says it reaches the bottom | NOTE (unverifiable or illustrative, not a recomputed error)
+card 5 | omission n=1 | stated 0 | expected 0 | OK
+card 5 | omission n=2 | stated 0.25 | expected 0.25 | OK
+card 5 | omission n=3 | stated 0.296 | expected 0.296 | OK
+card 5 | omission n=4 | stated 0.316 | expected 0.316 | OK
+card 5 | omission n=5 | stated 0.328 | expected 0.328 | OK
+card 5 | omission n=6 | stated 0.335 | expected 0.335 | OK
+card 5 | omission n=7 | stated 0.34 | expected 0.34 | OK
+card 5 | omission n=8 | stated 0.344 | expected 0.344 | OK
+card 5 | omission n=9 | stated 0.346 | expected 0.346 | OK
+card 5 | omission n=10 | stated 0.349 | expected 0.349 | OK
+card 5 | limit 1/e | stated 0.368 | expected 0.368 | OK
+card 5 | 1 - 0.368 | stated 0.632 | expected 0.632 | OK
+card 6 | IQR = Q3 - Q1 | stated 6 | expected 6 | OK
+card 6 | lower fence = Q1 - 1.5 IQR | stated 2 | expected -3 | WRONG
+card 6 | upper fence = Q3 + 1.5 IQR | stated 16 | expected 21 | WRONG
+card 6 | outlier 18 beyond the correct upper fence | stated 18 | expected > 21 | WRONG
+card 6 | axis holds the correct lower fence | stated x.min 0 | expected needs x.min <= -3 | WRONG
+card 9 | softmax p1 for z=2 | stated 0.66 | expected 0.659 | OK
+card 9 | softmax p2 for z=1 | stated 0.24 | expected 0.242 | OK
+card 9 | softmax p3 for z=0.1 | stated 0.10 | expected 0.099 | OK
+card 9 | sum | stated 1 | expected 1 | OK
+card 10 | insert 7: path | stated 8>3>6>7 | expected 8>3>6>(7 as right child of 6) | OK
+card 12 | step lengths | stated 1.421, 1, 0.781 | expected shrink by a constant factor for fixed learning rate on a quadratic bowl (ratio 1-eta*curvature) | NOTE (unverifiable or illustrative, not a recomputed error)
+card 12 | last step lands on the minimum exactly | stated to (0,0) | expected a fixed-rate step does not land exactly on the minimum | NOTE (unverifiable or illustrative, not a recomputed error)
+card 12 | outer contour radii | stated 2,1.98,2,1.98,2,1.98,2,1.98,2 | expected a circle of radius 2 (8-gon vertices at 2 and 1.98) | OK
+card 12 | numbers in the prose | stated ["0","1"] | expected none: caption says Worked example but no formula or numbers are stated | NOTE (unverifiable or illustrative, not a recomputed error)

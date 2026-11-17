@@ -1,0 +1,156 @@
+
+################ 1 precision-recall overview {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+When we test a rule or a model, we often want to measure two different kinds of success. Precision tells us how trustworthy our positive guesses are. If the model says yes, precision asks how often it is actually right.
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Precision and Recall Focus","caption":"Precision checks your accuracy when you guess yes. Recall checks how many true items you managed to find.","kind":"matrix","columns":["Predicted No","Predicted Yes"],"rows":[{"heading":"Actual No","cells":["Correct Safe","False Alarm"]},{"heading":"Actual Yes","cells":["Missed Item","Correct Find"]}]}}
+```
+
+Recall tells us how thorough our search is. Out of all the true items that exist in total, recall asks how many we managed to catch.
+
+################ 2 tcp-handshake overview {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+Computers connect on the web using a friendly greeting called a handshake.
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Three-way handshake","kind":"sequence","actors":[{"id":"client","label":"Client"},{"id":"server","label":"Server"}],"messages":[{"from":"client","to":"server","label":"SYN"},{"from":"server","to":"client","label":"SYN-ACK"},{"from":"client","to":"server","label":"ACK"}]}}
+```
+
+First, your computer sends a polite hello message. The server replies with its own hello and a nod back.
+
+Finally, your computer acknowledges the server to open the line.
+
+################ 3 roman-empire overview {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+The Roman Empire started as a small city-state in Italy and grew through military strength and smart alliances. It eventually transformed from a republic led by elected officials into a massive empire ruled by emperors.
+
+At its peak, Rome controlled the entire Mediterranean region, bringing peace, trade, and shared laws to millions of people.
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Roman Empire Milestones","kind":"timeline","events":[{"time":"509 BCE","label":"Roman Republic begins","detail":"Rome overthrows its kings and forms a republic."},{"time":"27 BCE","label":"Roman Empire starts","detail":"Augustus becomes the first emperor."},{"time":"476 CE","label":"Western Empire falls","detail":"Foreign invasions and internal decay collapse the west."}]}}
+```
+
+Over time, poor leadership, economic troubles, and constant invasions weakened the empire until it finally split and the western half collapsed.
+
+################ 4 gradient-descent overview {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+Gradient descent is a way to find the best settings for a task by taking small steps downhill.
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Finding the lowest point","caption":"worked example","kind":"coordinate-plot","x":{"label":"Position","min":0,"max":8,"unit":"steps"},"y":{"label":"Error","min":0,"max":12,"unit":"points"},"series":[{"label":"Error curve","kind":"line","points":[{"x":0,"y":10},{"x":2,"y":6},{"x":4,"y":3},{"x":6,"y":1},{"x":8,"y":2}]}]}}
+```
+
+Imagine standing on a hilly landscape in the fog and wanting to reach the lowest valley.
+
+By feeling which way slopes downward and taking a step, you eventually reach the bottom.
+
+################ 5 ml-trees-bootstrap-coverage balanced {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+When we build a bootstrap sample of size $n$ from $n$ rows by drawing with replacement, any single row is left out with probability $(1 - 1/n)$ on one draw.
+
+Across all $n$ independent draws, the chance that a specific row is never chosen is $(1 - 1/n)^n$.
+
+Look for the curve approaching the horizontal reference line in
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Bootstrap omission by training set size","caption":"Worked example. Omission with replacement is $(1-1/n)^n$. Samples rounded. Limit $1/e\\approx 0.368$ gives expected coverage $1-0.368=0.632$.","kind":"coordinate-plot","x":{"label":"Training rows n","min":1,"max":10,"integerTicks":true},"y":{"label":"Chance a row is omitted","min":0,"max":0.4},"series":[{"label":"Omission after n draws","kind":"line","points":[{"x":1,"y":0},{"x":2,"y":0.25},{"x":3,"y":0.296},{"x":4,"y":0.316},{"x":5,"y":0.328},{"x":6,"y":0.335},{"x":7,"y":0.34},{"x":8,"y":0.344},{"x":9,"y":0.346},{"x":10,"y":0.349}]}],"annotations":[{"kind":"reference-line","label":"Omission limit","axis":"y","value":0.368}]}}
+```
+
+, showing how the omission chance stabilizes near $0.368$ as $n$ grows large.
+
+As sample size $n$ increases, this expression approaches the limit $1/e \approx 0.368$ using the standard definition of the exponential constant.
+
+Because the omission probability is about $36.8\%$, the expected proportion of unique training rows included in the sample is the complement, $1 - 0.368 = 0.632$ or about $63\%$.
+
+################ 6 ref-box-plot-iqr-fences balanced {"provider":"fireworks","model":"accounts/fireworks/models/gpt-oss-120b"} google-low planner null null repaired false
+Consider a small data set plotted on a single numeric axis. The box‑plot below shows the five‑number summary: minimum, Q1, median, Q3, and maximum (the whisker ends).
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Illustrative box‑plot of a data set","caption":"Notice the quartiles, IQR‑based fences, whiskers and a single outlier.","kind":"box-plot","x":{"label":"Value","min":0,"max":20,"unit":"units"},"boxes":[{"label":"Sample","whiskerLow":4,"q1":6,"median":9,"q3":12,"whiskerHigh":14,"fences":{"lower":2,"upper":16},"outliers":[{"label":"Extreme","value":18}]}]}}
+```
+
+The inter‑quartile range (IQR) is Q3‑Q1, here $12-6=6$. Fences are placed 1.5 × IQR beyond each quartile, giving lower = 2 and upper = 16. Points beyond these fences are flagged as outliers, such as the value 18 shown.
+
+This visual ties all concepts to one common scale.
+
+################ 7 four-stroke balanced {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+A car engine converts chemical energy into mechanical motion through repeating cycles inside a cylinder. Each cycle uses four distinct piston movements called strokes to pull in fuel, burn it, and clear out exhaust.
+
+```rh-illustration
+{"version":1,"id":"pic-1","prompt":"Technical cutaway of a four-stroke internal combustion engine cylinder showing piston, valves, spark plug and connecting rod, with arrows for motion no text, labels, titles or icons","alt":"Cutaway view of a four-stroke engine cylinder","caption":"Piston motion inside the cylinder."}
+```
+
+The process begins with the intake stroke where the piston moves down, pulling an air and fuel mixture through an open valve.
+
+Next is the compression stroke, sealing the chamber and squeezing the mixture tight to prepare for ignition.
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Four-stroke cycle","kind":"cycle","steps":["Intake stroke draws air-fuel mixture","Compression stroke pressurizes mixture","Power stroke ignites fuel and drives piston down","Exhaust stroke pushes out burned gas"]}}
+```
+
+A spark plug then fires during the power stroke, forcing the piston down and turning the crankshaft to drive the wheels.
+
+Finally, the exhaust stroke pushes the burned gases out through an open exhaust valve to restart the cycle.
+
+################ 8 public-key-encryption balanced {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+When Alice wants to send a secret message to Bob over an insecure channel, she uses Bob's public key to encrypt the data.
+
+This key scrambles the message into ciphertext using a one-way mathematical trapdoor function that is easy to compute forward but hard to invert.
+
+```rh-diagram
+{"version":1,"diagram":{"title":"RSA Encryption Sequence","kind":"sequence","actors":[{"id":"alice","label":"Alice"},{"id":"bob","label":"Bob"}],"messages":[{"from":"bob","to":"alice","label":"Send public key"},{"from":"alice","to":"bob","label":"Send ciphertext encrypted with public key"}]}}
+```
+
+Only Bob possesses the corresponding private key required to reverse the operation and recover the original plaintext.
+
+The security relies on computational asymmetry, such as the difficulty of factoring large prime numbers.
+
+Because the public key cannot decrypt the ciphertext it generates, Bob can safely share it with anyone without compromising his private credentials.
+
+################ 9 softmax deep {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+The softmax function converts a vector of raw scores into a probability distribution. Each score $z_i$ is exponentized as $e^{z_i}$ to ensure all values are positive.
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Softmax Transformation","caption":"Mapping raw scores to probabilities","kind":"transformation","before":{"label":"Raw Scores ($z$)","items":["2.0","1.0","0.1"]},"after":{"label":"Probabilities ($p$)","items":["0.66","0.24","0.10"]},"operation":"Apply exponentiation and normalize by the sum","links":[{"from":0,"to":0,"label":"e^2.0"},{"from":1,"to":1,"label":"e^1.0"},{"from":2,"to":2,"label":"e^0.1"}]}}
+```
+
+These exponentized values are then divided by the sum of all exponentized scores. This normalization guarantees that the resulting probabilities sum exactly to $1$.
+
+################ 10 bst deep {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+A binary search tree organizes keys hierarchically so that each node satisfies a strict ordering invariant. For any given node, all keys in its left subtree are smaller, and all keys in its right subtree are larger.
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Insert 7 into the binary search tree","caption":"7 < 8, 7 > 3, and 7 > 6. The empty right slot below 6 receives 7.","kind":"tree","layout":"binary","nodes":[{"id":"eight","label":"8"},{"id":"three","label":"3","parent":"eight","side":"left","edgeLabel":"7 < 8"},{"id":"ten","label":"10","parent":"eight","side":"right"},{"id":"one","label":"1","parent":"three","side":"left"},{"id":"six","label":"6","parent":"three","side":"right","edgeLabel":"7 > 3"},{"id":"seven","label":"7","parent":"six","side":"right","edgeLabel":"7 > 6","detail":"Inserted key"}],"highlightPath":["eight","three","six","seven"]}}
+```
+
+Search operations begin at the root node and compare the target key against the current value. If the target is smaller, the search proceeds down the left child edge; if larger, it moves to the right child.
+
+This branching structure guarantees logarithmic time complexity $O(\log n)$ for searches, insertions, and deletions in a balanced tree. Each comparison halves the remaining search space.
+
+################ 11 water-cycle deep {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+Solar energy drives the global water cycle by heating surface water and causing evaporation into vapor. This vapor rises, cools, and undergoes condensation to form clouds containing tiny droplets.
+
+Eventually, precipitation returns the moisture to the earth as rain or snow.
+
+```rh-illustration
+{"version":1,"id":"pic-1","prompt":"A landscape with ocean, mountains, clouds, and rain arrows in realistic style","alt":"An illustration of the global water cycle showing oceans, clouds, and rain.","caption":"Water moves continuously between Earth's surface and the atmosphere."}
+```
+
+Runoff and groundwater flow collect this moisture into rivers and basins, completing the loop. The rate of evaporation $E$ depends on temperature and wind speed according to standard bulk aerodynamic formulas.
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Water cycle process","kind":"cycle","steps":["Evaporation from oceans","Condensation into clouds","Precipitation as rain or snow","Collection in rivers and oceans"]}}
+```
+
+Water constantly redistributes thermal energy and mass across the planet.
+
+################ 12 gradient-descent deep {"provider":"google","model":"gemini-3.5-flash-lite"} google-low planner null null repaired false
+Gradient descent is an iterative optimization algorithm used to find the minimum of a differentiable objective function $L(w)$.
+
+Starting from an initial parameter estimate $w_0$, the algorithm updates the weights by taking steps proportional to the negative of the gradient.
+
+The update rule is defined as $w_{t+1} = w_t - \eta \nabla L(w_t)$, where $\eta$ represents the learning rate.
+
+```rh-diagram
+{"version":1,"diagram":{"title":"Worked example of gradient descent steps","caption":"A descent path on a quadratic loss function.","kind":"coordinate-plot","x":{"label":"Weight 1","min":-3,"max":3},"y":{"label":"Weight 2","min":-3,"max":3},"series":[{"label":"Outer loss contour","kind":"line","points":[{"x":-2,"y":0},{"x":-1.4,"y":1.4},{"x":0,"y":2},{"x":1.4,"y":1.4},{"x":2,"y":0},{"x":1.4,"y":-1.4},{"x":0,"y":-2},{"x":-1.4,"y":-1.4},{"x":-2,"y":0}]},{"label":"Inner loss contour","kind":"line","points":[{"x":-1,"y":0},{"x":0,"y":1},{"x":1,"y":0},{"x":0,"y":-1},{"x":-1,"y":0}]}],"annotations":[{"kind":"vector","label":"Step 1","from":{"x":2.5,"y":2},"to":{"x":1.4,"y":1.1}},{"kind":"vector","label":"Step 2","from":{"x":1.4,"y":1.1},"to":{"x":0.6,"y":0.5}},{"kind":"vector","label":"Step 3","from":{"x":0.6,"y":0.5},"to":{"x":0,"y":0}}]}}
+```
+
+The choice of the learning rate $\eta$ governs how large each adjustment is during training. If $\eta$ is too large, the updates may overshoot the minimum and diverge.
+
+If $\eta$ is too small, convergence requires excessive computational steps.
